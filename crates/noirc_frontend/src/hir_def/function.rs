@@ -60,8 +60,8 @@ impl Parameters {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
-            let as_abi = param.1.as_abi_type(param.2);
-            (param_name, as_abi)
+            let as_abi = param.1.as_abi_type();
+            (param_name, as_abi, param.2)
         });
         noirc_abi::Abi { parameters }
     }
@@ -147,8 +147,8 @@ impl FuncMeta {
         let mut abi = self.parameters.into_abi(interner);
 
         if return_type != Type::Unit {
-            let typ = return_type.as_abi_type(self.return_visibility);
-            abi.parameters.push((MAIN_RETURN_NAME.into(), typ));
+            let typ = return_type.as_abi_type();
+            abi.parameters.push((MAIN_RETURN_NAME.into(), typ, self.return_visibility));
         }
 
         abi

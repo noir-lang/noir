@@ -27,10 +27,10 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// in programs, however it is possible to support, with many complications like encoding character set
 /// support.
 pub enum AbiType {
-    Field(AbiFEType),
-    Array { visibility: AbiFEType, length: u128, typ: Box<AbiType> },
-    Integer { visibility: AbiFEType, sign: Sign, width: u32 },
-    Struct { visibility: AbiFEType, fields: BTreeMap<String, AbiType> },
+    Field,
+    Array { length: u128, typ: Box<AbiType> },
+    Integer { sign: Sign, width: u32 },
+    Struct { fields: BTreeMap<String, AbiType> },
 }
 /// This is the same as the FieldElementType in AST, without constants.
 /// We don't want the ABI to depend on Noir, so types are not shared between the two
@@ -65,8 +65,8 @@ pub enum Sign {
 impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
-            AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array { visibility: _, length, typ: _ } => *length as usize,
+            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
         }
     }
@@ -74,27 +74,18 @@ impl AbiType {
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
-            AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array { visibility: _, length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
-        }
-    }
-
-    pub fn is_public(&self) -> bool {
-        match self {
-            AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
-            AbiType::Array { visibility, length: _, typ: _ } => visibility == &AbiFEType::Public,
-            AbiType::Integer { visibility, sign: _, width: _ } => visibility == &AbiFEType::Public,
-            AbiType::Struct { visibility, .. } => visibility == &AbiFEType::Public,
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Abi {
-    pub parameters: Vec<(String, AbiType)>,
+    pub parameters: Vec<(String, AbiType, AbiFEType)>,
 }
 
 impl Abi {
@@ -108,14 +99,17 @@ impl Abi {
 
     /// Returns the number of field elements required to represent the ABI's input once encoded.
     pub fn field_count(&self) -> u32 {
-        self.parameters.iter().map(|(_, typ)| typ.field_count()).sum()
+        self.parameters.iter().map(|(_, typ, _)| typ.field_count()).sum()
     }
 
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
-        let parameters: Vec<_> =
-            self.parameters.into_iter().filter(|(_, param_type)| param_type.is_public()).collect();
+        let parameters: Vec<_> = self
+            .parameters
+            .into_iter()
+            .filter(|(_, _, visibility)| visibility == &AbiFEType::Public)
+            .collect();
         Abi { parameters }
     }
 
@@ -128,7 +122,7 @@ impl Abi {
         let param_names = self.parameter_names();
         let mut encoded_inputs = Vec::new();
 
-        for (param_name, param_type) in self.parameters.iter() {
+        for (param_name, param_type, _) in self.parameters.iter() {
             let value = inputs
                 .get(param_name)
                 .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
@@ -208,7 +202,7 @@ impl Abi {
         let mut index = 0;
         let mut decoded_inputs = BTreeMap::new();
 
-        for (param_name, param_type) in &self.parameters {
+        for (param_name, param_type, _) in &self.parameters {
             let (next_index, decoded_value) =
                 Self::decode_value(index, encoded_inputs, param_type)?;
 
@@ -227,7 +221,7 @@ impl Abi {
         let mut index = initial_index;
 
         let value = match value_type {
-            AbiType::Field(_) | AbiType::Integer { .. } => {
+            AbiType::Field | AbiType::Integer { .. } => {
                 let field_element = encoded_inputs[index];
                 index += 1;
 
@@ -265,9 +259,9 @@ impl Serialize for Abi {
     {
         let vec: Vec<u8> = Vec::new();
         let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
-        for (param_name, param_type) in &self.parameters {
+        for (param_name, param_type, _) in &self.parameters {
             match param_type {
-                AbiType::Field(_) => map.serialize_entry(&param_name, "")?,
+                AbiType::Field => map.serialize_entry(&param_name, "")?,
                 AbiType::Array { .. } => map.serialize_entry(&param_name, &vec)?,
                 AbiType::Integer { .. } => map.serialize_entry(&param_name, "")?,
                 AbiType::Struct { .. } => map.serialize_entry(&param_name, "")?,

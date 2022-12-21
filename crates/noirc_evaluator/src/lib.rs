@@ -114,10 +114,11 @@ impl Evaluator {
         name: &str,
         def: DefinitionId,
         param_type: &AbiType,
+        visibility: &AbiFEType,
         igen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {
         match param_type {
-            AbiType::Field(visibility) => {
+            AbiType::Field => {
                 let witness = self.add_witness_to_cs();
                 if *visibility == AbiFEType::Public {
                     self.public_inputs.push(witness);
@@ -129,11 +130,11 @@ impl Evaluator {
                     Some(witness),
                 );
             }
-            AbiType::Array { visibility, length, typ } => {
+            AbiType::Array { length, typ } => {
                 let witnesses = self.generate_array_witnesses(visibility, length, typ)?;
                 igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
-            AbiType::Integer { visibility, sign: _, width } => {
+            AbiType::Integer { sign: _, width } => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)?;
                 if *visibility == AbiFEType::Public {
@@ -142,7 +143,7 @@ impl Evaluator {
                 let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
-            AbiType::Struct { visibility, fields } => {
+            AbiType::Struct { fields } => {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 let new_fields = btree_map(fields, |(inner_name, value)| {
                     let new_name = format!("{}.{}", name, inner_name);
@@ -171,14 +172,14 @@ impl Evaluator {
                         self.public_inputs.push(witness);
                     }
                 }
-                AbiType::Field(_) => {
+                AbiType::Field => {
                     let witness = self.add_witness_to_cs();
                     struct_witnesses.insert(name.clone(), vec![witness]);
                     if *visibility == AbiFEType::Public {
                         self.public_inputs.push(witness);
                     }
                 }
-                AbiType::Array { visibility: _, length, typ } => {
+                AbiType::Array { length, typ } => {
                     let internal_arr_witnesses =
                         self.generate_array_witnesses(visibility, length, typ)?;
                     struct_witnesses.insert(name.clone(), internal_arr_witnesses);
@@ -234,11 +235,11 @@ impl Evaluator {
         let abi_params = std::mem::take(&mut igen.program.abi.parameters);
         assert_eq!(main_params.len(), abi_params.len());
 
-        for ((param_id, _, param_name1, _), (param_name2, param_type)) in
+        for ((param_id, _, param_name1, _), (param_name2, param_type, visibility)) in
             main_params.iter().zip(abi_params)
         {
             assert_eq!(param_name1, &param_name2);
-            self.param_to_var(param_name1, *param_id, &param_type, igen).unwrap();
+            self.param_to_var(param_name1, *param_id, &param_type, &visibility, igen).unwrap();
         }
     }
 }
