@@ -84,13 +84,26 @@ impl AbiType {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct AbiParameter {
+    pub name: String,
+    pub typ: AbiType,
+    pub visibility: AbiFEType,
+}
+
+impl AbiParameter {
+    pub fn is_public(&self) -> bool {
+        self.visibility == AbiFEType::Public
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct Abi {
-    pub parameters: Vec<(String, AbiType, AbiFEType)>,
+    pub parameters: Vec<AbiParameter>,
 }
 
 impl Abi {
     pub fn parameter_names(&self) -> Vec<&String> {
-        self.parameters.iter().map(|x| &x.0).collect()
+        self.parameters.iter().map(|x| &x.name).collect()
     }
 
     pub fn num_parameters(&self) -> usize {
@@ -99,17 +112,14 @@ impl Abi {
 
     /// Returns the number of field elements required to represent the ABI's input once encoded.
     pub fn field_count(&self) -> u32 {
-        self.parameters.iter().map(|(_, typ, _)| typ.field_count()).sum()
+        self.parameters.iter().map(|param| param.typ.field_count()).sum()
     }
 
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
-        let parameters: Vec<_> = self
-            .parameters
-            .into_iter()
-            .filter(|(_, _, visibility)| visibility == &AbiFEType::Public)
-            .collect();
+        let parameters: Vec<_> =
+            self.parameters.into_iter().filter(|param| param.is_public()).collect();
         Abi { parameters }
     }
 
@@ -122,28 +132,24 @@ impl Abi {
         let param_names = self.parameter_names();
         let mut encoded_inputs = Vec::new();
 
-        for (param_name, param_type, _) in self.parameters.iter() {
+        for param in self.parameters.iter() {
             let value = inputs
-                .get(param_name)
-                .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
+                .get(&param.name)
+                .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
                 .clone();
 
-            if !value.matches_abi(param_type) {
-                return Err(AbiError::TypeMismatch {
-                    param_name: param_name.to_string(),
-                    param_type: param_type.to_owned(),
-                    value,
-                });
+            if !value.matches_abi(&param.typ) {
+                return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
             }
 
             // As the circuit calculates the return value in the process of calculating rest of the witnesses
             // it's not absolutely necessary to provide them as inputs. We then tolerate an undefined value for
             // the return value input and just skip it.
             if allow_undefined_return
-                && param_name == MAIN_RETURN_NAME
+                && param.name == MAIN_RETURN_NAME
                 && matches!(value, InputValue::Undefined)
             {
-                let return_witness_len = param_type.field_count();
+                let return_witness_len = param.typ.field_count();
 
                 // We do not support undefined arrays for now - TODO
                 if return_witness_len != 1 {
@@ -156,7 +162,7 @@ impl Abi {
                 }
             }
 
-            encoded_inputs.extend(Self::encode_value(value, param_name)?);
+            encoded_inputs.extend(Self::encode_value(value, &param.name)?);
         }
 
         // Check that no extra witness values have been provided.
@@ -202,11 +208,11 @@ impl Abi {
         let mut index = 0;
         let mut decoded_inputs = BTreeMap::new();
 
-        for (param_name, param_type, _) in &self.parameters {
+        for param in &self.parameters {
             let (next_index, decoded_value) =
-                Self::decode_value(index, encoded_inputs, param_type)?;
+                Self::decode_value(index, encoded_inputs, &param.typ)?;
 
-            decoded_inputs.insert(param_name.to_owned(), decoded_value);
+            decoded_inputs.insert(param.name.to_owned(), decoded_value);
 
             index = next_index;
         }
@@ -259,12 +265,12 @@ impl Serialize for Abi {
     {
         let vec: Vec<u8> = Vec::new();
         let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
-        for (param_name, param_type, _) in &self.parameters {
-            match param_type {
-                AbiType::Field => map.serialize_entry(&param_name, "")?,
-                AbiType::Array { .. } => map.serialize_entry(&param_name, &vec)?,
-                AbiType::Integer { .. } => map.serialize_entry(&param_name, "")?,
-                AbiType::Struct { .. } => map.serialize_entry(&param_name, "")?,
+        for param in &self.parameters {
+            match param.typ {
+                AbiType::Field => map.serialize_entry(&param.name, "")?,
+                AbiType::Array { .. } => map.serialize_entry(&param.name, &vec)?,
+                AbiType::Integer { .. } => map.serialize_entry(&param.name, "")?,
+                AbiType::Struct { .. } => map.serialize_entry(&param.name, "")?,
             };
         }
         map.end()

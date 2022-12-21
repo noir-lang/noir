@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiFEType, MAIN_RETURN_NAME};
+use noirc_abi::{Abi, AbiFEType, AbiParameter, MAIN_RETURN_NAME};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -61,7 +61,7 @@ impl Parameters {
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
             let as_abi = param.1.as_abi_type();
-            (param_name, as_abi, param.2)
+            AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
         });
         noirc_abi::Abi { parameters }
     }
@@ -147,8 +147,12 @@ impl FuncMeta {
         let mut abi = self.parameters.into_abi(interner);
 
         if return_type != Type::Unit {
-            let typ = return_type.as_abi_type();
-            abi.parameters.push((MAIN_RETURN_NAME.into(), typ, self.return_visibility));
+            let return_param = AbiParameter {
+                name: MAIN_RETURN_NAME.into(),
+                typ: return_type.as_abi_type(),
+                visibility: self.return_visibility,
+            };
+            abi.parameters.push(return_param);
         }
 
         abi
