@@ -1386,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.1.0"
+version = "0.10.0"
 dependencies = [
  "acvm",
  "console_error_panic_hook",
