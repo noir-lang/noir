@@ -1,23 +1,32 @@
 #pragma once
 #include <array>
 #include <algorithm>
-#include <stddef.h>
 #include "univariate.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-namespace honk {
-namespace sumcheck {
+/* IMPROVEMENT(Cody): This could or should be improved in various ways. In no particular order:
+   1) Edge cases are not considered. One non-use case situation (I forget which) leads to a segfault.
+
+   2) This could all be constexpr.
+
+   3) Precomputing for all possible size pairs is probably feasible and might be a better solution than instantiating
+   many instances separately. Then perhaps we could infer input type to `extend`.
+
+   4) There should be more thorough testing of this class in isolation.
+ */
+namespace honk::sumcheck {
 
 /**
  * NOTE: We should definitely consider question of optimal choice of domain, but if decide on {0,1,...,t-1} then we can
  * simplify the implementation a bit.
+ * NOTE: if we use this approach in the recursive setting, will use Plookup?
  */
 template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData {
   public:
     static constexpr size_t big_domain_size = std::max(domain_size, num_evals);
-    // TODO: these should be static, also constexpr, but arrays are not constexpr
+    // TODO(Cody): these should be static, also constexpr, but arrays are not constexpr
     std::array<Fr, big_domain_size> big_domain;
     std::array<Fr, domain_size> lagrange_denominators;
     std::array<Fr, domain_size * num_evals> precomputed_denominator_inverses;
@@ -141,5 +150,4 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData 
         return result;
     };
 };
-} // namespace sumcheck
-} // namespace honk
+} // namespace honk::sumcheck

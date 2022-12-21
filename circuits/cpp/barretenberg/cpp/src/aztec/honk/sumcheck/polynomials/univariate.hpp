@@ -1,17 +1,16 @@
 #pragma once
 #include <array>
 #include <span>
-#include <algorithm>
-#include <stddef.h>
+#include <ostream>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-namespace honk {
-namespace sumcheck {
+namespace honk::sumcheck {
 
 template <class Fr, size_t view_length> class UnivariateView;
 
+// TODO(Cody): This violates Rule of Five
 template <class Fr, size_t _length> class Univariate {
   public:
     static constexpr size_t LENGTH = _length;
@@ -187,6 +186,22 @@ template <class Fr, size_t _length> class Univariate {
         res *= view;
         return res;
     }
+
+    // Output is immediately parsable as a list of integers by Python.
+    friend std::ostream& operator<<(std::ostream& os, const Univariate& u)
+    {
+        os << "[";
+        os << u.evaluations[0] << "," << std::endl;
+        for (size_t i = 1; i < u.evaluations.size(); i++) {
+            os << " " << u.evaluations[i];
+            if (i + 1 < u.evaluations.size()) {
+                os << "," << std::endl;
+            } else {
+                os << "]";
+            };
+        }
+        return os;
+    }
 };
 
 template <class Fr, size_t view_length> class UnivariateView {
@@ -257,5 +272,4 @@ template <class Fr, size_t view_length> class UnivariateView {
         return res;
     }
 };
-} // namespace sumcheck
-} // namespace honk
+} // namespace honk::sumcheck

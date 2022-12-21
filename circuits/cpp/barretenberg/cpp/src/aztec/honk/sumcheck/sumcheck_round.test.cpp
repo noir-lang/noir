@@ -1,10 +1,13 @@
-#include "./transcript.hpp"
-#include "./sumcheck_round.hpp"
-#include "./sumcheck_types/constraint.hpp"
-#include "./sumcheck_types/arithmetic_constraint.hpp"
-#include "./sumcheck_types/multivariates.hpp"
-#include "./sumcheck_types/univariate.hpp"
-#include "./sumcheck_types/challenge_container.hpp"
+#include "../flavor/flavor.hpp"
+#include "transcript.hpp"
+#include "sumcheck_round.hpp"
+#include "relations/relation.hpp"
+#include "relations/arithmetic_relation.hpp"
+#include "relations/grand_product_computation_relation.hpp"
+#include "relations/grand_product_initialization_relation.hpp"
+#include "polynomials/multivariates.hpp"
+#include "polynomials/univariate.hpp"
+#include "challenge_container.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 #include <numeric/random/engine.hpp>
 
@@ -12,9 +15,6 @@
 
 #include <common/mem.hpp>
 #include <gtest/gtest.h>
-
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 using namespace honk;
 using namespace honk::sumcheck;
@@ -27,166 +27,131 @@ template <class Fr> class MockTranscript : public Transcript<Fr> {
 
 namespace test_sumcheck_round {
 
-TEST(Sumcheck, ComputeUnivariateProverMock)
+TEST(SumcheckRound, ComputeUnivariateProver)
 {
-    // arithmetic constraint G is deegree 3 in 8 variables
-    // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-    const size_t num_polys(MULTIVARIATE::COUNT);
+    const size_t num_polys(StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
-    const size_t multivariate_n(1 << multivariate_d);
-    const size_t constraint_degree_plus_one = 5; // TODO(cody) extract from widget
+    const size_t max_relation_length = 5;
 
-    class SumcheckTypes {
-      public:
-        using Fr = barretenberg::fr;
-        // using Univariate = Univariate;
-        using Multivariates = ::Multivariates<Fr, num_polys, multivariate_d>;
-        using ChallengeContainer =
-            ::ChallengeContainer<Fr, MockTranscript<Fr>, Univariate<Fr, constraint_degree_plus_one>>;
+    using FF = barretenberg::fr;
+    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    using ChallengeContainer = ::ChallengeContainer<FF, MockTranscript<FF>, Univariate<FF, max_relation_length>>;
+
+    std::array<FF, 2> w_l = { 1, 2 };
+    std::array<FF, 2> w_r = { 1, 2 };
+    std::array<FF, 2> w_o = { 1, 2 };
+    std::array<FF, 2> z_perm = { 1, 2 };
+    std::array<FF, 2> z_perm_shift = { 0, 1 }; // chosen to reuse value computed in tests of grand product relations
+    std::array<FF, 2> q_m = { 1, 2 };
+    std::array<FF, 2> q_l = { 1, 2 };
+    std::array<FF, 2> q_r = { 1, 2 };
+    std::array<FF, 2> q_o = { 1, 2 };
+    std::array<FF, 2> q_c = { 1, 2 };
+    std::array<FF, 2> sigma_1 = { 1, 2 };
+    std::array<FF, 2> sigma_2 = { 1, 2 };
+    std::array<FF, 2> sigma_3 = { 1, 2 };
+    std::array<FF, 2> id_1 = { 1, 2 };
+    std::array<FF, 2> id_2 = { 1, 2 };
+    std::array<FF, 2> id_3 = { 1, 2 };
+    std::array<FF, 2> lagrange_1 = { 1, 2 };
+
+    std::array<std::span<FF>, StandardArithmetization::NUM_POLYNOMIALS> full_polynomials = {
+        w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
+        q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1
     };
 
-    SumcheckTypes::Fr w_l[2] = { 1, 2 };
-    SumcheckTypes::Fr w_r[2] = { 1, 2 };
-    SumcheckTypes::Fr w_o[2] = { 1, 2 };
-    SumcheckTypes::Fr z_perm[2] = { 1, 2 };
-    SumcheckTypes::Fr z_perm_shift[2] = { 1, 2 };
-    SumcheckTypes::Fr q_m[2] = { 1, 2 };
-    SumcheckTypes::Fr q_l[2] = { 1, 2 };
-    SumcheckTypes::Fr q_r[2] = { 1, 2 };
-    SumcheckTypes::Fr q_o[2] = { 1, 2 };
-    SumcheckTypes::Fr q_c[2] = { 1, 2 };
-    SumcheckTypes::Fr sigma_1[2] = { 1, 2 };
-    SumcheckTypes::Fr sigma_2[2] = { 1, 2 };
-    SumcheckTypes::Fr sigma_3[2] = { 1, 2 };
-    SumcheckTypes::Fr id_1[2] = { 1, 2 };
-    SumcheckTypes::Fr id_2[2] = { 1, 2 };
-    SumcheckTypes::Fr id_3[2] = { 1, 2 };
-    SumcheckTypes::Fr lagrange_1[2] = { 1, 2 };
-
-    std::array<SumcheckTypes::Fr*, SumcheckTypes::Multivariates::num> full_polynomials({ w_l,
-                                                                                         w_r,
-                                                                                         w_o,
-                                                                                         z_perm,
-                                                                                         z_perm_shift,
-                                                                                         q_m,
-                                                                                         q_l,
-                                                                                         q_r,
-                                                                                         q_o,
-                                                                                         q_c,
-                                                                                         sigma_1,
-                                                                                         sigma_2,
-                                                                                         sigma_3,
-                                                                                         id_1,
-                                                                                         id_2,
-                                                                                         id_3,
-                                                                                         lagrange_1 });
-
-    auto multivariates = SumcheckTypes::Multivariates(full_polynomials);
-
-    auto transcript = MockTranscript<SumcheckTypes::Fr>(); // actually a shared pointer to a transcript?
-    auto challenges = SumcheckTypes::ChallengeContainer(transcript);
-
+    auto transcript = MockTranscript<FF>();
+    auto challenges = ChallengeContainer(transcript);
     size_t round_size = 1;
-    // call SumcheckRound with one constraint
-    auto round = SumcheckRound<SumcheckTypes, ArithmeticConstraint>(multivariates, challenges);
-    Univariate<SumcheckTypes::Fr, constraint_degree_plus_one> restriction =
-        round.compute_initial_univariate_restriction(multivariates, challenges);
-    Univariate<SumcheckTypes::Fr, constraint_degree_plus_one> expected_restriction{ { 5, 22, 57, 116, 205 } };
-    EXPECT_EQ(restriction, expected_restriction);
+
+    auto relations = std::tuple(ArithmeticRelation<FF>(challenges),
+                                GrandProductComputationRelation<FF>(challenges),
+                                GrandProductInitializationRelation<FF>(challenges));
+
+    // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
+    auto round = SumcheckRound<FF,
+                               Multivariates::num,
+                               ArithmeticRelation,
+                               GrandProductComputationRelation,
+                               GrandProductInitializationRelation>(round_size, relations);
+    FF relation_separator_challenge = 1;
+    Univariate<FF, max_relation_length> round_univariate =
+        round.compute_univariate(full_polynomials, relation_separator_challenge);
+    Univariate<FF, max_relation_length> expected_round_univariate{ { 32, 149, 406, 857, 1556 } };
+
+    EXPECT_EQ(round_univariate, expected_round_univariate);
 }
 
-TEST(Sumcheck, ComputeUnivariateVerifierMock)
+TEST(SumcheckRound, ComputeUnivariateVerifier)
 {
-    // arithmetic constraint G is deegree 3 in 8 variables
-    // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-    const size_t num_polys(MULTIVARIATE::COUNT);
+    const size_t num_polys(StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
-    const size_t constraint_degree_plus_one = 5; // TODO(cody) extract from widget
+    const size_t max_relation_length = 5;
 
-    class SumcheckTypes {
-      public:
-        using Fr = barretenberg::fr;
-        // using Univariate = Univariate;
-        using Multivariates = ::Multivariates<Fr, num_polys, multivariate_d>;
-        using ChallengeContainer =
-            ::ChallengeContainer<Fr, MockTranscript<Fr>, Univariate<Fr, constraint_degree_plus_one>>;
-    };
+    using FF = barretenberg::fr;
+    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    using ChallengeContainer = ::ChallengeContainer<FF, MockTranscript<FF>, Univariate<FF, max_relation_length>>;
 
-    SumcheckTypes::Fr w_l = { 1 };
-    SumcheckTypes::Fr w_r = { 2 };
-    SumcheckTypes::Fr w_o = { 3 };
-    SumcheckTypes::Fr z_perm = { 0 };
-    SumcheckTypes::Fr z_perm_shift = { 0 };
-    SumcheckTypes::Fr q_m = { 4 };
-    SumcheckTypes::Fr q_l = { 5 };
-    SumcheckTypes::Fr q_r = { 6 };
-    SumcheckTypes::Fr q_o = { 7 };
-    SumcheckTypes::Fr q_c = { 8 };
-    SumcheckTypes::Fr sigma_1 = { 0 };
-    SumcheckTypes::Fr sigma_2 = { 0 };
-    SumcheckTypes::Fr sigma_3 = { 0 };
-    SumcheckTypes::Fr id_1 = { 0 };
-    SumcheckTypes::Fr id_2 = { 0 };
-    SumcheckTypes::Fr id_3 = { 0 };
-    SumcheckTypes::Fr lagrange_1 = { 0 };
+    FF w_l = { 1 };
+    FF w_r = { 2 };
+    FF w_o = { 3 };
+    // TODO(Cody): compute permutation value?
+    FF z_perm = { 0 };
+    FF z_perm_shift = { 0 };
+    FF q_m = { 4 };
+    FF q_l = { 5 };
+    FF q_r = { 6 };
+    FF q_o = { 7 };
+    FF q_c = { 8 };
+    FF sigma_1 = { 0 };
+    FF sigma_2 = { 0 };
+    FF sigma_3 = { 0 };
+    FF id_1 = { 0 };
+    FF id_2 = { 0 };
+    FF id_3 = { 0 };
+    FF lagrange_1 = { 0 };
 
     // 4 * 1 * 2 + 5 * 1 + 6 * 2 + 7 * 3 + 8 = 54
-    SumcheckTypes::Fr expected_full_purported_value = 54;
-    std::array<SumcheckTypes::Fr, SumcheckTypes::Multivariates::num> purported_evaluations({ w_l,
-                                                                                             w_r,
-                                                                                             w_o,
-                                                                                             z_perm,
-                                                                                             z_perm_shift,
-                                                                                             q_m,
-                                                                                             q_l,
-                                                                                             q_r,
-                                                                                             q_o,
-                                                                                             q_c,
-                                                                                             sigma_1,
-                                                                                             sigma_2,
-                                                                                             sigma_3,
-                                                                                             id_1,
-                                                                                             id_2,
-                                                                                             id_3,
-                                                                                             lagrange_1 });
+    FF expected_full_purported_value = 54;
+    std::vector<FF> purported_evaluations = { w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
+                                              q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1 };
 
-    auto transcript = MockTranscript<SumcheckTypes::Fr>(); // actually a shared pointer to a transcript?
-    auto challenges = SumcheckTypes::ChallengeContainer(transcript);
+    auto transcript = MockTranscript<FF>();
+    auto challenges = ChallengeContainer(transcript);
 
     size_t round_size = 1;
-    // call SumcheckRound with one constraint
-    auto round = SumcheckRound<SumcheckTypes, ArithmeticConstraint>(purported_evaluations, challenges);
-    SumcheckTypes::Fr full_purported_value = round.compute_full_honk_constraint_purported_value(challenges);
+    auto relations = std::tuple(ArithmeticRelation<FF>(challenges),
+                                GrandProductComputationRelation<FF>(challenges),
+                                GrandProductInitializationRelation<FF>(challenges));
+    auto round = SumcheckRound<FF,
+                               Multivariates::num,
+                               ArithmeticRelation,
+                               GrandProductComputationRelation,
+                               GrandProductInitializationRelation>(relations);
+    FF relation_separator_challenge = -1;
+    FF full_purported_value =
+        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_separator_challenge);
     EXPECT_EQ(full_purported_value, expected_full_purported_value);
 }
 
+// TODO(Cody): Implement this and better tests.
 // TEST(sumcheck, round)
 // {
-//     // arithmetic constraint G is deegree 3 in 8 variables
+//     // arithmetic relation G is deegree 3 in 8 variables
 //     // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-//     const size_t num_polys(MULTIVARIATE::COUNT);
+//     const size_t num_polys(StandardArithmetization::NUM_POLYNOMIALS);
 //     const size_t multivariate_d(2);
 //     const size_t multivariate_n(1 << multivariate_d);
-//     const size_t constraint_degree_plus_one = 5;
+//     const size_t max_relation_length = 5;
 
 //     using Fr = barretenberg::fr;
 //     using Edge = Edge<Fr>;
 //     using EdgeGroup = EdgeGroup<Fr, num_polys>;
 //     using Multivariates = Multivariates<Fr, num_polys, multivariate_d>;
-//     using Univariate = Univariate<Fr, constraint_degree_plus_one>;
+//     using Univariate = Univariate<Fr, max_relation_length>;
 //     using ChallengeContainer = ChallengeContainer<Fr, MockTranscript<Fr>, Univariate>;
-
-//     class SumcheckTypes {
-//       public:
-//         using Fr = Fr;
-//         using EdgeGroup = EdgeGroup;
-//         using Multivariates = Multivariates;
-//         using ChallengeContainer = ChallengeContainer;
-//         using Univariate = Univariate;
-//     };
-
-//     // TODO(cody): move this out of round.
+//     // TODO(Cody): move this out of round.
 //     EdgeGroup group0({ Edge({ 1, 2 }),
 //                        Edge({ 1, 2 }),
 //                        Edge({ 1, 2 }),
@@ -206,11 +171,11 @@ TEST(Sumcheck, ComputeUnivariateVerifierMock)
 //                        Edge({ 7, 8 }) });
 
 //     auto polynomials = Multivariates({ group0, group1 });
-//     auto constraints = std::make_tuple(ArithmeticConstraint<Fr>());
+//     auto relations = std::make_tuple(ArithmeticRelation<Fr>());
 //     auto transcript = MockTranscript<Fr>(); // actually a shared pointer to a transcript?
 //     auto challenges = ChallengeContainer(transcript);
 
-//     auto round = SumcheckRound<SumcheckTypes, ArithmeticConstraint>(polynomials, constraints, challenges);
+//     auto round = SumcheckRound<..., ArithmeticRelation>(polynomials, relations, challenges);
 //     // The values of the univariate restriction S2 created in the first round
 //     // are the sum of a contribution form group0 and a contribution from group1.
 //     // Using Sage;
@@ -244,78 +209,4 @@ TEST(Sumcheck, ComputeUnivariateVerifierMock)
 //     EXPECT_EQ(round.round_size, 1);
 // }
 
-// TEST(sumcheck, round_from_pointers)
-// {
-//     // arithmetic constraint G is deegree 3 in 8 variables
-//     // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-//     const size_t num_polys(MULTIVARIATE::COUNT);
-//     const size_t multivariate_d(2);
-//     const size_t multivariate_n(1 << multivariate_d);
-//     const size_t constraint_degree_plus_one = 5;
-
-//     using Fr = barretenberg::fr;
-//     using Edge = Edge<Fr>;
-//     using EdgeGroup = EdgeGroup<Fr, num_polys>;
-//     using Multivariates = Multivariates<Fr, num_polys, multivariate_d>;
-//     using ChallengeContainer = ChallengeContainer<Fr, MockTranscript<Fr>, Univariate<Fr,
-//     constraint_degree_plus_one>>;
-
-//     class SumcheckTypes {
-//       public:
-//         using Fr = Fr;
-//         using EdgeGroup = EdgeGroup;
-//         using Multivariates = Multivariates;
-//         using ChallengeContainer = ChallengeContainer;
-//         using Univariate = Univariate<Fr, constraint_degree_plus_one>;
-//     };
-
-//     Fr w_l[4] = { 1, 2, 7, 8 };
-//     Fr w_r[4] = { 1, 2, 7, 8 };
-//     Fr w_o[4] = { 1, 2, 7, 8 };
-//     Fr q_l[4] = { 1, 2, 7, 8 };
-//     Fr q_m[4] = { 1, 2, 7, 8 };
-//     Fr q_r[4] = { 1, 2, 7, 8 };
-//     Fr q_o[4] = { 1, 2, 7, 8 };
-//     Fr q_c[4] = { 1, 2, 7, 8 };
-
-//     std::array<Fr*, num_polys> input_polys = { w_l, w_r, w_o, q_l, q_m, q_r, q_o, q_c };
-
-//     auto polynomials = Multivariates(input_polys);
-//     auto constraints = std::make_tuple(ArithmeticConstraint<Fr>());
-//     auto transcript = MockTranscript<Fr>(); // actually a shared pointer to a transcript?
-//     auto challenges = ChallengeContainer(transcript);
-
-//     auto round = SumcheckRound<SumcheckTypes, ArithmeticConstraint>(polynomials, constraints, challenges);
-//     // The values of the univariate restriction S2 created in the first round
-//     // are the sum of a contribution form group0 and a contribution from group1.
-//     // Using Sage;
-//     //    group0 contributes: [5, 22, 57, 116]
-//     //    group1 contributes: [497, 712, 981, 1310]
-//     // Therefore the values of S2 on {0, 1, 2, 3} are: [502, 734, 1038, 1426]
-//     // and S2(0) + S2(1) = 502 + 734 = 1236
-//     round.target_total_sum = 1236;
-//     EXPECT_EQ(round.round_size, 2);
-//     /*
-//     Folding with u2 = -1
-//     2 -------- 8
-//     |          |
-//     |    Yi    |
-//     | i=1...8  |
-//     1 -------- 7        ~~>  0 -------- 6
-//     (2(1-X1)+8X1)  X2         0(1-X1)+6X1
-//    +(1(1-X1)+7X1)(1-X2)
-//  */
-//     round.execute();
-//     //     EdgeGroup expected_group0({ Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }),
-//     //                                 Edge({ 0, 6 }) });
-//     //     EXPECT_EQ(expected_group0, round.polynomials.groups[0]);
-//     //     ASSERT_FALSE(round.failed);
-//     //     EXPECT_EQ(round.round_size, 1);
-// }
 } // namespace test_sumcheck_round

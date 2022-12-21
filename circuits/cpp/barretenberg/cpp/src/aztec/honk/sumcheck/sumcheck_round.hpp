@@ -1,13 +1,10 @@
 #include <common/log.hpp>
-#include <cstddef>
 #include <array>
-#include <vector>
+#include <algorithm>
 #include <tuple>
-#include "./sumcheck_types/univariate.hpp"
-#include "./sumcheck_types/constraint_manager.hpp"
-#include "./sumcheck_types/barycentric_data.hpp"
-namespace honk {
-namespace sumcheck {
+#include "polynomials/barycentric_data.hpp"
+#include "polynomials/univariate.hpp"
+namespace honk::sumcheck {
 
 /*
  Notation: The polynomial P(X1, X2) that is the low-degree extension of its values vij = P(i,j)
@@ -25,293 +22,230 @@ namespace sumcheck {
     3 -------- 7   4 -------- 8
     |          |   |          | Let F(X1, X2) = G(Y1, Y2) =     G0(Y1(X1, X2) + Y2(X1, X2))
     |    Y1    |   |    Y2    |                             + α G1(Y1(X1, X2) + Y2(X1, X2)),
-    |          |   |          |  where the constraints are G0(Y1, Y2) = Y1 * Y2
-    1 -------- 5   2 -------- 6                        and G1(Y1, Y2) = Y1 + Y2.
+    |          |   |          |  where the relations are G0(Y1, Y2) = Y1 * Y2
+    1 -------- 5   2 -------- 6                      and G1(Y1, Y2) = Y1 + Y2.
 
- G itself is represented by a SumcheckRound class.
- G1, G2 together comprise the ConstraintPack.
- The polynomials Y1, Y2 are stored as two edge groups:
-               3     4                         7     8
-one containing | and |  and another containing | and | .
-               1     2                         5     6
-The rationale here is that both folding and evaluation will proceed one edge group at a time.
+ G1, G2 together comprise the Relations.
+
+ In the first round, the computations will relate elements along veritcal lines. As a mnemonic, we
+ use the term "edge" for the linear, univariate polynomials corresponding to the four lines
+  3   4   7   8
+  | , | , | , | .
+  1   2   5   6
+
+ The polynomials Y1, Y2 are stored in an array in Multivariates. In the first round, these are arrays
+ of spans living outside of the Multivariates object, and in sebsequent rounts these are arrays of field
+ elements that are stored in the Multivariates. The rationale for adopting this model is to
+ avoid copying the full-length polynomials; this way, the largest polynomial array stores in a
+ Multivariates class is multivariates_n/2.
  */
 
-template <class SumcheckTypes, template <class> class... ConstraintPack> class SumcheckRound {
-    using Fr = typename SumcheckTypes::Fr;
-    using Multivariates = typename SumcheckTypes::Multivariates;
-    using ChallengeContainer = typename SumcheckTypes::ChallengeContainer;
+template <class FF, size_t num_multivariates, template <class> class... Relations> class SumcheckRound {
 
   public:
-    size_t round_size;
-    bool failed = false;
-    Fr target_total_sum;
-    Multivariates multivariates;
-    std::array<Fr, Multivariates::num> purported_evaluations;
-    ConstraintManager<ConstraintPack<Fr>...> constraint_manager; // TODO(cody); move more evals, maybe more, into here
-    ChallengeContainer challenges;
-    static constexpr size_t SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE =
-        5; // TODO(luke): This value is independently defined in multiple locations
-    BarycentricData<Fr, 2, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> barycentric =
-        BarycentricData<Fr, 2, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>();
-    std::array<Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>, Multivariates::num> edge_extensions;
-    std::array<Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>, Multivariates::num> extended_univariates;
-    static constexpr size_t NUM_CONSTRAINTS = sizeof...(ConstraintPack);
+    bool round_failed = false;
+    size_t round_size; // a power of 2
 
-    SumcheckRound(Multivariates multivariates, ChallengeContainer challenges)
-        : multivariates(multivariates)
-        , challenges(challenges)
-    {
-        // TODO: test edge case
-        // Here (and everywhere?) multivariate_n is assumed to be a power of 2
-        // will be halved after each round
-        round_size = multivariates.multivariate_n;
-    }
+    std::tuple<Relations<FF>...> relations;
+    static constexpr size_t NUM_RELATIONS = sizeof...(Relations);
+    static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
 
-    SumcheckRound(std::array<Fr, Multivariates::num> purported_evaluations, ChallengeContainer challenges)
-        : purported_evaluations(purported_evaluations)
-        , challenges(challenges)
+    FF target_total_sum = 0;
+
+    // TODO(Cody): this barycentric stuff should be more built-in?
+    std::tuple<BarycentricData<FF, Relations<FF>::RELATION_LENGTH, MAX_RELATION_LENGTH>...> barycentric_utils;
+    std::tuple<Univariate<FF, Relations<FF>::RELATION_LENGTH>...> univariate_accumulators;
+    std::array<FF, NUM_RELATIONS> evaluations;
+    std::array<Univariate<FF, MAX_RELATION_LENGTH>, num_multivariates> extended_edges;
+    std::array<Univariate<FF, MAX_RELATION_LENGTH>, num_multivariates> extended_univariates;
+
+    // TODO(Cody): this should go away and we should use constexpr method to extend
+    BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
+
+    // Prover constructor
+    SumcheckRound(size_t initial_round_size, auto relations) // TOPO: want auto&& relations
+        : round_size(initial_round_size)
+        , relations(relations)
+        , barycentric_utils(BarycentricData<FF, Relations<FF>::RELATION_LENGTH, MAX_RELATION_LENGTH>()...)
+        , univariate_accumulators(Univariate<FF, Relations<FF>::RELATION_LENGTH>()...)
     {}
 
+    // Verifier constructor
+    explicit SumcheckRound(auto relations)
+        : relations(relations)
+        // TODO(Cody): this is a hack; accumulators not needed by verifier
+        , univariate_accumulators(Univariate<FF, Relations<FF>::RELATION_LENGTH>()...)
+    {
+        // FF's default constructor may not initialize to zero (e.g., barretenberg::fr), hence we can't rely on
+        // aggregate initialization of the evaluations array.
+        std::fill(evaluations.begin(), evaluations.end(), 0);
+    };
+
+    // IMPROVEMENT(Cody): This is kind of ugly. There should be a one-liner with folding
+    // or std::apply or something.
+
     /**
-     * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_CONSTRAINTS-1}) and a challenge α,
-     * modify the tuple in place to (t_0, αt_1, ..., α^{NUM_CONSTRAINTS-1}t_{NUM_CONSTRAINTS-1}).
+     * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
+     * modify the tuple in place to (t_0, αt_1, ..., α^{NUM_RELATIONS-1}t_{NUM_RELATIONS-1}).
      */
-    template <size_t idx = 0> void scale_tuple(auto& tuple, Fr challenge, Fr running_challenge)
+    template <size_t idx = 0> void scale_tuple(auto& tuple, FF challenge, FF running_challenge)
     {
         std::get<idx>(tuple) *= running_challenge;
         running_challenge *= challenge;
-        if constexpr (idx + 1 < NUM_CONSTRAINTS) {
+        if constexpr (idx + 1 < NUM_RELATIONS) {
             scale_tuple<idx + 1>(tuple, challenge, running_challenge);
         }
     };
     /**
-     * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_CONSTRAINTS-1}) and a challenge α,
-     * return t_0 + αt_1 + ... + α^{NUM_CONSTRAINTS-1}t_{NUM_CONSTRAINTS-1}).
+     * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
+     * return t_0 + αt_1 + ... + α^{NUM_RELATIONS-1}t_{NUM_RELATIONS-1}).
+     *
+     * @tparam T : In practice, this is an FF or a Univariate<FF, MAX_NUM_RELATIONS>.
      */
-    template <typename T> T batch_over_constraints(auto& tuple, Fr challenge)
+    template <typename T> T batch_over_relations(auto& tuple, FF challenge)
     {
-        Fr running_challenge = 1;
+        FF running_challenge = 1;
         scale_tuple<>(tuple, challenge, running_challenge);
         extend_univariate_accumulators<>();
         auto result = T();
-        // T result = std::apply([&](auto... v) { return (v + ...); }, tuple);
-        for (size_t i = 0; i < NUM_CONSTRAINTS; ++i) {
+        for (size_t i = 0; i < NUM_RELATIONS; ++i) {
             result += extended_univariates[i];
         }
         return result;
     }
 
     /**
-     * @brief Evaluate some constraints by evaluating each edge in the edge group at
+     * @brief Evaluate some relations by evaluating each edge in the edge group at
      * Univariate::length-many values. Store each value separately in the corresponding
-     * entry of constraint_evals.
+     * entry of relation_evals.
      *
-     * @details Should only be called externally with constraint_idx equal to 0.
+     * @details Should only be called externally with relation_idx equal to 0.
      *
      */
-    void extend_edges(std::array<Fr*, Multivariates::num> polynomial, size_t edge_idx)
+    template <typename T> void extend_edges(T multivariate, size_t edge_idx)
     {
-        for (size_t idx = 0; idx < Multivariates::num; idx++) {
-            auto edge = Univariate<Fr, 2>({ polynomial[idx][edge_idx], polynomial[idx][edge_idx + 1] });
-            edge_extensions[idx] = barycentric.extend(edge);
+        for (size_t idx = 0; idx < num_multivariates; idx++) {
+            auto edge = Univariate<FF, 2>({ multivariate[idx][edge_idx], multivariate[idx][edge_idx + 1] });
+            extended_edges[idx] = barycentric_2_to_max.extend(edge);
         }
     }
 
-    // TODO(cody): make private
-    template <size_t constraint_idx = 0> void accumulate_constraint_univariates()
+    // TODO(Cody): make private
+    /**
+     * @brief For a given edge, calculate the contribution of each relation to the prover round univariate (S_l in the
+     * thesis).
+     *
+     * @details In Round l, the univariate S_l computed by the prover is computed as follows:
+     *   - Outer loop: iterate through the points on the boolean hypercube of dimension = log(round_size), skipping
+     *                 every other point. On each iteration, create a Univariate<FF, 2> (an 'edge') for each
+     *                 multivariate.
+     *   - Inner loop: iterate throught the relations, feeding each relation the present collection of edges. Each
+     *                 relation adds a contribution
+     *
+     * Result: for each relation, a univariate of some degree is computed by accumulating the contributions of each
+     * group of edges. These are stored in `univariate_accumulators`. Adding these univariates together, with
+     * appropriate scaling factors, produces S_l.
+     */
+    template <size_t relation_idx = 0> void accumulate_relation_univariates()
     {
-        std::get<constraint_idx>(constraint_manager.constraints)
-            .add_edge_contribution(edge_extensions,
-                                   std::get<constraint_idx>(constraint_manager.univariate_accumulators));
+        std::get<relation_idx>(relations).add_edge_contribution(extended_edges,
+                                                                std::get<relation_idx>(univariate_accumulators));
 
-        // Repeat for the next constraint.
-        if constexpr (constraint_idx + 1 < NUM_CONSTRAINTS) {
-            accumulate_constraint_univariates<constraint_idx + 1>();
+        // Repeat for the next relation.
+        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
+            accumulate_relation_univariates<relation_idx + 1>();
         }
     }
 
-    // TODO(cody): make private
-    // TODO(cody): make uniform with univariates
-    template <size_t constraint_idx = 0>
-    void accumulate_constraint_evaluations(std::array<Fr, NUM_CONSTRAINTS>& constraint_evaluations)
+    // TODO(Cody): make private
+    // TODO(Cody): make uniform with accumulate_relation_univariates
+    /**
+     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
+     *
+     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
+     * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
+     * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
+     * checked against the final value of the target total sum (called sigma_0 in the thesis).
+     */
+    template <size_t relation_idx = 0>
+    // TODO(Cody): Input should be an array? Then challenge container has to know array length.
+    void accumulate_relation_evaluations(std::vector<FF>& purported_evaluations)
     {
-        std::get<constraint_idx>(constraint_manager.constraints)
-            .add_full_constraint_value_contribution(purported_evaluations, constraint_evaluations[constraint_idx]);
+        std::get<relation_idx>(relations).add_full_relation_value_contribution(purported_evaluations,
+                                                                               evaluations[relation_idx]);
 
-        // Repeat for the next constraint.
-        if constexpr (constraint_idx + 1 < NUM_CONSTRAINTS) {
-            accumulate_constraint_evaluations<constraint_idx + 1>(constraint_evaluations);
+        // Repeat for the next relation.
+        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
+            accumulate_relation_evaluations<relation_idx + 1>(purported_evaluations);
         }
     }
 
     /**
-     * @brief After executing each widget on each edge, producing a tuple of univariates of differing lenghts,
-     * extend all univariates to the max of the lenghts required by the largest constraint.
+     * @brief After executing each widget on each edge, producing a tuple of univariates of differing lenghths,
+     * extend all univariates to the max of the lenghths required by the largest relation.
      *
-     * @tparam constraint_idx
+     * @tparam relation_idx
      */
-    template <size_t constraint_idx = 0> void extend_univariate_accumulators()
+    template <size_t relation_idx = 0> void extend_univariate_accumulators()
     {
-        extended_univariates[constraint_idx] =
-            std::get<constraint_idx>(constraint_manager.constraints)
-                .barycentric.extend(std::get<constraint_idx>(constraint_manager.univariate_accumulators));
+        extended_univariates[relation_idx] =
+            std::get<relation_idx>(barycentric_utils).extend(std::get<relation_idx>(univariate_accumulators));
 
-        // Repeat for the next constraint.
-        if constexpr (constraint_idx + 1 < NUM_CONSTRAINTS) {
-            extend_univariate_accumulators<constraint_idx + 1>();
+        // Repeat for the next relation.
+        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
+            extend_univariate_accumulators<relation_idx + 1>();
         }
     }
 
     /**
-     * @brief In the first round, return the evaluations of the univariate restriction S(X_l) at EdgeGroup::length-many
-     * values. Most likely this will end up being S(0), ... , S(t-1) where t is around 12.
-     *
-     * @details We have a separate function for the first round so we can halve the memory
-     * usage of the sumcheck round by only copy the results after folding.
-     *
-     * @param edges
-     * @param challenges
-     * @return Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>
-     *
+     * @brief Return the evaluations of the univariate restriction (S_l(X_l) in the thesis) at num_multivariates-many
+     * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12.
      */
-    Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> compute_initial_univariate_restriction(
-        Multivariates& multivariates, ChallengeContainer& challenges)
+    Univariate<FF, MAX_RELATION_LENGTH> compute_univariate(auto& polynomials, FF& relation_separator_challenge)
     {
         for (size_t edge_idx = 0; edge_idx < round_size; edge_idx += 2) {
-            extend_edges(multivariates.full_polynomials, edge_idx);
-            accumulate_constraint_univariates<>();
+            extend_edges(polynomials, edge_idx);
+            accumulate_relation_univariates<>();
         }
 
-        Fr running_challenge(1);
-        Fr challenge = challenges.get_constraint_separator_challenge();
-        auto result = batch_over_constraints<Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>>(
-            constraint_manager.univariate_accumulators, challenge);
+        FF running_challenge(1);
+        auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(univariate_accumulators,
+                                                                                relation_separator_challenge);
 
-        // at this point, we are able to
-        // - add these coefficients to the transcript and extract u_l
-        // - partially evaluate all multivariates in u_l
         return result;
     }
 
-    /**
-     * @brief Return the evaluations of the univariate restriction S_l(X_l) at EdgeGroup::length-many values.
-     * Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12.
-     *
-     * @param edges
-     * @param challenges
-     * @return Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>
-     *
-     */
-    Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> compute_univariate_restriction(Multivariates& multivariates,
-                                                                                       ChallengeContainer& challenges)
+    FF compute_full_honk_relation_purported_value(std::vector<FF> purported_evaluations,
+                                                  FF& relation_separator_challenge)
     {
-        // For each edge index, iterate over all constraints, accumulating for each constraint the contribution
-        // to each of desired evaluations of S_l.
-        std::tuple<Univariate<Fr, ConstraintPack<Fr>::CONSTRAINT_LENGTH>...> constraint_univariates =
-            std::tuple(ConstraintPack<Fr>::CONSTRAINT_LENGTH...);
+        accumulate_relation_evaluations<>(purported_evaluations);
 
-        for (size_t edge_idx = 0; edge_idx < round_size; edge_idx += 2) {
-            extend_edges(multivariates.folded_multivariates, edge_idx);
-            accumulate_constraint_univariates<>(constraint_univariates);
-        }
-
-        // Construct the univariate restriction
-        Fr running_challenge(1);
-        Fr challenge = challenges.get_constraint_separator_challenge();
-        Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> result({ 0 }); // need to initialize to 0
-        for (auto& univariate : constraint_univariates) {
-            result += univariate * running_challenge;
-            running_challenge *= challenge;
-        }
-
-        // - add these coefficients to the transcript and extract u_l
-        // - partially evaluate all multivariates in u_l
-        return result;
-    }
-
-    Fr compute_full_honk_constraint_purported_value(ChallengeContainer& challenges)
-    {
-        // TODO(cody): Reuse functions from univariate_accumulators batching?
-        std::array<Fr, NUM_CONSTRAINTS> constraint_evaluations{ { 0 } };
-        accumulate_constraint_evaluations<>(constraint_evaluations);
-
-        Fr running_challenge(1);
-        Fr challenge = challenges.get_constraint_separator_challenge();
-        Fr output(0);
-        for (auto& evals : constraint_evaluations) {
+        // IMPROVEMENT(Cody): Reuse functions from univariate_accumulators batching?
+        FF running_challenge(1);
+        FF output(0);
+        for (auto& evals : evaluations) {
             output += evals * running_challenge;
-            running_challenge *= challenge;
+            running_challenge *= relation_separator_challenge;
         }
 
         return output;
     }
 
-    bool check_sum(Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>& univariate_restriction)
+    bool check_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate)
     {
-        // S_l(0) + S_l(1)
-        Fr total_sum = univariate_restriction.at(0) + univariate_restriction.at(1);
-        bool sumcheck_round_passes = (target_total_sum == total_sum); // an assert_equal
-        return sumcheck_round_passes;
+        FF total_sum = univariate.value_at(0) + univariate.value_at(1);
+        bool sumcheck_round_failed = (target_total_sum != total_sum);
+        round_failed = round_failed || sumcheck_round_failed;
+        return sumcheck_round_failed;
     };
 
-    /**
-     * @brief Have ChallengeContainer sample the next univariate evalution challenge u_l and the resulting univariate
-     * value sigma_l of the function S_l.
-     * @param evals
-     * @param challenges
-     */
-    Fr compute_challenge_and_evaluation(Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>& univariate_restriction,
-                                        ChallengeContainer& challenges)
+    FF compute_next_target_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate, FF& round_challenge)
     {
-        // add challenges to transcript and run Fiat-Shamir
-        Fr challenge = challenges.get_sumcheck_round_challenge(univariate_restriction);
-        auto barycentric = BarycentricData<Fr,
-                                           Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>::num_evals,
-                                           Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE>::num_evals>();
-        target_total_sum = barycentric.evaluate(univariate_restriction, challenge);
-        return challenge;
+        // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
+        // function on Univariate.
+        auto barycentric = BarycentricData<FF, MAX_RELATION_LENGTH, MAX_RELATION_LENGTH>();
+        target_total_sum = barycentric.evaluate(univariate, round_challenge);
+        return target_total_sum;
     }
-
-    bool execute_first_round()
-    {
-        Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> univariate_restriction =
-            compute_initial_univariate_restriction(multivariates, challenges);
-        // evaluate univariate restriction and challenge and check for equality with target value
-        failed = !check_sum(univariate_restriction);
-
-        if (failed) {
-            // TODO: use to set composer.failed?
-            return false;
-        }
-        // compute univariate evaluation challenge and update the target value
-        // for the next call to check_sum
-        Fr round_challenge = compute_challenge_and_evaluation(univariate_restriction, challenges);
-        multivariates.fold(round_size, round_challenge);
-        round_size /= 2;
-
-        return true;
-    };
-
-    bool execute()
-    {
-        Univariate<Fr, SUMCHECK_CONSTRAINT_DEGREE_PLUS_ONE> univariate_restriction =
-            compute_univariate_restriction(multivariates, challenges);
-        // evaluate univariate restriction and challenge and check for equality with target value
-        failed = !check_sum(univariate_restriction);
-
-        if (failed) {
-            // TODO: use to set composer.failed?
-            return false;
-        }
-        // compute univariate evaluation challenge and update the target value
-        // for the next call to check_sum
-        Fr round_challenge = compute_challenge_and_evaluation(univariate_restriction, challenges);
-        multivariates.fold(round_size, round_challenge);
-        round_size /= 2;
-
-        return true;
-    };
 };
-} // namespace sumcheck
-} // namespace honk
+} // namespace honk::sumcheck
