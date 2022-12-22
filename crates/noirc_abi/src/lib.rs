@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, convert::TryInto};
 use acvm::FieldElement;
 use errors::AbiError;
 use input_parser::InputValue;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -12,6 +12,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod errors;
 pub mod input_parser;
+mod serialization;
 
 pub const MAIN_RETURN_NAME: &str = "return";
 
@@ -39,36 +40,12 @@ pub enum AbiType {
         width: u32,
     },
     Struct {
-        #[serde(serialize_with = "serialize_struct", deserialize_with = "deserialize_struct")]
+        #[serde(
+            serialize_with = "serialization::serialize_struct_fields",
+            deserialize_with = "serialization::deserialize_struct_fields"
+        )]
         fields: BTreeMap<String, AbiType>,
     },
-}
-
-#[derive(Serialize, Deserialize)]
-struct StructField {
-    name: String,
-    #[serde(rename = "type")]
-    typ: AbiType,
-}
-
-fn serialize_struct<S>(fields: &BTreeMap<String, AbiType>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let fields_vector: Vec<StructField> = fields
-        .iter()
-        .map(|(name, typ)| StructField { name: name.to_owned(), typ: typ.to_owned() })
-        .collect();
-    fields_vector.serialize(s)
-}
-
-fn deserialize_struct<'de, D>(deserializer: D) -> Result<BTreeMap<String, AbiType>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let fields_vector = Vec::<StructField>::deserialize(deserializer)?;
-    let fields = fields_vector.into_iter().map(|StructField { name, typ }| (name, typ)).collect();
-    Ok(fields)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
