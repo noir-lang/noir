@@ -50,6 +50,7 @@ pub enum AbiType {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Represents whether the parameter is public or known only to the prover.
 pub enum AbiVisibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
