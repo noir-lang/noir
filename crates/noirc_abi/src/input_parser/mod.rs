@@ -23,7 +23,7 @@ impl InputValue {
     /// and also their arity
     pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         match (self, abi_param) {
-            (InputValue::Field(_), AbiType::Field(_)) => true,
+            (InputValue::Field(_), AbiType::Field) => true,
             (InputValue::Field(field_element), AbiType::Integer { width, .. }) => {
                 field_element.num_bits() <= *width
             }

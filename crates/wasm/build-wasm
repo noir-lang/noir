@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
+if [ -d ./pkg/ ]; then
+    rm -r ./pkg/
+fi
+
+# Build the new wasm package
+wasm-pack build --scope noir-lang --target nodejs
+
+# wasm-pack doesn't add all the necessary entries to package.json so manually inject them here.
+PKG_JSON="pkg/package.json"
+cat $PKG_JSON | jq '.files += ["noir_wasm_bg.wasm.d.ts", "snippets/*"]' | tee $PKG_JSON
