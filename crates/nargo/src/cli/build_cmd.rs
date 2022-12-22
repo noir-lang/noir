@@ -2,7 +2,7 @@ use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiType};
+use noirc_abi::{Abi, AbiParameter, AbiType};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -53,9 +53,9 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
 }
 
 fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
-    btree_map(abi.parameters, |(param_name, param_type)| {
-        let default_value = if matches!(param_type, AbiType::Array { .. }) { "[]" } else { "" };
-        (param_name, default_value)
+    btree_map(abi.parameters, |AbiParameter { name, typ, .. }| {
+        let default_value = if matches!(typ, AbiType::Array { .. }) { "[]" } else { "" };
+        (name, default_value)
     })
 }
 
