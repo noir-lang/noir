@@ -15,7 +15,7 @@ cfg_if::cfg_if! {
         use wasm_bindgen::{prelude::*, JsValue};
 
 
-        #[wasm_bindgen(module = "/file_reader.js")]
+        #[wasm_bindgen(module = "@noir-lang/noir-source-resolver")]
         extern "C" {
             #[wasm_bindgen(catch)]
             fn read_file(path: &str) -> Result<String, JsValue>;

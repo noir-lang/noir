@@ -18,7 +18,7 @@ else
     VERSION_APPENDIX="-NOGIT"
 fi
 
-jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"-$(git rev-parse --short HEAD)\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types' | tee ./pkg/package.json
+jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"$VERSION_APPENDIX\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types' | tee ./pkg/package.json
 
 rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
 
