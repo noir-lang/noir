@@ -2,12 +2,24 @@
 
 # Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
 if [ -d ./pkg/ ]; then
-    rm -r ./pkg/
+    rm -rf ./pkg/
 fi
 
 # Build the new wasm package
-wasm-pack build --scope noir-lang --target nodejs
+wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
 
-# wasm-pack doesn't add all the necessary entries to package.json so manually inject them here.
-PKG_JSON="pkg/package.json"
-cat $PKG_JSON | jq '.files += ["noir_wasm_bg.wasm.d.ts", "snippets/*"]' | tee $PKG_JSON
+wasm-pack build --scope noir-lang --target web --out-dir pkg/web
+
+COMMIT_SHORT=$(git rev-parse --short HEAD)
+VERSION_APPENDIX=""
+if [ -n "$COMMIT_SHORT" ]; then
+    VERSION_APPENDIX="-$COMMIT_SHORT"
+else
+    VERSION_APPENDIX="-NOGIT"
+fi
+
+jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"$VERSION_APPENDIX\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.0.0" }' | tee ./pkg/package.json
+
+rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
+
+rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
