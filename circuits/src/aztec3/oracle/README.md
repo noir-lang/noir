@@ -1,6 +1,6 @@
 # aztec3::circuits::oracle
 
-When Aztec3 makes a call to a circuit executor (such as Noir or the test apps in aztec3/circuits/apps/test_apps), we don't pass _all_ public inputs when calling the circuit; only the `custom_inputs` inputs are sent initially.
+When Aztec3 makes a call to a circuit executor (such as Noir or the test apps in aztec3/circuits/apps/test_apps), we don't pass _all_ public inputs when calling the circuit; only the `args` inputs are sent initially.
 
 Why?
 

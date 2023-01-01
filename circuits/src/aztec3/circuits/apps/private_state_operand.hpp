@@ -17,7 +17,7 @@ template <typename NCT> struct PrivateStateOperand {
     typedef typename NCT::address address;
 
     fr value;
-    address owner_address;
+    address owner;
     std::optional<address> creator_address;
     std::optional<fr> memo; // numerical representation of a string
 
@@ -32,7 +32,7 @@ template <typename NCT> struct PrivateStateOperand {
 
         PrivateStateOperand<CircuitTypes<Composer>> preimage = {
             to_ct(value),
-            to_ct(owner_address),
+            to_ct(owner),
             to_ct(creator_address),
             to_ct(memo),
         };

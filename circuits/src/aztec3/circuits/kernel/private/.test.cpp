@@ -117,7 +117,7 @@ TEST(private_kernel_tests, test_deposit)
                 .is_private = true,
                 .is_constructor = false,
             },
-        .custom_inputs = deposit_public_inputs.custom_inputs,
+        .args = deposit_public_inputs.args,
         .nonce = 0,
         .tx_context =
             TxContext<NT>{

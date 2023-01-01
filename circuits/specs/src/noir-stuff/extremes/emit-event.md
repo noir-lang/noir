@@ -68,7 +68,7 @@ fn called_by_l1(
         // none shown
     },
     PUBLIC_INPUTS: {
-        custom_inputs: [
+        args: [
             a,
             b,
         ],

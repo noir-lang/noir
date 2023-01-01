@@ -24,8 +24,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
   public:
     CallContext<NCT> call_context;
 
-    std::array<fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
-    std::array<fr, CUSTOM_OUTPUTS_LENGTH> custom_outputs;
+    std::array<fr, ARGS_LENGTH> args;
+    std::array<fr, RETURN_VALUES_LENGTH> return_values;
 
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
 
@@ -53,8 +53,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
-            to_ct(custom_inputs),
-            to_ct(custom_outputs),
+            to_ct(args),
+            to_ct(return_values),
 
             to_ct(emitted_events),
 
@@ -82,8 +82,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         inputs.push_back(call_context.hash());
 
-        spread_arr_into_vec(custom_inputs, inputs);
-        spread_arr_into_vec(custom_outputs, inputs);
+        spread_arr_into_vec(args, inputs);
+        spread_arr_into_vec(return_values, inputs);
 
         spread_arr_into_vec(emitted_events, inputs);
 
@@ -122,8 +122,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
   public:
     std::optional<CallContext<NCT>> call_context;
 
-    std::array<opt_fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
-    std::array<opt_fr, CUSTOM_OUTPUTS_LENGTH> custom_outputs;
+    std::array<opt_fr, ARGS_LENGTH> args;
+    std::array<opt_fr, RETURN_VALUES_LENGTH> return_values;
 
     std::array<opt_fr, EMITTED_EVENTS_LENGTH> emitted_events;
 
@@ -144,8 +144,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     OptionalPrivateCircuitPublicInputs<NCT>(
         std::optional<CallContext<NCT>> const& call_context,
 
-        std::array<opt_fr, CUSTOM_INPUTS_LENGTH> const& custom_inputs,
-        std::array<opt_fr, CUSTOM_OUTPUTS_LENGTH> const& custom_outputs,
+        std::array<opt_fr, ARGS_LENGTH> const& args,
+        std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
 
         std::array<opt_fr, EMITTED_EVENTS_LENGTH> const& emitted_events,
 
@@ -161,8 +161,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         opt_fr const& old_nullifier_tree_root,
         opt_fr const& old_contract_tree_root)
         : call_context(call_context)
-        , custom_inputs(custom_inputs)
-        , custom_outputs(custom_outputs)
+        , args(args)
+        , return_values(return_values)
         , emitted_events(emitted_events)
         , output_commitments(output_commitments)
         , input_nullifiers(input_nullifiers)
@@ -183,8 +183,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         new_inputs.call_context = std::nullopt;
 
-        new_inputs.custom_inputs.fill(std::nullopt);
-        new_inputs.custom_outputs.fill(std::nullopt);
+        new_inputs.args.fill(std::nullopt);
+        new_inputs.return_values.fill(std::nullopt);
 
         new_inputs.emitted_events.fill(std::nullopt);
 
@@ -229,8 +229,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         make_unused_element_zero(composer, call_context);
 
-        make_unused_array_elements_zero(composer, custom_inputs);
-        make_unused_array_elements_zero(composer, custom_outputs);
+        make_unused_array_elements_zero(composer, args);
+        make_unused_array_elements_zero(composer, return_values);
 
         make_unused_array_elements_zero(composer, emitted_events);
 
@@ -259,8 +259,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         (*call_context).set_public();
 
-        set_array_public(custom_inputs);
-        set_array_public(custom_outputs);
+        set_array_public(args);
+        set_array_public(return_values);
 
         set_array_public(emitted_events);
 
@@ -291,8 +291,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         OptionalPrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
-            to_ct(custom_inputs),
-            to_ct(custom_outputs),
+            to_ct(args),
+            to_ct(return_values),
 
             to_ct(emitted_events),
 
@@ -324,8 +324,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         OptionalPrivateCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(call_context),
 
-            to_nt(custom_inputs),
-            to_nt(custom_outputs),
+            to_nt(args),
+            to_nt(return_values),
 
             to_nt(emitted_events),
 
@@ -358,8 +358,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         inputs.push_back((*call_context).hash());
 
-        spread_arr_opt_into_vec(custom_inputs, inputs);
-        spread_arr_opt_into_vec(custom_outputs, inputs);
+        spread_arr_opt_into_vec(args, inputs);
+        spread_arr_opt_into_vec(return_values, inputs);
 
         spread_arr_opt_into_vec(emitted_events, inputs);
 
@@ -386,8 +386,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         return PrivateCircuitPublicInputs<NCT>{
             .call_context = call_context.value(),
 
-            .custom_inputs = map(custom_inputs, get_value),
-            .custom_outputs = map(custom_outputs, get_value),
+            .args = map(args, get_value),
+            .return_values = map(return_values, get_value),
 
             .emitted_events = map(emitted_events, get_value),
 
@@ -480,8 +480,8 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
 
     OptionalPrivateCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
     read(it, pis.call_context);
-    read(it, pis.custom_inputs);
-    read(it, pis.custom_outputs);
+    read(it, pis.args);
+    read(it, pis.return_values);
     read(it, pis.emitted_events);
     read(it, pis.output_commitments);
     read(it, pis.input_nullifiers);
@@ -502,8 +502,8 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
 
     write(buf, pis.call_context);
-    write(buf, pis.custom_inputs);
-    write(buf, pis.custom_outputs);
+    write(buf, pis.args);
+    write(buf, pis.return_values);
     write(buf, pis.emitted_events);
     write(buf, pis.output_commitments);
     write(buf, pis.input_nullifiers);
@@ -522,8 +522,8 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
 {
     OptionalPrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
     return os << "call_context: " << pis.call_context << "\n"
-              << "custom_inputs: " << pis.custom_inputs << "\n"
-              << "custom_outputs: " << pis.custom_outputs << "\n"
+              << "args: " << pis.args << "\n"
+              << "return_values: " << pis.return_values << "\n"
               << "emitted_events: " << pis.emitted_events << "\n"
               << "output_commitments: " << pis.output_commitments << "\n"
               << "input_nullifiers: " << pis.input_nullifiers << "\n"

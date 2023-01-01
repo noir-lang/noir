@@ -3,9 +3,7 @@
 #include "contract.hpp"
 
 #include <aztec3/circuits/apps/private_state_note.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-// #include <aztec3/circuits/abis/call_context.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
@@ -38,7 +36,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext<Compose
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = contract.get_private_state_var("balances");
 
     // Circuit-specific logic *******************************************************
 
@@ -48,7 +46,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext<Compose
     balances.at({ msg_sender.to_field(), asset_id })
         .subtract({
             .value = amount + fee,
-            .owner_address = msg_sender,
+            .owner = msg_sender,
             .creator_address = msg_sender,
             .memo = memo,
         });
@@ -56,7 +54,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext<Compose
     balances.at({ to.to_field(), asset_id })
         .add({
             .value = amount,
-            .owner_address = to,
+            .owner = to,
             .creator_address = creator_address,
             .memo = memo,
         });
@@ -65,12 +63,12 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext<Compose
 
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
 
-    public_inputs.custom_inputs[0] = amount;
-    public_inputs.custom_inputs[1] = to.to_field();
-    public_inputs.custom_inputs[2] = asset_id;
-    public_inputs.custom_inputs[3] = memo;
-    public_inputs.custom_inputs[4] = CT::fr(reveal_msg_sender_to_recipient);
-    public_inputs.custom_inputs[5] = fee;
+    public_inputs.args[0] = amount;
+    public_inputs.args[1] = to.to_field();
+    public_inputs.args[2] = asset_id;
+    public_inputs.args[3] = memo;
+    public_inputs.args[4] = CT::fr(reveal_msg_sender_to_recipient);
+    public_inputs.args[5] = fee;
 
     public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, fee);
     public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);

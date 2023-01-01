@@ -47,7 +47,7 @@ fn my_private_function(
                 },
                 public_inputs: {
                     // All of the public inputs of a private function call
-                    custom_inputs: [
+                    args: [
                         a,
                         b,
                         c,
@@ -85,7 +85,7 @@ fn my_private_function(
         ]
     },
     PUBLIC_INPUTS: {
-        custom_inputs: [
+        args: [
             a,
             b,
         ],
@@ -115,8 +115,8 @@ fn my_private_function(
         called_from_l1: false,
     }
 ) {
-    let a = PUBLIC_INPUTS.custom_inputs.a;
-    let b = PUBLIC_INPUTS.custom_inputs.b;
+    let a = PUBLIC_INPUTS.args.a;
+    let b = PUBLIC_INPUTS.args.b;
 
     let c = a + b;
 
@@ -131,9 +131,9 @@ fn my_private_function(
     assert(call_stack_item.function_signature.vk_index == 0);
 
     // Check the correct parameters are being passed to the function:
-    assert(call_stack_item.public_inputs.custom_inputs[0] == a);
-    assert(call_stack_item.public_inputs.custom_inputs[1] == b);
-    assert(call_stack_item.public_inputs.custom_inputs[2] == c);
+    assert(call_stack_item.public_inputs.args[0] == a);
+    assert(call_stack_item.public_inputs.args[1] == b);
+    assert(call_stack_item.public_inputs.args[2] == c);
 
     // The call context will be checked in the kernel snark, so we don't need
     // to check it here.

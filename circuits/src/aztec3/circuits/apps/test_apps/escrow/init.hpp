@@ -1,7 +1,6 @@
 #pragma once
 
 #include <aztec3/oracle/oracle.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
 #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 
 #include <stdlib/types/turbo.hpp>
@@ -12,6 +11,7 @@
 namespace aztec3::circuits::apps::test_apps::escrow {
 
 using Composer = plonk::stdlib::types::turbo::Composer;
+
 using CT = plonk::stdlib::types::CircuitTypes<Composer>;
 using NT = plonk::stdlib::types::NativeTypes;
 

@@ -36,7 +36,7 @@ fn increment_someone_elses_private_state(
         x_new_salt,
     },
     PUBLIC_INPUTS: {
-        custom_inputs: {}, // lots of unused stuff denoted by {} or [].
+        args: {}, // lots of unused stuff denoted by {} or [].
         emitted_events: {},
         executed_callback: {},
 

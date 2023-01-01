@@ -67,7 +67,7 @@ PrivateStateVar<Composer>
 - PrivateStateType private_state_type;
 - std::string name;
 - fr start_slot;
-- grumpkin_point slot_point;
+- grumpkin_point storage_slot_point;
 - std::map<NativeTypes::fr, PrivateStateVar<Composer>> private_states;
 - bool is_mapping = false;
 - std::optional<std::vector<std::string>> mapping_key_names = std::nullopt;

@@ -1,6 +1,5 @@
 #pragma once
-// #include <common/container.hpp>
-// #include <aztec3/constants.hpp>
+
 #include "function_declaration.hpp"
 #include "private_state_var.hpp"
 #include "l1_function_interface.hpp"
@@ -13,7 +12,6 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
 using aztec3::circuits::abis::FunctionSignature;
-// using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 template <typename Composer> class FunctionExecutionContext;
 
@@ -26,12 +24,15 @@ template <typename Composer> class Contract {
     FunctionExecutionContext<Composer>& exec_ctx;
 
     const std::string contract_name;
+
     fr state_counter = 0;
 
     std::vector<std::string> state_names;
+
     std::map<std::string, PrivateStateVar<Composer>> private_state_vars;
 
     std::map<std::string, FunctionSignature<CT>> function_signatures;
+
     std::map<std::string, L1FunctionInterface<Composer>> l1_functions;
 
     Contract<Composer>(FunctionExecutionContext<Composer>& exec_ctx, std::string const& contract_name)
@@ -52,17 +53,17 @@ template <typename Composer> class Contract {
 
     L1FunctionInterface<Composer>& get_l1_function(std::string const& name);
 
-    void push_new_state_name(std::string const& name);
+    void push_new_state_var_name(std::string const& name);
 
-    PrivateStateVar<Composer>& new_private_state(std::string const& name,
-                                                 PrivateStateType const& private_state_type = PARTITIONED);
+    PrivateStateVar<Composer>& declare_private_state_var(std::string const& name,
+                                                         PrivateStateType const& private_state_type = PARTITIONED);
 
     // For initialising a private state which is a mapping.
-    PrivateStateVar<Composer>& new_private_state(std::string const& name,
-                                                 std::vector<std::string> const& mapping_key_names,
-                                                 PrivateStateType const& private_state_type = PARTITIONED);
+    PrivateStateVar<Composer>& declare_private_state_var(std::string const& name,
+                                                         std::vector<std::string> const& mapping_key_names,
+                                                         PrivateStateType const& private_state_type = PARTITIONED);
 
-    PrivateStateVar<Composer>& get_private_state(std::string const& name);
+    PrivateStateVar<Composer>& get_private_state_var(std::string const& name);
 };
 
 } // namespace aztec3::circuits::apps
@@ -72,5 +73,6 @@ template <typename Composer> class Contract {
 // - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
 // methods support native,
 //   circuit or both types.
-// - We don't implement method definitions in this file, to avoid a circular dependency with exec_ctx.hpp.
+// - We don't implement method definitions in this file, to avoid a circular dependency with
+// function_execution_context.hpp.
 #include "contract.tpp"

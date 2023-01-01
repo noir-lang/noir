@@ -1,14 +1,25 @@
 #pragma once
+
 #include <aztec3/circuits/abis/call_context.hpp>
+
 #include <aztec3/circuits/apps/private_state_note_preimage.hpp>
+#include <aztec3/circuits/apps/utxo_datum.hpp>
+
+#include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
+
 #include <stdlib/types/native_types.hpp>
 
 namespace aztec3::oracle {
 
-using NT = plonk::stdlib::types::NativeTypes;
 using aztec3::circuits::abis::CallContext;
+
 using aztec3::circuits::apps::PrivateStateNotePreimage;
+using aztec3::circuits::apps::UTXOSLoadDatum;
+
+using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
+
 using plonk::stdlib::types::CircuitTypes;
+using NT = plonk::stdlib::types::NativeTypes;
 
 /// Note: the server will always serve NATIVE types to the circuit, since eventually we'll be passing data to Noir (so
 /// won't be handling circuit types at all from the Aztec3 end).
@@ -71,7 +82,7 @@ template <typename DB> class NativeOracleInterface {
             throw_or_abort("no private key stored in memory");
         }
         if (msg_sender_private_key_already_got) {
-            throw_or_abort(already_got_error);
+            throw_or_abort("msg_sender_private_key: " + already_got_error);
         }
         msg_sender_private_key_already_got = true;
         return *msg_sender_private_key;
@@ -89,11 +100,20 @@ template <typename DB> class NativeOracleInterface {
     CallContext<NT> get_call_context()
     {
         if (call_context_already_got) {
-            throw_or_abort(already_got_error);
+            throw_or_abort("call_context: " + already_got_error);
         }
         call_context_already_got = true;
         return call_context;
     };
+
+    template <typename NotePreimage>
+    UTXOSLoadDatum<NT, NotePreimage> get_utxo_sload_datum(NT::grumpkin_point const storage_slot_point,
+                                                          NotePreimage const advice)
+    {
+        // TODO: consider whether it's actually safe to bypass get_call_context() here...
+        const auto& contract_address = call_context.storage_contract_address;
+        return db.get_utxo_sload_datum(contract_address, storage_slot_point, advice);
+    }
 
     std::pair<PrivateStateNotePreimage<NT>, PrivateStateNotePreimage<NT>>
     get_private_state_note_preimages_for_subtraction(NT::fr const& storage_slot,
@@ -132,46 +152,84 @@ class FakeDB {
   public:
     FakeDB(){};
 
+    /**
+     * For getting a singleton UTXO (not a set).
+     */
+    UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
+        NT::address const& contract_address,
+        NT::grumpkin_point const& storage_slot_point,
+        DefaultPrivateNotePreimage<NT, typename NT::fr> const& advice)
+    // NT::address const& owner,
+    // NT::fr required_utxo_tree_root,
+    // size_t utxo_tree_depth)
+    {
+        (void)storage_slot_point; // Not used in this 'fake' implementation.
+
+        DefaultPrivateNotePreimage<NT, NT::fr> preimage{
+            .value = 100,
+            .owner = advice.owner,
+            .creator_address = 0,
+            .memo = 3456,
+            .salt = 1234,
+            .nonce = 2345,
+            .is_real = true,
+        };
+
+        const size_t utxo_tree_depth = 32;
+        const NT::fr required_utxo_tree_root = 2468;
+
+        std::vector<NT::fr> sibling_path(utxo_tree_depth);
+        std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
+
+        return {
+            .commitment = 1, // TODO: implement commit() method in `preimage`?
+            .contract_address = contract_address,
+            .preimage = preimage,
+
+            .sibling_path = sibling_path,
+            .leaf_index = 2,
+            .old_private_data_tree_root = required_utxo_tree_root,
+        };
+    };
+
     std::pair<PrivateStateNotePreimage<NT>, PrivateStateNotePreimage<NT>>
     get_private_state_note_preimages_for_subtraction(NT::address const& contract_address,
                                                      NT::fr const& storage_slot,
                                                      NT::address const& owner,
                                                      NT::fr const& subtrahend)
     {
-        if (contract_address.address_ != 0) {
-            // do nothing - just making these variables in-use
-        }
+        (void)contract_address; // currently unused
 
-        NT::grumpkin_point slot_point;
+        NT::grumpkin_point storage_slot_point;
         NT::fr x = storage_slot;
         NT::fr yy = x.sqr() * x + NT::grumpkin_group::curve_b;
         NT::fr y = yy.sqrt();
         NT::fr neg_y = -y;
         y = y < neg_y ? y : neg_y;
-        slot_point = NT::grumpkin_group::affine_element(x, y);
-        info("derived slot point:", slot_point);
+        storage_slot_point = NT::grumpkin_group::affine_element(x, y);
+        info("derived slot point:", storage_slot_point);
 
         return std::make_pair(
             PrivateStateNotePreimage<NT>{
                 .start_slot = 0,
-                .slot_point = slot_point,
+                .storage_slot_point = storage_slot_point,
                 .value = uint256_t(subtrahend) / 2 + 1,
-                .owner_address = owner,
+                .owner = owner,
                 .creator_address = 0,
-                .salt = 1234,
-                .input_nullifier = 2345,
                 .memo = 3456,
+                .salt = 1234,
+                .nonce = 2345,
                 .is_real = true,
             },
             PrivateStateNotePreimage<NT>{
                 .start_slot = 0,
-                .slot_point = slot_point,
+                .storage_slot_point = storage_slot_point,
                 .value = uint256_t(subtrahend) / 2 + 3,
-                .owner_address = owner,
+                .owner = owner,
                 .creator_address = 0,
-                .salt = 4567,
-                .input_nullifier = 5678,
                 .memo = 6789,
+                .salt = 4567,
+                .nonce = 5678,
                 .is_real = true,
             });
     };

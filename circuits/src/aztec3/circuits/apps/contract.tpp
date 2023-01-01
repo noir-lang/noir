@@ -60,7 +60,7 @@ template <typename Composer> L1FunctionInterface<Composer>& Contract<Composer>::
     return l1_functions[name];
 }
 
-template <typename Composer> void Contract<Composer>::push_new_state_name(std::string const& name)
+template <typename Composer> void Contract<Composer>::push_new_state_var_name(std::string const& name)
 {
     if (index_of(state_names, name) == -1) {
         state_names.push_back(name);
@@ -70,10 +70,10 @@ template <typename Composer> void Contract<Composer>::push_new_state_name(std::s
 }
 
 template <typename Composer>
-PrivateStateVar<Composer>& Contract<Composer>::new_private_state(std::string const& name,
-                                                                 PrivateStateType const& private_state_type)
+PrivateStateVar<Composer>& Contract<Composer>::declare_private_state_var(std::string const& name,
+                                                                         PrivateStateType const& private_state_type)
 {
-    push_new_state_name(name);
+    push_new_state_var_name(name);
     PrivateStateVar<Composer> private_state_var =
         PrivateStateVar<Composer>(&exec_ctx, private_state_type, name, state_counter++);
     private_state_vars.insert(std::make_pair(name, private_state_var));
@@ -82,18 +82,20 @@ PrivateStateVar<Composer>& Contract<Composer>::new_private_state(std::string con
 
 // For initialising a private state which is a mapping.
 template <typename Composer>
-PrivateStateVar<Composer>& Contract<Composer>::new_private_state(std::string const& name,
-                                                                 std::vector<std::string> const& mapping_key_names,
-                                                                 PrivateStateType const& private_state_type)
+PrivateStateVar<Composer>& Contract<Composer>::declare_private_state_var(
+    std::string const& name,
+    std::vector<std::string> const& mapping_key_names,
+    PrivateStateType const& private_state_type)
 {
-    push_new_state_name(name);
+    push_new_state_var_name(name);
     PrivateStateVar<Composer> private_state_var =
         PrivateStateVar<Composer>(&exec_ctx, private_state_type, name, state_counter++, mapping_key_names);
     private_state_vars.insert(std::make_pair(name, private_state_var));
     return private_state_vars[name];
 };
 
-template <typename Composer> PrivateStateVar<Composer>& Contract<Composer>::get_private_state(std::string const& name)
+template <typename Composer>
+PrivateStateVar<Composer>& Contract<Composer>::get_private_state_var(std::string const& name)
 {
     if (!private_state_vars.contains(name)) {
         throw_or_abort("name not found");

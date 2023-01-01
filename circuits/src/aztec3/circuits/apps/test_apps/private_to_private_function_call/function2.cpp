@@ -20,24 +20,24 @@
 
 //     auto env = init(composer, oracle);
 
-//     auto& y = env.get_private_state("y");
+//     auto& y = env.get_private_state_var("y");
 
 //     auto product = d * e * f;
 
 //     y.add({
 //         .value = product,
-//         .owner_address = msg_sender,
+//         .owner = msg_sender,
 //         .creator_address = msg_sender,
 //         .memo = 0,
 //     });
 
 //     auto& public_inputs = env.private_circuit_public_inputs;
 
-//     public_inputs.custom_inputs[0] = d;
-//     public_inputs.custom_inputs[1] = e;
-//     public_inputs.custom_inputs[2] = f;
+//     public_inputs.args[0] = d;
+//     public_inputs.args[1] = e;
+//     public_inputs.args[2] = f;
 
-//     public_inputs.custom_outputs[0] = product;
+//     public_inputs.return_values[0] = product;
 
 //     env.finalise();
 

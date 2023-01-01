@@ -1,14 +1,17 @@
 #pragma once
-// #include <common/container.hpp>
+
 #include "oracle_wrapper.hpp"
 #include "private_state_note.hpp"
 #include "private_state_note_preimage.hpp"
 #include "private_state_operand.hpp"
-#include "plonk/composer/turbo_composer.hpp"
 
 #include <common/streams.hpp>
 #include <common/map.hpp>
+
 #include <crypto/pedersen/generator_data.hpp>
+
+#include <plonk/composer/turbo_composer.hpp>
+
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -25,7 +28,7 @@ using plonk::stdlib::types::NativeTypes;
 template <typename Composer>
 typename CircuitTypes<Composer>::grumpkin_point PrivateStateVar<Composer>::compute_start_slot_point()
 {
-    return CT::commit({ start_slot }, { PrivateStateNoteGeneratorIndex::MAPPING_SLOT });
+    return CT::commit({ start_slot }, { StorageSlotGeneratorIndex::MAPPING_SLOT });
 }
 
 template <typename Composer>
@@ -37,14 +40,14 @@ std::tuple<NativeTypes::grumpkin_point, bool> PrivateStateVar<Composer>::compute
     std::vector<std::pair<NativeTypes::fr, generator_index_t>> input_pairs;
 
     input_pairs.push_back(std::make_pair(start_slot,
-                                         generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT,
+                                         generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
                                                              0 }))); // hash_sub_index 0 is reserved for the start_slot.
 
     for (size_t i = 0; i < keys.size(); ++i) {
         if (keys[i]) {
             input_pairs.push_back(
                 std::make_pair(*keys[i],
-                               generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT,
+                               generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
                                                    i + 1 }))); // hash_sub_index 0 is reserved for the start_slot.
         } else {
             // If this mapping key has no mapping_key_value (std::nullopt), then we must be partially committing and
@@ -52,9 +55,8 @@ std::tuple<NativeTypes::grumpkin_point, bool> PrivateStateVar<Composer>::compute
             // So use a placeholder generator for this mapping key, to signify "this mapping key is missing".
             // Note: we can't just commit to a value of `0` for this mapping key, since `0` is a valid value to
             // commit to, and so "missing" is distinguished as follows.
-            input_pairs.push_back(
-                std::make_pair(NativeTypes::fr(1),
-                               generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, i + 1 })));
+            input_pairs.push_back(std::make_pair(
+                NativeTypes::fr(1), generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, i + 1 })));
         }
     }
 
@@ -70,14 +72,14 @@ std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> PrivateStateVa
     std::vector<std::pair<fr, generator_index_t>> input_pairs;
 
     input_pairs.push_back(std::make_pair(start_slot,
-                                         generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT,
+                                         generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
                                                              0 }))); // hash_sub_index 0 is reserved for the start_slot.
 
     for (size_t i = 0; i < keys.size(); ++i) {
         if (keys[i]) {
             input_pairs.push_back(
                 std::make_pair(*keys[i],
-                               generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT,
+                               generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT,
                                                    i + 1 }))); // hash_sub_index 0 is reserved for the start_slot.
         } else {
             // If this mapping key has no mapping_key_value (std::nullopt), then we must be partially committing and
@@ -86,7 +88,7 @@ std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> PrivateStateVa
             // Note: we can't just commit to a value of `0` for this mapping key, since `0` is a valid value to
             // commit to, and so "missing" is distinguished as follows.
             input_pairs.push_back(std::make_pair(
-                fr(1), generator_index_t({ PrivateStateNoteGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, i + 1 })));
+                fr(1), generator_index_t({ StorageSlotGeneratorIndex::MAPPING_SLOT_PLACEHOLDER, i + 1 })));
         }
     }
 
@@ -197,6 +199,7 @@ void PrivateStateVar<Composer>::validate_operand(PrivateStateOperand<CT> const& 
     }
 }
 
+// TODO: move this to a new PrivateState class.
 template <typename Composer>
 void PrivateStateVar<Composer>::add(PrivateStateOperand<CircuitTypes<Composer>> const& operand)
 {
@@ -208,13 +211,13 @@ void PrivateStateVar<Composer>::add(PrivateStateOperand<CircuitTypes<Composer>> 
 
     PrivateStateNotePreimage<CT> new_note_preimage = PrivateStateNotePreimage<CT>{
         .start_slot = start_slot,
-        .slot_point = slot_point,
+        .storage_slot_point = storage_slot_point,
         .value = operand.value,
-        .owner_address = operand.owner_address,
+        .owner = operand.owner,
         .creator_address = operand.creator_address,
-        .salt = oracle.generate_salt(),
-        // .input_nullifier = // this will be injected by the exec_ctx
         .memo = operand.memo,
+        .salt = oracle.generate_salt(),
+        // .nonce = // this will be injected by the exec_ctx at 'finalise'
         .is_real = plonk::stdlib::types::to_ct(composer, true),
     };
 
@@ -237,18 +240,18 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
     const fr& subtrahend = operand.value;
 
     auto [minuend_preimage_1, minuend_preimage_2] =
-        oracle.get_private_state_note_preimages_for_subtraction(slot_point.x, operand.owner_address, subtrahend);
+        oracle.get_private_state_note_preimages_for_subtraction(storage_slot_point.x, operand.owner, subtrahend);
 
     (*minuend_preimage_1.start_slot).assert_equal(start_slot);
-    (*minuend_preimage_1.slot_point).assert_equal(slot_point);
+    (*minuend_preimage_1.storage_slot_point).assert_equal(storage_slot_point);
     // value enforced through the below subtraction.
-    (*minuend_preimage_1.owner_address).assert_equal(operand.owner_address);
+    (*minuend_preimage_1.owner).assert_equal(operand.owner);
     // other info about notes being spent is irrelevant.
 
     (*minuend_preimage_2.start_slot).assert_equal(start_slot);
-    (*minuend_preimage_2.slot_point).assert_equal(slot_point);
+    (*minuend_preimage_2.storage_slot_point).assert_equal(storage_slot_point);
     // value enforced through the below subtraction.
-    (*minuend_preimage_2.owner_address).assert_equal(operand.owner_address);
+    (*minuend_preimage_2.owner).assert_equal(operand.owner);
     // other info about notes being spent is irrelevant.
 
     const fr& minuend = *minuend_preimage_1.value + *minuend_preimage_2.value;
@@ -257,13 +260,13 @@ void PrivateStateVar<Composer>::subtract(PrivateStateOperand<CircuitTypes<Compos
 
     auto difference_preimage = PrivateStateNotePreimage<CT>{
         .start_slot = start_slot,
-        .slot_point = slot_point,
+        .storage_slot_point = storage_slot_point,
         .value = difference,
-        .owner_address = operand.owner_address,
+        .owner = operand.owner,
         .creator_address = operand.creator_address,
-        .salt = oracle.generate_salt(),
-        // .input_nullifier = // this will be injected by the exec_ctx upon `finalise()`
         .memo = operand.memo,
+        .salt = oracle.generate_salt(),
+        // .nonce = // this will be injected by the exec_ctx upon `finalise()`
         .is_real = plonk::stdlib::types::to_ct(composer, true),
     };
 

@@ -104,7 +104,7 @@ fn swap_a_for_b(
         token_balance_a_new_salt,
     },
     PUBLIC_INPUTS: {
-        custom_inputs: [
+        args: [
             amount_a,
         ],
         emitted_events: {},
@@ -142,7 +142,7 @@ fn swap_a_for_b(
 ) {
 
     // Params:
-    let amount_a = PUBLIC_INPUTS.custom_inputs.amount_a
+    let amount_a = PUBLIC_INPUTS.args.amount_a
     
     /********************************************************************************
      * MAKE THE L1 CALL
@@ -185,13 +185,13 @@ fn swap_a_for_b(
                 // Some public inputs are omitted from this object when calculating a
                 // _callback's_ call hash, because they depend on the (as of yet) 
                 // unknown L1 result.
-                custom_inputs: [
+                args: [
                     0, // Inputs which will be 'result' values are set as 0.
                 ],
                 emitted_events: {},
                 // executed_callback: {...}, // Object is omitted,
                                              // since it's not known yet.
-                // TODO: maybe we ONLY need the custom_inputs???
+                // TODO: maybe we ONLY need the args???
                 // TODO: model the claim circuit, so I understand what's needed for
                 // that context.
                 output_commitments: {
@@ -239,7 +239,7 @@ fn swap_a_for_b(
                 is_callback: true, // <-- callback!
             },
             public_inputs: {
-                custom_inputs: [
+                args: [
                     amount_a, // All args are known for a failure callback. (There's
                               // no result being fed in).
                 ],
@@ -380,7 +380,7 @@ fn hide_amount_b(
         token_balance_b_new_salt,
     },
     PUBLIC_INPUTS: {
-        custom_inputs: {
+        args: {
             amount_b,
         },
         emitted_events: {}, // lots of unused stuff denoted by {} or [].

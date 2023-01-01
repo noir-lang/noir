@@ -34,14 +34,14 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext<Compose
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto& balances = contract.get_private_state("balances");
+    auto& balances = contract.get_private_state_var("balances");
 
     // Circuit-specific logic *******************************************************
 
     balances.at({ msg_sender.to_field(), asset_id })
         .subtract({
             .value = amount + fee,
-            .owner_address = msg_sender,
+            .owner = msg_sender,
             .creator_address = msg_sender,
             .memo = memo,
         });
@@ -55,11 +55,11 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext<Compose
 
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
 
-    public_inputs.custom_inputs[0] = amount;
-    public_inputs.custom_inputs[1] = asset_id;
-    public_inputs.custom_inputs[2] = memo;
-    public_inputs.custom_inputs[3] = l1_withdrawal_address;
-    public_inputs.custom_inputs[4] = fee;
+    public_inputs.args[0] = amount;
+    public_inputs.args[1] = asset_id;
+    public_inputs.args[2] = memo;
+    public_inputs.args[3] = l1_withdrawal_address;
+    public_inputs.args[4] = fee;
 
     public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, l1_withdrawal_address);
     public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);

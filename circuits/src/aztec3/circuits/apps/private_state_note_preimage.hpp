@@ -20,14 +20,17 @@ template <typename NCT> struct PrivateStateNotePreimage {
 
     // No custom constructors so that designated initializers can be used (for readability of test circuits).
 
-    std::optional<fr> start_slot;             // TODO: remove optionality
-    std::optional<grumpkin_point> slot_point; // TODO: remove optionality?
+    std::optional<fr> start_slot;                     // TODO: remove optionality
+    std::optional<grumpkin_point> storage_slot_point; // TODO: remove optionality?
+
+    // TODO: MAKE THIS A PAYLOAD LIKE ZEXE?????
     std::optional<fr> value;
-    std::optional<address> owner_address;
+    std::optional<address> owner;
     std::optional<address> creator_address;
-    std::optional<fr> salt;
-    std::optional<fr> input_nullifier;
     std::optional<fr> memo; // numerical representation of a string
+
+    std::optional<fr> salt;
+    std::optional<fr> nonce;
 
     boolean is_real;
 
@@ -42,11 +45,28 @@ template <typename NCT> struct PrivateStateNotePreimage {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         PrivateStateNotePreimage<CircuitTypes<Composer>> preimage = {
-            to_ct(start_slot), to_ct(slot_point),      to_ct(value), to_ct(owner_address), to_ct(creator_address),
-            to_ct(salt),       to_ct(input_nullifier), to_ct(memo),  to_ct(is_real),
+            to_ct(start_slot),
+            to_ct(storage_slot_point),
+            to_ct(value),
+            to_ct(owner),
+            to_ct(creator_address),
+            to_ct(memo),
+            to_ct(salt),
+            to_ct(nonce),
+            to_ct(is_real),
         };
 
         return preimage;
+    };
+
+    fr hash() const {}
+
+    PrivateStateNotePreimage<NCT> utxo_sload_hook(){};
+
+    PrivateStateNotePreimage<NCT> utxo_sstore_hook(){
+        // maybe call the oracle to generate a salt? But that would require us to pass in the oracle, which feels messy
+        // / wrong...
+        // We'd also need to generate a nonce...
     };
 };
 
@@ -55,13 +75,13 @@ template <typename NCT> void read(uint8_t const*& it, PrivateStateNotePreimage<N
     using serialize::read;
 
     read(it, preimage.start_slot);
-    read(it, preimage.slot_point);
+    read(it, preimage.storage_slot_point);
     read(it, preimage.value);
-    read(it, preimage.owner_address);
+    read(it, preimage.owner);
     read(it, preimage.creator_address);
-    read(it, preimage.salt);
-    read(it, preimage.input_nullifier);
     read(it, preimage.memo);
+    read(it, preimage.salt);
+    read(it, preimage.nonce);
     read(it, preimage.is_real);
 };
 
@@ -70,26 +90,26 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateStateNotePr
     using serialize::write;
 
     write(buf, preimage.start_slot);
-    write(buf, preimage.slot_point);
+    write(buf, preimage.storage_slot_point);
     write(buf, preimage.value);
-    write(buf, preimage.owner_address);
+    write(buf, preimage.owner);
     write(buf, preimage.creator_address);
-    write(buf, preimage.salt);
-    write(buf, preimage.input_nullifier);
     write(buf, preimage.memo);
+    write(buf, preimage.salt);
+    write(buf, preimage.nonce);
     write(buf, preimage.is_real);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateStateNotePreimage<NCT> const& preimage)
 {
     return os << "start_slot: " << preimage.start_slot << "\n"
-              << "slot_point: " << preimage.slot_point << "\n"
+              << "storage_slot_point: " << preimage.storage_slot_point << "\n"
               << "value: " << preimage.value << "\n"
-              << "owner_address: " << preimage.owner_address << "\n"
+              << "owner: " << preimage.owner << "\n"
               << "creator_address: " << preimage.creator_address << "\n"
-              << "salt: " << preimage.salt << "\n"
-              << "input_nullifier: " << preimage.input_nullifier << "\n"
               << "memo: " << preimage.memo << "\n"
+              << "salt: " << preimage.salt << "\n"
+              << "nonce: " << preimage.nonce << "\n"
               << "is_real: " << preimage.is_real << "\n";
 }
 

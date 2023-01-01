@@ -3,8 +3,8 @@
 
 namespace aztec3 {
 
-constexpr size_t CUSTOM_INPUTS_LENGTH = 8;
-constexpr size_t CUSTOM_OUTPUTS_LENGTH = 4;
+constexpr size_t ARGS_LENGTH = 8;
+constexpr size_t RETURN_VALUES_LENGTH = 4;
 constexpr size_t EMITTED_EVENTS_LENGTH = 4;
 
 constexpr size_t OUTPUT_COMMITMENTS_LENGTH = 4;
@@ -34,7 +34,7 @@ constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
 // Enumerate the hash_indices which are used for pedersen hashing
 // Start from 1 to avoid the default generators.
 enum GeneratorIndex {
-    COMMITMENT,
+    COMMITMENT = 1,
     COMMITMENT_PLACEHOLDER, // for omitting some elements of the commitment when partially committing.
     OUTER_COMMITMENT,
     NULLIFIER_HASHED_PRIVATE_KEY,
@@ -53,16 +53,20 @@ enum GeneratorIndex {
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
 };
 
+enum StorageSlotGeneratorIndex {
+    BASE_SLOT,
+    MAPPING_SLOT,
+    MAPPING_SLOT_PLACEHOLDER,
+};
+
 // Enumerate the hash_sub_indices which are used for committing to private state note preimages.
 // Start from 1.
 enum PrivateStateNoteGeneratorIndex {
-    MAPPING_SLOT = 1,
-    MAPPING_SLOT_PLACEHOLDER, // for omitting some mapping key values when partially committing.
-    VALUE,
+    VALUE = 1,
     OWNER,
     CREATOR,
     SALT,
-    INPUT_NULLIFIER,
+    NONCE,
     MEMO,
     IS_REAL,
 };

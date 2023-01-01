@@ -15,13 +15,17 @@ using aztec3::oracle::NativeOracle;
 using plonk::stdlib::types::CircuitTypes;
 
 /**
- * The main purpose of this wrapper is to cache values which have been already given by the oracle. Insecure circuits
- * could be built if the same value is queried twice from the oracle (since a malicious prover could provide two
- * different witnesses for a single thing).
+ * The main purpose of this wrapper is to:
+ * - cache values which have been already given by the oracle previously during this execution;
+ * - convert Native types (returned by the oracle) into circuit types, using the composer instance.
+ * Note: Insecure circuits could be built if the same value is queried twice from the oracle (since a malicious prover
+ * could provide two different witnesses for a single thing). The Native oracle will throw if you try a double-query of
+ * certain information.
  */
 template <typename Composer> class OracleWrapperInterface {
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
+    typedef typename CT::grumpkin_point grumpkin_point;
     typedef typename CT::address address;
 
   public:
@@ -43,6 +47,8 @@ template <typename Composer> class OracleWrapperInterface {
         validate_msg_sender_private_key();
         return *msg_sender_private_key;
     };
+
+    address get_contract_address() { return get_call_context().storage_contract_address; };
 
     CallContext<CT>& get_call_context()
     {
@@ -74,6 +80,18 @@ template <typename Composer> class OracleWrapperInterface {
                 storage_slot.get_value(), NT::address(owner.to_field().get_value()), subtrahend.get_value());
         return std::make_pair(native_preimages.first.to_circuit_type(composer),
                               native_preimages.second.to_circuit_type(composer));
+    }
+
+    template <typename NotePreimage>
+    auto get_utxo_sload_datum(grumpkin_point const& storage_slot_point, NotePreimage const& advice)
+    {
+        auto native_storage_slot_point = plonk::stdlib::types::to_nt<Composer>(storage_slot_point);
+
+        auto native_advice = advice.template to_native_type<Composer>();
+
+        auto native_utxo_sload_datum = oracle.get_utxo_sload_datum(native_storage_slot_point, native_advice);
+
+        return native_utxo_sload_datum.to_circuit_type(composer);
     }
 
   private:

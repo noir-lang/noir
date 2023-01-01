@@ -23,7 +23,7 @@ class private_state_tests : public ::testing::Test {};
 // TEST(private_state_tests, test_native_private_state)
 // {
 //     StateFactory<NT> state_factory("MyContract");
-//     PrivateStateVar<NT> x = state_factory.new_private_state("x");
+//     PrivateStateVar<NT> x = state_factory.declare_private_state_var("x");
 
 //     PrivateStateVar<NT> native_private_state = PrivateStateVar(x);
 
@@ -38,9 +38,9 @@ class private_state_tests : public ::testing::Test {};
 // {
 //     StateFactory<NT> state_factory("MyContract");
 
-//     state_factory.new_private_state("balances", { "asset_id", "owner_address" });
+//     state_factory.declare_private_state_var("balances", { "asset_id", "owner" });
 
-//     state_factory.new_private_state("x");
+//     state_factory.declare_private_state_var("x");
 
 //     // info("state_factory: ", state_factory);
 // }
@@ -48,14 +48,14 @@ class private_state_tests : public ::testing::Test {};
 // TEST(private_state_tests, test_native_private_state_note_preimage)
 // {
 //     StateFactory<NT> state_factory("MyContract");
-//     PrivateStateVar<NT> x = state_factory.new_private_state("x");
+//     PrivateStateVar<NT> x = state_factory.declare_private_state_var("x");
 
 //     PrivateStateNotePreimage<NT> native_preimage = {
 //         .value = 2,
-//         .owner_address = 3,
+//         .owner = 3,
 //         .creator_address = NT::address(4),
 //         .salt = 5,
-//         .input_nullifier = 6,
+//         .nonce = 6,
 //         .memo = 7,
 //     };
 
@@ -69,15 +69,16 @@ class private_state_tests : public ::testing::Test {};
 // TEST(private_state_tests, test_native_private_state_note_preimage_mapping)
 // {
 //     StateFactory<NT> state_factory("MyContract");
-//     PrivateStateVar<NT> x = state_factory.new_private_state("x", { "mapping_key_name_1", "mapping_key_name_2" });
+//     PrivateStateVar<NT> x = state_factory.declare_private_state_var("x", { "mapping_key_name_1", "mapping_key_name_2"
+//     });
 
 //     PrivateStateNotePreimage<NT> native_preimage = {
 //         .mapping_key_values_by_key_name = std::map<std::string, std::optional<fr>>({ { "mapping_key_name_2", 5 } }),
 //         .value = 2,
-//         .owner_address = 3,
+//         .owner = 3,
 //         .creator_address = NT::address(4),
 //         .salt = 5,
-//         .input_nullifier = 6,
+//         .nonce = 6,
 //         .memo = 7,
 //     };
 
@@ -91,15 +92,16 @@ class private_state_tests : public ::testing::Test {};
 // TEST(private_state_tests, test_native_private_state_note_mapping)
 // {
 //     StateFactory<NT> state_factory("MyContract");
-//     PrivateStateVar<NT> x = state_factory.new_private_state("x", { "mapping_key_name_1", "mapping_key_name_2" });
+//     PrivateStateVar<NT> x = state_factory.declare_private_state_var("x", { "mapping_key_name_1", "mapping_key_name_2"
+//     });
 
 //     PrivateStateNotePreimage<NT> private_state_preimage = {
 //         .mapping_key_values_by_key_name = std::map<std::string, std::optional<fr>>({ { "mapping_key_name_2", 5 } }),
 //         .value = 2,
-//         .owner_address = 3,
+//         .owner = 3,
 //         .creator_address = NT::address(4),
 //         .salt = 5,
-//         .input_nullifier = 6,
+//         .nonce = 6,
 //         .memo = 7,
 //     };
 

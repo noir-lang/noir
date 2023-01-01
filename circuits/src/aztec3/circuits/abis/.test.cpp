@@ -79,8 +79,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 // TEST(abi_tests, test_native_public_inputs)
 // {
 //     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .custom_outputs = { 9, 10, 11, 12 },
+//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
+//         .return_values = { 9, 10, 11, 12 },
 //         .emitted_events = { 13, 14, 15, 16 },
 //         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
 //         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
@@ -96,8 +96,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 // TEST(abi_tests, test_native_to_circuit_public_circuit_public_inputs)
 // {
 //     PublicCircuitPublicInputs<NT> native_public_inputs = {
-//         .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .custom_outputs = { 9, 10, 11, 12 },
+//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
+//         .return_values = { 9, 10, 11, 12 },
 //         .emitted_events = { 13, 14, 15, 16 },
 //         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
 //         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
@@ -118,8 +118,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 // TEST(abi_tests, test_native_call_stack_item)
 // {
 //     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .custom_outputs = { 9, 10, 11, 12 },
+//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
+//         .return_values = { 9, 10, 11, 12 },
 //         .emitted_events = { 13, 14, 15, 16 },
 //         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
 //         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
@@ -151,8 +151,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 // TEST(abi_tests, test_native_to_circuit_call_stack_item)
 // {
 //     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .custom_inputs = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .custom_outputs = { 9, 10, 11, 12 },
+//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
+//         .return_values = { 9, 10, 11, 12 },
 //         .emitted_events = { 13, 14, 15, 16 },
 //         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
 //         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },

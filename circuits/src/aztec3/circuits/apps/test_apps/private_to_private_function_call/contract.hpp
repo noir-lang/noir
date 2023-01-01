@@ -10,8 +10,8 @@ inline Contract<Composer> init_contract(FunctionExecutionContext<Composer>& exec
 {
     Contract<Composer> contract(exec_ctx, "priv_to_priv_function_call");
 
-    contract.new_private_state("x");
-    contract.new_private_state("y");
+    contract.declare_private_state_var("x");
+    contract.declare_private_state_var("y");
 
     // Solely used for assigning vk indices.
     contract.set_functions({

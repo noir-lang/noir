@@ -87,7 +87,7 @@ template <typename Composer> class FunctionExecutionContext {
             }
         }
         for (size_t i = 0; i < new_private_state_notes.size(); ++i) {
-            new_private_state_notes[i].preimage.input_nullifier = new_nullifiers[i];
+            new_private_state_notes[i].preimage.nonce = new_nullifiers[i];
             new_commitments.push_back(new_private_state_notes[i].compute_commitment());
         }
     }

@@ -93,7 +93,7 @@ fn deploy(
         ],
     },
     PUBLIC_INPUTS: {
-        custom_inputs: [],
+        args: [],
         emitted_events: {},
         executed_callback: {},
 
@@ -137,8 +137,8 @@ fn deploy(
     
 
     // Check the correct parameters are being passed to the constructors:
-    assert(private_constructor_public_inputs.custom_inputs[0] == 123);
-    assert(public_constructor_public_inputs.custom_inputs[0] == 456);
+    assert(private_constructor_public_inputs.args[0] == 123);
+    assert(public_constructor_public_inputs.args[0] == 456);
 
     // The call contexts will be checked in the kernel snark, so we don't need
     // to check it here.
@@ -183,13 +183,13 @@ fn private_constructor(
         b_new_salt,
     },
     PUBLIC_INPUTS: {
-        custom_inputs: [
+        args: [
             _b, // Although this param was decorated as `secret`, it cannot be a 
                 // private input to the circuit, because it's passed into the circuit
                 // by another circuit (which must validate the correctness of the
                 // value being passed in).
                 // It will still be hidden from the world, since the private kernel
-                // circuit will swallow all custom_inputs, unless they're also
+                // circuit will swallow all args, unless they're also
                 // emitted as events.
                 // TODO: prevent `secret` params from being exposed by an app via 
                 // the `emittedPublicInputs` or call stacks, so that the kernel circuit
@@ -280,7 +280,7 @@ fn public_constructor(
         called_from_l1: false,
     }
 ) {
-    let amount = PUBLIC_INPUTS.custom_inputs.amount;
+    let amount = PUBLIC_INPUTS.args.amount;
 
 // Perform the calculation (for example):
     require(a_storage_slot == 1);

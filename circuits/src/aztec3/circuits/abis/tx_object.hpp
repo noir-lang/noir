@@ -21,7 +21,7 @@ template <typename NCT> struct TxObject {
     address from;
     address to;
     FunctionSignature<NCT> function_signature;
-    std::array<fr, CUSTOM_INPUTS_LENGTH> custom_inputs;
+    std::array<fr, ARGS_LENGTH> args;
     fr nonce;
     TxContext<NCT> tx_context;
     fr chain_id;
@@ -35,8 +35,8 @@ template <typename NCT> struct TxObject {
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         TxObject<CircuitTypes<Composer>> tx_object = {
-            to_ct(from),          to_ct(to),    to_circuit_type(function_signature),
-            to_ct(custom_inputs), to_ct(nonce), to_circuit_type(tx_context),
+            to_ct(from),     to_ct(to),    to_circuit_type(function_signature),
+            to_ct(args),     to_ct(nonce), to_circuit_type(tx_context),
             to_ct(chain_id),
         };
 
@@ -51,7 +51,7 @@ template <typename NCT> void read(uint8_t const*& it, TxObject<NCT>& tx_object)
     read(it, tx_object.from);
     read(it, tx_object.to);
     read(it, tx_object.function_signature);
-    read(it, tx_object.custom_inputs);
+    read(it, tx_object.args);
     read(it, tx_object.nonce);
     read(it, tx_object.tx_context);
     read(it, tx_object.chain_id);
@@ -64,7 +64,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, TxObject<NCT> cons
     write(buf, tx_object.from);
     write(buf, tx_object.to);
     write(buf, tx_object.function_signature);
-    write(buf, tx_object.custom_inputs);
+    write(buf, tx_object.args);
     write(buf, tx_object.nonce);
     write(buf, tx_object.tx_context);
     write(buf, tx_object.chain_id);
@@ -75,7 +75,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, TxObject<NCT>
     return os << "from: " << tx_object.from << "\n"
               << "to: " << tx_object.to << "\n"
               << "function_signature: " << tx_object.function_signature << "\n"
-              << "custom_inputs: " << tx_object.custom_inputs << "\n"
+              << "args: " << tx_object.args << "\n"
               << "nonce: " << tx_object.nonce << "\n"
               << "tx_context: " << tx_object.tx_context << "\n"
               << "chain_id: " << tx_object.chain_id << "\n";

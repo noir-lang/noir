@@ -42,10 +42,9 @@ PrivateStateNote<Composer>::PrivateStateNote(PrivateStateVar<Composer>& private_
 
 template <typename Composer> bool PrivateStateNote<Composer>::check_if_partial() const
 {
-    const auto& [start_slot, slot_point, value, owner_address, creator_address, salt, input_nullifier, memo, _] =
-        preimage;
+    const auto& [start_slot, storage_slot_point, value, owner, creator_address, salt, nonce, memo, _] = preimage;
 
-    if (!value || !owner_address || !creator_address || !salt || !input_nullifier || !memo) {
+    if (!value || !owner || !creator_address || !salt || !nonce || !memo) {
         return true;
     }
     if (private_state_var.is_partial_slot) {
@@ -60,7 +59,7 @@ template <typename Composer> typename CircuitTypes<Composer>::fr PrivateStateNot
         return *commitment;
     }
 
-    grumpkin_point slot_point = private_state_var.slot_point;
+    grumpkin_point storage_slot_point = private_state_var.storage_slot_point;
 
     std::vector<fr> inputs;
     std::vector<generator_index_t> generators;
@@ -84,21 +83,21 @@ template <typename Composer> typename CircuitTypes<Composer>::fr PrivateStateNot
     const auto& [start_slot,
                  mapping_key_values_by_key_name,
                  value,
-                 owner_address,
+                 owner,
                  creator_address,
                  salt,
-                 input_nullifier,
+                 nonce,
                  memo,
                  is_real] = preimage;
 
     const auto commitment_point =
-        slot_point +
+        storage_slot_point +
         CT::commit(
             { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-              gen_pair_address(owner_address, PrivateStateNoteGeneratorIndex::OWNER),
+              gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
               gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
               gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-              gen_pair_fr(input_nullifier, PrivateStateNoteGeneratorIndex::INPUT_NULLIFIER),
+              gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
               gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
               std::make_pair(is_real,
                              generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL }))
@@ -118,7 +117,7 @@ typename CircuitTypes<Composer>::grumpkin_point PrivateStateNote<Composer>::comp
             "here. But if that's not the case, you should call get_partial_commitment() instead, to save constraints.");
     }
 
-    grumpkin_point slot_point = private_state_var.slot_point;
+    grumpkin_point storage_slot_point = private_state_var.storage_slot_point;
 
     std::vector<fr> inputs;
     std::vector<generator_index_t> generators;
@@ -139,24 +138,25 @@ typename CircuitTypes<Composer>::grumpkin_point PrivateStateNote<Composer>::comp
     const auto& [start_slot,
                  mapping_key_values_by_key_name,
                  value,
-                 owner_address,
+                 owner,
                  creator_address,
                  salt,
-                 input_nullifier,
+                 nonce,
                  memo,
                  is_real] = preimage;
 
-    return slot_point + CT::commit({ gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-                                     gen_pair_address(owner_address, PrivateStateNoteGeneratorIndex::OWNER),
-                                     gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
-                                     gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-                                     gen_pair_fr(input_nullifier, PrivateStateNoteGeneratorIndex::INPUT_NULLIFIER),
-                                     gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-                                     std::make_pair(is_real,
-                                                    generator_index_t({ GeneratorIndex::COMMITMENT,
-                                                                        PrivateStateNoteGeneratorIndex::IS_REAL }))
+    return storage_slot_point +
+           CT::commit({ gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
+                        gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
+                        gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
+                        gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
+                        gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
+                        gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
+                        std::make_pair(
+                            is_real,
+                            generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL }))
 
-                        });
+           });
 }
 
 template <typename Composer>

@@ -13,7 +13,6 @@ namespace aztec3::circuits::apps {
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-// template <typename Composer> class PrivateStateFactory;
 template <typename Composer> class FunctionExecutionContext;
 
 template <typename Composer> class PrivateStateVar {
@@ -25,13 +24,13 @@ template <typename Composer> class PrivateStateVar {
 
     FunctionExecutionContext<Composer>*
         exec_ctx; // Pointer, because PrivateStateVar can't hold a reference (because it gets initialised as a member of
-                  // a map within PrivateStateFactory, so might not be passed data upon initialisation)
+                  // a map within the Contract class, so might not be passed data upon initialisation)
 
     PrivateStateType private_state_type;
     std::string name;
     fr start_slot;
-    grumpkin_point slot_point; /// TODO: make this std::optional (since mapping vars won't have this (only specific
-                               /// mapping values will))?
+    grumpkin_point storage_slot_point; /// TODO: make this std::optional (since mapping vars won't have this (only
+                                       /// specific mapping values will))?
 
     // A mapping var (in particular) can point to many private_states:
     std::map<NativeTypes::fr, PrivateStateVar<Composer>> private_states;
@@ -48,7 +47,7 @@ template <typename Composer> class PrivateStateVar {
         , private_state_type(private_state_var.private_state_type)
         , name(private_state_var.name)
         , start_slot(private_state_var.start_slot)
-        , slot_point(private_state_var.slot_point)
+        , storage_slot_point(private_state_var.storage_slot_point)
         , is_mapping(private_state_var.is_mapping)
         , mapping_key_names(private_state_var.mapping_key_names)
         , is_partial_slot(private_state_var.is_partial_slot){};
@@ -63,7 +62,7 @@ template <typename Composer> class PrivateStateVar {
         , name(name)
         , start_slot(start_slot)
     {
-        slot_point = compute_start_slot_point();
+        storage_slot_point = compute_start_slot_point();
     };
 
     // For initialising a mapping var:
@@ -109,26 +108,25 @@ template <typename Composer> class PrivateStateVar {
     std::tuple<grumpkin_point, bool> compute_slot_point_at_mapping_keys(std::vector<std::optional<fr>> const& keys);
 
   private:
-    grumpkin_point compute_start_slot_point();
-
     // For initialising an fr state from within a mapping:
     PrivateStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                     PrivateStateType const& private_state_type,
                     std::string const& name,
                     fr const& start_slot,
-                    grumpkin_point const& slot_point,
+                    grumpkin_point const& storage_slot_point,
                     bool const& is_partial_slot)
         : exec_ctx(exec_ctx)
         , private_state_type(private_state_type)
         , name(name)
         , start_slot(start_slot)
-        , slot_point(slot_point)
+        , storage_slot_point(storage_slot_point)
         , is_partial_slot(is_partial_slot){};
 
+    size_t op_count = 0;
+
+    grumpkin_point compute_start_slot_point();
     void arithmetic_checks();
     void validate_operand(PrivateStateOperand<CT> const& operand) const;
-
-    size_t op_count = 0;
 };
 
 } // namespace aztec3::circuits::apps

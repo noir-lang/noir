@@ -22,11 +22,11 @@ OptionalPrivateCircuitPublicInputs<NT> function1(FunctionExecutionContext<Compos
 
     CT::address msg_sender = oracle.get_msg_sender();
 
-    auto& x = contract.get_private_state("x");
+    auto& x = contract.get_private_state_var("x");
 
     x.add({
         .value = a,
-        .owner_address = msg_sender,
+        .owner = msg_sender,
         .creator_address = msg_sender,
         .memo = 0,
     });
@@ -54,9 +54,9 @@ OptionalPrivateCircuitPublicInputs<NT> function1(FunctionExecutionContext<Compos
 
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
 
-    public_inputs.custom_inputs[0] = a;
-    public_inputs.custom_inputs[1] = b;
-    public_inputs.custom_inputs[2] = c;
+    public_inputs.args[0] = a;
+    public_inputs.args[1] = b;
+    public_inputs.args[2] = c;
 
     // public_inputs.private_call_stack[0] = ...
 
