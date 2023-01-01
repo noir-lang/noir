@@ -44,7 +44,7 @@ template <typename Composer, typename Note> class UTXOStateVar : public StateVar
      */
     Note get(NotePreimage const& advice);
 
-    // void insert(NotePreimage const&  new_value);
+    void insert(NotePreimage new_note_preimage);
 };
 
 } // namespace aztec3::circuits::apps::state_vars

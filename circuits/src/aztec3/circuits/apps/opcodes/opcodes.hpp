@@ -20,10 +20,26 @@ template <typename Composer> class Opcodes {
     typedef NativeTypes NT;
 
     /**
-     * @brief Load a singleton UTXOSLoadDatum from the Private Client's DB.
+     * @brief
+     * - Load a singleton UTXOSLoadDatum from the Private Client's DB
+     * - Generate constraints to prove its existence in the tree
+     * - Validate the data
+     * - Push new note data to the exec_ctx.
      */
     template <typename Note>
     static Note UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var, typename Note::NotePreimage const& advice);
+
+    /**
+     * @brief Compute and push a new nullifier to the public inputs of this exec_ctx.
+     */
+    template <typename Note> static void UTXO_NULL(UTXOStateVar<Composer, Note>* utxo_state_var, Note& note);
+
+    /**
+     * @brief Compute and push a new comitment to the public inputs of this exec_ctx.
+     */
+    template <typename Note>
+    static void UTXO_SSTORE(UTXOStateVar<Composer, Note>* utxo_state_var,
+                            typename Note::NotePreimage new_note_preimage);
 };
 
 } // namespace aztec3::circuits::apps::opcodes

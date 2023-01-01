@@ -7,6 +7,7 @@
 
 namespace aztec3::circuits::apps::notes {
 
+// TODO: remove this `using` declaration?
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
 using plonk::stdlib::types::CircuitTypes;

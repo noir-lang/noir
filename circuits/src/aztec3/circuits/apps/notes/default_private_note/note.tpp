@@ -2,6 +2,7 @@
 #include "nullifier_preimage.hpp"
 
 #include "../../oracle_wrapper.hpp"
+#include "../../opcodes/opcodes.hpp"
 
 #include <crypto/pedersen/generator_data.hpp>
 
@@ -17,8 +18,12 @@
 namespace aztec3::circuits::apps::notes {
 
 namespace {
+using aztec3::circuits::apps::opcodes::Opcodes;
+
 using aztec3::GeneratorIndex;
+
 using crypto::pedersen::generator_index_t;
+
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -26,13 +31,12 @@ using plonk::stdlib::types::NativeTypes;
 
 template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
 {
-    auto [nullifier, nullifier_preimage] = compute_nullifier();
+    // auto [nullifier, nullifier_preimage] = compute_nullifier();
 
-    // auto& exec_ctx = utxo_state_var->exec_ctx;
-
-    // TODO: implement this function!
-    (void)nullifier;
-    (void)nullifier_preimage;
+    // // TODO: implement this function!
+    // (void)nullifier;
+    // (void)nullifier_preimage;
+    Opcodes<Composer>::UTXO_NULL(utxo_state_var, *this);
 }
 
 template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::check_if_partial() const

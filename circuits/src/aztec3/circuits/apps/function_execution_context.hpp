@@ -42,6 +42,7 @@ template <typename Composer> class FunctionExecutionContext {
 
     std::vector<PrivateStateNote<Composer>> new_private_state_notes;
     std::vector<fr> new_commitments;
+
     std::vector<NullifierPreimage<CT>> new_nullifier_preimages;
     std::vector<fr> new_nullifiers;
 

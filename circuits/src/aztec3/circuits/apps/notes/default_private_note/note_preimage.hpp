@@ -29,7 +29,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
     std::optional<fr> salt;
     std::optional<fr> nonce;
 
-    boolean is_real;
+    boolean is_real = true;
 
     bool operator==(DefaultPrivateNotePreimage<NCT, V> const&) const = default;
 

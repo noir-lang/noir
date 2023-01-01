@@ -154,8 +154,6 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
     OracleWrapper oracle = OracleWrapper(composer, native_oracle);
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
-    using Note = DefaultPrivateNote<C, CT::fr>;
-
     // bool sort(NT::uint256 i, NT::uint256 j)
     // {
     //     return (i < j);
@@ -168,13 +166,13 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 
     // FUNCTION:
 
+    using Note = DefaultPrivateNote<C, CT::fr>;
+
     UTXO<Note> my_utxo(&exec_ctx, "my_utxo");
 
     const auto& msg_sender = oracle.get_msg_sender();
 
     Note old_note = my_utxo.get({ .owner = msg_sender });
-
-    info("old_note.get_preimage(): ", old_note.get_preimage());
 
     old_note.remove();
 
@@ -182,9 +180,12 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 
     CT::fr new_value = old_value + 5;
 
-    info("new_value: ", new_value);
+    my_utxo.insert({ .value = new_value, //
+                     .owner = msg_sender,
+                     .creator_address = msg_sender,
+                     .memo = 1234 });
 
-    // my_utxo.insert({ .value = new_value, .owner = msg_sender });
+    // TODO: a UTXO_FINALISE() opcode?
 }
 
 } // namespace aztec3::circuits::apps::state_vars

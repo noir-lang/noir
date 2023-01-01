@@ -15,11 +15,10 @@ Note UTXOStateVar<Composer, Note>::get(typename Note::NotePreimage const& advice
     return Opcodes<Composer>::template UTXO_SLOAD<Note>(this, advice);
 };
 
-// void insert(NotePreimage new_value);
-
-// template <typename Composer> inline std::ostream& operator<<(std::ostream& os, UTXOStateVar<Composer> const& v)
-// {
-//     return os << v.value;
-// }
+template <typename Composer, typename Note>
+void UTXOStateVar<Composer, Note>::insert(typename Note::NotePreimage new_note_preimage)
+{
+    return Opcodes<Composer>::UTXO_SSTORE(this, new_note_preimage);
+};
 
 } // namespace aztec3::circuits::apps::state_vars
