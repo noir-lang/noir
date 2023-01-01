@@ -6,12 +6,15 @@
 
 #include <aztec3/circuits/abis/function_signature.hpp>
 
+#include <common/container.hpp>
+
 namespace aztec3::circuits::apps {
+
+using aztec3::circuits::abis::FunctionSignature;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
-using aztec3::circuits::abis::FunctionSignature;
 
 template <typename Composer> class FunctionExecutionContext;
 
@@ -25,11 +28,9 @@ template <typename Composer> class Contract {
 
     const std::string contract_name;
 
-    fr state_counter = 0;
-
-    std::vector<std::string> state_names;
-
-    std::map<std::string, PrivateStateVar<Composer>> private_state_vars;
+    fr state_var_counter = 0;
+    std::vector<std::string> state_var_names;
+    std::map<std::string, fr> start_slots_by_state_var_name;
 
     std::map<std::string, FunctionSignature<CT>> function_signatures;
 
@@ -53,17 +54,39 @@ template <typename Composer> class Contract {
 
     L1FunctionInterface<Composer>& get_l1_function(std::string const& name);
 
-    void push_new_state_var_name(std::string const& name);
+    // TODO: maybe also declare a type at this stage, so the correct type can be checked-for when the StateVar type is
+    // created within the function.
+    /**
+     * Note: this simply tracks the 'start' storage slots of each state variable at the 'contract scope level'.
+     * TODO: maybe we can just keep a vector of names and query the start slot with index_of(), instead.
+     */
+    void declare_state_var(std::string const& state_var_name)
+    {
+        push_new_state_var_name(state_var_name);
+        start_slots_by_state_var_name[state_var_name] = state_var_counter;
+        // state_var_counter++;
+        state_var_counter++;
+        ASSERT(state_var_counter.get_value() == state_var_names.size());
+    };
 
-    PrivateStateVar<Composer>& declare_private_state_var(std::string const& name,
-                                                         PrivateStateType const& private_state_type = PARTITIONED);
+    fr& get_start_slot(std::string const& state_var_name)
+    {
+        if (!start_slots_by_state_var_name.contains(state_var_name)) {
+            throw_or_abort("Name '" + state_var_name + "' not found. Use `declare_private_state_var`.");
+        }
+        return start_slots_by_state_var_name.at(state_var_name);
+    };
 
-    // For initialising a private state which is a mapping.
-    PrivateStateVar<Composer>& declare_private_state_var(std::string const& name,
-                                                         std::vector<std::string> const& mapping_key_names,
-                                                         PrivateStateType const& private_state_type = PARTITIONED);
+  private:
+    void push_new_state_var_name(std::string const& state_var_name)
+    {
+        if (index_of(state_var_names, state_var_name) == -1) {
+            state_var_names.push_back(state_var_name);
 
-    PrivateStateVar<Composer>& get_private_state_var(std::string const& name);
+            return;
+        }
+        throw_or_abort("name already exists");
+    }
 };
 
 } // namespace aztec3::circuits::apps

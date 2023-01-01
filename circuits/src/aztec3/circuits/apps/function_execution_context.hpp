@@ -12,6 +12,8 @@
 
 #include <stdlib/types/convert.hpp>
 
+// #include <memory>
+
 // #include "private_state_var.hpp"
 // #include "function_declaration.hpp"
 // #include "l1_function_interface.hpp"
@@ -33,6 +35,7 @@ template <typename Composer> class FunctionExecutionContext {
     OracleWrapperInterface<Composer>& oracle;
 
     Contract<Composer>* contract = nullptr;
+    // std::shared_ptr<Contract<Composer>> contract = nullptr;
 
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
     // UnpackedData<CT> unpacked_data;

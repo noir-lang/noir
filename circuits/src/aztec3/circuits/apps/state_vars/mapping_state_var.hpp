@@ -28,10 +28,8 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
     MappingStateVar(){};
 
     // Instantiate a top-level mapping:
-    MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
-                    std::string const& state_var_name,
-                    fr const& start_slot)
-        : StateVar<Composer>(exec_ctx, state_var_name, start_slot){};
+    MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
+        : StateVar<Composer>(exec_ctx, state_var_name){};
 
     // Instantiate a nested mapping:
     MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,

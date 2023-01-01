@@ -58,11 +58,12 @@ template <typename Composer> class StateVar {
     StateVar(){};
 
     // Instantiate a top-level state:
-    StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name, fr const& start_slot)
+    StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
         : exec_ctx(exec_ctx)
         , state_var_name(state_var_name)
-        , start_slot(start_slot)
+
     {
+        start_slot = exec_ctx->contract->get_start_slot(state_var_name);
         storage_slot_point = compute_slot_point();
     };
 

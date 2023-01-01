@@ -1,25 +1,25 @@
-#pragma once
-#include <aztec3/circuits/apps/contract.hpp>
-#include <aztec3/circuits/apps/function_declaration.hpp>
-#include <aztec3/circuits/apps/function_execution_context.hpp>
-#include "init.hpp"
+// #pragma once
+// #include <aztec3/circuits/apps/contract.hpp>
+// #include <aztec3/circuits/apps/function_declaration.hpp>
+// #include <aztec3/circuits/apps/function_execution_context.hpp>
+// #include "init.hpp"
 
-namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
+// namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-inline Contract<Composer> init_contract(FunctionExecutionContext<Composer>& exec_ctx)
-{
-    Contract<Composer> contract(exec_ctx, "priv_to_priv_function_call");
+// inline Contract<Composer> init_contract(FunctionExecutionContext<Composer>& exec_ctx)
+// {
+//     Contract<Composer> contract(exec_ctx, "priv_to_priv_function_call");
 
-    contract.declare_private_state_var("x");
-    contract.declare_private_state_var("y");
+//     contract.declare_private_state_var("x");
+//     contract.declare_private_state_var("y");
 
-    // Solely used for assigning vk indices.
-    contract.set_functions({
-        { .name = "function1", .is_private = true },
-        { .name = "function2", .is_private = true },
-    });
+//     // Solely used for assigning vk indices.
+//     contract.set_functions({
+//         { .name = "function1", .is_private = true },
+//         { .name = "function2", .is_private = true },
+//     });
 
-    return contract;
-}
+//     return contract;
+// }
 
-} // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call
+// } // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

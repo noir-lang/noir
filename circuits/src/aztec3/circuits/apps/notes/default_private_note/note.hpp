@@ -32,17 +32,6 @@ class DefaultPrivateNote : public NoteInterface<Composer,
     typedef typename CT::address address;
     typedef typename CT::boolean boolean;
 
-    // no known conversion
-    //     from 'UTXOStateVar<waffle::TurboComposer,
-    //     aztec3::circuits::apps::notes::DefaultPrivateNote<waffle::TurboComposer,
-    //     plonk::stdlib::field_t<waffle::TurboComposer> > > *' to 'UTXOStateVar<waffle::TurboComposer,
-    //     aztec3::circuits::apps::notes::DefaultPrivateNote<waffle::TurboComposer,
-    //     plonk::stdlib::field_t<waffle::TurboComposer> >::Note> *'(
-    //         aka 'UTXOStateVar<waffle::TurboComposer, DefaultPrivateNote<waffle::TurboComposer,
-    //         plonk::stdlib::field_t<waffle::TurboComposer> > > *')
-
-    // using Note = aztec3::circuits::apps::notes::DefaultPrivateNote<Composer, ValueType>;
-
     using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
     using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 

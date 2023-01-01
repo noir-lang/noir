@@ -24,26 +24,11 @@ using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 } // namespace
 
-// template <typename Composer, typename ValueType>
-// DefaultPrivateNote<Composer, ValueType>::DefaultPrivateNote(PrivateStateVar<Composer>& private_state_var,
-//                                                             DefaultPrivateNotePreimage<CT> preimage,
-//                                                             bool commit_on_init)
-//     : private_state_var(private_state_var)
-//     , preimage(preimage)
-//     , is_partial(check_if_partial())
-// {
-//     if (commit_on_init) {
-//         if (is_partial) {
-//             partial_commitment = compute_partial_commitment();
-//         } else {
-//             commitment = compute_commitment();
-//         }
-//     }
-// }
-
 template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
 {
     auto [nullifier, nullifier_preimage] = compute_nullifier();
+
+    // auto& exec_ctx = utxo_state_var->exec_ctx;
 
     // TODO: implement this function!
     (void)nullifier;
@@ -63,14 +48,6 @@ template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::c
     return false;
 }
 
-// eclaration is incompatible with "std::pair<
-//     aztec3::circuits::apps::notes::DefaultPrivateNote<Composer, ValueType>::fr,
-//     aztec3::circuits::apps::notes::DefaultPrivateNote<Composer, ValueType>::NotePreimage >
-//         aztec3::circuits::apps::notes::DefaultPrivateNote<Composer, ValueType>::compute_commitment() "
-
-// template <typename Composer, typename ValueType>
-// std::pair<typename DefaultPrivateNote<Composer, ValueType>::fr,
-//           typename DefaultPrivateNote<Composer, ValueType>::NotePreimage>
 template <typename Composer, typename V>
 std::pair<typename CircuitTypes<Composer>::fr, DefaultPrivateNotePreimage<CircuitTypes<Composer>, V>>
 DefaultPrivateNote<Composer, V>::compute_commitment()
