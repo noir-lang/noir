@@ -1,5 +1,8 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryInto};
 
+use acvm::FieldElement;
+use errors::AbiError;
+use input_parser::InputValue;
 use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 // This is the ABI used to bridge the different TOML formats for the initial
@@ -9,6 +12,8 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 pub mod errors;
 pub mod input_parser;
+
+pub const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
@@ -22,31 +27,26 @@ pub mod input_parser;
 /// in programs, however it is possible to support, with many complications like encoding character set
 /// support.
 pub enum AbiType {
-    Field(AbiFEType),
-    Array { visibility: AbiFEType, length: u128, typ: Box<AbiType> },
-    Integer { visibility: AbiFEType, sign: Sign, width: u32 },
-    Struct { visibility: AbiFEType, fields: BTreeMap<String, AbiType> },
+    Field,
+    Array { length: u128, typ: Box<AbiType> },
+    Integer { sign: Sign, width: u32 },
+    Struct { fields: BTreeMap<String, AbiType> },
 }
-/// This is the same as the FieldElementType in AST, without constants.
-/// We don't want the ABI to depend on Noir, so types are not shared between the two
-/// Note: At the moment, it is not even possible since the ABI is in another crate and Noir depends on it
-/// This can be easily fixed by making the ABI a module.
-///
-/// In the future, maybe it will be decided that the AST will hold esoteric types and the HIR will transform them
-/// This method is a bit cleaner as we would not need to dig into the resolver, to lower from a esoteric AST type to a HIR type.
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AbiFEType {
+/// Represents whether the parameter is public or known only to the prover.
+pub enum AbiVisibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
 }
 
-impl std::fmt::Display for AbiFEType {
+impl std::fmt::Display for AbiVisibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AbiFEType::Public => write!(f, "pub"),
-            AbiFEType::Private => write!(f, "priv"),
+            AbiVisibility::Public => write!(f, "pub"),
+            AbiVisibility::Private => write!(f, "priv"),
         }
     }
 }
@@ -60,8 +60,8 @@ pub enum Sign {
 impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
-            AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array { visibility: _, length, typ: _ } => *length as usize,
+            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
         }
     }
@@ -69,43 +69,188 @@ impl AbiType {
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
-            AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array { visibility: _, length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
         }
     }
+}
 
+#[derive(Clone, Debug, Deserialize)]
+/// An argument or return value of the circuit's `main` function.
+pub struct AbiParameter {
+    pub name: String,
+    pub typ: AbiType,
+    pub visibility: AbiVisibility,
+}
+
+impl AbiParameter {
     pub fn is_public(&self) -> bool {
-        match self {
-            AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
-            AbiType::Array { visibility, length: _, typ: _ } => visibility == &AbiFEType::Public,
-            AbiType::Integer { visibility, sign: _, width: _ } => visibility == &AbiFEType::Public,
-            AbiType::Struct { visibility, .. } => visibility == &AbiFEType::Public,
-        }
+        self.visibility == AbiVisibility::Public
     }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Abi {
-    pub parameters: Vec<(String, AbiType)>,
+    pub parameters: Vec<AbiParameter>,
 }
 
 impl Abi {
     pub fn parameter_names(&self) -> Vec<&String> {
-        self.parameters.iter().map(|x| &x.0).collect()
+        self.parameters.iter().map(|x| &x.name).collect()
     }
 
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
+
+    /// Returns the number of field elements required to represent the ABI's input once encoded.
+    pub fn field_count(&self) -> u32 {
+        self.parameters.iter().map(|param| param.typ.field_count()).sum()
+    }
+
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> =
-            self.parameters.into_iter().filter(|(_, param_type)| param_type.is_public()).collect();
+            self.parameters.into_iter().filter(|param| param.is_public()).collect();
         Abi { parameters }
+    }
+
+    /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
+    pub fn encode(
+        self,
+        inputs: &BTreeMap<String, InputValue>,
+        allow_undefined_return: bool,
+    ) -> Result<Vec<FieldElement>, AbiError> {
+        let param_names = self.parameter_names();
+        let mut encoded_inputs = Vec::new();
+
+        for param in self.parameters.iter() {
+            let value = inputs
+                .get(&param.name)
+                .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
+                .clone();
+
+            if !value.matches_abi(&param.typ) {
+                return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
+            }
+
+            // As the circuit calculates the return value in the process of calculating rest of the witnesses
+            // it's not absolutely necessary to provide them as inputs. We then tolerate an undefined value for
+            // the return value input and just skip it.
+            if allow_undefined_return
+                && param.name == MAIN_RETURN_NAME
+                && matches!(value, InputValue::Undefined)
+            {
+                let return_witness_len = param.typ.field_count();
+
+                // We do not support undefined arrays for now - TODO
+                if return_witness_len != 1 {
+                    return Err(AbiError::Generic(
+                        "Values of array returned from main must be specified".to_string(),
+                    ));
+                } else {
+                    // This assumes that the return value is at the end of the ABI, otherwise values will be misaligned.
+                    continue;
+                }
+            }
+
+            encoded_inputs.extend(Self::encode_value(value, &param.name)?);
+        }
+
+        // Check that no extra witness values have been provided.
+        // Any missing values should be caught by the above for-loop so this only catches extra values.
+        if param_names.len() != inputs.len() {
+            let unexpected_params: Vec<String> =
+                inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
+            return Err(AbiError::UnexpectedParams(unexpected_params));
+        }
+
+        Ok(encoded_inputs)
+    }
+
+    fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
+        let mut encoded_value = Vec::new();
+        match value {
+            InputValue::Field(elem) => encoded_value.push(elem),
+            InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::Struct(object) => {
+                for (field_name, value) in object {
+                    let new_name = format!("{}.{}", param_name, field_name);
+                    encoded_value.extend(Self::encode_value(value, &new_name)?)
+                }
+            }
+            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
+        }
+        Ok(encoded_value)
+    }
+
+    /// Decode a vector of `FieldElements` into the types specified in the ABI.
+    pub fn decode(
+        &self,
+        encoded_inputs: &Vec<FieldElement>,
+    ) -> Result<BTreeMap<String, InputValue>, AbiError> {
+        let input_length: u32 = encoded_inputs.len().try_into().unwrap();
+        if input_length != self.field_count() {
+            return Err(AbiError::UnexpectedInputLength {
+                actual: input_length,
+                expected: self.field_count(),
+            });
+        }
+
+        let mut index = 0;
+        let mut decoded_inputs = BTreeMap::new();
+
+        for param in &self.parameters {
+            let (next_index, decoded_value) =
+                Self::decode_value(index, encoded_inputs, &param.typ)?;
+
+            decoded_inputs.insert(param.name.to_owned(), decoded_value);
+
+            index = next_index;
+        }
+        Ok(decoded_inputs)
+    }
+
+    fn decode_value(
+        initial_index: usize,
+        encoded_inputs: &Vec<FieldElement>,
+        value_type: &AbiType,
+    ) -> Result<(usize, InputValue), AbiError> {
+        let mut index = initial_index;
+
+        let value = match value_type {
+            AbiType::Field | AbiType::Integer { .. } => {
+                let field_element = encoded_inputs[index];
+                index += 1;
+
+                InputValue::Field(field_element)
+            }
+            AbiType::Array { length, .. } => {
+                let field_elements = &encoded_inputs[index..index + (*length as usize)];
+
+                index += *length as usize;
+                InputValue::Vec(field_elements.to_vec())
+            }
+            AbiType::Struct { fields, .. } => {
+                let mut struct_map = BTreeMap::new();
+
+                for (field_key, param_type) in fields {
+                    let (next_index, field_value) =
+                        Self::decode_value(index, encoded_inputs, param_type)?;
+
+                    struct_map.insert(field_key.to_owned(), field_value);
+                    index = next_index;
+                }
+
+                InputValue::Struct(struct_map)
+            }
+        };
+
+        Ok((index, value))
     }
 }
 
@@ -116,12 +261,12 @@ impl Serialize for Abi {
     {
         let vec: Vec<u8> = Vec::new();
         let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
-        for (param_name, param_type) in &self.parameters {
-            match param_type {
-                AbiType::Field(_) => map.serialize_entry(&param_name, "")?,
-                AbiType::Array { .. } => map.serialize_entry(&param_name, &vec)?,
-                AbiType::Integer { .. } => map.serialize_entry(&param_name, "")?,
-                AbiType::Struct { .. } => map.serialize_entry(&param_name, "")?,
+        for param in &self.parameters {
+            match param.typ {
+                AbiType::Field => map.serialize_entry(&param.name, "")?,
+                AbiType::Array { .. } => map.serialize_entry(&param.name, &vec)?,
+                AbiType::Integer { .. } => map.serialize_entry(&param.name, "")?,
+                AbiType::Struct { .. } => map.serialize_entry(&param.name, "")?,
             };
         }
         map.end()

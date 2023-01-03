@@ -8,6 +8,7 @@ use std::convert::TryInto;
 
 use super::super::errors::RuntimeError;
 
+use crate::errors;
 use crate::ssa::block::BlockType;
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
@@ -145,7 +146,7 @@ impl IRGenerator {
 
     pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
-            noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
+            noirc_abi::AbiType::Field => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
@@ -184,7 +185,7 @@ impl IRGenerator {
         let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{}.{}", struct_name, name);
             match field_typ {
-                noirc_abi::AbiType::Array { visibility: _, length, typ } => {
+                noirc_abi::AbiType::Array { length, typ } => {
                     let v_id =
                         self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
                     Value::Single(v_id)
@@ -559,14 +560,12 @@ impl IRGenerator {
                 let lhs = self.codegen_expression(&binary.lhs)?.to_node_ids();
                 let rhs = self.codegen_expression(&binary.rhs)?.to_node_ids();
                 if lhs.len() != 1 || rhs.len() != 1 {
-                    return Err(RuntimeError {
-                        location: noirc_errors::Location::dummy(),
-                        kind: crate::errors::RuntimeErrorKind::UnsupportedOp {
-                            op: binary.operator.to_string(),
-                            first_type: "struct/tuple".to_string(),
-                            second_type: "struct/tuple".to_string(),
-                        },
-                    });
+                    return Err(errors::RuntimeErrorKind::UnsupportedOp {
+                        op: binary.operator.to_string(),
+                        first_type: "struct/tuple".to_string(),
+                        second_type: "struct/tuple".to_string(),
+                    }
+                    .into());
                 }
                 Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }

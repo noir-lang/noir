@@ -133,7 +133,7 @@ impl Driver {
         let mut error_count = 0;
         for errors in &errs {
             error_count += Reporter::with_diagnostics(
-                errors.file_id,
+                Some(errors.file_id),
                 &self.context.file_manager,
                 &errors.errors,
                 allow_warnings,
@@ -189,8 +189,9 @@ impl Driver {
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
+                let file_id = err.location.map(|loc| loc.file);
                 let error_count = Reporter::with_diagnostics(
-                    err.location.file,
+                    file_id,
                     &self.context.file_manager,
                     &[err.to_diagnostic()],
                     allow_warnings,

@@ -15,7 +15,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_abi::AbiFEType;
+use noirc_abi::AbiVisibility;
 use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
@@ -150,12 +150,12 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
 
 fn function_return_type<'a>(
     expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<(AbiFEType, UnresolvedType)> + 'a {
+) -> impl NoirParser<(AbiVisibility, UnresolvedType)> + 'a {
     just(Token::Arrow)
         .ignore_then(optional_visibility())
         .then(parse_type(expr_parser))
         .or_not()
-        .map(|ret| ret.unwrap_or((AbiFEType::Private, UnresolvedType::Unit)))
+        .map(|ret| ret.unwrap_or((AbiVisibility::Private, UnresolvedType::Unit)))
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
@@ -178,7 +178,7 @@ fn struct_fields<'a>(
 fn function_parameters<'a>(
     allow_self: bool,
     expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiFEType)>> + 'a {
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiVisibility)>> + 'a {
     let typ = parse_type(expr_parser).recover_via(parameter_recovery());
 
     let full_parameter = pattern()
@@ -200,13 +200,13 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiFEType)> {
+fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)> {
     filter_map(move |span, found: Token| match found {
         Token::Ident(ref word) if word == "self" => {
             let ident = Ident::from_token(found, span);
             let path = Path::from_single("Self".to_owned(), span);
             let self_type = UnresolvedType::Named(path, vec![]);
-            Ok((Pattern::Identifier(ident), self_type, AbiFEType::Private))
+            Ok((Pattern::Identifier(ident), self_type, AbiVisibility::Private))
         }
         _ => Err(ParserError::expected_label("parameter".to_owned(), found, span)),
     })
@@ -452,10 +452,10 @@ where
     ))
 }
 
-fn optional_visibility() -> impl NoirParser<AbiFEType> {
+fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => AbiFEType::Public,
-        None => AbiFEType::Private,
+        Some(_) => AbiVisibility::Public,
+        None => AbiVisibility::Private,
     })
 }
 
