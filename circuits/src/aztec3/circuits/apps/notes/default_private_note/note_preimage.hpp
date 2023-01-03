@@ -29,7 +29,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
     std::optional<fr> salt;
     std::optional<fr> nonce;
 
-    boolean is_real = true;
+    boolean is_dummy = false;
 
     bool operator==(DefaultPrivateNotePreimage<NCT, V> const&) const = default;
 
@@ -63,7 +63,8 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
         // circuit types (for the return values) (in order to make the calling syntax cleaner) with the below `decltype`
         // deduction of the _circuit_ version of template type `V`.
         DefaultPrivateNotePreimage<CircuitTypes<Composer>, typename decltype(circuit_value)::value_type> preimage = {
-            circuit_value, to_ct(owner), to_ct(creator_address), to_ct(memo), to_ct(salt), to_ct(nonce), to_ct(is_real),
+            circuit_value, to_ct(owner), to_ct(creator_address), to_ct(memo),
+            to_ct(salt),   to_ct(nonce), to_ct(is_dummy),
         };
 
         return preimage;
@@ -93,7 +94,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
         ();
 
         DefaultPrivateNotePreimage<NativeTypes, typename decltype(native_value)::value_type> preimage = {
-            native_value, to_nt(owner), to_nt(creator_address), to_nt(memo), to_nt(salt), to_nt(nonce), to_nt(is_real),
+            native_value, to_nt(owner), to_nt(creator_address), to_nt(memo), to_nt(salt), to_nt(nonce), to_nt(is_dummy),
         };
 
         return preimage;
@@ -110,7 +111,7 @@ template <typename NCT, typename V> void read(uint8_t const*& it, DefaultPrivate
     read(it, preimage.memo);
     read(it, preimage.salt);
     read(it, preimage.nonce);
-    read(it, preimage.is_real);
+    read(it, preimage.is_dummy);
 };
 
 template <typename NCT, typename V>
@@ -124,7 +125,7 @@ void write(std::vector<uint8_t>& buf, DefaultPrivateNotePreimage<NCT, V> const& 
     write(buf, preimage.memo);
     write(buf, preimage.salt);
     write(buf, preimage.nonce);
-    write(buf, preimage.is_real);
+    write(buf, preimage.is_dummy);
 };
 
 template <typename NCT, typename V>
@@ -136,7 +137,7 @@ std::ostream& operator<<(std::ostream& os, DefaultPrivateNotePreimage<NCT, V> co
               << "memo: " << preimage.memo << "\n"
               << "salt: " << preimage.salt << "\n"
               << "nonce: " << preimage.nonce << "\n"
-              << "is_real: " << preimage.is_real << "\n";
+              << "is_dummy: " << preimage.is_dummy << "\n";
 }
 
 // template <typename NCT> using MappingKeyValues = std::map<std::string, std::optional<typename NCT::fr>>;

@@ -65,7 +65,7 @@ template <typename Composer> class PrivateStateNote {
 
     static fr compute_nullifier(fr const& commitment,
                                 fr const& owner_private_key,
-                                boolean const& is_real_commitment = true);
+                                boolean const& is_dummy_commitment = false);
 
     static fr compute_dummy_nullifier(fr const& dummy_commitment, fr const& owner_private_key);
 

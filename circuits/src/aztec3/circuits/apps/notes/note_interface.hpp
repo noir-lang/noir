@@ -8,7 +8,7 @@
 namespace aztec3::circuits::apps::notes {
 
 // TODO: remove this `using` declaration?
-using aztec3::circuits::apps::state_vars::UTXOStateVar;
+// using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -18,7 +18,7 @@ using plonk::stdlib::types::NativeTypes;
 
 // template <typename NCT> struct PrivateStateNotePreimage;
 
-template <typename Composer, typename NotePreimage, typename NullifierPreimageTmp> class NoteInterface {
+template <typename Composer> class NoteInterface {
   public:
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
@@ -33,6 +33,11 @@ template <typename Composer, typename NotePreimage, typename NullifierPreimageTm
     // NoteInterface(UTXOStateVar<Composer, NoteInterface>* utxo_state_var, NotePreimage note_preimage)
     //     : utxo_state_var(utxo_state_var)
     //     , note_preimage(note_preimage){};
+
+    virtual ~NoteInterface() {
+    } // Destructor explicitly made virtual, to ensure that the destructor of the derived class is called if the derived
+      // object is deleted through a pointer to this base class. (In many places in the code, files handle
+      // `NoteInterface*` pointers instead of the derived class).
 
     // METHODS
 
@@ -50,9 +55,11 @@ template <typename Composer, typename NotePreimage, typename NullifierPreimageTm
 
     // virtual NullifierPreimageTmp get_nullifier_preimage() const = 0;
 
-    virtual std::pair<fr, NotePreimage> compute_commitment() = 0;
+    virtual fr compute_commitment() = 0;
 
-    virtual std::pair<fr, NullifierPreimageTmp> compute_nullifier() = 0;
+    virtual fr compute_nullifier() = 0;
+
+    // virtual void finalise(std::optional<fr> nonce) = 0;
 
     // virtual std::pair<grumpkin_point, NotePreimage> compute_partial_commitment() = 0;
 
@@ -62,7 +69,7 @@ template <typename Composer, typename NotePreimage, typename NullifierPreimageTm
 
     // static fr compute_nullifier(fr const& commitment,
     //                             fr const& owner_private_key,
-    //                             boolean const& is_real_commitment = true) = 0;
+    //                             boolean const& is_dummy_commitment = false) = 0;
 
     // static fr compute_dummy_nullifier(fr const& dummy_commitment, fr const& owner_private_key) = 0;
     // private:

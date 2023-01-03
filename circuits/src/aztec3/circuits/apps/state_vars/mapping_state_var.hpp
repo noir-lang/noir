@@ -1,12 +1,19 @@
 #pragma once
 
 #include "state_var_base.hpp"
-#include "../function_execution_context.hpp"
+// #include "../function_execution_context.hpp"
 
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+// Forward-declare from this namespace in particular:
+namespace aztec3::circuits::apps {
+template <typename Composer> class FunctionExecutionContext;
+}
+
 namespace aztec3::circuits::apps::state_vars {
+
+using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;

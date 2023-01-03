@@ -5,26 +5,27 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
 
-#include "../../state_vars/utxo_state_var.hpp"
+// #include "../../state_vars/utxo_state_var.hpp"
 
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+// Forward-declare from this namespace in particular:
+namespace aztec3::circuits::apps::state_vars {
+template <typename Composer, typename V> class UTXOStateVar;
+} // namespace aztec3::circuits::apps::state_vars
+
 namespace aztec3::circuits::apps::notes {
 
-using aztec3::circuits::apps::state_vars::UTXOStateVar;
+using aztec3::circuits::apps::state_vars::UTXOStateVar; // Don't #include it!
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-// template <typename Composer, typename V> class UTXOStateVar;
 // template <typename NCT, typename V> struct DefaultPrivateNotePreimage;
 // template <typename NCT, typename V> struct DefaultPrivateNoteNullifierPreimage;
 
-template <typename Composer, typename ValueType>
-class DefaultPrivateNote : public NoteInterface<Composer,
-                                                DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>,
-                                                DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>> {
+template <typename Composer, typename ValueType> class DefaultPrivateNote : public NoteInterface<Composer> {
   public:
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
@@ -35,11 +36,25 @@ class DefaultPrivateNote : public NoteInterface<Composer,
     using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
     using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 
+  public:
     UTXOStateVar<Composer, DefaultPrivateNote>* utxo_state_var;
 
+  private:
+    std::optional<fr> commitment;
+    std::optional<fr> nullifier;
+    std::optional<grumpkin_point> partial_commitment;
+
+    // bool is_partial = false;
+
+    NotePreimage note_preimage;
+    std::optional<NullifierPreimage> nullifier_preimage;
+
+  public:
     DefaultPrivateNote(UTXOStateVar<Composer, DefaultPrivateNote>* utxo_state_var, NotePreimage note_preimage)
         : utxo_state_var(utxo_state_var)
         , note_preimage(note_preimage){};
+
+    ~DefaultPrivateNote() {}
 
     // bool operator==(PrivateStateNote<Composer> const&) const = default;
 
@@ -54,15 +69,15 @@ class DefaultPrivateNote : public NoteInterface<Composer,
         if (commitment) {
             return *commitment;
         }
-        return compute_commitment().first;
+        return compute_commitment();
     };
 
     fr get_nullifier() override
     {
-        if (!nullifier) {
-            throw_or_abort("No nullifier exists for this note yet. Call compute_nullifier() first.");
+        if (nullifier) {
+            return *nullifier;
         }
-        return *nullifier;
+        return compute_nullifier();
     };
 
     // grumpkin_point get_partial_commitment() override const
@@ -75,33 +90,30 @@ class DefaultPrivateNote : public NoteInterface<Composer,
     //     return *partial_commitment;
     // };
 
-    std::pair<fr, NotePreimage> compute_commitment() override;
+    fr compute_commitment() override;
 
-    std::pair<fr, NullifierPreimage> compute_nullifier() override;
+    fr compute_nullifier() override;
 
-    // std::pair<grumpkin_point, DefaultPrivateNotePreimage<CT>> compute_partial_commitment() override;
+    // void finalise(std::optional<fr> nonce) override;
+
+    auto& get_oracle();
+
+    grumpkin_point compute_partial_commitment();
+
+    fr compute_dummy_nullifier();
 
     static fr compute_nullifier(fr const& commitment,
                                 fr const& owner_private_key,
-                                boolean const& is_real_commitment = true);
-
-    // static fr compute_dummy_nullifier(fr const& dummy_commitment, fr const& owner_private_key);
+                                boolean const& is_dummy_commitment = false);
 
     NotePreimage& get_preimage() { return note_preimage; };
 
   private:
-    bool check_if_partial() const;
+    bool is_partial_preimage() const;
+    bool is_partial_storage_slot() const;
+    bool is_partial() const;
 
     // bool check_if_partial() const = 0;
-
-    std::optional<fr> commitment;
-    std::optional<fr> nullifier;
-    std::optional<grumpkin_point> partial_commitment;
-
-    bool is_partial = false;
-
-    NotePreimage note_preimage;
-    std::optional<NullifierPreimage> nullifier_preimage;
 };
 
 } // namespace aztec3::circuits::apps::notes

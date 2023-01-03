@@ -5,9 +5,11 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
-namespace aztec3::circuits::apps::state_vars {
-
+namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
+} // namespace
+
+namespace aztec3::circuits::apps::state_vars {
 
 template <typename Composer, typename Note>
 Note UTXOStateVar<Composer, Note>::get(typename Note::NotePreimage const& advice)

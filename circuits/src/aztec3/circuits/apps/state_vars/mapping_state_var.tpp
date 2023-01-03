@@ -4,6 +4,9 @@
 // #include "private_state_note.hpp"
 // #include "private_state_note_preimage.hpp"
 // #include "private_state_operand.hpp"
+
+#include "../function_execution_context.hpp"
+
 #include "plonk/composer/turbo_composer.hpp"
 
 #include <common/streams.hpp>
@@ -14,11 +17,31 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 
+namespace {
+using aztec3::circuits::apps::FunctionExecutionContext;
+} // namespace
+
 namespace aztec3::circuits::apps::state_vars {
 
 using crypto::pedersen::generator_index_t;
+
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
+
+// template <typename Composer, typename V>
+// MappingStateVar<Composer, V>::MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
+//                                               std::string const& state_var_name)
+//     : StateVar<Composer>(exec_ctx, state_var_name)
+// {}
+
+// template <typename Composer, typename V>
+// MappingStateVar<Composer, V>::MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
+//                                               std::string const& state_var_name,
+//                                               grumpkin_point const& storage_slot_point,
+//                                               size_t level_of_container_nesting,
+//                                               bool is_partial_slot)
+//     : StateVar<Composer>(exec_ctx, state_var_name, storage_slot_point, level_of_container_nesting, is_partial_slot)
+// {}
 
 // Fr: start_slot
 //

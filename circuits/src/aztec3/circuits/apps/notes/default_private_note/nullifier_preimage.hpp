@@ -18,7 +18,7 @@ template <typename NCT> struct DefaultPrivateNoteNullifierPreimage {
 
     fr commitment;
     fr owner_private_key;
-    boolean is_real;
+    boolean is_dummy = false;
 
     bool operator==(DefaultPrivateNoteNullifierPreimage<NCT> const&) const = default;
 
@@ -33,7 +33,7 @@ template <typename NCT> struct DefaultPrivateNoteNullifierPreimage {
         DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>> preimage = {
             to_ct(commitment),
             to_ct(owner_private_key),
-            to_ct(is_real),
+            to_ct(is_dummy),
         };
 
         return preimage;
@@ -46,7 +46,7 @@ template <typename NCT> void read(uint8_t const*& it, DefaultPrivateNoteNullifie
 
     read(it, preimage.commitment);
     read(it, preimage.owner_private_key);
-    read(it, preimage.is_real);
+    read(it, preimage.is_dummy);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, DefaultPrivateNoteNullifierPreimage<NCT> const& preimage)
@@ -55,7 +55,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, DefaultPrivateNote
 
     write(buf, preimage.commitment);
     write(buf, preimage.owner_private_key);
-    write(buf, preimage.is_real);
+    write(buf, preimage.is_dummy);
 };
 
 template <typename NCT>
@@ -63,7 +63,7 @@ std::ostream& operator<<(std::ostream& os, DefaultPrivateNoteNullifierPreimage<N
 {
     return os << "commitment: " << preimage.commitment << "\n"
               << "owner_private_key: " << preimage.owner_private_key << "\n"
-              << "is_real: " << preimage.is_real << "\n";
+              << "is_dummy: " << preimage.is_dummy << "\n";
 }
 
 } // namespace aztec3::circuits::apps::notes

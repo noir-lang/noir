@@ -172,7 +172,7 @@ class FakeDB {
             .memo = 3456,
             .salt = 1234,
             .nonce = 2345,
-            .is_real = true,
+            .is_dummy = false,
         };
 
         const size_t utxo_tree_depth = 32;

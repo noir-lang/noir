@@ -1,17 +1,23 @@
 #pragma once
 
+#include "../function_execution_context.hpp"
 #include "../utxo_datum.hpp"
 
-#include "../state_vars/state_var_base.hpp"
+// #include "../state_vars/state_var_base.hpp"
 #include "../state_vars/utxo_state_var.hpp"
 
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+namespace {
+// Declared here, so that `opcodes.hpp` doesn't see it; thereby preventing circular dependencies.
+using aztec3::circuits::apps::state_vars::UTXOStateVar;
+} // namespace
+
 namespace aztec3::circuits::apps::opcodes {
 
-using aztec3::circuits::apps::state_vars::UTXOStateVar;
+using aztec3::circuits::apps::FunctionExecutionContext;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
@@ -49,16 +55,11 @@ template <typename Composer>
 template <typename Note>
 void Opcodes<Composer>::UTXO_NULL(UTXOStateVar<Composer, Note>* utxo_state_var, Note& note)
 {
-    auto [nullifier, nullifier_preimage] = note.compute_nullifier();
+    typename CT::fr nullifier = note.compute_nullifier();
 
-    auto exec_ctx = utxo_state_var->exec_ctx;
+    auto& exec_ctx = utxo_state_var->exec_ctx;
 
-    (void)exec_ctx; // TODO: finish function.
-    (void)nullifier;
-    (void)nullifier_preimage;
-
-    // TODO:
-    // - Push the nullifier data to the exec_ctx
+    exec_ctx->new_nullifiers.push_back(nullifier);
 };
 
 template <typename Composer>
@@ -70,14 +71,7 @@ void Opcodes<Composer>::UTXO_SSTORE(UTXOStateVar<Composer, Note>* utxo_state_var
     (void)utxo_state_var;
     (void)new_note_preimage;
 
-    // TODO: a salt (randomness for hiding) might not be needed for some custom Note types. Leave this to the
-    // `compute_commitment()` function of the Note instead (which will be called at FINALISATION of the notes, once
-    // enough nonces (nullifiers) are available).
-
     // auto& oracle = utxo_state_var->exec_ctx->oracle;
-
-    // CT::fr salt = oracle.get_random_element();
-    // new_note_preimage.salt = salt;
 
     // TODO within this function:
     // - Push the commitment data to the exec_ctx, and maybe to the public inputs of the exec_ctx (although we might
@@ -88,7 +82,13 @@ void Opcodes<Composer>::UTXO_SSTORE(UTXOStateVar<Composer, Note>* utxo_state_var
     // need to defer committing until a FINALISE opcode at the end.
     // auto [new_note_commitment, _] = new_note.compute_commitment();
 
-    // auto exec_ctx = utxo_state_var->exec_ctx;
+    auto& exec_ctx = utxo_state_var->exec_ctx;
+
+    // Make a shared pointer, so we don't end up with a dangling pointer in the exec_ctx when this temp `new_note`
+    // immediately goes out of scope.
+    std::shared_ptr<Note> new_note = std::make_shared<Note>(utxo_state_var, new_note_preimage);
+
+    exec_ctx->new_notes.push_back(new_note);
 
     // (void)exec_ctx; // TODO: finish function.
     // (void)new_note_commitment;

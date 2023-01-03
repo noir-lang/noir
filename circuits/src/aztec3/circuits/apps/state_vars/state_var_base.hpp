@@ -1,11 +1,18 @@
 #pragma once
 
-#include "../function_execution_context.hpp"
+// #include "../function_execution_context.hpp"
 
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+// Forward-declare from this namespace in particular:
+namespace aztec3::circuits::apps {
+template <typename Composer> class FunctionExecutionContext;
+}
+
 namespace aztec3::circuits::apps::state_vars {
+
+using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -58,14 +65,7 @@ template <typename Composer> class StateVar {
     StateVar(){};
 
     // Instantiate a top-level state:
-    StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
-        : exec_ctx(exec_ctx)
-        , state_var_name(state_var_name)
-
-    {
-        start_slot = exec_ctx->contract->get_start_slot(state_var_name);
-        storage_slot_point = compute_slot_point();
-    };
+    StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name);
 
     // Instantiate a nested state:
     StateVar(

@@ -3,6 +3,7 @@
 
 #include "../../oracle_wrapper.hpp"
 #include "../../opcodes/opcodes.hpp"
+#include "../../state_vars/utxo_state_var.hpp"
 
 #include <crypto/pedersen/generator_data.hpp>
 
@@ -15,10 +16,12 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 
-namespace aztec3::circuits::apps::notes {
-
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
+using aztec3::circuits::apps::state_vars::UTXOStateVar;
+} // namespace
+
+namespace aztec3::circuits::apps::notes {
 
 using aztec3::GeneratorIndex;
 
@@ -27,37 +30,39 @@ using crypto::pedersen::generator_index_t;
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
-} // namespace
 
 template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
 {
-    // auto [nullifier, nullifier_preimage] = compute_nullifier();
-
-    // // TODO: implement this function!
-    // (void)nullifier;
-    // (void)nullifier_preimage;
     Opcodes<Composer>::UTXO_NULL(utxo_state_var, *this);
 }
 
-template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::check_if_partial() const
+template <typename Composer, typename V> auto& DefaultPrivateNote<Composer, V>::get_oracle()
 {
-    const auto& [value, owner, creator_address, memo, salt, nonce, _] = this->note_preimage;
+    return utxo_state_var->exec_ctx->oracle;
+}
 
-    if (!value || !owner || !creator_address || !memo || !salt || !nonce) {
-        return true;
-    }
-    if (utxo_state_var->is_partial_slot) {
-        return true;
-    }
-    return false;
+template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_preimage() const
+{
+    const auto& [value, owner, creator_address, memo, salt, nonce, _] = note_preimage;
+
+    return (!value || !owner || !creator_address || !memo || !salt || !nonce);
+}
+
+template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_storage_slot() const
+{
+    return utxo_state_var->is_partial_slot;
+}
+
+template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial() const
+{
+    return is_partial_preimage() || is_partial_storage_slot();
 }
 
 template <typename Composer, typename V>
-std::pair<typename CircuitTypes<Composer>::fr, DefaultPrivateNotePreimage<CircuitTypes<Composer>, V>>
-DefaultPrivateNote<Composer, V>::compute_commitment()
+typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_commitment()
 {
     if (commitment.has_value()) {
-        return std::make_pair(*commitment, this->note_preimage);
+        return *commitment;
     }
 
     grumpkin_point storage_slot_point = utxo_state_var->storage_slot_point;
@@ -81,9 +86,13 @@ DefaultPrivateNote<Composer, V>::compute_commitment()
         return std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
     };
 
-    const auto& [value, owner, creator_address, memo, salt, nonce, is_real] = this->note_preimage;
+    if (!note_preimage.salt) {
+        note_preimage.salt = get_oracle().generate_random_element();
+    }
 
-    const auto commitment_point =
+    const auto& [value, owner, creator_address, memo, salt, nonce, is_dummy] = note_preimage;
+
+    const grumpkin_point commitment_point =
         storage_slot_point +
         CT::commit(
             { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
@@ -92,75 +101,73 @@ DefaultPrivateNote<Composer, V>::compute_commitment()
               gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
               gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
               gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-              std::make_pair(is_real,
-                             generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL }))
+              std::make_pair(
+                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
 
             });
 
     commitment = commitment_point.x;
 
-    return std::make_pair(*commitment, note_preimage);
+    return *commitment;
 }
 
-// template <typename Composer>
-// typename CircuitTypes<Composer>::grumpkin_point DefaultPrivateNote<Composer>::compute_partial_commitment() const
-// {
-//     if (partial_commitment.has_value()) {
-//         info(
-//             "WARNING: you've already computed a partial commitment for this note. Now, you might have since changed "
-//             "the preimage and you want to update the partial commitment, and that's ok, so we won't throw an error "
-//             "here. But if that's not the case, you should call get_partial_commitment() instead, to save
-//             constraints.");
-//     }
+template <typename Composer, typename V>
+typename CircuitTypes<Composer>::grumpkin_point DefaultPrivateNote<Composer, V>::compute_partial_commitment()
+{
+    if (partial_commitment.has_value()) {
+        info(
+            "WARNING: you've already computed a partial commitment for this note. Now, you might have since changed "
+            "the preimage and you want to update the partial commitment, and that's ok, so we won't throw an error "
+            "here. But if that's not the case, you should call get_partial_commitment() instead, to save constraints.");
+    }
 
-//     grumpkin_point storage_slot_point = private_state_var.storage_slot_point;
+    grumpkin_point storage_slot_point = utxo_state_var->storage_slot_point;
 
-//     std::vector<fr> inputs;
-//     std::vector<generator_index_t> generators;
+    std::vector<fr> inputs;
+    std::vector<generator_index_t> generators;
 
-//     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
-//         return input ? std::make_pair((*input).to_field(),
-//                                       generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-//                      : std::make_pair(fr(1),
-//                                       generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-//     };
+    auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
+        return input ? std::make_pair((*input).to_field(),
+                                      generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
+                     : std::make_pair(fr(1),
+                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
+    };
 
-//     auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
-//         return input ? std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-//                      : std::make_pair(fr(1),
-//                                       generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-//     };
+    auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
+        return input ? std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
+                     : std::make_pair(fr(1),
+                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
+    };
 
-//     const auto& [start_slot,
-//                  mapping_key_values_by_key_name,
-//                  value,
-//                  owner,
-//                  creator_address,
-//                  salt,
-//                  nonce,
-//                  memo,
-//                  is_real] = preimage;
+    if (!note_preimage.salt) {
+        note_preimage.salt = get_oracle().generate_random_element();
+    }
 
-//     return storage_slot_point +
-//            CT::commit({ gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-//                         gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
-//                         gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
-//                         gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-//                         gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-//                         gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-//                         std::make_pair(
-//                             is_real,
-//                             generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL
-//                             }))
+    const auto& [value, owner, creator_address, memo, salt, nonce, is_dummy] = note_preimage;
 
-//            });
-// }
+    const grumpkin_point partial_commitment_point =
+        storage_slot_point +
+        CT::commit(
+            { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
+              gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
+              gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
+              gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
+              gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
+              gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
+              std::make_pair(
+                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
+
+            });
+
+    partial_commitment = partial_commitment_point;
+
+    return *partial_commitment;
+}
 
 template <typename Composer, typename V>
-std::pair<typename CircuitTypes<Composer>::fr, DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>>
-DefaultPrivateNote<Composer, V>::compute_nullifier()
+typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nullifier()
 {
-    if (is_partial) {
+    if (is_partial()) {
         throw_or_abort("Can't nullify a partial note.");
     }
     if (!commitment) {
@@ -168,24 +175,35 @@ DefaultPrivateNote<Composer, V>::compute_nullifier()
                        "note to include the `commit_on_init` bool.");
     }
     if (nullifier && nullifier_preimage) {
-        return std::make_pair(*nullifier, *nullifier_preimage);
+        return *nullifier;
     }
 
-    fr& owner_private_key = this->utxo_state_var->exec_ctx->oracle.get_msg_sender_private_key();
+    fr& owner_private_key = get_oracle().get_msg_sender_private_key();
 
     nullifier =
-        DefaultPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key, note_preimage.is_real);
+        DefaultPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key, note_preimage.is_dummy);
     nullifier_preimage = {
         *commitment,
         owner_private_key,
-        note_preimage.is_real,
+        note_preimage.is_dummy,
     };
-    return std::make_pair(*nullifier, *nullifier_preimage);
+    return *nullifier;
+};
+
+template <typename Composer, typename V>
+typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_dummy_nullifier()
+{
+    const auto& oracle = get_oracle();
+    const fr dummy_commitment = oracle.generate_random_element();
+    const fr owner_private_key = oracle.get_msg_sender_private_key();
+    const boolean is_dummy_commitment = true;
+
+    return DefaultPrivateNote<Composer, V>::compute_nullifier(dummy_commitment, owner_private_key, is_dummy_commitment);
 };
 
 template <typename Composer, typename V>
 typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nullifier(
-    fr const& commitment, fr const& owner_private_key, boolean const& is_real_commitment)
+    fr const& commitment, fr const& owner_private_key, boolean const& is_dummy_commitment)
 {
     /**
      * Hashing the private key in this way enables the following use case:
@@ -200,7 +218,7 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
         commitment,
         hashed_private_key.x,
         hashed_private_key.y,
-        is_real_commitment,
+        is_dummy_commitment,
     };
 
     // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
@@ -211,8 +229,8 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
     // compression.
     /** E.g. we can extract a representation of the hashed_pk:
      * Paraphrasing, if:
-     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_real_note * G3
-     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_real_note * G3
+     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_dummy_note * G3
+     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_dummy_note * G3
      * They can derive this for every tx, to link which txs are being sent by the same user.
      * Notably, at the point someone withdraws, the observer would be able to connect `hashed_pk * G2` with a
      * specific eth address.
@@ -221,6 +239,31 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
     auto blake_result = CT::blake2s(blake_input);
     return fr(blake_result);
 };
+
+// template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::needs_nonce()
+// {
+//     return !note_preimage.nonce;
+// }
+
+// template <typename Composer, typename V>
+// bool DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr nonce)
+// {
+//     if (!note_preimage.nonce) {
+//         note_preimage.nonce = nonce;
+//         return true; // "We have used the nonce provided"
+//     }
+//     return false; // "We did not used the provided nonce.
+// };
+
+// template <typename Composer, typename V>
+// std::optional<typename CircuitTypes<Composer>::fr> DefaultPrivateNote<Composer, V>::generate_nonce()
+// {
+//     if (!note_preimage.nonce) {
+//         note_preimage.nonce = compute_dummy_nullifier();
+//         return std::make_optional<note_preimage.nonce>; // "We are returning a new dummy nonce"
+//     }
+//     return std::nullopt; // "We are not returning a new dummy nonce"
+// };
 
 // template <typename Composer>
 // typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer>::compute_dummy_nullifier(fr const& dummy_commitment,

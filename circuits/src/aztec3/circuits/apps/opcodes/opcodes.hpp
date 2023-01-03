@@ -1,14 +1,18 @@
 #pragma once
 
-#include "../state_vars/utxo_state_var.hpp"
+// #include "../state_vars/utxo_state_var.hpp"
 
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+namespace aztec3::circuits::apps::state_vars {
+template <typename Composer, typename Note> class UTXOStateVar;
+}
+
 namespace aztec3::circuits::apps::opcodes {
 
-using aztec3::circuits::apps::state_vars::UTXOStateVar;
+using aztec3::circuits::apps::state_vars::UTXOStateVar; // Don't #include it!
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;

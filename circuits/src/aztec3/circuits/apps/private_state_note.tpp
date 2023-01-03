@@ -88,7 +88,7 @@ template <typename Composer> typename CircuitTypes<Composer>::fr PrivateStateNot
                  salt,
                  nonce,
                  memo,
-                 is_real] = preimage;
+                 is_dummy] = preimage;
 
     const auto commitment_point =
         storage_slot_point +
@@ -99,8 +99,8 @@ template <typename Composer> typename CircuitTypes<Composer>::fr PrivateStateNot
               gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
               gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
               gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-              std::make_pair(is_real,
-                             generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL }))
+              std::make_pair(
+                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
 
             });
 
@@ -143,7 +143,7 @@ typename CircuitTypes<Composer>::grumpkin_point PrivateStateNote<Composer>::comp
                  salt,
                  nonce,
                  memo,
-                 is_real] = preimage;
+                 is_dummy] = preimage;
 
     return storage_slot_point +
            CT::commit({ gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
@@ -153,8 +153,8 @@ typename CircuitTypes<Composer>::grumpkin_point PrivateStateNote<Composer>::comp
                         gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
                         gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
                         std::make_pair(
-                            is_real,
-                            generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_REAL }))
+                            is_dummy,
+                            generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
 
            });
 }
@@ -173,11 +173,11 @@ std::pair<typename CircuitTypes<Composer>::fr, NullifierPreimage<CircuitTypes<Co
     if (nullifier && nullifier_preimage) {
         return std::make_pair(*nullifier, *nullifier_preimage);
     }
-    nullifier = PrivateStateNote<Composer>::compute_nullifier(*commitment, owner_private_key, preimage.is_real);
+    nullifier = PrivateStateNote<Composer>::compute_nullifier(*commitment, owner_private_key, preimage.is_dummy);
     nullifier_preimage = {
         *commitment,
         owner_private_key,
-        preimage.is_real,
+        preimage.is_dummy,
     };
     return std::make_pair(*nullifier, *nullifier_preimage);
 };
@@ -185,7 +185,7 @@ std::pair<typename CircuitTypes<Composer>::fr, NullifierPreimage<CircuitTypes<Co
 template <typename Composer>
 typename CircuitTypes<Composer>::fr PrivateStateNote<Composer>::compute_nullifier(fr const& commitment,
                                                                                   fr const& owner_private_key,
-                                                                                  boolean const& is_real_commitment)
+                                                                                  boolean const& is_dummy_commitment)
 {
     /**
      * Hashing the private key in this way enables the following use case:
@@ -200,7 +200,7 @@ typename CircuitTypes<Composer>::fr PrivateStateNote<Composer>::compute_nullifie
         commitment,
         hashed_private_key.x,
         hashed_private_key.y,
-        is_real_commitment,
+        is_dummy_commitment,
     };
 
     // We compress the hash_inputs with Pedersen, because that's cheaper (constraint-wise) than compressing
@@ -211,8 +211,8 @@ typename CircuitTypes<Composer>::fr PrivateStateNote<Composer>::compute_nullifie
     // compression.
     /** E.g. we can extract a representation of the hashed_pk:
      * Paraphrasing, if:
-     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_real_note * G3
-     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_real_note * G3
+     *     nullifier = note_comm * G1 + hashed_pk * G2 + is_dummy_note * G3
+     * Then an observer can derive hashed_pk * G2 = nullifier - note_comm * G1 - is_dummy_note * G3
      * They can derive this for every tx, to link which txs are being sent by the same user.
      * Notably, at the point someone withdraws, the observer would be able to connect `hashed_pk * G2` with a
      * specific eth address.

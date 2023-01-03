@@ -68,7 +68,7 @@ enum PrivateStateNoteGeneratorIndex {
     SALT,
     NONCE,
     MEMO,
-    IS_REAL,
+    IS_DUMMY,
 };
 
 enum PrivateStateType { PARTITIONED = 1, WHOLE };

@@ -6,16 +6,20 @@
 #include <gtest/gtest.h>
 #include <common/test.hpp>
 
-#include "index.hpp"
 // #include "utxo_state_var.hpp"
 
-#include "../notes/default_private_note/note.hpp"
-#include "../notes/default_private_note/note_preimage.hpp"
+#include "contract.hpp"
+#include "function_execution_context.hpp"
+#include "oracle_wrapper.hpp"
+#include "utxo_datum.hpp"
 
-#include "../contract.hpp"
-#include "../function_execution_context.hpp"
-#include "../oracle_wrapper.hpp"
-#include "../utxo_datum.hpp"
+#include "notes/note_interface.hpp"
+#include "notes/default_private_note/note.hpp"
+#include "notes/default_private_note/note_preimage.hpp"
+
+#include "state_vars/field_state_var.hpp"
+#include "state_vars/mapping_state_var.hpp"
+#include "state_vars/utxo_state_var.hpp"
 
 #include <aztec3/oracle/oracle.hpp>
 
@@ -33,6 +37,9 @@ using CT = plonk::stdlib::types::CircuitTypes<C>;
 using NT = plonk::stdlib::types::NativeTypes;
 using plonk::stdlib::types::to_ct;
 
+// exec_ctx
+// using aztec3::circuits::apps::FunctionExecutionContext;
+
 // Oracle
 using DB = aztec3::oracle::FakeDB;
 using aztec3::oracle::NativeOracle;
@@ -47,6 +54,7 @@ using aztec3::circuits::apps::state_vars::MappingStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
 using aztec3::circuits::apps::notes::DefaultPrivateNote;
+using aztec3::circuits::apps::notes::NoteInterface;
 // using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
 
 //********
@@ -66,7 +74,7 @@ using Field = FieldStateVar<C>;
 
 } // namespace
 
-namespace aztec3::circuits::apps::state_vars {
+namespace aztec3::circuits::apps {
 
 class state_var_tests : public ::testing::Test {
   protected:
@@ -185,7 +193,17 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
                      .creator_address = msg_sender,
                      .memo = 1234 });
 
+    // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
+    // test, instead of this ever-growing beast test.
+    auto new_note_pointers = exec_ctx.get_new_notes();
+    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    info("new_note_pointers: ", new_note_pointers);
+    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+
+    auto new_nullifiers = exec_ctx.get_new_nullifiers();
+    info("new_nullifiers: ", new_nullifiers);
+
     // TODO: a UTXO_FINALISE() opcode?
 }
 
-} // namespace aztec3::circuits::apps::state_vars
+} // namespace aztec3::circuits::apps
