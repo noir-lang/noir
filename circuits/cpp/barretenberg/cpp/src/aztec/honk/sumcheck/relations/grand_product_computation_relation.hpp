@@ -3,7 +3,6 @@
 #include "../polynomials/multivariates.hpp" // TODO(Cody): don't need?
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"
-#include "../challenge_container.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -17,12 +16,12 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
     using MULTIVARIATE = StandardHonk::MULTIVARIATE;
 
   public:
-    const FF beta;
-    const FF gamma;
+    // TODO(luke): make these real challenges once manifest is done
+    const FF beta = FF::one();
+    const FF gamma = FF::one();
 
-    explicit GrandProductComputationRelation(auto& challenge_container)
-        : beta(challenge_container.get_grand_product_beta_challenge())
-        , gamma(challenge_container.get_grand_product_gamma_challenge()){};
+    GrandProductComputationRelation() = default;
+    explicit GrandProductComputationRelation(auto){}; // TODO(luke): should just be default?
 
     /**
      * @brief Add contribution of the permutation relation for a given edge
@@ -62,9 +61,6 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
 
     void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value)
     {
-        FF beta = 1; // to be obtained from transcript
-        FF gamma = 1;
-
         auto w_1 = purported_evaluations[MULTIVARIATE::W_L];
         auto w_2 = purported_evaluations[MULTIVARIATE::W_R];
         auto w_3 = purported_evaluations[MULTIVARIATE::W_O];

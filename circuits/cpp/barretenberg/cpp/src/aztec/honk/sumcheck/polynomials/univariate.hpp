@@ -2,6 +2,8 @@
 #include <array>
 #include <span>
 #include <ostream>
+#include "./common/serialize.hpp"
+#include "common/assert.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -39,6 +41,23 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     Fr& value_at(size_t i) { return evaluations[i]; };
+
+    // Write the Univariate evaluations to a buffer
+    std::vector<uint8_t> to_buffer() const
+    {
+        std::vector<uint8_t> buf;
+        std::write<std::vector<uint8_t>, Fr, _length>(buf, evaluations);
+        return buf;
+    }
+
+    // Static method for creating a Univariate from a buffer
+    static Univariate serialize_from_buffer(std::vector<uint8_t> buffer)
+    {
+        ASSERT(_length == (buffer.size() / sizeof(Fr)));
+        Univariate result;
+        std::read<std::vector<uint8_t>, Fr, _length>(buffer, result.evaluations);
+        return result;
+    }
 
     // Operations between Univariate and other Univariate
     Univariate operator=(const Univariate& other)
@@ -213,7 +232,7 @@ template <class Fr, size_t view_length> class UnivariateView {
     Fr& value_at(size_t i) { return evaluations[i]; };
 
     template <size_t full_length>
-    explicit UnivariateView(Univariate<Fr, full_length> univariate_in)
+    explicit UnivariateView(Univariate<Fr, full_length>& univariate_in)
         : evaluations(std::span<Fr>(univariate_in.evaluations.begin(), view_length)){};
 
     Univariate<Fr, view_length> operator+(const UnivariateView& other) const

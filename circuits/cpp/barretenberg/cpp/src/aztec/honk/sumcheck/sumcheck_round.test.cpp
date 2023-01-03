@@ -1,5 +1,4 @@
 #include "../flavor/flavor.hpp"
-#include "transcript.hpp"
 #include "sumcheck_round.hpp"
 #include "relations/relation.hpp"
 #include "relations/arithmetic_relation.hpp"
@@ -7,7 +6,6 @@
 #include "relations/grand_product_initialization_relation.hpp"
 #include "polynomials/multivariates.hpp"
 #include "polynomials/univariate.hpp"
-#include "challenge_container.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 #include <numeric/random/engine.hpp>
 
@@ -19,12 +17,6 @@
 using namespace honk;
 using namespace honk::sumcheck;
 
-template <class Fr> class MockTranscript : public Transcript<Fr> {
-  public:
-    Fr get_challenge() { return mock_challenge; };
-    Fr mock_challenge = -1;
-};
-
 namespace test_sumcheck_round {
 
 TEST(SumcheckRound, ComputeUnivariateProver)
@@ -35,7 +27,6 @@ TEST(SumcheckRound, ComputeUnivariateProver)
 
     using FF = barretenberg::fr;
     using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
-    using ChallengeContainer = ::ChallengeContainer<FF, MockTranscript<FF>, Univariate<FF, max_relation_length>>;
 
     std::array<FF, 2> w_l = { 1, 2 };
     std::array<FF, 2> w_r = { 1, 2 };
@@ -60,13 +51,10 @@ TEST(SumcheckRound, ComputeUnivariateProver)
         q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1
     };
 
-    auto transcript = MockTranscript<FF>();
-    auto challenges = ChallengeContainer(transcript);
     size_t round_size = 1;
 
-    auto relations = std::tuple(ArithmeticRelation<FF>(challenges),
-                                GrandProductComputationRelation<FF>(challenges),
-                                GrandProductInitializationRelation<FF>(challenges));
+    auto relations = std::tuple(
+        ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
 
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
     auto round = SumcheckRound<FF,
@@ -91,7 +79,6 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
 
     using FF = barretenberg::fr;
     using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
-    using ChallengeContainer = ::ChallengeContainer<FF, MockTranscript<FF>, Univariate<FF, max_relation_length>>;
 
     FF w_l = { 1 };
     FF w_r = { 2 };
@@ -117,13 +104,9 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
     std::vector<FF> purported_evaluations = { w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
                                               q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1 };
 
-    auto transcript = MockTranscript<FF>();
-    auto challenges = ChallengeContainer(transcript);
-
     size_t round_size = 1;
-    auto relations = std::tuple(ArithmeticRelation<FF>(challenges),
-                                GrandProductComputationRelation<FF>(challenges),
-                                GrandProductInitializationRelation<FF>(challenges));
+    auto relations = std::tuple(
+        ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
     auto round = SumcheckRound<FF,
                                Multivariates::num,
                                ArithmeticRelation,
@@ -150,7 +133,6 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
 //     using EdgeGroup = EdgeGroup<Fr, num_polys>;
 //     using Multivariates = Multivariates<Fr, num_polys, multivariate_d>;
 //     using Univariate = Univariate<Fr, max_relation_length>;
-//     using ChallengeContainer = ChallengeContainer<Fr, MockTranscript<Fr>, Univariate>;
 //     // TODO(Cody): move this out of round.
 //     EdgeGroup group0({ Edge({ 1, 2 }),
 //                        Edge({ 1, 2 }),
@@ -172,10 +154,8 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
 
 //     auto polynomials = Multivariates({ group0, group1 });
 //     auto relations = std::make_tuple(ArithmeticRelation<Fr>());
-//     auto transcript = MockTranscript<Fr>(); // actually a shared pointer to a transcript?
-//     auto challenges = ChallengeContainer(transcript);
 
-//     auto round = SumcheckRound<..., ArithmeticRelation>(polynomials, relations, challenges);
+//     auto round = SumcheckRound<..., ArithmeticRelation>(polynomials, relations);
 //     // The values of the univariate restriction S2 created in the first round
 //     // are the sum of a contribution form group0 and a contribution from group1.
 //     // Using Sage;

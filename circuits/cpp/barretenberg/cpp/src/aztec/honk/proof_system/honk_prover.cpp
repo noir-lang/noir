@@ -32,14 +32,13 @@ HonkProver<settings>::HonkProver(std::shared_ptr<waffle::proving_key> input_key,
 template <typename settings> void HonkProver<settings>::compute_wire_commitments()
 {
     // TODO(luke): Compute wire commitments
-
-    // TODO(luke): add public inputs to trascript for Honk
-    // const polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
-    // std::vector<fr> public_wires;
-    // for (size_t i = 0; i < key->num_public_inputs; ++i) {
-    //     public_wires.push_back(public_wires_source[i]);
+    // for (size_t i = 0; i < settings::program_width; ++i) {
+    //     std::string wire_tag = "w_" + std::to_string(i + 1);
+    //     std::string commit_tag = "W_" + std::to_string(i + 1);
+    //     barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
+    //     // This automatically saves the computed point to the transcript
+    //     commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
     // }
-    // transcript.add_element("public_inputs", ::to_buffer(public_wires));
 }
 
 /**
@@ -49,50 +48,83 @@ template <typename settings> void HonkProver<settings>::compute_wire_commitments
  * - performed ifft to get monomial wires
  *
  * For Honk:
- * - Still add initial data to transcript? That's it?
+ * - Add circuit size and PI size to transcript. That's it?
  *
  * */
 template <typename settings> void HonkProver<settings>::execute_preamble_round()
 {
-    // TODO(lde): add some initial data to transcript (circuit size and PI size)
+    // Add some initial data to transcript (circuit size and PI size)
+    queue.flush_queue();
+
+    transcript.add_element("circuit_size",
+                           { static_cast<uint8_t>(n >> 24),
+                             static_cast<uint8_t>(n >> 16),
+                             static_cast<uint8_t>(n >> 8),
+                             static_cast<uint8_t>(n) });
+
+    transcript.add_element("public_input_size",
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
+                             static_cast<uint8_t>(key->num_public_inputs >> 16),
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
+
+    transcript.apply_fiat_shamir("init");
 }
 
 /**
- * For Plonk systems this does 1 thing: compute wire commitments.
- * This can probably be the identical thing for Honk.
+ * For Plonk systems:
+ * - compute wire commitments
+ * - add public inputs to transcript (done in compute_wire_commitments() for some reason)
+ *
+ * For Honk:
+ * - compute wire commitments
+ * - add public inputs to transcript (done explicitly in execute_first_round())
  * */
 template <typename settings> void HonkProver<settings>::execute_first_round()
 {
+    queue.flush_queue();
+
     // TODO(luke): compute_wire_polynomial_commitments()
+
+    // Add public inputs to transcript
+    const barretenberg::polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
+    std::vector<barretenberg::fr> public_wires;
+    for (size_t i = 0; i < key->num_public_inputs; ++i) {
+        public_wires.push_back(public_wires_source[i]);
+    }
+    transcript.add_element("public_inputs", ::to_buffer(public_wires));
 }
 
 /**
- * For Plonk systems this
- * - Do Fiat-Shamir to get "eta" challenge
+ * For Plonk systems:
+ * - Do Fiat-Shamir to get "eta" challenge (done regardless of arithmetization but only required for Ultra)
  * - does stuff related only to lookups (compute 's' etc and do some RAM/ROM stuff with w_4).
  *
- * For Standard Honk, this is a non-op (jsut like for Standard/Turbo Plonk).
+ * For Standard Honk, this is a non-op (just like for Standard/Turbo Plonk).
  * */
 template <typename settings> void HonkProver<settings>::execute_second_round()
 {
-    // TODO(luke): no-op (eta is not needed in Standard)
+    queue.flush_queue();
+    // No operations are needed here for Standard Honk
 }
 
 /**
  * For Plonk systems:
  * - Do Fiat-Shamir to get "beta" challenge
- * - Compute grand product polynomials (permutation and lookup)
- * - Compute grand product commitments
+ * - Compute grand product polynomials (permutation and lookup) and commitments
+ * - Compute wire polynomial coset FFTs
  *
- * For Honk, we should
- * - Do Fiat-Shamir to get "beta" challenge
- * - Compute grand product polynomials (permutation only)
- * - Compute grand product commitment (permutation only)
- *
+ * For Honk:
+ * - Do Fiat-Shamir to get "beta" challenge (Note: gamma = beta^2)
+ * - Compute grand product polynomial (permutation only) and commitment
  * */
 template <typename settings> void HonkProver<settings>::execute_third_round()
 {
-    // TODO(luke): compute beta/gamma challenge (Note: gamma = beta^2)
+    queue.flush_queue();
+
+    // Compute beta/gamma challenge (Note: gamma = beta^2)
+    transcript.apply_fiat_shamir("beta");
+
     // TODO(luke): compute_grand_product_polynomial
     // TODO(luke): compute_grand_product_polynomial_commitment
 }
@@ -107,18 +139,21 @@ template <typename settings> void HonkProver<settings>::execute_third_round()
  * For Honk
  * - Do Fiat-Shamir to get "alpha" challenge
  * - Run Sumcheck
- *
  * */
 template <typename settings> void HonkProver<settings>::execute_fourth_round()
 {
-    // TODO(luke): Do Fiat-Shamir to get "alpha" challenge
+    queue.flush_queue();
+
+    // Compute alpha challenge
+    transcript.apply_fiat_shamir("alpha");
+
     // TODO(luke): Run Sumcheck
 }
 
 /**
  * For Plonk systems (no linearization):
  * - Do Fiat-Shamir to get "z" challenge
- * - Compute evaluation of quotient polynomial
+ * - Compute evaluation of quotient polynomial and add it to transcript
  *
  * For Honk:
  * - I don't think there's anything to do here. The analog should all occur in Sumcheck
@@ -136,14 +171,12 @@ template <typename settings> void HonkProver<settings>::execute_fifth_round()
  * - Perform batch opening
  *
  * For Honk:
- * - Do Fiat-Shamir to get "nu" challenge?
  * - engage in Gemini?
  *
  * */
 template <typename settings> void HonkProver<settings>::execute_sixth_round()
 {
-    // TODO(luke): Do Fiat-Shamir to get "nu" challenge?
-    // TODO(luke): Gemini?
+    // TODO(luke): Gemini
 }
 
 template <typename settings> waffle::plonk_proof& HonkProver<settings>::export_proof()
@@ -154,29 +187,30 @@ template <typename settings> waffle::plonk_proof& HonkProver<settings>::export_p
 
 template <typename settings> waffle::plonk_proof& HonkProver<settings>::construct_proof()
 {
-    // Execute init round. Randomize witness polynomials.
+    // Add circuit size and public input size to transcript.
     execute_preamble_round();
     queue.process_queue();
 
-    // Compute wire precommitments and sometimes random widget round commitments
+    // Compute wire commitments; Add PI to transcript
     execute_first_round();
     queue.process_queue();
 
-    // Fiat-Shamir eta + execute random widgets.
+    // This is currently a non-op (for Standard Honk)
     execute_second_round();
     queue.process_queue();
 
-    // Fiat-Shamir beta & gamma, execute random widgets (Permutation widget is executed here)
-    // and fft the witnesses
+    // Compute challenges beta & gamma; Compute permutation grand product polynomial and its commitment
     execute_third_round();
     queue.process_queue();
 
-    // Fiat-Shamir alpha, compute & commit to quotient polynomial.
+    // Compute challenge alpha; Run Sumcheck protocol
     execute_fourth_round();
     queue.process_queue();
 
+    // TBD: possibly some pre-processing for Gemini
     execute_fifth_round();
 
+    // Execute Gemini
     execute_sixth_round();
     queue.process_queue();
 
