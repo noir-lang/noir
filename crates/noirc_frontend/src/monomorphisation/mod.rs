@@ -456,7 +456,7 @@ impl Monomorphiser {
 
             HirType::Function(_, _)
             | HirType::Forall(_, _)
-            | HirType::ArrayLength(_)
+            | HirType::TypeLevelInteger(_)
             | HirType::Error => unreachable!("Unexpected type {} found", typ),
         }
     }

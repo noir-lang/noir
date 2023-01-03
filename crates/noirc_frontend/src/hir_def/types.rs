@@ -216,9 +216,24 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    ArrayLength(u64),
+    TypeLevelInteger(u64),
+    BinaryOperation(Box<Type>, BinaryTypeOperator, Box<Type>),
 
     Error,
+}
+
+/// A restricted subset of binary operators useable on
+/// type level integers for use in the array length positions of types.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum BinaryTypeOperator {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+    Modulo,
+    And,
+    Or,
+    Xor,
 }
 
 pub type TypeVariable = Shared<TypeBinding>;
@@ -487,7 +502,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{}", name),
             },
-            Type::ArrayLength(n) => n.fmt(f),
+            Type::TypeLevelInteger(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -496,6 +511,24 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
+            Type::BinaryOperation(lhs, op, rhs) => {
+                write!(f, "({} {} {})", lhs, op, rhs)
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryTypeOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryTypeOperator::Addition => write!(f, "+"),
+            BinaryTypeOperator::Subtraction => write!(f, "-"),
+            BinaryTypeOperator::Multiplication => write!(f, "*"),
+            BinaryTypeOperator::Division => write!(f, "/"),
+            BinaryTypeOperator::Modulo => write!(f, "%"),
+            BinaryTypeOperator::And => write!(f, "&"),
+            BinaryTypeOperator::Or => write!(f, "|"),
+            BinaryTypeOperator::Xor => write!(f, "^"),
         }
     }
 }
@@ -794,6 +827,10 @@ impl Type {
                 }
             }
 
+            (BinaryOperation(..), _) | (_, BinaryOperation(..)) => {
+                todo!()
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -933,7 +970,7 @@ impl Type {
                 TypeBinding::Unbound(_) => None,
             },
             Type::Array(len, _elem) => len.array_length(),
-            Type::ArrayLength(size) => Some(*size),
+            Type::TypeLevelInteger(size) => Some(*size),
             _ => None,
         }
     }
@@ -964,7 +1001,7 @@ impl Type {
             Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::ArrayLength(_) => unreachable!(),
+            Type::TypeLevelInteger(_) => unreachable!(),
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -976,6 +1013,7 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
+            Type::BinaryOperation(..) => unreachable!(),
         }
     }
 
@@ -1085,11 +1123,16 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
+            Type::BinaryOperation(lhs, op, rhs) => {
+                let lhs = Box::new(lhs.substitute(type_bindings));
+                let rhs = Box::new(rhs.substitute(type_bindings));
+                Type::BinaryOperation(lhs, *op, rhs)
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::ArrayLength(_)
+            | Type::TypeLevelInteger(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -1114,11 +1157,14 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
+            Type::BinaryOperation(lhs, _, rhs) => {
+                lhs.occurs(target_id) || rhs.occurs(target_id)
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::ArrayLength(_)
+            | Type::TypeLevelInteger(_)
             | Type::Error
             | Type::Unit => false,
         }
@@ -1158,8 +1204,14 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | TypeLevelInteger(_) | Unit | Error => {
                 self.clone()
+            }
+
+            BinaryOperation(lhs, op, rhs) => {
+                let lhs = Box::new(lhs.follow_bindings());
+                let rhs = Box::new(rhs.follow_bindings());
+                BinaryOperation(lhs, *op, rhs)
             }
         }
     }

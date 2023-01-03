@@ -39,7 +39,7 @@ pub(crate) fn type_check_expression(
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.len() as u64)),
+                        Box::new(Type::TypeLevelInteger(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 

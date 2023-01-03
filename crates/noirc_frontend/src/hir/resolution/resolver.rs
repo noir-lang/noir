@@ -290,7 +290,7 @@ impl<'a> Resolver<'a> {
                     }
                     Some(expr) => {
                         let len = self.eval_array_length(expr);
-                        Type::ArrayLength(len)
+                        Type::TypeLevelInteger(len)
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
