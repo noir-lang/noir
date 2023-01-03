@@ -724,10 +724,8 @@ impl SsaContext {
         self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block, &decision)?;
 
-        println!("inline_tree done");
-
         block::merge_path(self, self.first_block, BlockId::dummy(), None)?;
-        println!("merge_path done");
+
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
