@@ -794,7 +794,7 @@ dependencies = [
 name = "fm"
 version = "0.1.0"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "codespan-reporting",
  "tempfile",
  "wasm-bindgen",
@@ -989,6 +989,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
+name = "gloo-utils"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8e8fc851e9c7b9852508bc6e3f690f452f474417e8545ec9857b7f7377036b5"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "group"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1178,9 +1191,9 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.5.1"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f88c5561171189e69df9d98bcf18fd5f9558300f7ea7b801eb8a0fd748bd8745"
+checksum = "ec947b7a4ce12e3b87e353abae7ce124d025b6c7d6c5aea5cc0bcf92e9510ded"
 
 [[package]]
 name = "iter-extended"
@@ -1376,7 +1389,6 @@ dependencies = [
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
- "blake2",
  "cfg-if 1.0.0",
  "hex",
  "num-bigint",
@@ -1386,11 +1398,12 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.1.0"
+version = "0.10.0"
 dependencies = [
  "acvm",
  "console_error_panic_hook",
  "getrandom",
+ "gloo-utils",
  "js-sys",
  "noirc_driver",
  "wasm-bindgen",

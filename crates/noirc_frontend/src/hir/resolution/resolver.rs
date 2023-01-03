@@ -424,7 +424,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
+            if func.name() != "main" && visibility == noirc_abi::AbiVisibility::Public {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
@@ -438,7 +438,7 @@ impl<'a> Resolver<'a> {
 
         if func.name() == "main"
             && *return_type != Type::Unit
-            && func.def.return_visibility != noirc_abi::AbiFEType::Public
+            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
         }
@@ -904,23 +904,22 @@ impl<'a> Resolver<'a> {
         let definition = self.interner.definition(id);
         match definition.rhs {
             Some(rhs) if definition.is_global || !definition.mutable => {
-                self.try_eval_array_length_id(rhs)
+                self.try_eval_array_length_id(rhs, span)
             }
             _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
 
-    fn try_eval_array_length_id(&self, rhs: ExprId) -> Result<u128, Option<ResolverError>> {
-        let span = self.interner.expr_span(&rhs);
+    fn try_eval_array_length_id(
+        &self,
+        rhs: ExprId,
+        span: Span,
+    ) -> Result<u128, Option<ResolverError>> {
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Literal(_) => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-            other => unreachable!(
-                "Expected global to be initialized to a literal, but found {:?}",
-                other
-            ),
+            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
 }

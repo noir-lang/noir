@@ -1,4 +1,4 @@
-use crate::{input_parser::InputValue, AbiType};
+use crate::{input_parser::InputValue, AbiParameter};
 
 #[derive(Debug)]
 pub enum InputParserError {
@@ -33,7 +33,7 @@ impl std::fmt::Display for InputParserError {
 pub enum AbiError {
     Generic(String),
     UnexpectedParams(Vec<String>),
-    TypeMismatch { param_name: String, param_type: AbiType, value: InputValue },
+    TypeMismatch { param: AbiParameter, value: InputValue },
     MissingParam(String),
     UndefinedInput(String),
     UnexpectedInputLength { expected: u32, actual: u32 },
@@ -48,11 +48,11 @@ impl std::fmt::Display for AbiError {
                 AbiError::Generic(msg) => msg.clone(),
                 AbiError::UnexpectedParams(unexpected_params) =>
                     format!("Received parameters not expected by ABI: {:?}", unexpected_params),
-                AbiError::TypeMismatch { param_name, param_type, value } => {
+                AbiError::TypeMismatch { param, value } => {
                     format!(
-                            "The parameter {} is expected to be a {:?} but found incompatible value {:?}",
-                            param_name, param_type, value
-                        )
+                        "The parameter {} is expected to be a {:?} but found incompatible value {:?}",
+                        param.name, param.typ, value
+                    )
                 }
                 AbiError::MissingParam(name) => {
                     format!("ABI expects the parameter `{}`, but this was not found", name)

@@ -124,8 +124,4 @@ impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
     }
-
-    pub fn dummy() -> Location {
-        Location::new(Span::new(0..0), FileId::dummy())
-    }
 }

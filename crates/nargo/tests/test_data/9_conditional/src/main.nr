@@ -82,6 +82,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
     constrain c1==1;
 
+    //Regression for Issue #579
+    let result1_true = test(true);
+    constrain result1_true.array_param[0] == 1;
+    let result1_false = test(false);
+    constrain result1_false.array_param[0] == 0;
+
     //Test case for short-circuit
     let mut data = [0 as u32; 32];
     let mut ba = a;
@@ -101,7 +107,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     }
     constrain data[31] == 0;
     constrain ba != 13;
-    
+    //regression for short-circuit2
+    if 35 == a {
+        constrain false;
+    }
+    bar(a as Field);
+
     if a == 3 {
        c = test4();
     }
@@ -184,4 +195,39 @@ fn test5(a : u32) {
         let q = a / 2;
         constrain q == 2;
     }
+}
+
+
+
+fn foo() {
+    let mut x = 1;
+    x = x/0;
+}
+
+fn bar(x:Field) {
+    if x ==15 {
+        foo();
+    }
+}
+
+
+struct MyStruct579 {
+    array_param: [u32; 2]
+}
+
+impl MyStruct579 {
+    fn new(array_param: [u32; 2]) -> MyStruct579 {
+        MyStruct579 {
+            array_param: array_param
+        }
+    }
+}
+
+fn test(flag: bool) -> MyStruct579 {
+    let mut my_struct =  MyStruct579::new([0; 2]);
+
+    if flag == true {
+        my_struct=  MyStruct579::new([1; 2]);
+    }
+    my_struct
 }

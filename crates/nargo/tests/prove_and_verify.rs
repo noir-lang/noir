@@ -8,7 +8,7 @@ const CONFIG_FILE: &str = "config.toml";
 mod tests {
     use super::*;
 
-    fn load_conf(conf_path: &String) -> BTreeMap<String, Vec<String>> {
+    fn load_conf(conf_path: &str) -> BTreeMap<String, Vec<String>> {
         // Parse config.toml into a BTreeMap, do not fail if config file does not exist.
         let mut conf_data = match toml::from_str(conf_path) {
             Ok(t) => t,
@@ -40,21 +40,16 @@ mod tests {
         cdir.push(TEST_DIR);
         cdir.push(TEST_DATA_DIR);
 
-        for c in fs::read_dir(cdir.as_path()).unwrap() {
-            if let Ok(c) = c {
-                let test_name = c.file_name().into_string();
-                match test_name {
-                    Ok(str) => {
-                        if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                            let r = nargo::cli::prove_and_verify("pp", &c.path(), false);
-                            if conf_data["fail"].contains(&str) {
-                                assert!(!r, "{:?} should not succeed", c.file_name());
-                            } else {
-                                assert!(r, "verification fail for {:?}", c.file_name());
-                            }
-                        }
+        for c in fs::read_dir(cdir.as_path()).unwrap().flatten() {
+            let test_name = c.file_name().into_string();
+            if let Ok(str) = test_name {
+                if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
+                    let r = nargo::cli::prove_and_verify("pp", &c.path(), false);
+                    if conf_data["fail"].contains(&str) {
+                        assert!(!r, "{:?} should not succeed", c.file_name());
+                    } else {
+                        assert!(r, "verification fail for {:?}", c.file_name());
                     }
-                    _ => {}
                 }
             }
         }
