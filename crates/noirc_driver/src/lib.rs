@@ -44,7 +44,7 @@ impl Driver {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         for errors in &errs {
-            dbg!(errors);
+            eprintln!("{}", errors);
         }
         errs.is_empty()
     }

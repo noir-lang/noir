@@ -352,14 +352,12 @@ fn evaluate_object(
         NodeEval::Const(_, _) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
-                dbg!(obj_id);
                 return Ok(obj);
             }
 
             match &ctx[obj_id] {
                 NodeObj::Instr(i) => {
                     if let Operation::Phi { .. } = i.operation {
-                        dbg!(i.id);
                         return Ok(NodeEval::VarOrInstruction(i.id));
                     }
 
