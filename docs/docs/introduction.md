@@ -24,7 +24,7 @@ You can view some of the latest statistics on the [block explorer](https://aztec
 
 ## Aztec Connect
 
-Aztec Connect is the first private bridge for Ethereum’s decentralized finance ecosystem. It allows users to confidentially access world-class DeFi services on Ethereum with up to 100x cost savings, all while strengthening Aztec’s existing privacy guarantees.
+Aztec Connect is a VPN-like privacy tool for Ethereum’s decentralized finance ecosystem. It allows users to confidentially access world-class DeFi services on Ethereum with up to 100x cost savings, all while strengthening Aztec’s existing privacy guarantees.
 
 At launch, Aztec Connect extends the capabilities of zk.money, adding functionality from blue-chip DeFi partners. The Aztec SDK allows any Ethereum project to permissionlessly integrate Aztec, unlocking instant privacy and cost-savings.
 
