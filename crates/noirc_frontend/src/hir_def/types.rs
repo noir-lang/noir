@@ -6,7 +6,7 @@ use std::{
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{AbiFEType, AbiType};
+use noirc_abi::AbiType;
 use noirc_errors::Span;
 
 use crate::{
@@ -966,18 +966,14 @@ impl Type {
 
     // Note; use strict_eq instead of partial_eq when comparing field types
     // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self, fe_type: AbiFEType) -> AbiType {
+    pub fn as_abi_type(&self) -> AbiType {
         match self {
-            Type::FieldElement(_) => AbiType::Field(fe_type),
+            Type::FieldElement(_) => AbiType::Field,
             Type::Array(size, typ) => {
                 let size = size
                     .array_length()
                     .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array {
-                    visibility: fe_type,
-                    length: size as u128,
-                    typ: Box::new(typ.as_abi_type(fe_type)),
-                }
+                AbiType::Array { length: size as u128, typ: Box::new(typ.as_abi_type()) }
             }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
@@ -985,23 +981,21 @@ impl Type {
                     Signedness::Signed => noirc_abi::Sign::Signed,
                 };
 
-                AbiType::Integer { sign, width: *bit_width as u32, visibility: fe_type }
+                AbiType::Integer { sign, width: *bit_width }
             }
             Type::PolymorphicInteger(_, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.as_abi_type(fe_type),
-                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(fe_type),
+                TypeBinding::Bound(typ) => typ.as_abi_type(),
+                TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
-            Type::Bool(_) => {
-                AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1, visibility: fe_type }
-            }
+            Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::ArrayLength(_) => unreachable!(),
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type(fe_type)));
-                AbiType::Struct { visibility: fe_type, fields: abi_map }
+                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type()));
+                AbiType::Struct { fields: abi_map }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),

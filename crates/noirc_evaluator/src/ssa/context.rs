@@ -569,9 +569,10 @@ impl SsaContext {
     ) -> Result<NodeId, RuntimeError> {
         //Add a new instruction to the nodes arena
         let mut i = Instruction::new(opcode, optype, Some(self.current_block));
-        //Basic simplification
 
-        optim::simplify(self, &mut i)?;
+        //Basic simplification - we ignore RunTimeErrors when creating an instruction
+        //because they must be managed after handling conditionals. For instance if false { b } should not fail whatever b is doing.
+        optim::simplify(self, &mut i).ok();
 
         if let Mark::ReplaceWith(replacement) = i.mark {
             return Ok(replacement);
@@ -708,27 +709,23 @@ impl SsaContext {
 
         //Optimisation
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block)?;
+        optim::full_cse(self, self.first_block, false)?;
 
         //Flattenning
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block)?;
-
         //reduce conditionals
         let mut decision = DecisionTree::new(self);
         let builder = TreeBuilder::new(self.first_block);
-        decision.make_decision_tree(self, builder);
+        decision.make_decision_tree(self, builder)?;
         decision.reduce(self, decision.root)?;
-
         //Inlining
         self.log(enable_logging, "reduce", "\ninlining:");
         inline::inline_tree(self, self.first_block, &decision)?;
 
-        println!("inline_tree done");
-
         block::merge_path(self, self.first_block, BlockId::dummy(), None)?;
-        println!("merge_path done");
+
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -742,9 +739,7 @@ impl SsaContext {
         let first_block = self.first_block;
         self[first_block].dominated.clear();
 
-        optim::cse(self, first_block)?;
-        println!("optim::cse done");
-        self.log(enable_logging, "\nafter cse:", "");
+        optim::cse(self, first_block, true)?;
 
         //Truncation
         integer::overflow_strategy(self)?;
@@ -851,10 +846,33 @@ impl SsaContext {
 
         if let Some((func, a, idx)) = ret_array {
             if let Some(Instruction {
-                operation: Operation::Call { returned_arrays, .. }, ..
+                operation: Operation::Call { returned_arrays, arguments, .. },
+                ..
             }) = self.try_get_mut_instruction(func)
             {
                 returned_arrays.push((a, idx));
+                //Issue #579: we initialise the array, unless it is also in arguments in which case it is already initialised.
+                let mut init = false;
+                for i in arguments.clone() {
+                    if let ObjectType::Pointer(b) = self.get_object_type(i) {
+                        if a == b {
+                            init = true;
+                        }
+                    }
+                }
+                if !init {
+                    let mut stack = StackFrame::new(self.current_block);
+                    self.init_array(a, &mut stack);
+                    let pos = self[self.current_block]
+                        .instructions
+                        .iter()
+                        .position(|x| *x == func)
+                        .unwrap();
+                    let current_block = self.current_block;
+                    for i in stack.stack {
+                        self[current_block].instructions.insert(pos, i);
+                    }
+                }
             }
             if let Some(i) = self.try_get_mut_instruction(rhs) {
                 i.mark = Mark::ReplaceWith(lhs);
@@ -918,6 +936,17 @@ impl SsaContext {
         let ins_id = self.add_instruction(i);
         stack_frame.push(ins_id);
         ins_id
+    }
+
+    fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
+        let len = self.mem[array_id].len;
+        let e_type = self.mem[array_id].element_type;
+        for i in 0..len {
+            let index =
+                self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            self.new_instruction_inline(op_a, e_type, stack_frame);
+        }
     }
 
     pub fn memcpy_inline(
@@ -1116,6 +1145,10 @@ impl SsaContext {
     pub fn union_array_sets(&mut self, first: ArrayIdSet, second: ArrayIdSet) -> ArrayIdSet {
         let mut union_set = self.function_returned_arrays[first.0 as usize].clone();
         union_set.extend_from_slice(&self.function_returned_arrays[second.0 as usize]);
+        // The sort + dedup here is expected to be cheap as the length of this set matches the number
+        // of array parameters of both functions, and the average function only uses roughly 0-2 array parameters.
+        // `union_array_sets` as a whole is also called fairly infrequently - only when function
+        // values are unified in a Phi instruction, e.g. from being returned by an if expression.
         union_set.sort();
         union_set.dedup();
         self.push_array_set(union_set)
@@ -1146,15 +1179,67 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            // TODO: We should not track arrays through ObjectTypes
-            Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
+            Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => {
-                // TODO: This is incorrect, we cannot track arrays through function types in this case
+                // TODO #612: We should not track arrays through ObjectTypes.
+                // This is incorrect, we cannot track arrays through function types in this case
+                // since we do not know which arrays the function uses at this point.
                 let id = self.push_array_set(vec![]);
                 ObjectType::Function(id)
             }
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
+        }
+    }
+
+    pub fn add_predicate(
+        &mut self,
+        pred: NodeId,
+        instruction: &mut Instruction,
+        stack: &mut StackFrame,
+    ) {
+        let op = &mut instruction.operation;
+
+        match op {
+            Operation::Binary(bin) => {
+                assert!(bin.predicate.is_none());
+                let cond = if let Some(pred_ins) = bin.predicate {
+                    assert_ne!(pred_ins, NodeId::dummy());
+                    if pred == NodeId::dummy() {
+                        pred_ins
+                    } else {
+                        let op = Operation::Binary(node::Binary {
+                            lhs: pred,
+                            rhs: pred_ins,
+                            operator: BinaryOp::Mul,
+                            predicate: None,
+                        });
+                        let cond = self.add_instruction(Instruction::new(
+                            op,
+                            ObjectType::Boolean,
+                            Some(stack.block),
+                        ));
+                        optim::simplify_id(self, cond).unwrap();
+                        stack.push(cond);
+                        cond
+                    }
+                } else {
+                    pred
+                };
+                bin.predicate = Some(cond);
+            }
+            Operation::Constrain(cond, _) => {
+                let operation =
+                    Operation::Cond { condition: pred, val_true: *cond, val_false: self.one() };
+                let c_ins = self.add_instruction(Instruction::new(
+                    operation,
+                    ObjectType::Boolean,
+                    Some(stack.block),
+                ));
+                stack.push(c_ins);
+                *cond = c_ins;
+            }
+            _ => unreachable!(),
         }
     }
 }

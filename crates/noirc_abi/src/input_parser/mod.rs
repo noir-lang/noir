@@ -23,22 +23,39 @@ impl InputValue {
     /// and also their arity
     pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         match (self, abi_param) {
-            (InputValue::Field(_), AbiType::Field(_)) => true,
-            (InputValue::Field(_), AbiType::Array { .. }) => false,
-            (InputValue::Field(_), AbiType::Integer { .. }) => true,
-            (InputValue::Field(_), AbiType::Struct { .. }) => false,
+            (InputValue::Field(_), AbiType::Field) => true,
+            (InputValue::Field(field_element), AbiType::Integer { width, .. }) => {
+                field_element.num_bits() <= *width
+            }
 
-            (InputValue::Vec(_), AbiType::Field(_)) => false,
-            (InputValue::Vec(x), AbiType::Array { length, .. }) => x.len() == *length as usize,
-            (InputValue::Vec(_), AbiType::Integer { .. }) => false,
-            (InputValue::Vec(_), AbiType::Struct { .. }) => false,
+            (InputValue::Vec(field_elements), AbiType::Array { length, typ, .. }) => {
+                if field_elements.len() != *length as usize {
+                    return false;
+                }
+                // Check that all of the array's elements' values match the ABI as well.
+                field_elements
+                    .iter()
+                    .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+            }
 
-            (InputValue::Struct(_), AbiType::Field(_)) => false,
-            (InputValue::Struct(_), AbiType::Array { .. }) => false,
-            (InputValue::Struct(_), AbiType::Integer { .. }) => false,
-            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => map.len() == fields.len(),
+            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
+                if map.len() != fields.len() {
+                    return false;
+                }
+                // Check that all of the struct's fields' values match the ABI as well.
+                map.iter().all(|(field_name, field_value)| {
+                    if let Some(field_type) = fields.get(field_name) {
+                        field_value.matches_abi(field_type)
+                    } else {
+                        false
+                    }
+                })
+            }
 
             (InputValue::Undefined, _) => true,
+
+            // All other InputValue-AbiType combinations are fundamentally incompatible.
+            _ => false,
         }
     }
 }
@@ -64,35 +81,21 @@ impl Format {
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(
+    pub fn parse(
         &self,
-        path: P,
-        file_name: &str,
+        input_string: &str,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::parse(dir_path)
-            }
+            Format::Toml => toml::parse_toml(input_string),
         }
     }
 
-    pub fn serialise<P: AsRef<Path>>(
+    pub fn serialise(
         &self,
-        path: P,
-        file_name: &str,
         w_map: &BTreeMap<String, InputValue>,
-    ) -> Result<(), InputParserError> {
+    ) -> Result<String, InputParserError> {
         match self {
-            Format::Toml => {
-                let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(file_name);
-                dir_path.set_extension(self.ext());
-                toml::serialise(dir_path, w_map)?;
-            }
+            Format::Toml => toml::serialise_to_toml(w_map),
         }
-        Ok(())
     }
 }

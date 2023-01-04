@@ -180,6 +180,30 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
+                    Directive::ToBytes { a, b, byte_size } => {
+                        match Self::get_value(a, initial_witness) {
+                            Some(val_a) => {
+                                let mut a_bytes = val_a.to_bytes();
+                                a_bytes.reverse();
+                                for i in 0..*byte_size {
+                                    let i_usize = i as usize;
+                                    let v = FieldElement::from_be_bytes_reduce(&[a_bytes[i_usize]]);
+                                    match initial_witness.entry(b[i_usize]) {
+                                        std::collections::btree_map::Entry::Vacant(e) => {
+                                            e.insert(v);
+                                        }
+                                        std::collections::btree_map::Entry::Occupied(e) => {
+                                            if e.get() != &v {
+                                                return GateResolution::UnsatisfiedConstrain;
+                                            }
+                                        }
+                                    }
+                                }
+                                false
+                            }
+                            _ => true,
+                        }
+                    }
                     Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
                         Some(val_a) => {
                             let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
@@ -289,6 +313,8 @@ pub trait ProofSystemCompiler {
         public_input: Vec<FieldElement>,
         circuit: Circuit,
     ) -> bool;
+
+    fn get_exact_circuit_size(&self, circuit: Circuit) -> u32;
 }
 
 /// Supported NP complete languages

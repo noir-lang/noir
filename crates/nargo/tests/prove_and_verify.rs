@@ -8,7 +8,7 @@ const CONFIG_FILE: &str = "config.toml";
 mod tests {
     use super::*;
 
-    fn load_conf(conf_path: &String) -> BTreeMap<String, Vec<String>> {
+    fn load_conf(conf_path: &str) -> BTreeMap<String, Vec<String>> {
         // Parse config.toml into a BTreeMap, do not fail if config file does not exist.
         let mut conf_data = match toml::from_str(conf_path) {
             Ok(t) => t,
@@ -40,33 +40,27 @@ mod tests {
         cdir.push(TEST_DIR);
         cdir.push(TEST_DATA_DIR);
 
-        for c in fs::read_dir(cdir.as_path()).unwrap() {
-            if let Ok(c) = c {
-                let test_name = c.file_name().into_string();
+        for c in fs::read_dir(cdir.as_path()).unwrap().flatten() {
+            if let Ok(test_name) = c.file_name().into_string() {
                 println!("Running test {:?}", test_name);
-                match test_name {
-                    Ok(str) => {
-                        if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                            let verified = std::panic::catch_unwind(|| {
-                                nargo::cli::prove_and_verify("pp", &c.path(), false)
-                            });
+                if c.path().is_dir() && !conf_data["exclude"].contains(&test_name) {
+                    let verified = std::panic::catch_unwind(|| {
+                        nargo::cli::prove_and_verify("pp", &c.path(), false)
+                    });
 
-                            let r = match verified {
-                                Ok(result) => result,
-                                Err(_) => unreachable!(
-                                    "\n\n\nPanic occured while running test {:?}. Now forcing a test failure (ignore the following panic).\n\n\n",
-                                    c.file_name(),
-                                ),
-                            };
-
-                            if conf_data["fail"].contains(&str) {
-                                assert!(!r, "{:?} should not succeed", c.file_name());
-                            } else {
-                                assert!(r, "verification fail for {:?}", c.file_name());
-                            }
+                    let r = match verified {
+                        Ok(result) => result,
+                        Err(_) => {
+                            eprintln!("\n\n\nPanic occured while running test {:?}", c.file_name());
+                            std::process::exit(1);
                         }
+                    };
+
+                    if conf_data["fail"].contains(&test_name) {
+                        assert!(!r, "{:?} should not succeed", c.file_name());
+                    } else {
+                        assert!(r, "verification fail for {:?}", c.file_name());
                     }
-                    _ => {}
                 }
             }
         }

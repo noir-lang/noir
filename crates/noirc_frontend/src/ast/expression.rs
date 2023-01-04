@@ -332,11 +332,11 @@ pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub generics: Vec<Ident>,
-    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiFEType)>,
+    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
     pub body: BlockExpression,
     pub span: Span,
     pub return_type: UnresolvedType,
-    pub return_visibility: noirc_abi::AbiFEType,
+    pub return_visibility: noirc_abi::AbiVisibility,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

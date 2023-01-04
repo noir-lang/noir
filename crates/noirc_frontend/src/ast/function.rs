@@ -45,7 +45,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, noirc_abi::AbiFEType)> {
+    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {

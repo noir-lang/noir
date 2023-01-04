@@ -558,6 +558,14 @@ impl Acir {
                     self.map_array(a, &outputs, ctx);
                 }
             }
+            OPCODE::ToBytes => {
+                let byte_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+                let l_c = self.substitute(args[0], evaluator, ctx);
+                outputs = to_bytes(&l_c, byte_size, evaluator);
+                if let node::ObjectType::Pointer(a) = res_type {
+                    self.map_array(a, &outputs, ctx);
+                }
+            }
             _ => {
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = opcode.definition().output_size.0 as u32;
@@ -630,30 +638,56 @@ pub fn evaluate_cmp(
     }
 }
 
+//Decomposition into a list of unsigned integers based on a base2 radix (bits - u1, bytes - u8, etc)
+pub fn to_base2_decomposition(
+    pow: u32,
+    num_limbs: u32,
+    evaluator: &mut Evaluator,
+) -> (Vec<Witness>, Expression) {
+    let mut digits = Expression::default();
+    let mut two_pow = FieldElement::one();
+    let base: i32 = 2;
+    let radix_base = base.pow(pow);
+    let shift = FieldElement::from(radix_base as i128);
+    let mut result = Vec::new();
+    for _ in 0..num_limbs {
+        let radix_witness = evaluator.add_witness_to_cs();
+        result.push(radix_witness);
+        let radix_expr = from_witness(radix_witness);
+        digits = add(&digits, two_pow, &radix_expr);
+        two_pow = two_pow.mul(shift);
+
+        range_constraint(radix_witness, pow, evaluator).unwrap();
+    }
+
+    (result, digits)
+}
+
+//Performs byte decomposition
+pub fn to_bytes(lhs: &InternalVar, byte_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
+    assert!(byte_size < FieldElement::max_num_bytes());
+    let (result, bytes) = to_base2_decomposition(8, byte_size, evaluator);
+    evaluator.gates.push(Gate::Directive(Directive::ToBytes {
+        a: lhs.expression.clone(),
+        b: result.clone(),
+        byte_size,
+    }));
+
+    evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bytes)));
+
+    result
+}
+
 //Performs bit decomposition
 pub fn split(lhs: &InternalVar, bit_size: u32, evaluator: &mut Evaluator) -> Vec<Witness> {
     assert!(bit_size < FieldElement::max_num_bits());
-    let mut bits = Expression::default();
-    let mut two_pow = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    let mut result = Vec::new();
-    for _ in 0..bit_size {
-        let bit_witness = evaluator.add_witness_to_cs();
-        result.push(bit_witness);
-        let bit_expr = from_witness(bit_witness);
-        bits = add(&bits, two_pow, &bit_expr);
-        two_pow = two_pow.mul(two);
-        evaluator.gates.push(Gate::Arithmetic(subtract(
-            &mul(&bit_expr, &bit_expr),
-            FieldElement::one(),
-            &bit_expr,
-        )));
-    }
+    let (result, bits) = to_base2_decomposition(1, bit_size, evaluator);
     evaluator.gates.push(Gate::Directive(Directive::Split {
         a: lhs.expression.clone(),
         b: result.clone(),
         bit_size,
     }));
+
     evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bits)));
 
     result

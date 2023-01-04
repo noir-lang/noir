@@ -488,7 +488,8 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
                 | OPCODE::Blake2s
                 | OPCODE::Pedersen
                 | OPCODE::FixedBaseScalarMul
-                | OPCODE::ToBits => BigUint::zero(), //pointers do not overflow
+                | OPCODE::ToBits
+                | OPCODE::ToBytes => BigUint::zero(), //pointers do not overflow
                 OPCODE::SchnorrVerify
                 | OPCODE::EcdsaSecp256k1
                 | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1

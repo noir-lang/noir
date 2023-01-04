@@ -466,8 +466,6 @@ impl Monomorphiser {
         let name = definition.name.clone();
         let mutable = definition.mutable;
 
-        println!("local_ident {}", name);
-
         let definition = self.lookup_local(ident.id)?;
         let typ = Self::convert_type(&self.interner.id_type(ident.id));
 
@@ -498,7 +496,6 @@ impl Monomorphiser {
 
     /// Convert a non-tuple/struct type to a monomorphised type
     fn convert_type(typ: &HirType) -> ast::Type {
-        println!("Converting type {}", typ);
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
@@ -660,7 +657,7 @@ impl Monomorphiser {
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            function::Param(pattern, typ, noirc_abi::AbiFEType::Private)
+            function::Param(pattern, typ, noirc_abi::AbiVisibility::Private)
         }));
 
         let parameters = self.parameters(parameters);
