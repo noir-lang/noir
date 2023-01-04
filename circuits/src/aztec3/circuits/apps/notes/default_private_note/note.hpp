@@ -5,19 +5,23 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
 
-// #include "../../state_vars/utxo_state_var.hpp"
-
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
+#include <variant>
+
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
+template <typename Composer> class StateVar;
 template <typename Composer, typename V> class UTXOStateVar;
+template <typename Composer, typename V> class UTXOSetStateVar;
 } // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::notes {
 
-using aztec3::circuits::apps::state_vars::UTXOStateVar; // Don't #include it!
+using aztec3::circuits::apps::state_vars::StateVar;        // Don't #include it!
+using aztec3::circuits::apps::state_vars::UTXOSetStateVar; // Don't #include it!
+using aztec3::circuits::apps::state_vars::UTXOStateVar;    // Don't #include it!
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -33,11 +37,13 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     typedef typename CT::address address;
     typedef typename CT::boolean boolean;
 
+    // using VariantUTXOStateVar =
+    //     std::variant<UTXOStateVar<Composer, DefaultPrivateNote>, UTXOSetStateVar<Composer, DefaultPrivateNote>>;
     using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
     using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 
   public:
-    UTXOStateVar<Composer, DefaultPrivateNote>* utxo_state_var;
+    StateVar<Composer>* state_var;
 
   private:
     std::optional<fr> commitment;
@@ -52,8 +58,8 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
   public:
     // CUSTOM CONSTRUCTORS:
 
-    DefaultPrivateNote(UTXOStateVar<Composer, DefaultPrivateNote>* utxo_state_var, NotePreimage note_preimage)
-        : utxo_state_var(utxo_state_var)
+    DefaultPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
+        : state_var(state_var)
         , note_preimage(note_preimage){};
 
     ~DefaultPrivateNote() {}

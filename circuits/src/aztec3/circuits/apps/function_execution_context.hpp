@@ -1,9 +1,7 @@
 #pragma once
 
 #include "contract.hpp"
-#include "nullifier_preimage.hpp"
 #include "oracle_wrapper.hpp"
-#include "private_state_note.hpp"
 
 #include "notes/note_interface.hpp"
 
@@ -50,9 +48,10 @@ template <typename Composer> class FunctionExecutionContext {
 
     Contract<Composer>* contract = nullptr;
 
-  private:
+    // TODO: make this private!
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
 
+  private:
     std::vector<std::shared_ptr<NoteInterface<Composer>>> new_notes;
     std::vector<fr> new_commitments;
 
@@ -129,6 +128,7 @@ template <typename Composer> class FunctionExecutionContext {
         fr next_nullifier;
         std::vector<fr> new_nonces;
 
+        // This is almost a visitor pattern. Call methods on each note. The note will choose what to do.
         for (size_t i = 0; i < new_notes.size(); ++i) {
             NoteInterface<Composer>& note = *new_notes[i];
 

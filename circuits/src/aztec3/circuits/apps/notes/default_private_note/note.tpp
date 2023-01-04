@@ -5,7 +5,10 @@
 
 #include "../../oracle_wrapper.hpp"
 #include "../../opcodes/opcodes.hpp"
+
+#include "../../state_vars/state_var_base.hpp"
 #include "../../state_vars/utxo_state_var.hpp"
+#include "../../state_vars/utxo_set_state_var.hpp"
 
 #include <crypto/pedersen/generator_data.hpp>
 
@@ -18,8 +21,12 @@
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 
+#include <variant>
+
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
+using aztec3::circuits::apps::state_vars::StateVar;
+using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 } // namespace
 
@@ -35,12 +42,12 @@ using plonk::stdlib::types::NativeTypes;
 
 template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
 {
-    Opcodes<Composer>::UTXO_NULL(utxo_state_var, *this);
+    Opcodes<Composer>::UTXO_NULL(state_var, *this);
 }
 
 template <typename Composer, typename V> auto& DefaultPrivateNote<Composer, V>::get_oracle()
 {
-    return utxo_state_var->exec_ctx->oracle;
+    return state_var->exec_ctx->oracle;
 }
 
 template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_preimage() const
@@ -52,7 +59,7 @@ template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::i
 
 template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_storage_slot() const
 {
-    return utxo_state_var->is_partial_slot;
+    return state_var->is_partial_slot;
 }
 
 template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial() const
@@ -67,7 +74,7 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
         return *commitment;
     }
 
-    grumpkin_point storage_slot_point = utxo_state_var->storage_slot_point;
+    grumpkin_point storage_slot_point = state_var->storage_slot_point;
 
     std::vector<fr> inputs;
     std::vector<generator_index_t> generators;
@@ -123,7 +130,7 @@ typename CircuitTypes<Composer>::grumpkin_point DefaultPrivateNote<Composer, V>:
             "here. But if that's not the case, you should call get_partial_commitment() instead, to save constraints.");
     }
 
-    grumpkin_point storage_slot_point = utxo_state_var->storage_slot_point;
+    grumpkin_point storage_slot_point = state_var->storage_slot_point;
 
     std::vector<fr> inputs;
     std::vector<generator_index_t> generators;

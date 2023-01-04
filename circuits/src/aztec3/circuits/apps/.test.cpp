@@ -20,6 +20,7 @@
 #include "state_vars/field_state_var.hpp"
 #include "state_vars/mapping_state_var.hpp"
 #include "state_vars/utxo_state_var.hpp"
+#include "state_vars/utxo_set_state_var.hpp"
 
 #include <aztec3/oracle/oracle.hpp>
 
@@ -51,6 +52,7 @@ using Contract = aztec3::circuits::apps::Contract<C>;
 // StateVars
 using aztec3::circuits::apps::state_vars::FieldStateVar;
 using aztec3::circuits::apps::state_vars::MappingStateVar;
+using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
 using aztec3::circuits::apps::notes::DefaultPrivateNote;
@@ -62,11 +64,13 @@ using aztec3::circuits::apps::notes::NoteInterface;
 template <typename T> struct SpecialisedTypes {
     typedef MappingStateVar<C, T> mapping;
     typedef UTXOStateVar<C, T> utxo;
+    typedef UTXOSetStateVar<C, T> utxo_set;
 };
 
 template <typename V> using Mapping = typename SpecialisedTypes<V>::mapping;
 
 template <typename Note> using UTXO = typename SpecialisedTypes<Note>::utxo;
+template <typename Note> using UTXOSet = typename SpecialisedTypes<Note>::utxo_set;
 
 using Field = FieldStateVar<C>;
 
@@ -162,15 +166,8 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
     OracleWrapper oracle = OracleWrapper(composer, native_oracle);
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
-    // bool sort(NT::uint256 i, NT::uint256 j)
-    // {
-    //     return (i < j);
-    // };
-
-    // {
     Contract contract(exec_ctx, "TestContract");
     contract.declare_state_var("my_utxo");
-    // }
 
     // FUNCTION:
 
@@ -193,6 +190,8 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
                      .creator_address = msg_sender,
                      .memo = 1234 });
 
+    exec_ctx.finalise();
+
     // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
@@ -202,8 +201,65 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
     info("new_nullifiers: ", new_nullifiers);
+}
+
+TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
+{
+    C composer;
+    NativeOracle native_oracle = get_test_native_oracle();
+    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+
+    // bool sort(NT::uint256 i, NT::uint256 j)
+    // {
+    //     return (i < j);
+    // };
+
+    Contract contract(exec_ctx, "TestContract");
+    contract.declare_state_var("balances");
+
+    // FUNCTION:
+
+    using Note = DefaultPrivateNote<C, CT::fr>;
+
+    UTXOSet<Note> balances(&exec_ctx, "balances");
+
+    // Imagine these were passed into the function as args:
+    CT::fr amount = 5;
+    CT::address to_address = 765976;
+
+    const auto& msg_sender = oracle.get_msg_sender();
+
+    std::vector<Note> old_balance_notes = balances.get(2, { .owner = msg_sender });
+
+    CT::fr old_value_1 = *(old_balance_notes[0].get_preimage().value);
+    CT::fr old_value_2 = *(old_balance_notes[1].get_preimage().value);
+
+    old_balance_notes[0].remove();
+    old_balance_notes[1].remove();
+
+    // MISSING: overflow & underflow checks, but I can't be bothered with safe_uint or range checks yet.
+
+    CT::fr new_value = (old_value_1 + old_value_2) - amount;
+
+    balances.insert({
+        .value = new_value,
+        .owner = to_address,
+        .creator_address = msg_sender,
+        .memo = 1234,
+    });
 
     exec_ctx.finalise();
+
+    // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
+    // test, instead of this ever-growing beast test.
+    auto new_note_pointers = exec_ctx.get_new_notes();
+    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    info("new_note_pointers: ", new_note_pointers);
+    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+
+    auto new_nullifiers = exec_ctx.get_new_nullifiers();
+    info("new_nullifiers: ", new_nullifiers);
 }
 
 } // namespace aztec3::circuits::apps

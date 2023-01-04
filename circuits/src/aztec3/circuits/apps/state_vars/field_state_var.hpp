@@ -11,6 +11,7 @@ namespace aztec3::circuits::apps::state_vars {
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
+// TODO: we can probably generalise this to be PrimitiveStateVar for any stdlib primitive.
 template <typename Composer> class FieldStateVar : public StateVar<Composer> {
   public:
     typedef CircuitTypes<Composer> CT;
@@ -28,11 +29,11 @@ template <typename Composer> class FieldStateVar : public StateVar<Composer> {
 
     FieldStateVar(){};
 
-    // Instantiate a top-level mapping:
+    // Instantiate a top-level var:
     FieldStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name, fr const& start_slot)
         : StateVar<Composer>(exec_ctx, state_var_name, start_slot){};
 
-    // Instantiate a nested mapping:
+    // Instantiate a var nested within a container:
     FieldStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                   std::string const& state_var_name,
                   grumpkin_point const& storage_slot_point,

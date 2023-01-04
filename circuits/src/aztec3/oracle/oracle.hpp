@@ -2,7 +2,6 @@
 
 #include <aztec3/circuits/abis/call_context.hpp>
 
-#include <aztec3/circuits/apps/private_state_note_preimage.hpp>
 #include <aztec3/circuits/apps/utxo_datum.hpp>
 
 #include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
@@ -13,7 +12,6 @@ namespace aztec3::oracle {
 
 using aztec3::circuits::abis::CallContext;
 
-using aztec3::circuits::apps::PrivateStateNotePreimage;
 using aztec3::circuits::apps::UTXOSLoadDatum;
 
 using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
@@ -115,13 +113,14 @@ template <typename DB> class NativeOracleInterface {
         return db.get_utxo_sload_datum(contract_address, storage_slot_point, advice);
     }
 
-    std::pair<PrivateStateNotePreimage<NT>, PrivateStateNotePreimage<NT>>
-    get_private_state_note_preimages_for_subtraction(NT::fr const& storage_slot,
-                                                     NT::address const& owner,
-                                                     NT::fr const& subtrahend)
+    template <typename NotePreimage>
+    std::vector<UTXOSLoadDatum<NT, NotePreimage>> get_utxo_sload_data(NT::grumpkin_point const storage_slot_point,
+                                                                      size_t const& num_notes,
+                                                                      NotePreimage const advice)
     {
+        // TODO: consider whether it's actually safe to bypass get_call_context() here...
         const auto& contract_address = call_context.storage_contract_address;
-        return db.get_private_state_note_preimages_for_subtraction(contract_address, storage_slot, owner, subtrahend);
+        return db.get_utxo_sload_data(contract_address, storage_slot_point, num_notes, advice);
     }
 
     NT::fr generate_salt() const { return NT::fr::random_element(); }
@@ -154,6 +153,10 @@ class FakeDB {
 
     /**
      * For getting a singleton UTXO (not a set).
+     *
+     * NOTICE: this fake db stub is hard-coded to a DefaultPrivateNotePreimage which _itself_ is hard-coded to the value
+     * type being a field.
+     * So if you want to test other note types against this stub DB, you'll need to write your own stub DB entry.
      */
     UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>> get_utxo_sload_datum(
         NT::address const& contract_address,
@@ -182,7 +185,7 @@ class FakeDB {
         std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
 
         return {
-            .commitment = 1, // TODO: implement commit() method in `preimage`?
+            .commitment = 1,
             .contract_address = contract_address,
             .preimage = preimage,
 
@@ -192,46 +195,55 @@ class FakeDB {
         };
     };
 
-    std::pair<PrivateStateNotePreimage<NT>, PrivateStateNotePreimage<NT>>
-    get_private_state_note_preimages_for_subtraction(NT::address const& contract_address,
-                                                     NT::fr const& storage_slot,
-                                                     NT::address const& owner,
-                                                     NT::fr const& subtrahend)
+    /**
+     * For getting a set of UTXOs.
+     *
+     * * NOTICE: this fake db stub is hard-coded to a DefaultPrivateNotePreimage which _itself_ is hard-coded to the
+     * value type being a field.
+     * So if you want to test other note types against this stub DB, you'll need to write your own stub DB entry.
+     */
+    std::vector<UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>>> get_utxo_sload_data(
+        NT::address const& contract_address,
+        NT::grumpkin_point const& storage_slot_point,
+        size_t const& num_notes,
+        DefaultPrivateNotePreimage<NT, typename NT::fr> const& advice)
+    // NT::address const& owner,
+    // NT::fr required_utxo_tree_root,
+    // size_t utxo_tree_depth)
     {
-        (void)contract_address; // currently unused
+        (void)storage_slot_point; // Not used in this 'fake' implementation.
 
-        NT::grumpkin_point storage_slot_point;
-        NT::fr x = storage_slot;
-        NT::fr yy = x.sqr() * x + NT::grumpkin_group::curve_b;
-        NT::fr y = yy.sqrt();
-        NT::fr neg_y = -y;
-        y = y < neg_y ? y : neg_y;
-        storage_slot_point = NT::grumpkin_group::affine_element(x, y);
-        info("derived slot point:", storage_slot_point);
+        std::vector<UTXOSLoadDatum<NT, DefaultPrivateNotePreimage<NT, typename NT::fr>>> data;
 
-        return std::make_pair(
-            PrivateStateNotePreimage<NT>{
-                .start_slot = 0,
-                .storage_slot_point = storage_slot_point,
-                .value = uint256_t(subtrahend) / 2 + 1,
-                .owner = owner,
+        const size_t utxo_tree_depth = 32;
+        const NT::fr required_utxo_tree_root = 2468;
+
+        std::vector<NT::fr> sibling_path(utxo_tree_depth);
+        std::fill(sibling_path.begin(), sibling_path.end(), 1); // Fill with 1's to be lazy. TODO: return a valid path.
+
+        for (size_t i = 0; i < num_notes; i++) {
+            DefaultPrivateNotePreimage<NT, NT::fr> preimage{
+                .value = 100 + i,
+                .owner = advice.owner,
                 .creator_address = 0,
                 .memo = 3456,
                 .salt = 1234,
                 .nonce = 2345,
-                .is_real = true,
-            },
-            PrivateStateNotePreimage<NT>{
-                .start_slot = 0,
-                .storage_slot_point = storage_slot_point,
-                .value = uint256_t(subtrahend) / 2 + 3,
-                .owner = owner,
-                .creator_address = 0,
-                .memo = 6789,
-                .salt = 4567,
-                .nonce = 5678,
-                .is_real = true,
+                .is_dummy = false,
+            };
+
+            data.push_back({
+                .commitment = 1,
+                .contract_address = contract_address,
+                .preimage = preimage,
+
+                .sibling_path = sibling_path,
+                .leaf_index = 2,
+                .old_private_data_tree_root = required_utxo_tree_root,
             });
+        }
+
+        return data;
     };
 };
 

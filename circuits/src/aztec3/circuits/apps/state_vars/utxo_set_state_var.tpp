@@ -12,13 +12,14 @@ using aztec3::circuits::apps::opcodes::Opcodes;
 namespace aztec3::circuits::apps::state_vars {
 
 template <typename Composer, typename Note>
-Note UTXOStateVar<Composer, Note>::get(typename Note::NotePreimage const& advice)
+std::vector<Note> UTXOSetStateVar<Composer, Note>::get(size_t const& num_notes,
+                                                       typename Note::NotePreimage const& advice)
 {
-    return Opcodes<Composer>::template UTXO_SLOAD<Note>(this, advice);
+    return Opcodes<Composer>::template UTXO_SLOAD<Note>(this, num_notes, advice);
 };
 
 template <typename Composer, typename Note>
-void UTXOStateVar<Composer, Note>::insert(typename Note::NotePreimage new_note_preimage)
+void UTXOSetStateVar<Composer, Note>::insert(typename Note::NotePreimage new_note_preimage)
 {
     return Opcodes<Composer>::template UTXO_SSTORE<Note>(this, new_note_preimage);
 };

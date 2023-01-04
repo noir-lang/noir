@@ -51,23 +51,12 @@ template <typename Composer> class StateVar {
         return *this;
     }
 
-    // StateVar(StateVar const& other)
-    // {
-    //     this->exec_ctx = other.exec_ctx;
-    //     this->state_var_name = other.state_var_name;
-    //     this->start_slot = other.start_slot;
-    //     this->storage_slot_point = other.storage_slot_point;
-    //     this->level_of_container_nesting = other.level_of_container_nesting;
-    //     this->is_partial_slot = other.is_partial_slot;
-    //     // return *this;
-    // }
-
     StateVar(){};
 
     // Instantiate a top-level state:
     StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name);
 
-    // Instantiate a nested state:
+    // Instantiate a state nested within a container:
     StateVar(
         FunctionExecutionContext<Composer>* exec_ctx,
         std::string const& state_var_name,

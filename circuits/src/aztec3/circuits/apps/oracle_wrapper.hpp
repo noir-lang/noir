@@ -1,7 +1,8 @@
 #pragma once
 #include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/apps/private_state_note_preimage.hpp>
 #include <aztec3/oracle/oracle.hpp>
+
+#include <common/map.hpp>
 
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -72,16 +73,6 @@ template <typename Composer> class OracleWrapperInterface {
         return plonk::stdlib::types::to_ct(composer, oracle.generate_random_element());
     }
 
-    std::pair<PrivateStateNotePreimage<CT>, PrivateStateNotePreimage<CT>>
-    get_private_state_note_preimages_for_subtraction(fr const& storage_slot, address const& owner, fr const& subtrahend)
-    {
-        std::pair<PrivateStateNotePreimage<NT>, PrivateStateNotePreimage<NT>> native_preimages =
-            oracle.get_private_state_note_preimages_for_subtraction(
-                storage_slot.get_value(), NT::address(owner.to_field().get_value()), subtrahend.get_value());
-        return std::make_pair(native_preimages.first.to_circuit_type(composer),
-                              native_preimages.second.to_circuit_type(composer));
-    }
-
     template <typename NotePreimage>
     auto get_utxo_sload_datum(grumpkin_point const& storage_slot_point, NotePreimage const& advice)
     {
@@ -92,6 +83,22 @@ template <typename Composer> class OracleWrapperInterface {
         auto native_utxo_sload_datum = oracle.get_utxo_sload_datum(native_storage_slot_point, native_advice);
 
         return native_utxo_sload_datum.to_circuit_type(composer);
+    }
+
+    template <typename NotePreimage>
+    auto get_utxo_sload_data(grumpkin_point const& storage_slot_point,
+                             size_t const& num_notes,
+                             NotePreimage const& advice)
+    {
+        auto native_storage_slot_point = plonk::stdlib::types::to_nt<Composer>(storage_slot_point);
+
+        auto native_advice = advice.template to_native_type<Composer>();
+
+        auto native_utxo_sload_data = oracle.get_utxo_sload_data(native_storage_slot_point, num_notes, native_advice);
+
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+
+        return map(native_utxo_sload_data, to_circuit_type);
     }
 
   private:
