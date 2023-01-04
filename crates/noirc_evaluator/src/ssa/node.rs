@@ -34,9 +34,9 @@ impl std::fmt::Display for Variable {
 impl std::fmt::Display for NodeObj {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            NodeObj::Obj(o) => write!(f, "{}", o),
-            NodeObj::Instr(i) => write!(f, "{}", i),
-            NodeObj::Const(c) => write!(f, "{}", c),
+            NodeObj::Obj(o) => write!(f, "{o}"),
+            NodeObj::Instr(i) => write!(f, "{i}"),
+            NodeObj::Const(c) => write!(f, "{c}"),
         }
     }
 }

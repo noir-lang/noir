@@ -113,7 +113,7 @@ fn truncate(
     // get type
     let obj = &ctx[obj_id];
     let obj_type = obj.get_type();
-    let obj_name = format!("{}", obj);
+    let obj_name = format!("{obj}");
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
 
@@ -492,7 +492,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
                 OPCODE::SchnorrVerify
                 | OPCODE::EcdsaSecp256k1
                 | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1
-                _ => todo!("max value must be implemented for opcode {} ", opcode),
+                _ => todo!("max value must be implemented for opcode {opcode} "),
             }
         }
     };

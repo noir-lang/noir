@@ -117,9 +117,9 @@ impl std::fmt::Debug for Gate {
                     r.witness_index()
                 )
             }
-            Gate::And(g) => write!(f, "{:?}", g),
-            Gate::Xor(g) => write!(f, "{:?}", g),
-            Gate::GadgetCall(g) => write!(f, "{:?}", g),
+            Gate::And(g) => write!(f, "{g:?}"),
+            Gate::Xor(g) => write!(f, "{g:?}"),
+            Gate::GadgetCall(g) => write!(f, "{g:?}"),
             Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
                 write!(
                     f,

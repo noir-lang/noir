@@ -352,7 +352,7 @@ impl Acir {
 
     pub fn print_circuit(gates: &[Gate]) {
         for gate in gates {
-            println!("{:?}", gate);
+            println!("{gate:?}");
         }
     }
 
@@ -1281,7 +1281,7 @@ fn bound_check_with_offset(
 
 fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
     if let Err(err) = range_constraint(w, bits, evaluator) {
-        eprintln!("{}", err);
+        eprintln!("{err}");
     }
 }
 

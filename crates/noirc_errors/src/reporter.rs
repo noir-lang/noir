@@ -75,7 +75,7 @@ impl std::fmt::Display for CustomDiagnostic {
         }
 
         for note in &self.notes {
-            write!(f, "\nnote: {}", note)?;
+            write!(f, "\nnote: {note}")?;
         }
 
         Ok(())
@@ -154,8 +154,7 @@ impl Reporter {
 
             writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
 
-            writeln!(&mut writer, "error: aborting due to {} previous errors", error_count)
-                .unwrap();
+            writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
 
             std::process::exit(1);
         }
