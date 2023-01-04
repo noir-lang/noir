@@ -1145,6 +1145,10 @@ impl SsaContext {
     pub fn union_array_sets(&mut self, first: ArrayIdSet, second: ArrayIdSet) -> ArrayIdSet {
         let mut union_set = self.function_returned_arrays[first.0 as usize].clone();
         union_set.extend_from_slice(&self.function_returned_arrays[second.0 as usize]);
+        // The sort + dedup here is expected to be cheap as the length of this set matches the number
+        // of array parameters of both functions, and the average function only uses roughly 0-2 array parameters.
+        // `union_array_sets` as a whole is also called fairly infrequently - only when function
+        // values are unified in a Phi instruction, e.g. from being returned by an if expression.
         union_set.sort();
         union_set.dedup();
         self.push_array_set(union_set)
