@@ -22,6 +22,8 @@ template <typename settings> class HonkProver {
 
     void compute_wire_commitments();
 
+    void compute_grand_product_polynomial();
+
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
@@ -37,7 +39,7 @@ template <typename settings> class HonkProver {
     }
 
     // TODO(luke): Eventually get rid of this but leave it for convenience for now
-    size_t n;
+    const size_t n;
 
     // No more widgets. The new 'relations' may be owned by Sumcheck rather than Prover...
     // std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;
@@ -52,6 +54,9 @@ template <typename settings> class HonkProver {
 
     // TODO(luke): Honk only needs a small portion of the functionality but may be fine to use existing work_queue
     waffle::work_queue queue;
+
+    // This makes 'settings' accesible from HonkProver
+    typedef settings settings_;
 
   private:
     waffle::plonk_proof proof;
