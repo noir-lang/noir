@@ -26,8 +26,6 @@ template <typename Composer> class NoteInterface {
     typedef typename CT::address address;
     typedef typename CT::boolean boolean;
 
-    // bool operator==(PrivateStateNote<Composer> const&) const = default;
-
     // UTXOStateVar<Composer, NoteInterface>* utxo_state_var;
 
     // NoteInterface(UTXOStateVar<Composer, NoteInterface>* utxo_state_var, NotePreimage note_preimage)
@@ -39,11 +37,7 @@ template <typename Composer> class NoteInterface {
       // object is deleted through a pointer to this base class. (In many places in the code, files handle
       // `NoteInterface*` pointers instead of the derived class).
 
-    // METHODS
-
     virtual void remove() = 0;
-
-    // HOOKS
 
     virtual fr get_commitment() = 0;
 
@@ -59,11 +53,15 @@ template <typename Composer> class NoteInterface {
 
     virtual fr compute_nullifier() = 0;
 
+    virtual void constrain_against_advice(NoteInterface<Composer> const& advice_note) = 0;
+
+    virtual bool needs_nonce() = 0;
+    virtual void set_nonce(fr nonce) = 0;
+    virtual fr generate_nonce() = 0;
+
     // virtual void finalise(std::optional<fr> nonce) = 0;
 
     // virtual std::pair<grumpkin_point, NotePreimage> compute_partial_commitment() = 0;
-
-    // STATIC HOOKS:
 
     // static fr compute_dummy_commitment() = 0;
 

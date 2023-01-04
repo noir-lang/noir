@@ -1,6 +1,8 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
 
+#include "../note_interface.hpp"
+
 #include "../../oracle_wrapper.hpp"
 #include "../../opcodes/opcodes.hpp"
 #include "../../state_vars/utxo_state_var.hpp"
@@ -193,9 +195,9 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
 template <typename Composer, typename V>
 typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_dummy_nullifier()
 {
-    const auto& oracle = get_oracle();
-    const fr dummy_commitment = oracle.generate_random_element();
-    const fr owner_private_key = oracle.get_msg_sender_private_key();
+    auto& oracle = get_oracle();
+    fr dummy_commitment = oracle.generate_random_element();
+    fr& owner_private_key = oracle.get_msg_sender_private_key();
     const boolean is_dummy_commitment = true;
 
     return DefaultPrivateNote<Composer, V>::compute_nullifier(dummy_commitment, owner_private_key, is_dummy_commitment);
@@ -240,30 +242,49 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
     return fr(blake_result);
 };
 
-// template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::needs_nonce()
-// {
-//     return !note_preimage.nonce;
-// }
+template <typename Composer, typename V>
+void DefaultPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Composer> const& advice_note)
+{
+    // Cast from a ref to the base (interface) type to a ref to this derived type:
+    const DefaultPrivateNote<Composer, V>& advice_note_ref =
+        dynamic_cast<const DefaultPrivateNote<Composer, V>&>(advice_note);
 
-// template <typename Composer, typename V>
-// bool DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr nonce)
-// {
-//     if (!note_preimage.nonce) {
-//         note_preimage.nonce = nonce;
-//         return true; // "We have used the nonce provided"
-//     }
-//     return false; // "We did not used the provided nonce.
-// };
+    auto assert_equal = []<typename T>(std::optional<T>& this_member, std::optional<T> const& advice_member) {
+        if (advice_member) {
+            (*this_member).assert_equal(*advice_member);
+        }
+    };
 
-// template <typename Composer, typename V>
-// std::optional<typename CircuitTypes<Composer>::fr> DefaultPrivateNote<Composer, V>::generate_nonce()
-// {
-//     if (!note_preimage.nonce) {
-//         note_preimage.nonce = compute_dummy_nullifier();
-//         return std::make_optional<note_preimage.nonce>; // "We are returning a new dummy nonce"
-//     }
-//     return std::nullopt; // "We are not returning a new dummy nonce"
-// };
+    const auto& advice_preimage = advice_note_ref.note_preimage;
+    auto& this_preimage = note_preimage;
+
+    assert_equal(this_preimage.value, advice_preimage.value);
+    assert_equal(this_preimage.owner, advice_preimage.owner);
+    assert_equal(this_preimage.creator_address, advice_preimage.creator_address);
+    assert_equal(this_preimage.memo, advice_preimage.memo);
+    assert_equal(this_preimage.salt, advice_preimage.salt);
+    assert_equal(this_preimage.nonce, advice_preimage.nonce);
+}
+
+template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::needs_nonce()
+{
+    return !note_preimage.nonce;
+}
+
+template <typename Composer, typename V>
+void DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr nonce)
+{
+    ASSERT(!note_preimage.nonce);
+    note_preimage.nonce = nonce;
+};
+
+template <typename Composer, typename V>
+typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::generate_nonce()
+{
+    ASSERT(!note_preimage.nonce);
+    note_preimage.nonce = compute_dummy_nullifier();
+    return *(note_preimage.nonce);
+};
 
 // template <typename Composer>
 // typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer>::compute_dummy_nullifier(fr const& dummy_commitment,

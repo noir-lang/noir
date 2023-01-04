@@ -37,14 +37,15 @@ Note Opcodes<Composer>::UTXO_SLOAD(UTXOStateVar<Composer, Note>* utxo_state_var,
         oracle.template get_utxo_sload_datum<typename Note::NotePreimage>(storage_slot_point, advice);
 
     Note new_note{ utxo_state_var, utxo_datum.preimage };
+    Note advice_note{ utxo_state_var, advice };
+
+    new_note.constrain_against_advice(advice_note);
 
     new_note.get_commitment().assert_equal(utxo_datum.commitment, "UTXO_SLOAD: bad commitment");
 
     oracle.get_contract_address().assert_equal(utxo_datum.contract_address, "UTXO_SLOAD: bad contract address");
 
     // TODO within this function:
-    // - constrain any of the `advice` fields which aren't std::nullopt (call upon a method in the note itself to
-    // `constrain_from_advice()`).
     // - Merkle Membership Check using the contract_address, utxo_datum.{sibling_path, leaf_index,
     // old_private_data_tree_root}
 
@@ -67,31 +68,13 @@ template <typename Note>
 void Opcodes<Composer>::UTXO_SSTORE(UTXOStateVar<Composer, Note>* utxo_state_var,
                                     typename Note::NotePreimage new_note_preimage)
 {
-
-    (void)utxo_state_var;
-    (void)new_note_preimage;
-
-    // auto& oracle = utxo_state_var->exec_ctx->oracle;
-
-    // TODO within this function:
-    // - Push the commitment data to the exec_ctx, and maybe to the public inputs of the exec_ctx (although we might
-    // need to complete the commitments with a nonce using a UTXO_FINALISE() opcode!)
-
-    // Note new_note{ utxo_state_var, new_note_preimage };
-    // TODO: the code rightly complains when we try to commit, because we haven't chosen a nonce yet! Hence why we might
-    // need to defer committing until a FINALISE opcode at the end.
-    // auto [new_note_commitment, _] = new_note.compute_commitment();
-
     auto& exec_ctx = utxo_state_var->exec_ctx;
 
-    // Make a shared pointer, so we don't end up with a dangling pointer in the exec_ctx when this temp `new_note`
+    // Make a shared pointer, so we don't end up with a dangling pointer in the exec_ctx when this `new_note`
     // immediately goes out of scope.
     std::shared_ptr<Note> new_note = std::make_shared<Note>(utxo_state_var, new_note_preimage);
 
     exec_ctx->new_notes.push_back(new_note);
-
-    // (void)exec_ctx; // TODO: finish function.
-    // (void)new_note_commitment;
 };
 
 } // namespace aztec3::circuits::apps::opcodes

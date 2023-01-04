@@ -50,15 +50,15 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     std::optional<NullifierPreimage> nullifier_preimage;
 
   public:
+    // CUSTOM CONSTRUCTORS:
+
     DefaultPrivateNote(UTXOStateVar<Composer, DefaultPrivateNote>* utxo_state_var, NotePreimage note_preimage)
         : utxo_state_var(utxo_state_var)
         , note_preimage(note_preimage){};
 
     ~DefaultPrivateNote() {}
 
-    // bool operator==(PrivateStateNote<Composer> const&) const = default;
-
-    // METHODS
+    // OVERRIDE METHODS:
 
     void remove() override;
 
@@ -94,7 +94,15 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
 
     fr compute_nullifier() override;
 
-    // void finalise(std::optional<fr> nonce) override;
+    void constrain_against_advice(NoteInterface<Composer> const& advice_note) override;
+
+    bool needs_nonce() override;
+
+    void set_nonce(fr nonce) override;
+
+    fr generate_nonce() override;
+
+    // CUSTOM METHODS
 
     auto& get_oracle();
 

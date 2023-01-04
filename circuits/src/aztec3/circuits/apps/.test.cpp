@@ -203,7 +203,7 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
     info("new_nullifiers: ", new_nullifiers);
 
-    // TODO: a UTXO_FINALISE() opcode?
+    exec_ctx.finalise();
 }
 
 } // namespace aztec3::circuits::apps

@@ -116,63 +116,39 @@ template <typename Composer> class FunctionExecutionContext {
      *
      * Note: Not all custom Note types will need a nonce of this kind in their NotePreimage. But they can simply
      * implement an empty body in the `set_nonce() override`.
+     *
+     * TODO: Might need some refactoring. Roles between: Opcodes modifying exec_ctx members; and the exec_ctx directly
+     * modifying its members, are somewhat blurred at the moment.
      */
     void finalise_utxos()
     {
-        // if (new_notes.size() > nullified_notes.size()) {
-        //     // We've created more commitments than nullifiers so far. But we want to inject an input_nullifier into
-        //     each
-        //     // new commitment. So, let's create more dummy nullifiers.
-        //     const auto& msg_sender_private_key = oracle.get_msg_sender_private_key();
-        //     for (size_t i = new_nullifier_preimages.size(); i < new_private_state_notes.size(); ++i) {
-        //         auto dummy_commitment = oracle.generate_random_element();
-        //         new_nullifier_preimages.push_back(NullifierPreimage<CT>{
-        //             dummy_commitment,
-        //             msg_sender_private_key,
-        //             false,
-        //         });
-        //         new_nullifiers.push_back(
-        //             PrivateStateNote<Composer>::compute_dummy_nullifier(dummy_commitment, msg_sender_private_key));
-        //     }
-        // }
-
         // Copy some vectors, as we can't control whether they'll be pushed-to further, when we call Note methods.
-        // auto new_commitments_copy = new_commitments;
-        // auto new_nullifiers_copy = new_nullifiers;
-        // auto new_notes_copy = new_notes;
+        auto new_nullifiers_copy = new_nullifiers;
 
-        // size_t used_nullifiers_count = 0;
-        // bool next_nullifier_available = false;
-        // bool next_nullifier_used = false;
-        // std::optional<fr> next_nullifier;
-        // std::vector<fr> new_nonces;
+        size_t used_nullifiers_count = 0;
+        fr next_nullifier;
+        std::vector<fr> new_nonces;
 
-        // for (size_t i = 0; i < new_notes.size(); ++i) {
-        //     const& note = new_notes_copy[i];
+        for (size_t i = 0; i < new_notes.size(); ++i) {
+            NoteInterface<Composer>& note = *new_notes[i];
 
-        //     next_nullifier_available = nullified_notes.size() > used_nullifiers_count;
+            if (note.needs_nonce()) {
+                const bool next_nullifier_available = new_nullifiers_copy.size() > used_nullifiers_count;
 
-        //     if (next_nullifier_available) {
-        //         next_nullifier = nullified_notes[used_nullifiers_count++].nullifier;
-        //         next_nullifier_used = new_notes[i].set_nonce(next_nullifier);
-        //     }
+                if (next_nullifier_available) {
+                    next_nullifier = new_nullifiers_copy[used_nullifiers_count++];
+                    note.set_nonce(next_nullifier);
+                } else {
+                    const fr new_nonce = note.generate_nonce();
+                    new_nonces.push_back(new_nonce);
+                }
+            }
 
-        //     if (!next_nullifier_used) {
-        //         next_nullifier = nullified_notes.size() > used_nullifiers_count
-        //                              ? nullified_notes[used_nullifiers_count++].nullifier
-        //                              : std::nullopt; // Indicates that all the existing non-dummy nullifiers have
-        //                                              // all been used-up.
-        //     } else {
-        //         std::optional<fr> new_nonce = new_notes[i].generate_nonce();
-        //         if (new_nonce) {
-        //             new_nonces.push_back(*new_nonce);
-        //         }
-        //     }
+            new_commitments.push_back(note.get_commitment());
+        }
 
-        //     new_commitments.push_back(new_notes[i].get_commitment());
-
-        //     // Push new_nonces to the end of new_nullifiers:
-        //     std::copy(new_nonces.begin(), new_nonces.end(), std::back_inserter(new_nullifiers));
+        // Push new_nonces to the end of new_nullifiers:
+        std::copy(new_nonces.begin(), new_nonces.end(), std::back_inserter(new_nullifiers));
     }
 
     void finalise()
