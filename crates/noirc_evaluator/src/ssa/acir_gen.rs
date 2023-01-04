@@ -656,7 +656,7 @@ pub fn to_base2_decomposition(
         digits = add(&digits, two_pow, &radix_expr);
         two_pow = two_pow.mul(shift);
 
-        range_constraint(radix_witness, pow, evaluator).unwrap();
+        try_range_constraint(radix_witness, pow, evaluator);
     }
 
     (result, digits)
@@ -1280,9 +1280,9 @@ fn bound_check_with_offset(
 }
 
 fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
-    range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
+    if let Err(err) = range_constraint(w, bits, evaluator) {
         eprintln!("{}", err);
-    });
+    }
 }
 
 pub fn is_unit(arith: &Expression) -> Option<Witness> {
