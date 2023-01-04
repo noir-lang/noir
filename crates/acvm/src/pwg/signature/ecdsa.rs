@@ -50,7 +50,7 @@ pub fn secp256k1_prehashed(
     let result = match result {
         true => FieldElement::one(),
         false => {
-            dbg!("signature has failed to verify");
+            eprintln!("signature has failed to verify");
             FieldElement::zero()
         }
     };
@@ -94,7 +94,6 @@ mod ecdsa_secp256k1 {
         {
             let signature_bytes: &[u8] = signature.as_ref();
             assert!(Signature::try_from(signature_bytes).unwrap() == signature);
-            dbg!(x, y, digest, signature);
             verify_prehashed(&digest, x, y, signature_bytes).unwrap();
         } else {
             unreachable!();
