@@ -1179,11 +1179,12 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            // TODO #612: We should not track arrays through ObjectTypes
-            Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
+            Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => {
-                // TODO #612: This is incorrect, we cannot track arrays through function types in this case
+                // TODO #612: We should not track arrays through ObjectTypes.
+                // This is incorrect, we cannot track arrays through function types in this case
+                // since we do not know which arrays the function uses at this point.
                 let id = self.push_array_set(vec![]);
                 ObjectType::Function(id)
             }
