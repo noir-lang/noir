@@ -350,8 +350,7 @@ fn evaluate_object(
     ctx: &SsaContext,
 ) -> Result<NodeEval, RuntimeError> {
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => Ok(obj),
-        NodeEval::Function(..) => Ok(obj),
+        NodeEval::Const(_, _) | NodeEval::Function(..) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -376,7 +375,6 @@ fn evaluate_object(
                     Ok(result)
                 }
                 NodeObj::Const(c) => {
-                    // TODO: Is this needed? Can't we just .clone() here?
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }

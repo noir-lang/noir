@@ -1175,11 +1175,11 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            // TODO: We should not track arrays through ObjectTypes
+            // TODO #612: We should not track arrays through ObjectTypes
             Type::Array(..) => ObjectType::Pointer(ArrayId::dummy()),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => {
-                // TODO: This is incorrect, we cannot track arrays through function types in this case
+                // TODO #612: This is incorrect, we cannot track arrays through function types in this case
                 let id = self.push_array_set(vec![]);
                 ObjectType::Function(id)
             }

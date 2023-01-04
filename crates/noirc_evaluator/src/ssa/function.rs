@@ -306,16 +306,8 @@ impl IRGenerator {
         // TODO: There is a mismatch between intrinsics and normal function calls:
         // Normal functions returning arrays have 1 ArrayId on the function itself
         // Intrinsics generate a new Id on every call
-
         let (len, elem_type) = get_result_type(op);
-        // let result_type = match (elem_type, function_type) {
-        //     (_, ObjectType::Function(arrays_id)) if len > 1 => {
-        //         let arrays = &self.context[arrays_id];
-        //         assert_eq!(arrays.len(), 1);
-        //         ObjectType::Pointer(arrays[0].0)
-        //     }
-        //     (typ, _) => typ,
-        // };
+
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{}_result", op), elem_type, len, None).1;
@@ -326,7 +318,6 @@ impl IRGenerator {
 
         //when the function returns an array, we use ins.res_type(array)
         //else we map ins.id to the returned witness
-        //Call instruction
         let id = self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)?;
         Ok(vec![id])
     }
