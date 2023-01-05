@@ -280,13 +280,12 @@ impl IRGenerator {
 
             try_vecmap(return_types, |(i, typ)| {
                 let result = Operation::Result { call_instruction, index: i as u32 };
-                let typ = match self.context.convert_type(&typ) {
-                    ObjectType::Pointer(_) => {
-                        let id =
-                            returned_arrays.iter().find(|(_, index)| *index == i as u32).unwrap().0;
-                        ObjectType::Pointer(id)
+                let typ = match typ {
+                    Type::Array(_, _) => {
+                        let id = returned_arrays.iter().find(|(_, index)| *index == i as u32);
+                        ObjectType::Pointer(id.unwrap().0)
                     }
-                    other => other,
+                    other => self.context.convert_type(&other),
                 };
 
                 self.context.new_instruction(result, typ)

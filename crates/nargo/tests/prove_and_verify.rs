@@ -51,8 +51,7 @@ mod tests {
                     let r = match verified {
                         Ok(result) => result,
                         Err(_) => {
-                            eprintln!("\n\n\nPanic occured while running test {:?}", c.file_name());
-                            std::process::exit(1);
+                            panic!("\n\n\nPanic occured while running test {:?} (ignore the following panic)", c.file_name());
                         }
                     };
 
