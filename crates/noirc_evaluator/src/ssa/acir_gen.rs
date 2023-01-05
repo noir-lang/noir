@@ -382,10 +382,16 @@ impl Acir {
 
     //Map the outputs into the array
     fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
-        let adr = ctx.mem[a].adr;
-        for i in outputs.iter().enumerate() {
-            let var = InternalVar::from(*i.1);
-            self.memory_map.insert(adr + i.0 as u32, var);
+        let array = &ctx.mem[a];
+        let adr = array.adr;
+        for i in 0..array.len {
+            if i < outputs.len() as u32 {
+                let var = InternalVar::from(outputs[i as usize]);
+                self.memory_map.insert(adr + i, var);
+            } else {
+                let var = InternalVar::from(Expression::zero());
+                self.memory_map.insert(adr + i, var);
+            }
         }
     }
 
@@ -490,8 +496,8 @@ impl Acir {
             match l_obj {
                 node::NodeObj::Obj(v) => {
                     match l_obj.get_type() {
-                        node::ObjectType::Pointer(a) => {
-                            let array = &cfg.mem[a];
+                        node::ObjectType::Pointer(arr_id) => {
+                            let array = &cfg.mem[arr_id];
                             let num_bits = array.element_type.bits();
                             for i in 0..array.len {
                                 let address = array.adr + i;
@@ -530,7 +536,8 @@ impl Acir {
                             var.witness.unwrap_or_else(|| generate_witness(&var, evaluator));
                         inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
-                        unreachable!("invalid input: {:?}", l_obj)
+                        dbg!(&l_obj);
+                        unreachable!("invalid input")
                     }
                 }
             }
@@ -578,7 +585,7 @@ impl Acir {
                 evaluator.gates.push(Gate::GadgetCall(call_gate));
             }
         }
-
+        // dbg!(outputs.clone());
         if outputs.len() == 1 {
             from_witness(outputs[0])
         } else {
@@ -656,7 +663,7 @@ pub fn to_base2_decomposition(
         digits = add(&digits, two_pow, &radix_expr);
         two_pow = two_pow.mul(shift);
 
-        try_range_constraint(radix_witness, pow, evaluator);
+        range_constraint(radix_witness, pow, evaluator).unwrap();
     }
 
     (result, digits)
@@ -892,8 +899,12 @@ pub fn evaluate_truncate(
         bit_size: rhs,
     }));
 
-    try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
-    try_range_constraint(c_witness, max_bits - rhs, evaluator);
+    range_constraint(b_witness, rhs, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    }); //TODO propagate the error using ?
+    range_constraint(c_witness, max_bits - rhs, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    });
 
     //2. Add the constraint a = b+2^Nc
     let mut f = FieldElement::from(2_i128);
@@ -944,9 +955,11 @@ pub fn evaluate_udiv(
     let r_expr = Expression::from(Linear::from_witness(r_witness));
     bound_check_with_offset(&r_expr, &rhs.expression, &predicate.expression, bit_size, evaluator);
     //range check q<=a
-    try_range_constraint(q_witness, bit_size, evaluator);
+    range_constraint(q_witness, bit_size, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    });
     // a-b*q-r = 0
-    let mut d = mul_with_witness(evaluator, &rhs.expression, &Expression::from(&q_witness));
+    let mut d = mul(&rhs.expression, &Expression::from(&q_witness));
     d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
     d = mul_with_witness(evaluator, &d, &predicate.expression);
     let div_eucl = subtract(&pa, FieldElement::one(), &d);
@@ -1234,10 +1247,12 @@ pub fn range_constraint(
             r: r_witness,
             bit_size: num_bits,
         }));
-
-        try_range_constraint(r_witness, num_bits - 1, evaluator);
-        try_range_constraint(b_witness, 1, evaluator);
-
+        range_constraint(r_witness, num_bits - 1, evaluator).unwrap_or_else(|err| {
+            dbg!(err);
+        });
+        range_constraint(b_witness, 1, evaluator).unwrap_or_else(|err| {
+            dbg!(err);
+        });
         //Add the constraint a = r + 2^N*b
         let mut f = FieldElement::from(2_i128);
         f = f.pow(&FieldElement::from((num_bits - 1) as i128));
@@ -1276,13 +1291,9 @@ fn bound_check_with_offset(
     let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
     let w = evaluator.add_witness_to_cs(); //range_check requires a witness - TODO: it should be created inside range_constraint(..)
     evaluator.gates.push(Gate::Arithmetic(&sub_expression - &Expression::from(&w)));
-    try_range_constraint(w, bits, evaluator);
-}
-
-fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
-    if let Err(err) = range_constraint(w, bits, evaluator) {
-        eprintln!("{}", err);
-    }
+    range_constraint(w, bits, evaluator).unwrap_or_else(|err| {
+        dbg!(err);
+    });
 }
 
 pub fn is_unit(arith: &Expression) -> Option<Witness> {
