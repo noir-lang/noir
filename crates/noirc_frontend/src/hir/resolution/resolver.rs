@@ -303,11 +303,20 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Error => Type::Error,
             UnresolvedType::Named(path, args) => {
                 // Check if the path is a type variable first. We currently disallow generics on type
-                // variables since this is what rust does.
+                // variables since we do not support higher-kinded types.
                 if args.is_empty() && path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
                     if let Some((name, (var, _))) = self.generics.get_key_value(name) {
                         return Type::NamedGeneric(var.clone(), name.clone());
+                    }
+                }
+
+                // Try to lookup a global variable of the same name as well. Globals are allowed in
+                // array length types.
+                if args.is_empty() {
+                    if let Ok(Some(ModuleDefId::GlobalId(id))) = self.path_resolver.resolve(self.def_maps, path.clone()) {
+                        let value = self.eval_global_as_array_length(id);
+                        return Type::Expression(TypeExpression::Constant(value));
                     }
                 }
 
@@ -809,10 +818,27 @@ impl<'a> Resolver<'a> {
     }
 
     fn eval_array_length(&mut self, length: &Expression) -> u64 {
-        match self.try_eval_array_length(length).map(|length| length.try_into()) {
+        let result = self.try_eval_array_length(length);
+        self.unwrap_array_length_eval_result(result, length.span)
+    }
+
+    fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
+        let stmt = match self.interner.statement(&global) {
+            HirStatement::Let(let_expr) => let_expr,
+            other => unreachable!("Expected global while evaluating array length, found {:?}", other),
+        };
+
+        let length = stmt.expression;
+        let span = self.interner.expr_span(&length);
+        let result = self.try_eval_array_length_id(length, span);
+        self.unwrap_array_length_eval_result(result, span)
+    }
+
+    fn unwrap_array_length_eval_result(&mut self, result: Result<u128, Option<ResolverError>>, span: Span) -> u64 {
+        match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
             Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span: length.span })
+                self.push_err(ResolverError::IntegerTooLarge { span })
             }
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
