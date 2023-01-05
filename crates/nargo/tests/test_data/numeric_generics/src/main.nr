@@ -1,27 +1,21 @@
-
-struct Wrapper<M> {
-    array: [Field; M]
-}
-
-fn id<N>(a: [Field; N]) -> [Field; N] {
-    a
-}
-
-fn sum<N>(a: [Field; N]) -> Field {
-    let mut acc = 0;
-    for elem in a {
-        acc = acc + elem;
-    }
-    acc
-}
-
 fn main() {
-    let array = [1, 2, 3, 4];
-    constrain id(array)[3] == 4;
+    let a = id([1, 2]);
+    let b = id([1, 2, 3]);
 
-    let w = Wrapper { array };
-    constrain id(w.array) == array;
+    let itWorks1 = MyStruct { data: a };
+    constrain itWorks1.data[1] == 2;
+    let itWorks2 = MyStruct { data: b };
+    constrain itWorks2.data[1] == 2;
 
-    let different_size = [5, 6, 7];
-    constrain sum(id(different_size)) == 13;
+    let c = [1, 2];
+    let itAlsoWorks = MyStruct { data: c };
+    constrain itAlsoWorks.data[1] == 2;
+}
+
+fn id<N>(x: [Field; N]) -> [Field; N] {
+    x
+}
+
+struct MyStruct<N> {
+    data: [Field; N]
 }
