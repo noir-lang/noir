@@ -6,5 +6,5 @@ if(WASM)
 endif()
 
 if(NOT WASM AND NOT APPLE)
-    add_compile_options(-march=skylake-avx512)
+    add_compile_options(-march=x86-64)
 endif()
