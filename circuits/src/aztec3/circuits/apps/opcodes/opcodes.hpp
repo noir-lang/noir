@@ -20,6 +20,12 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
+/**
+ * @brief - These static methods are a suggestion for what ACIR++ 'Opcodes' might do. They combine directives to get
+ * data from an oracle, and then apply constraints to that data. Separating out this functionality into a separate
+ * `Opcodes` class, like this, was trickier than just writing this stuff directly in the `Note` or
+ * `FunctionExecutionContext` classes, but hopefully the separation is tidier.
+ */
 template <typename Composer> class Opcodes {
   public:
     typedef CircuitTypes<Composer> CT;

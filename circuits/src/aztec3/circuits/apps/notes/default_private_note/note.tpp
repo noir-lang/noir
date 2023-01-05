@@ -7,8 +7,6 @@
 #include "../../opcodes/opcodes.hpp"
 
 #include "../../state_vars/state_var_base.hpp"
-#include "../../state_vars/utxo_state_var.hpp"
-#include "../../state_vars/utxo_set_state_var.hpp"
 
 #include <crypto/pedersen/generator_data.hpp>
 
@@ -26,8 +24,6 @@
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
 using aztec3::circuits::apps::state_vars::StateVar;
-using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
-using aztec3::circuits::apps::state_vars::UTXOStateVar;
 } // namespace
 
 namespace aztec3::circuits::apps::notes {
@@ -179,11 +175,11 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
     if (is_partial()) {
         throw_or_abort("Can't nullify a partial note.");
     }
-    if (!commitment) {
-        compute_commitment();
-    }
     if (nullifier && nullifier_preimage) {
         return *nullifier;
+    }
+    if (!commitment) {
+        compute_commitment();
     }
 
     fr& owner_private_key = get_oracle().get_msg_sender_private_key();

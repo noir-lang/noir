@@ -17,6 +17,14 @@ using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
+/**
+ * @brief - A derived StateVar which represents an unordered set of UTXOs which live in the UTXO tree.
+ * Notice the `get` and `insert` methods for this StateVar, which interact with the UTXO tree opcodes.
+ *
+ * @tparam Note - A UTXO state variable always acts on notes and note preimages. We allow for custom Note types to be
+ * designed. The Note type must implement the NoteInterface. TODO: maybe explicitly have this class act on the
+ * NoteInterface type, rather than a template type.
+ */
 template <typename Composer, typename Note> class UTXOSetStateVar : public StateVar<Composer> {
   public:
     typedef CircuitTypes<Composer> CT;

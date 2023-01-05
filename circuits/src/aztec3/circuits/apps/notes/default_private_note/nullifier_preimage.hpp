@@ -1,7 +1,9 @@
 #pragma once
 #include <common/map.hpp>
 #include <common/streams.hpp>
+
 #include <crypto/pedersen/generator_data.hpp>
+
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>

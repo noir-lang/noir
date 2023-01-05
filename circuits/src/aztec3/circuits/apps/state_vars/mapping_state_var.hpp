@@ -19,8 +19,11 @@ using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
 /**
- * Note: we restrict mapping keys to always be something which is convertible into a `field` type. This is to allow
- * storage_slot_points to be computed more easily. You'll notice, therefore, that there's no Key template type.
+ * @tparam V - the value type being mapped-to by this mapping.
+ *
+ * Note: we restrict mapping _keys_ to always be a `field` type. This is to allow storage_slot_points to be computed
+ * more easily (it was difficult enough to get working). You'll notice, therefore, that there's no Key template type;
+ * only a value template type (`V`). Adding a Key template type could be a future enhancement.
  */
 template <typename Composer, typename V> class MappingStateVar : public StateVar<Composer> {
   public:
@@ -38,7 +41,10 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
     MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
         : StateVar<Composer>(exec_ctx, state_var_name){};
 
-    // Instantiate a nested mapping:
+    // Instantiate a nested mapping (within some other container).
+    // Note: we assume this is called by some other StateVar, and the params have been computed correctly.
+    // TODO: we could specify a set of `friend` classes which may access this method, to make this assumption more
+    // explicit.
     MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
                     std::string const& state_var_name,
                     grumpkin_point const& storage_slot_point,

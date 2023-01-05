@@ -15,6 +15,11 @@ using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
+/**
+ * @brief StateVar is a base class from which contract state variables are derived. Its main purpose is deriving storage
+ * slots, and generating constraints for those slot derivations, in a protocol-consistent way, regardless of the app
+ * being written.
+ */
 template <typename Composer> class StateVar {
   public:
     typedef CircuitTypes<Composer> CT;
@@ -22,15 +27,31 @@ template <typename Composer> class StateVar {
     typedef typename CT::fr fr;
     typedef typename CT::grumpkin_point grumpkin_point;
 
+    // The execution context of the function currently being executed.
     FunctionExecutionContext<Composer>* exec_ctx;
 
+    // Must match the name of a state which has been declared to the `Contract`.
     std::string state_var_name;
 
+    // The `start slot` of the state variable is the slot which is assigned to this particular state by the `Contract`,
+    // based on the ordering of declarations of the _names_ of states. For container types (mappings/arrays/structs),
+    // the state variable might be able to access multiple storage slots. The start slot is the 'starting point' for
+    // deriving such slots.
     fr start_slot;
+
+    // The 'storage slot point' of the state variable. Having a _point_ for every storage slot allows for
+    // partial-commitment functionality.
+    // I.e. we can generate placeholder storage slots, which can be partially-committed to in one function, and then
+    // completed in some future function, once the mapping keys or array indices at which we'd like to store the data
+    // are known in future. Aztec Connect does something similar (the `asset_id` of the output value note isn't known
+    // until later, so is partially committed-to).
     grumpkin_point storage_slot_point;
-    // In order to calculate the correct storage_slot_point, we need to know how many containers we're nested inside, so
-    // that we can find the correct Pedersen generator.
+
+    // In order to calculate the correct storage_slot_point, we need to know how many containers
+    // we're nested inside, so that we can find the correct Pedersen generator.
     size_t level_of_container_nesting = 0;
+
+    // Optionally informs custom notes whether they should commit or partially-commit to this state.
     bool is_partial_slot = false;
 
     StateVar(){};

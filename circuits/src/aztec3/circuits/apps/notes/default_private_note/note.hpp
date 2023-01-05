@@ -13,15 +13,11 @@
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
 template <typename Composer> class StateVar;
-template <typename Composer, typename V> class UTXOStateVar;
-template <typename Composer, typename V> class UTXOSetStateVar;
 } // namespace aztec3::circuits::apps::state_vars
 
 namespace aztec3::circuits::apps::notes {
 
-using aztec3::circuits::apps::state_vars::StateVar;        // Don't #include it!
-using aztec3::circuits::apps::state_vars::UTXOSetStateVar; // Don't #include it!
-using aztec3::circuits::apps::state_vars::UTXOStateVar;    // Don't #include it!
+using aztec3::circuits::apps::state_vars::StateVar; // Don't #include it!
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -37,8 +33,6 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     typedef typename CT::address address;
     typedef typename CT::boolean boolean;
 
-    // using VariantUTXOStateVar =
-    //     std::variant<UTXOStateVar<Composer, DefaultPrivateNote>, UTXOSetStateVar<Composer, DefaultPrivateNote>>;
     using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
     using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 
@@ -124,8 +118,6 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     bool is_partial_preimage() const;
     bool is_partial_storage_slot() const;
     bool is_partial() const;
-
-    // bool check_if_partial() const = 0;
 };
 
 } // namespace aztec3::circuits::apps::notes
