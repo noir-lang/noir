@@ -37,7 +37,8 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, ERROR_IDENT, UnresolvedTypeExpression,
+    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, UnresolvedTypeExpression,
+    ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -333,20 +334,22 @@ impl<'a> Resolver<'a> {
                 }
 
                 // If we cannot find a local generic of the same name, try to look up a global
-                if let Ok(Some(ModuleDefId::GlobalId(id))) = self.path_resolver.resolve(self.def_maps, path.clone()) {
+                if let Ok(Some(ModuleDefId::GlobalId(id))) =
+                    self.path_resolver.resolve(self.def_maps, path.clone())
+                {
                     TypeExpression::Constant(self.eval_global_as_array_length(id))
                 } else {
                     // This will issue an error explaining that the global cannot be found
                     self.lookup_global(path);
                     TypeExpression::Constant(0)
                 }
-            },
+            }
             UnresolvedTypeExpression::Constant(int) => TypeExpression::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = Box::new(self.convert_array_length_type(*lhs));
-                let rhs = Box::new(self.convert_array_length_type(*rhs));
+                let lhs = Rc::new(self.convert_array_length_type(*lhs));
+                let rhs = Rc::new(self.convert_array_length_type(*rhs));
                 TypeExpression::BinaryOperation(lhs, op, rhs)
-            },
+            }
         }
     }
 
@@ -841,7 +844,9 @@ impl<'a> Resolver<'a> {
     fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
-            other => unreachable!("Expected global while evaluating array length, found {:?}", other),
+            other => {
+                unreachable!("Expected global while evaluating array length, found {:?}", other)
+            }
         };
 
         let length = stmt.expression;
@@ -850,12 +855,14 @@ impl<'a> Resolver<'a> {
         self.unwrap_array_length_eval_result(result, span)
     }
 
-    fn unwrap_array_length_eval_result(&mut self, result: Result<u128, Option<ResolverError>>, span: Span) -> u64 {
+    fn unwrap_array_length_eval_result(
+        &mut self,
+        result: Result<u128, Option<ResolverError>>,
+        span: Span,
+    ) -> u64 {
         match result.map(|length| length.try_into()) {
             Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span })
-            }
+            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
         }

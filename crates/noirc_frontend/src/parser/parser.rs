@@ -10,7 +10,8 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;

@@ -232,7 +232,7 @@ pub enum TypeExpression {
     /// an external variable.
     Constant(u64),
     TypeVariable(TypeVariable),
-    BinaryOperation(Box<TypeExpression>, BinaryTypeOperator, Box<TypeExpression>),
+    BinaryOperation(Rc<TypeExpression>, BinaryTypeOperator, Rc<TypeExpression>),
 }
 
 /// A restricted subset of binary operators useable on
@@ -473,10 +473,7 @@ impl std::fmt::Display for Type {
             Type::FieldElement(comptime) => {
                 write!(f, "{}Field", comptime)
             }
-            Type::Array(len, typ) => match len.evaluate_to_u64() {
-                Some(len) => write!(f, "[{}; {}]", typ, len),
-                None => write!(f, "[{}]", typ),
-            },
+            Type::Array(len, typ) => write!(f, "[{}; {}]", typ, len),
             Type::Integer(comptime, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", comptime, num_bits),
                 Signedness::Unsigned => write!(f, "{}u{}", comptime, num_bits),
@@ -686,7 +683,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        if let Type::TypeVariable(binding) = self {
+        if let Some(binding) = self.get_inner_typevariable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var),
                 // Don't recursively bind the same id to itself
@@ -702,6 +699,16 @@ impl Type {
         } else {
             *var.borrow_mut() = TypeBinding::Bound(self.clone());
             Ok(())
+        }
+    }
+
+    fn get_inner_typevariable(&self) -> Option<Shared<TypeBinding>> {
+        match self {
+            Type::PolymorphicInteger(_, var)
+            | Type::TypeVariable(var)
+            | Type::NamedGeneric(var, _)
+            | Type::Expression(TypeExpression::TypeVariable(var)) => Some(var.clone()),
+            _ => None,
         }
     }
 
@@ -780,7 +787,7 @@ impl Type {
                     return link.try_unify(other, span);
                 }
 
-                Ok(())
+                other.try_bind_to(binding)
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
@@ -1251,7 +1258,7 @@ impl TypeExpression {
             TypeExpression::BinaryOperation(lhs, op, rhs) => {
                 let lhs = lhs.substitute(type_bindings);
                 let rhs = rhs.substitute(type_bindings);
-                TypeExpression::BinaryOperation(Box::new(lhs), *op, Box::new(rhs))
+                TypeExpression::BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs))
             }
         }
     }
@@ -1292,19 +1299,20 @@ impl TypeExpression {
             TypeExpression::BinaryOperation(lhs, op, rhs) => {
                 let lhs = lhs.follow_bindings();
                 let rhs = rhs.follow_bindings();
-                TypeExpression::BinaryOperation(Box::new(lhs), *op, Box::new(rhs))
+                TypeExpression::BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs))
             }
         }
     }
 
     fn try_unify(&self, other: &TypeExpression, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (TypeExpression::TypeVariable(var), other) | (other, TypeExpression::TypeVariable(var)) => {
+            (TypeExpression::TypeVariable(var), other)
+            | (other, TypeExpression::TypeVariable(var)) => {
                 if let TypeBinding::Bound(link) = &*var.borrow() {
                     return link.try_unify(&Type::Expression(other.clone()), span);
                 }
-                Ok(())
-            },
+                Type::Expression(other.clone()).try_bind_to(var)
+            }
 
             (TypeExpression::Constant(x), TypeExpression::Constant(y)) => {
                 if x == y {
@@ -1312,10 +1320,12 @@ impl TypeExpression {
                 } else {
                     Err(SpanKind::None)
                 }
-            },
+            }
 
-            (TypeExpression::BinaryOperation(self_lhs, self_op, self_rhs), 
-             TypeExpression::BinaryOperation(other_lhs, other_op, other_rhs)) => {
+            (
+                TypeExpression::BinaryOperation(self_lhs, self_op, self_rhs),
+                TypeExpression::BinaryOperation(other_lhs, other_op, other_rhs),
+            ) => {
                 if self_op != other_op {
                     return Err(SpanKind::None);
                 }
@@ -1334,14 +1344,14 @@ impl TypeExpression {
                 }
 
                 result
-            },
+            }
 
             (TypeExpression::Constant(_), TypeExpression::BinaryOperation(_, _, _))
             | (TypeExpression::BinaryOperation(_, _, _), TypeExpression::Constant(_)) => {
                 // In the future we could try to evaluate both expressions to see if they
                 // simplify down to the same expression. For now we just fail.
                 Err(SpanKind::None)
-            },
+            }
         }
     }
 }
@@ -1360,8 +1370,6 @@ impl BinaryTypeOperator {
 
     /// True if this operator is commutative
     fn commutative(self) -> bool {
-        matches!(self, BinaryTypeOperator::Addition
-            | BinaryTypeOperator::Multiplication
-        )
+        matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
     }
 }
