@@ -585,7 +585,7 @@ impl Acir {
                 evaluator.gates.push(Gate::GadgetCall(call_gate));
             }
         }
-        // dbg!(outputs.clone());
+        
         if outputs.len() == 1 {
             from_witness(outputs[0])
         } else {
