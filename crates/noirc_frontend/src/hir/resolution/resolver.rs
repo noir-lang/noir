@@ -37,7 +37,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeVariable, UnresolvedType, ERROR_IDENT,
+    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -290,7 +290,7 @@ impl<'a> Resolver<'a> {
                     }
                     Some(expr) => {
                         let len = self.eval_array_length(expr);
-                        Type::TypeLevelInteger(len)
+                        Type::Expression(TypeExpression::Constant(len))
                     }
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));

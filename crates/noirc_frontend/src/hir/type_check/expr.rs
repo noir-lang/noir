@@ -7,7 +7,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    Comptime, Shared, TypeBinding,
+    Comptime, Shared, TypeBinding, TypeExpression,
 };
 
 use super::errors::TypeCheckError;
@@ -30,16 +30,13 @@ pub(crate) fn type_check_expression(
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    // Type check the contents of the array
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                    // Specify the type of the Array
-                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::TypeLevelInteger(arr.len() as u64)),
+                        Box::new(Type::Expression(TypeExpression::Constant(arr.len() as u64))),
                         Box::new(first_elem_type.clone()),
                     );
 

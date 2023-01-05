@@ -216,10 +216,23 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    TypeLevelInteger(u64),
-    BinaryOperation(Box<Type>, BinaryTypeOperator, Box<Type>),
+    Expression(TypeExpression),
 
     Error,
+}
+
+/// An integer expression that is allowed in a type position. This is most often used
+/// for array length types. These expressions can only use basic binary operations
+/// and can only reference global variables or type parameters.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum TypeExpression {
+    /// Some constant value. Restricted to only u64 as TypeExpressions are only used
+    /// for array lengths currently. Global variables are translated into Constants as well,
+    /// using the value they are initialized to directly and eliminating the need to reference
+    /// an external variable.
+    Constant(u64),
+    TypeVariable(TypeVariable),
+    BinaryOperation(Box<TypeExpression>, BinaryTypeOperator, Box<TypeExpression>),
 }
 
 /// A restricted subset of binary operators useable on
@@ -463,7 +476,7 @@ impl std::fmt::Display for Type {
             Type::FieldElement(comptime) => {
                 write!(f, "{}Field", comptime)
             }
-            Type::Array(len, typ) => match len.array_length() {
+            Type::Array(len, typ) => match len.evaluate_to_u64() {
                 Some(len) => write!(f, "[{}; {}]", typ, len),
                 None => write!(f, "[{}]", typ),
             },
@@ -502,7 +515,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{}", name),
             },
-            Type::TypeLevelInteger(n) => n.fmt(f),
+            Type::Expression(e) => e.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -511,9 +524,16 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
-            Type::BinaryOperation(lhs, op, rhs) => {
-                write!(f, "({} {} {})", lhs, op, rhs)
-            }
+        }
+    }
+}
+
+impl std::fmt::Display for TypeExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeExpression::Constant(value) => write!(f, "{value}"),
+            TypeExpression::TypeVariable(var) => var.borrow().fmt(f),
+            TypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
         }
     }
 }
@@ -827,7 +847,7 @@ impl Type {
                 }
             }
 
-            (BinaryOperation(..), _) | (_, BinaryOperation(..)) => {
+            (Expression(_expr_a), Expression(_expr_b)) => {
                 todo!()
             }
 
@@ -951,6 +971,10 @@ impl Type {
                 }
             }
 
+            (Expression(_expr_a), Expression(_expr_b)) => {
+                todo!()
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -961,16 +985,16 @@ impl Type {
         }
     }
 
-    pub fn array_length(&self) -> Option<u64> {
+    pub fn evaluate_to_u64(&self) -> Option<u64> {
         match self {
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.array_length(),
+                TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
                 TypeBinding::Unbound(_) => None,
             },
-            Type::Array(len, _elem) => len.array_length(),
-            Type::TypeLevelInteger(size) => Some(*size),
+            Type::Array(len, _elem) => len.evaluate_to_u64(),
+            Type::Expression(expr) => expr.evaluate_to_u64(),
             _ => None,
         }
     }
@@ -982,7 +1006,7 @@ impl Type {
             Type::FieldElement(_) => AbiType::Field,
             Type::Array(size, typ) => {
                 let size = size
-                    .array_length()
+                    .evaluate_to_u64()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 AbiType::Array { length: size as u128, typ: Box::new(typ.as_abi_type()) }
             }
@@ -1001,7 +1025,7 @@ impl Type {
             Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::TypeLevelInteger(_) => unreachable!(),
+            Type::Expression(_) => unreachable!(),
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -1013,7 +1037,6 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
-            Type::BinaryOperation(..) => unreachable!(),
         }
     }
 
@@ -1123,16 +1146,11 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
-            Type::BinaryOperation(lhs, op, rhs) => {
-                let lhs = Box::new(lhs.substitute(type_bindings));
-                let rhs = Box::new(rhs.substitute(type_bindings));
-                Type::BinaryOperation(lhs, *op, rhs)
-            }
+            Type::Expression(expr) => Type::Expression(expr.substitute(type_bindings)),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::TypeLevelInteger(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -1157,14 +1175,11 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
-            Type::BinaryOperation(lhs, _, rhs) => {
-                lhs.occurs(target_id) || rhs.occurs(target_id)
-            }
+            Type::Expression(expr) => expr.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::TypeLevelInteger(_)
             | Type::Error
             | Type::Unit => false,
         }
@@ -1201,18 +1216,107 @@ impl Type {
                 Function(args, ret)
             }
 
+            Expression(expr) => Expression(expr.follow_bindings()),
+
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | TypeLevelInteger(_) | Unit | Error => {
-                self.clone()
-            }
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | Unit | Error => self.clone(),
+        }
+    }
+}
 
-            BinaryOperation(lhs, op, rhs) => {
-                let lhs = Box::new(lhs.follow_bindings());
-                let rhs = Box::new(rhs.follow_bindings());
-                BinaryOperation(lhs, *op, rhs)
+impl TypeExpression {
+    fn evaluate_to_u64(&self) -> Option<u64> {
+        match self {
+            TypeExpression::Constant(value) => Some(*value),
+            TypeExpression::TypeVariable(variable) => match &*variable.borrow() {
+                TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                TypeBinding::Unbound(_) => None,
+            },
+            TypeExpression::BinaryOperation(lhs, op, rhs) => {
+                let lhs = lhs.evaluate_to_u64()?;
+                let rhs = rhs.evaluate_to_u64()?;
+                Some(op.function()(lhs, rhs))
             }
+        }
+    }
+
+    fn substitute(
+        &self,
+        type_bindings: &HashMap<TypeVariableId, (Shared<TypeBinding>, Type)>,
+    ) -> TypeExpression {
+        match self {
+            TypeExpression::Constant(x) => TypeExpression::Constant(*x),
+            TypeExpression::TypeVariable(var) => match &*var.borrow() {
+                TypeBinding::Bound(binding) => Self::from_type(binding.substitute(type_bindings)),
+                TypeBinding::Unbound(id) => match type_bindings.get(id) {
+                    Some((_, binding)) => Self::from_type(binding.clone()),
+                    None => self.clone(),
+                },
+            },
+            TypeExpression::BinaryOperation(lhs, op, rhs) => {
+                let lhs = lhs.substitute(type_bindings);
+                let rhs = rhs.substitute(type_bindings);
+                TypeExpression::BinaryOperation(Box::new(lhs), *op, Box::new(rhs))
+            }
+        }
+    }
+
+    fn from_type(typ: Type) -> TypeExpression {
+        match typ {
+            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+                TypeExpression::TypeVariable(var)
+            }
+            Type::Expression(expr) => expr,
+            other => panic!(
+                "Cannot convert type {} into an array length expression - it is not an integer",
+                other
+            ),
+        }
+    }
+
+    fn occurs(&self, target_id: TypeVariableId) -> bool {
+        match self {
+            TypeExpression::Constant(_) => false,
+            TypeExpression::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.occurs(target_id),
+                TypeBinding::Unbound(id) => *id == target_id,
+            },
+            TypeExpression::BinaryOperation(lhs, _, rhs) => {
+                lhs.occurs(target_id) || rhs.occurs(target_id)
+            }
+        }
+    }
+
+    fn follow_bindings(&self) -> TypeExpression {
+        match self {
+            TypeExpression::Constant(x) => TypeExpression::Constant(*x),
+            TypeExpression::TypeVariable(var) => match &*var.borrow() {
+                TypeBinding::Bound(binding) => Self::from_type(binding.follow_bindings()),
+                TypeBinding::Unbound(_) => self.clone(),
+            },
+            TypeExpression::BinaryOperation(lhs, op, rhs) => {
+                let lhs = lhs.follow_bindings();
+                let rhs = rhs.follow_bindings();
+                TypeExpression::BinaryOperation(Box::new(lhs), *op, Box::new(rhs))
+            }
+        }
+    }
+}
+
+impl BinaryTypeOperator {
+    /// Return the actual rust numeric function associated with this operator
+    fn function(self) -> fn(u64, u64) -> u64 {
+        match self {
+            BinaryTypeOperator::Addition => |a, b| a + b,
+            BinaryTypeOperator::Subtraction => |a, b| a - b,
+            BinaryTypeOperator::Multiplication => |a, b| a * b,
+            BinaryTypeOperator::Division => |a, b| a / b,
+            BinaryTypeOperator::Modulo => |a, b| a % b,
+            BinaryTypeOperator::And => |a, b| a & b,
+            BinaryTypeOperator::Or => |a, b| a | b,
+            BinaryTypeOperator::Xor => |a, b| a ^ b,
         }
     }
 }
