@@ -10,7 +10,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
     FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -511,7 +511,23 @@ where
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
+        .validate(|(element_type, size), span, emit| {
+            match size {
+                None => UnresolvedType::Array(None, Box::new(element_type)),
+                Some(size) => {
+                    match UnresolvedTypeExpression::from_expr(size) {
+                        Ok(size) => UnresolvedType::Array(Some(size), Box::new(element_type)),
+                        Err(invalid) => {
+                            emit(ParserError::with_reason(
+                                format!("Expression is invalid in an array-length type: '{}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.", invalid),
+                                span,
+                            ));
+                            UnresolvedType::Array(None, Box::new(element_type))
+                        }
+                    }
+                }
+            }
+        })
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>

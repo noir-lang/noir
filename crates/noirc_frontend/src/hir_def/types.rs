@@ -244,9 +244,6 @@ pub enum BinaryTypeOperator {
     Multiplication,
     Division,
     Modulo,
-    And,
-    Or,
-    Xor,
 }
 
 pub type TypeVariable = Shared<TypeBinding>;
@@ -546,9 +543,6 @@ impl std::fmt::Display for BinaryTypeOperator {
             BinaryTypeOperator::Multiplication => write!(f, "*"),
             BinaryTypeOperator::Division => write!(f, "/"),
             BinaryTypeOperator::Modulo => write!(f, "%"),
-            BinaryTypeOperator::And => write!(f, "&"),
-            BinaryTypeOperator::Or => write!(f, "|"),
-            BinaryTypeOperator::Xor => write!(f, "^"),
         }
     }
 }
@@ -847,9 +841,7 @@ impl Type {
                 }
             }
 
-            (Expression(_expr_a), Expression(_expr_b)) => {
-                todo!()
-            }
+            (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
 
             (other_a, other_b) => {
                 if other_a == other_b {
@@ -861,8 +853,8 @@ impl Type {
         }
     }
 
-    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining are
-    /// between fixed and variable sized arrays, and Comptime tracking.
+    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining
+    /// have to do with Comptime tracking.
     pub fn make_subtype_of(
         &self,
         expected: &Type,
@@ -971,9 +963,10 @@ impl Type {
                 }
             }
 
-            (Expression(_expr_a), Expression(_expr_b)) => {
-                todo!()
-            }
+            // Re-using try_unify here should be fine as TypeExpressions only have exact equality
+            // and do not contain any Comptime variables which is the only part that would differ
+            // between unification and subtyping.
+            (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
 
             (other_a, other_b) => {
                 if other_a == other_b {
@@ -1303,6 +1296,54 @@ impl TypeExpression {
             }
         }
     }
+
+    fn try_unify(&self, other: &TypeExpression, span: Span) -> Result<(), SpanKind> {
+        match (self, other) {
+            (TypeExpression::TypeVariable(var), other) | (other, TypeExpression::TypeVariable(var)) => {
+                if let TypeBinding::Bound(link) = &*var.borrow() {
+                    return link.try_unify(&Type::Expression(other.clone()), span);
+                }
+                Ok(())
+            },
+
+            (TypeExpression::Constant(x), TypeExpression::Constant(y)) => {
+                if x == y {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            },
+
+            (TypeExpression::BinaryOperation(self_lhs, self_op, self_rhs), 
+             TypeExpression::BinaryOperation(other_lhs, other_op, other_rhs)) => {
+                if self_op != other_op {
+                    return Err(SpanKind::None);
+                }
+
+                let mut result = self_lhs.try_unify(other_lhs, span);
+                result = result.and_then(|()| self_rhs.try_unify(other_rhs, span));
+
+                // If we got an error and our operator is commutative, try swapping the ordering of
+                // the two arguments to see if we succeed. Note that this may still fail in cases
+                // like (N + 1 + M) = (1 + M + N) as this would require multiple nested swaps
+                // instead of just one at a time.
+                if result.is_err() && self_op.commutative() {
+                    // No `and_then` here, we want to discard the previous failure.
+                    result = self_lhs.try_unify(other_rhs, span);
+                    result = result.and_then(|()| self_rhs.try_unify(other_lhs, span));
+                }
+
+                result
+            },
+
+            (TypeExpression::Constant(_), TypeExpression::BinaryOperation(_, _, _))
+            | (TypeExpression::BinaryOperation(_, _, _), TypeExpression::Constant(_)) => {
+                // In the future we could try to evaluate both expressions to see if they
+                // simplify down to the same expression. For now we just fail.
+                Err(SpanKind::None)
+            },
+        }
+    }
 }
 
 impl BinaryTypeOperator {
@@ -1314,9 +1355,13 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Multiplication => |a, b| a * b,
             BinaryTypeOperator::Division => |a, b| a / b,
             BinaryTypeOperator::Modulo => |a, b| a % b,
-            BinaryTypeOperator::And => |a, b| a & b,
-            BinaryTypeOperator::Or => |a, b| a | b,
-            BinaryTypeOperator::Xor => |a, b| a ^ b,
         }
+    }
+
+    /// True if this operator is commutative
+    fn commutative(self) -> bool {
+        matches!(self, BinaryTypeOperator::Addition
+            | BinaryTypeOperator::Multiplication
+        )
     }
 }

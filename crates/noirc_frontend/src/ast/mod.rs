@@ -12,7 +12,7 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{token::IntType, Comptime};
+use crate::{token::IntType, Comptime, BinaryTypeOperator};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
@@ -21,7 +21,7 @@ use iter_extended::vecmap;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
     FieldElement(Comptime),
-    Array(Option<Expression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Comptime, Signedness, u32),             // u32 = Integer(unsigned, 32)
     Bool(Comptime),
     Unit,
@@ -34,6 +34,16 @@ pub enum UnresolvedType {
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
+}
+
+/// The precursor to TypeExpression, this is the type that the parser allows
+/// to be used in the length position of an array type. Only constants, variables,
+/// and numeric binary operators are allowed here.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UnresolvedTypeExpression {
+    Variable(Path),
+    Constant(u64),
+    BinaryOperation(Box<UnresolvedTypeExpression>, BinaryTypeOperator, Box<UnresolvedTypeExpression>),
 }
 
 impl Recoverable for UnresolvedType {
@@ -49,7 +59,7 @@ impl std::fmt::Display for UnresolvedType {
             FieldElement(is_const) => write!(f, "{}Field", is_const),
             Array(len, typ) => match len {
                 None => write!(f, "[{}]", typ),
-                Some(len) => write!(f, "[{}; {}]", typ, len),
+                Some(expr) => write!(f, "[{}; {}]", typ, expr),
             },
             Integer(is_const, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
@@ -75,6 +85,16 @@ impl std::fmt::Display for UnresolvedType {
     }
 }
 
+impl std::fmt::Display for UnresolvedTypeExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnresolvedTypeExpression::Variable(name) => name.fmt(f),
+            UnresolvedTypeExpression::Constant(x) => x.fmt(f),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
+        }
+    }
+}
+
 impl UnresolvedType {
     pub fn from_int_token(token: (Comptime, IntType)) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
@@ -89,4 +109,52 @@ impl UnresolvedType {
 pub enum Signedness {
     Unsigned,
     Signed,
+}
+
+impl UnresolvedTypeExpression {
+    pub fn from_expr(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
+        match expr.kind {
+            ExpressionKind::Literal(Literal::Integer(int)) => {
+                match int.try_to_u64() {
+                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int)),
+                    None => Err(expr),
+                }
+            },
+            ExpressionKind::Path(path) => Ok(UnresolvedTypeExpression::Variable(path)),
+            ExpressionKind::Ident(name) => {
+                let path = Path::from_single(name, expr.span);
+                Ok(UnresolvedTypeExpression::Variable(path))
+            },
+            ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
+                let lhs = Box::new(UnresolvedTypeExpression::Constant(0));
+                let rhs = Box::new(UnresolvedTypeExpression::from_expr(prefix.rhs)?);
+                let op = BinaryTypeOperator::Subtraction;
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs))
+            },
+            ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
+                let lhs = Box::new(UnresolvedTypeExpression::from_expr(infix.lhs)?);
+                let rhs = Box::new(UnresolvedTypeExpression::from_expr(infix.rhs)?);
+                let op = match infix.operator.contents {
+                    BinaryOpKind::Add => BinaryTypeOperator::Addition,
+                    BinaryOpKind::Subtract => BinaryTypeOperator::Subtraction,
+                    BinaryOpKind::Multiply => BinaryTypeOperator::Multiplication,
+                    BinaryOpKind::Divide => BinaryTypeOperator::Division,
+                    BinaryOpKind::Modulo => BinaryTypeOperator::Modulo,
+                    _ => unreachable!(), // impossible via operator_allowed check
+                };
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs))
+            },
+            _ => Err(expr),
+        }
+    }
+
+    fn operator_allowed(op: BinaryOpKind) -> bool {
+        matches!(op,
+            BinaryOpKind::Add
+            | BinaryOpKind::Subtract
+            | BinaryOpKind::Multiply
+            | BinaryOpKind::Divide
+            | BinaryOpKind::Modulo
+        )
+    }
 }

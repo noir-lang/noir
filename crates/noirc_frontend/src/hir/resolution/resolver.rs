@@ -37,7 +37,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, ERROR_IDENT,
+    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, ERROR_IDENT, UnresolvedTypeExpression,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -276,8 +276,8 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
-            UnresolvedType::Array(size, elem) => {
-                let resolved_size = match &size {
+            UnresolvedType::Array(length, elem) => {
+                let resolved_size = match length {
                     None => {
                         let id = self.interner.next_type_variable_id();
                         let typevar = Shared::new(TypeBinding::Unbound(id));
@@ -288,10 +288,7 @@ impl<'a> Resolver<'a> {
                         // require users to explicitly be generic over array lengths.
                         Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
-                    Some(expr) => {
-                        let len = self.eval_array_length(expr);
-                        Type::Expression(TypeExpression::Constant(len))
-                    }
+                    Some(length) => Type::Expression(self.convert_array_length_type(length)),
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
@@ -311,15 +308,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
 
-                // Try to lookup a global variable of the same name as well. Globals are allowed in
-                // array length types.
-                if args.is_empty() {
-                    if let Ok(Some(ModuleDefId::GlobalId(id))) = self.path_resolver.resolve(self.def_maps, path.clone()) {
-                        let value = self.eval_global_as_array_length(id);
-                        return Type::Expression(TypeExpression::Constant(value));
-                    }
-                }
-
                 match self.lookup_struct(path) {
                     Some(definition) => {
                         let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
@@ -331,6 +319,34 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
+        }
+    }
+
+    fn convert_array_length_type(&mut self, length: UnresolvedTypeExpression) -> TypeExpression {
+        match length {
+            UnresolvedTypeExpression::Variable(path) => {
+                if path.segments.len() == 1 {
+                    let name = &path.last_segment().0.contents;
+                    if let Some((_name, (var, _))) = self.generics.get_key_value(name) {
+                        return TypeExpression::TypeVariable(var.clone());
+                    }
+                }
+
+                // If we cannot find a local generic of the same name, try to look up a global
+                if let Ok(Some(ModuleDefId::GlobalId(id))) = self.path_resolver.resolve(self.def_maps, path.clone()) {
+                    TypeExpression::Constant(self.eval_global_as_array_length(id))
+                } else {
+                    // This will issue an error explaining that the global cannot be found
+                    self.lookup_global(path);
+                    TypeExpression::Constant(0)
+                }
+            },
+            UnresolvedTypeExpression::Constant(int) => TypeExpression::Constant(int),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
+                let lhs = Box::new(self.convert_array_length_type(*lhs));
+                let rhs = Box::new(self.convert_array_length_type(*rhs));
+                TypeExpression::BinaryOperation(lhs, op, rhs)
+            },
         }
     }
 
