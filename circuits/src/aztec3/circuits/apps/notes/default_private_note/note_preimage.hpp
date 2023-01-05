@@ -45,7 +45,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
         const bool has_to_circuit_type = requires(V v) { v.to_circuit_type(); };
         const bool has_to_ct = requires(V v) { to_ct(v); };
 
-        // To avoid messy template arguments in the calling code, we use a lambda functino with `auto` return type to
+        // To avoid messy template arguments in the calling code, we use a lambda function with `auto` return type to
         // avoid explicitly having to state the circuit type for `V`.
         auto circuit_value = [&]() -> auto
         {
@@ -139,7 +139,5 @@ std::ostream& operator<<(std::ostream& os, DefaultPrivateNotePreimage<NCT, V> co
               << "nonce: " << preimage.nonce << "\n"
               << "is_dummy: " << preimage.is_dummy << "\n";
 }
-
-// template <typename NCT> using MappingKeyValues = std::map<std::string, std::optional<typename NCT::fr>>;
 
 } // namespace aztec3::circuits::apps::notes

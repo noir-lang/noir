@@ -1,12 +1,8 @@
 #pragma once
 
-// #include "../state_vars/utxo_state_var.hpp"
-
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
-
-#include <variant>
 
 namespace aztec3::circuits::apps::state_vars {
 template <typename Composer> class StateVar;
@@ -28,9 +24,6 @@ template <typename Composer> class Opcodes {
   public:
     typedef CircuitTypes<Composer> CT;
     typedef NativeTypes NT;
-
-    template <typename Note>
-    using VariantUTXOStateVar = std::variant<UTXOStateVar<Composer, Note>, UTXOSetStateVar<Composer, Note>>;
 
     /**
      * @brief
@@ -66,6 +59,9 @@ template <typename Composer> class Opcodes {
 
 } // namespace aztec3::circuits::apps::opcodes
 
-// - We don't implement method definitions in this file, to avoid a circular dependency with
-// utxo_state_var.hpp.
+// Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
+// the following:
+// - We retain implicit instantiation of templates.
+// - We don't implement method definitions in this file, to avoid a circular dependency with the state_var files (which
+//   are forward-declared in this file).
 #include "opcodes.tpp"

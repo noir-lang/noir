@@ -2,8 +2,6 @@
 
 #include "state_var_base.hpp"
 
-// #include "../function_execution_context.hpp"
-
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
@@ -15,8 +13,6 @@ template <typename Composer> class FunctionExecutionContext;
 namespace aztec3::circuits::apps::state_vars {
 
 using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
-
-// template <typename Composer> class FunctionExecutionContext;
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
@@ -44,8 +40,6 @@ template <typename Composer, typename Note> class UTXOSetStateVar : public State
                     bool is_partial_slot)
         : StateVar<Composer>(
               exec_ctx, state_var_name, storage_slot_point, level_of_container_nesting, is_partial_slot){};
-
-    // bool operator==(UTXOSetStateVar<Composer, V> const&) const = default;
 
     /**
      * @param advice - For NotePreimages, we allow 'advice' to be given, so that the correct DB entry is

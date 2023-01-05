@@ -50,8 +50,6 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     std::optional<fr> nullifier;
     std::optional<grumpkin_point> partial_commitment;
 
-    // bool is_partial = false;
-
     NotePreimage note_preimage;
     std::optional<NullifierPreimage> nullifier_preimage;
 
@@ -104,7 +102,7 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
 
     bool needs_nonce() override;
 
-    void set_nonce(fr nonce) override;
+    void set_nonce(fr const& nonce) override;
 
     fr generate_nonce() override;
 
@@ -134,8 +132,7 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:
-// - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
-// methods support native,
-//   circuit or both types.
-// - We don't implement method definitions in this file, to avoid a circular dependency with state_factory.hpp.
+// - We retain implicit instantiation of templates.
+// - We don't implement method definitions in this file, to avoid a circular dependency with the state_var files (which
+//   are forward-declared in this file).
 #include "note.tpp"

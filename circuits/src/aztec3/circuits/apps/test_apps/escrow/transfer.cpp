@@ -23,7 +23,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     // Make the exec_ctx aware of the contract's layout.
     init_contract(exec_ctx);
 
-    // Convert params into circuit types:
+    // Convert arguments into circuit types:
     auto& composer = exec_ctx.composer;
 
     CT::fr amount = to_ct(composer, _amount);
@@ -40,6 +40,9 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     auto& oracle = exec_ctx.oracle;
     CT::address msg_sender = oracle.get_msg_sender();
 
+    // Syntactic sugar for a state variable:
+    // Note: these Mappings always map-from a field type (because it was complicated enough!!!)
+    // mapping(asset_id => mapping(owner => UTXOSet< >)) balances;
     Mapping<Mapping<UTXOSet<DefaultNote>>> balances(&exec_ctx, "balances");
 
     /****************************************************************
@@ -49,6 +52,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     CT::address creator_address =
         CT::address::conditional_assign(reveal_msg_sender_to_recipient, msg_sender, CT::address(0));
 
+    // TODO: sort & filter functions!
     std::vector<DefaultNote> old_balance_notes =
         balances[asset_id][msg_sender.to_field()].get(2, { .owner = msg_sender });
 
@@ -56,7 +60,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     CT::fr old_value_2 = *(old_balance_notes[1].get_preimage().value);
 
     // MISSING: overflow & underflow checks, but I can't be bothered with safe_uint or range checks yet.
-    CT::fr change = (old_value_1 + old_value_2) - amount;
+    CT::fr change = (old_value_1 + old_value_2) - (amount + fee);
 
     old_balance_notes[0].remove();
     old_balance_notes[1].remove();
@@ -91,6 +95,7 @@ OptionalPrivateCircuitPublicInputs<NT> transfer(FunctionExecutionContext& exec_c
     public_inputs.args[4] = CT::fr(reveal_msg_sender_to_recipient);
     public_inputs.args[5] = fee;
 
+    // Emit events
     public_inputs.emitted_events[0] = CT::fr::copy_as_new_witness(composer, fee);
     public_inputs.emitted_events[1] = CT::fr::copy_as_new_witness(composer, asset_id);
 

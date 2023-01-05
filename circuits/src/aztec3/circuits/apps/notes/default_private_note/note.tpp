@@ -180,8 +180,7 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
         throw_or_abort("Can't nullify a partial note.");
     }
     if (!commitment) {
-        throw_or_abort("Commitment not yet calculated. Call compute_commitment() or change how you initialise this "
-                       "note to include the `commit_on_init` bool.");
+        compute_commitment();
     }
     if (nullifier && nullifier_preimage) {
         return *nullifier;
@@ -279,7 +278,7 @@ template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::n
 }
 
 template <typename Composer, typename V>
-void DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr nonce)
+void DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr const& nonce)
 {
     ASSERT(!note_preimage.nonce);
     note_preimage.nonce = nonce;
@@ -292,15 +291,5 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::generate_no
     note_preimage.nonce = compute_dummy_nullifier();
     return *(note_preimage.nonce);
 };
-
-// template <typename Composer>
-// typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer>::compute_dummy_nullifier(fr const& dummy_commitment,
-//                                                                                           fr const&
-//                                                                                           owner_private_key)
-// {
-//     return DefaultPrivateNote<Composer>::compute_nullifier(dummy_commitment, owner_private_key, false);
-// }
-
-// template class DefaultPrivateNote<waffle::TurboComposer>;
 
 } // namespace aztec3::circuits::apps::notes

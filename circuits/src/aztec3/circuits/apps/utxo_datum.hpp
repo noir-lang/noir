@@ -1,9 +1,5 @@
 #pragma once
 
-// #include "function_execution_context.hpp"
-
-// #include "../private_state_note_preimage.hpp"
-
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -33,9 +29,6 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
 
     template <typename Composer> auto to_circuit_type(Composer& composer) const
     {
-        // typedef CircuitTypes<Composer> CT;
-        // typedef NativeTypes NT;
-
         static_assert(std::is_same<NativeTypes, NCT>::value);
 
         // Capture the composer:
@@ -50,29 +43,6 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
 
         return datum;
     };
-
-    // template <typename Composer> using NotePreimageCT = NotePreimage<CircuitTypes<Composer>>;
-
-    // template <typename Composer>
-    // UTXOSLoadDatum<CircuitTypes<Composer>, NotePreimageCT> to_circuit_type(Composer& composer) const
-    // {
-    //     typedef CircuitTypes<Composer> CT;
-    //     typedef NativeTypes NT;
-
-    //     static_assert((std::is_same<NT, NCT>::value));
-
-    //     // Capture the composer:
-    //     auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
-
-    //     NotePreimageCT preimage_ct = preimage.to_circuit_type(composer);
-
-    //     UTXOSLoadDatum<CircuitTypes<Composer>, NotePreimageCT> datum = {
-    //         preimage_ct, to_ct(commitment), to_ct(sibling_path), to_ct(leaf_index),
-    //         to_ct(old_private_data_tree_root),
-    //     };
-
-    //     return datum;
-    // };
 };
 
 } // namespace aztec3::circuits::apps

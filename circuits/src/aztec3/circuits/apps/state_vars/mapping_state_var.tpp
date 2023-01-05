@@ -28,21 +28,6 @@ using crypto::pedersen::generator_index_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-// template <typename Composer, typename V>
-// MappingStateVar<Composer, V>::MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
-//                                               std::string const& state_var_name)
-//     : StateVar<Composer>(exec_ctx, state_var_name)
-// {}
-
-// template <typename Composer, typename V>
-// MappingStateVar<Composer, V>::MappingStateVar(FunctionExecutionContext<Composer>* exec_ctx,
-//                                               std::string const& state_var_name,
-//                                               grumpkin_point const& storage_slot_point,
-//                                               size_t level_of_container_nesting,
-//                                               bool is_partial_slot)
-//     : StateVar<Composer>(exec_ctx, state_var_name, storage_slot_point, level_of_container_nesting, is_partial_slot)
-// {}
-
 // Fr: start_slot
 //
 // mapping(fr => V):
@@ -59,7 +44,7 @@ template <typename Composer, typename V>
 std::tuple<NativeTypes::grumpkin_point, bool> MappingStateVar<Composer, V>::compute_slot_point_at_mapping_key(
     NT::fr const& start_slot, size_t level_of_container_nesting, std::optional<typename NT::fr> const& key)
 {
-    bool is_partial_slot = false; // ?????
+    bool is_partial_slot = false;
 
     std::vector<std::pair<NativeTypes::fr, generator_index_t>> input_pairs;
 
@@ -89,7 +74,7 @@ template <typename Composer, typename V>
 std::tuple<typename CircuitTypes<Composer>::grumpkin_point, bool> MappingStateVar<Composer, V>::
     compute_slot_point_at_mapping_key(std::optional<fr> const& key)
 {
-    bool is_partial_slot = false; // ??????
+    bool is_partial_slot = false;
 
     std::vector<std::pair<fr, generator_index_t>> input_pairs;
 
@@ -159,7 +144,5 @@ template <typename Composer, typename V> V& MappingStateVar<Composer, V>::at(std
 
     return this->value_cache[lookup];
 }
-
-// template class PrivateStateVar<waffle::TurboComposer>;
 
 }; // namespace aztec3::circuits::apps::state_vars

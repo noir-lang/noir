@@ -11,7 +11,7 @@ namespace aztec3::circuits::apps::state_vars {
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-// TODO: we can probably generalise this to be PrimitiveStateVar for any stdlib primitive.
+// TODO: we can probably generalise this to be a PrimitiveStateVar for any stdlib primitive.
 template <typename Composer> class FieldStateVar : public StateVar<Composer> {
   public:
     typedef CircuitTypes<Composer> CT;

@@ -69,9 +69,7 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:
-// - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
-// methods support native,
-//   circuit or both types.
+// - We retain implicit instantiation of templates.
 // - We don't implement method definitions in this file, to avoid a circular dependency with
 // function_execution_context.hpp.
 #include "mapping_state_var.tpp"

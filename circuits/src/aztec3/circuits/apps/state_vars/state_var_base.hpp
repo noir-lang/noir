@@ -1,7 +1,5 @@
 #pragma once
 
-// #include "../function_execution_context.hpp"
-
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 
@@ -35,22 +33,6 @@ template <typename Composer> class StateVar {
     size_t level_of_container_nesting = 0;
     bool is_partial_slot = false;
 
-    // native_storage_slot.x => value cache, to prevent creating constraints with each call.
-    // V value;
-
-    // StateVar(){};
-
-    StateVar operator=(StateVar const& other)
-    {
-        this->exec_ctx = other.exec_ctx;
-        this->state_var_name = other.state_var_name;
-        this->start_slot = other.start_slot;
-        this->storage_slot_point = other.storage_slot_point;
-        this->level_of_container_nesting = other.level_of_container_nesting;
-        this->is_partial_slot = other.is_partial_slot;
-        return *this;
-    }
-
     StateVar(){};
 
     // Instantiate a top-level state:
@@ -71,6 +53,17 @@ template <typename Composer> class StateVar {
 
     bool operator==(StateVar<Composer> const&) const = default;
 
+    StateVar operator=(StateVar const& other)
+    {
+        this->exec_ctx = other.exec_ctx;
+        this->state_var_name = other.state_var_name;
+        this->start_slot = other.start_slot;
+        this->storage_slot_point = other.storage_slot_point;
+        this->level_of_container_nesting = other.level_of_container_nesting;
+        this->is_partial_slot = other.is_partial_slot;
+        return *this;
+    }
+
   private:
     grumpkin_point compute_slot_point();
 };
@@ -79,7 +72,6 @@ template <typename Composer> class StateVar {
 
 // Importing in this way (rather than explicit instantiation of a template class at the bottom of a .cpp file) preserves
 // the following:
-// - We retain implicit instantiation of templates, meaning we can pick and choose (with static_assert) which class
-// methods support native,
-//   circuit or both types.
+// - We retain implicit instantiation of templates.
+// - We avoid circular dependencies with function_execution_context.hpp
 #include "state_var_base.tpp"
