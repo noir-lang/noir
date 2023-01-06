@@ -1354,6 +1354,25 @@ impl TypeExpression {
             }
         }
     }
+
+    // This could be more robust, but we'd quickly get into dangerous territory with questions of
+    // whether we should group repeated additions into multiplications, re-arrange nested terms,
+    // etc.
+    pub fn simplify(&self) -> TypeExpression {
+        use TypeExpression::*;
+        match self {
+            Constant(_) | TypeVariable(_) => self.clone(),
+            BinaryOperation(lhs, op, rhs) => {
+                let lhs = lhs.simplify();
+                let rhs = rhs.simplify();
+
+                match (lhs, rhs) {
+                    (Constant(lhs), Constant(rhs)) => Constant(op.function()(lhs, rhs)),
+                    (lhs, rhs) => BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs)),
+                }
+            }
+        }
+    }
 }
 
 impl BinaryTypeOperator {

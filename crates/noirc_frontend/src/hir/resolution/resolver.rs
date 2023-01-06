@@ -348,7 +348,7 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
                 let lhs = Rc::new(self.convert_array_length_type(*lhs));
                 let rhs = Rc::new(self.convert_array_length_type(*rhs));
-                TypeExpression::BinaryOperation(lhs, op, rhs)
+                TypeExpression::BinaryOperation(lhs, op, rhs).simplify()
             }
         }
     }
