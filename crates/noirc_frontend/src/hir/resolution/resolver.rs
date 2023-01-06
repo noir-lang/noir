@@ -339,8 +339,7 @@ impl<'a> Resolver<'a> {
                 {
                     TypeExpression::Constant(self.eval_global_as_array_length(id))
                 } else {
-                    // This will issue an error explaining that the global cannot be found
-                    self.lookup_global(path);
+                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
                     TypeExpression::Constant(0)
                 }
             }

@@ -38,6 +38,8 @@ pub enum ResolverError {
     InvalidArrayLengthExpr { span: Span },
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
+    #[error("No global or generic type parameter found with the given name")]
+    NoSuchNumericTypeVariable { path: crate::Path },
 }
 
 impl ResolverError {
@@ -187,6 +189,11 @@ impl ResolverError {
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
                 span,
+            ),
+            ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
+                format!("Cannot find a global or generic type parameter named `{}`", path),
+                "Only globals or generic type parameters are allowed to be used as an array type's length".to_string(),
+                path.span(),
             ),
         }
     }
