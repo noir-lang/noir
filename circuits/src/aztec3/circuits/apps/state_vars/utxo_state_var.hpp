@@ -57,6 +57,13 @@ template <typename Composer, typename Note> class UTXOStateVar : public StateVar
      */
     Note get(NotePreimage const& advice);
 
+    /**
+     * @brief For singleton UTXOs, there's a distinction between initialising and modifying in future. See here:
+     * https://discourse.aztec.network/t/utxo-syntax-2-initialising-singleton-utxos/47. So we include this method for
+     * singleton UTXO types.
+     */
+    void initialise(NotePreimage new_note_preimage);
+
     void insert(NotePreimage new_note_preimage);
 };
 

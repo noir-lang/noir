@@ -21,10 +21,14 @@ using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
 /**
- * @brief - These static methods are a suggestion for what ACIR++ 'Opcodes' might do. They combine directives to get
- * data from an oracle, and then apply constraints to that data. Separating out this functionality into a separate
- * `Opcodes` class, like this, was trickier than just writing this stuff directly in the `Note` or
- * `FunctionExecutionContext` classes, but hopefully the separation is tidier.
+ * @brief - These static methods are a suggestion for what ACIR++ 'Opcodes' might do. They can get
+ * data from an oracle. They can apply constraints to that data. And they are the only class allowed to push data to the
+ * execution context.
+ * Separating out this functionality into a separate `Opcodes` class, like this, was trickier than
+ * just writing this stuff directly in the `Note` or `FunctionExecutionContext` classes, but hopefully the separation is
+ * sensible.
+ *
+ * TODO: Any oracle access or exec_ctx access should go through this class?
  */
 template <typename Composer> class Opcodes {
   public:
@@ -54,10 +58,16 @@ template <typename Composer> class Opcodes {
     /**
      * @brief Compute and push a new nullifier to the public inputs of this exec_ctx.
      */
-    template <typename Note> static void UTXO_NULL(StateVar<Composer>* state_var, Note& note);
+    template <typename Note> static void UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify);
 
     /**
-     * @brief Compute and push a new comitment to the public inputs of this exec_ctx.
+     * @brief Compute and push a new commitment to the public inputs of this exec_ctx, BUT ALSO compute and produce an
+     * initialisation nullifier, to prevent this note from being initialised again in the future.
+     */
+    template <typename Note> static void UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise);
+
+    /**
+     * @brief Compute and push a new commitment to the public inputs of this exec_ctx.
      */
     template <typename Note>
     static void UTXO_SSTORE(StateVar<Composer>* state_var, typename Note::NotePreimage new_note_preimage);

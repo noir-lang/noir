@@ -107,13 +107,35 @@ std::vector<Note> Opcodes<Composer>::UTXO_SLOAD(UTXOSetStateVar<Composer, Note>*
 
 template <typename Composer>
 template <typename Note>
-void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note)
+void Opcodes<Composer>::UTXO_NULL(StateVar<Composer>* state_var, Note& note_to_nullify)
 {
-    typename CT::fr nullifier = note.compute_nullifier();
+    typename CT::fr nullifier = note_to_nullify.get_nullifier();
 
     auto& exec_ctx = state_var->exec_ctx;
 
     exec_ctx->new_nullifiers.push_back(nullifier);
+
+    std::shared_ptr<Note> nullified_note_ptr = std::make_shared<Note>(note_to_nullify);
+
+    exec_ctx->nullified_notes.push_back(nullified_note_ptr);
+};
+
+template <typename Composer>
+template <typename Note>
+void Opcodes<Composer>::UTXO_INIT(StateVar<Composer>* state_var, Note& note_to_initialise)
+{
+    typename CT::fr init_nullifier = note_to_initialise.get_initialisation_nullifier();
+
+    auto& exec_ctx = state_var->exec_ctx;
+
+    exec_ctx->new_nullifiers.push_back(init_nullifier);
+
+    std::shared_ptr<Note> init_note_ptr = std::make_shared<Note>(note_to_initialise);
+
+    // TODO: consider whether this should actually be pushed-to...
+    exec_ctx->nullified_notes.push_back(init_note_ptr);
+
+    exec_ctx->new_notes.push_back(init_note_ptr);
 };
 
 template <typename Composer>
@@ -124,9 +146,9 @@ void Opcodes<Composer>::UTXO_SSTORE(StateVar<Composer>* state_var, typename Note
 
     // Make a shared pointer, so we don't end up with a dangling pointer in the exec_ctx when this `new_note`
     // immediately goes out of scope.
-    std::shared_ptr<Note> new_note = std::make_shared<Note>(state_var, new_note_preimage);
+    std::shared_ptr<Note> new_note_ptr = std::make_shared<Note>(state_var, new_note_preimage);
 
-    exec_ctx->new_notes.push_back(new_note);
+    exec_ctx->new_notes.push_back(new_note_ptr);
 };
 
 } // namespace aztec3::circuits::apps::opcodes

@@ -14,8 +14,12 @@
 #include "utxo_datum.hpp"
 
 #include "notes/note_interface.hpp"
+
 #include "notes/default_private_note/note.hpp"
 #include "notes/default_private_note/note_preimage.hpp"
+
+#include "notes/default_singleton_private_note/note.hpp"
+#include "notes/default_singleton_private_note/note_preimage.hpp"
 
 #include "state_vars/field_state_var.hpp"
 #include "state_vars/mapping_state_var.hpp"
@@ -55,9 +59,11 @@ using aztec3::circuits::apps::state_vars::MappingStateVar;
 using aztec3::circuits::apps::state_vars::UTXOSetStateVar;
 using aztec3::circuits::apps::state_vars::UTXOStateVar;
 
-using aztec3::circuits::apps::notes::DefaultPrivateNote;
 using aztec3::circuits::apps::notes::NoteInterface;
-// using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
+
+using aztec3::circuits::apps::notes::DefaultPrivateNote;
+
+using aztec3::circuits::apps::notes::DefaultSingletonPrivateNote;
 
 //********
 // Get rid of ugle `Composer` template arg from our state var types:
@@ -247,6 +253,87 @@ TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
         .owner = to_address,
         .creator_address = msg_sender,
         .memo = 1234,
+    });
+
+    exec_ctx.finalise();
+
+    // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
+    // test, instead of this ever-growing beast test.
+    auto new_note_pointers = exec_ctx.get_new_notes();
+    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    info("new_note_pointers: ", new_note_pointers);
+    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+
+    auto new_nullifiers = exec_ctx.get_new_nullifiers();
+    info("new_nullifiers: ", new_nullifiers);
+}
+
+TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
+{
+    C composer;
+    NativeOracle native_oracle = get_test_native_oracle();
+    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+
+    Contract contract(exec_ctx, "TestContract");
+    contract.declare_state_var("my_utxo");
+
+    // FUNCTION:
+
+    // This time we use a slightly different Note type, which is tailored towards singleton UTXO use-cases. In
+    // particular, it copes with the distinction between initialisation of the UTXO, vs future modification of the UTXO.
+    using Note = DefaultSingletonPrivateNote<C, CT::fr>;
+
+    UTXO<Note> my_utxo(&exec_ctx, "my_utxo");
+
+    const auto& msg_sender = oracle.get_msg_sender();
+
+    my_utxo.initialise({ .value = 100, .owner = msg_sender });
+
+    exec_ctx.finalise();
+
+    // Here, we test that the shared_ptr of a note, stored within the exec_ctx, works. TODO: put this in its own little
+    // test, instead of this ever-growing beast test.
+    auto new_note_pointers = exec_ctx.get_new_notes();
+    std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
+    info("new_note_pointers: ", new_note_pointers);
+    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+
+    auto new_nullifiers = exec_ctx.get_new_nullifiers();
+    info("new_nullifiers: ", new_nullifiers);
+}
+
+TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
+{
+    C composer;
+    NativeOracle native_oracle = get_test_native_oracle();
+    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+
+    Contract contract(exec_ctx, "TestContract");
+    contract.declare_state_var("my_utxo");
+
+    // FUNCTION:
+
+    // This time we use a slightly different Note type, which is tailored towards singleton UTXO use-cases. In
+    // particular, it copes with the distinction between initialisation of the UTXO, vs future modification of the UTXO.
+    using Note = DefaultSingletonPrivateNote<C, CT::fr>;
+
+    UTXO<Note> my_utxo(&exec_ctx, "my_utxo");
+
+    const auto& msg_sender = oracle.get_msg_sender();
+
+    Note old_note = my_utxo.get({ .owner = msg_sender });
+
+    old_note.remove();
+
+    CT::fr old_value = *(old_note.get_preimage().value);
+
+    CT::fr new_value = old_value + 5;
+
+    my_utxo.insert({
+        .value = new_value, //
+        .owner = msg_sender,
     });
 
     exec_ctx.finalise();

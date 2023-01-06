@@ -55,7 +55,7 @@ template <typename Composer> class FunctionExecutionContext {
     std::vector<fr> new_commitments;
 
     // Nullifier preimages can be got from the corresponding Note that they nullify.
-    std::vector<NoteInterface<Composer>*> nullified_notes;
+    std::vector<std::shared_ptr<NoteInterface<Composer>>> nullified_notes;
     std::vector<fr> new_nullifiers;
 
   public:

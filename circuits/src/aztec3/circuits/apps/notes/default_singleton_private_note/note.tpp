@@ -34,35 +34,35 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
+template <typename Composer, typename V> void DefaultSingletonPrivateNote<Composer, V>::remove()
 {
     Opcodes<Composer>::UTXO_NULL(state_var, *this);
 }
 
-template <typename Composer, typename V> auto& DefaultPrivateNote<Composer, V>::get_oracle()
+template <typename Composer, typename V> auto& DefaultSingletonPrivateNote<Composer, V>::get_oracle()
 {
     return state_var->exec_ctx->oracle;
 }
 
-template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_preimage() const
+template <typename Composer, typename V> bool DefaultSingletonPrivateNote<Composer, V>::is_partial_preimage() const
 {
-    const auto& [value, owner, creator_address, memo, salt, nonce, _] = note_preimage;
+    const auto& [value, owner, salt, nonce] = note_preimage;
 
-    return (!value || !owner || !creator_address || !memo || !salt || !nonce);
+    return (!value || !owner || !salt || !nonce);
 }
 
-template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial_storage_slot() const
+template <typename Composer, typename V> bool DefaultSingletonPrivateNote<Composer, V>::is_partial_storage_slot() const
 {
     return state_var->is_partial_slot;
 }
 
-template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::is_partial() const
+template <typename Composer, typename V> bool DefaultSingletonPrivateNote<Composer, V>::is_partial() const
 {
     return is_partial_preimage() || is_partial_storage_slot();
 }
 
 template <typename Composer, typename V>
-typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_commitment()
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::compute_commitment()
 {
     if (commitment.has_value()) {
         return *commitment;
@@ -75,16 +75,14 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
 
     auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
         if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
-                           "the preimage.");
+            throw_or_abort("Cannot commit to a partial preimage.");
         }
         return std::make_pair((*input).to_field(), generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
     };
 
     auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
         if (!input) {
-            throw_or_abort("Cannot commit to a partial preimage. Call compute_partial_commitment instead, or complete "
-                           "the preimage.");
+            throw_or_abort("Cannot commit to a partial preimage.");
         }
         return std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }));
     };
@@ -93,21 +91,15 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
         note_preimage.salt = get_oracle().generate_random_element();
     }
 
-    const auto& [value, owner, creator_address, memo, salt, nonce, is_dummy] = note_preimage;
+    const auto& [value, owner, salt, nonce] = note_preimage;
 
     const grumpkin_point commitment_point =
-        storage_slot_point +
-        CT::commit(
-            { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-              gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
-              gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
-              gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-              gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-              gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-              std::make_pair(
-                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
-
-            });
+        storage_slot_point + CT::commit({
+                                 gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
+                                 gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
+                                 gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
+                                 gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
+                             });
 
     commitment = commitment_point.x;
 
@@ -115,60 +107,7 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_com
 }
 
 template <typename Composer, typename V>
-typename CircuitTypes<Composer>::grumpkin_point DefaultPrivateNote<Composer, V>::compute_partial_commitment()
-{
-    if (partial_commitment.has_value()) {
-        info(
-            "WARNING: you've already computed a partial commitment for this note. Now, you might have since changed "
-            "the preimage and you want to update the partial commitment, and that's ok, so we won't throw an error "
-            "here. But if that's not the case, you should call get_partial_commitment() instead, to save constraints.");
-    }
-
-    grumpkin_point storage_slot_point = state_var->storage_slot_point;
-
-    std::vector<fr> inputs;
-    std::vector<generator_index_t> generators;
-
-    auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
-        return input ? std::make_pair((*input).to_field(),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-                     : std::make_pair(fr(1),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-    };
-
-    auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
-        return input ? std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-                     : std::make_pair(fr(1),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-    };
-
-    if (!note_preimage.salt) {
-        note_preimage.salt = get_oracle().generate_random_element();
-    }
-
-    const auto& [value, owner, creator_address, memo, salt, nonce, is_dummy] = note_preimage;
-
-    const grumpkin_point partial_commitment_point =
-        storage_slot_point +
-        CT::commit(
-            { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-              gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
-              gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
-              gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-              gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-              gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-              std::make_pair(
-                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
-
-            });
-
-    partial_commitment = partial_commitment_point;
-
-    return *partial_commitment;
-}
-
-template <typename Composer, typename V>
-typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nullifier()
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::compute_nullifier()
 {
     if (is_partial()) {
         throw_or_abort("Can't nullify a partial note.");
@@ -182,29 +121,28 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
 
     fr& owner_private_key = get_oracle().get_msg_sender_private_key();
 
-    nullifier =
-        DefaultPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key, note_preimage.is_dummy);
+    nullifier = DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(*commitment, owner_private_key);
     nullifier_preimage = {
         *commitment,
         owner_private_key,
-        note_preimage.is_dummy,
     };
     return *nullifier;
 };
 
 template <typename Composer, typename V>
-typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_dummy_nullifier()
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::compute_dummy_nullifier()
 {
     auto& oracle = get_oracle();
     fr dummy_commitment = oracle.generate_random_element();
     fr& owner_private_key = oracle.get_msg_sender_private_key();
     const boolean is_dummy_commitment = true;
 
-    return DefaultPrivateNote<Composer, V>::compute_nullifier(dummy_commitment, owner_private_key, is_dummy_commitment);
+    return DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(
+        dummy_commitment, owner_private_key, is_dummy_commitment);
 };
 
 template <typename Composer, typename V>
-typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nullifier(
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(
     fr const& commitment, fr const& owner_private_key, boolean const& is_dummy_commitment)
 {
     /**
@@ -243,11 +181,11 @@ typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::compute_nul
 };
 
 template <typename Composer, typename V>
-void DefaultPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Composer> const& advice_note)
+void DefaultSingletonPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Composer> const& advice_note)
 {
     // Cast from a ref to the base (interface) type to a ref to this derived type:
-    const DefaultPrivateNote<Composer, V>& advice_note_ref =
-        dynamic_cast<const DefaultPrivateNote<Composer, V>&>(advice_note);
+    const DefaultSingletonPrivateNote<Composer, V>& advice_note_ref =
+        dynamic_cast<const DefaultSingletonPrivateNote<Composer, V>&>(advice_note);
 
     auto assert_equal = []<typename T>(std::optional<T>& this_member, std::optional<T> const& advice_member) {
         if (advice_member) {
@@ -260,30 +198,56 @@ void DefaultPrivateNote<Composer, V>::constrain_against_advice(NoteInterface<Com
 
     assert_equal(this_preimage.value, advice_preimage.value);
     assert_equal(this_preimage.owner, advice_preimage.owner);
-    assert_equal(this_preimage.creator_address, advice_preimage.creator_address);
-    assert_equal(this_preimage.memo, advice_preimage.memo);
     assert_equal(this_preimage.salt, advice_preimage.salt);
     assert_equal(this_preimage.nonce, advice_preimage.nonce);
 }
 
-template <typename Composer, typename V> bool DefaultPrivateNote<Composer, V>::needs_nonce()
+template <typename Composer, typename V> bool DefaultSingletonPrivateNote<Composer, V>::needs_nonce()
 {
     return !note_preimage.nonce;
 }
 
 template <typename Composer, typename V>
-void DefaultPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr const& nonce)
+void DefaultSingletonPrivateNote<Composer, V>::set_nonce(typename CircuitTypes<Composer>::fr const& nonce)
 {
     ASSERT(!note_preimage.nonce);
     note_preimage.nonce = nonce;
 };
 
 template <typename Composer, typename V>
-typename CircuitTypes<Composer>::fr DefaultPrivateNote<Composer, V>::generate_nonce()
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::generate_nonce()
 {
     ASSERT(!note_preimage.nonce);
     note_preimage.nonce = compute_dummy_nullifier();
     return *(note_preimage.nonce);
+};
+
+template <typename Composer, typename V>
+typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::get_initialisation_nullifier()
+{
+    auto& oracle = get_oracle();
+
+    // With this note, the person initialising the note must be the owner.
+    (*note_preimage.owner).assert_equal(oracle.get_msg_sender());
+
+    const fr& owner_private_key = oracle.get_msg_sender_private_key();
+
+    // We prevent this storage slot from even being initialised again:
+    auto& storage_slot_point = state_var->storage_slot_point;
+
+    const std::vector<fr> hash_inputs{
+        storage_slot_point.x,
+        storage_slot_point.y,
+    };
+
+    const bool is_dummy = false;
+
+    // We compress the hash_inputs with Pedersen, because that's cheap.
+    const fr compressed_storage_slot_point = CT::compress(hash_inputs, GeneratorIndex::INITIALISATION_NULLIFIER);
+
+    // For now, we piggy-back on the regular nullifier function.
+    return DefaultSingletonPrivateNote<Composer, V>::compute_nullifier(
+        compressed_storage_slot_point, owner_private_key, is_dummy);
 };
 
 } // namespace aztec3::circuits::apps::notes

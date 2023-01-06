@@ -1,6 +1,7 @@
+// #include "index.hpp"
+
 // #include <gtest/gtest.h>
 // #include <common/test.hpp>
-// #include "index.hpp"
 
 // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
@@ -9,7 +10,7 @@
 // TEST(private_to_private_function_call_tests, test_private_to_private_function_call)
 // {
 
-//     Composer fn1_composer;
+//     C fn1_composer;
 //     DB db;
 
 //     const NT::address contract_address = 12345;
@@ -22,13 +23,14 @@
 //     NativeOracle fn1_oracle = NativeOracle(db, contract_address, msg_sender, tx_origin, msg_sender_private_key);
 //     OracleWrapper fn1_oracle_wrapper = OracleWrapper(fn1_composer, fn1_oracle);
 
-//     FunctionExecutionContext<Composer> fn1_exec_ctx(fn1_composer, fn1_oracle_wrapper);
+//     FunctionExecutionContext fn1_exec_ctx(fn1_composer, fn1_oracle_wrapper);
 
 //     auto a = NT::fr(111);
 //     auto b = NT::fr(222);
 //     auto c = NT::fr(333);
 
-//     auto result = function1(fn1_exec_ctx, a, b, c);
+//     auto result = function_1_1(fn1_exec_ctx, a, b, c);
+
 //     info("result: ", result);
 
 //     info("computed witness: ", fn1_composer.computed_witness);

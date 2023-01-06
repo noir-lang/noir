@@ -7,14 +7,14 @@
 
 // using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-// OptionalPrivateCircuitPublicInputs<NT> function1(FunctionExecutionContext<Composer>& exec_ctx,
+// OptionalPrivateCircuitPublicInputs<NT> function1(FunctionExecutionContext& exec_ctx,
 //                                                  NT::fr const& _a,
 //                                                  NT::fr const& _b,
 //                                                  NT::fr const& _c)
 // {
 //     auto& composer = exec_ctx.composer;
 //     auto& oracle = exec_ctx.oracle;
-//     Contract<Composer> contract = init_contract(exec_ctx);
+//     Contract contract = init_contract(exec_ctx);
 
 //     CT::fr a = to_ct(composer, _a);
 //     CT::fr b = to_ct(composer, _b);
@@ -34,7 +34,7 @@
 //     // auto function2 = contract.get_function("function2");
 //     const NT::address fn2_contract_address = 23456;
 
-//     Composer fn2_composer;
+//     C fn2_composer;
 
 //     // Note: it's ok that we swap back into Native Types here - we don't need constraints. Creation of fn2_oracle is
 //     // necessary for circuit construction only; it's not part of the circuit itself. We check that the call_contexts
@@ -50,7 +50,7 @@
 //                                            oracle.get_tx_origin().to_field().get_value());
 //     OracleWrapper fn2_oracle_wrapper = OracleWrapper(fn2_composer, fn2_oracle);
 
-//     FunctionExecutionContext<Composer> fn1_exec_ctx(fn2_composer, fn2_oracle_wrapper);
+//     FunctionExecutionContext fn1_exec_ctx(fn2_composer, fn2_oracle_wrapper);
 
 //     // auto result = function2.call(a, b, c);
 
@@ -66,7 +66,7 @@
 
 //     info("public inputs: ", public_inputs);
 
-//     return public_inputs.to_native_type<Composer>();
+//     return public_inputs.to_native_type<C>();
 //     // TODO: also return note preimages and nullifier preimages.
 // };
 

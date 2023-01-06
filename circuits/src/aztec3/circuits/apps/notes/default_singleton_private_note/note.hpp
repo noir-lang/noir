@@ -20,7 +20,7 @@ using aztec3::circuits::apps::state_vars::StateVar; // Don't #include it!
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer, typename ValueType> class DefaultPrivateNote : public NoteInterface<Composer> {
+template <typename Composer, typename ValueType> class DefaultSingletonPrivateNote : public NoteInterface<Composer> {
   public:
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
@@ -28,8 +28,8 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
     typedef typename CT::address address;
     typedef typename CT::boolean boolean;
 
-    using NotePreimage = DefaultPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
-    using NullifierPreimage = DefaultPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
+    using NotePreimage = DefaultSingletonPrivateNotePreimage<CircuitTypes<Composer>, ValueType>;
+    using NullifierPreimage = DefaultSingletonPrivateNoteNullifierPreimage<CircuitTypes<Composer>>;
 
   public:
     StateVar<Composer>* state_var;
@@ -37,17 +37,16 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
   private:
     std::optional<fr> commitment;
     std::optional<fr> nullifier;
-    std::optional<grumpkin_point> partial_commitment;
 
     NotePreimage note_preimage;
     std::optional<NullifierPreimage> nullifier_preimage;
 
   public:
-    DefaultPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
+    DefaultSingletonPrivateNote(StateVar<Composer>* state_var, NotePreimage note_preimage)
         : state_var(state_var)
         , note_preimage(note_preimage){};
 
-    ~DefaultPrivateNote() {}
+    ~DefaultSingletonPrivateNote() {}
 
     // OVERRIDE METHODS:
 
@@ -69,16 +68,6 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
         return compute_nullifier();
     };
 
-    // grumpkin_point get_partial_commitment() override const
-    // {
-    //     if (!partial_commitment) {
-    //         throw_or_abort(
-    //             "No partial_commitment exists for this note. Are you sure you haven't accidentally created a "
-    //             "complete commitment?");
-    //     }
-    //     return *partial_commitment;
-    // };
-
     void constrain_against_advice(NoteInterface<Composer> const& advice_note) override;
 
     bool needs_nonce() override;
@@ -87,11 +76,7 @@ template <typename Composer, typename ValueType> class DefaultPrivateNote : publ
 
     fr generate_nonce() override;
 
-    fr get_initialisation_nullifier() override
-    {
-        throw_or_abort(
-            "DefaultPrivateNote does not support initialisation. Maybe use DefaultSingletonPrivateNote instead?");
-    };
+    fr get_initialisation_nullifier() override;
 
     // CUSTOM METHODS
 
