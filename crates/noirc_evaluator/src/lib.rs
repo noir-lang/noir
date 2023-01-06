@@ -199,7 +199,8 @@ impl Evaluator {
                 }
                 AbiType::String { length } => {
                     let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
-                    let internal_str_witnesses = self.generate_array_witnesses(visibility, length, &typ)?;
+                    let internal_str_witnesses =
+                        self.generate_array_witnesses(visibility, length, &typ)?;
                     struct_witnesses.insert(name.clone(), internal_str_witnesses);
                 }
             }

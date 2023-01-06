@@ -5,6 +5,8 @@ mod function;
 mod statement;
 mod structure;
 
+use std::fmt::write;
+
 pub use expression::*;
 pub use function::*;
 
@@ -24,6 +26,7 @@ pub enum UnresolvedType {
     Array(Option<Expression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Comptime, Signedness, u32),             // u32 = Integer(unsigned, 32)
     Bool(Comptime),
+    String,
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -68,6 +71,7 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "({})", elements.join(", "))
             }
             Bool(is_const) => write!(f, "{}bool", is_const),
+            String => write!(f, "str"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

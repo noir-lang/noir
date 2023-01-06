@@ -416,7 +416,7 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
-            HirType::String(len) => ast::Type::String(*len),
+            HirType::String => ast::Type::String,
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {

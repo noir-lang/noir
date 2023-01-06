@@ -298,6 +298,7 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::String => Type::String,
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,

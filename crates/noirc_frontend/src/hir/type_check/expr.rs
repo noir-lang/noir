@@ -70,9 +70,7 @@ pub(crate) fn type_check_expression(
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
-                HirLiteral::Str(_) => unimplemented!(
-                    "[Coming Soon] : Currently string literal types have not been implemented"
-                ),
+                HirLiteral::Str(_) => Type::String,
             }
         }
         HirExpression::Infix(infix_expr) => {
@@ -714,6 +712,9 @@ pub fn comparator_operand_type_rules(
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
+        }
+        (String, String) => {
+            Ok(Bool(Comptime::Yes(None)))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
