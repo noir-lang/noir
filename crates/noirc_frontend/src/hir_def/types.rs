@@ -195,6 +195,7 @@ pub enum Type {
     Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(Comptime, TypeVariable),
     Bool(Comptime),
+    String(u32),
     Unit,
     Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
@@ -479,6 +480,7 @@ impl std::fmt::Display for Type {
                 write!(f, "({})", elements.join(", "))
             }
             Type::Bool(comptime) => write!(f, "{}bool", comptime),
+            Type::String(_) => write!(f, "str"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
@@ -962,6 +964,7 @@ impl Type {
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
             Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
+            Type::String(len) => AbiType::String { length: *len as u128 },
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::ArrayLength(_) => unreachable!(),
@@ -1090,6 +1093,7 @@ impl Type {
             | Type::Integer(_, _, _)
             | Type::Bool(_)
             | Type::ArrayLength(_)
+            | Type::String(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -1119,6 +1123,7 @@ impl Type {
             | Type::Integer(_, _, _)
             | Type::Bool(_)
             | Type::ArrayLength(_)
+            | Type::String(_)
             | Type::Error
             | Type::Unit => false,
         }
@@ -1158,7 +1163,7 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | String(_) | Unit | Error => {
                 self.clone()
             }
         }

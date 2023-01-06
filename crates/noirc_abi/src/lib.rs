@@ -31,6 +31,7 @@ pub enum AbiType {
     Array { length: u128, typ: Box<AbiType> },
     Integer { sign: Sign, width: u32 },
     Struct { fields: BTreeMap<String, AbiType> },
+    String { length: u128 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,6 +64,7 @@ impl AbiType {
             AbiType::Field | AbiType::Integer { .. } => 1,
             AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
+            AbiType::String { length} => *length as usize,
         }
     }
 
@@ -74,6 +76,7 @@ impl AbiType {
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
+            AbiType::String { length } => *length as u32,
         }
     }
 }
@@ -229,7 +232,7 @@ impl Abi {
 
                 InputValue::Field(field_element)
             }
-            AbiType::Array { length, .. } => {
+            AbiType::Array { length, .. } | AbiType::String { length }=> {
                 let field_elements = &encoded_inputs[index..index + (*length as usize)];
 
                 index += *length as usize;
@@ -264,7 +267,7 @@ impl Serialize for Abi {
         for param in &self.parameters {
             match param.typ {
                 AbiType::Field => map.serialize_entry(&param.name, "")?,
-                AbiType::Array { .. } => map.serialize_entry(&param.name, &vec)?,
+                AbiType::Array { .. } | AbiType::String { .. } => map.serialize_entry(&param.name, &vec)?,
                 AbiType::Integer { .. } => map.serialize_entry(&param.name, "")?,
                 AbiType::Struct { .. } => map.serialize_entry(&param.name, "")?,
             };

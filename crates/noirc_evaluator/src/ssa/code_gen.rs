@@ -158,6 +158,9 @@ impl IRGenerator {
             noirc_abi::AbiType::Struct { .. } => {
                 unreachable!("array of structs are not supported for now")
             }
+            noirc_abi::AbiType::String { .. } => {
+                unreachable!("array of strings are not supported for now")
+            }
         }
     }
 
