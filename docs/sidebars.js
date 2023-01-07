@@ -64,6 +64,7 @@ const sidebars = {
           ],
         },
         "developers/noir",
+        "developers/local-devnet",
         "developers/deposit",
         "developers/transaction-model",
         "developers/sequencer-api",
