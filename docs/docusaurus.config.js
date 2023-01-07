@@ -147,6 +147,10 @@ const config = {
                 label: "GitHub",
                 href: "https://github.com/AztecProtocol",
               },
+              {
+                label: "Grants",
+                href: "https://aztec.network/grants"
+              }
             ],
           },
         ],
