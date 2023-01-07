@@ -14,7 +14,11 @@ From [here](https://docs.docker.com/get-docker/).
 
 ### Start the network
 
-Run the relevant docker compose file for your needs.
+Run the relevant docker compose file for your needs. Make sure you have at least 8 GB of RAM allocated to Docker--the more you can allocate, the better.
+
+:::info
+Mac M1s run this on an emulator so they will be slower.
+:::
 
 #### Basic Network
 
