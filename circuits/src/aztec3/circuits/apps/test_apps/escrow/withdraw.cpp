@@ -20,7 +20,8 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
      ****************************************************************/
 
     // Make the exec_ctx aware of the contract's layout.
-    Contract contract = init_contract(exec_ctx);
+    Contract contract = init_contract();
+    exec_ctx.register_contract(&contract);
 
     // Convert arguments into circuit types:
     auto& composer = exec_ctx.composer;
@@ -68,10 +69,10 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
         .memo = memo,
     });
 
-    auto& l1_withdraw_function = contract.get_l1_function("withdraw");
+    // auto& l1_withdraw_function = contract.get_l1_function("withdraw");
 
     // TODO: this doesn't do anything at the moment:
-    l1_withdraw_function.call({ asset_id, amount, msg_sender.to_field() });
+    // l1_withdraw_function.call({ asset_id, amount, msg_sender.to_field() });
 
     /****************************************************************
      * CLEANUP

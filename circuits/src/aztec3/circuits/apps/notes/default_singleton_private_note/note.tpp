@@ -227,9 +227,6 @@ typename CircuitTypes<Composer>::fr DefaultSingletonPrivateNote<Composer, V>::ge
 {
     auto& oracle = get_oracle();
 
-    // With this note, the person initialising the note must be the owner.
-    (*note_preimage.owner).assert_equal(oracle.get_msg_sender());
-
     const fr& owner_private_key = oracle.get_msg_sender_private_key();
 
     // We prevent this storage slot from even being initialised again:

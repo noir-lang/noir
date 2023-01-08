@@ -19,7 +19,8 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ct
      ****************************************************************/
 
     // Make the exec_ctx aware of the contract's layout.
-    init_contract(exec_ctx);
+    Contract contract = init_contract();
+    exec_ctx.register_contract(&contract);
 
     // Convert params into circuit types:
     auto& composer = exec_ctx.composer;

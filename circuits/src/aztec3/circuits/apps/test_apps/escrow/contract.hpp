@@ -7,9 +7,9 @@
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-inline Contract init_contract(FunctionExecutionContext& exec_ctx)
+inline Contract init_contract()
 {
-    Contract contract(exec_ctx, "Escrow");
+    Contract contract("Escrow");
 
     contract.declare_state_var("balances");
 

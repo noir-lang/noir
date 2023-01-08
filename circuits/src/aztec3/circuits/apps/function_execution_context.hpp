@@ -34,6 +34,7 @@ using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
 
 template <typename Composer> class FunctionExecutionContext {
+    typedef NativeTypes NT;
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
 
@@ -45,7 +46,7 @@ template <typename Composer> class FunctionExecutionContext {
     Composer& composer;
     OracleWrapperInterface<Composer>& oracle;
 
-    Contract<Composer>* contract = nullptr;
+    Contract<NT>* contract = nullptr;
 
     // TODO: make this private!
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
@@ -67,10 +68,10 @@ template <typename Composer> class FunctionExecutionContext {
         private_circuit_public_inputs.call_context = oracle.get_call_context();
     }
 
-    void register_contract(Contract<Composer>* contract)
+    void register_contract(Contract<NT>* contract)
     {
         if (this->contract != nullptr) {
-            throw_or_abort("contract already assigned to this FunctionExecutionContext");
+            throw_or_abort("A contract is already assigned to this FunctionExecutionContext");
         }
         this->contract = contract;
     }

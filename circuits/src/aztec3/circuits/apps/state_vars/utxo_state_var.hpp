@@ -32,6 +32,7 @@ template <typename Composer, typename Note> class UTXOStateVar : public StateVar
     typedef NativeTypes NT;
     typedef typename CT::fr fr;
     typedef typename CT::grumpkin_point grumpkin_point;
+    typedef typename CT::address address;
 
     typedef typename Note::NotePreimage NotePreimage;
 

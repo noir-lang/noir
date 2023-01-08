@@ -1,4 +1,5 @@
 #pragma once
+#include <numeric/uint256/uint256.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/primitives/field/field.hpp>
 #include <stdlib/primitives/bool/bool.hpp>
@@ -10,6 +11,7 @@
 namespace aztec3::circuits::types {
 
 using barretenberg::fr;
+using numeric::uint256_t;
 using plonk::stdlib::bool_t;
 using plonk::stdlib::field_t;
 using plonk::stdlib::group;
@@ -28,6 +30,9 @@ class address {
         : address_(other.address_){};
 
     address(fr const& address)
+        : address_(address){};
+
+    address(uint256_t const& address)
         : address_(address){};
 
     address(int const& address)
@@ -74,6 +79,10 @@ template <typename Composer> class address_t {
         : address_(address)
         , context_(address.context){};
 
+    address_t(uint256_t const& address)
+        : address_(address)
+        , context_(nullptr){};
+
     address_t(int const& address)
         : address_(address)
         , context_(nullptr){};
@@ -94,6 +103,8 @@ template <typename Composer> class address_t {
     bool_t<Composer> operator==(const address_t& other) const { return this->to_field() == other.to_field(); }
 
     field_t<Composer> to_field() const { return address_; }
+
+    fr get_value() const { return address_.get_value(); };
 
     void assert_equal(const address_t& rhs, std::string const& msg = "address_t::assert_equal") const
     {

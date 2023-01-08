@@ -10,29 +10,29 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> class Contract;
+template <typename NCT> class Contract;
 
 // We use the struct to retain designated initialisation, to make contract creation more readable.
-template <typename Composer> struct L1FunctionInterfaceStruct {
-    typedef typename CircuitTypes<Composer>::fr fr;
+template <typename NCT> struct L1FunctionInterfaceStruct {
+    typedef typename NCT::fr fr;
 
     std::string function_name;
     fr function_selector;
     size_t num_params = 0;
 };
 
-template <typename Composer> class L1FunctionInterface {
-    typedef typename CircuitTypes<Composer>::fr fr;
+template <typename NCT> class L1FunctionInterface {
+    typedef typename NCT::fr fr;
 
   public:
-    Contract<Composer>* contract;
+    Contract<NCT>* contract;
     std::string function_name;
     fr function_selector;
     size_t num_params;
 
     L1FunctionInterface(){};
 
-    L1FunctionInterface(Contract<Composer>* contract, L1FunctionInterfaceStruct<Composer> const& l1_fn_struct)
+    L1FunctionInterface(Contract<NCT>* contract, L1FunctionInterfaceStruct<NCT> const& l1_fn_struct)
         : contract(contract)
         , function_name(l1_fn_struct.function_name)
         , function_selector(l1_fn_struct.function_selector)

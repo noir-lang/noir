@@ -10,6 +10,7 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 
+// This exists just so that designated initialisers can be used when passing this info to a function, for readability.
 template <typename NCT> struct FunctionDeclaration {
     typedef typename NCT::boolean boolean;
 

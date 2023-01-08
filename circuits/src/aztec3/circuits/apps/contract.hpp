@@ -15,43 +15,53 @@ using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
 
-template <typename Composer> class FunctionExecutionContext;
+// template <typename Composer> class FunctionExecutionContext;
 
-template <typename Composer> class Contract {
-    typedef CircuitTypes<Composer> CT;
-    typedef typename CT::fr fr;
-    typedef typename CT::uint32 uint32;
+template <typename NCT> class Contract {
+    typedef typename NCT::fr fr;
+    typedef typename NCT::uint32 uint32;
 
   public:
-    FunctionExecutionContext<Composer>& exec_ctx;
-
     const std::string contract_name;
 
     fr state_var_counter = 0;
+
     std::vector<std::string> state_var_names;
+
     std::map<std::string, fr> start_slots_by_state_var_name;
 
-    std::map<std::string, FunctionSignature<CT>> function_signatures;
+    std::map<std::string, FunctionSignature<NCT>> function_signatures;
 
-    std::map<std::string, L1FunctionInterface<Composer>> l1_functions;
+    std::map<std::string, L1FunctionInterface<NCT>> l1_functions;
 
-    Contract<Composer>(FunctionExecutionContext<Composer>& exec_ctx, std::string const& contract_name)
-        : exec_ctx(exec_ctx)
-        , contract_name(contract_name)
+    std::map<std::string, Contract<NCT>> imported_contracts;
+
+    Contract<NCT>(std::string const& contract_name)
+        : contract_name(contract_name)
     {
-        exec_ctx.register_contract(this);
+        // exec_ctx.register_contract(this);
     }
 
-    void set_functions(std::vector<FunctionDeclaration<CT>> const& functions);
+    void set_functions(std::vector<FunctionDeclaration<NCT>> const& functions);
+
+    void import_contracts(std::vector<std::pair<std::string, Contract<NCT>>> const import_declarations);
+
+    Contract<NCT>& get_imported_contract(std::string const& name)
+    {
+        if (!imported_contracts.contains(name)) {
+            throw_or_abort("No contract with that name imported");
+        }
+        return imported_contracts[name];
+    }
 
     // TODO: return some Function class which has a `call` method...
     // FunctionSignature<CT> get_function(std::string name) { return function_signature[name]; }
 
-    FunctionSignature<CT> get_function_signature_by_name(std::string const& name);
+    FunctionSignature<NCT> get_function_signature_by_name(std::string const& name);
 
-    void import_l1_function(L1FunctionInterfaceStruct<Composer> const& l1_function_struct);
+    void import_l1_function(L1FunctionInterfaceStruct<NCT> const& l1_function_struct);
 
-    L1FunctionInterface<Composer>& get_l1_function(std::string const& name);
+    L1FunctionInterface<NCT>& get_l1_function(std::string const& name);
 
     // TODO: maybe also declare a type at this stage, so the correct type can be checked-for when the StateVar type is
     // created within the function.
@@ -65,18 +75,21 @@ template <typename Composer> class Contract {
         start_slots_by_state_var_name[state_var_name] = state_var_counter;
         // state_var_counter++;
         state_var_counter++;
-        ASSERT(state_var_counter.get_value() == state_var_names.size());
+        ASSERT(state_var_counter == state_var_names.size());
     };
 
     fr& get_start_slot(std::string const& state_var_name)
     {
         if (!start_slots_by_state_var_name.contains(state_var_name)) {
-            throw_or_abort("Name '" + state_var_name + "' not found. Use `declare_private_state_var`.");
+            throw_or_abort("Name '" + state_var_name + "' not found. Use `declare_state_var`.");
         }
         return start_slots_by_state_var_name.at(state_var_name);
     };
 
   private:
+    // Prevents an infinite loop if two contracts import each other.
+    bool already_imported;
+
     void push_new_state_var_name(std::string const& state_var_name)
     {
         if (index_of(state_var_names, state_var_name) == -1) {
@@ -95,4 +108,6 @@ template <typename Composer> class Contract {
 // - We retain implicit instantiation of templates.
 // - We don't implement method definitions in this file, to avoid a circular dependency with
 // function_execution_context.hpp.
+// TODO: things have changed since initially importing this .tpp file - maybe a conventional .cpp file is possible now
+// instead...
 #include "contract.tpp"

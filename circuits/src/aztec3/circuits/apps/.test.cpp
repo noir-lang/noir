@@ -45,13 +45,13 @@ using plonk::stdlib::types::to_ct;
 // exec_ctx
 // using aztec3::circuits::apps::FunctionExecutionContext;
 
+// Contract
+using Contract = aztec3::circuits::apps::Contract<NT>;
+
 // Oracle
 using DB = aztec3::oracle::FakeDB;
 using aztec3::oracle::NativeOracle;
 using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<C>;
-
-// Contract
-using Contract = aztec3::circuits::apps::Contract<C>;
 
 // StateVars
 using aztec3::circuits::apps::state_vars::FieldStateVar;
@@ -110,11 +110,17 @@ TEST_F(state_var_tests, mapping)
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
     // TODO:
-    // Interestingly, if I scope the below, the debugger works, but running the test via the command line fails. I
-    // reckon the contract (and crucially, all pointers to the contract which are stored in other classes) is being
-    // deleted... so the declaration of this contract and any pointers probably all need to be shared_ptr<Contract>.
+    // Interestingly, if I scope the below, the debugger works, but running the test via the command line fails. This is
+    // because all pointers to the contract which are stored in other classes become dangling pointers, because contract
+    // would go out of scope immediately... so the declaration of this contract and any pointers probably all need to be
+    // shared_ptr<Contract> eventually.
     // {
-    Contract contract(exec_ctx, "TestContract");
+
+    // I'm not entirely sure why we need to prepend `::` to `Contract`, to get to the unnamed namespace's declaration of
+    // `Contract` above...
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_mapping");
     // }
 
@@ -135,7 +141,9 @@ TEST_F(state_var_tests, mapping_within_mapping)
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
     // {
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_mapping");
     // }
 
@@ -154,7 +162,9 @@ TEST_F(state_var_tests, partial_mapping)
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
     // {
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_mapping");
     // }
 
@@ -172,7 +182,9 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
     OracleWrapper oracle = OracleWrapper(composer, native_oracle);
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_utxo");
 
     // FUNCTION:
@@ -221,7 +233,9 @@ TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
     //     return (i < j);
     // };
 
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("balances");
 
     // FUNCTION:
@@ -275,7 +289,9 @@ TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
     OracleWrapper oracle = OracleWrapper(composer, native_oracle);
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_utxo");
 
     // FUNCTION:
@@ -286,9 +302,19 @@ TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
 
     UTXO<Note> my_utxo(&exec_ctx, "my_utxo");
 
-    const auto& msg_sender = oracle.get_msg_sender();
+    // We hard-code the address of the person who may initialise the state in the 'contract's bytecode' (i.e. as a
+    // selector value). (Number chosen to match msg_sender of tests).
+    const CT::address unique_person_who_may_initialise =
+        NT::uint256(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL);
 
-    my_utxo.initialise({ .value = 100, .owner = msg_sender });
+    unique_person_who_may_initialise.assert_equal(oracle.get_msg_sender());
+
+    // The person who may initialise the note might be different from the person who's actually given the note to own.
+    // (E.g. the caller of this function might be the deployer of the contract, who is initialising notes on behalf of
+    // other users)
+    CT::address owner_of_initialised_note = 888888;
+
+    my_utxo.initialise({ .value = 100, .owner = owner_of_initialised_note });
 
     exec_ctx.finalise();
 
@@ -310,7 +336,9 @@ TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
     OracleWrapper oracle = OracleWrapper(composer, native_oracle);
     FunctionExecutionContext<C> exec_ctx(composer, oracle);
 
-    Contract contract(exec_ctx, "TestContract");
+    ::Contract contract("TestContract");
+    exec_ctx.register_contract(&contract);
+
     contract.declare_state_var("my_utxo");
 
     // FUNCTION:

@@ -25,7 +25,7 @@ using DB = oracle::FakeDB;
 using oracle::NativeOracle;
 using OracleWrapper = apps::OracleWrapperInterface<C>;
 
-using Contract = apps::Contract<C>;
+using Contract = apps::Contract<NT>;
 using FunctionExecutionContext = apps::FunctionExecutionContext<C>;
 
 using plonk::stdlib::types::to_ct;

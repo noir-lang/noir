@@ -33,7 +33,7 @@ using plonk::stdlib::types::NativeTypes;
 template <typename Composer> class Opcodes {
   public:
     typedef CircuitTypes<Composer> CT;
-    typedef NativeTypes NT;
+    typedef typename CT::address address;
 
     /**
      * @brief
