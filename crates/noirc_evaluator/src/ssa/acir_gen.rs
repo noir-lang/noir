@@ -382,10 +382,16 @@ impl Acir {
 
     //Map the outputs into the array
     fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
-        let adr = ctx.mem[a].adr;
-        for i in outputs.iter().enumerate() {
-            let var = InternalVar::from(*i.1);
-            self.memory_map.insert(adr + i.0 as u32, var);
+        let array = &ctx.mem[a];
+        let adr = array.adr;
+        for i in 0..array.len {
+            if i < outputs.len() as u32 {
+                let var = InternalVar::from(outputs[i as usize]);
+                self.memory_map.insert(adr + i, var);
+            } else {
+                let var = InternalVar::from(Expression::zero());
+                self.memory_map.insert(adr + i, var);
+            }
         }
     }
 
