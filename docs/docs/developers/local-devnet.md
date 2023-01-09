@@ -68,7 +68,14 @@ You can also interact with your local aztec network directly via the [CLI](https
 
 You can deploy your own bridge contracts to the mainnet fork devnet.
 
-Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges). 
+Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
+
+Set these local environment variables before running the deployment script.
+
+```bash
+export network=None
+export simulateAdmin=false # to broadcast your deployment to the devnet
+```
 
 Run the deployment script.
 
