@@ -45,7 +45,7 @@ impl Opcode {
                     OPCODE::SchnorrVerify | OPCODE::EcdsaSecp256k1 | OPCODE::MerkleMembership => {
                         BigUint::one()
                     } //verify returns 0 or 1
-                    OPCODE::HashToField => ins.res_type.max_size(),
+                    OPCODE::HashToField => ObjectType::NativeField.max_size(),
                     _ => todo!("max value must be implemented for opcode {} ", op),
                 }
             }
