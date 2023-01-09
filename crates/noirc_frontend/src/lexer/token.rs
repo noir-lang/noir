@@ -1,10 +1,6 @@
 use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
-use std::{
-    fmt::{self, write},
-    iter::Map,
-    vec::IntoIter,
-};
+use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::lexer::errors::LexerErrorKind;
 
@@ -384,7 +380,6 @@ pub enum Keyword {
     Mod,
     Mut,
     Pub,
-    String,
     Struct,
     Use,
     While,
@@ -412,7 +407,6 @@ impl fmt::Display for Keyword {
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Use => write!(f, "use"),
             Keyword::While => write!(f, "while"),
@@ -445,7 +439,6 @@ impl Keyword {
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
-            "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "use" => Keyword::Use,
             "while" => Keyword::While,

@@ -972,7 +972,6 @@ impl Type {
                     .array_length()
                     .expect("Cannot have variable sized strings as a parameter to main");
                 AbiType::String { length: size as u128 }
-                // AbiType::String { length: u8::MAX as u128 }, // TODO: change str type to have hardcoded size like array or get slices fully working
             }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),

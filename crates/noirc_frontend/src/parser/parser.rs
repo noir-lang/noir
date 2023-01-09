@@ -474,10 +474,6 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
     maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
-// fn string_type() -> impl NoirParser<UnresolvedType> {
-//     keyword(Keyword::String).map(|_| UnresolvedType::String)
-// }
-
 fn string_type<P>(expr_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<Expression>,
@@ -486,7 +482,7 @@ where
         .ignore_then(keyword(Keyword::Char))
         .ignore_then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|size| UnresolvedType::String(size))
+        .map(UnresolvedType::String)
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {

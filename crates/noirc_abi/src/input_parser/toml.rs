@@ -59,7 +59,7 @@ fn toml_map_to_field(
 
                 if new_value.is_err() {
                     InputValue::String(string)
-                } else if let Some(field_element) = new_value.unwrap() {
+                } else if let Ok(Some(field_element)) = new_value {
                     InputValue::Field(field_element)
                 } else {
                     InputValue::Undefined

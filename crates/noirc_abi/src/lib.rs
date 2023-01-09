@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, convert::TryInto};
+use std::{collections::BTreeMap, convert::TryInto, str};
 
 use acvm::FieldElement;
 use errors::AbiError;
@@ -182,7 +182,6 @@ impl Abi {
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::String(string) => {
                 let str_as_fields = string
-                    .clone()
                     .into_bytes()
                     .into_iter()
                     .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]))
@@ -241,12 +240,26 @@ impl Abi {
 
                 InputValue::Field(field_element)
             }
-            AbiType::Array { length, .. } | AbiType::String { length } => {
-                // TODO need to separate String decoding from arrays
+            AbiType::Array { length, .. } => {
                 let field_elements = &encoded_inputs[index..index + (*length as usize)];
 
                 index += *length as usize;
                 InputValue::Vec(field_elements.to_vec())
+            }
+            AbiType::String { length } => {
+                let field_elements = &encoded_inputs[index..index + (*length as usize)];
+
+                let string_as_slice = field_elements
+                    .iter()
+                    .map(|e| {
+                        *e.to_bytes().last().unwrap() // A character in a string is represented by a u8, thus we just want the last byte of the element
+                    })
+                    .collect::<Vec<_>>();
+
+                let final_string = str::from_utf8(&string_as_slice).unwrap();
+
+                index += *length as usize;
+                InputValue::String(final_string.to_owned())
             }
             AbiType::Struct { fields, .. } => {
                 let mut struct_map = BTreeMap::new();
@@ -277,9 +290,8 @@ impl Serialize for Abi {
         for param in &self.parameters {
             match param.typ {
                 AbiType::Field => map.serialize_entry(&param.name, "")?,
-                AbiType::Array { .. } | AbiType::String { .. } => {
-                    map.serialize_entry(&param.name, &vec)?
-                }
+                AbiType::Array { .. } => map.serialize_entry(&param.name, &vec)?,
+                AbiType::String { .. } => map.serialize_entry(&param.name, "")?,
                 AbiType::Integer { .. } => map.serialize_entry(&param.name, "")?,
                 AbiType::Struct { .. } => map.serialize_entry(&param.name, "")?,
             };

@@ -653,15 +653,7 @@ impl IRGenerator {
                 }
             }
             Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
-            // Literal::Str(string) => {
-            //     let element_type = ObjectType::Unsigned(8);
-            //     let str_bytes = string.as_bytes();
-            //     for byte in str_bytes {
-            //         let f = FieldElement::from_be_bytes_reduce([byte]);
-            //         self.context.get_or_create_const(f, element_type)
-            //     }
-            // }
-            _ => todo!(), //todo: ad d support for Array(ArrayLiteral), Str(String)
+            _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }
 
