@@ -1,6 +1,6 @@
 [package]
 name = "noir_wasm"
-version = "0.1.0"
+version = "0.10.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,6 +17,7 @@ noirc_driver = { path = "../noirc_driver", features = ["wasm"] }
 console_error_panic_hook = "*"
 
 wasm-bindgen = { version = "*", features = ["serde-serialize"] }
+gloo-utils = { version = "0.1", features = ["serde"] }
 
 getrandom = { version = "0.2.4", features = ["js"] }
 js-sys = "0.3.55"

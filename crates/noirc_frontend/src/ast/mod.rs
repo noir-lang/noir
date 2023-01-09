@@ -29,7 +29,7 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    // Note: Tuples have no FieldElementType, instead each of their elements may have one.
+    // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type

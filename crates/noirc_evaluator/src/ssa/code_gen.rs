@@ -146,7 +146,7 @@ impl IRGenerator {
 
     pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
-            noirc_abi::AbiType::Field(_) => ObjectType::NativeField,
+            noirc_abi::AbiType::Field => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
@@ -185,7 +185,7 @@ impl IRGenerator {
         let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{}.{}", struct_name, name);
             match field_typ {
-                noirc_abi::AbiType::Array { visibility: _, length, typ } => {
+                noirc_abi::AbiType::Array { length, typ } => {
                     let v_id =
                         self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
                     Value::Single(v_id)
