@@ -18,7 +18,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
 ///
-/// we use this separation so that we can have types like Strings
+/// we use this separation so that we can have types like St∫rings
 /// without needing to introduce this in the Noir types
 ///
 /// NOTE: If Strings are introduced as a native type, the translation will
@@ -180,6 +180,15 @@ impl Abi {
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::String(string) => {
+                let str_as_fields = string
+                    .clone()
+                    .into_bytes()
+                    .into_iter()
+                    .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]))
+                    .collect::<Vec<_>>();
+                encoded_value.extend(str_as_fields)
+            }
             InputValue::Struct(object) => {
                 for (field_name, value) in object {
                     let new_name = format!("{}.{}", param_name, field_name);
@@ -233,6 +242,7 @@ impl Abi {
                 InputValue::Field(field_element)
             }
             AbiType::Array { length, .. } | AbiType::String { length } => {
+                // TODO need to separate String decoding from arrays
                 let field_elements = &encoded_inputs[index..index + (*length as usize)];
 
                 index += *length as usize;

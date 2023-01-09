@@ -518,6 +518,29 @@ impl IRGenerator {
                 }
                 Ok(Value::Single(new_var))
             }
+            Expression::Literal(Literal::Str(string)) => {
+                let string_as_integers = string
+                    .clone()
+                    .into_bytes()
+                    .into_iter()
+                    .map(|byte| {
+                        let f = FieldElement::from_be_bytes_reduce(&[byte]);
+                        Expression::Literal(Literal::Integer(
+                            f,
+                            Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+
+                let string_arr_literal = ArrayLiteral {
+                    contents: string_as_integers,
+                    element_type: Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                };
+
+                let new_value = self
+                    .codegen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
+                Ok(new_value)
+            }
             Expression::Ident(ident) => {
                 Ok(self.codegen_identifier(ident))
                 //n.b this creates a new variable if it does not exist, may be we should delegate this to explicit statements (let) - TODO
@@ -630,7 +653,15 @@ impl IRGenerator {
                 }
             }
             Literal::Integer(f, typ) => self.context.get_or_create_const(*f, typ.into()),
-            _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
+            // Literal::Str(string) => {
+            //     let element_type = ObjectType::Unsigned(8);
+            //     let str_bytes = string.as_bytes();
+            //     for byte in str_bytes {
+            //         let f = FieldElement::from_be_bytes_reduce([byte]);
+            //         self.context.get_or_create_const(f, element_type)
+            //     }
+            // }
+            _ => todo!(), //todo: ad d support for Array(ArrayLiteral), Str(String)
         }
     }
 

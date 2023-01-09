@@ -14,6 +14,7 @@ use crate::AbiType;
 pub enum InputValue {
     Field(FieldElement),
     Vec(Vec<FieldElement>),
+    String(String),
     Struct(BTreeMap<String, InputValue>),
     Undefined,
 }
@@ -36,6 +37,10 @@ impl InputValue {
                 field_elements
                     .iter()
                     .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+            }
+
+            (InputValue::String(string), AbiType::String { length }) => {
+                string.len() == *length as usize
             }
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {

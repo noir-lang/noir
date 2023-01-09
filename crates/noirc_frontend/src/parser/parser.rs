@@ -445,10 +445,10 @@ where
         field_type(),
         int_type(),
         named_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone(), expr_parser),
+        array_type(recursive_type_parser.clone(), expr_parser.clone()),
         tuple_type(recursive_type_parser),
         bool_type(),
-        string_type(),
+        string_type(expr_parser),
     ))
 }
 
@@ -474,8 +474,19 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
     maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
-fn string_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::String).map(|_| UnresolvedType::String)
+// fn string_type() -> impl NoirParser<UnresolvedType> {
+//     keyword(Keyword::String).map(|_| UnresolvedType::String)
+// }
+
+fn string_type<P>(expr_parser: P) -> impl NoirParser<UnresolvedType>
+where
+    P: NoirParser<Expression>,
+{
+    just(Token::LeftBracket)
+        .ignore_then(keyword(Keyword::Char))
+        .ignore_then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
+        .then_ignore(just(Token::RightBracket))
+        .map(|size| UnresolvedType::String(size))
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {

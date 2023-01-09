@@ -298,7 +298,25 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
-            UnresolvedType::String => Type::String,
+            UnresolvedType::String(size) => {
+                let resolved_size = match &size {
+                    None => {
+                        let id = self.interner.next_type_variable_id();
+                        let typevar = Shared::new(TypeBinding::Unbound(id));
+                        new_variables.push((id, typevar.clone()));
+
+                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
+                        // wont be bound over but this one has no name since we do not currently
+                        // require users to explicitly be generic over array lengths.
+                        Type::NamedGeneric(typevar, Rc::new("".into()))
+                    }
+                    Some(expr) => {
+                        let len = self.eval_array_length(expr);
+                        Type::ArrayLength(len)
+                    }
+                };
+                Type::String(Box::new(resolved_size))
+            }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,

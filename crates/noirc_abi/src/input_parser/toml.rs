@@ -55,9 +55,11 @@ fn toml_map_to_field(
     for (parameter, value) in toml_map {
         let mapped_value = match value {
             TomlTypes::String(string) => {
-                let new_value = parse_str(&string)?;
+                let new_value = parse_str(&string);
 
-                if let Some(field_element) = new_value {
+                if new_value.is_err() {
+                    InputValue::String(string)
+                } else if let Some(field_element) = new_value.unwrap() {
                     InputValue::Field(field_element)
                 } else {
                     InputValue::Undefined
@@ -116,6 +118,7 @@ fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes>
                 let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
                 TomlTypes::ArrayString(array)
             }
+            InputValue::String(s) => TomlTypes::String(s.clone()),
             InputValue::Struct(map) => {
                 let map_with_toml_types = toml_remap(map);
                 TomlTypes::Table(map_with_toml_types)

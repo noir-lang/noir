@@ -70,7 +70,9 @@ pub(crate) fn type_check_expression(
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
-                HirLiteral::Str(_) => Type::String,
+                HirLiteral::Str(string) => {
+                    Type::String(Box::new(Type::ArrayLength(string.len() as u64)))
+                }
             }
         }
         HirExpression::Infix(infix_expr) => {
@@ -713,8 +715,13 @@ pub fn comparator_operand_type_rules(
             }
             Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
         }
-        (String, String) => {
-            Ok(Bool(Comptime::Yes(None)))
+        (String(x_size), String(y_size)) => {
+            if x_size != y_size {
+                return Err(format!("Can only compare strings of the same length. Here LHS is of length {}, and RHS is {} ", 
+                    x_size, y_size));
+            }
+
+            Ok(Bool(Comptime::No(Some(op.location.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
