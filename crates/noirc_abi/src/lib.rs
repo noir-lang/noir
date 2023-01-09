@@ -18,7 +18,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Types that are allowed in the (main function in binary)
 ///
-/// we use this separation so that we can have types like St∫rings
+/// we use this separation so that we can have types like Strings
 /// without needing to introduce this in the Noir types
 ///
 /// NOTE: If Strings are introduced as a native type, the translation will

@@ -1,7 +1,8 @@
 fn main(message : [char; 11]) {
-    let bad_message = "helld world";
+    let mut bad_message = "hello world";
 
     constrain message == "hello world";
+    bad_message = "helld world";
 
     constrain message != bad_message;
 }
