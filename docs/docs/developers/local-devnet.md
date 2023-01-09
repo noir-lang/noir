@@ -75,6 +75,8 @@ Set these local environment variables before running the deployment script.
 ```bash
 export network=None
 export simulateAdmin=false # to broadcast your deployment to the devnet
+export ROLLUP_PROCESSOR_ADDRESS=0xEdFBd831548D95Ac0dED8Bb797b54596271992d3
+export LISTER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
 
 Run the deployment script.
