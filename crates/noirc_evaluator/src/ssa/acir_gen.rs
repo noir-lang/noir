@@ -1402,16 +1402,14 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
 }
 
 pub fn is_unit(arith: &Expression) -> Option<Witness> {
-    if arith.mul_terms.is_empty()
-        && arith.linear_combinations.len() == 1
-        && arith.linear_combinations[0].0 == FieldElement::one()
-        && arith.q_c == FieldElement::zero()
-    {
-        return Some(arith.linear_combinations[0].1);
-    }
     if arith.mul_terms.is_empty() && arith.linear_combinations.len() == 1 {
-        //todo!("should be simplified");
+        if arith.linear_combinations[0].0.is_one() && arith.q_c.is_zero() {
+            return Some(arith.linear_combinations[0].1);
+        } else {
+            //todo!("should be simplified");
+        }
     }
+
     None
 }
 pub fn from_witness(witness: Witness) -> Expression {

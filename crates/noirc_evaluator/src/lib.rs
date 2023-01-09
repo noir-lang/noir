@@ -235,10 +235,10 @@ impl Evaluator {
         typ: &AbiType,
     ) -> Result<Vec<Witness>, RuntimeErrorKind> {
         let mut witnesses = Vec::new();
-        let mut element_width = None;
-        if let AbiType::Integer { width, .. } = typ {
-            element_width = Some(*width);
-        }
+        let element_width = match typ {
+            AbiType::Integer { width, .. } => Some(*width),
+            _ => None,
+        };
         for _ in 0..*length {
             let witness = self.add_witness_to_cs();
             witnesses.push(witness);
