@@ -1,7 +1,6 @@
 #include "composer_helper.hpp"
-#include <proof_system/proving_key/proving_key.hpp>
-#include <plonk/proof_system/verification_key/verification_key.hpp>
 namespace waffle {
+
 /**
  * Compute proving key base.
  *
@@ -17,9 +16,8 @@ namespace waffle {
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<proving_key> ComposerHelper::compute_proving_key_base(CircuitConstructor& constructor,
-                                                                      const size_t minimum_circuit_size,
-                                                                      const size_t num_reserved_gates)
+std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
+    CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_reserved_gates)
 {
     /*
      * Map internal composer members for easier usage
@@ -27,7 +25,7 @@ std::shared_ptr<proving_key> ComposerHelper::compute_proving_key_base(CircuitCon
 
     auto& n = constructor.n;
     auto& public_inputs = constructor.public_inputs;
-    auto& selector_names = constructor.selector_names;
+    auto& selector_names = constructor.selector_names_;
     auto& selectors = constructor.selectors;
 
     const size_t num_filled_gates = n + public_inputs.size();
@@ -76,7 +74,8 @@ std::shared_ptr<proving_key> ComposerHelper::compute_proving_key_base(CircuitCon
  * (2) sets the polynomial manifest using the data from proving key.
  */
 
-std::shared_ptr<verification_key> ComposerHelper::compute_verification_key_base(
+template <typename CircuitConstructor>
+std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
     std::shared_ptr<proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs)
 {
     auto circuit_verification_key = std::make_shared<verification_key>(
@@ -134,15 +133,16 @@ std::shared_ptr<verification_key> ComposerHelper::compute_verification_key_base(
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-template <size_t program_width, typename CircuitConstructor>
-void ComposerHelper::compute_witness_base(CircuitConstructor& circuit_constructor, const size_t minimum_circuit_size)
+template <typename CircuitConstructor>
+template <size_t program_width>
+void ComposerHelper<CircuitConstructor>::compute_witness_base(CircuitConstructor& circuit_constructor,
+                                                              const size_t minimum_circuit_size)
 {
     if (computed_witness) {
         return;
     }
     auto& n = circuit_constructor.n;
     auto& public_inputs = circuit_constructor.public_inputs;
-    auto& selector_names = circuit_constructor.selector_names;
     auto& w_l = circuit_constructor.w_l;
     auto& w_r = circuit_constructor.w_r;
     auto& w_o = circuit_constructor.w_o;
@@ -176,8 +176,8 @@ void ComposerHelper::compute_witness_base(CircuitConstructor& circuit_constructo
     // Note: each public input variable is assigned to both w_1 and w_2. See
     // plonk/proof_system/public_inputs/public_inputs_impl.hpp for a giant comment explaining why.
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(get_variable(public_inputs[i]), w_1_lagrange[i]);
-        fr::__copy(get_variable(public_inputs[i]), w_2_lagrange[i]);
+        fr::__copy(circuit_constructor.get_variable(public_inputs[i]), w_1_lagrange[i]);
+        fr::__copy(circuit_constructor.get_variable(public_inputs[i]), w_2_lagrange[i]);
         fr::__copy(fr::zero(), w_3_lagrange[i]);
         if (program_width > 3)
             fr::__copy(fr::zero(), w_4_lagrange[i]);
@@ -186,11 +186,11 @@ void ComposerHelper::compute_witness_base(CircuitConstructor& circuit_constructo
     // Assign the variable values (which are pointed-to by the `w_` wires) to the wire witness polynomials `poly_w_`,
     // shifted to make room for the public inputs at the beginning.
     for (size_t i = public_inputs.size(); i < total_num_gates; ++i) {
-        fr::__copy(get_variable(w_l[i - public_inputs.size()]), w_1_lagrange.at(i));
-        fr::__copy(get_variable(w_r[i - public_inputs.size()]), w_2_lagrange.at(i));
-        fr::__copy(get_variable(w_o[i - public_inputs.size()]), w_3_lagrange.at(i));
+        fr::__copy(circuit_constructor.get_variable(w_l[i - public_inputs.size()]), w_1_lagrange.at(i));
+        fr::__copy(circuit_constructor.get_variable(w_r[i - public_inputs.size()]), w_2_lagrange.at(i));
+        fr::__copy(circuit_constructor.get_variable(w_o[i - public_inputs.size()]), w_3_lagrange.at(i));
         if (program_width > 3)
-            fr::__copy(get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
+            fr::__copy(circuit_constructor.get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
     }
 
     circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_1_lagrange));
@@ -211,7 +211,8 @@ void ComposerHelper::compute_witness_base(CircuitConstructor& circuit_constructo
  * */
 
 template <typename CircuitConstructor>
-std::shared_ptr<proving_key> ComposerHelper::compute_proving_key(CircuitConstructor& circuit_constructor)
+std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
+    CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
         return circuit_proving_key;
@@ -221,7 +222,7 @@ std::shared_ptr<proving_key> ComposerHelper::compute_proving_key(CircuitConstruc
 
     // Compute sigma polynomials (we should update that late)
     // TODO: Update this
-    // compute_sigma_permutations<3, false>(circuit_proving_key.get());
+    compute_standard_honk_sigma_permutations<3>(circuit_constructor, circuit_proving_key.get());
 
     return circuit_proving_key;
 }
@@ -232,17 +233,18 @@ std::shared_ptr<proving_key> ComposerHelper::compute_proving_key(CircuitConstruc
  * @return Pointer to created circuit verification key.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<verification_key> ComposerHelper::compute_verification_key(CircuitConstructor& circuit_constructor)
+std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
+    CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
         return circuit_verification_key;
     }
     if (!circuit_proving_key) {
-        compute_proving_key();
+        compute_proving_key(circuit_constructor);
     }
 
-    circuit_verification_key = ComposerHelper::compute_verification_key_base(
-        circuit_constructor, circuit_proving_key, crs_factory_->get_verifier_crs());
+    circuit_verification_key =
+        ComposerHelper::compute_verification_key_base(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->composer_type = circuit_proving_key->composer_type;
 
     return circuit_verification_key;
@@ -254,7 +256,8 @@ std::shared_ptr<verification_key> ComposerHelper::compute_verification_key(Circu
  *
  * @return The verifier.
  * */
-template <typename CircuitConstructor> Verifier ComposerHelper::create_verifier(CircuitConstructor& circuit_constructor)
+template <typename CircuitConstructor>
+Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
     // TODO figure out types, actuallt
@@ -273,7 +276,7 @@ template <typename CircuitConstructor> Verifier ComposerHelper::create_verifier(
 }
 
 template <typename CircuitConstructor>
-UnrolledVerifier ComposerHelper::create_unrolled_verifier(CircuitConstructor& circuit_constructor)
+UnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
     // UnrolledVerifier output_state(circuit_verification_key,
@@ -290,7 +293,7 @@ UnrolledVerifier ComposerHelper::create_unrolled_verifier(CircuitConstructor& ci
 }
 
 template <typename CircuitConstructor>
-UnrolledProver ComposerHelper::create_unrolled_prover(CircuitConstructor& circuit_constructor)
+UnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
@@ -324,7 +327,8 @@ UnrolledProver ComposerHelper::create_unrolled_prover(CircuitConstructor& circui
  *
  * @return Initialized prover.
  * */
-template <typename CircuitConstructor> Prover ComposerHelper::create_prover(CircuitConstructor& circuit_constructor)
+template <typename CircuitConstructor>
+Prover ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& circuit_constructor)
 {
     // Compute q_l, etc. and sigma polynomials.
     compute_proving_key(circuit_constructor);
@@ -353,5 +357,5 @@ template <typename CircuitConstructor> Prover ComposerHelper::create_prover(Circ
 
     return output_state;
 }
-
+template class ComposerHelper<StandardCircuitConstructor>;
 } // namespace waffle

@@ -1,6 +1,7 @@
 #pragma once
 #include "circuit_constructor_base.hpp"
 #include <plonk/proof_system/constants.hpp>
+#include <honk/flavor/flavor.hpp>
 
 namespace waffle {
 enum StandardSelectors { QM, QC, Q1, Q2, Q3, NUM };
@@ -10,8 +11,9 @@ inline std::vector<std::string> standard_selector_names()
     return result;
 }
 
-class StandardCircuitConstructor : public CircuitConstructorBase {
+class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_WIDTH> {
   public:
+    // TODO: replace this with Honk enums after we have a verifier and no longer depend on plonk prover/verifier
     static constexpr ComposerType type = ComposerType::STANDARD;
     static constexpr size_t UINT_LOG2_BASE = 2;
 

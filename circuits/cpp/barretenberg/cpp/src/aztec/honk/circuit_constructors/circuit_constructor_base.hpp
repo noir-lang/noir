@@ -94,8 +94,9 @@ struct ecc_add_gate {
     barretenberg::fr sign_coefficient;
 };
 
-class CircuitConstructorBase {
+template <size_t program_width_> class CircuitConstructorBase {
   public:
+    static constexpr size_t program_width = program_width_;
     std::vector<std::string> selector_names_;
     size_t n;
     std::vector<uint32_t> w_l;
@@ -317,7 +318,6 @@ class CircuitConstructorBase {
         set_err(msg);
     }
 };
-
 } // namespace waffle
 
 /**

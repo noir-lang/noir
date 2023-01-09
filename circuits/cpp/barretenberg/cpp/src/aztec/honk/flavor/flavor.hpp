@@ -1,6 +1,7 @@
 #pragma once
 #include <common/log.hpp>
 
+#define STANDARD_HONK_WIDTH 3
 class StandardArithmetization {
   public:
     enum POLYNOMIAL {

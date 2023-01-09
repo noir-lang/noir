@@ -9,7 +9,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-TEST(standard_circuit_composer, base_case)
+TEST(standard_circuit_constructor, base_case)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     fr a = fr::one();
@@ -19,7 +19,7 @@ TEST(standard_circuit_composer, base_case)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, test_add_gate)
+TEST(standard_circuit_constructor, test_add_gate)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     fr a = fr::one();
@@ -72,7 +72,7 @@ TEST(standard_circuit_composer, test_add_gate)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, test_mul_gate_proofs)
+TEST(standard_circuit_constructor, test_mul_gate_proofs)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
@@ -145,7 +145,7 @@ TEST(standard_circuit_composer, test_mul_gate_proofs)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, range_constraint)
+TEST(standard_circuit_constructor, range_constraint)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
 
@@ -183,7 +183,7 @@ TEST(standard_circuit_composer, range_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, range_constraint_fail)
+TEST(standard_circuit_constructor, range_constraint_fail)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
 
@@ -197,7 +197,7 @@ TEST(standard_circuit_composer, range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_composer, and_constraint)
+TEST(standard_circuit_constructor, and_constraint)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
 
@@ -262,7 +262,7 @@ TEST(standard_circuit_composer, and_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, xor_constraint)
+TEST(standard_circuit_constructor, xor_constraint)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
 
@@ -326,7 +326,7 @@ TEST(standard_circuit_composer, xor_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, big_add_gate_with_bit_extract)
+TEST(standard_circuit_constructor, big_add_gate_with_bit_extract)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
 
@@ -363,7 +363,7 @@ TEST(standard_circuit_composer, big_add_gate_with_bit_extract)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, test_range_constraint_fail)
+TEST(standard_circuit_constructor, test_range_constraint_fail)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
@@ -374,7 +374,7 @@ TEST(standard_circuit_composer, test_range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_composer, test_check_circuit_correct)
+TEST(standard_circuit_constructor, test_check_circuit_correct)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     fr a = fr::one();
@@ -394,7 +394,7 @@ TEST(standard_circuit_composer, test_check_circuit_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, test_check_circuit_broken)
+TEST(standard_circuit_constructor, test_check_circuit_broken)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     fr a = fr::one();
@@ -414,7 +414,7 @@ TEST(standard_circuit_composer, test_check_circuit_broken)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_composer, test_fixed_group_add_gate_with_init)
+TEST(standard_circuit_constructor, test_fixed_group_add_gate_with_init)
 {
     waffle::StandardCircuitConstructor composer = waffle::StandardCircuitConstructor();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
@@ -465,7 +465,7 @@ TEST(standard_circuit_composer, test_fixed_group_add_gate_with_init)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_composer, test_fixed_group_add_gate)
+TEST(standard_circuit_constructor, test_fixed_group_add_gate)
 {
     auto composer = waffle::StandardCircuitConstructor();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });

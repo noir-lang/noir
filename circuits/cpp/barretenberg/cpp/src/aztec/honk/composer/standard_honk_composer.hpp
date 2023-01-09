@@ -1,7 +1,8 @@
-#include "../circuit_constructors/plonk_circuit_constructor.hpp"
+#include "../circuit_constructors/standard_circuit_constructor.hpp"
 #include "composer_helper/composer_helper.hpp"
 #include <srs/reference_string/file_reference_string.hpp>
-#include <plonk/transcript/manifest.hpp>
+#include <transcript/manifest.hpp>
+#include <honk/flavor/flavor.hpp>
 namespace waffle {
 /**
  * @brief Standard Honk Composer has everything required to construct a prover and verifier, just as the legacy classes.
@@ -20,10 +21,11 @@ class StandardHonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    ComposerHelper composer_helper;
+    ComposerHelper<StandardCircuitConstructor> composer_helper;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
+    static constexpr size_t program_width = STANDARD_HONK_WIDTH;
 
     /**Standard methods*/
 
@@ -59,7 +61,10 @@ class StandardHonkComposer {
     /**Methods related to circuit construction
      * They simply get proxied to the circuit constructor
      */
-
+    void assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
+    {
+        circuit_constructor.assert_equal(a_variable_idx, b_variable_idx, msg);
+    }
     void assert_equal_constant(uint32_t const a_idx,
                                barretenberg::fr const& b,
                                std::string const& msg = "assert equal constant")
@@ -101,7 +106,7 @@ class StandardHonkComposer {
                                                             const size_t num_bits,
                                                             std::string const& msg = "create_range_constraint")
     {
-        circuit_constructor.decompose_into_base4_accumulators(witness_index, num_bits, msg);
+        return circuit_constructor.decompose_into_base4_accumulators(witness_index, num_bits, msg);
     }
 
     void create_range_constraint(const uint32_t variable_index,
@@ -116,25 +121,28 @@ class StandardHonkComposer {
                                                const size_t num_bits,
                                                bool is_xor_gate)
     {
-        circuit_constructor.create_logic_constraint(a, b, num_bits, is_xor_gate);
+        return circuit_constructor.create_logic_constraint(a, b, num_bits, is_xor_gate);
     }
     accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
     {
-        circuit_constructor.create_and_constraint(a, b, num_bits);
+        return circuit_constructor.create_and_constraint(a, b, num_bits);
     }
     accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
     {
-        circuit_constructor.create_xor_constraint(a, b, num_bits);
+        return circuit_constructor.create_xor_constraint(a, b, num_bits);
     }
+    uint32_t add_variable(const barretenberg::fr& in) { return circuit_constructor.add_variable(in); }
+
+    uint32_t add_public_variable(const barretenberg::fr& in) { return circuit_constructor.add_public_variable(in); }
 
     uint32_t put_constant_variable(const barretenberg::fr& variable)
     {
-        circuit_constructor.put_constant_variable(variable);
+        return circuit_constructor.put_constant_variable(variable);
     }
 
     size_t get_num_constant_gates() const { return circuit_constructor.get_num_constant_gates(); }
 
-    bool check_circuit(){ return circuit_constructor.check_circuit() };
+    bool check_circuit() { return circuit_constructor.check_circuit(); }
 
     /**
      * Create a manifest, which specifies proof rounds, elements and who supplies them.
@@ -146,9 +154,10 @@ class StandardHonkComposer {
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
         // add public inputs....
-        constexpr size_t g1_size = 64;
-        constexpr size_t fr_size = 32;
-        const size_t public_input_size = fr_size * num_public_inputs;
+        // constexpr size_t g1_size = 64;
+        // constexpr size_t fr_size = 32;
+        // const size_t public_input_size = fr_size * num_public_inputs;
+        (void)num_public_inputs;
         const transcript::Manifest output = transcript::Manifest({});
         return output;
     }
@@ -157,8 +166,10 @@ class StandardHonkComposer {
     {
         // add public inputs....
         constexpr size_t g1_size = 64;
+        (void)g1_size;
         constexpr size_t fr_size = 32;
         const size_t public_input_size = fr_size * num_public_inputs;
+        (void)public_input_size;
         const transcript::Manifest output = transcript::Manifest(
 
             {});
@@ -172,11 +183,11 @@ class StandardHonkComposer {
     {
         return composer_helper.compute_proving_key(circuit_constructor);
     }
-    std::shared_ptr<verification_key> compute_verification_key();
+    std::shared_ptr<verification_key> compute_verification_key()
     {
         return composer_helper.compute_verification_key(circuit_constructor);
     }
-    void compute_witness(){ composer_helper.compute_witness(circuit_constructor) };
+    void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
     Verifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
     /**
      * Preprocess the circuit. Delegates to create_prover.
