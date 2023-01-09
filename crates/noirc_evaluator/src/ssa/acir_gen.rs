@@ -430,7 +430,6 @@ impl Acir {
             }
             let mut x =
                 InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
-            dbg!(&x);
             x.generate_witness(evaluator);
             from_witness(evaluate_zero_equality(&x, evaluator))
         }
@@ -573,7 +572,7 @@ impl Acir {
                 let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
-                outputs = to_radix_base(&l_c, radix, limb_size, evaluator); //TODO !!
+                outputs = to_radix_base(&l_c, radix, limb_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.map_array(a, &outputs, ctx);
                 }

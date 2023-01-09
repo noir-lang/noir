@@ -598,7 +598,7 @@ pub enum Opcode {
     //memory
     Load(ArrayId),
     Store(ArrayId),
-    Intrinsic(builtin::Opcode), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(builtin::Opcode), //Custom implementation of useful primitives
     Nop,                        // no op
 }
 
