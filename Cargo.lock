@@ -30,18 +30,6 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135#7460dda929130589bccfd6619f9409834b72a135"
-dependencies = [
- "flate2",
- "indexmap",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135)",
- "rmp-serde",
- "serde",
-]
-
-[[package]]
-name = "acir"
-version = "0.1.0"
 source = "git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
 dependencies = [
  "indexmap",
@@ -94,23 +82,6 @@ dependencies = [
  "hex",
  "indexmap",
  "k256",
- "num-bigint",
- "num-traits",
- "sha2",
- "sled",
-]
-
-[[package]]
-name = "acvm"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135#7460dda929130589bccfd6619f9409834b72a135"
-dependencies = [
- "acir 0.1.0 (git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135)",
- "blake2",
- "hex",
- "indexmap",
- "k256",
- "noir_field 0.1.0 (git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135)",
  "num-bigint",
  "num-traits",
  "sha2",
@@ -382,7 +353,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=8c8ec2dd9c376bef598d17f023fac172e5e47860#8c8ec2dd9c376bef598d17f023fac172e5e47860"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=72d5a86625c4220e36da246ed1965ed5d6f411d8#72d5a86625c4220e36da246ed1965ed5d6f411d8"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -403,7 +374,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?rev=2c961d511c245d7debef04d99b42c3de4268cad8#2c961d511c245d7debef04d99b42c3de4268cad8"
+source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#2ef8be41993ead9993c09b1d99fef6dc68e231a6"
 dependencies = [
  "bindgen",
  "cmake",
@@ -612,9 +583,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=8c8ec2dd9c376bef598d17f023fac172e5e47860#8c8ec2dd9c376bef598d17f023fac172e5e47860"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=72d5a86625c4220e36da246ed1965ed5d6f411d8#72d5a86625c4220e36da246ed1965ed5d6f411d8"
 dependencies = [
- "acvm 0.1.0 (git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135)",
+ "acvm 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -1493,21 +1464,6 @@ dependencies = [
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
- "cfg-if 1.0.0",
- "hex",
- "num-bigint",
- "num-traits",
- "serde",
-]
-
-[[package]]
-name = "noir_field"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=7460dda929130589bccfd6619f9409834b72a135#7460dda929130589bccfd6619f9409834b72a135"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "blake2",
  "cfg-if 1.0.0",
  "hex",
  "num-bigint",
