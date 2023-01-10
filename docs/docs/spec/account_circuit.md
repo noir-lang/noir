@@ -130,7 +130,7 @@ _There's a little diagram at the diagrams link too._
 4. If a `spending_public_key` becomes compromised, Alice must do the following:
 
 - generate a _new_ account note with a `new_account_public_key` and her existing `alice` alias (using the `migrate` flow). The new account note's spending keys SHOULD be different to the compromised key (although there are no protocol checks to enforce this).
-- Use the account `update` flow to assign additional _non-comprimised_ spending keys to her new account note`.
+- Use the account `update` flow to assign additional _non-compromised_ spending keys to her new account note`.
 - Alice transfers funds assigned to `(account_public_key, alice)` and sends them to `(new_account_public_key, alice)`
 
 1. Similarly, if Alice's `account_private_key` becomes compromised, she can use the account circuit to migrate to a new `account_public_key`.
@@ -147,7 +147,7 @@ As previously, the field $\mathbb{F}_p$ is from the BN254 specification.
 
 ### Public Inputs: Detail
 
-Recall that all inner circuits must have the **same number of public inputs** as they will be used homogenously by the rollup circuit. Hence, most of the account circuit's public inputs are 0, because they're not actually needed for the account circuit's functionality.
+Recall that all inner circuits must have the **same number of public inputs** as they will be used homogeneously by the rollup circuit. Hence, most of the account circuit's public inputs are 0, because they're not actually needed for the account circuit's functionality.
 
 1. `proof_id = PublicInputs::ACCOUNT` (i.e. this is effectively a witness which can only take one valid value).
 1. `output_note_commitment_1`

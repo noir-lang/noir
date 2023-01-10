@@ -19,10 +19,10 @@ When building a bridge, the bridge needs to have a way of calling the `setGasUsa
 
 Thereafter, you need to decide how your bridge is to compute the criteria values. If your bridge is limited in the actions it can take, e.g., the Yearn bridge only deposits/withdraws into/from yearn, it might be useful to have simple criteria that are shared between different flows, as it is then straightforward to subsidise multiple of them at once (in this case Yearn subsidised all the deposits, regardless of asset). If the bridge is more general purpose (such as ERC4626) it is beneficial to allow subsidising based on the combination of input and output assets. This can be done by computing a hash of input/output token addresses and converting that value to `uint256` and should be implemented in the `computeCriteria()` function.
 
-With setup and criterias managed, you just need to make sure that the `convert()` function claims the subsidy through the `claimSubsidy()` function, which takes the criteria and the rollup beneficiary (address passed by sequencer). Without this function, no subsidy is given. 
+With setup and criteria managed, you just need to make sure that the `convert()` function claims the subsidy through the `claimSubsidy()` function, which takes the criteria and the rollup beneficiary (address passed by sequencer). Without this function, no subsidy is given. 
 
 # How do I subsidise?
-When you have found a bridge to subsidise, you need to figure out what flows you want to subsidise (the criteria). This criteria will depend on the bridge and the best way to figure out the meaning of different criterias is to simply check the bridge's code. 
+When you have found a bridge to subsidise, you need to figure out what flows you want to subsidise (the criteria). This criteria will depend on the bridge and the best way to figure out the meaning of different criteria is to simply check the bridge's code. 
 For bridges that follow the base implementation, there will be a `computeCriteria()` function taking assets and auxdata as input that should compute the criteria for a given interaction. *Note*: multiple flows can have the same criteria.
 
 

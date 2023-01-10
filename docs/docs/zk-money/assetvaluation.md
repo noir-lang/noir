@@ -13,4 +13,4 @@ Chainlink provides no direct oracle for wstETH, but does provide an [oracle for 
 
 ## Element fixed yield positions
 
-Over time we interpolate between the asset quantitiy locked in your position and its promised output. The interpolated quanity is then given a dollar valuation with use of Chainlink.
+Over time we interpolate between the asset quantity locked in your position and its promised output. The interpolated quantity is then given a dollar valuation with use of Chainlink.

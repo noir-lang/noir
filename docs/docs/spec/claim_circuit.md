@@ -42,7 +42,7 @@ At a high level, the claim circuit does the following:
 
 #### Inputs
 
-Recall that all inner circuits must have the **same number of public inputs** as they will be used homogenously by the rollup circuit. Hence, some of the inputs to a claim circuit are unused and so set to 0.
+Recall that all inner circuits must have the **same number of public inputs** as they will be used homogeneously by the rollup circuit. Hence, some of the inputs to a claim circuit are unused and so set to 0.
 
 ##### Public Inputs
 

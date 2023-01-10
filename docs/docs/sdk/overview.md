@@ -19,7 +19,7 @@ The Aztec SDK has many capabilities, many of which are associated with the follo
 - Register new accounts
 - Handle signing keys to spend notes or withdraw assets to Ethereum
 - Query Aztec transaction fees and specify settlement time
-- Lookup user aliases associated with spending account to make transfering assets easier
+- Lookup user aliases associated with spending account to make transferring assets easier
 - Migrate accounts to a new public key
 - Recover accounts for which a spending key was lost
 - Initiate interactions with smart contracts on Ethereum (i.e. defi deposits, token swaps, or unique interactions with custom [bridge contracts](https://github.com/AztecProtocol/aztec-connect-bridges))

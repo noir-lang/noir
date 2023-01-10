@@ -24,7 +24,7 @@ The accounts registered by users on Aztec are represented by account notes. An a
 
 Used when a user loses access to all of their registered [Spending keys](#spending-key). Note that a user must have the [viewing key](#viewing-key) in order to recover an account.
 
-Read more about acccount recovery in the SDK docs [here](./sdk/usage/account-recovery.md).
+Read more about account recovery in the SDK docs [here](./sdk/usage/account-recovery.md).
 
 ### Account Registration
 
