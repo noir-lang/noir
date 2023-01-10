@@ -73,13 +73,20 @@ Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8df
 Set these local environment variables before running the deployment script.
 
 ```bash
-export network=None
+export NETWORK=None
 export simulateAdmin=false # to broadcast your deployment to the devnet
-export ROLLUP_PROCESSOR_ADDRESS=0xEdFBd831548D95Ac0dED8Bb797b54596271992d3
 export LISTER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
 
-Run the deployment script.
+Check the `rollupProcessorContract` address on your local Aztec sequencer at [http://localhost:8081](http://localhost:8081) and export it as an environment variable as well.
+
+For example:
+
+```bash
+export ROLLUP_PROCESSOR_ADDRESS=0xDA437738D931677e83a480C9c397d2d0A473c209
+```
+
+Then run the deployment script.
 
 ```bash
 forge script --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --legacy AddressRegistryDeployment --sig "deployAndList()" --broadcast
