@@ -484,8 +484,7 @@ pub fn merge_path(
 
         while next != end {
             if block.dominated.len() > 1 || block.right.is_some() {
-                dbg!(&block);
-                unreachable!("non sequential block sequence");
+                unreachable!("non sequential block sequence: {:?}", block);
             }
             block = &ctx[next];
             removed_blocks.push_back(next);

@@ -17,6 +17,7 @@ noirc_driver = { path = "../noirc_driver", features = ["wasm"] }
 console_error_panic_hook = "*"
 
 wasm-bindgen = { version = "*", features = ["serde-serialize"] }
+gloo-utils = { version = "0.1", features = ["serde"] }
 
 getrandom = { version = "0.2.4", features = ["js"] }
 js-sys = "0.3.55"
