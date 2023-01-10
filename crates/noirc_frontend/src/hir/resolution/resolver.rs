@@ -328,8 +328,8 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::Variable(path) => {
                 if path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
-                    if let Some((_name, (var, _))) = self.generics.get_key_value(name) {
-                        return TypeExpression::TypeVariable(var.clone());
+                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                        return TypeExpression::NamedGeneric(var.clone(), name.clone());
                     }
                 }
 

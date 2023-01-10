@@ -12,10 +12,10 @@ fn main() {
     constrain itAlsoWorks.data[1] == 2;
 }
 
-fn id<N>(x: [Field; N]) -> [Field; N] {
+fn id<I>(x: [Field; I]) -> [Field; I] {
     x
 }
 
-struct MyStruct<N> {
-    data: [Field; N]
+struct MyStruct<S> {
+    data: [Field; S]
 }

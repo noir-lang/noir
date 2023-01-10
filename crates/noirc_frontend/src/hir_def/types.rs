@@ -231,8 +231,11 @@ pub enum TypeExpression {
     /// using the value they are initialized to directly and eliminating the need to reference
     /// an external variable.
     Constant(u64),
-    TypeVariable(TypeVariable),
     BinaryOperation(Rc<TypeExpression>, BinaryTypeOperator, Rc<TypeExpression>),
+
+    // These two variants are equivalent to the ones in the Type enum
+    TypeVariable(TypeVariable),
+    NamedGeneric(TypeVariable, Rc<String>),
 }
 
 /// A restricted subset of binary operators useable on
@@ -252,6 +255,12 @@ pub type TypeVariable = Shared<TypeBinding>;
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
+}
+
+impl TypeBinding {
+    pub fn is_unbound(&self) -> bool {
+        matches!(self, TypeBinding::Unbound(_))
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -526,8 +535,13 @@ impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeExpression::Constant(value) => write!(f, "{value}"),
-            TypeExpression::TypeVariable(var) => var.borrow().fmt(f),
             TypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
+            TypeExpression::TypeVariable(var) => var.borrow().fmt(f),
+            TypeExpression::NamedGeneric(binding, name) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
+                TypeBinding::Unbound(_) => write!(f, "{}", name),
+            },
         }
     }
 }
@@ -835,12 +849,10 @@ impl Type {
             (Bool(comptime_a), Bool(comptime_b)) => comptime_a.unify(comptime_b, span),
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                let is_unbound = |binding: &Shared<TypeBinding>| {
-                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
-                };
-
                 // Ensure NamedGenerics are never bound during type checking
-                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                assert!(binding_a.borrow().is_unbound());
+                assert!(binding_b.borrow().is_unbound());
+
                 if name_a == name_b {
                     Ok(())
                 } else {
@@ -957,12 +969,10 @@ impl Type {
             (Bool(comptime_a), Bool(comptime_b)) => comptime_a.is_subtype_of(comptime_b, span),
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                let is_unbound = |binding: &Shared<TypeBinding>| {
-                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
-                };
-
                 // Ensure NamedGenerics are never bound during type checking
-                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                assert!(binding_a.borrow().is_unbound());
+                assert!(binding_b.borrow().is_unbound());
+
                 if name_a == name_b {
                     Ok(())
                 } else {
@@ -1230,10 +1240,12 @@ impl TypeExpression {
     fn evaluate_to_u64(&self) -> Option<u64> {
         match self {
             TypeExpression::Constant(value) => Some(*value),
-            TypeExpression::TypeVariable(variable) => match &*variable.borrow() {
-                TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
-                TypeBinding::Unbound(_) => None,
-            },
+            TypeExpression::TypeVariable(variable) | TypeExpression::NamedGeneric(variable, _) => {
+                match &*variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                    TypeBinding::Unbound(_) => None,
+                }
+            }
             TypeExpression::BinaryOperation(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u64()?;
                 let rhs = rhs.evaluate_to_u64()?;
@@ -1248,7 +1260,9 @@ impl TypeExpression {
     ) -> TypeExpression {
         match self {
             TypeExpression::Constant(x) => TypeExpression::Constant(*x),
-            TypeExpression::TypeVariable(var) => match &*var.borrow() {
+            TypeExpression::TypeVariable(var) | TypeExpression::NamedGeneric(var, _) => match &*var
+                .borrow()
+            {
                 TypeBinding::Bound(binding) => Self::from_type(binding.substitute(type_bindings)),
                 TypeBinding::Unbound(id) => match type_bindings.get(id) {
                     Some((_, binding)) => Self::from_type(binding.clone()),
@@ -1265,9 +1279,8 @@ impl TypeExpression {
 
     fn from_type(typ: Type) -> TypeExpression {
         match typ {
-            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-                TypeExpression::TypeVariable(var)
-            }
+            Type::TypeVariable(var) => TypeExpression::TypeVariable(var),
+            Type::NamedGeneric(var, name) => TypeExpression::NamedGeneric(var, name),
             Type::Expression(expr) => expr,
             other => panic!(
                 "Cannot convert type {} into an array length expression - it is not an integer",
@@ -1279,10 +1292,12 @@ impl TypeExpression {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             TypeExpression::Constant(_) => false,
-            TypeExpression::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.occurs(target_id),
-                TypeBinding::Unbound(id) => *id == target_id,
-            },
+            TypeExpression::TypeVariable(binding) | TypeExpression::NamedGeneric(binding, _) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+                    TypeBinding::Unbound(id) => *id == target_id,
+                }
+            }
             TypeExpression::BinaryOperation(lhs, _, rhs) => {
                 lhs.occurs(target_id) || rhs.occurs(target_id)
             }
@@ -1292,10 +1307,12 @@ impl TypeExpression {
     fn follow_bindings(&self) -> TypeExpression {
         match self {
             TypeExpression::Constant(x) => TypeExpression::Constant(*x),
-            TypeExpression::TypeVariable(var) => match &*var.borrow() {
-                TypeBinding::Bound(binding) => Self::from_type(binding.follow_bindings()),
-                TypeBinding::Unbound(_) => self.clone(),
-            },
+            TypeExpression::TypeVariable(var) | TypeExpression::NamedGeneric(var, _) => {
+                match &*var.borrow() {
+                    TypeBinding::Bound(binding) => Self::from_type(binding.follow_bindings()),
+                    TypeBinding::Unbound(_) => self.clone(),
+                }
+            }
             TypeExpression::BinaryOperation(lhs, op, rhs) => {
                 let lhs = lhs.follow_bindings();
                 let rhs = rhs.follow_bindings();
@@ -1312,6 +1329,20 @@ impl TypeExpression {
                     return link.try_unify(&Type::Expression(other.clone()), span);
                 }
                 Type::Expression(other.clone()).try_bind_to(var)
+            }
+
+            (
+                TypeExpression::NamedGeneric(self_var, self_name),
+                TypeExpression::NamedGeneric(other_var, other_name),
+            ) => {
+                assert!(self_var.borrow().is_unbound());
+                assert!(other_var.borrow().is_unbound());
+
+                if self_name == other_name {
+                    Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
             }
 
             (TypeExpression::Constant(x), TypeExpression::Constant(y)) => {
@@ -1352,6 +1383,10 @@ impl TypeExpression {
                 // simplify down to the same expression. For now we just fail.
                 Err(SpanKind::None)
             }
+
+            (TypeExpression::NamedGeneric(..), _) | (_, TypeExpression::NamedGeneric(..)) => {
+                Err(SpanKind::None)
+            }
         }
     }
 
@@ -1361,7 +1396,7 @@ impl TypeExpression {
     pub fn simplify(&self) -> TypeExpression {
         use TypeExpression::*;
         match self {
-            Constant(_) | TypeVariable(_) => self.clone(),
+            Constant(_) | TypeVariable(_) | NamedGeneric(..) => self.clone(),
             BinaryOperation(lhs, op, rhs) => {
                 let lhs = lhs.simplify();
                 let rhs = rhs.simplify();
