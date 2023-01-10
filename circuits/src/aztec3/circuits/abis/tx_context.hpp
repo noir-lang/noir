@@ -1,4 +1,5 @@
 #pragma once
+#include "contract_deployment_data.hpp"
 #include "function_signature.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
@@ -19,10 +20,12 @@ template <typename NCT> struct TxContext {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    boolean called_from_l1;
-    boolean called_from_public_l2;
-    boolean is_fee_payment_tx;
-    // FeeData<NCT> fee_data;
+    boolean is_fee_payment_tx = false;
+    boolean is_rebate_payment_tx = false;
+    boolean is_contract_deployment_tx = false;
+
+    ContractDeploymentData<NCT> contract_deployment_data;
+
     fr reference_block_num;
 
     template <typename Composer> TxContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -34,9 +37,8 @@ template <typename NCT> struct TxContext {
         // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         TxContext<CircuitTypes<Composer>> tx_context = {
-            to_ct(called_from_l1),
-            to_ct(called_from_public_l2),
-            to_ct(is_fee_payment_tx),
+            to_ct(is_fee_payment_tx),         to_ct(is_rebate_payment_tx),
+            to_ct(is_contract_deployment_tx), contract_deployment_data.to_circuit_type(composer),
             to_ct(reference_block_num),
         };
 
@@ -47,9 +49,10 @@ template <typename NCT> struct TxContext {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        fr(called_from_l1).set_public();
-        fr(called_from_public_l2).set_public();
         fr(is_fee_payment_tx).set_public();
+        fr(is_rebate_payment_tx).set_public();
+        fr(is_contract_deployment_tx).set_public();
+        contract_deployment_data.set_public();
         reference_block_num.set_public();
     }
 };
@@ -58,9 +61,10 @@ template <typename NCT> void read(uint8_t const*& it, TxContext<NCT>& tx_context
 {
     using serialize::read;
 
-    read(it, tx_context.called_from_l1);
-    read(it, tx_context.called_from_public_l2);
     read(it, tx_context.is_fee_payment_tx);
+    read(it, tx_context.is_rebate_payment_tx);
+    read(it, tx_context.is_contract_deployment_tx);
+    read(it, tx_context.contract_deployment_data);
     read(it, tx_context.reference_block_num);
 };
 
@@ -68,17 +72,19 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, TxContext<NCT> con
 {
     using serialize::write;
 
-    write(buf, tx_context.called_from_l1);
-    write(buf, tx_context.called_from_public_l2);
     write(buf, tx_context.is_fee_payment_tx);
+    write(buf, tx_context.is_rebate_payment_tx);
+    write(buf, tx_context.is_contract_deployment_tx);
+    write(buf, tx_context.contract_deployment_data);
     write(buf, tx_context.reference_block_num);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, TxContext<NCT> const& tx_context)
 {
-    return os << "called_from_l1: " << tx_context.called_from_l1 << "\n"
-              << "called_from_public_l2: " << tx_context.called_from_public_l2 << "\n"
-              << "is_fee_payment_tx: " << tx_context.is_fee_payment_tx << "\n"
+    return os << "is_fee_payment_tx: " << tx_context.is_fee_payment_tx << "\n"
+              << "is_rebate_payment_tx: " << tx_context.is_rebate_payment_tx << "\n"
+              << "is_contract_deployment_tx: " << tx_context.is_contract_deployment_tx << "\n"
+              << "contract_deployment_data: " << tx_context.contract_deployment_data << "\n"
               << "reference_block_num: " << tx_context.reference_block_num << "\n";
 }
 

@@ -7,13 +7,14 @@
 
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
-#include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/tx_context.hpp>
-#include <aztec3/circuits/abis/signed_tx_object.hpp>
-#include <aztec3/circuits/abis/tx_object.hpp>
+#include <aztec3/circuits/abis/call_stack_item.hpp>
+#include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/signed_tx_object.hpp>
+#include <aztec3/circuits/abis/tx_context.hpp>
+#include <aztec3/circuits/abis/tx_object.hpp>
+#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/accumulated_data.hpp>
@@ -39,6 +40,7 @@ namespace {
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CallType;
+using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionSignature;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
@@ -121,9 +123,10 @@ TEST(private_kernel_tests, test_deposit)
         .nonce = 0,
         .tx_context =
             TxContext<NT>{
-                .called_from_l1 = false,
-                .called_from_public_l2 = false,
                 .is_fee_payment_tx = false,
+                .is_rebate_payment_tx = false,
+                .is_contract_deployment_tx = false,
+                .contract_deployment_data = ContractDeploymentData<NT>{},
                 .reference_block_num = 0,
             },
         .chain_id = 1,

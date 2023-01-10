@@ -191,15 +191,14 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
 
     {
-        const auto& partial_l1_call_stack = private_call_public_inputs.partial_l1_call_stack;
-        std::array<CT::fr, PARTIAL_L1_CALL_STACK_LENGTH> l1_call_stack;
+        const auto& l1_msg_stack = private_call_public_inputs.l1_msg_stack;
+        std::array<CT::fr, L1_MSG_STACK_LENGTH> l1_call_stack;
 
-        for (size_t i = 0; i < partial_l1_call_stack.size(); ++i) {
-            l1_call_stack[i] =
-                CT::fr::conditional_assign(partial_l1_call_stack[i] == 0,
-                                           0,
-                                           CT::compress({ portal_contract_address, partial_l1_call_stack[i] },
-                                                        GeneratorIndex::L1_CALL_STACK_ITEM));
+        for (size_t i = 0; i < l1_msg_stack.size(); ++i) {
+            l1_call_stack[i] = CT::fr::conditional_assign(
+                l1_msg_stack[i] == 0,
+                0,
+                CT::compress({ portal_contract_address, l1_msg_stack[i] }, GeneratorIndex::L1_CALL_STACK_ITEM));
         }
     }
 }

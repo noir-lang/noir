@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call_context.hpp"
+#include "contract_deployment_data.hpp"
 #include "../../constants.hpp"
 
 #include <common/map.hpp>
@@ -34,12 +35,13 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
-    std::array<fr, PARTIAL_L1_CALL_STACK_LENGTH> partial_l1_call_stack;
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
 
     fr old_private_data_tree_root;
     fr old_nullifier_tree_root;
     fr old_contract_tree_root;
+
+    ContractDeploymentData<NCT> contract_deployment_data;
 
     template <typename Composer>
     PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -63,12 +65,13 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
-            to_ct(contract_deployment_call_stack),
-            to_ct(partial_l1_call_stack),
+            to_ct(l1_msg_stack),
 
             to_ct(old_private_data_tree_root),
             to_ct(old_nullifier_tree_root),
             to_ct(old_contract_tree_root),
+
+            to_circuit_type(contract_deployment_data),
         };
 
         return pis;
@@ -92,12 +95,13 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         spread_arr_into_vec(private_call_stack, inputs);
         spread_arr_into_vec(public_call_stack, inputs);
-        spread_arr_into_vec(contract_deployment_call_stack, inputs);
-        spread_arr_into_vec(partial_l1_call_stack, inputs);
+        spread_arr_into_vec(l1_msg_stack, inputs);
 
         inputs.push_back(old_private_data_tree_root);
         inputs.push_back(old_nullifier_tree_root);
         inputs.push_back(old_contract_tree_root);
+
+        inputs.push_back(contract_deployment_data.hash());
 
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
@@ -132,34 +136,35 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<opt_fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
-    std::array<opt_fr, PARTIAL_L1_CALL_STACK_LENGTH> partial_l1_call_stack;
+    std::array<opt_fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
 
     opt_fr old_private_data_tree_root;
     opt_fr old_nullifier_tree_root;
     opt_fr old_contract_tree_root;
 
+    std::optional<ContractDeploymentData<NCT>> contract_deployment_data;
+
     OptionalPrivateCircuitPublicInputs<NCT>(){};
 
-    OptionalPrivateCircuitPublicInputs<NCT>(
-        std::optional<CallContext<NCT>> const& call_context,
+    OptionalPrivateCircuitPublicInputs<NCT>(std::optional<CallContext<NCT>> const& call_context,
 
-        std::array<opt_fr, ARGS_LENGTH> const& args,
-        std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
+                                            std::array<opt_fr, ARGS_LENGTH> const& args,
+                                            std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
 
-        std::array<opt_fr, EMITTED_EVENTS_LENGTH> const& emitted_events,
+                                            std::array<opt_fr, EMITTED_EVENTS_LENGTH> const& emitted_events,
 
-        std::array<opt_fr, OUTPUT_COMMITMENTS_LENGTH> const& output_commitments,
-        std::array<opt_fr, INPUT_NULLIFIERS_LENGTH> const& input_nullifiers,
+                                            std::array<opt_fr, OUTPUT_COMMITMENTS_LENGTH> const& output_commitments,
+                                            std::array<opt_fr, INPUT_NULLIFIERS_LENGTH> const& input_nullifiers,
 
-        std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> const& private_call_stack,
-        std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
-        std::array<opt_fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> const& contract_deployment_call_stack,
-        std::array<opt_fr, PARTIAL_L1_CALL_STACK_LENGTH> const& partial_l1_call_stack,
+                                            std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> const& private_call_stack,
+                                            std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
+                                            std::array<opt_fr, L1_MSG_STACK_LENGTH> const& l1_msg_stack,
 
-        opt_fr const& old_private_data_tree_root,
-        opt_fr const& old_nullifier_tree_root,
-        opt_fr const& old_contract_tree_root)
+                                            opt_fr const& old_private_data_tree_root,
+                                            opt_fr const& old_nullifier_tree_root,
+                                            opt_fr const& old_contract_tree_root,
+
+                                            std::optional<ContractDeploymentData<NCT>> const& contract_deployment_data)
         : call_context(call_context)
         , args(args)
         , return_values(return_values)
@@ -168,11 +173,11 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         , input_nullifiers(input_nullifiers)
         , private_call_stack(private_call_stack)
         , public_call_stack(public_call_stack)
-        , contract_deployment_call_stack(contract_deployment_call_stack)
-        , partial_l1_call_stack(partial_l1_call_stack)
+        , l1_msg_stack(l1_msg_stack)
         , old_private_data_tree_root(old_private_data_tree_root)
         , old_nullifier_tree_root(old_nullifier_tree_root)
-        , old_contract_tree_root(old_contract_tree_root){};
+        , old_contract_tree_root(old_contract_tree_root)
+        , contract_deployment_data(contract_deployment_data){};
 
     bool operator==(OptionalPrivateCircuitPublicInputs<NCT> const&) const = default;
 
@@ -193,12 +198,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         new_inputs.private_call_stack.fill(std::nullopt);
         new_inputs.public_call_stack.fill(std::nullopt);
-        new_inputs.contract_deployment_call_stack.fill(std::nullopt);
-        new_inputs.partial_l1_call_stack.fill(std::nullopt);
+        new_inputs.l1_msg_stack.fill(std::nullopt);
 
         new_inputs.old_private_data_tree_root = std::nullopt;
         new_inputs.old_nullifier_tree_root = std::nullopt;
         new_inputs.old_contract_tree_root = std::nullopt;
+
+        new_inputs.contract_deployment_data = std::nullopt;
 
         return new_inputs;
     };
@@ -239,12 +245,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         make_unused_array_elements_zero(composer, private_call_stack);
         make_unused_array_elements_zero(composer, public_call_stack);
-        make_unused_array_elements_zero(composer, contract_deployment_call_stack);
-        make_unused_array_elements_zero(composer, partial_l1_call_stack);
+        make_unused_array_elements_zero(composer, l1_msg_stack);
 
         make_unused_element_zero(composer, old_private_data_tree_root);
         make_unused_element_zero(composer, old_nullifier_tree_root);
         make_unused_element_zero(composer, old_contract_tree_root);
+
+        make_unused_element_zero(composer, contract_deployment_data);
 
         all_elements_populated = true;
     }
@@ -269,12 +276,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         set_array_public(private_call_stack);
         set_array_public(public_call_stack);
-        set_array_public(contract_deployment_call_stack);
-        set_array_public(partial_l1_call_stack);
+        set_array_public(l1_msg_stack);
 
         (*old_private_data_tree_root).set_public();
         (*old_nullifier_tree_root).set_public();
         (*old_contract_tree_root).set_public();
+
+        (*contract_deployment_data).set_public();
     }
 
     template <typename Composer>
@@ -301,12 +309,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
-            to_ct(contract_deployment_call_stack),
-            to_ct(partial_l1_call_stack),
+            to_ct(l1_msg_stack),
 
             to_ct(old_private_data_tree_root),
             to_ct(old_nullifier_tree_root),
             to_ct(old_contract_tree_root),
+
+            to_circuit_type(contract_deployment_data),
         };
 
         return pis;
@@ -334,12 +343,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             to_nt(private_call_stack),
             to_nt(public_call_stack),
-            to_nt(contract_deployment_call_stack),
-            to_nt(partial_l1_call_stack),
+            to_nt(l1_msg_stack),
 
             to_nt(old_private_data_tree_root),
             to_nt(old_nullifier_tree_root),
             to_nt(old_contract_tree_root),
+
+            to_native_type(contract_deployment_data),
         };
 
         return pis;
@@ -368,12 +378,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         spread_arr_opt_into_vec(private_call_stack, inputs);
         spread_arr_opt_into_vec(public_call_stack, inputs);
-        spread_arr_opt_into_vec(contract_deployment_call_stack, inputs);
-        spread_arr_opt_into_vec(partial_l1_call_stack, inputs);
+        spread_arr_opt_into_vec(l1_msg_stack, inputs);
 
         inputs.push_back(*old_private_data_tree_root);
         inputs.push_back(*old_nullifier_tree_root);
         inputs.push_back(*old_contract_tree_root);
+
+        inputs.push_back((*contract_deployment_data).hash());
 
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
@@ -396,12 +407,13 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             .private_call_stack = map(private_call_stack, get_value),
             .public_call_stack = map(public_call_stack, get_value),
-            .contract_deployment_call_stack = map(contract_deployment_call_stack, get_value),
-            .partial_l1_call_stack = map(partial_l1_call_stack, get_value),
+            .l1_msg_stack = map(l1_msg_stack, get_value),
 
             .old_private_data_tree_root = old_private_data_tree_root.value(),
             .old_nullifier_tree_root = old_nullifier_tree_root.value(),
             .old_contract_tree_root = old_contract_tree_root.value(),
+
+            .contract_deployment_data = contract_deployment_data.value(),
         };
     }
 
@@ -487,11 +499,12 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
     read(it, pis.input_nullifiers);
     read(it, pis.private_call_stack);
     read(it, pis.public_call_stack);
-    read(it, pis.contract_deployment_call_stack);
-    read(it, pis.partial_l1_call_stack);
+    read(it, pis.l1_msg_stack);
     read(it, pis.old_private_data_tree_root);
     read(it, pis.old_nullifier_tree_root);
     read(it, pis.old_contract_tree_root);
+
+    read(it, pis.contract_deployment_data);
 };
 
 template <typename NCT>
@@ -509,11 +522,12 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     write(buf, pis.input_nullifiers);
     write(buf, pis.private_call_stack);
     write(buf, pis.public_call_stack);
-    write(buf, pis.contract_deployment_call_stack);
-    write(buf, pis.partial_l1_call_stack);
+    write(buf, pis.l1_msg_stack);
     write(buf, pis.old_private_data_tree_root);
     write(buf, pis.old_nullifier_tree_root);
     write(buf, pis.old_contract_tree_root);
+
+    write(buf, pis.contract_deployment_data);
 };
 
 template <typename NCT>
@@ -529,11 +543,11 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
               << "input_nullifiers: " << pis.input_nullifiers << "\n"
               << "private_call_stack: " << pis.private_call_stack << "\n"
               << "public_call_stack: " << pis.public_call_stack << "\n"
-              << "contract_deployment_call_stack: " << pis.contract_deployment_call_stack << "\n"
-              << "partial_l1_call_stack: " << pis.partial_l1_call_stack << "\n"
+              << "l1_msg_stack: " << pis.l1_msg_stack << "\n"
               << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n"
               << "old_nullifier_tree_root: " << pis.old_nullifier_tree_root << "\n"
-              << "old_contract_tree_root: " << pis.old_contract_tree_root << "\n";
+              << "old_nullifier_tree_root: " << pis.old_nullifier_tree_root << "\n"
+              << "contract_deployment_data: " << pis.contract_deployment_data << "\n";
 }
 
 } // namespace aztec3::circuits::abis

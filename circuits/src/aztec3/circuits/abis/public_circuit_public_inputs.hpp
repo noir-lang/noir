@@ -32,8 +32,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads;
 
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
-    std::array<fr, PARTIAL_L1_CALL_STACK_LENGTH> partial_l1_call_stack;
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
 
     fr old_private_data_tree_root;
 
@@ -55,7 +54,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     //         std::array<fr, PUBLIC_CALL_STACK_LENGTH>::fill(0),
 
     //         std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH>::fill(0),
-    //         std::array<fr, PARTIAL_L1_CALL_STACK_LENGTH>::fill(0),
+    //         std::array<fr, L1_MSG_STACK_LENGTH>::fill(0),
 
     //         .old_private_data_tree_root = 0,
 
@@ -86,8 +85,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
             .state_reads = map(state_reads, to_circuit_type),
 
             .public_call_stack = to_ct(public_call_stack),
-            .contract_deployment_call_stack = to_ct(contract_deployment_call_stack),
-            .partial_l1_call_stack = to_ct(partial_l1_call_stack),
+            .l1_msg_stack = to_ct(l1_msg_stack),
 
             .old_private_data_tree_root = to_ct(old_private_data_tree_root),
 
@@ -116,8 +114,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         spread_arr_into_vec(map(state_reads, to_hashes), inputs);
 
         spread_arr_into_vec(public_call_stack, inputs);
-        spread_arr_into_vec(contract_deployment_call_stack, inputs);
-        spread_arr_into_vec(partial_l1_call_stack, inputs);
+        spread_arr_into_vec(l1_msg_stack, inputs);
 
         inputs.push_back(old_private_data_tree_root);
 
@@ -145,8 +142,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
     read(it, pis.state_reads);
 
     read(it, pis.public_call_stack);
-    read(it, pis.contract_deployment_call_stack);
-    read(it, pis.partial_l1_call_stack);
+    read(it, pis.l1_msg_stack);
 
     read(it, pis.old_private_data_tree_root);
 
@@ -169,8 +165,7 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& priv
     write(buf, pis.state_reads);
 
     write(buf, pis.public_call_stack);
-    write(buf, pis.contract_deployment_call_stack);
-    write(buf, pis.partial_l1_call_stack);
+    write(buf, pis.l1_msg_stack);
 
     write(buf, pis.old_private_data_tree_root);
 
@@ -190,8 +185,7 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
               << "state_reads: " << pis.state_reads << "\n"
 
               << "public_call_stack: " << pis.public_call_stack << "\n"
-              << "contract_deployment_call_stack: " << pis.contract_deployment_call_stack << "\n"
-              << "partial_l1_call_stack: " << pis.partial_l1_call_stack << "\n"
+              << "l1_msg_stack: " << pis.l1_msg_stack << "\n"
 
               << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n"
 

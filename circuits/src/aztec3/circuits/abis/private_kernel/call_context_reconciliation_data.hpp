@@ -30,8 +30,8 @@ template <typename NCT> struct CallContextReconciliationData {
 
     // std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
 
-    std::array<CallContext<NCT>, PARTIAL_L1_CALL_STACK_LENGTH> l1_call_contexts;
-    std::array<fr, PARTIAL_L1_CALL_STACK_LENGTH> l1_counterparts; // TODO: this is probably wrong.
+    std::array<CallContext<NCT>, L1_MSG_STACK_LENGTH> l1_call_contexts;
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_counterparts; // TODO: this is probably wrong.
 
     template <typename Composer>
     CallContextReconciliationData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

@@ -16,7 +16,7 @@ constexpr size_t STATE_READS_LENGTH = 4;
 constexpr size_t PRIVATE_CALL_STACK_LENGTH = 4;
 constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
 constexpr size_t CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH = 2;
-constexpr size_t PARTIAL_L1_CALL_STACK_LENGTH = 2;
+constexpr size_t L1_MSG_STACK_LENGTH = 2;
 
 constexpr size_t KERNEL_OUTPUT_COMMITMENTS_LENGTH = 16;
 constexpr size_t KERNEL_INPUT_NULLIFIERS_LENGTH = 16;

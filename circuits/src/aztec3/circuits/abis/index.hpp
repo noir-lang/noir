@@ -1,6 +1,5 @@
 #include "call_context.hpp"
 #include "call_stack_item.hpp"
-#include "contract_deployment_call_public_inputs.hpp"
 #include "function_signature.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "private_circuit_public_inputs.hpp"
