@@ -6,7 +6,7 @@ This page is taken from the [Aztec Connect Bridges repository](https://github.co
 
 ### What is Aztec?
 
-Aztec is a privacy focussed L2, that enables cheap private interactions with Layer 1 smart contracts and liquidity, via a process called DeFi Aggregation. We use advanced zero-knowledge technology "zk-zk rollups" to add privacy and significant gas savings any Layer 1 protocol via Aztec Connect bridges.
+Aztec is a privacy focused L2, that enables cheap private interactions with Layer 1 smart contracts and liquidity, via a process called DeFi Aggregation. We use advanced zero-knowledge technology "zk-zk rollups" to add privacy and significant gas savings any Layer 1 protocol via Aztec Connect bridges.
 
 #### What is a bridge?
 
@@ -32,13 +32,13 @@ The source of funds for any Aztec Connect transaction is an Aztec shielded asset
 
 #### Batching
 
-Rollup providers are incentivised to batch any transaction with the same `bridgeId`. This reduces the cost of the L1 transaction for similar trades. A `bridgeId` consits of:
+Rollup providers are incentivised to batch any transaction with the same `bridgeId`. This reduces the cost of the L1 transaction for similar trades. A `bridgeId` consists of:
 
 ## Virtual Assets
 
 Aztec uses the concept of Virtual Assets or Position tokens to represent a share of assets held by a Bridge contract. This is far more gas efficient than minting ERC20 tokens. These are used when the bridge holds an asset that Aztec doesn't support (e.g. Uniswap Position NFT's or other non-fungible assets).
 
-If the output asset of any interaction is specified as "VIRTUAL", the user will receive encrypted notes on Aztec representing their share of the position, but no tokens or ETH need to be transfered. The position tokens have an `assetId` that is the `interactionNonce` of the DeFi Bridge call. This is globably unique. Virtual assets can be used to construct complex flows, such as entering or exiting LP positions (e.g. one bridge contract can have multiple flows which are triggered using different input assets).
+If the output asset of any interaction is specified as "VIRTUAL", the user will receive encrypted notes on Aztec representing their share of the position, but no tokens or ETH need to be transferred. The position tokens have an `assetId` that is the `interactionNonce` of the DeFi Bridge call. This is globally unique. Virtual assets can be used to construct complex flows, such as entering or exiting LP positions (e.g. one bridge contract can have multiple flows which are triggered using different input assets).
 
 ## Aux Input Data
 
@@ -125,7 +125,7 @@ interface IDefiBridge {
 
   /*
   @dev This function is called from the RollupProcessor.sol contract via the DefiBridgeProxy.
-    It receives the aggreagte sum of all users funds for the input assets.
+    It receives the aggregate sum of all users funds for the input assets.
   @param AztecAsset inputAssetA a struct detailing the first input asset, 
     this will always be set
   @param AztecAsset inputAssetB an optional struct detailing the second input asset, 
@@ -156,7 +156,7 @@ interface IDefiBridge {
 
 If a Defi Bridge interaction is asynchronous, it must be finalised at a later date once the DeFi interaction has completed.
 
-This is acheived by calling `RollupProcessor.processAsyncDefiInteraction(uint256 interactionNonce)`. This internally will call `finalise` and ensure the correct amount of tokens have been transferred.
+This is achieved by calling `RollupProcessor.processAsyncDefiInteraction(uint256 interactionNonce)`. This internally will call `finalise` and ensure the correct amount of tokens have been transferred.
 
 #### convert()
 

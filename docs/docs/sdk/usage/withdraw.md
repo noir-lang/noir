@@ -24,7 +24,7 @@ AztecSdk.createWithdrawController(
 
 | Arguments | Type | Description |
 | --------- | ---- | ----------- |
-| userId | [GrumpkinAddress](../types/barretenberg/GrumpkinAddress) | The Aztec account to make the withrawal from. |
+| userId | [GrumpkinAddress](../types/barretenberg/GrumpkinAddress) | The Aztec account to make the withdrawal from. |
 | userSigner | [Signer](../types/sdk/Signer) | A signer for the provided `userId`. |
 | value | [AssetValue](../types/barretenberg/AssetValue) | The asset type and amount to withdraw. |
 | fee | [AssetValue](../types/barretenberg/AssetValue) | The asset type and amount to pay for the Aztec transaction fee. |
@@ -40,7 +40,7 @@ AztecSdk.createWithdrawController(
 
 Fees for withdrawals are calculated using a similar method as for [registrations](register#calculating-fees), deposits and [transfers](transfer#transfer-fees), but using the `getWithdrawalFees` method.
 
-`getWithdrawalFees` has a second optional argument `reciepient?: EthAddress`. This is used to check if the recipient address is a contract wallet, for which the fees are higher.
+`getWithdrawalFees` has a second optional argument `recipient?: EthAddress`. This is used to check if the recipient address is a contract wallet, for which the fees are higher.
 
 The settlement time is inferred from the fee a user pays, it is not explicitly sent to the controller.
 

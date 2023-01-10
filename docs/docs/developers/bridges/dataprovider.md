@@ -33,7 +33,7 @@ forge script DataProviderDeployment --rpc-url $ETH_RPC_URL --sig "read()"
 
 Updating values stored in the data provider is only possible by the owner of the contract.
 
-Before running the commands bellow export relevant environment variables:
+Before running the commands below export relevant environment variables:
 
 ```bash
 export RPC="https://mainnet.infura.io/v3/737bcb5393b146d7870be2f68a7cea9c" && PRIV_KEY="PROVIDER_OWNER_PRIVATE_KEY"

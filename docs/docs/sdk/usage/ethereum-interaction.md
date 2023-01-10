@@ -43,7 +43,7 @@ You can get the bridge `addressId`s from the published [Deployed Bridge Info tab
 You can also query the bridge ids on the rollup processor contracts directly. [Here is the link](https://etherscan.io/address/0xff1f2b4adb9df6fc8eafecdcbf96a2b351680455#readProxyContract
 ) to read the contract Etherscan. You can get the bridge contract addresses from the `getSupportedBridge` or `getSupportedBridges` functions. The bridge `addressId` corresponds to it's index in the supported bridges array returned by `getSupportedBridges`.
 
-Once you have the bridge `addressId`, you can initialize a new bridge instance. The `BridgeCallData` contstructor looks like this:
+Once you have the bridge `addressId`, you can initialize a new bridge instance. The `BridgeCallData` constructor looks like this:
 
 ```ts
 const bridge = new BridgeCallData(
