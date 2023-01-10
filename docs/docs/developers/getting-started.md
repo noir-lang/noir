@@ -27,7 +27,7 @@ We are working on making this process more transparent. Feel free to [get in tou
 Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com).
 :::
 
-You can run a local development environment by following the instructions on [this page](./local-devnet.md).
+You can run a local development environment by following the instructions on [this page](./local-devnet).
 
 ## Building with the SDK
 
