@@ -142,7 +142,7 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
         sigma_polynomials_lagrange.push_back(barretenberg::polynomial(key->n));
         barretenberg::polynomial& sigma_polynomial_lagrange = sigma_polynomials_lagrange[i];
         for (uint64_t j = 0; j < key->n; j++) {
-            sigma_polynomial_lagrange.coefficients[j] = (i * n + j);
+            sigma_polynomial_lagrange[j] = (i * n + j);
         }
     }
     // Go through each cycle

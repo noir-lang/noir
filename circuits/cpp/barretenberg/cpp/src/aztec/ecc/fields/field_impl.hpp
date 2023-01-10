@@ -2,6 +2,7 @@
 #include <common/throw_or_abort.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <numeric/random/engine.hpp>
+#include <span>
 #include <type_traits>
 #include <vector>
 #include "field_impl_generic.hpp"
@@ -354,6 +355,13 @@ template <class T> constexpr field<T> field<T>::invert() const noexcept
 
 template <class T> void field<T>::batch_invert(field* coeffs, const size_t n) noexcept
 {
+    batch_invert(std::span{ coeffs, n });
+}
+
+template <class T> void field<T>::batch_invert(std::span<field> coeffs) noexcept
+{
+    const size_t n = coeffs.size();
+
     std::vector<field> temporaries;
     std::vector<bool> skipped;
     temporaries.reserve(n);
@@ -362,7 +370,7 @@ template <class T> void field<T>::batch_invert(field* coeffs, const size_t n) no
     field accumulator = one();
     for (size_t i = 0; i < n; ++i) {
         temporaries.emplace_back(accumulator);
-        if (coeffs[i] == field(0)) {
+        if (coeffs[i].is_zero()) {
             skipped.emplace_back(true);
         } else {
             skipped.emplace_back(false);

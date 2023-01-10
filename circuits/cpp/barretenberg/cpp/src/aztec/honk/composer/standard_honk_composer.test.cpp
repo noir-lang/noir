@@ -68,7 +68,7 @@ TEST(standard_honk_composer, test_sigma_correctness)
         auto polynomial = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
         for (size_t j = 0; j < proving_key->n; j++) {
             left *= i * (proving_key->n) + j;
-            right *= polynomial.coefficients[j];
+            right *= polynomial[j];
         }
     }
 
@@ -89,9 +89,9 @@ TEST(standard_honk_composer, test_sigma_correctness)
         // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
         // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
         for (size_t j = 0; j < proving_key->n; j++) {
-            auto current_witness = witness_polynomial.coefficients[j];
+            auto current_witness = witness_polynomial[j];
             left *= current_witness + beta * (i * (proving_key->n) + j) + gamma;
-            right *= current_witness + beta * permutation_polynomial.coefficients[j] + gamma;
+            right *= current_witness + beta * permutation_polynomial[j] + gamma;
         }
     }
     EXPECT_EQ(left, right);
@@ -159,7 +159,7 @@ TEST(standard_honk_composer, test_assert_equal)
                 break;
             }
             auto starting_element = i;
-            auto next_element = (size_t)sigma_polynomials[i / proving_key->n].coefficients[i % proving_key->n];
+            auto next_element = (size_t)sigma_polynomials[i / proving_key->n][i % proving_key->n];
             size_t cycle_length = 1;
             visited_indices[i] = true;
 
@@ -169,8 +169,7 @@ TEST(standard_honk_composer, test_assert_equal)
                 cycle_length++;
                 visited_indices[next_element] = true;
                 // Get next index
-                next_element = (size_t)sigma_polynomials[next_element / proving_key->n]
-                                   .coefficients[next_element % proving_key->n];
+                next_element = (size_t)sigma_polynomials[next_element / proving_key->n][next_element % proving_key->n];
             }
             // If cycle_length is larger than permutation length, then instead of just a cycle we have a runway,too,
             // which is incorrect

@@ -36,6 +36,14 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     constexpr element(element&& other) noexcept;
     constexpr element(const affine_element<Fq, Fr, Params>& other) noexcept;
 
+    static constexpr element one() noexcept { return { Params::one_x, Params::one_y, Fq::one() }; };
+    static constexpr element zero() noexcept
+    {
+        element zero;
+        zero.self_set_infinity();
+        return zero;
+    };
+
     constexpr element& operator=(const element& other) noexcept;
     constexpr element& operator=(element&& other) noexcept;
 

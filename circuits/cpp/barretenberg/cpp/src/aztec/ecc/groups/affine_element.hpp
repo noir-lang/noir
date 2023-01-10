@@ -16,6 +16,8 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr affine_element(affine_element&& other) noexcept;
 
+    static constexpr affine_element one() noexcept { return { Params::one_x, Params::one_y }; };
+
     /**
      * @brief Reconstruct a point in affine coordinates from compressed form.
      * @details #LARGE_MODULUS_AFFINE_POINT_COMPRESSION Point compression is only implemented for curves of a prime

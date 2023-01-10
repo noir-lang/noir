@@ -2,8 +2,8 @@
 #include <array>
 #include <span>
 #include <ostream>
-#include "./common/serialize.hpp"
-#include "common/assert.hpp"
+#include <common/serialize.hpp>
+#include <common/assert.hpp>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"

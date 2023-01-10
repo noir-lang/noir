@@ -9,6 +9,7 @@
 #include <numeric/uint128/uint128.hpp>
 #include <numeric/uint256/uint256.hpp>
 #include <random>
+#include <span>
 
 #ifndef DISABLE_SHENANIGANS
 #ifdef __BMI2__
@@ -193,6 +194,7 @@ template <class Params> struct alignas(32) field {
     static constexpr uint256_t modulus_minus_two =
         uint256_t(Params::modulus_0 - 2ULL, Params::modulus_1, Params::modulus_2, Params::modulus_3);
     constexpr field invert() const noexcept;
+    static void batch_invert(std::span<field> coeffs) noexcept;
     static void batch_invert(field* coeffs, const size_t n) noexcept;
     /**
      * @brief Compute square root of the field element.
