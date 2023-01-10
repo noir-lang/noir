@@ -4,6 +4,8 @@
 #include <memory>
 #include <stdlib.h>
 
+#define pad(size, alignment) (size - (size % alignment) + ((size % alignment) == 0 ? 0 : alignment))
+
 #ifdef __APPLE__
 inline void* aligned_alloc(size_t alignment, size_t size)
 {
