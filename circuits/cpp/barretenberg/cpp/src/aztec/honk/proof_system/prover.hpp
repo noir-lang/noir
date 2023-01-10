@@ -5,12 +5,12 @@
 
 namespace honk {
 
-template <typename settings> class HonkProver {
+template <typename settings> class Prover {
 
   public:
     // TODO(luke): update this appropriately to work with Honk Manifest
-    HonkProver(std::shared_ptr<waffle::proving_key> input_key = nullptr,
-               const transcript::Manifest& manifest = transcript::Manifest({}));
+    Prover(std::shared_ptr<waffle::proving_key> input_key = nullptr,
+           const transcript::Manifest& manifest = transcript::Manifest({}));
 
     void execute_preamble_round();
     void execute_first_round();
@@ -55,7 +55,7 @@ template <typename settings> class HonkProver {
     // TODO(luke): Honk only needs a small portion of the functionality but may be fine to use existing work_queue
     waffle::work_queue queue;
 
-    // This makes 'settings' accesible from HonkProver
+    // This makes 'settings' accesible from Prover
     typedef settings settings_;
 
   private:
@@ -63,8 +63,8 @@ template <typename settings> class HonkProver {
 };
 
 // TODO(luke): need equivalent notion of settings for Honk
-extern template class HonkProver<waffle::standard_settings>;
+extern template class Prover<waffle::standard_settings>;
 
-typedef HonkProver<waffle::standard_settings> Prover;
+typedef Prover<waffle::standard_settings> StandardProver;
 
 } // namespace honk

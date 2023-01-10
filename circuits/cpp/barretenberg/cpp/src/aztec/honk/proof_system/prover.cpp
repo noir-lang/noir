@@ -1,9 +1,9 @@
-#include "honk_prover.hpp"
+#include "prover.hpp"
 
 namespace honk {
 
 /**
- * Create HonkProver from proving key, witness and manifest.
+ * Create Prover from proving key, witness and manifest.
  *
  * @param input_key Proving key.
  * @param input_manifest Input manifest
@@ -11,8 +11,7 @@ namespace honk {
  * @tparam settings Settings class.
  * */
 template <typename settings>
-HonkProver<settings>::HonkProver(std::shared_ptr<waffle::proving_key> input_key,
-                                 const transcript::Manifest& input_manifest)
+Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const transcript::Manifest& input_manifest)
     : n(input_key == nullptr ? 0 : input_key->n)
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
@@ -29,7 +28,7 @@ HonkProver<settings>::HonkProver(std::shared_ptr<waffle::proving_key> input_key,
  * - Add PI to transcript (I guess PI will stay in w_2 for now?)
  *
  * */
-template <typename settings> void HonkProver<settings>::compute_wire_commitments()
+template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
     // TODO(luke): Compute wire commitments
     // for (size_t i = 0; i < settings::program_width; ++i) {
@@ -67,7 +66,7 @@ template <typename settings> void HonkProver<settings>::compute_wire_commitments
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
  */
-template <typename settings> void HonkProver<settings>::compute_grand_product_polynomial()
+template <typename settings> void Prover<settings>::compute_grand_product_polynomial()
 {
     // TODO: Fr to become template param
     using Fr = barretenberg::fr;
@@ -168,7 +167,7 @@ template <typename settings> void HonkProver<settings>::compute_grand_product_po
  * - Add circuit size and PI size to transcript. That's it?
  *
  * */
-template <typename settings> void HonkProver<settings>::execute_preamble_round()
+template <typename settings> void Prover<settings>::execute_preamble_round()
 {
     // Add some initial data to transcript (circuit size and PI size)
     queue.flush_queue();
@@ -197,7 +196,7 @@ template <typename settings> void HonkProver<settings>::execute_preamble_round()
  * - compute wire commitments
  * - add public inputs to transcript (done explicitly in execute_first_round())
  * */
-template <typename settings> void HonkProver<settings>::execute_first_round()
+template <typename settings> void Prover<settings>::execute_first_round()
 {
     queue.flush_queue();
 
@@ -219,10 +218,11 @@ template <typename settings> void HonkProver<settings>::execute_first_round()
  *
  * For Standard Honk, this is a non-op (just like for Standard/Turbo Plonk).
  * */
-template <typename settings> void HonkProver<settings>::execute_second_round()
+template <typename settings> void Prover<settings>::execute_second_round()
 {
     queue.flush_queue();
     // No operations are needed here for Standard Honk
+    transcript.apply_fiat_shamir("eta");
 }
 
 /**
@@ -235,7 +235,7 @@ template <typename settings> void HonkProver<settings>::execute_second_round()
  * - Do Fiat-Shamir to get "beta" challenge (Note: gamma = beta^2)
  * - Compute grand product polynomial (permutation only) and commitment
  * */
-template <typename settings> void HonkProver<settings>::execute_third_round()
+template <typename settings> void Prover<settings>::execute_third_round()
 {
     queue.flush_queue();
 
@@ -257,7 +257,7 @@ template <typename settings> void HonkProver<settings>::execute_third_round()
  * - Do Fiat-Shamir to get "alpha" challenge
  * - Run Sumcheck
  * */
-template <typename settings> void HonkProver<settings>::execute_fourth_round()
+template <typename settings> void Prover<settings>::execute_fourth_round()
 {
     queue.flush_queue();
 
@@ -277,7 +277,7 @@ template <typename settings> void HonkProver<settings>::execute_fourth_round()
  * - Maybe some pre-processing for Gemini?
  *
  * */
-template <typename settings> void HonkProver<settings>::execute_fifth_round()
+template <typename settings> void Prover<settings>::execute_fifth_round()
 {
     // TODO(luke): Is there anything to do here? Possible some pre-processing for Gemini?
 }
@@ -291,18 +291,18 @@ template <typename settings> void HonkProver<settings>::execute_fifth_round()
  * - engage in Gemini?
  *
  * */
-template <typename settings> void HonkProver<settings>::execute_sixth_round()
+template <typename settings> void Prover<settings>::execute_sixth_round()
 {
     // TODO(luke): Gemini
 }
 
-template <typename settings> waffle::plonk_proof& HonkProver<settings>::export_proof()
+template <typename settings> waffle::plonk_proof& Prover<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();
     return proof;
 }
 
-template <typename settings> waffle::plonk_proof& HonkProver<settings>::construct_proof()
+template <typename settings> waffle::plonk_proof& Prover<settings>::construct_proof()
 {
     // Add circuit size and public input size to transcript.
     execute_preamble_round();
@@ -337,6 +337,6 @@ template <typename settings> waffle::plonk_proof& HonkProver<settings>::construc
 }
 
 // TODO(luke): Need to define a 'standard_settings' analog for Standard Honk
-template class HonkProver<waffle::standard_settings>;
+template class Prover<waffle::standard_settings>;
 
 } // namespace honk

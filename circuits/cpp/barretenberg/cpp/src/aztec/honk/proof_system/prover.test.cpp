@@ -1,5 +1,5 @@
 #include "../../srs/reference_string/file_reference_string.hpp"
-#include "./honk_prover.hpp"
+#include "./prover.hpp"
 
 #include <array>
 #include <vector>
@@ -9,14 +9,15 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-namespace honk {
+using namespace honk;
+namespace honk_prover_tests {
 
 // field is named Fscalar here because of clash with the Fr
-template <class Fscalar> class HonkProverTests : public testing::Test {
+template <class Fscalar> class ProverTests : public testing::Test {
 
   public:
     /**
-     * @brief Simple test of HonkProver instantiation. This is handy while were in the Honk PoC building phase but may
+     * @brief Simple test of Prover instantiation. This is handy while were in the Honk PoC building phase but may
      * eventually be unnecessary.
      *
      */
@@ -31,8 +32,8 @@ template <class Fscalar> class HonkProverTests : public testing::Test {
         auto proving_key =
             std::make_shared<waffle::proving_key>(num_gates, num_public_inputs, reference_string, waffle::STANDARD);
 
-        // Instantiate a HonkProver with the proving_key pointer
-        auto honk_prover = Prover(proving_key);
+        // Instantiate a Prover with the proving_key pointer
+        auto honk_prover = StandardProver(proving_key);
     };
 
     /**
@@ -50,11 +51,11 @@ template <class Fscalar> class HonkProverTests : public testing::Test {
         static const size_t num_public_inputs = 0;
         auto reference_string = std::make_shared<waffle::FileReferenceString>(num_gates + 1, "../srs_db/ignition");
 
-        // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a HonkProver.
+        // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
         auto proving_key =
             std::make_shared<waffle::proving_key>(num_gates, num_public_inputs, reference_string, waffle::STANDARD);
 
-        static const size_t program_width = Prover::settings_::program_width;
+        static const size_t program_width = StandardProver::settings_::program_width;
 
         // Construct mock wire and permutation polynomials and add them to the proving_key.
         // Note: for the purpose of checking the consistency between two methods of computing z_perm, these polynomials
@@ -79,8 +80,8 @@ template <class Fscalar> class HonkProverTests : public testing::Test {
             proving_key->polynomial_cache.put(sigma_id, std::move(sigma_poly));
         }
 
-        // Instantiate a HonkProver with pointer to the proving_key just constructed
-        auto honk_prover = Prover(proving_key);
+        // Instantiate a Prover with pointer to the proving_key just constructed
+        auto honk_prover = StandardProver(proving_key);
 
         // Method 1: Compute z_perm using 'compute_grand_product_polynomial' as the prover would in practice
         honk_prover.compute_grand_product_polynomial();
@@ -158,16 +159,16 @@ template <class Fscalar> class HonkProverTests : public testing::Test {
 };
 
 typedef testing::Types<barretenberg::fr> FieldTypes;
-TYPED_TEST_SUITE(HonkProverTests, FieldTypes);
+TYPED_TEST_SUITE(ProverTests, FieldTypes);
 
-TYPED_TEST(HonkProverTests, prover_instantiation)
+TYPED_TEST(ProverTests, prover_instantiation)
 {
     TestFixture::test_prover_instantiation();
 }
 
-TYPED_TEST(HonkProverTests, grand_product_construction)
+TYPED_TEST(ProverTests, grand_product_construction)
 {
     TestFixture::test_grand_product_construction();
 }
 
-} // namespace honk
+} // namespace honk_prover_tests
