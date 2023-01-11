@@ -55,9 +55,12 @@ fn toml_map_to_field(
     for (parameter, value) in toml_map {
         let mapped_value = match value {
             TomlTypes::String(string) => {
-                let new_value = parse_str(&string);
+                let new_value = try_str_to_field(&string);
 
-                if new_value.is_err() {
+                // We accept UTF-8 strings as input as well as hex strings representing field elements.
+                // We still want developers to be able to pass in hex strings for FieldElement inputs. 
+                // Thus, we first try to parse the string into a field element, and if that fails we assume that the input is meant to be a plain string
+                if new_value.is_err() { 
                     InputValue::String(string)
                 } else if let Ok(Some(field_element)) = new_value {
                     InputValue::Field(field_element)
@@ -86,7 +89,7 @@ fn toml_map_to_field(
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Vec<_> = arr_str
                     .into_iter()
-                    .map(|elem_str| parse_str(&elem_str).unwrap().unwrap())
+                    .map(|elem_str| try_str_to_field(&elem_str).unwrap().unwrap())
                     .collect();
 
                 InputValue::Vec(array_elements)
@@ -148,7 +151,7 @@ enum TomlTypes {
     Table(BTreeMap<String, TomlTypes>),
 }
 
-fn parse_str(value: &str) -> Result<Option<FieldElement>, InputParserError> {
+fn try_str_to_field(value: &str) -> Result<Option<FieldElement>, InputParserError> {
     if value.is_empty() {
         Ok(None)
     } else if value.starts_with("0x") {
