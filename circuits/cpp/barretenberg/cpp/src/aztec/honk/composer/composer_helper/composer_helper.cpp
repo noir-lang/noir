@@ -1,5 +1,9 @@
 #include "composer_helper.hpp"
-namespace waffle {
+#include <cstddef>
+#include <proof_system/flavor/flavor.hpp>
+#include <numeric/bitop/get_msb.hpp>
+
+namespace honk {
 
 /**
  * Compute proving key base.
@@ -16,7 +20,7 @@ namespace waffle {
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
+std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
     CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_reserved_gates)
 {
     /*
@@ -38,7 +42,7 @@ std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving
     // Initialize circuit_proving_key
     // TODO: replace composer types.
     circuit_proving_key =
-        std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs, ComposerType::STANDARD);
+        std::make_shared<waffle::proving_key>(subgroup_size, public_inputs.size(), crs, waffle::ComposerType::STANDARD);
 
     for (size_t i = 0; i < constructor.num_selectors; ++i) {
         std::vector<barretenberg::fr>& selector_values = selectors[i];
@@ -75,10 +79,11 @@ std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving
  */
 
 template <typename CircuitConstructor>
-std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
-    std::shared_ptr<proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs)
+std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
+    std::shared_ptr<waffle::proving_key> const& proving_key,
+    std::shared_ptr<waffle::VerifierReferenceString> const& vrs)
 {
-    auto circuit_verification_key = std::make_shared<verification_key>(
+    auto circuit_verification_key = std::make_shared<waffle::verification_key>(
         proving_key->n, proving_key->num_public_inputs, vrs, proving_key->composer_type);
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
@@ -87,7 +92,7 @@ std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_ve
         const std::string selector_poly_label(selector_poly_info.polynomial_label);
         const std::string selector_commitment_label(selector_poly_info.commitment_label);
 
-        if (selector_poly_info.source == PolynomialSource::SELECTOR) {
+        if (selector_poly_info.source == waffle::PolynomialSource::SELECTOR) {
             // Fetch the constraint selector polynomial in its vector form.
             // Disable for now so that GCC doesn't complain
             // TODO: restore when we actually implement the commitments
@@ -101,7 +106,7 @@ std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_ve
             circuit_verification_key->constraint_selectors.insert(
                 { selector_commitment_label, selector_poly_commitment });
 
-        } else if (selector_poly_info.source == PolynomialSource::PERMUTATION) {
+        } else if (selector_poly_info.source == waffle::PolynomialSource::PERMUTATION) {
             // Fetch the permutation selector polynomial in its coefficient form.
             // Disable for now so that GCC doesn't complain
             // TODO: restore when we actually implement the commitments
@@ -119,7 +124,7 @@ std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_ve
     }
 
     // Set the polynomial manifest in verification key.
-    circuit_verification_key->polynomial_manifest = PolynomialManifest(proving_key->composer_type);
+    circuit_verification_key->polynomial_manifest = waffle::PolynomialManifest(proving_key->composer_type);
 
     return circuit_verification_key;
 }
@@ -153,7 +158,7 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(CircuitConstructor
     const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
     // Note: randomness is added to 3 of the last 4 positions in plonk/proof_system/prover/prover.cpp
-    // ProverBase::execute_preamble_round().
+    // StandardProverBase::execute_preamble_round().
     for (size_t i = total_num_gates; i < subgroup_size; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
@@ -211,14 +216,14 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(CircuitConstructor
  * */
 
 template <typename CircuitConstructor>
-std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
     CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
     // Compute q_l, q_r, q_o, etc polynomials
-    ComposerHelper::compute_proving_key_base(circuit_constructor, ComposerType::STANDARD);
+    ComposerHelper::compute_proving_key_base(circuit_constructor, waffle::ComposerType::STANDARD);
 
     // Compute sigma polynomials (we should update that late)
     // TODO: Update this
@@ -233,7 +238,7 @@ std::shared_ptr<proving_key> ComposerHelper<CircuitConstructor>::compute_proving
  * @return Pointer to created circuit verification key.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
     CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
@@ -257,7 +262,7 @@ std::shared_ptr<verification_key> ComposerHelper<CircuitConstructor>::compute_ve
  * @return The verifier.
  * */
 template <typename CircuitConstructor>
-Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
+waffle::Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
     // TODO figure out types, actuallt
@@ -265,7 +270,7 @@ Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor&
 
     // TODO: initialize verifier according to manifest and key
     // Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
-    Verifier output_state;
+    waffle::Verifier output_state;
     // TODO: Do we need a commitment scheme defined here?
     // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
     //    std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -276,12 +281,14 @@ Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor&
 }
 
 template <typename CircuitConstructor>
-UnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(CircuitConstructor& circuit_constructor)
+waffle::UnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
+    CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
     // UnrolledVerifier output_state(circuit_verification_key,
-    //                             create_unrolled_manifest(circuit_constructor.public_inputs.size()));
-    UnrolledVerifier output_state;
+    //                               create_unrolled_manifest(circuit_constructor.n,
+    //                               circuit_constructor.public_inputs.size()));
+    waffle::UnrolledVerifier output_state;
 
     // TODO: Deal with commitments
     // std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
@@ -293,14 +300,18 @@ UnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(Ci
 }
 
 template <typename CircuitConstructor>
-UnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(CircuitConstructor& circuit_constructor)
+template <typename Flavor>
+// TODO(Cody): this file should be generic with regard to flavor/arithmetization/whatever.
+StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(
+    CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
-    // TODO: Initialize UnrolledProver correctly
-    // UnrolledProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
-    UnrolledProver output_state;
+    size_t num_sumcheck_rounds(circuit_proving_key->log_n);
+    auto manifest = Flavor::create_unrolled_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
+    StandardUnrolledProver output_state(circuit_proving_key, manifest);
+
     // TODO: Initialize constraints
     // std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
     //     std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
@@ -321,14 +332,14 @@ UnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(Circui
 /**
  * Create prover.
  *  1. Compute the starting polynomials (q_l, etc, sigma, witness polynomials).
- *  2. Initialize Prover with them.
+ *  2. Initialize StandardProver with them.
  *  3. Add Permutation and arithmetic widgets to the prover.
  *  4. Add KateCommitmentScheme to the prover.
  *
  * @return Initialized prover.
  * */
 template <typename CircuitConstructor>
-Prover ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& circuit_constructor)
+StandardProver ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& circuit_constructor)
 {
     // Compute q_l, etc. and sigma polynomials.
     compute_proving_key(circuit_constructor);
@@ -337,7 +348,7 @@ Prover ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& cir
     compute_witness(circuit_constructor);
     // TODO: Initialize prover properly
     // Prover output_state(circuit_proving_key, create_manifest(public_inputs.size()));
-    Prover output_state;
+    StandardProver output_state;
     // Initialize constraints
 
     // std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
@@ -357,5 +368,8 @@ Prover ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& cir
 
     return output_state;
 }
+
 template class ComposerHelper<StandardCircuitConstructor>;
-} // namespace waffle
+template StandardUnrolledProver ComposerHelper<StandardCircuitConstructor>::create_unrolled_prover<StandardHonk>(
+    StandardCircuitConstructor& circuit_constructor);
+} // namespace honk

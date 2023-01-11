@@ -1,7 +1,7 @@
 #include <array>
 #include <tuple>
 
-#include "../../flavor/flavor.hpp"
+#include <proof_system/flavor/flavor.hpp>
 #include "relation.hpp"
 #include "../polynomials/multivariates.hpp"
 #include "../polynomials/barycentric_data.hpp"

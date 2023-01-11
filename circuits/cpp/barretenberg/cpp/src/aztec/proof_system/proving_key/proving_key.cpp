@@ -1,7 +1,7 @@
 #include "proving_key.hpp"
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <common/throw_or_abort.hpp>
-
+#include <numeric/bitop/get_msb.hpp>
 namespace waffle {
 
 // In all the constructors below, the pippenger_runtime_state takes (n + 1) as the input
@@ -27,6 +27,7 @@ proving_key::proving_key(const size_t num_gates,
                          waffle::ComposerType type = waffle::STANDARD)
     : composer_type(type)
     , n(num_gates)
+    , log_n(numeric::get_msb(num_gates))
     , num_public_inputs(num_inputs)
     // Note: must be uncommented for low-mem prover functionality. See corresponding note in proving_key.hpp
     // #ifdef __wasm__

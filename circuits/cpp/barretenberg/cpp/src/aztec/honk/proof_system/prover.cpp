@@ -1,4 +1,10 @@
 #include "prover.hpp"
+// #include <honk/sumcheck/sumcheck.hpp> // will need
+#include <honk/sumcheck/polynomials/univariate.hpp> // will go away
+#include <vector>
+#include "ecc/curves/bn254/fr.hpp"
+#include "ecc/curves/bn254/g1.hpp"
+#include "proof_system/flavor/flavor.hpp"
 
 namespace honk {
 
@@ -31,13 +37,14 @@ Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const t
 template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
     // TODO(luke): Compute wire commitments
-    // for (size_t i = 0; i < settings::program_width; ++i) {
-    //     std::string wire_tag = "w_" + std::to_string(i + 1);
-    //     std::string commit_tag = "W_" + std::to_string(i + 1);
-    //     barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
-    //     // This automatically saves the computed point to the transcript
-    //     commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
-    // }
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        std::string wire_tag = "w_" + std::to_string(i + 1);
+        std::string commit_tag = "W_" + std::to_string(i + 1);
+        // barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
+        // This automatically saves the computed point to the transcript
+        // commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
+        transcript.add_element(commit_tag, barretenberg::g1::affine_one.to_buffer()); // TODO(Cody): unmock.
+    }
 }
 
 /**
@@ -196,11 +203,11 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
  * - compute wire commitments
  * - add public inputs to transcript (done explicitly in execute_first_round())
  * */
-template <typename settings> void Prover<settings>::execute_first_round()
+template <typename settings> void Prover<settings>::execute_wire_commitments_round()
 {
     queue.flush_queue();
 
-    // TODO(luke): compute_wire_polynomial_commitments()
+    compute_wire_commitments();
 
     // Add public inputs to transcript
     const barretenberg::polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
@@ -218,11 +225,12 @@ template <typename settings> void Prover<settings>::execute_first_round()
  *
  * For Standard Honk, this is a non-op (just like for Standard/Turbo Plonk).
  * */
-template <typename settings> void Prover<settings>::execute_second_round()
+template <typename settings> void Prover<settings>::execute_tables_round()
 {
     queue.flush_queue();
-    // No operations are needed here for Standard Honk
     transcript.apply_fiat_shamir("eta");
+
+    // No operations are needed here for Standard Honk
 }
 
 /**
@@ -235,7 +243,7 @@ template <typename settings> void Prover<settings>::execute_second_round()
  * - Do Fiat-Shamir to get "beta" challenge (Note: gamma = beta^2)
  * - Compute grand product polynomial (permutation only) and commitment
  * */
-template <typename settings> void Prover<settings>::execute_third_round()
+template <typename settings> void Prover<settings>::execute_grand_product_computation_round()
 {
     queue.flush_queue();
 
@@ -244,6 +252,7 @@ template <typename settings> void Prover<settings>::execute_third_round()
 
     // TODO(luke): compute_grand_product_polynomial
     // TODO(luke): compute_grand_product_polynomial_commitment
+    transcript.add_element("Z_PERM", barretenberg::g1::affine_one.to_buffer()); // TODO(Cody): unmock.
 }
 
 /**
@@ -255,47 +264,107 @@ template <typename settings> void Prover<settings>::execute_third_round()
  *
  * For Honk
  * - Do Fiat-Shamir to get "alpha" challenge
- * - Run Sumcheck
+ * - Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all
+ *   evaluations at u being calculated.
  * */
-template <typename settings> void Prover<settings>::execute_fourth_round()
+template <typename settings> void Prover<settings>::execute_relation_check_rounds()
 {
     queue.flush_queue();
 
     // Compute alpha challenge
     transcript.apply_fiat_shamir("alpha");
 
-    // TODO(luke): Run Sumcheck
+    // TODO(luke): Run Sumcheck. For now, mock univariates.
+    for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
+        honk::sumcheck::Univariate<barretenberg::fr, honk::StandardHonk::MAX_RELATION_LENGTH> round_univariate;
+        for (auto eval : round_univariate.evaluations) {
+            eval = round_idx;
+        }
+        transcript.add_element("univariate_" + std::to_string(key->log_n - round_idx), round_univariate.to_buffer());
+        transcript.apply_fiat_shamir("u_" + std::to_string(key->log_n - round_idx));
+    }
+
+    transcript.add_element("w_1", barretenberg::fr(100).to_buffer());
+    transcript.add_element("w_2", barretenberg::fr(101).to_buffer());
+    transcript.add_element("w_3", barretenberg::fr(102).to_buffer());
+    transcript.add_element("sigma_1", barretenberg::fr(103).to_buffer());
+    transcript.add_element("sigma_2", barretenberg::fr(104).to_buffer());
+    transcript.add_element("sigma_3", barretenberg::fr(105).to_buffer());
+    transcript.add_element("q_1", barretenberg::fr(106).to_buffer());
+    transcript.add_element("q_2", barretenberg::fr(107).to_buffer());
+    transcript.add_element("q_3", barretenberg::fr(108).to_buffer());
+    transcript.add_element("q_m", barretenberg::fr(109).to_buffer());
+    transcript.add_element("q_c", barretenberg::fr(110).to_buffer());
+    transcript.add_element("z_perm", barretenberg::fr(111).to_buffer());
 }
 
 /**
- * For Plonk systems (no linearization):
- * - Do Fiat-Shamir to get "z" challenge
- * - Compute evaluation of quotient polynomial and add it to transcript
- *
+ * For Plonk: the polynomials are univariate, so this is a no-op.
  * For Honk:
- * - I don't think there's anything to do here. The analog should all occur in Sumcheck
- * - Maybe some pre-processing for Gemini?
+ * - Get rho challenge
+ * - Compute Fold polynomials and commitments.
  *
  * */
-template <typename settings> void Prover<settings>::execute_fifth_round()
+template <typename settings> void Prover<settings>::execute_univariatization_round()
 {
-    // TODO(luke): Is there anything to do here? Possible some pre-processing for Gemini?
+    transcript.apply_fiat_shamir("rho");
+    // TODO(Cody): Implement
+    for (size_t round_idx = 1; round_idx < key->log_n; round_idx++) {
+        transcript.add_element("FOLD_" + std::to_string(round_idx), barretenberg::g1::affine_one.to_buffer());
+    }
 }
 
 /**
- * For Plonk systems (no linearization):
+ * For Plonk systems:
+ * - Do Fiat-Shamir to get "frak-z" challenge
+ * - Compute linearization or evaluation of quotient polynomial.
+ *
+ * For Honk:
+ * - Do Fiat-Shamir to get "r" challenge
+ * - Compute evaluations of folded polynomials.
+ * */
+template <typename settings> void Prover<settings>::execute_pcs_evaluation_round()
+{
+    transcript.apply_fiat_shamir("r");
+    // TODO(Cody): Implement
+    for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
+        transcript.add_element("a_" + std::to_string(round_idx), barretenberg::fr(round_idx + 1000).to_buffer());
+    }
+}
+
+/**
+ * For Plonk: Batching is combined with generation of opening proof polynomial commitments.
+ *
+ * For Honk:
+ * - Do Fiat-Shamir to get "nu" challenge.
+ * - Compute Shplonk batched quotient commitment [Q]_1.
+ * */
+template <typename settings> void Prover<settings>::execute_shplonk_round()
+{
+    // TODO(luke): Do Fiat-Shamir to get "nu" challenge.
+    // TODO(luke): Get Shplonk opening point [Q]_1
+    transcript.apply_fiat_shamir("nu");
+    transcript.add_element("Q", barretenberg::g1::affine_one.to_buffer());
+}
+
+/**
+ * For Plonk systems:
  * - Do Fiat-Shamir to get "nu" challenge
- * - Perform batch opening
+ * - Compute KZG batch opening polynomial commitments.
  *
  * For Honk:
- * - engage in Gemini?
+ * - Get "z" challenge.
+ * - Compute KZG quotient [W]_1.
  *
  * */
-template <typename settings> void Prover<settings>::execute_sixth_round()
+template <typename settings> void Prover<settings>::execute_kzg_round()
 {
-    // TODO(luke): Gemini
+    transcript.apply_fiat_shamir("z");
+    // TODO(luke): Do Fiat-Shamir to get "z" challenge.
+    // TODO(luke): Get KZG opening point [W]_1
+    transcript.add_element("W", barretenberg::g1::affine_one.to_buffer());
+    // transcript.apply_fiat_shamir("separator");
 }
-
 template <typename settings> waffle::plonk_proof& Prover<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();
@@ -309,26 +378,42 @@ template <typename settings> waffle::plonk_proof& Prover<settings>::construct_pr
     queue.process_queue();
 
     // Compute wire commitments; Add PI to transcript
-    execute_first_round();
+    execute_wire_commitments_round();
     queue.process_queue();
 
-    // This is currently a non-op (for Standard Honk)
-    execute_second_round();
+    // Currently a no-op; may execute some "random widgets", commit to W_4, do RAM/ROM stuff
+    // if this prover structure is kept when we bring tables to Honk.
+    execute_tables_round();
     queue.process_queue();
 
-    // Compute challenges beta & gamma; Compute permutation grand product polynomial and its commitment
-    execute_third_round();
+    // Fiat-Shamir: beta & gamma
+    // Compute grand product(s) and commitments.
+    execute_grand_product_computation_round();
     queue.process_queue();
 
-    // Compute challenge alpha; Run Sumcheck protocol
-    execute_fourth_round();
+    // Fiat-Shamir: alpha
+    // Run sumcheck subprotocol.
+    execute_relation_check_rounds();
+    // // queue currently only handles commitments, not partial multivariate evaluations.
+    // queue.process_queue();
+
+    // Fiat-Shamir: rho
+    // Compute Fold polynomials and their commitments.
+    execute_univariatization_round();
     queue.process_queue();
 
-    // TBD: possibly some pre-processing for Gemini
-    execute_fifth_round();
+    // Fiat-Shamir: r
+    // Compute Fold evaluations
+    execute_pcs_evaluation_round();
 
-    // Execute Gemini
-    execute_sixth_round();
+    // Fiat-Shamir: nu
+    // Compute Shplonk batched quotient commitment
+    execute_shplonk_round();
+    queue.process_queue();
+
+    // Fiat-Shamir: z
+    // Compute KZG quotient commitment
+    execute_kzg_round();
     queue.process_queue();
 
     queue.flush_queue();

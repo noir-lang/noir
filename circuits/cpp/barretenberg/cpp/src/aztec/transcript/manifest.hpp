@@ -34,7 +34,7 @@ class Manifest {
          * permutation_widget)
          * @param map_challenges_in Whether to put elements in a challenge_map in the transcript.
          * */
-        RoundManifest(std::initializer_list<ManifestEntry> element_names,
+        RoundManifest(std::vector<ManifestEntry> element_names,
                       const std::string challenge_name,
                       const size_t num_challenges_in,
                       bool map_challenges_in = false)
@@ -69,8 +69,7 @@ class Manifest {
 
     // TODO(luke): needed only in development; can be deleted when appropriate
     Manifest() = default;
-
-    Manifest(std::initializer_list<RoundManifest> _round_manifests)
+    Manifest(std::vector<RoundManifest> _round_manifests)
         : round_manifests(_round_manifests)
         , num_rounds(round_manifests.size()){};
 

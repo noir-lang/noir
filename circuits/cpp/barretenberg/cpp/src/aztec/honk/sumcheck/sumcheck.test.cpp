@@ -42,7 +42,7 @@ void mock_prover_contributions_to_transcript(Transcript& transcript)
 
 TEST(Sumcheck, Prover)
 {
-    const size_t num_polys(StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
     const size_t max_relation_length = 4;
@@ -89,7 +89,7 @@ TEST(Sumcheck, Prover)
 
 TEST(Sumcheck, Verifier)
 {
-    const size_t num_polys(StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
     const size_t max_relation_length = 5;

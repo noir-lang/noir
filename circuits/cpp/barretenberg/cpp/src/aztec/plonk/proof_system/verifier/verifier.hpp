@@ -11,7 +11,7 @@ template <typename program_settings> class VerifierBase {
 
   public:
     VerifierBase(std::shared_ptr<verification_key> verifier_key = nullptr,
-                 const transcript::Manifest& manifest = transcript::Manifest({}));
+                 const transcript::Manifest& manifest = transcript::Manifest());
     VerifierBase(VerifierBase&& other);
     VerifierBase(const VerifierBase& other) = delete;
     VerifierBase& operator=(const VerifierBase& other) = delete;

@@ -1,7 +1,7 @@
 #pragma once
 #include <ecc/curves/bn254/fr.hpp>
 
-namespace waffle {
+namespace honk {
 static constexpr uint32_t DUMMY_TAG = 0;
 
 struct add_triple {
@@ -98,7 +98,7 @@ template <size_t program_width_> class CircuitConstructorBase {
   public:
     static constexpr size_t program_width = program_width_;
     std::vector<std::string> selector_names_;
-    size_t n;
+    size_t n; // the circuit size; we should rename
     std::vector<uint32_t> w_l;
     std::vector<uint32_t> w_r;
     std::vector<uint32_t> w_o;
@@ -318,7 +318,8 @@ template <size_t program_width_> class CircuitConstructorBase {
         set_err(msg);
     }
 };
-} // namespace waffle
+
+} // namespace honk
 
 /**
  * Composer Example: Pythagorean triples.

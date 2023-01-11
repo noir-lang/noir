@@ -32,7 +32,7 @@ TEST(commitment_scheme, kate_open)
     fr z = fr::random_element();
 
     // compute opening polynomial W(X), and evaluation f = F(z)
-    transcript::StandardTranscript inp_tx = transcript::StandardTranscript({});
+    transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
     waffle::KateCommitmentScheme<turbo_settings> newKate;
 
     // std::shared_ptr<ReferenceStringFactory> crs_factory = (new FileReferenceStringFactory("../srs_db/ignition"));
@@ -90,7 +90,7 @@ TEST(commitment_scheme, kate_batch_open)
     }
 
     // setting up the Kate commitment scheme class
-    transcript::StandardTranscript inp_tx = transcript::StandardTranscript({});
+    transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
     waffle::KateCommitmentScheme<turbo_settings> newKate;
 
     auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");

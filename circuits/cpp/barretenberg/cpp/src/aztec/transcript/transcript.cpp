@@ -120,6 +120,9 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     // For reference, see the relevant manifest, which is defined in
     // plonk/composer/[standard/turbo/ultra]_composer.hpp
     ASSERT(current_round <= manifest.get_num_rounds());
+    // TODO(Cody): Coupling: this line insists that the challenges in the manifest
+    // are encountered in the order that matches the order of the proof construction functions.
+    // Future architecture should specify this data in a single place (?).
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
 
     const size_t num_challenges = manifest.get_round_manifest(current_round).num_challenges;

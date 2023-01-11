@@ -10,15 +10,17 @@ template <typename settings> class Prover {
   public:
     // TODO(luke): update this appropriately to work with Honk Manifest
     Prover(std::shared_ptr<waffle::proving_key> input_key = nullptr,
-           const transcript::Manifest& manifest = transcript::Manifest({}));
+           const transcript::Manifest& manifest = transcript::Manifest());
 
     void execute_preamble_round();
-    void execute_first_round();
-    void execute_second_round();
-    void execute_third_round();
-    void execute_fourth_round();
-    void execute_fifth_round();
-    void execute_sixth_round();
+    void execute_wire_commitments_round();
+    void execute_tables_round();
+    void execute_grand_product_computation_round();
+    void execute_relation_check_rounds();
+    void execute_univariatization_round();
+    void execute_pcs_evaluation_round();
+    void execute_shplonk_round();
+    void execute_kzg_round();
 
     void compute_wire_commitments();
 
@@ -65,6 +67,7 @@ template <typename settings> class Prover {
 // TODO(luke): need equivalent notion of settings for Honk
 extern template class Prover<waffle::standard_settings>;
 
-typedef Prover<waffle::standard_settings> StandardProver;
+typedef Prover<waffle::standard_settings> StandardProver; // TODO(Cody): Delete?
+typedef Prover<waffle::standard_settings> StandardUnrolledProver;
 
 } // namespace honk

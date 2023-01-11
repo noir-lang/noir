@@ -1,5 +1,5 @@
 #include "relation.hpp"
-#include "../../flavor/flavor.hpp"
+#include <proof_system/flavor/flavor.hpp>
 #include "arithmetic_relation.hpp"
 #include "grand_product_initialization_relation.hpp"
 #include "grand_product_computation_relation.hpp"
@@ -25,7 +25,8 @@ template <class FF> class SumcheckRelation : public testing::Test {
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
 
     // TODO(luke): may want to make this more flexible/genericzs
-    static std::array<Univariate<5>, StandardArithmetization::NUM_POLYNOMIALS> compute_mock_extended_edges()
+    static std::array<Univariate<5>, proving_system::StandardArithmetization::NUM_POLYNOMIALS>
+    compute_mock_extended_edges()
     {
         // TODO(Cody): build from Univariate<2>'s?
         auto w_l = Univariate<5>({ 1, 2, 3, 4, 5 });
@@ -49,7 +50,7 @@ template <class FF> class SumcheckRelation : public testing::Test {
         auto id_3 = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto lagrange_1 = Univariate<5>({ 1, 2, 3, 4, 5 });
 
-        std::array<Univariate<5>, StandardArithmetization::NUM_POLYNOMIALS> extended_edges = {
+        std::array<Univariate<5>, proving_system::StandardArithmetization::NUM_POLYNOMIALS> extended_edges = {
             w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
             q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1
         };
@@ -69,7 +70,7 @@ TYPED_TEST(SumcheckRelation, ArithmeticRelation)
     auto extended_edges = TestFixture::compute_mock_extended_edges();
 
     auto relation = ArithmeticRelation<FF>();
-    using MULTIVARIATE = StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = proving_system::StandardArithmetization::POLYNOMIAL;
 
     // Manually compute the expected edge contribution
     auto w_l = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
@@ -105,7 +106,7 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
     using Univariate = Univariate<FF, relation.RELATION_LENGTH>;
 
     // Manually compute the expected edge contribution
-    using MULTIVARIATE = StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = proving_system::StandardArithmetization::POLYNOMIAL;
 
     auto w_1 = UnivariateView(extended_edges[MULTIVARIATE::W_L]);
     auto w_2 = UnivariateView(extended_edges[MULTIVARIATE::W_R]);
@@ -145,7 +146,7 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
     using Univariate = Univariate<FF, relation.RELATION_LENGTH>;
 
     // Manually compute the expected edge contribution
-    using MULTIVARIATE = StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = proving_system::StandardArithmetization::POLYNOMIAL;
 
     auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
     auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_1]);

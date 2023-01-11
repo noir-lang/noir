@@ -1,6 +1,6 @@
 #include "circuit_constructor_base.hpp"
 
-namespace waffle {
+namespace honk {
 
 /**
  * Join variable class b to variable class a.
@@ -42,4 +42,4 @@ void CircuitConstructorBase<program_width_>::assert_equal(const uint32_t a_varia
 }
 // Standard honk/ plonk instantiation
 template class CircuitConstructorBase<3>;
-} // namespace waffle
+} // namespace honk

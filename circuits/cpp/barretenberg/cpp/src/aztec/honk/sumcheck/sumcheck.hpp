@@ -1,7 +1,7 @@
 #include "common/serialize.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"
-#include "../flavor/flavor.hpp"
+#include <proof_system/flavor/flavor.hpp>
 #include <algorithm>
 #include <cstddef>
 #include <string>
@@ -47,7 +47,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // This populates multivariates.folded_polynomials.
         FF relation_separator_challenge = transcript.get_mock_challenge();
         auto round_univariate = round.compute_univariate(multivariates.full_polynomials, relation_separator_challenge);
-        transcript.add_element("univariate_0", round_univariate.to_buffer());
+        transcript.add_element("univariate_" + std::to_string(multivariate_d), round_univariate.to_buffer());
         // IMPROVEMENT(Cody): Could move building of this list into challenge container?
         round_challenges[0] = transcript.get_mock_challenge();
         multivariates.fold(multivariates.full_polynomials, multivariate_n, round_challenges[0]);
@@ -57,7 +57,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         for (size_t round_idx = 1; round_idx < multivariate_d; round_idx++) {
             // Write the round univariate to the transcript
             round_univariate = round.compute_univariate(multivariates.folded_polynomials, relation_separator_challenge);
-            transcript.add_element("univariate_" + std::to_string(round_idx), round_univariate.to_buffer());
+            transcript.add_element("univariate_" + std::to_string(multivariate_d - round_idx),
+                                   round_univariate.to_buffer());
 
             round_challenges[round_idx] = transcript.get_mock_challenge();
             multivariates.fold(multivariates.folded_polynomials, multivariate_n, round_challenges[round_idx]);
@@ -66,6 +67,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // Final round
         // Note: get evaluations from folded_polynomials; don't need batch_evaluate
         auto multivariate_evaluations = multivariates.batch_evaluate(round_challenges);
+        // TODO(Cody): might need to add these evaluations one-by-one.
+        //             This is what is currently done in the mocked prover.
         transcript.add_element("multivariate_evaluations", to_buffer(multivariate_evaluations));
     };
 

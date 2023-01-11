@@ -44,6 +44,7 @@ struct proving_key {
 
     uint32_t composer_type;
     size_t n;
+    size_t log_n;
     size_t num_public_inputs;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;

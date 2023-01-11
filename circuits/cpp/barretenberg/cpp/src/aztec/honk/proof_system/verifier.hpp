@@ -13,7 +13,7 @@ template <typename program_settings> class Verifier {
 
   public:
     Verifier(std::shared_ptr<waffle::verification_key> verifier_key = nullptr,
-             const transcript::Manifest& manifest = transcript::Manifest({}));
+             const transcript::Manifest& manifest = transcript::Manifest());
     Verifier(Verifier&& other);
     Verifier(const Verifier& other) = delete;
     Verifier& operator=(const Verifier& other) = delete;

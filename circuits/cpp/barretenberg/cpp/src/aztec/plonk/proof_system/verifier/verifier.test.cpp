@@ -298,6 +298,7 @@ TEST(verifier, verify_arithmetic_proof_small)
     EXPECT_EQ(result, true);
 }
 
+// TODO(Cody): This test is suddenly very slow to run?
 TEST(verifier, verify_arithmetic_proof)
 {
     size_t n = 1 << 14;

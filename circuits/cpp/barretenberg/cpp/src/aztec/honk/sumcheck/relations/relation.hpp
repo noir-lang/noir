@@ -1,6 +1,4 @@
 #pragma once
-// #include "../../flavor/flavor.hpp"
-// #include "../polynomials/multivariates.hpp"
 
 namespace honk::sumcheck {
 

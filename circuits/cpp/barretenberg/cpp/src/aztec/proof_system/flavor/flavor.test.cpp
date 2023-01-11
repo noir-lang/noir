@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 
-using namespace honk::sumcheck;
 namespace test_flavor {
 
 // // TODO(Cody) This seems like a good idea, but I'm not sure why.

@@ -1,9 +1,9 @@
 #pragma once
 #include "circuit_constructor_base.hpp"
 #include <plonk/proof_system/constants.hpp>
-#include <honk/flavor/flavor.hpp>
+#include <proof_system/flavor/flavor.hpp>
 
-namespace waffle {
+namespace honk {
 enum StandardSelectors { QM, QC, Q1, Q2, Q3, NUM };
 inline std::vector<std::string> standard_selector_names()
 {
@@ -14,7 +14,7 @@ inline std::vector<std::string> standard_selector_names()
 class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_WIDTH> {
   public:
     // TODO: replace this with Honk enums after we have a verifier and no longer depend on plonk prover/verifier
-    static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     // These are variables that we have used a gate on, to enforce that they are
@@ -78,4 +78,4 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
 
     bool check_circuit();
 };
-} // namespace waffle
+} // namespace honk

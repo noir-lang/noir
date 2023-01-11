@@ -12,7 +12,7 @@ template <typename settings> class ProverBase {
 
   public:
     ProverBase(std::shared_ptr<proving_key> input_key = nullptr,
-               const transcript::Manifest& manifest = transcript::Manifest({}));
+               const transcript::Manifest& manifest = transcript::Manifest());
     ProverBase(ProverBase&& other);
     ProverBase(const ProverBase& other) = delete;
     ProverBase& operator=(const ProverBase& other) = delete;

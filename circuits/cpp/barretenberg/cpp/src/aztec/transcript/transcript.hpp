@@ -75,6 +75,7 @@ class Transcript {
                const Manifest input_manifest,
                const HashType hash_type = HashType::Keccak256,
                const size_t challenge_bytes = 32);
+
     Manifest get_manifest() const { return manifest; }
 
     void add_element(const std::string& element_name, const std::vector<uint8_t>& buffer);

@@ -1,5 +1,5 @@
 #include "relation.hpp"
-#include "../../flavor/flavor.hpp"
+#include <proof_system/flavor/flavor.hpp>
 #include "../polynomials/multivariates.hpp"
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"

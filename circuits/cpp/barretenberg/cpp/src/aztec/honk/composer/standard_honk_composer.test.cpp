@@ -1,8 +1,12 @@
 #include "standard_honk_composer.hpp"
+#include <honk/proof_system/prover.hpp>
+
 #include <gtest/gtest.h>
 
+using namespace honk;
+
+namespace test_standard_honk_composer {
 /**
- *
  * @brief The goal of this test is to check that the sigma permutation vectors for honk are generated correctly.
  *
  * @details Specifically:
@@ -12,7 +16,7 @@
  */
 TEST(standard_honk_composer, test_sigma_correctness)
 {
-    waffle::StandardHonkComposer composer = waffle::StandardHonkComposer();
+    StandardHonkComposer composer = StandardHonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_variable(a);
     fr b = fr::one();
@@ -184,8 +188,8 @@ TEST(standard_honk_composer, test_assert_equal)
     };
 
     // Get 2 circuits
-    waffle::StandardHonkComposer composer_no_assert_equal = waffle::StandardHonkComposer();
-    waffle::StandardHonkComposer composer_with_assert_equal = waffle::StandardHonkComposer();
+    StandardHonkComposer composer_no_assert_equal = StandardHonkComposer();
+    StandardHonkComposer composer_with_assert_equal = StandardHonkComposer();
 
     // Construct circuits
     create_simple_circuit(composer_no_assert_equal);
@@ -199,3 +203,19 @@ TEST(standard_honk_composer, test_assert_equal)
     // Check that the maximum cycle in the one, where we used assert_equal, is twice as long
     EXPECT_EQ(get_maximum_cycle(composer_with_assert_equal), get_maximum_cycle(composer_no_assert_equal) * 2);
 }
+
+TEST(StandarHonkComposer, BaseCase)
+{
+    auto composer = StandardHonkComposer();
+    fr a = fr::one();
+    composer.circuit_constructor.add_public_variable(a);
+
+    auto prover = composer.create_unrolled_prover();
+    // waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    // bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    // EXPECT_EQ(result, true);
+}
+} // namespace test_standard_honk_composer
