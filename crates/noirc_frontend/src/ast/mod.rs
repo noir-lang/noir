@@ -70,8 +70,8 @@ impl std::fmt::Display for UnresolvedType {
             }
             Bool(is_const) => write!(f, "{}bool", is_const),
             String(len) => match len {
-                None => write!(f, "[char]"),
-                Some(len) => write!(f, "[char; {}]", len),
+                None => write!(f, "str[]"),
+                Some(len) => write!(f, "str[{}]", len),
             },
             Unit => write!(f, "()"),
             Error => write!(f, "error"),

@@ -481,8 +481,8 @@ impl std::fmt::Display for Type {
             }
             Type::Bool(comptime) => write!(f, "{}bool", comptime),
             Type::String(len) => match len.array_length() {
-                Some(len) => write!(f, "[char; {}]", len),
-                None => write!(f, "[char]"),
+                Some(len) => write!(f, "str[{}]", len),
+                None => write!(f, "str[]]"),
             },
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
