@@ -1,4 +1,4 @@
-fn main(message : pub [char; 11]) {
+fn main(message : pub str[11]) {
     let mut bad_message = "hello world";
 
     constrain message == "hello world";

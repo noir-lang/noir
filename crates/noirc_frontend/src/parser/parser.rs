@@ -478,10 +478,10 @@ fn string_type<P>(expr_parser: P) -> impl NoirParser<UnresolvedType>
 where
     P: NoirParser<Expression>,
 {
-    just(Token::LeftBracket)
-        .ignore_then(keyword(Keyword::Char))
-        .ignore_then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
-        .then_ignore(just(Token::RightBracket))
+    keyword(Keyword::String)
+        .ignore_then(
+            expr_parser.delimited_by(just(Token::LeftBracket), just(Token::RightBracket)).or_not(),
+        )
         .map(UnresolvedType::String)
 }
 

@@ -74,7 +74,6 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         .collect();
 
     let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-    dbg!(encoded_public_inputs.clone());
     let public_inputs = public_abi.decode(&encoded_public_inputs)?;
 
     // Write public inputs into Verifier.toml
