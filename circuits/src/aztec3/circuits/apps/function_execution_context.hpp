@@ -11,6 +11,8 @@
 #include <aztec3/circuits/abis/function_signature.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
+#include <aztec3/circuits/types/array.hpp>
+
 #include <common/container.hpp>
 
 #include <stdlib/types/convert.hpp>
@@ -24,19 +26,24 @@ namespace aztec3::circuits::apps {
 
 using aztec3::circuits::abis::FunctionSignature;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
+using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 
 using aztec3::circuits::apps::notes::NoteInterface;
 
 using aztec3::circuits::apps::opcodes::Opcodes;
 
+using aztec3::circuits::types::array_push;
+
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
+using plonk::stdlib::types::to_nt;
 using NT = plonk::stdlib::types::NativeTypes;
 
 template <typename Composer> class FunctionExecutionContext {
     typedef NativeTypes NT;
     typedef CircuitTypes<Composer> CT;
     typedef typename CT::fr fr;
+    typedef typename CT::address address;
 
     // We restrict only the opcodes to be able to push to the private members of the exec_ctx.
     // This will just help us build better separation of concerns.
@@ -48,8 +55,12 @@ template <typename Composer> class FunctionExecutionContext {
 
     Contract<NT>* contract = nullptr;
 
+    std::map<std::string, std::shared_ptr<FunctionExecutionContext<Composer>>> nested_execution_contexts;
+
     // TODO: make this private!
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
+
+    PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs;
 
   private:
     std::vector<std::shared_ptr<NoteInterface<Composer>>> new_notes;
@@ -85,6 +96,65 @@ template <typename Composer> class FunctionExecutionContext {
     void push_new_note(NoteInterface<Composer>* const note_ptr) { new_notes.push_back(note_ptr); }
 
     void push_newly_nullified_note(NoteInterface<Composer>* note_ptr) { nullified_notes.push_back(note_ptr); }
+
+    // Allows a call to be made to a function of another contract
+    template <typename... NativeArgs, typename... CircuitArgs>
+    std::array<fr, RETURN_VALUES_LENGTH> call(
+        address const& external_contract_address,
+        std::string const& external_function_name,
+        std::function<void(FunctionExecutionContext<Composer>&, std::array<NT::fr, ARGS_LENGTH>)> f,
+        std::array<fr, ARGS_LENGTH> const& args)
+    {
+        if (nested_execution_contexts.contains(external_function_name)) {
+            throw_or_abort("Choose a different string to represent the function being called");
+        }
+
+        Composer f_composer;
+        NativeOracle f_oracle(oracle.oracle.db,
+                              external_contract_address.get_value(),
+                              oracle.get_this_contract_address().get_value(),
+                              oracle.get_tx_origin().get_value(),
+                              oracle.get_msg_sender_private_key().get_value());
+        OracleWrapperInterface<Composer> f_oracle_wrapper(f_composer, f_oracle);
+
+        // We need an exec_ctx reference which won't go out of scope, so we store a shared_ptr to the newly created
+        // exec_ctx in `this` exec_ctx, and pass a reference to the function we're calling:
+        auto& f_exec_ctx = nested_execution_contexts[external_function_name];
+
+        f_exec_ctx = std::make_shared<FunctionExecutionContext<Composer>>(f_composer, f_oracle_wrapper);
+
+        auto native_args = to_nt<Composer>(args);
+
+        // This calls the function `f`, passing the arguments shown.
+        // The f_exec_ctx will be populated with all the information about that function's execution.
+        std::apply(f, std::forward_as_tuple(*f_exec_ctx, native_args));
+
+        // Remember: the data held in the f_exec_ctc was built with a different composer than that
+        // of `this` exec_ctx. So we only allow ourselves to get the native types, so that we can consciously declare
+        // circuit types for `this` exec_ctx using `this->composer`.
+        auto& f_public_inputs_nt = f_exec_ctx->final_private_circuit_public_inputs;
+
+        // Since we've made a call to another function, we now need to push a call_stack_item_hash to `this` function's
+        // private call stack.
+        // Note: we need to constrain some of `this` circuit's variables against f's public inputs:
+        // - args
+        // - return_values
+        // - call_context (TODO: maybe this only needs to be done in the kernel circuit).
+        auto f_public_inputs_ct = f_public_inputs_nt.to_circuit_type(composer);
+
+        for (size_t i = 0; i < f_public_inputs_ct.args.size(); ++i) {
+            args[i].assert_equal(f_public_inputs_ct.args[i]);
+        }
+
+        auto call_stack_item_hash = f_public_inputs_ct.hash();
+
+        array_push<Composer>(private_circuit_public_inputs.private_call_stack, call_stack_item_hash);
+
+        // The return values are implicitly constrained by being returned as circuit types from this method, for
+        // further use in the circuit. Note: ALL elements of the return_values array MUST be constrained, even if
+        // they're placeholder zeroes.
+        return f_public_inputs_ct.return_values;
+    }
 
     /**
      * @brief This is an important optimisation, to save on the number of emitted nullifiers.
@@ -157,6 +227,8 @@ template <typename Composer> class FunctionExecutionContext {
         private_circuit_public_inputs.set_commitments(new_commitments);
         private_circuit_public_inputs.set_nullifiers(new_nullifiers);
         private_circuit_public_inputs.set_public(composer);
+        final_private_circuit_public_inputs =
+            private_circuit_public_inputs.remove_optionality().template to_native_type<Composer>();
     };
 };
 

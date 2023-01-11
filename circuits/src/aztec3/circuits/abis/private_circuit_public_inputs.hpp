@@ -2,7 +2,7 @@
 
 #include "call_context.hpp"
 #include "contract_deployment_data.hpp"
-#include "../../constants.hpp"
+#include <aztec3/constants.hpp>
 
 #include <common/map.hpp>
 #include <crypto/pedersen/generator_data.hpp>
@@ -77,6 +77,37 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         return pis;
     };
 
+    template <typename Composer> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        PrivateCircuitPublicInputs<NativeTypes> pis = {
+            to_native_type(call_context),
+
+            to_nt(args),
+            to_nt(return_values),
+
+            to_nt(emitted_events),
+
+            to_nt(output_commitments),
+            to_nt(input_nullifiers),
+
+            to_nt(private_call_stack),
+            to_nt(public_call_stack),
+            to_nt(l1_msg_stack),
+
+            to_nt(old_private_data_tree_root),
+            to_nt(old_nullifier_tree_root),
+            to_nt(old_contract_tree_root),
+
+            to_native_type(contract_deployment_data),
+        };
+
+        return pis;
+    };
+
     fr hash() const
     {
         // auto to_hashes = []<typename T>(const T& e) { return e.hash(); };
@@ -112,6 +143,70 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
     }
 };
+
+template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs<NCT>& private_circuit_public_inputs)
+{
+    using serialize::read;
+
+    PrivateCircuitPublicInputs<NCT>& pis = private_circuit_public_inputs;
+    read(it, pis.call_context);
+    read(it, pis.args);
+    read(it, pis.return_values);
+    read(it, pis.emitted_events);
+    read(it, pis.output_commitments);
+    read(it, pis.input_nullifiers);
+    read(it, pis.private_call_stack);
+    read(it, pis.public_call_stack);
+    read(it, pis.l1_msg_stack);
+    read(it, pis.old_private_data_tree_root);
+    read(it, pis.old_nullifier_tree_root);
+    read(it, pis.old_contract_tree_root);
+
+    read(it, pis.contract_deployment_data);
+};
+
+template <typename NCT>
+void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
+{
+    using serialize::write;
+
+    PrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
+
+    write(buf, pis.call_context);
+    write(buf, pis.args);
+    write(buf, pis.return_values);
+    write(buf, pis.emitted_events);
+    write(buf, pis.output_commitments);
+    write(buf, pis.input_nullifiers);
+    write(buf, pis.private_call_stack);
+    write(buf, pis.public_call_stack);
+    write(buf, pis.l1_msg_stack);
+    write(buf, pis.old_private_data_tree_root);
+    write(buf, pis.old_nullifier_tree_root);
+    write(buf, pis.old_contract_tree_root);
+
+    write(buf, pis.contract_deployment_data);
+};
+
+template <typename NCT>
+std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const& private_circuit_public_inputs)
+
+{
+    PrivateCircuitPublicInputs<NCT> const& pis = private_circuit_public_inputs;
+    return os << "call_context: " << pis.call_context << "\n"
+              << "args: " << pis.args << "\n"
+              << "return_values: " << pis.return_values << "\n"
+              << "emitted_events: " << pis.emitted_events << "\n"
+              << "output_commitments: " << pis.output_commitments << "\n"
+              << "input_nullifiers: " << pis.input_nullifiers << "\n"
+              << "private_call_stack: " << pis.private_call_stack << "\n"
+              << "public_call_stack: " << pis.public_call_stack << "\n"
+              << "l1_msg_stack: " << pis.l1_msg_stack << "\n"
+              << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n"
+              << "old_nullifier_tree_root: " << pis.old_nullifier_tree_root << "\n"
+              << "old_nullifier_tree_root: " << pis.old_nullifier_tree_root << "\n"
+              << "contract_deployment_data: " << pis.contract_deployment_data << "\n";
+}
 
 // It's been extremely useful for all members here to be std::optional. It allows test app circuits to be very
 // quickly drafted without worrying about any of the public inputs which aren't relevant to that circuit. Any values

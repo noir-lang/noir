@@ -26,8 +26,7 @@ template <typename NCT> struct AccumulatedData {
 
     std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, KERNEL_CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH> contract_deployment_call_stack;
-    std::array<fr, KERNEL_L1_CALL_STACK_LENGTH> l1_call_stack;
+    std::array<fr, KERNEL_L1_CALL_STACK_LENGTH> l1_msg_stack;
 
     std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data;
 
@@ -56,8 +55,7 @@ template <typename NCT> struct AccumulatedData {
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
-            to_ct(contract_deployment_call_stack),
-            to_ct(l1_call_stack),
+            to_ct(l1_msg_stack),
 
             map(optionally_revealed_data, to_circuit_type),
         };
@@ -78,8 +76,7 @@ template <typename NCT> struct AccumulatedData {
 
         set_array_public(private_call_stack);
         set_array_public(public_call_stack);
-        set_array_public(contract_deployment_call_stack);
-        set_array_public(l1_call_stack);
+        set_array_public(l1_msg_stack);
 
         set_array_public(optionally_revealed_data);
     }

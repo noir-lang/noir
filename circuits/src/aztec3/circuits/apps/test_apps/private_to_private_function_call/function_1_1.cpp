@@ -1,18 +1,13 @@
 #include "function_1_1.hpp"
+#include "function_2_1.hpp"
 
 #include "contract.hpp"
 
-#include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
-using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
-
-OptionalPrivateCircuitPublicInputs<NT> function_1_1(FunctionExecutionContext& exec_ctx,
-                                                    NT::fr const& _a,
-                                                    NT::fr const& _b,
-                                                    NT::fr const& _c)
+void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args)
 {
     /****************************************************************
      * Initialisation
@@ -24,10 +19,9 @@ OptionalPrivateCircuitPublicInputs<NT> function_1_1(FunctionExecutionContext& ex
 
     // Convert arguments into circuit types:
     auto& composer = exec_ctx.composer;
-
-    CT::fr a = to_ct(composer, _a);
-    CT::fr b = to_ct(composer, _b);
-    CT::fr c = to_ct(composer, _c);
+    const auto a = to_ct(composer, _args[0]);
+    const auto b = to_ct(composer, _args[1]);
+    const auto c = to_ct(composer, _args[2]);
 
     /****************************************************************
      * Get States & Globals used by the function
@@ -50,31 +44,32 @@ OptionalPrivateCircuitPublicInputs<NT> function_1_1(FunctionExecutionContext& ex
 
     unique_person_who_may_initialise.assert_equal(msg_sender);
 
+    /**
+     * Now we want to call an external function of another smart contract.
+     * What I've written below is a bit of a hack.
+     * In reality what we'll need from Noir++ is syntax which hides all of the boilerplate I write below.
+     * Also, I _know_ where all the code for `function_2_1` is, so I've taken a big shortcut and #included
+     * `function_2_1.hpp`. This won't be the way we'll fetch bytecode in practice. In practice, we might only learn the
+     * contract address at runtime, and hence we'll have to fetch some acir bytecode at runtime from a DB and execute
+     * that in a simulator (e.g. the ACVM). This is where all this noddy C++ example code that I'm writing falls short.
+     * But hopefully this code still serves as a useful example of how the public inputs of a private function should be
+     * computed.
+     */
+    // auto function_2_1 = contract_1.get_function("function_2_1");
+    const CT::address fn_2_1_contract_address = 23456;
+
+    // TODO: this can probably be tidied up.
+    auto return_values =
+        exec_ctx.call(fn_2_1_contract_address,
+                      "function_2_1",
+                      std::function<void(FunctionExecutionContext&, std::array<NT::fr, ARGS_LENGTH>)>(function_2_1),
+                      { a, b, c, 0, 0, 0, 0, 0 });
+
+    // Use the return value in some way, just for fun:
     x.initialise({
-        .value = a,
+        .value = return_values[0],
         .owner = msg_sender,
     });
-
-    // auto function_2_1 = contract_1.get_function("function_2_1");
-    // const NT::address fn2_contract_address = 23456;
-
-    // C fn2_composer;
-
-    // // Note: it's ok that we swap back into Native Types here - we don't need constraints. Creation of fn2_oracle is
-    // // necessary for circuit construction only; it's not part of the circuit itself. We check that the call_contexts
-    // // (msg_sender, contract_address, tx_origin) of functions 1 & 2 relate to one-another in the private kernel
-    // circuit,
-    // // by comparing the functions' public inputs.
-    // NativeOracle fn2_oracle = NativeOracle( //
-    //     oracle.oracle.db,
-    //     fn2_contract_address,
-    //     oracle.get_this_contract_address().get_value(),
-    //     oracle.get_tx_origin().get_value());
-    // OracleWrapper fn2_oracle_wrapper = OracleWrapper(fn2_composer, fn2_oracle);
-
-    // FunctionExecutionContext fn1_exec_ctx(fn2_composer, fn2_oracle_wrapper);
-
-    // auto result = function_2_1.call(a, b, c);
 
     /****************************************************************
      * CLEANUP
@@ -91,9 +86,8 @@ OptionalPrivateCircuitPublicInputs<NT> function_1_1(FunctionExecutionContext& ex
 
     exec_ctx.finalise();
 
-    info("public inputs: ", public_inputs);
+    info("final public inputs: ", exec_ctx.final_private_circuit_public_inputs);
 
-    return public_inputs.to_native_type<C>();
     // TODO: also return note preimages and nullifier preimages.
 };
 

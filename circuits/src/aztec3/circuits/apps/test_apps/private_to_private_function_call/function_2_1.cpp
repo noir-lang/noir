@@ -8,10 +8,7 @@ namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
-OptionalPrivateCircuitPublicInputs<NT> function_2_1(FunctionExecutionContext& exec_ctx,
-                                                    NT::fr const& _d,
-                                                    NT::fr const& _e,
-                                                    NT::fr const& _f)
+void function_2_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LENGTH> const& _args)
 {
     /****************************************************************
      * Initialisation
@@ -23,10 +20,9 @@ OptionalPrivateCircuitPublicInputs<NT> function_2_1(FunctionExecutionContext& ex
 
     // Convert arguments into circuit types:
     auto& composer = exec_ctx.composer;
-
-    CT::fr d = to_ct(composer, _d);
-    CT::fr e = to_ct(composer, _e);
-    CT::fr f = to_ct(composer, _f);
+    const auto a = to_ct(composer, _args[0]);
+    const auto b = to_ct(composer, _args[1]);
+    const auto c = to_ct(composer, _args[2]);
 
     /****************************************************************
      * Get States & Globals used by the function
@@ -43,7 +39,7 @@ OptionalPrivateCircuitPublicInputs<NT> function_2_1(FunctionExecutionContext& ex
      * BODY
      ****************************************************************/
 
-    auto product = d * e * f;
+    auto product = a * b * c;
 
     CT::address unique_person_who_may_initialise = 999999;
 
@@ -64,9 +60,9 @@ OptionalPrivateCircuitPublicInputs<NT> function_2_1(FunctionExecutionContext& ex
 
     auto& public_inputs = exec_ctx.private_circuit_public_inputs;
 
-    public_inputs.args[0] = d;
-    public_inputs.args[1] = e;
-    public_inputs.args[2] = f;
+    public_inputs.args[0] = a;
+    public_inputs.args[1] = b;
+    public_inputs.args[2] = c;
 
     public_inputs.return_values[0] = product;
 
@@ -74,7 +70,6 @@ OptionalPrivateCircuitPublicInputs<NT> function_2_1(FunctionExecutionContext& ex
 
     info("public inputs: ", public_inputs);
 
-    return public_inputs.to_native_type<C>();
     // TODO: also return note preimages and nullifier preimages.
 };
 

@@ -21,7 +21,7 @@ template <typename NCT> struct PrivateCallData {
     typedef typename NCT::VK VK;
 
     CallStackItem<NCT, CallType::Private> call_stack_item;
-    CallContextReconciliationData<NCT> call_context_reconciliation_data;
+    // CallContextReconciliationData<NCT> call_context_reconciliation_data;
 
     NativeTypes::Proof proof; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
@@ -44,7 +44,7 @@ template <typename NCT> struct PrivateCallData {
 
         PrivateCallData<CircuitTypes<Composer>> data = {
             call_stack_item.to_circuit_type(composer),
-            call_context_reconciliation_data.to_circuit_type(composer),
+            // call_context_reconciliation_data.to_circuit_type(composer),
 
             proof, // Notice: not converted! Stays as native. This is because of how the verify_proof function currently
                    // works.

@@ -28,9 +28,11 @@ TEST(private_to_private_function_call_tests, test_private_to_private_function_ca
     auto b = NT::fr(222);
     auto c = NT::fr(333);
 
-    auto result = function_1_1(fn1_exec_ctx, a, b, c);
+    function_1_1(fn1_exec_ctx, { a, b, c, 0, 0, 0, 0, 0 });
 
-    info("result: ", result);
+    const auto& function_1_1_public_inputs = fn1_exec_ctx.final_private_circuit_public_inputs;
+
+    info("function_1_1_public_inputs: ", function_1_1_public_inputs);
 
     info("computed witness: ", fn1_composer.computed_witness);
     info("witness: ", fn1_composer.witness);

@@ -1,5 +1,7 @@
 #include "init.hpp"
 
+#include <aztec3/circuits/types/array.hpp>
+
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 
@@ -8,92 +10,10 @@ namespace aztec3::circuits::kernel::private_kernel {
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 
-/******************************************************************************************************************
- * Calcs on circuit arrays.
- * TODO: move these array calcs to a common/circuit_array.hpp file.
- *****************************************************************************************************************/
-
-/**
- * Gets the number of contiguous nonzero values of an array.
- * Note: this assumes `0` always means 'not used', so be careful. If you actually want `0` to be counted, you'll need
- * something else.
- */
-// TODO: move to own file of helper functions.
-template <std::size_t SIZE> CT::fr array_length(std::array<CT::fr, SIZE> const& arr)
-{
-    CT::fr length = 0;
-    CT::boolean hit_zero = false;
-    for (const auto& e : arr) {
-        hit_zero |= e == 0;
-        const CT::fr increment = !hit_zero;
-        length += increment;
-    }
-    return length;
-};
-
-/**
- * Note: doesn't remove the last element from the array; only returns it!
- * Note: this assumes `0` always means 'not used', so be careful. If you actually want `0` to be counted, you'll need
- * something else.
- * If it returns `0`, the array is considered 'empty'.
- */
-template <std::size_t SIZE> CT::fr array_pop(std::array<CT::fr, SIZE> const& arr)
-{
-    CT::fr popped_value;
-    CT::boolean already_popped = false;
-    for (size_t i = arr.size() - 1; i != (size_t)-1; i--) {
-        CT::boolean is_non_zero = arr[i] != 0;
-        popped_value = CT::fr::conditional_assign(!already_popped && is_non_zero, arr[i], popped_value);
-
-        already_popped |= is_non_zero;
-    }
-    return popped_value;
-};
-
-/**
- * Note: this assumes `0` always means 'not used', so be careful. If you actually want `0` to be counted, you'll need
- * something else.
- */
-template <std::size_t SIZE> CT::boolean is_array_empty(std::array<CT::fr, SIZE> const& arr)
-{
-    CT::boolean nonzero_found = false;
-    for (size_t i = arr.size() - 1; i != (size_t)-1; i--) {
-        CT::boolean is_non_zero = arr[i] != 0;
-        nonzero_found |= is_non_zero;
-    }
-    return !nonzero_found;
-};
-
-/**
- * Inserts the `source` array at the first zero-valued index of the `target` array.
- * Fails if the `source` array is too large vs the remaining capacity of the `target` array.
- */
-template <size_t size_1, size_t size_2>
-void push_array_to_array(std::array<CT::fr, size_1> const& source, std::array<CT::fr, size_2>& target)
-{
-    CT::fr target_length = array_length(target);
-    CT::fr source_length = array_length(source);
-
-    CT::fr target_capacity = CT::fr(target.size());
-    // TODO: using safe_fr for an underflow check, do:
-    // remaining_target_capacity = target_capacity.subtract(target_length + source_length);
-
-    CT::fr t_i = 0;
-    CT::fr next_index = target_length;
-    for (const auto& s : source) {
-        for (auto& t : target) {
-            next_index.assert_not_equal(target_capacity, "Target array capacity exceeded");
-            CT::boolean at_index = t_i == next_index;
-            t = CT::fr::conditional_assign(at_index, s, t);
-            next_index = CT::fr::conditional_assign(at_index, next_index + 1, next_index);
-            ++t_i;
-        }
-    }
-}
-
-/***************************************************************************************************************
- * End of array calcs.
- **************************************************************************************************************/
+using aztec3::circuits::types::array_length;
+using aztec3::circuits::types::array_pop;
+using aztec3::circuits::types::is_array_empty;
+using aztec3::circuits::types::push_array_to_array;
 
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!
@@ -127,8 +47,7 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs
 
     end.private_call_stack = start.private_call_stack;
     end.public_call_stack = start.public_call_stack;
-    end.contract_deployment_call_stack = start.contract_deployment_call_stack;
-    end.l1_call_stack = start.l1_call_stack;
+    end.l1_msg_stack = start.l1_msg_stack;
 
     end.optionally_revealed_data = start.optionally_revealed_data;
 }
@@ -143,8 +62,8 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     const auto& is_static_call = private_inputs.private_call.call_stack_item.public_inputs.call_context.is_static_call;
 
     // No state changes are allowed for static calls:
-    is_static_call.must_imply(is_array_empty(output_commitments) == true);
-    is_static_call.must_imply(is_array_empty(input_nullifiers) == true);
+    is_static_call.must_imply(is_array_empty<Composer>(output_commitments) == true);
+    is_static_call.must_imply(is_array_empty<Composer>(input_nullifiers) == true);
 
     const auto& storage_contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
@@ -167,8 +86,8 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
                                                         GeneratorIndex::OUTER_NULLIFIER));
         }
 
-        push_array_to_array(siloed_output_commitments, public_inputs.end.output_commitments);
-        push_array_to_array(siloed_input_nullifiers, public_inputs.end.input_nullifiers);
+        push_array_to_array<Composer>(siloed_output_commitments, public_inputs.end.output_commitments);
+        push_array_to_array<Composer>(siloed_input_nullifiers, public_inputs.end.input_nullifiers);
     }
 
     {
@@ -206,7 +125,7 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
 void validate_private_call_hash(PrivateInputs<CT> const& private_inputs)
 {
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
-    const auto private_call_hash = array_pop(start.private_call_stack);
+    const auto private_call_hash = array_pop<Composer>(start.private_call_stack);
     const auto calculated_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
     private_call_hash.assert_equal(calculated_private_call_hash, "private_call_hash does not reconcile");
@@ -225,19 +144,18 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
     const CT::boolean is_base_case = start.private_call_count == 0;
     const CT::boolean is_recursive_case = !is_base_case;
 
-    CT::fr start_private_call_stack_length = array_length(start.private_call_stack);
-    CT::fr start_public_call_stack_length = array_length(start.public_call_stack);
-    CT::fr start_contract_deployment_call_stack_length = array_length(start.contract_deployment_call_stack);
-    CT::fr start_l1_call_stack_length = array_length(start.l1_call_stack);
+    CT::fr start_private_call_stack_length = array_length<Composer>(start.private_call_stack);
+    CT::fr start_public_call_stack_length = array_length<Composer>(start.public_call_stack);
+    CT::fr start_l1_msg_stack_length = array_length<Composer>(start.l1_msg_stack);
 
     // Base Case
     {
         // Validate callstack lengths:
-        is_base_case.must_imply(start_private_call_stack_length ==
-                                        1 // TODO: might change to allow 2, so a fee can be paid.
-                                    && start_public_call_stack_length == 0 &&
-                                    start_contract_deployment_call_stack_length == 0 && start_l1_call_stack_length == 0,
-                                "Invalid callstacks for base case.");
+        is_base_case.must_imply(
+            start_private_call_stack_length ==
+                    1 // TODO: might change to allow 3, so a fee can be paid and a gas rebate can be paid.
+                && start_public_call_stack_length == 0 && start_l1_msg_stack_length == 0,
+            "Invalid callstacks for base case.");
 
         is_base_case.must_imply(next_call.public_inputs.call_context.is_delegate_call == false &&
                                     next_call.public_inputs.call_context.is_static_call == false,
@@ -264,12 +182,16 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 }
 
 // TODO: decide what to return.
+// TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
+// ensure we're constraining everything.
 void private_kernel_circuit(Composer& composer, OracleWrapper& oracle, PrivateInputs<NT> const& _private_inputs)
 {
     (void)oracle; // To avoid unused variable compiler errors whilst building.
 
     const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
-    PublicInputs<CT> public_inputs;
+
+    // We'll be pushing data to this during execution of this circuit.
+    PublicInputs<CT> public_inputs{};
 
     // const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
