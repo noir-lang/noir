@@ -9,6 +9,7 @@ ecc_tests
 numeric_tests
 plonk_tests
 polynomials_tests
+proof_system_tests
 rollup_proofs_account_tests
 rollup_proofs_claim_tests
 rollup_proofs_inner_proof_data_tests
@@ -24,3 +25,4 @@ stdlib_merkle_tree_tests
 stdlib_pedersen_tests
 stdlib_schnorr_tests
 stdlib_sha256_tests
+transcript_tests

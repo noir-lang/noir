@@ -194,4 +194,30 @@ TYPED_TEST(UnivariateTest, UnivariateViewMultiplication)
     Univariate<FF, 2> expected_result2{ { 3, 16 } };
     EXPECT_EQ(result2, expected_result2);
 }
+
+TYPED_TEST(UnivariateTest, Serialization)
+{
+    UNIVARIATE_TESTS_ALIASES
+
+    const size_t LENGTH = 4;
+    std::array<FF, LENGTH> evaluations;
+
+    for (size_t i = 0; i < LENGTH; ++i) {
+        evaluations[i] = FF::random_element();
+    }
+
+    // Instantiate a Univariate from the evaluations
+    auto univariate = Univariate<FF, LENGTH>(evaluations);
+
+    // Serialize univariate to buffer
+    std::vector<uint8_t> buffer = univariate.to_buffer();
+
+    // Deserialize
+    auto deserialized_univariate = Univariate<FF, LENGTH>::serialize_from_buffer(&buffer[0]);
+
+    for (size_t i = 0; i < LENGTH; ++i) {
+        EXPECT_EQ(univariate.value_at(i), deserialized_univariate.value_at(i));
+    }
+}
+
 } // namespace test_univariate

@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstdint>
 #include <span>
 #include <ostream>
 #include <common/serialize.hpp>
@@ -43,19 +44,15 @@ template <class Fr, size_t _length> class Univariate {
     Fr& value_at(size_t i) { return evaluations[i]; };
 
     // Write the Univariate evaluations to a buffer
-    std::vector<uint8_t> to_buffer() const
-    {
-        std::vector<uint8_t> buf;
-        std::write<std::vector<uint8_t>, Fr, _length>(buf, evaluations);
-        return buf;
-    }
+    std::vector<uint8_t> to_buffer() const { return ::to_buffer(evaluations); }
 
     // Static method for creating a Univariate from a buffer
-    static Univariate serialize_from_buffer(std::vector<uint8_t> buffer)
+    // IMPROVEMENT: Could be made to identically match equivalent methods in e.g. field.hpp. Currently bypasses
+    // unnecessary ::from_buffer call
+    static Univariate serialize_from_buffer(uint8_t const* buffer)
     {
-        ASSERT(_length == (buffer.size() / sizeof(Fr)));
         Univariate result;
-        std::read<std::vector<uint8_t>, Fr, _length>(buffer, result.evaluations);
+        std::read(buffer, result.evaluations);
         return result;
     }
 

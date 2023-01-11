@@ -86,7 +86,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         for (size_t round_idx = 0; round_idx < multivariate_d; round_idx++) {
             // Obtain the round univariate from the transcript
             auto round_univariate = Univariate<FF, MAX_RELATION_LENGTH>::serialize_from_buffer(
-                transcript.get_element("univariate_" + std::to_string(round_idx)));
+                &transcript.get_element("univariate_" + std::to_string(round_idx))[0]);
 
             verified = verified && round.check_sum(round_univariate);
             FF round_challenge = transcript.get_mock_challenge();
