@@ -495,6 +495,10 @@ impl<'a> Resolver<'a> {
                 let stmt = HirAssignStatement { lvalue: identifier, expression };
                 HirStatement::Assign(stmt)
             }
+            Statement::Log(log_stmt) => {
+                let log_type = self.resolve_type(log_stmt);
+                HirStatement::Log(log_type)
+            }
             Statement::Error => HirStatement::Error,
         }
     }
