@@ -116,7 +116,7 @@ void compute_wire_copy_cycles(CircuitConstructor& circuit_constructor, CycleColl
 }
 
 /**
- * @brief Compute sigma permutations for standard honk.
+ * @brief Compute sigma permutations for standard honk and put them into polynomial cache
  *
  * @details These permutations don't involve sets. We only care about equating one witness value to another. The
  * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based on
@@ -173,6 +173,52 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
         std::string index = std::to_string(i + 1);
         key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomials_lagrange[i]));
     }
+}
+
+/**
+ * @brief Compute standard honk id polynomials and put them into cache
+ *
+ * @details Honk permutations involve using id and sigma polynomials to generate variable cycles. This function
+ * generates the id polynomials and puts them into polynomial cache, so that they can be used by the prover.
+ *
+ * @tparam program_width The number of witness polynomials
+ * @param key Proving key where we will save the polynomials
+ */
+template <size_t program_width> void compute_standard_honk_id_polynomials(proving_key* key)
+{
+    const size_t n = key->n;
+    // Fill id polynomials with default values
+    std::vector<barretenberg::polynomial> id_polynomials_lagrange;
+    for (uint64_t i = 0; i < program_width; ++i) {
+        // Construct permutation polynomials in lagrange base
+        std::string index = std::to_string(i + 1);
+        id_polynomials_lagrange.push_back(barretenberg::polynomial(key->n));
+        barretenberg::polynomial& id_polynomial_lagrange = id_polynomials_lagrange[i];
+        for (uint64_t j = 0; j < key->n; j++) {
+            id_polynomial_lagrange[j] = (i * n + j);
+        }
+    }
+    // Save to polynomial cache
+    for (size_t i = 0; i < program_width; i++) {
+        std::string index = std::to_string(i + 1);
+        key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_polynomials_lagrange[i]));
+    }
+}
+
+/**
+ * @brief Compute Lagrange Polynomials L_0 and L_{n-1} and put them in the polynomial cache
+ *
+ * @param key Proving key where we will save the polynomials
+ */
+inline void compute_first_and_last_lagrange_polynomials(proving_key* key)
+{
+    const size_t n = key->n;
+    barretenberg::polynomial lagrange_polynomial_0(n, n);
+    barretenberg::polynomial lagrange_polynomial_n_min_1(n, n);
+    lagrange_polynomial_0[0] = 1;
+    lagrange_polynomial_n_min_1[n - 1] = 1;
+    key->polynomial_cache.put("L_first_lagrange", std::move(lagrange_polynomial_0));
+    key->polynomial_cache.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
 }
 
 } // namespace waffle
