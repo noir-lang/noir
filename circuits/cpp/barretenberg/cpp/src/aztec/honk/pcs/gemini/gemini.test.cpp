@@ -147,9 +147,6 @@ TYPED_TEST(GeminiTest, double_shift)
     auto [prover_claim, witness, proof] = Gemini::reduce_prove(
         this->ck(), u, claims, claims_shift, { &poly1, &poly2 }, { &poly2 }, this->prover_challenges);
 
-    for (size_t i = 0; i < witness.size(); ++i) {
-        std::cout << "size " << i << " " << witness[i].size() << "\n";
-    }
     this->verify_batch_opening_claim(prover_claim, witness);
 
     auto verifier_claim = Gemini::reduce_verify(u, claims, claims_shift, proof, this->verifier_challenges);
