@@ -23,7 +23,9 @@ pub(crate) fn type_check_expression(
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
-            let (typ, bindings) = interner.id_type(ident.id).instantiate(interner);
+            let t = interner.id_type(ident.id);
+            println!("{} : {}", interner.definition_name(ident.id), t);
+            let (typ, bindings) = t.instantiate(interner);
             interner.store_instantiation_bindings(*expr_id, bindings);
             typ
         }
@@ -96,6 +98,8 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Call(call_expr) => {
             let function = type_check_expression(interner, &call_expr.func, errors);
+            println!("call : {}", function);
+
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))
@@ -420,6 +424,23 @@ fn bind_function_type(
             ret
         }
         Type::Function(parameters, ret) => {
+            if parameters.len() != args.len() {
+                let empty_or_s = if parameters.len() == 1 { "" } else { "s" };
+                let was_or_were = if args.len() == 1 { "was" } else { "were" };
+
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!(
+                        "Function expects {} parameter{} but {} {} given",
+                        parameters.len(),
+                        empty_or_s,
+                        args.len(),
+                        was_or_were
+                    ),
+                    span,
+                });
+                return Type::Error;
+            }
+
             for (param, (arg, arg_span)) in parameters.iter().zip(args) {
                 arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
