@@ -109,7 +109,7 @@ TEST(standard_honk_composer, test_sigma_and_id_correctness)
 TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
 {
     // Create a composer and a dummy circuit with a few gates
-    waffle::StandardHonkComposer composer = waffle::StandardHonkComposer();
+    StandardHonkComposer composer = StandardHonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_variable(a);
     fr b = fr::one();

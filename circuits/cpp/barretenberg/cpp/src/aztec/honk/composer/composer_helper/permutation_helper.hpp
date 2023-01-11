@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <vector>
 #include <proof_system/proving_key/proving_key.hpp>
-namespace waffle {
+namespace honk {
 // Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
 enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
@@ -128,7 +128,7 @@ void compute_wire_copy_cycles(CircuitConstructor& circuit_constructor, CycleColl
  * @param key
  */
 template <size_t program_width, typename CircuitConstructor>
-void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, proving_key* key)
+void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, waffle::proving_key* key)
 {
     // Compute wire copy cycles for public and private variables
     CycleCollector wire_copy_cycles;
@@ -184,7 +184,7 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
  * @tparam program_width The number of witness polynomials
  * @param key Proving key where we will save the polynomials
  */
-template <size_t program_width> void compute_standard_honk_id_polynomials(proving_key* key)
+template <size_t program_width> void compute_standard_honk_id_polynomials(waffle::proving_key* key)
 {
     const size_t n = key->n;
     // Fill id polynomials with default values
@@ -210,7 +210,7 @@ template <size_t program_width> void compute_standard_honk_id_polynomials(provin
  *
  * @param key Proving key where we will save the polynomials
  */
-inline void compute_first_and_last_lagrange_polynomials(proving_key* key)
+inline void compute_first_and_last_lagrange_polynomials(waffle::proving_key* key)
 {
     const size_t n = key->n;
     barretenberg::polynomial lagrange_polynomial_0(n, n);
@@ -221,4 +221,4 @@ inline void compute_first_and_last_lagrange_polynomials(proving_key* key)
     key->polynomial_cache.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
 }
 
-} // namespace waffle
+} // namespace honk
