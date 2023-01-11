@@ -6,7 +6,7 @@ use super::mem::{ArrayId, Memory};
 use super::node::{
     ArrayIdSet, BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation,
 };
-use super::{block, flatten, inline, integer, node, optim};
+use super::{block, builtin, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
@@ -14,7 +14,6 @@ use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
@@ -35,7 +34,7 @@ pub struct SsaContext {
     pub mem: Memory,
 
     pub functions: HashMap<FuncId, function::SSAFunction>,
-    pub opcode_ids: HashMap<OPCODE, NodeId>,
+    pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
     /// Maps ArrayIdSet -> Vec<(ArrayId, u32)>,
     pub function_returned_arrays: Vec<Vec<(ArrayId, /*result_index:*/ u32)>>,
@@ -1109,12 +1108,12 @@ impl SsaContext {
         self.get_ssafunc(func_id).is_some()
     }
 
-    pub fn get_or_create_opcode_node_id(&mut self, opcode: acvm::acir::OPCODE) -> NodeId {
+    pub fn get_or_create_opcode_node_id(&mut self, opcode: builtin::Opcode) -> NodeId {
         if let Some(id) = self.opcode_ids.get(&opcode) {
             return *id;
         }
 
-        let (len, elem_type) = function::get_result_type(opcode);
+        let (len, elem_type) = opcode.get_result_type();
         let array_set = if len > 1 {
             let array = self.new_array(&format!("{}_result", opcode), elem_type, len, None).1;
             self.push_array_set(vec![(array, 0)])
@@ -1131,7 +1130,7 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<OPCODE> {
+    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
         match &self[node_id] {
             NodeObj::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,

@@ -2,7 +2,6 @@ use std::convert::TryInto;
 
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use acvm::acir::native_types::Witness;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
@@ -15,9 +14,9 @@ use std::ops::{Add, Mul, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
-use super::conditional;
 use super::context::SsaContext;
 use super::mem::ArrayId;
+use super::{builtin, conditional};
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -127,7 +126,7 @@ pub enum NodeObj {
 #[derive(Debug, Copy, Clone)]
 pub enum FunctionKind {
     Normal(FuncId),
-    Builtin(OPCODE),
+    Builtin(builtin::Opcode),
 }
 
 #[derive(Debug)]
@@ -540,7 +539,7 @@ pub enum Operation {
         value: NodeId,
     },
 
-    Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
@@ -591,8 +590,8 @@ pub enum Opcode {
     //memory
     Load(ArrayId),
     Store(ArrayId),
-    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
-    Nop,               // no op
+    Intrinsic(builtin::Opcode), //Custom implementation of useful primitives
+    Nop,                        // no op
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

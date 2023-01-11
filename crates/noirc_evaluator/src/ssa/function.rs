@@ -2,11 +2,10 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
-use acvm::acir::OPCODE;
-use acvm::FieldElement;
 use iter_extended::try_vecmap;
 use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
 
+use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::{ArrayIdSet, Node, Operation};
 use super::{
@@ -141,23 +140,6 @@ impl SSAFunction {
         } else {
             ssa_form::get_current_value_in_block(ctx, *node_id, block_id)
         }
-    }
-}
-
-//Returns the number of elements and their type, of the output result corresponding to the OPCODE function.
-pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
-    match op {
-        OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
-        OPCODE::SHA256 => (32, ObjectType::Unsigned(8)),
-        OPCODE::Blake2s => (32, ObjectType::Unsigned(8)),
-        OPCODE::HashToField => (1, ObjectType::NativeField),
-        OPCODE::MerkleMembership => (1, ObjectType::NativeField), //or bool?
-        OPCODE::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
-        OPCODE::Pedersen => (2, ObjectType::NativeField),
-        OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
-        OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
-        OPCODE::ToBytes => (FieldElement::max_num_bytes(), ObjectType::Boolean),
     }
 }
 
@@ -302,16 +284,13 @@ impl IRGenerator {
     //Lowlevel functions with no more than 2 arguments
     pub fn call_low_level(
         &mut self,
-        op: OPCODE,
+        op: builtin::Opcode,
         args: Vec<NodeId>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
-        //Output:
-
         // TODO: There is a mismatch between intrinsics and normal function calls:
         // Normal functions returning arrays have 1 ArrayId on the function itself
         // Intrinsics generate a new Id on every call
-        let (len, elem_type) = get_result_type(op);
+        let (len, elem_type) = op.get_result_type();
 
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array

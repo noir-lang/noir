@@ -2,7 +2,7 @@ use super::context::SsaContext;
 use super::function::{self, FuncIndex};
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
-use super::{block, node, ssa_form};
+use super::{block, builtin, node, ssa_form};
 use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 
@@ -10,7 +10,6 @@ use super::super::errors::RuntimeError;
 
 use crate::errors;
 use crate::ssa::block::BlockType;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::*;
@@ -239,7 +238,7 @@ impl IRGenerator {
                     Ok(Value::Single(function_node_id))
                 }
                 Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
-                    let opcode = OPCODE::lookup(opcode).unwrap_or_else(|| {
+                    let opcode = builtin::Opcode::lookup(opcode).unwrap_or_else(|| {
                         unreachable!("Unknown builtin/lowlevel opcode '{}'", opcode)
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);

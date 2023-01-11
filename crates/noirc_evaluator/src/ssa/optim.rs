@@ -5,6 +5,7 @@ use crate::errors::RuntimeError;
 use super::{
     anchor::{Anchor, CseAction},
     block::BlockId,
+    builtin,
     context::SsaContext,
     node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
 };
@@ -61,13 +62,13 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
 
 fn evaluate_intrinsic(
     ctx: &mut SsaContext,
-    op: acvm::acir::OPCODE,
+    op: builtin::Opcode,
     args: Vec<u128>,
     res_type: &ObjectType,
     block_id: BlockId,
 ) -> Vec<NodeId> {
     match op {
-        acvm::acir::OPCODE::ToBits => {
+        builtin::Opcode::ToBits => {
             let bit_count = args[1] as u32;
             let mut result = Vec::new();
 
