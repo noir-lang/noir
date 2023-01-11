@@ -959,7 +959,7 @@ pub fn evaluate_udiv(
 
     //r<b
     let r_expr = Expression::from(Linear::from_witness(r_witness));
-    range_constraint(r_witness, bit_size, evaluator).unwrap();
+    try_range_constraint(r_witness, bit_size, evaluator);
     bound_constraint_with_offset(
         &r_expr,
         &rhs.expression,
@@ -1306,7 +1306,7 @@ fn bound_check(
         c: q_witness,
         bit_size: max_bits,
     }));
-    range_constraint(r_witness, max_bits, evaluator).unwrap();
+    try_range_constraint(r_witness, max_bits, evaluator);
     evaluator.gates.push(Gate::Arithmetic(boolean(q_witness)));
     q_witness
 }
@@ -1371,7 +1371,7 @@ fn bound_constraint_with_offset(
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
             let aor = add(&aof, FieldElement::from(r), &Expression::one());
             let witness = InternalVar::expression_to_witness(aor, evaluator);
-            range_constraint(witness, bit_size, evaluator).unwrap();
+            try_range_constraint(witness, bit_size, evaluator);
             return;
         }
     }
