@@ -22,6 +22,7 @@ use crate::errors::CliError;
 mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
+mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
@@ -89,6 +90,12 @@ pub fn start_cli() {
         .subcommand(
             App::new("gates")
                 .about("Counts the occurences of different gates in circuit")
+                .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
+            App::new("execute")
+                .about("Executes a circuit to calculate its return value")
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
@@ -103,7 +110,9 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
-        Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
+        Some("execute") => execute_cmd::run(matches),
+
+        Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
         _ => unreachable!(),
     };
     if let Err(err) = result {
