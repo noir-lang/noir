@@ -8,7 +8,7 @@ use iter_extended::try_vecmap;
 use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
 
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::node::{Node, Operation};
+use super::node::{ArrayIdSet, Node, Operation};
 use super::{
     block,
     block::BlockId,
@@ -32,6 +32,8 @@ pub struct SSAFunction {
     pub entry_block: BlockId,
     pub id: FuncId,
     pub idx: FuncIndex,
+    pub node_id: NodeId,
+
     //signature:
     pub name: String,
     pub arguments: Vec<(NodeId, bool)>,
@@ -41,15 +43,18 @@ pub struct SSAFunction {
 
 impl SSAFunction {
     pub fn new(
-        func: FuncId,
+        id: FuncId,
         name: &str,
         block_id: BlockId,
         idx: FuncIndex,
-        ctx: &SsaContext,
+        ctx: &mut SsaContext,
     ) -> SSAFunction {
+        // Temporary ArrayIdSet - the actual arrays returned by this function are not yet known.
+        let typ = ObjectType::Function(ArrayIdSet(u32::MAX));
         SSAFunction {
             entry_block: block_id,
-            id: func,
+            id,
+            node_id: ctx.push_function_id(id, typ),
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
@@ -168,7 +173,8 @@ impl IRGenerator {
         let func_block = block::BasicBlock::create_cfg(&mut self.context);
 
         let function = &mut self.program[func_id];
-        let mut func = SSAFunction::new(func_id, &function.name, func_block, index, &self.context);
+        let mut func =
+            SSAFunction::new(func_id, &function.name, func_block, index, &mut self.context);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
@@ -232,7 +238,7 @@ impl IRGenerator {
         let function_type = ObjectType::Function(array_set_id);
 
         // Push a standard NodeId for this FuncId
-        self.context.push_function_id(func_id, function_type);
+        self.context.set_function_type(func_id, func.node_id, function_type);
 
         self.context.new_instruction(
             node::Operation::Return(return_values),

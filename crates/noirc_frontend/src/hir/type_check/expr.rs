@@ -24,7 +24,6 @@ pub(crate) fn type_check_expression(
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
             let t = interner.id_type(ident.id);
-            println!("{} : {}", interner.definition_name(ident.id), t);
             let (typ, bindings) = t.instantiate(interner);
             interner.store_instantiation_bindings(*expr_id, bindings);
             typ
@@ -98,8 +97,6 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Call(call_expr) => {
             let function = type_check_expression(interner, &call_expr.func, errors);
-            println!("call : {}", function);
-
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))

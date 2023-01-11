@@ -35,7 +35,6 @@ pub struct SsaContext {
     pub mem: Memory,
 
     pub functions: HashMap<FuncId, function::SSAFunction>,
-    pub function_ids: HashMap<FuncId, NodeId>,
     pub opcode_ids: HashMap<OPCODE, NodeId>,
 
     /// Maps ArrayIdSet -> Vec<(ArrayId, u32)>,
@@ -58,7 +57,6 @@ impl SsaContext {
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
-            function_ids: HashMap::new(),
             function_returned_arrays: Vec::new(),
             opcode_ids: HashMap::new(),
             call_graph: Vec::new(),
@@ -1086,13 +1084,17 @@ impl SsaContext {
         }
     }
 
-    pub fn push_function_id(&mut self, func_id: FuncId, typ: ObjectType) {
+    pub fn push_function_id(&mut self, func_id: FuncId, typ: ObjectType) -> NodeId {
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
             NodeObj::Function(FunctionKind::Normal(func_id), node_id, typ)
         });
 
-        self.function_ids.insert(func_id, NodeId(index));
+        NodeId(index)
+    }
+
+    pub fn set_function_type(&mut self, func_id: FuncId, node_id: NodeId, typ: ObjectType) {
+        self[node_id] = NodeObj::Function(FunctionKind::Normal(func_id), node_id, typ);
     }
 
     /// Return the standard NodeId for this FuncId.
@@ -1100,7 +1102,7 @@ impl SsaContext {
     /// is first compiled so that repeated NodeObjs are not made for the same function.
     /// If this function returns None, it means the given FuncId has yet to be compiled.
     pub fn get_function_node_id(&self, func_id: FuncId) -> Option<NodeId> {
-        self.function_ids.get(&func_id).copied()
+        self.functions.get(&func_id).map(|f| f.node_id)
     }
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
