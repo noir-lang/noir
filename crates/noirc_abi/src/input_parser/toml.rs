@@ -58,9 +58,9 @@ fn toml_map_to_field(
                 let new_value = try_str_to_field(&string);
 
                 // We accept UTF-8 strings as input as well as hex strings representing field elements.
-                // We still want developers to be able to pass in hex strings for FieldElement inputs. 
+                // We still want developers to be able to pass in hex strings for FieldElement inputs.
                 // Thus, we first try to parse the string into a field element, and if that fails we assume that the input is meant to be a plain string
-                if new_value.is_err() { 
+                if new_value.is_err() {
                     InputValue::String(string)
                 } else if let Ok(Some(field_element)) = new_value {
                     InputValue::Field(field_element)

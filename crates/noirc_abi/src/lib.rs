@@ -184,8 +184,7 @@ impl Abi {
                 let str_as_fields = string
                     .into_bytes()
                     .into_iter()
-                    .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]))
-                    .collect::<Vec<_>>();
+                    .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields)
             }
             InputValue::Struct(object) => {
@@ -252,7 +251,10 @@ impl Abi {
                 let string_as_slice = field_elements
                     .iter()
                     .map(|e| {
-                        *e.to_bytes().last().unwrap() // A character in a string is represented by a u8, thus we just want the last byte of the element
+                        let mut field_as_bytes = e.to_bytes();
+                        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                        char_byte
                     })
                     .collect::<Vec<_>>();
 
