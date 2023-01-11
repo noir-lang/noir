@@ -166,7 +166,7 @@ pub enum Type {
     Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
-    String(/*len:*/ u64), // String(4) = [char; 4]
+    String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
 }
@@ -256,7 +256,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{}", bits),
             },
             Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "[char; {}]", len),
+            Type::String(len) => write!(f, "str[{}]", len),
             Type::Unit => write!(f, "()"),
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);
