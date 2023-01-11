@@ -8,7 +8,7 @@ use super::{
     node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObj, ObjectType, Operation},
     optim,
 };
-use acvm::{acir::OPCODE, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -481,21 +481,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Result { .. } => {
             unreachable!("Functions must have been inlined before checking for overflows")
         }
-        Operation::Intrinsic(opcode, _) => {
-            match opcode {
-                OPCODE::SHA256
-                | OPCODE::Blake2s
-                | OPCODE::Pedersen
-                | OPCODE::FixedBaseScalarMul
-                | OPCODE::ToBits
-                | OPCODE::ToBytes => BigUint::zero(), //pointers do not overflow
-                OPCODE::SchnorrVerify
-                | OPCODE::EcdsaSecp256k1
-                | acvm::acir::OPCODE::MerkleMembership => BigUint::one(), //verify returns 0 or 1
-                OPCODE::HashToField => ins.res_type.max_size(),
-                _ => todo!("max value must be implemented for opcode {} ", opcode),
-            }
-        }
+        Operation::Intrinsic(opcode, _) => opcode.get_max_value(),
     };
 
     if ins.res_type == ObjectType::NativeField {
