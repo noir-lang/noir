@@ -22,6 +22,7 @@ default-members = ["crates/nargo"]
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
 edition = "2021"
+rust-version = "1.64"
 
 [workspace.dependencies]
 acir = { path = "crates/acir" }
