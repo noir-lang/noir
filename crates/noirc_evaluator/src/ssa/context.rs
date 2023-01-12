@@ -241,7 +241,7 @@ impl SsaContext {
                 format!("result {} of {}", index, call)
             }
             Operation::SetPub(node_ids, _) => {
-                let mut s = format!("setpub ");
+                let mut s = "setpub ".to_string();
                 for node_id in node_ids {
                     s = format!("{}, {}", s, self.node_to_string(*node_id),);
                 }
