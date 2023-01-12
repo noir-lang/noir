@@ -232,8 +232,8 @@ impl Acir {
             }
             Operation::SetPub(node_ids, _) => {
                 for node_id in node_ids {
-                    let object = self.substitute(*node_id, evaluator, ctx);
-                    let witness = object.get_or_generate_witness(evaluator);
+                    let mut object = self.substitute(*node_id, evaluator, ctx);
+                    let witness = object.generate_witness(evaluator);
                     evaluator.public_outputs.push(witness);
                 }
 
