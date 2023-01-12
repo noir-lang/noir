@@ -99,21 +99,8 @@ impl Monomorphiser {
         let main_meta = self.interner.function_meta(&main_id);
 
         if main.return_type != ast::Type::Unit {
-            let id = self.next_definition_id();
-
-            main.parameters.push((id, false, "return".into(), main.return_type));
-            main.return_type = ast::Type::Unit;
-
-            let name = "_".into();
-            let typ = Self::convert_type(main_meta.return_type());
-            let lhs =
-                Box::new(ast::Expression::Ident(ast::Ident { id, location: None, name, typ }));
-            let rhs = Box::new(main.body);
-            let operator = ast::BinaryOp::Equal;
-            let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
-
             let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), location);
+            main.body = ast::Expression::SetPub(Box::new(main.body), location);
         }
 
         let abi = main_meta.into_abi(&self.interner);
