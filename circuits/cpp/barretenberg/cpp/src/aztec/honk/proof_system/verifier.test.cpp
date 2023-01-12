@@ -220,7 +220,7 @@ TYPED_TEST(VerifierTests, verify_arithmetic_proof_small)
 
     StandardProver state = TestFixture::generate_test_data(n);
 
-    StandardVerifier verifier = TestFixture::generate_verifier(state.key);
+    StandardVerifier verifier = TestFixture::generate_verifier(state.proving_key);
 
     // construct proof
     waffle::plonk_proof proof = state.construct_proof();

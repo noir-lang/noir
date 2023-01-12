@@ -74,7 +74,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
             sigmas.emplace_back(sigma_poly);
 
             // Add polys to proving_key; to be used by the prover in constructing it's own z_perm
-            std::string wire_id = "wire_" + std::to_string(i + 1) + "_lagrange";
+            std::string wire_id = "w_" + std::to_string(i + 1) + "_lagrange";
             std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
             proving_key->polynomial_cache.put(wire_id, std::move(wire_poly));
             proving_key->polynomial_cache.put(sigma_id, std::move(sigma_poly));
@@ -154,7 +154,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
         }
 
         // Check consistency between locally computed z_perm and the one computed by the prover
-        EXPECT_EQ(z_perm, honk_prover.key->polynomial_cache.get("z_perm"));
+        EXPECT_EQ(z_perm, honk_prover.proving_key->polynomial_cache.get("z_perm"));
     };
 };
 

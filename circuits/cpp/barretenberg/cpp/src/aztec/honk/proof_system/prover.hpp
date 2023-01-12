@@ -1,5 +1,6 @@
 #pragma once
-#include "../../proof_system/proving_key/proving_key.hpp"
+#include <proof_system/proving_key/proving_key.hpp>
+#include <honk/pcs/commitment_key.hpp>
 #include "../../plonk/proof_system/types/plonk_proof.hpp"
 #include "../../plonk/proof_system/types/program_settings.hpp"
 
@@ -24,7 +25,8 @@ template <typename settings> class Prover {
 
     void compute_wire_commitments();
 
-    void compute_grand_product_polynomial();
+    void compute_grand_product_polynomial(
+        barretenberg::fr beta = 1); // TODO(Cody): get rid of dangerous default value here
 
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
@@ -51,10 +53,12 @@ template <typename settings> class Prover {
     transcript::StandardTranscript transcript;
 
     // TODO(luke): Honk PoC will have equivalent members
-    std::shared_ptr<waffle::proving_key> key;
-    // std::unique_ptr<CommitmentScheme> commitment_scheme;
+    std::shared_ptr<waffle::proving_key> proving_key;
 
-    // TODO(luke): Honk only needs a small portion of the functionality but may be fine to use existing work_queue
+    std::unique_ptr<pcs::kzg::CommitmentKey> commitment_key;
+
+    // Honk only needs a small portion of the functionality but may be fine to use existing work_queue
+    // NOTE: this is not currently in use, but it may well be used in the future.
     waffle::work_queue queue;
 
     // This makes 'settings' accesible from Prover

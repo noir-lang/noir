@@ -1,6 +1,7 @@
 #include "composer_helper.hpp"
 #include <cstddef>
 #include <proof_system/flavor/flavor.hpp>
+#include <honk/pcs/commitment_key.hpp>
 #include <numeric/bitop/get_msb.hpp>
 
 namespace honk {
@@ -324,11 +325,11 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
     // output_state.random_widgets.emplace_back(std::move(permutation_widget));
     // output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
-    // TODO: Do we need a commitment scheme int the output_state?
-    // std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
-    //    std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
+    // TODO(Cody): This should be more generic
+    std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
+        std::make_unique<pcs::kzg::CommitmentKey>(circuit_proving_key->n, "../srs_db/ignition");
 
-    // output_state.commitment_scheme = std::move(kate_commitment_scheme);
+    output_state.commitment_key = std::move(kate_commitment_key);
 
     return output_state;
 }
