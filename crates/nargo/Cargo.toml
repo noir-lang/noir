@@ -12,6 +12,7 @@ dirs = "4"
 [dependencies]
 dirs = "3.0.1"
 url = "2.2.0"
+iter-extended = { path = "../iter-extended" }
 noirc_driver = { path = "../noirc_driver", features = ["std"] }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
@@ -28,7 +29,7 @@ hex = "0.4.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "ef6cdb1e26bff1c8dd9aea811e97b008f7e6651e" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "8c8ec2dd9c376bef598d17f023fac172e5e47860" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "601e24dcb5dcbe72e3de7a33879aaf84e171d541" }
 
 [features]

@@ -2,10 +2,9 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
-use acvm::acir::OPCODE;
-use acvm::FieldElement;
 use noirc_frontend::monomorphisation::ast::{self, Call, DefinitionId, FuncId, Type};
 
+use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
 use super::node::Node;
 use super::{
@@ -142,23 +141,6 @@ impl SSAFunction {
     }
 }
 
-//Returns the number of elements and their type, of the output result corresponding to the OPCODE function.
-pub fn get_result_type(op: OPCODE) -> (u32, ObjectType) {
-    match op {
-        OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
-        OPCODE::SHA256 => (32, ObjectType::Unsigned(8)),
-        OPCODE::Blake2s => (32, ObjectType::Unsigned(8)),
-        OPCODE::HashToField => (1, ObjectType::NativeField),
-        OPCODE::MerkleMembership => (1, ObjectType::NativeField), //or bool?
-        OPCODE::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
-        OPCODE::Pedersen => (2, ObjectType::NativeField),
-        OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
-        OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
-        OPCODE::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
-        OPCODE::ToBytes => (FieldElement::max_num_bytes(), ObjectType::Boolean),
-    }
-}
-
 impl IRGenerator {
     pub fn create_function(
         &mut self,
@@ -278,7 +260,7 @@ impl IRGenerator {
     //Lowlevel functions with no more than 2 arguments
     pub fn call_low_level(
         &mut self,
-        op: OPCODE,
+        op: builtin::Opcode,
         call: &ast::CallLowLevel,
     ) -> Result<NodeId, RuntimeError> {
         //Inputs
@@ -294,7 +276,7 @@ impl IRGenerator {
         //REM: we do not check that the nb of inputs correspond to the function signature, it is done in the frontend
 
         //Output:
-        let (len, elem_type) = get_result_type(op);
+        let (len, elem_type) = op.get_result_type();
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;

@@ -41,8 +41,7 @@ impl Gate {
             Gate::Directive(Directive::Truncate { .. }) => "truncate",
             Gate::Directive(Directive::Quotient { .. }) => "quotient",
             Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
-            Gate::Directive(Directive::Split { .. }) => "split",
-            Gate::Directive(Directive::ToBytes { .. }) => "to_bytes",
+            Gate::Directive(Directive::ToRadix { .. }) => "to_radix",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
@@ -78,9 +77,9 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Truncate { a, b, c: _c, bit_size }) => {
                 write!(
                     f,
-                    "Truncate: x{} is x{} truncated to {} bits",
+                    "Truncate: x{} is {} truncated to {} bits",
                     b.witness_index(),
-                    a.witness_index(),
+                    a,
                     bit_size
                 )
             }
@@ -120,20 +119,12 @@ impl std::fmt::Debug for Gate {
             Gate::And(g) => write!(f, "{g:?}"),
             Gate::Xor(g) => write!(f, "{g:?}"),
             Gate::GadgetCall(g) => write!(f, "{g:?}"),
-            Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
+            Gate::Directive(Directive::ToRadix { a, b, radix }) => {
                 write!(
                     f,
-                    "Split: {} into x{}...x{}",
+                    "To Radix: {} into base {}; x{}...x{}",
                     a,
-                    b.first().unwrap().witness_index(),
-                    b.last().unwrap().witness_index(),
-                )
-            }
-            Gate::Directive(Directive::ToBytes { a, b, byte_size: _ }) => {
-                write!(
-                    f,
-                    "To Bytes: {} into x{}...x{}",
-                    a,
+                    radix,
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
@@ -162,7 +153,7 @@ pub enum Directive {
 
     //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
     Truncate {
-        a: Witness,
+        a: Expression,
         b: Witness,
         c: Witness,
         bit_size: u32,
@@ -176,18 +167,11 @@ pub enum Directive {
         bit_size: u32,
     },
 
-    //bit decomposition of a: a=\sum b[i]*2^i
-    Split {
+    //decomposition of a: a=\sum b[i]*radix^i where b is an array of witnesses < radix
+    ToRadix {
         a: Expression,
         b: Vec<Witness>,
-        bit_size: u32,
-    },
-
-    //byte decomposition of a: a=\sum b[i]*2^i where b is a byte array
-    ToBytes {
-        a: Expression,
-        b: Vec<Witness>,
-        byte_size: u32,
+        radix: u32,
     },
 }
 

@@ -29,7 +29,11 @@ pub fn split(
         g.linear_combinations.push((-two_pow, w));
         two_pow = FieldElement::from(2_i128) * two_pow;
     }
-    new_gates.push(Gate::Directive(Directive::Split { a: gate, b: bit_vector.clone(), bit_size }));
+    new_gates.push(Gate::Directive(Directive::ToRadix {
+        a: gate,
+        b: bit_vector.clone(),
+        radix: 2,
+    }));
     new_gates.extend(intermediate_gates);
     g.sort();
     new_gates.push(Gate::Arithmetic(g));
