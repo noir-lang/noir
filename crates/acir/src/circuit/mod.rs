@@ -16,7 +16,6 @@ pub struct Circuit {
     pub current_witness_index: u32,
     pub gates: Vec<Gate>,
     pub public_inputs: PublicInputs,
-    pub public_outputs: PublicInputs,
 }
 
 impl Circuit {
@@ -87,7 +86,6 @@ mod test {
                 }),
             ],
             public_inputs: PublicInputs(vec![Witness(2)]),
-            public_outputs: PublicInputs(vec![Witness(2)]),
         };
 
         let json = serde_json::to_string_pretty(&circuit).unwrap();
@@ -116,7 +114,6 @@ mod test {
                 }),
             ],
             public_inputs: PublicInputs(vec![Witness(2)]),
-            public_outputs: PublicInputs(vec![Witness(2)]),
         };
 
         let bytes = circuit.to_bytes();

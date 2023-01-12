@@ -59,7 +59,6 @@ pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
         current_witness_index,
         gates: optimised_gates,
         public_inputs: acir.public_inputs, // The optimiser does not add public inputs
-        public_outputs: acir.public_outputs, // The optimiser does not add public inputs
     }
 }
 
@@ -84,7 +83,6 @@ fn optimise_r1cs(acir: Circuit) -> Circuit {
         current_witness_index: acir.current_witness_index,
         gates: optimised_arith_gates,
         public_inputs: acir.public_inputs,
-        public_outputs: acir.public_outputs,
     }
 }
 
@@ -105,7 +103,6 @@ pub fn fallback(acir: &Circuit, np_language: &Language) -> Circuit {
         current_witness_index: witness_idx,
         gates: fallback_gates,
         public_inputs: acir.public_inputs.clone(),
-        public_outputs: acir.public_outputs.clone(),
     }
 }
 

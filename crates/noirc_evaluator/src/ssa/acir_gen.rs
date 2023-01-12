@@ -234,7 +234,7 @@ impl Acir {
                 for node_id in node_ids {
                     let mut object = self.substitute(*node_id, evaluator, ctx);
                     let witness = object.generate_witness(evaluator);
-                    evaluator.public_outputs.push(witness);
+                    evaluator.public_inputs.push(witness);
                 }
 
                 InternalVar::default()
