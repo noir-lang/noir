@@ -120,33 +120,42 @@ pub trait PartialWitnessGenerator {
                         _ => GateResolution::Skip,
                     }
                 }
-                Directive::Truncate { a, b, c, bit_size } => match initial_witness.get(a) {
-                    Some(val_a) => {
-                        let pow: BigUint = BigUint::one() << bit_size;
+                Directive::Truncate { a, b, c, bit_size } => {
+                    match Self::get_value(a, initial_witness) {
+                        Some(val_a) => {
+                            let pow: BigUint = BigUint::one() << bit_size;
 
-                        let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                        let int_b: BigUint = &int_a % &pow;
-                        let int_c: BigUint = (&int_a - &int_b) / &pow;
+                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
+                            let int_b: BigUint = &int_a % &pow;
+                            let int_c: BigUint = (&int_a - &int_b) / &pow;
 
-                        initial_witness
-                            .insert(*b, FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()));
-                        initial_witness
-                            .insert(*c, FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()));
-                        GateResolution::Resolved
+                            initial_witness.insert(
+                                *b,
+                                FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
+                            );
+                            initial_witness.insert(
+                                *c,
+                                FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()),
+                            );
+                            GateResolution::Resolved
+                        }
+                        _ => GateResolution::Skip,
                     }
-                    _ => GateResolution::Skip,
-                },
-                Directive::Split { a, b, bit_size } => match Self::get_value(a, initial_witness) {
+                }
+                Directive::ToRadix { a, b, radix } => match Self::get_value(a, initial_witness) {
                     Some(val_a) => {
                         let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
-                        for i in 0..*bit_size {
-                            let j = i as usize;
-                            let v = if a_big.bit(j as u64) {
-                                FieldElement::one()
+                        let a_dec = a_big.to_radix_le(*radix);
+                        if b.len() < a_dec.len() {
+                            return GateResolution::UnsatisfiedConstrain;
+                        }
+                        for i in 0..b.len() {
+                            let v = if i < a_dec.len() {
+                                FieldElement::from_be_bytes_reduce(&[a_dec[i]])
                             } else {
                                 FieldElement::zero()
                             };
-                            match initial_witness.entry(b[j]) {
+                            match initial_witness.entry(b[i]) {
                                 std::collections::btree_map::Entry::Vacant(e) => {
                                     e.insert(v);
                                 }

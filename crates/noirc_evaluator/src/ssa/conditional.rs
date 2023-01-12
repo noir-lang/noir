@@ -617,7 +617,8 @@ impl DecisionTree {
                                 return Ok(false);
                             }
                         }
-                        if stack.created_arrays[array_id] != stack.block
+                        if (stack.created_arrays[array_id] != stack.block
+                            || stack.return_arrays.contains(array_id))
                             && ctx.under_assumption(ass_value)
                         {
                             let load = Operation::Load { array_id: *array_id, index: *index };

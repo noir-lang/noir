@@ -798,10 +798,33 @@ impl SsaContext {
         }
         if let Some((func, a, idx)) = ret_array {
             if let Some(Instruction {
-                operation: Operation::Call { returned_arrays, .. }, ..
+                operation: Operation::Call { returned_arrays, arguments, .. },
+                ..
             }) = self.try_get_mut_instruction(func)
             {
                 returned_arrays.push((a, idx));
+                //Issue #579: we initialise the array, unless it is also in arguments in which case it is already initialised.
+                let mut init = false;
+                for i in arguments.clone() {
+                    if let ObjectType::Pointer(b) = self.get_object_type(i) {
+                        if a == b {
+                            init = true;
+                        }
+                    }
+                }
+                if !init {
+                    let mut stack = StackFrame::new(self.current_block);
+                    self.init_array(a, &mut stack);
+                    let pos = self[self.current_block]
+                        .instructions
+                        .iter()
+                        .position(|x| *x == func)
+                        .unwrap();
+                    let current_block = self.current_block;
+                    for i in stack.stack {
+                        self[current_block].instructions.insert(pos, i);
+                    }
+                }
             }
             if let Some(i) = self.try_get_mut_instruction(rhs) {
                 i.mark = Mark::ReplaceWith(lhs);
@@ -864,6 +887,17 @@ impl SsaContext {
         let ins_id = self.add_instruction(i);
         stack_frame.push(ins_id);
         ins_id
+    }
+
+    fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
+        let len = self.mem[array_id].len;
+        let e_type = self.mem[array_id].element_type;
+        for i in 0..len {
+            let index =
+                self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            self.new_instruction_inline(op_a, e_type, stack_frame);
+        }
     }
 
     pub fn memcpy_inline(

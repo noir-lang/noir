@@ -115,6 +115,7 @@ pub struct StackFrame {
     array_map: HashMap<ArrayId, ArrayId>,
     pub created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
+    pub return_arrays: Vec<ArrayId>,
 }
 
 impl StackFrame {
@@ -125,6 +126,7 @@ impl StackFrame {
             array_map: HashMap::new(),
             created_arrays: HashMap::new(),
             zeros: HashMap::new(),
+            return_arrays: Vec::new(),
         }
     }
 
@@ -191,6 +193,7 @@ pub fn inline(
     for arg_caller in arrays.iter() {
         if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
+            stack_frame.return_arrays.push(arg_caller.0);
         }
     }
 
@@ -363,6 +366,7 @@ pub fn inline_in_block(
 
     // we conditionalise the stack frame into a new stack frame (to avoid ownership issues)
     let mut stack2 = StackFrame::new(stack_frame.block);
+    stack2.return_arrays = stack_frame.return_arrays.clone();
     if short_circuit {
         super::block::short_circuit_inline(ctx, stack_frame.block);
     } else {

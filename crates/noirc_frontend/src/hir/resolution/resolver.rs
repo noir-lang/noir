@@ -424,7 +424,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if func.name() != "main" && visibility == noirc_abi::AbiFEType::Public {
+            if func.name() != "main" && visibility == noirc_abi::AbiVisibility::Public {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
@@ -438,7 +438,7 @@ impl<'a> Resolver<'a> {
 
         if func.name() == "main"
             && *return_type != Type::Unit
-            && func.def.return_visibility != noirc_abi::AbiFEType::Public
+            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
         }
