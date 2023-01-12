@@ -102,7 +102,7 @@ See more example deployment scripts in the [aztec-connect-bridges repo here](htt
 
 After your bridge contract is deployed to your local Ethereum network, you need to update the Aztec sequencer (falafel) with information about how to interact with the new bridge.
 
-Do this by appending the appropriate info for your bridge to the "bridgeConfigs" array in [config.json](https://gist.github.com/critesjosh/6c1c57d70f176d50b2b43a673a4d1ce7) and sending it as a PATCH request to http://localhost:8081/runtime-config. You will need to set a couple of headers in the request for this to work: `server-auth-token`: `!changeme#` and `Content-Type`: `application/json`.
+Do this by appending the appropriate info for your bridge to the "bridgeConfigs" array in [config.json](https://github.com/AztecProtocol/dev-rel/blob/main/falafel-runtime-config.json) and sending it as a PATCH request to http://localhost:8081/runtime-config. You will need to set a couple of headers in the request for this to work: `server-auth-token`: `!changeme#` and `Content-Type`: `application/json`.
 
 For the AddressRegistry, it might looks like
 
