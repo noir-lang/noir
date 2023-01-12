@@ -481,6 +481,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Result { .. } => {
             unreachable!("Functions must have been inlined before checking for overflows")
         }
+        Operation::Log { .. } => ins.res_type.max_size(),
         Operation::Intrinsic(opcode, _) => {
             match opcode {
                 OPCODE::SHA256

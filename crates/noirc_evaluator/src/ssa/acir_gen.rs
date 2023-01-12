@@ -1,14 +1,12 @@
 use super::mem::{ArrayId, MemArray, Memory};
-use super::node::{BinaryOp, Instruction, ObjectType, Operation};
+use super::node::{BinaryOp, Instruction, LogInfo, NodeId, ObjectType, Operation};
 use acvm::acir::OPCODE;
 use acvm::FieldElement;
 
-use super::node::NodeId;
-
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::ops::{Mul, Neg};
+use std::{collections::HashMap, str};
 //use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::context::SsaContext;
 use crate::ssa::node::Node;
@@ -209,6 +207,82 @@ impl Acir {
                 } else {
                     todo!("dynamic arrays are not implemented yet");
                 }
+            }
+
+            Operation::Log(log_id) => {
+                // TODO: switch these prints to string creation and make a Directive to use when solving the ACIR
+                match log_id {
+                    LogInfo::Node(node_id) => match ctx.get_as_constant(*node_id) {
+                        Some(field) => {
+                            println!("{}", field)
+                        }
+                        None => unreachable!("array objects should not be marked as single values"),
+                    },
+                    LogInfo::Array(array_log) => {
+                        let mem_array = &ctx.mem[array_log.array_id];
+                        let mut field_elements = Vec::new();
+                        for idx in 0..mem_array.len {
+                            let absolute_adr = mem_array.absolute_adr(idx);
+                            if self.memory_map.contains_key(&absolute_adr) {
+                                let array_elem_expr =
+                                    self.memory_map[&absolute_adr].expression.clone();
+                                if array_elem_expr.is_const() {
+                                    field_elements.push(array_elem_expr.q_c)
+                                } else {
+                                    unreachable!("array elements being logging must be const");
+                                }
+                            } else {
+                                // TODO add handling for if key not found
+                                unreachable!(
+                                    "array element being logging does not exist in memory"
+                                );
+                            }
+                        }
+                        if array_log.is_string {
+                            // TODO: make a decode_string_value method in noirc_abi and use it here this is reused code
+                            let string_as_slice = field_elements
+                                .iter()
+                                .map(|e| {
+                                    let mut field_as_bytes = e.to_bytes();
+                                    let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                                    assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                                    char_byte
+                                })
+                                .collect::<Vec<_>>();
+
+                            let final_string = str::from_utf8(&string_as_slice).unwrap();
+                            println!("{}", final_string);
+                        } else {
+                            print!("[");
+                            let mut iter = field_elements.iter().peekable();
+                            while let Some(elem) = iter.next() {
+                                if iter.peek().is_none() {
+                                    print!("{}", elem);
+                                } else {
+                                    print!("{}, ", elem)
+                                }
+                            }
+                            println!("]");
+                        }
+                        // for idx in 0..mem_array.len {
+                        // let absolute_adr = mem_array.absolute_adr(idx);
+                        // if self.memory_map.contains_key(&absolute_adr) {
+                        //     let array_elem_expr = self.memory_map[&absolute_adr].expression.clone();
+                        //     if array_elem_expr.is_const() {
+                        //         let field_element = array_elem_expr.q_c;
+                        //         if array_log.is_string {
+
+                        //         } else {
+                        //             print!("{}, ",field_element)
+                        //         }
+                        //     }
+                        //     // dbg!(self.memory_map[&absolute_adr].expression.to_string());
+                        // }
+                        // }
+                    }
+                }
+                //we do not generate constraint, so no output.
+                InternalVar::default()
             }
         };
         output.id = Some(ins.id);

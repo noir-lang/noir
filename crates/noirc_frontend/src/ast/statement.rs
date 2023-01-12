@@ -131,7 +131,7 @@ pub enum Statement {
     // This is an expression with a trailing semi-colon
     // terminology Taken from rustc
     Semi(Expression),
-    Log(UnresolvedType),
+    Log(Expression),
     // This statement is the result of a recovered parse error.
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.

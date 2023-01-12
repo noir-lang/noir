@@ -384,6 +384,7 @@ impl Instruction {
             Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
+            Operation::Log { .. } => false,
         }
     }
 
@@ -550,7 +551,21 @@ pub enum Operation {
 
     Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
+    Log(LogInfo),
+
     Nop, // no op
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum LogInfo {
+    Node(NodeId),
+    Array(ArrayLog),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct ArrayLog {
+    pub array_id: ArrayId,
+    pub is_string: bool,
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
@@ -601,6 +616,9 @@ pub enum Opcode {
     Store(ArrayId),
     Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
     Nop,               // no op
+
+    //logging
+    Log,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -1100,6 +1118,10 @@ impl Operation {
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
             }
+            Log(id) => match id {
+                LogInfo::Array(array_log) => Log(LogInfo::Array(array_log.clone())),
+                LogInfo::Node(node_id) => Log(LogInfo::Node(f(*node_id))),
+            },
         }
     }
 
@@ -1154,6 +1176,7 @@ impl Operation {
             Result { call_instruction, index: _ } => {
                 *call_instruction = f(*call_instruction);
             }
+            Log(_) => (),
         }
     }
 
@@ -1195,6 +1218,7 @@ impl Operation {
             Result { call_instruction, .. } => {
                 f(*call_instruction);
             }
+            Log(_) => (),
         }
     }
 
@@ -1217,6 +1241,7 @@ impl Operation {
             Operation::Store { array_id, .. } => Opcode::Store(*array_id),
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
             Operation::Nop => Opcode::Nop,
+            Operation::Log { .. } => Opcode::Log,
         }
     }
 }

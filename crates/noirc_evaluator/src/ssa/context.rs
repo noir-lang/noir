@@ -3,7 +3,7 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{BinaryOp, Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{BinaryOp, Instruction, LogInfo, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
@@ -138,7 +138,7 @@ impl SsaContext {
     }
 
     //Display an object for debugging puposes
-    fn node_to_string(&self, id: NodeId) -> String {
+    pub fn node_to_string(&self, id: NodeId) -> String {
         let mut result = String::new();
         if let Some(var) = self.try_get_node(id) {
             result = format!("{}", var);
@@ -240,6 +240,14 @@ impl SsaContext {
                 let call = self.node_to_string(*call_instruction);
                 format!("result {} of {}", index, call)
             }
+            Operation::Log(log_id) => match log_id {
+                LogInfo::Array(array_log) => {
+                    format!("log {:?}", array_log.array_id)
+                }
+                LogInfo::Node(node_id) => {
+                    format!("log {:?}", self.node_to_string(*node_id))
+                }
+            },
         }
     }
 

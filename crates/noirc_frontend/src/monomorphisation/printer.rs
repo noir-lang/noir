@@ -73,6 +73,10 @@ impl AstPrinter {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
             }
+            Expression::Log(expr) => {
+                write!(f, "log ")?;
+                self.print_expr(expr, f)
+            }
         }
     }
 
