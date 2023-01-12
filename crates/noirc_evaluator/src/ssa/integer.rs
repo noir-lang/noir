@@ -482,6 +482,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
             unreachable!("Functions must have been inlined before checking for overflows")
         }
         Operation::Intrinsic(opcode, _) => opcode.get_max_value(),
+        Operation::SetPub(_, _) => BigUint::zero(),
     };
 
     if ins.res_type == ObjectType::NativeField {
