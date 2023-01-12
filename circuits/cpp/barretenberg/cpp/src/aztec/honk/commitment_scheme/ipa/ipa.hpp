@@ -1,9 +1,6 @@
 #pragma once
 #include <numeric>
-#include <srs/reference_string/reference_string.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <ecc/curves/bn254/pairing.hpp>
-#include "../commitment_scheme.hpp"
 #include "stdlib/primitives/curves/bn254.hpp"
 
 // Suggested by Zac: Future optimisations

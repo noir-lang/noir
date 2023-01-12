@@ -4,7 +4,6 @@
 #include "./polynomials/polynomial_arithmetic.hpp"
 #include "./polynomials/polynomial.hpp"
 #include <ecc/curves/bn254/fq12.hpp>
-#include <ecc/curves/bn254/pairing.hpp>
 using namespace barretenberg;
 
 TEST(honk_commitment_scheme, ipa_commit)
