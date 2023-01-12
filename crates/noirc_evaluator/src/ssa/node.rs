@@ -384,6 +384,7 @@ impl Instruction {
             Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
+            Operation::SetPub { .. } => true,
         }
     }
 
@@ -511,6 +512,7 @@ pub enum Operation {
 
     Not(NodeId), //(!) Bitwise Not
     Constrain(NodeId, Option<Location>),
+    SetPub(Vec<NodeId>, Option<Location>),
 
     //control flow
     Jne(NodeId, BlockId), //jump on not equal
@@ -582,6 +584,7 @@ pub enum Opcode {
     Assign,
     Cond,
     Constrain,
+    SetPub,
     Cast,     //convert type
     Truncate, //truncate
     Not,      //(!) Bitwise Not
@@ -1100,6 +1103,7 @@ impl Operation {
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
             }
+            SetPub(values, loc) => SetPub(vecmap(values.iter().copied(), f), *loc),
         }
     }
 
@@ -1154,6 +1158,11 @@ impl Operation {
             Result { call_instruction, index: _ } => {
                 *call_instruction = f(*call_instruction);
             }
+            SetPub(values, _) => {
+                for value in values {
+                    *value = f(*value);
+                }
+            }
         }
     }
 
@@ -1195,6 +1204,7 @@ impl Operation {
             Result { call_instruction, .. } => {
                 f(*call_instruction);
             }
+            SetPub(values, _) => values.iter().copied().for_each(f),
         }
     }
 
@@ -1217,6 +1227,7 @@ impl Operation {
             Operation::Store { array_id, .. } => Opcode::Store(*array_id),
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
             Operation::Nop => Opcode::Nop,
+            Operation::SetPub(_, _) => Opcode::SetPub,
         }
     }
 }

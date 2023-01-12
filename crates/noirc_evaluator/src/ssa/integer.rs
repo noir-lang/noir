@@ -496,6 +496,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
                 _ => todo!("max value must be implemented for opcode {} ", opcode),
             }
         }
+        Operation::SetPub(_, _) => BigUint::zero(),
     };
 
     if ins.res_type == ObjectType::NativeField {
