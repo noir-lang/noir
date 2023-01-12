@@ -22,7 +22,7 @@ Mac M1s run this on an emulator so they will be slower.
 
 #### Basic Network
 
-For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run 
+For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run
 
 ```bash
 curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml | docker-compose -f - up --force-recreate
@@ -32,7 +32,7 @@ This will be useful for testing basic functionality of the Aztec network like de
 
 #### Mainnet fork with bridge contracts
 
-Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run 
+Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run
 
 ```bash
 curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
@@ -58,7 +58,7 @@ Once it is up and running, you can use it to run testing scripts against or poin
 
 ### Connect the SDK
 
-For a web application, point Metamask to the locally running Ethereum network (details below). 
+For a web application, point Metamask to the locally running Ethereum network (details below).
 
 Connect the Aztec SDK to `http://localhost:8081`.
 
@@ -78,7 +78,7 @@ export SIMULATE_ADMIN=false # to broadcast your deployment to the devnet
 export LISTER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
 
-Check the `rollupProcessorContract` address on your local Aztec sequencer at [http://localhost:8081](http://localhost:8081) and export it as an environment variable as well.
+Check the `rollupProcessorContract` address on your local Aztec sequencer at [http://localhost:8081/status](http://localhost:8081/status) and export it as an environment variable as well.
 
 For example:
 
@@ -89,10 +89,10 @@ export ROLLUP_PROCESSOR_ADDRESS=0xDA437738D931677e83a480C9c397d2d0A473c209
 Then run the deployment script.
 
 ```bash
-forge script --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --legacy AddressRegistryDeployment --sig "deployAndList()" --broadcast
-``` 
+forge script AddressRegistryDeployment --sig "deployAndList()" --broadcast --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+```
 
-Run this from the aztec connect bridges repo containing the deployment script. The private key here is associated with the first [anvil](https://book.getfoundry.sh/anvil/) account and has ETH and access to deploy and list new bridges.
+Run this from the aztec connect bridges repo containing the deployment script. The private key here is associated with the first [anvil](https://book.getfoundry.sh/anvil/) account. It has enough ETH and permission to deploy and list new bridges.
 
 Make sure you run `yarn setup` in the aztec-connect-bridges repo to set up forge for this repo.
 
@@ -108,22 +108,22 @@ For the AddressRegistry, it might looks like
 
 ```json
 {
-    "bridgeConfigs": [
-        // ... other configs here
-        {
-            "numTxs": 1,
-            "gas": 120000,
-            "bridgeAddressId": 14,
-            "permittedAssets": [
-                0
-            ]
-        }
-    ],
-    "feePayingAssetIds": [0, 1]
+  "bridgeConfigs": [
+    // ... other configs here
+    {
+      "numTxs": 1,
+      "gas": 120000,
+      "bridgeAddressId": 14,
+      "permittedAssets": [0]
+    }
+  ],
+  "feePayingAssetIds": [0, 1]
 }
 ```
 
-where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed. and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge.
+where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed. and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge (you can check what assets are currently configured by checking the /status endpoint).
+
+To get you up and running, here is a [postman collection](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/local-devnet-postman-collection.json) that is plug and play.
 
 ### Connect Metamask
 
