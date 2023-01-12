@@ -292,7 +292,8 @@ impl Precedence {
         Some(precedence)
     }
 
-    fn higher(self) -> Self {
+    /// Return the next higher precedence. E.g. `Sum.next() == Product`
+    fn next(self) -> Self {
         use Precedence::*;
         match self {
             Lowest => Or,
@@ -305,6 +306,25 @@ impl Precedence {
             Product => Highest,
             Highest => Highest,
         }
+    }
+
+    /// TypeExpressions only contain basic arithmetic operators and
+    /// notably exclude `>` due to parsing conflicts with generic type brackets.
+    fn next_type_precedence(self) -> Self {
+        use Precedence::*;
+        match self {
+            Lowest => Sum,
+            Sum => Product,
+            Product => Highest,
+            Highest => Highest,
+            other => unreachable!("Unexpected precedence level in type expression: {:?}", other),
+        }
+    }
+
+    /// The operators with the lowest precedence still useable in type expressions
+    /// are '+' and '-' with precedence Sum.
+    fn lowest_type_precedence() -> Self {
+        Precedence::Sum
     }
 }
 

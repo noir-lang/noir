@@ -12,7 +12,7 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{token::IntType, BinaryTypeOperator, Comptime};
+use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, Comptime};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
@@ -24,6 +24,7 @@ pub enum UnresolvedType {
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Comptime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
     Bool(Comptime),
+    Expression(UnresolvedTypeExpression),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -81,6 +82,7 @@ impl std::fmt::Display for UnresolvedType {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
+            Expression(expression) => expression.fmt(f),
             Bool(is_const) => write!(f, "{}bool", is_const),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
@@ -118,7 +120,19 @@ pub enum Signedness {
 }
 
 impl UnresolvedTypeExpression {
-    pub fn from_expr(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
+    pub fn from_expr(
+        expr: Expression,
+        span: Span,
+    ) -> Result<UnresolvedTypeExpression, ParserError> {
+        Self::from_expr_helper(expr).map_err(|err| {
+            ParserError::with_reason(
+                format!("Expression is invalid in an array-length type: '{}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.", err),
+                span,
+            )
+        })
+    }
+
+    fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_u64() {
                 Some(int) => Ok(UnresolvedTypeExpression::Constant(int)),
@@ -131,13 +145,13 @@ impl UnresolvedTypeExpression {
             }
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0));
-                let rhs = Box::new(UnresolvedTypeExpression::from_expr(prefix.rhs)?);
+                let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs))
             }
             ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
-                let lhs = Box::new(UnresolvedTypeExpression::from_expr(infix.lhs)?);
-                let rhs = Box::new(UnresolvedTypeExpression::from_expr(infix.rhs)?);
+                let lhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.lhs)?);
+                let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.rhs)?);
                 let op = match infix.operator.contents {
                     BinaryOpKind::Add => BinaryTypeOperator::Addition,
                     BinaryOpKind::Subtract => BinaryTypeOperator::Subtraction,

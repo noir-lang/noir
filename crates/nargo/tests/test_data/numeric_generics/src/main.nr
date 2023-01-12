@@ -10,6 +10,8 @@ fn main() {
     let c = [1, 2];
     let itAlsoWorks = MyStruct { data: c };
     constrain itAlsoWorks.data[1] == 2;
+
+    constrain foo(itWorks2).data[0] == itWorks2.data[0] + 1;
 }
 
 fn id<I>(x: [Field; I]) -> [Field; I] {
@@ -18,4 +20,9 @@ fn id<I>(x: [Field; I]) -> [Field; I] {
 
 struct MyStruct<S> {
     data: [Field; S]
+}
+
+fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
+    s.data[0] = s.data[0] + 1;
+    s
 }

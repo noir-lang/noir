@@ -289,10 +289,13 @@ impl<'a> Resolver<'a> {
                         // require users to explicitly be generic over array lengths.
                         Type::NamedGeneric(typevar, Rc::new("".into()))
                     }
-                    Some(length) => Type::Expression(self.convert_array_length_type(length)),
+                    Some(length) => Type::Expression(self.convert_expression_type(length)),
                 };
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
+            }
+            UnresolvedType::Expression(expr) => {
+                Type::Expression(self.convert_expression_type(expr))
             }
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
@@ -323,7 +326,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn convert_array_length_type(&mut self, length: UnresolvedTypeExpression) -> TypeExpression {
+    fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> TypeExpression {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 if path.segments.len() == 1 {
@@ -345,8 +348,8 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedTypeExpression::Constant(int) => TypeExpression::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = Rc::new(self.convert_array_length_type(*lhs));
-                let rhs = Rc::new(self.convert_array_length_type(*rhs));
+                let lhs = Rc::new(self.convert_expression_type(*lhs));
+                let rhs = Rc::new(self.convert_expression_type(*rhs));
                 TypeExpression::BinaryOperation(lhs, op, rhs).simplify()
             }
         }
