@@ -1,8 +1,8 @@
 [package]
 name = "nargo"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,23 +10,23 @@ edition = "2018"
 dirs = "4"
 
 [dependencies]
-dirs = "3.0.1"
-url = "2.2.0"
-iter-extended = { path = "../iter-extended" }
+dirs.workspace = true
+url.workspace = true
+iter-extended.workspace = true
 noirc_driver = { path = "../noirc_driver", features = ["std"] }
-noirc_frontend = { path = "../noirc_frontend" }
-noirc_abi = { path = "../noirc_abi" }
-fm = { path = "../fm" }
+noirc_frontend.workspace = true
+noirc_abi.workspace = true
+fm.workspace = true
 acvm = { git = "https://github.com/noir-lang/noir" }
-cfg-if = "1.0.0"
+cfg-if.workspace = true
 
-toml = "0.5"
-serde_derive = "1.0.123"
+toml.workspace = true
+serde_derive.workspace = true
 serde = "1.0.123"
-clap = "2.33.3"
-termcolor = "1.1.2"
-hex = "0.4.2"
-tempdir = "0.3.7"
+clap.workspace = true
+termcolor.workspace = true
+hex.workspace = true
+tempdir.workspace = true
 
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "8c8ec2dd9c376bef598d17f023fac172e5e47860" }

@@ -1,20 +1,20 @@
 [package]
 name = "noirc_evaluator"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-noirc_frontend = { path = "../noirc_frontend" }
-noirc_errors = { path = "../noirc_errors" }
-noirc_abi = { path = "../noirc_abi" }
+noirc_frontend.workspace = true
+noirc_errors.workspace = true
+noirc_abi.workspace = true
 acvm = { git = "https://github.com/noir-lang/noir" }
-arena = { path = "../arena" }
-fm = { path = "../fm" }
-iter-extended = { path = "../iter-extended" }
-lazy_static = "1.4.0"
-thiserror = "1.0.21"
-num-bigint = "0.4"
-num-traits = "0.2.8"
+arena.workspace = true
+fm.workspace = true
+iter-extended.workspace = true
+lazy_static.workspace = true
+thiserror.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
