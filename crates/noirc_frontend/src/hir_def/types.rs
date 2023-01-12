@@ -947,7 +947,7 @@ impl Type {
                 let size = size
                     .array_length()
                     .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array { length: size as u128, typ: Box::new(typ.as_abi_type()) }
+                AbiType::Array { length: size, typ: Box::new(typ.as_abi_type()) }
             }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
