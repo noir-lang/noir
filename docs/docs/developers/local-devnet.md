@@ -25,7 +25,7 @@ Mac M1s run this on an emulator so they will be slower.
 For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run 
 
 ```bash
-curl -s https://gist.githubusercontent.com/critesjosh/4e9575148043b6041a6f3e44aedb8780/raw/26eecc2918897140dda37b5476ee36a3e4cf8b6d/docker-compose.yml | docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml | docker-compose -f - up --force-recreate
 ```
 
 This will be useful for testing basic functionality of the Aztec network like deposits, withdrawals, account registrations, account migrations, account recovery and asset transfers.
@@ -35,7 +35,7 @@ This will be useful for testing basic functionality of the Aztec network like de
 Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run 
 
 ```bash
-curl -s https://gist.githubusercontent.com/critesjosh/6b471bc776def8ab54fe336cb8199b23/raw/008bb25f840e760b67cfec98c10a1f61a4bb37c6/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
 ```
 
 This network will be useful for testing functionality associated with bridge contracts and interacting with other contracts/protocols that are on Ethereum.
@@ -48,7 +48,7 @@ This mainnet fork deployment takes considerably longer than the basic devnet.
 
 These scripts will get the docker compose file from a github gist and run it.
 
-You can download the [docker-compose.dev.yml here](https://gist.github.com/critesjosh/4e9575148043b6041a6f3e44aedb8780) or [docker-compose.fork.yml here](https://gist.github.com/critesjosh/6b471bc776def8ab54fe336cb8199b23).
+You can download the [docker-compose.dev.yml here](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml) or [docker-compose.fork.yml here](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml).
 
 ### Check the sequencer
 
