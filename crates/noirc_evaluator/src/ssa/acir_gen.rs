@@ -210,6 +210,15 @@ impl Acir {
                     todo!("dynamic arrays are not implemented yet");
                 }
             }
+            Operation::SetPub(node_ids, _) => {
+                for node_id in node_ids {
+                    let object = self.substitute(*node_id, evaluator, ctx);
+                    let witness = object.get_or_generate_witness(evaluator);
+                    evaluator.public_outputs.push(witness);
+                }
+
+                InternalVar::default()
+            }
         };
         output.id = Some(ins.id);
         self.arith_cache.insert(ins.id, output);
