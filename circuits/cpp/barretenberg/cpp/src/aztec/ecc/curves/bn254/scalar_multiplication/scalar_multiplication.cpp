@@ -933,5 +933,14 @@ g1::element pippenger_unsafe(fr* scalars,
 {
     return pippenger(scalars, points, num_initial_points, state, false);
 }
+g1::element pippenger_without_endomorphism_basis_points(fr* scalars,
+                                                        g1::affine_element* points,
+                                                        const size_t num_initial_points,
+                                                        pippenger_runtime_state& state)
+{
+    std::vector<g1::affine_element> G_mod(num_initial_points * 2);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table(points, &G_mod[0], num_initial_points);
+    return pippenger(scalars, &G_mod[0], num_initial_points, state, false);
+}
 } // namespace scalar_multiplication
 } // namespace barretenberg

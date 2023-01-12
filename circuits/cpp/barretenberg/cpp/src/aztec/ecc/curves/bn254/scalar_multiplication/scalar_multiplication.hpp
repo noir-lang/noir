@@ -146,6 +146,10 @@ g1::element pippenger_unsafe(fr* scalars,
                              g1::affine_element* points,
                              const size_t num_initial_points,
                              pippenger_runtime_state& state);
+g1::element pippenger_without_endomorphism_basis_points(fr* scalars,
+                                                        g1::affine_element* points,
+                                                        const size_t num_initial_points,
+                                                        pippenger_runtime_state& state);
 
 } // namespace scalar_multiplication
 } // namespace barretenberg
