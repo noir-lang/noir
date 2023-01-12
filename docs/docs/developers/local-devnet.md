@@ -64,7 +64,16 @@ You can also interact with your local aztec network directly via the [CLI](https
 
 You can deploy your own bridge contracts to the mainnet fork devnet.
 
-Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges). 
+Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
+
+Set these local environment variables before running the deployment script.
+
+```bash
+export NETWORK=None
+export SIMULATE_ADMIN=false # to broadcast your deployment to the devnet
+export ROLLUP_PROCESSOR_ADDRESS=0xEdFBd831548D95Ac0dED8Bb797b54596271992d3
+export LISTER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+```
 
 Run the deployment script.
 
@@ -77,6 +86,31 @@ Run this from the aztec connect bridges repo containing the deployment script. T
 Make sure you run `yarn setup` in the aztec-connect-bridges repo to set up forge for this repo.
 
 See more example deployment scripts in the [aztec-connect-bridges repo here](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment).
+
+#### Update runtime config
+
+After your bridge contract is deployed to your local Ethereum network, you need to update the Aztec sequencer (falafel) with information about how to interact with the new bridge.
+
+Do this by appending the appropriate info for your bridge to the "bridgeConfigs" array in [config.json](https://gist.github.com/critesjosh/6c1c57d70f176d50b2b43a673a4d1ce7) and sending it as a PATCH request to http://localhost:8081/runtime-config. You will need to set a couple of headers in the request for this to work: `server-auth-token`: `!changeme#` and `Content-Type`: `application/json`.
+
+For the AddressRegistry, it might looks like
+
+```json
+...
+    {
+        "numTxs": 1,
+        "gas": 120000,
+        "bridgeAddressId": 14,
+        "permittedAssets": [
+            0
+        ]
+    }
+],
+"feePayingAssetIds": [0, 1]
+}
+```
+
+where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed. and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge.
 
 ### Connect Metamask
 
