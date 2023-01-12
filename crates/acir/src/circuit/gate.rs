@@ -43,6 +43,7 @@ impl Gate {
             Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
             Gate::Directive(Directive::Split { .. }) => "split",
             Gate::Directive(Directive::ToBytes { .. }) => "to_bytes",
+            Gate::Directive(Directive::Log(_)) => "log",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
@@ -138,6 +139,9 @@ impl std::fmt::Debug for Gate {
                     b.last().unwrap().witness_index(),
                 )
             }
+            Gate::Directive(Directive::Log(log_string)) => {
+                write!(f, "Log: {}", log_string)
+            }
         }
     }
 }
@@ -189,6 +193,8 @@ pub enum Directive {
         b: Vec<Witness>,
         byte_size: u32,
     },
+
+    Log(String),
 }
 
 // Note: Some gadgets will not use all of the witness

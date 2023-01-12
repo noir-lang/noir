@@ -210,11 +210,11 @@ impl Acir {
             }
 
             Operation::Log(log_id) => {
-                // TODO: switch these prints to string creation and make a Directive to use when solving the ACIR
+                let mut log_string = "".to_owned();
                 match log_id {
                     LogInfo::Node(node_id) => match ctx.get_as_constant(*node_id) {
                         Some(field) => {
-                            println!("{}", field)
+                            log_string.push_str(&field.to_hex());
                         }
                         None => unreachable!("array objects should not be marked as single values"),
                     },
@@ -251,36 +251,22 @@ impl Acir {
                                 .collect::<Vec<_>>();
 
                             let final_string = str::from_utf8(&string_as_slice).unwrap();
-                            println!("{}", final_string);
+                            log_string.push_str(&final_string);
                         } else {
-                            print!("[");
+                            log_string.push_str("[");
                             let mut iter = field_elements.iter().peekable();
                             while let Some(elem) = iter.next() {
                                 if iter.peek().is_none() {
-                                    print!("{}", elem);
+                                    log_string.push_str(&elem.to_hex());
                                 } else {
-                                    print!("{}, ", elem)
+                                    log_string.push_str(&format!("{}, ", elem));
                                 }
                             }
-                            println!("]");
+                            log_string.push_str("]");
                         }
-                        // for idx in 0..mem_array.len {
-                        // let absolute_adr = mem_array.absolute_adr(idx);
-                        // if self.memory_map.contains_key(&absolute_adr) {
-                        //     let array_elem_expr = self.memory_map[&absolute_adr].expression.clone();
-                        //     if array_elem_expr.is_const() {
-                        //         let field_element = array_elem_expr.q_c;
-                        //         if array_log.is_string {
-
-                        //         } else {
-                        //             print!("{}, ",field_element)
-                        //         }
-                        //     }
-                        //     // dbg!(self.memory_map[&absolute_adr].expression.to_string());
-                        // }
-                        // }
                     }
                 }
+                evaluator.gates.push(Gate::Directive(Directive::Log(log_string)));
                 //we do not generate constraint, so no output.
                 InternalVar::default()
             }

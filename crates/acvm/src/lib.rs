@@ -227,6 +227,10 @@ pub trait PartialWitnessGenerator {
                         }
                         _ => true,
                     },
+                    Directive::Log(log_string) => {
+                        println!("{}", log_string);
+                        true
+                    }
                 },
             };
             if unsolved {
