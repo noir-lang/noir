@@ -48,7 +48,7 @@ impl ResolverError {
         match self {
             ResolverError::DuplicateDefinition { name, first_span, second_span } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("duplicate definitions of {} found", name),
+                    format!("duplicate definitions of {name} found"),
                     "first definition found here".to_string(),
                     first_span,
                 );
@@ -59,13 +59,13 @@ impl ResolverError {
                 let name = &ident.0.contents;
 
                 Diagnostic::simple_warning(
-                    format!("unused variable {}", name),
+                    format!("unused variable {name}"),
                     "unused variable ".to_string(),
                     ident.span(),
                 )
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
-                format!("cannot find `{}` in this scope ", name),
+                format!("cannot find `{name}` in this scope "),
                 "not found in this scope".to_string(),
                 span,
             ),
@@ -76,7 +76,7 @@ impl ResolverError {
             ),
             ResolverError::PathUnresolved { span, name, segment } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("could not resolve path '{}'", name),
+                    format!("could not resolve path '{name}'"),
                     String::new(),
                     span,
                 );
@@ -91,24 +91,24 @@ impl ResolverError {
                 diag
             }
             ResolverError::Expected { span, expected, got } => Diagnostic::simple_error(
-                format!("expected {} got {}", expected, got),
+                format!("expected {expected} got {got}"),
                 String::new(),
                 span,
             ),
             ResolverError::DuplicateField { field } => Diagnostic::simple_error(
-                format!("duplicate field {}", field),
+                format!("duplicate field {field}"),
                 String::new(),
                 field.span(),
             ),
             ResolverError::NoSuchField { field, struct_definition } => {
                 let mut error = Diagnostic::simple_error(
-                    format!("no such field {} defined in struct {}", field, struct_definition),
+                    format!("no such field {field} defined in struct {struct_definition}"),
                     String::new(),
                     field.span(),
                 );
 
                 error.add_secondary(
-                    format!("{} defined here with no {} field", struct_definition, field),
+                    format!("{struct_definition} defined here with no {field} field"),
                     struct_definition.span(),
                 );
                 error
@@ -118,13 +118,13 @@ impl ResolverError {
                 let missing_fields = missing_fields.join(", ");
 
                 let mut error = Diagnostic::simple_error(
-                    format!("missing field{}: {}", plural, missing_fields),
+                    format!("missing field{plural}: {missing_fields}"),
                     String::new(),
                     span,
                 );
 
                 error.add_secondary(
-                    format!("{} defined here", struct_definition),
+                    format!("{struct_definition} defined here"),
                     struct_definition.span(),
                 );
                 error
@@ -145,7 +145,7 @@ impl ResolverError {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on parameter for function {}", name),
+                    format!("unnecessary pub keyword on parameter for function {name}"),
                     "unnecessary pub parameter".to_string(),
                     ident.0.span(),
                 );
@@ -157,7 +157,7 @@ impl ResolverError {
                 let name = &ident.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("missing pub keyword on return type of function {}", name),
+                    format!("missing pub keyword on return type of function {name}"),
                     "missing pub on return type".to_string(),
                     ident.0.span(),
                 );
@@ -166,14 +166,13 @@ impl ResolverError {
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
-                format!("expected constant variable where non-constant variable {} was used", name),
+                format!("expected constant variable where non-constant variable {name} was used"),
                 "expected const variable".to_string(),
                 span,
             ),
             ResolverError::MissingRhsExpr { name, span } => Diagnostic::simple_error(
                 format!(
-                    "no expression specifying the value stored by the constant variable {}",
-                    name
+                    "no expression specifying the value stored by the constant variable {name}"
                 ),
                 "expected expression to be stored for let statement".to_string(),
                 span,

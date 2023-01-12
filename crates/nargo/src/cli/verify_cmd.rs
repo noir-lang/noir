@@ -20,7 +20,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let allow_warnings = args.is_present("allow-warnings");
     let result = verify(proof_name, allow_warnings)?;
-    println!("Proof verified : {}\n", result);
+    println!("Proof verified : {result}\n");
     Ok(())
 }
 
@@ -63,7 +63,7 @@ fn verify_proof(
     let public_abi = compiled_program.abi.unwrap().public_abi();
     let public_inputs = public_abi.encode(&public_inputs, false).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{} in the {}.toml file.", error, VERIFIER_INPUT_FILE))
+            CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
         }
         _ => CliError::from(error),
     })?;

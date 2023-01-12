@@ -183,7 +183,7 @@ impl IRGenerator {
         witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
-            let new_name = format!("{}.{}", struct_name, name);
+            let new_name = format!("{struct_name}.{name}");
             match field_typ {
                 noirc_abi::AbiType::Array { length, typ } => {
                     let v_id =
@@ -191,7 +191,7 @@ impl IRGenerator {
                     Value::Single(v_id)
                 }
                 noirc_abi::AbiType::Struct { fields, .. } => {
-                    let new_name = format!("{}.{}", struct_name, name);
+                    let new_name = format!("{struct_name}.{name}");
                     self.abi_struct(&new_name, None, fields, witnesses.clone())
                 }
                 _ => {
@@ -319,7 +319,7 @@ impl IRGenerator {
         match typ {
             Type::Tuple(fields) => {
                 let values = vecmap(fields.iter().enumerate(), |(i, field)| {
-                    let name = format!("{}.{}", base_name, i);
+                    let name = format!("{base_name}.{i}");
                     self.create_new_value(field, &name, None)
                 });
                 self.insert_new_struct(def, values)
@@ -409,7 +409,7 @@ impl IRGenerator {
                     .into_iter()
                     .enumerate()
                     .map(|(i, value)| {
-                        let name = format!("{}.{}", basename, i);
+                        let name = format!("{basename}.{i}");
                         self.bind_fresh_pattern(&name, value)
                     })
                     .collect::<Result<Vec<_>, _>>()?;
