@@ -11,7 +11,6 @@ use super::super::errors::RuntimeError;
 use crate::errors;
 use crate::ssa::block::BlockType;
 use crate::ssa::function;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::*;
@@ -606,7 +605,7 @@ impl IRGenerator {
     }
 
     fn codegen_lowlevel(&mut self, call: &CallLowLevel) -> Result<NodeId, RuntimeError> {
-        match OPCODE::lookup(&call.opcode) {
+        match super::builtin::Opcode::lookup(&call.opcode) {
             Some(func) => self.call_low_level(func, call),
             None => {
                 unreachable!(
