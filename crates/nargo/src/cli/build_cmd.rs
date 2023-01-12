@@ -32,8 +32,8 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
         //
         // Check for input.toml and verifier.toml
         let path_to_root = PathBuf::from(p.as_ref());
-        let path_to_prover_input = path_to_root.join(format!("{}.toml", PROVER_INPUT_FILE));
-        let path_to_verifier_input = path_to_root.join(format!("{}.toml", VERIFIER_INPUT_FILE));
+        let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
+        let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
         // If they are not available, then create them and
         // populate them based on the ABI

@@ -337,7 +337,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         } else {
-            let stmt_id = self.lookup_global(path.clone());
+            let stmt_id = self.lookup_global(path);
             let hir_let_stmt = self.interner.let_statement(&stmt_id);
             hir_let_stmt.ident()
         }

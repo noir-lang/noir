@@ -34,7 +34,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
             output_root.join(&src)
         };
         if fs::metadata(&dest).is_err() {
-            println!(" mkdir: {:?}", dest);
+            println!(" mkdir: {dest:?}");
             fs::create_dir_all(&dest)?;
         }
 
@@ -52,7 +52,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
                         fs::copy(&path, &dest_path)?;
                     }
                     None => {
-                        println!("failed: {:?}", path);
+                        println!("failed: {path:?}");
                     }
                 }
             }
