@@ -94,8 +94,16 @@ impl Expression {
         Self::default()
     }
 
+    pub fn is_zero(&self) -> bool {
+        *self == Self::zero()
+    }
+
     pub fn is_linear(&self) -> bool {
         self.mul_terms.is_empty()
+    }
+
+    pub fn is_unit(&self) -> bool {
+        self.mul_terms.is_empty() && self.linear_combinations.len() == 1
     }
 
     pub fn is_const(&self) -> bool {

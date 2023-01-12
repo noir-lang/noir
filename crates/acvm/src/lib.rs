@@ -3,12 +3,13 @@
 
 pub mod compiler;
 pub mod pwg;
+pub mod simplify;
 
 use std::collections::BTreeMap;
 
 use acir::{
     circuit::{
-        gate::{Directive, GadgetCall},
+        gate::{Directive, GadgetCall, QuotientDirective},
         Circuit, Gate,
     },
     native_types::{Expression, Witness},
@@ -17,7 +18,7 @@ use acir::{
 
 use crate::pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver};
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 
 // re-export acir
 pub use acir;
@@ -101,7 +102,7 @@ pub trait PartialWitnessGenerator {
                             false
                         }
                     },
-                    Directive::Quotient { a, b, q, r, predicate } => {
+                    Directive::Quotient(QuotientDirective { a, b, q, r, predicate }) => {
                         match (
                             Self::get_value(a, initial_witness),
                             Self::get_value(b, initial_witness),
@@ -133,26 +134,6 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
-                    Directive::Truncate { a, b, c, bit_size } => match initial_witness.get(a) {
-                        Some(val_a) => {
-                            let pow: BigUint = BigUint::one() << bit_size;
-
-                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                            let int_b: BigUint = &int_a % &pow;
-                            let int_c: BigUint = (&int_a - &int_b) / &pow;
-
-                            initial_witness.insert(
-                                *b,
-                                FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                            );
-                            initial_witness.insert(
-                                *c,
-                                FieldElement::from_be_bytes_reduce(&int_c.to_bytes_be()),
-                            );
-                            false
-                        }
-                        _ => true,
-                    },
                     Directive::Split { a, b, bit_size } => {
                         match Self::get_value(a, initial_witness) {
                             Some(val_a) => {
@@ -204,35 +185,21 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
-                    Directive::Oddrange { a, b, r, bit_size } => match initial_witness.get(a) {
-                        Some(val_a) => {
-                            let int_a = BigUint::from_bytes_be(&val_a.to_bytes());
-                            let pow: BigUint = BigUint::one() << (bit_size - 1);
-                            if int_a >= (&pow << 1) {
-                                return GateResolution::UnsatisfiedConstrain;
-                            }
-                            let bb = &int_a & &pow;
-                            let int_r = &int_a - &bb;
-                            let int_b = &bb >> (bit_size - 1);
-
-                            initial_witness.insert(
-                                *b,
-                                FieldElement::from_be_bytes_reduce(&int_b.to_bytes_be()),
-                            );
-                            initial_witness.insert(
-                                *r,
-                                FieldElement::from_be_bytes_reduce(&int_r.to_bytes_be()),
-                            );
-                            false
-                        }
-                        _ => true,
-                    },
                 },
             };
             if unsolved {
                 unsolved_gates.push(gate);
             }
         }
+        dbg!(&unsolved_gates.len());
+        //     if unsolved_gates.len() ==1 {
+        // for g in &unsolved_gates {
+        //         println!("{:?}",g);
+        //     }
+        //     dbg!(&initial_witness);
+        //     todo!();
+        //     }
+
         self.solve(initial_witness, unsolved_gates)
     }
 

@@ -3,6 +3,7 @@ mod ssa;
 
 use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
+use acvm::simplify::CircuitSimplifier;
 use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
@@ -12,6 +13,7 @@ use std::collections::BTreeMap;
 
 use ssa::{code_gen::IRGenerator, node};
 
+static UNSASTISFIED_CONSTRAIN_ERR: &str = "Cannot satisfy constraint";
 pub struct Evaluator {
     // Why is this not u64?
     //
@@ -21,6 +23,7 @@ pub struct Evaluator {
     current_witness_index: u32,
     public_inputs: Vec<Witness>,
     gates: Vec<Gate>,
+    simplifier: CircuitSimplifier,
 }
 
 /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -31,9 +34,10 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
+    abi_len: u32,
     enable_logging: bool,
 ) -> Result<Circuit, RuntimeError> {
-    let mut evaluator = Evaluator::new();
+    let mut evaluator = Evaluator::new(abi_len);
 
     // First evaluate the main function
     evaluator.evaluate_main_alt(program, enable_logging)?;
@@ -47,13 +51,14 @@ pub fn create_circuit(
             public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
+        &evaluator.simplifier,
     );
-
+    evaluator.simplifier = CircuitSimplifier::new(0);
     Ok(optimised_circuit)
 }
 
 impl Evaluator {
-    fn new() -> Self {
+    fn new(abi_len: u32) -> Self {
         Evaluator {
             public_inputs: Vec::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
@@ -66,6 +71,7 @@ impl Evaluator {
             //
             current_witness_index: 0,
             gates: Vec::new(),
+            simplifier: CircuitSimplifier::new(abi_len),
         }
     }
 
@@ -79,6 +85,18 @@ impl Evaluator {
         self.current_witness_index
     }
 
+    pub fn push_gate(&mut self, gate: Gate) -> Result<(), RuntimeErrorKind> {
+        self.gates.push(gate);
+        if let acvm::simplify::SimplifyResult::UnsatisfiedConstrain(_g) =
+            self.simplifier.simplify(&mut self.gates)
+        {
+            //TODO add location
+            return Err(RuntimeErrorKind::UnstructuredError {
+                message: UNSASTISFIED_CONSTRAIN_ERR.to_string(),
+            });
+        }
+        Ok(())
+    }
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main_alt(
         &mut self,
@@ -104,8 +122,9 @@ impl Evaluator {
         let inter_var_witness = self.add_witness_to_cs();
 
         // Link that witness to the arithmetic gate
+        self.simplifier.use_witness(inter_var_witness, self.gates.len(), true);
         let constraint = &arithmetic_gate - &inter_var_witness;
-        self.gates.push(Gate::Arithmetic(constraint));
+        self.push_gate(Gate::Arithmetic(constraint)).unwrap(); //this gate should not fail
         inter_var_witness
     }
 

@@ -698,7 +698,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator);
+        self.acir(evaluator)?;
         if enable_logging {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
@@ -707,17 +707,20 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator) {
+    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self);
+                if let Some(err) = acir.evaluate_instruction(ins, evaluator, self).err() {
+                    return Err(err.into());
+                }
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
+        Ok(())
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {

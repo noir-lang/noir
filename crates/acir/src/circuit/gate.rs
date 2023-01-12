@@ -38,9 +38,7 @@ impl Gate {
             Gate::And(_) => "and",
             Gate::Xor(_) => "xor",
             Gate::Directive(Directive::Invert { .. }) => "invert",
-            Gate::Directive(Directive::Truncate { .. }) => "truncate",
             Gate::Directive(Directive::Quotient { .. }) => "quotient",
-            Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
             Gate::Directive(Directive::Split { .. }) => "split",
             Gate::Directive(Directive::ToBytes { .. }) => "to_bytes",
             Gate::GadgetCall(g) => g.name.name(),
@@ -75,16 +73,7 @@ impl std::fmt::Debug for Gate {
             Gate::Directive(Directive::Invert { x, result: r }) => {
                 write!(f, "x{}=1/x{}, or 0", r.witness_index(), x.witness_index())
             }
-            Gate::Directive(Directive::Truncate { a, b, c: _c, bit_size }) => {
-                write!(
-                    f,
-                    "Truncate: x{} is x{} truncated to {} bits",
-                    b.witness_index(),
-                    a.witness_index(),
-                    bit_size
-                )
-            }
-            Gate::Directive(Directive::Quotient { a, b, q, r, predicate }) => {
+            Gate::Directive(Directive::Quotient(QuotientDirective { a, b, q, r, predicate })) => {
                 if let Some(pred) = predicate {
                     write!(
                         f,
@@ -106,16 +95,6 @@ impl std::fmt::Debug for Gate {
                         r.witness_index()
                     )
                 }
-            }
-            Gate::Directive(Directive::Oddrange { a, b, r, bit_size }) => {
-                write!(
-                    f,
-                    "Oddrange: x{} = x{}*2^{} + x{}",
-                    a.witness_index(),
-                    b.witness_index(),
-                    bit_size,
-                    r.witness_index()
-                )
             }
             Gate::And(g) => write!(f, "{:?}", g),
             Gate::Xor(g) => write!(f, "{:?}", g),
@@ -143,52 +122,28 @@ impl std::fmt::Debug for Gate {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuotientDirective {
+    pub a: Expression,
+    pub b: Expression,
+    pub q: Witness,
+    pub r: Witness,
+    pub predicate: Option<Box<Expression>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Directives do not apply any constraints.
 pub enum Directive {
     //Inverts the value of x and stores it in the result variable
-    Invert {
-        x: Witness,
-        result: Witness,
-    },
+    Invert { x: Witness, result: Witness },
 
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
-    Quotient {
-        a: Expression,
-        b: Expression,
-        q: Witness,
-        r: Witness,
-        predicate: Option<Box<Expression>>,
-    },
-
-    //Reduces the value of a modulo 2^bit_size and stores the result in b: a= c*2^bit_size + b
-    Truncate {
-        a: Witness,
-        b: Witness,
-        c: Witness,
-        bit_size: u32,
-    },
-
-    //Computes the highest bit b of a: a = b*2^(bit_size-1) + r, where a<2^bit_size, b is 0 or 1 and r<2^(bit_size-1)
-    Oddrange {
-        a: Witness,
-        b: Witness,
-        r: Witness,
-        bit_size: u32,
-    },
+    Quotient(QuotientDirective),
 
     //bit decomposition of a: a=\sum b[i]*2^i
-    Split {
-        a: Expression,
-        b: Vec<Witness>,
-        bit_size: u32,
-    },
+    Split { a: Expression, b: Vec<Witness>, bit_size: u32 },
 
     //byte decomposition of a: a=\sum b[i]*2^i where b is a byte array
-    ToBytes {
-        a: Expression,
-        b: Vec<Witness>,
-        byte_size: u32,
-    },
+    ToBytes { a: Expression, b: Vec<Witness>, byte_size: u32 },
 }
 
 // Note: Some gadgets will not use all of the witness

@@ -184,7 +184,7 @@ impl Driver {
         let ast = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match create_circuit(ast, np_language, show_ssa) {
+        let circuit = match create_circuit(ast, np_language, abi.field_count() + 1, show_ssa) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

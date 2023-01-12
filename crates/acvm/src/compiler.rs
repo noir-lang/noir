@@ -1,6 +1,7 @@
+
 use indexmap::IndexMap;
 
-use crate::{CustomGate, Language};
+use crate::{simplify::CircuitSimplifier, CustomGate, Language};
 use acir::{
     circuit::{
         gate::{AndGate, GadgetCall, XorGate},
@@ -10,13 +11,13 @@ use acir::{
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
 
-pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
+pub fn compile(acir: Circuit, np_language: Language, simplifier: &CircuitSimplifier) -> Circuit {
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
     // for CSAT
 
     // Fallback pass
-    let fallback = fallback(&acir, &np_language);
+    let fallback = fallback(&acir, &np_language, simplifier);
 
     let optimiser = match &np_language {
         crate::Language::R1CS => return optimise_r1cs(fallback),
@@ -87,15 +88,22 @@ fn optimise_r1cs(acir: Circuit) -> Circuit {
 }
 
 //Acir pass which replace unsupported gates using arithmetic fallback
-pub fn fallback(acir: &Circuit, np_language: &Language) -> Circuit {
+pub fn fallback(acir: &Circuit, np_language: &Language, simplifier: &CircuitSimplifier) -> Circuit {
     let mut fallback_gates = Vec::new();
     let mut witness_idx = acir.current_witness_index + 1;
-    for g in &acir.gates {
-        if !np_language.supports_gate(g) {
-            let gates = gate_fallback(g, &mut witness_idx);
-            fallback_gates.extend(gates);
-        } else {
-            fallback_gates.push(g.clone());
+    for w in &simplifier.defined {
+        let mut a = Expression::from(w);
+        a.q_c = -simplifier.solved[w];
+        fallback_gates.push(Gate::Arithmetic(a));
+    }
+    for (i, g) in acir.gates.iter().enumerate() {
+        if !simplifier.solved_gates.contains(&i) {
+            if !np_language.supports_gate(g) {
+                let gates = gate_fallback(g, &mut witness_idx);
+                fallback_gates.extend(gates);
+            } else {
+                fallback_gates.push(g.clone());
+            }
         }
     }
 
