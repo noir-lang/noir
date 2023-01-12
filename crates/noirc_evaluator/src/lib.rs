@@ -20,6 +20,7 @@ pub struct Evaluator {
     // to compile wasm64.
     current_witness_index: u32,
     public_inputs: Vec<Witness>,
+    public_outputs: Vec<Witness>,
     gates: Vec<Gate>,
 }
 
@@ -45,6 +46,7 @@ pub fn create_circuit(
             current_witness_index: witness_index,
             gates: evaluator.gates,
             public_inputs: PublicInputs(evaluator.public_inputs),
+            public_outputs: PublicInputs(evaluator.public_outputs),
         },
         np_language,
     );
@@ -56,6 +58,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             public_inputs: Vec::new(),
+            public_outputs: Vec::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
             // This means that every constraint system at the moment, will either need
