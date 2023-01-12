@@ -70,7 +70,7 @@ $$
 H(m_1,m_2) = m_1.g + m_2.h
 $$
 
-for generators $g,h \in \mathbb{G}$ chosen independently by public randomness (e.g. hueristically as distinct outputs of a random oracle simulating hash function).
+for generators $g,h \in \mathbb{G}$ chosen independently by public randomness (e.g. heuristically as distinct outputs of a random oracle simulating hash function).
 
 We wish to define a variant of Pedersen to enable hashing strings of any desired length. As our group $\mathbb{G}$ we will use the Grumpkin curve group described above.
 
@@ -103,7 +103,7 @@ For details on how $h_i$ have been generated, please see *Global Constants*.
 
 #### Blake2s Hash
 
-We use the Blake2s Hash more sparingly, because it is not SNARK-friendly, but it does exhibit psuedorandomness not offered by Pedersen. That is, it is considered a reasonable hueristic to use it in place of a random oracle used for a security proof. 
+We use the Blake2s Hash more sparingly, because it is not SNARK-friendly, but it does exhibit pseudorandomness not offered by Pedersen. That is, it is considered a reasonable heuristic to use it in place of a random oracle used for a security proof. 
 
 We employ the standard implementation of the Blake2s hash, which is fully documented [here](https://tools.ietf.org/html/rfc7693).
 

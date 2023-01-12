@@ -62,7 +62,7 @@ These figures can therefore differ — don’t be alarmed.
 
 ![image](https://user-images.githubusercontent.com/15220860/172760977-0b8e35e9-4419-4097-99eb-80109bd64456.png)
 
-This is how it looks once the initial registration and shield transactio have been confirmed and settled.
+This is how it looks once the initial registration and shield transaction have been confirmed and settled.
 
 Congrats, now you have zkAssets! What can you do with shielded assets?
 
@@ -88,7 +88,7 @@ Select "Withdraw to L1" to withdraw funds to Ethereum, or "Send to L2" to send f
 
 ![image](https://user-images.githubusercontent.com/15220860/172761821-36477974-ee21-4f5a-8b72-ceb7c10eb606.png)
 
-After making your selection, simply paste the recipient details into the recipient section. For L2 transactions (the recipient is a zk.money username), the receipient will get zkETH/DAI directly into their account balance. In case the recipient is a regular Ethereum address, they will receive regular "unshielded" ETH/DAI tokens to their wallet.
+After making your selection, simply paste the recipient details into the recipient section. For L2 transactions (the recipient is a zk.money username), the recipient will get zkETH/DAI directly into their account balance. In case the recipient is a regular Ethereum address, they will receive regular "unshielded" ETH/DAI tokens to their wallet.
 
 On this screen you can also select your transaction speed and fee quantity. “Slow” transactions ride along with many others, and settlement time average approximately an hour. “Instant” transactions involve paying for the entire rollup to go, prompting the rollup to settle to Ethereum as soon as the proof is constructed.
 

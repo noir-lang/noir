@@ -95,7 +95,7 @@ Given $\text{Sig} = (s, e)\in \{0,1\}^{256} \times \{0,1\}^{256}$, purported to 
 The signature is verified if and only if $e'== e$, where the comparison is done bit-wise.
 
 Imprecise rationale: The verification equation is $e = h((e.pub + s.g).x, m)$ where both sides of the equation are represented as an array of 256 bits. 
-VERIFIER has seen that SIGNER can produce a preimage for a given $e$ which is outside of SIGNER's control by chosing a particular value of $s$. 
+VERIFIER has seen that SIGNER can produce a preimage for a given $e$ which is outside of SIGNER's control by choosing a particular value of $s$. 
 The difficulty of this assumption is documented, in the case where $\mathbb{G}_1$ is the units group of a finite field, in Schnorr's original paper [Sch] (cf especially pages 10-11).
 
 ### Variable base multiplication
@@ -113,7 +113,7 @@ scalar presented as a `wnaf_record`, provided along with a `current_accumulator`
 
 ### `variable_base_mul(pub_key, current_accumulator, wnaf)`
 
-- This function is only called inside of `variable_base_mul(pub_key, low_bits, high_bits)`. There is an `init` predicate given by: "`current_accumulator` and `pub_key` have the same x-coordinate". This is intended as a stand-in for the more general check that these two points are equal. This condition distinguishes between two modes in which the function is used in the implementation of the function `variable_base_mul(pub_key, low_bits, high_bits)`: on the second call, the condition `init` is espected to be false, so that the results of the first call, recorded in `current_accumulator`, are incorporated in the output.
+- This function is only called inside of `variable_base_mul(pub_key, low_bits, high_bits)`. There is an `init` predicate given by: "`current_accumulator` and `pub_key` have the same x-coordinate". This is intended as a stand-in for the more general check that these two points are equal. This condition distinguishes between two modes in which the function is used in the implementation of the function `variable_base_mul(pub_key, low_bits, high_bits)`: on the second call, the condition `init` is expected to be false, so that the results of the first call, recorded in `current_accumulator`, are incorporated in the output.
 - There is branching depending on whether on the parity of the scalar represented by `wnaf`.
 
 ### `variable_base_mul(pub_key, low_bits, high_bits)`
@@ -130,7 +130,7 @@ This function has not been investigated since I propose it be removed. It is not
 
 ### `convert_field_into_wnaf(context, limb)`
 
-- When accumulating a `field_t` element using the proposed wnaf representaiton, there is branching at each bit position depending on the 32nd digit of the current `uint64_t` element `wnaf_entries[i+1]`.
+- When accumulating a `field_t` element using the proposed wnaf representation, there is branching at each bit position depending on the 32nd digit of the current `uint64_t` element `wnaf_entries[i+1]`.
 
 ## Security Notes
 
@@ -155,7 +155,7 @@ We would need to derive two independent signing and PRF keys from one 256-bit se
 
 Given a valid signature $(s,e) \in  \{0,1\}^{256} \times \{0,1\}^{256}$ , it is possible to generate another valid signature $(s',e) \in  \{0,1\}^{256} \times \{0,1\}^{256}$, 
 where $s'\neq s$ but $\mathbb{F}_r(s') = \mathbb{F}_r(s)$ (take $s'$ to be congruent to $s$ modulo $r$).
-The solution would be to check that $\text{int}(s) < r$, but this would incurr an additional range check within the circuit
+The solution would be to check that $\text{int}(s) < r$, but this would incur an additional range check within the circuit
 which we avoid for efficiency reasons. 
 
 In our context, signatures are used within the `account` and `join_split` circuits to link the public inputs to the user's spending key
