@@ -367,6 +367,17 @@ impl IRGenerator {
         Ok(Value::dummy())
     }
 
+    fn codegen_setpub(
+        &mut self,
+        expr: &Expression,
+        location: noirc_errors::Location,
+    ) -> Result<Value, RuntimeError> {
+        let node_ids = self.codegen_expression(expr)?.to_node_ids();
+        let operation = Operation::SetPub(node_ids, Some(location));
+        self.context.new_instruction(operation, ObjectType::NotAnObject)?;
+        Ok(Value::dummy())
+    }
+
     /// Bind the given DefinitionId to the given Value. This will flatten the Value as needed,
     /// expanding each field of the value to a new variable.
     fn bind_id(&mut self, id: DefinitionId, value: Value, name: &str) -> Result<(), RuntimeError> {
@@ -602,6 +613,7 @@ impl IRGenerator {
                 self.codegen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
             }
+            Expression::SetPub(expr, location) => self.codegen_setpub(expr, *location),
         }
     }
 
