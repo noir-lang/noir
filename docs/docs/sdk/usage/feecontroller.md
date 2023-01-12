@@ -17,7 +17,7 @@ Alice is generating transaction proofs that will be sent to the [sequencer](../.
 2. Alice generates the transaction proof using the controller.
    1. `registerController.createProof()`
 3. Alice exports the proof data and sends it to Bob.
-   1. `proofTxs = regsiterController.exportProofTxs()`
+   1. `proofTxs = registerController.exportProofTxs()`
 4. Bob queries the Aztec client for the current transaction fee rate.
    1. `fee = aztecSdk.getProofTxsFees(assetId, proofTxs)`
 5. Bob creates a [FeeController](../types/sdk/FeeController.md), generates the proof and sends the transactions to the [sequencer](./../../glossary.md#sequencer).

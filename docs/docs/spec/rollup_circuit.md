@@ -73,8 +73,8 @@ The following inputs are private to reduce proof size:
 - `Aggregate` **Proof Aggregation Function** for ultimate batch verification outside the circuit, given a verification key and (optional, defined by 4th input parameter) a previous output of Aggregate. Returns a BN254 point pair
 - `NonMembershipUpdate` **Nullifier Update Function** checks a nullifier is not in a nullifier set given its root, then inserts the nullifier and validates the correctness of the associated merkle root update
 - `BatchUpdate` **Batch Update Function** inserts a set of compressed note commitments into the note tree and validates the corretness of the associated merkle root update
-  Update - inserts a single leaf into the root tree and validates the corretness of the associated merkle root update
-- `ProcessDefiDeposit` **Processes Defi Deposit** ensures that if a given inner proof is a defi deposit proof, it has a valid bridge call data that matches one of the input bridge call datas to the rollup. Further, it also adds the `defi_interaction_nonce` in the encrypted claim note of a defi deposit proof.
+  Update - inserts a single leaf into the root tree and validates the correctness of the associated merkle root update
+- `ProcessDefiDeposit` **Processes Defi Deposit** ensures that if a given inner proof is a defi deposit proof, it has a valid bridge call data that matches one of the input bridge call data to the rollup. Further, it also adds the `defi_interaction_nonce` in the encrypted claim note of a defi deposit proof.
 - `ProcessClaim` **Process Claims** checks if the claim proof is using the correct defi root.
 
 ### Circuit Logic (Pseudocode)
