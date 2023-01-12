@@ -545,7 +545,7 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate_mle(std::span<const Fr> evalu
     const size_t m = evaluation_points.size();
 
     // To simplify handling of edge cases, we assume that size_ is always a power of 2
-    ASSERT(size_ == (1 << m));
+    ASSERT(size_ == static_cast<size_t>(1 << m));
 
     // we do m rounds l = 0,...,m-1.
     // in round l, n_l is the size of the buffer containing the polynomial partially evaluated
