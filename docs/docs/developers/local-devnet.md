@@ -96,17 +96,19 @@ Do this by appending the appropriate info for your bridge to the "bridgeConfigs"
 For the AddressRegistry, it might looks like
 
 ```json
-...
-    {
-        "numTxs": 1,
-        "gas": 120000,
-        "bridgeAddressId": 14,
-        "permittedAssets": [
-            0
-        ]
-    }
-],
-"feePayingAssetIds": [0, 1]
+{
+    "bridgeConfigs": [
+        // ... other configs here
+        {
+            "numTxs": 1,
+            "gas": 120000,
+            "bridgeAddressId": 14,
+            "permittedAssets": [
+                0
+            ]
+        }
+    ],
+    "feePayingAssetIds": [0, 1]
 }
 ```
 
