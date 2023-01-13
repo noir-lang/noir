@@ -121,9 +121,9 @@ For the AddressRegistry, it might looks like
 }
 ```
 
-where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed. and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge (you can check what assets are currently configured by checking the /status endpoint).
+where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge (you can check what assets are currently configured by checking the `localhost:8081/status` endpoint).
 
-To get you up and running, here is a [postman collection](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/local-devnet-postman-collection.json) that is plug and play. You learn how to import postman collections here [here](https://learning.postman.com/docs/getting-started/importing-and-exporting-data/).
+To get you up and running, here is a [postman collection](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/local-devnet-postman-collection.json) that is plug and play. You learn how to import postman collections [here](https://learning.postman.com/docs/getting-started/importing-and-exporting-data/).
 
 ### Connect Metamask
 
