@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 # Compile with bn254 field as a default for now
 acvm = { path = "../acvm", features = ["bn254"] }
-noirc_driver = { path = "../noirc_driver", features = ["wasm"] }
+noirc_driver = { path = "../noirc_driver" }
 
 console_error_panic_hook = "*"
 

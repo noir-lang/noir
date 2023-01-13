@@ -4,16 +4,8 @@ use std::path::Path;
 // read files using the javascript host function
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-
-        pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
-            std::fs::read_to_string(path_to_file)
-        }
-
-    } else if #[cfg(feature = "wasm")] {
-
+    if #[cfg(target_arch = "wasm32")] {
         use wasm_bindgen::{prelude::*, JsValue};
-
 
         #[wasm_bindgen(module = "@noir-lang/noir-source-resolver")]
         extern "C" {
@@ -30,6 +22,8 @@ cfg_if::cfg_if! {
             }
         }
     } else {
-        compile_error!("need to select wasm or std");
+        pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
+            std::fs::read_to_string(path_to_file)
+        }
     }
 }

@@ -14,9 +14,3 @@ wasm-bindgen = { version = "*", features = [
 cfg-if = "*"
 [dev-dependencies]
 tempfile = "3.1.0"
-
-
-[features]
-default = []
-std = []
-wasm = ["wasm-bindgen"]
