@@ -484,7 +484,7 @@ fn generic_type_args(
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
-        .then_ignore(just([Token::Comma, Token::Greater]).rewind())
+        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
         .or(type_expression().map(UnresolvedType::Expression))
         .separated_by(just(Token::Comma))
         .allow_trailing()
