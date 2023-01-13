@@ -61,7 +61,7 @@ pub enum RuntimeErrorKind {
 impl RuntimeErrorKind {
     pub fn expected_type(expected_type: &'static str, found_type: &str) -> RuntimeErrorKind {
         RuntimeErrorKind::UnstructuredError {
-            message: format!("Expected a {}, but found {}", expected_type, found_type),
+            message: format!("Expected a {expected_type}, but found {found_type}"),
         }
     }
 }
@@ -73,12 +73,12 @@ impl DiagnosableError for RuntimeError {
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),
-                format!("out of bounds error, index is {} but length is {}", index, bound),
+                format!("out of bounds error, index is {index} but length is {bound}"),
                 span,
             ),
             RuntimeErrorKind::ArrayNotFound { found_type, name } => Diagnostic::simple_error(
-                format!("cannot find an array with name {}", name),
-                format!("{} has type", found_type),
+                format!("cannot find an array with name {name}"),
+                format!("{found_type} has type"),
                 span,
             ),
             RuntimeErrorKind::UnstructuredError { message } => {
@@ -87,7 +87,7 @@ impl DiagnosableError for RuntimeError {
             RuntimeErrorKind::UnsupportedOp { op, first_type, second_type } => {
                 Diagnostic::simple_error(
                     "unsupported operation".to_owned(),
-                    format!("no support for {} with types {} and {}", op, first_type, second_type),
+                    format!("no support for {op} with types {first_type} and {second_type}"),
                     span,
                 )
             }
@@ -95,7 +95,7 @@ impl DiagnosableError for RuntimeError {
             RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
             RuntimeErrorKind::FunctionNonMainContext { func_name } => Diagnostic::simple_error(
                 "cannot call function outside of main".to_owned(),
-                format!("function {} can only be called in main", func_name),
+                format!("function {func_name} can only be called in main"),
                 span,
             ),
         }

@@ -29,7 +29,7 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     println!("Total gates generated for language {:?}: {}\n", backend.np_language(), gates.len());
 
     let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
-    println!("\nBackend circuit size: {}\n", exact_circuit_size);
+    println!("\nBackend circuit size: {exact_circuit_size}\n");
 
     Ok(())
 }

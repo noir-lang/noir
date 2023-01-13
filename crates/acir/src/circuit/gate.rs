@@ -95,9 +95,9 @@ impl std::fmt::Debug for Gate {
                     )
                 }
             }
-            Gate::And(g) => write!(f, "{:?}", g),
-            Gate::Xor(g) => write!(f, "{:?}", g),
-            Gate::GadgetCall(g) => write!(f, "{:?}", g),
+            Gate::And(g) => write!(f, "{g:?}"),
+            Gate::Xor(g) => write!(f, "{g:?}"),
+            Gate::GadgetCall(g) => write!(f, "{g:?}"),
             Gate::Directive(Directive::ToRadix { a, b, radix }) => {
                 write!(
                     f,
