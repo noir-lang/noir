@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, convert::TryInto};
 use acvm::FieldElement;
 use errors::AbiError;
 use input_parser::InputValue;
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -12,10 +12,12 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 pub mod errors;
 pub mod input_parser;
+mod serialization;
 
 pub const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
 /// Types that are allowed in the (main function in binary)
 ///
 /// we use this separation so that we can have types like Strings
@@ -28,12 +30,26 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// support.
 pub enum AbiType {
     Field,
-    Array { length: u128, typ: Box<AbiType> },
-    Integer { sign: Sign, width: u32 },
-    Struct { fields: BTreeMap<String, AbiType> },
+    Array {
+        length: u64,
+        #[serde(rename = "type")]
+        typ: Box<AbiType>,
+    },
+    Integer {
+        sign: Sign,
+        width: u32,
+    },
+    Struct {
+        #[serde(
+            serialize_with = "serialization::serialize_struct_fields",
+            deserialize_with = "serialization::deserialize_struct_fields"
+        )]
+        fields: BTreeMap<String, AbiType>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum AbiVisibility {
     Public,
@@ -52,6 +68,7 @@ impl std::fmt::Display for AbiVisibility {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
     Signed,
@@ -78,10 +95,11 @@ impl AbiType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
+    #[serde(rename = "type")]
     pub typ: AbiType,
     pub visibility: AbiVisibility,
 }
@@ -92,7 +110,7 @@ impl AbiParameter {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     pub parameters: Vec<AbiParameter>,
 }
@@ -171,7 +189,7 @@ impl Abi {
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::Struct(object) => {
                 for (field_name, value) in object {
-                    let new_name = format!("{}.{}", param_name, field_name);
+                    let new_name = format!("{param_name}.{field_name}");
                     encoded_value.extend(Self::encode_value(value, &new_name)?)
                 }
             }
@@ -243,24 +261,5 @@ impl Abi {
         };
 
         Ok((index, value))
-    }
-}
-
-impl Serialize for Abi {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let vec: Vec<u8> = Vec::new();
-        let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
-        for param in &self.parameters {
-            match param.typ {
-                AbiType::Field => map.serialize_entry(&param.name, "")?,
-                AbiType::Array { .. } => map.serialize_entry(&param.name, &vec)?,
-                AbiType::Integer { .. } => map.serialize_entry(&param.name, "")?,
-                AbiType::Struct { .. } => map.serialize_entry(&param.name, "")?,
-            };
-        }
-        map.end()
     }
 }

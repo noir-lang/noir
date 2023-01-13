@@ -89,7 +89,7 @@ fn solve_witness(
     let abi = compiled_program.abi.as_ref().unwrap();
     let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{} in the {}.toml file.", error, PROVER_INPUT_FILE))
+            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
         }
         _ => CliError::from(error),
     })?;
@@ -108,8 +108,7 @@ fn solve_witness(
 
     match solver_res {
         GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
-                "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
-                opcode
+                "backend does not currently support the {opcode} opcode. ACVM does not currently fall back to arithmetic gates.",
         ))),
         GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
                 "could not satisfy all constraints".to_string()
@@ -141,7 +140,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     println!("proof : {}", hex::encode(&proof));
 
     let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
-    println!("Proof successfully created and located at {}", path);
+    println!("Proof successfully created and located at {path}");
     println!("{:?}", std::fs::canonicalize(&proof_path));
 
     Ok(proof_path)

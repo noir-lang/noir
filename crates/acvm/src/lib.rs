@@ -354,7 +354,7 @@ impl CustomGate for Language {
 pub fn hash_constraint_system(cs: &Circuit) {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
-    hasher.update(&format!("{:?}", cs));
+    hasher.update(format!("{cs:?}"));
     let result = hasher.finalize();
     println!("hash of constraint system : {:x?}", &result[..]);
 }

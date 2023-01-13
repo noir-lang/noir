@@ -12,6 +12,7 @@ dirs = "4"
 [dependencies]
 dirs = "3.0.1"
 url = "2.2.0"
+iter-extended = { path = "../iter-extended" }
 noirc_driver = { path = "../noirc_driver", features = ["std"] }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }

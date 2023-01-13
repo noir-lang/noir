@@ -17,16 +17,16 @@ impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
         let s = big_f.bits();
         let big_s = BigUint::one() << s;
         if big_s == big_f {
-            return write!(f, "2^{}", s);
+            return write!(f, "2^{s}");
         }
         if big_f == BigUint::zero() {
             return write!(f, "0");
         }
         let big_minus = BigUint::from_bytes_be(&(self.neg()).to_bytes());
         if big_minus.to_string().len() < big_f.to_string().len() {
-            return write!(f, "-{}", big_minus);
+            return write!(f, "-{big_minus}");
         }
-        write!(f, "{}", big_f)
+        write!(f, "{big_f}")
     }
 }
 
@@ -47,13 +47,13 @@ impl<F: PrimeField> std::fmt::Debug for FieldElement<F> {
         let s = big_f.bits();
         let big_s = BigUint::one() << s;
         if big_s == big_f {
-            return write!(f, "2^{}", s);
+            return write!(f, "2^{s}");
         }
         if big_f.clone() % BigUint::from(2_u128).pow(32) == BigUint::zero() {
             return write!(f, "2^32*{}", big_f / BigUint::from(2_u128).pow(32));
         }
 
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -106,7 +106,7 @@ impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
         let s = <&str>::deserialize(deserializer)?;
         match Self::from_hex(s) {
             Some(value) => Ok(value),
-            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {}", s))),
+            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {s}"))),
         }
     }
 }
