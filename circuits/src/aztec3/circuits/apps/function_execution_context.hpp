@@ -8,6 +8,8 @@
 #include "opcodes/opcodes.hpp"
 
 #include <aztec3/constants.hpp>
+
+#include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
@@ -17,27 +19,23 @@
 
 #include <stdlib/types/convert.hpp>
 
-// #include <memory>
-
-// #include "function_declaration.hpp"
-// #include "l1_function_interface.hpp"
-
 namespace aztec3::circuits::apps {
 
+using aztec3::circuits::abis::CallStackItem;
+using aztec3::circuits::abis::CallType;
 using aztec3::circuits::abis::FunctionSignature;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 
 using aztec3::circuits::apps::notes::NoteInterface;
-
 using aztec3::circuits::apps::opcodes::Opcodes;
 
 using aztec3::circuits::types::array_push;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::to_nt;
 using NT = plonk::stdlib::types::NativeTypes;
+using plonk::stdlib::types::to_nt;
 
 template <typename Composer> class FunctionExecutionContext {
     typedef NativeTypes NT;
@@ -55,12 +53,11 @@ template <typename Composer> class FunctionExecutionContext {
 
     Contract<NT>* contract = nullptr;
 
-    std::map<std::string, std::shared_ptr<FunctionExecutionContext<Composer>>> nested_execution_contexts;
+    std::array<std::shared_ptr<FunctionExecutionContext<Composer>>, PRIVATE_CALL_STACK_LENGTH>
+        nested_private_call_exec_ctxs;
 
     // TODO: make this private!
     OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
-
-    PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs;
 
   private:
     std::vector<std::shared_ptr<NoteInterface<Composer>>> new_notes;
@@ -69,6 +66,10 @@ template <typename Composer> class FunctionExecutionContext {
     // Nullifier preimages can be got from the corresponding Note that they nullify.
     std::vector<std::shared_ptr<NoteInterface<Composer>>> nullified_notes;
     std::vector<fr> new_nullifiers;
+
+    PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs;
+
+    bool is_finalised = false;
 
   public:
     FunctionExecutionContext<Composer>(Composer& composer, OracleWrapperInterface<Composer>& oracle)
@@ -91,37 +92,115 @@ template <typename Composer> class FunctionExecutionContext {
     // Not a reference, because we won't want to allow unsafe access. Hmmm, except it's a vector of pointers, so one can
     // still modify the pointers... But at least the original vector isn't being pushed-to or deleted-from.
     std::vector<std::shared_ptr<NoteInterface<Composer>>> get_new_notes() { return new_notes; }
+
     std::vector<fr> get_new_nullifiers() { return new_nullifiers; }
 
     void push_new_note(NoteInterface<Composer>* const note_ptr) { new_notes.push_back(note_ptr); }
 
     void push_newly_nullified_note(NoteInterface<Composer>* note_ptr) { nullified_notes.push_back(note_ptr); }
 
-    // Allows a call to be made to a function of another contract
-    template <typename... NativeArgs, typename... CircuitArgs>
+    PrivateCircuitPublicInputs<NT> get_final_private_circuit_public_inputs()
+    {
+        // For safety, only return this if the circuit is complete.
+        if (!is_finalised) {
+            throw_or_abort("You need to call exec_ctx.finalise() in your circuit first.");
+        }
+        return final_private_circuit_public_inputs;
+    }
+
+    /**
+     * @brief Get the call_stack_item representing `this` exec_ctx's function call.
+     */
+    CallStackItem<NT, CallType::Private> get_call_stack_item()
+    {
+        const NT::address& actual_contract_address = oracle.native_oracle.get_actual_contract_address();
+        const FunctionSignature<NT>& function_signature = oracle.native_oracle.get_function_signature();
+
+        return CallStackItem<NT, CallType::Private>{
+            .contract_address = actual_contract_address,
+            .function_signature = function_signature,
+            .public_inputs = get_final_private_circuit_public_inputs(),
+        };
+    }
+
+    /**
+     * @brief Get the call_stack_items of any nested function calls made by this exec_ctx's function.
+     */
+    std::array<CallStackItem<NT, CallType::Private>, PRIVATE_CALL_STACK_LENGTH> get_private_call_stack_items()
+    {
+        std::array<CallStackItem<NT, CallType::Private>, PRIVATE_CALL_STACK_LENGTH> result;
+
+        for (size_t i = 0; i < result.size(); ++i) {
+            auto& nested_exec_ctx = nested_private_call_exec_ctxs[i];
+            if (nested_exec_ctx != nullptr) {
+                const NT::address& actual_contract_address =
+                    nested_exec_ctx->oracle.native_oracle.get_actual_contract_address();
+                const FunctionSignature<NT>& function_signature =
+                    nested_exec_ctx->oracle.native_oracle.get_function_signature();
+
+                result[i] = CallStackItem<NT, CallType::Private>{
+                    .contract_address = actual_contract_address,
+                    .function_signature = function_signature,
+                    .public_inputs = nested_exec_ctx->get_final_private_circuit_public_inputs(),
+                };
+            }
+        }
+
+        // TODO: do we need to instantiate-with-zeros the structs at the unused indices of `result`?
+
+        return result;
+    }
+
+    /**
+     * @brief Allows a call to be made to a function of another contract
+     */
     std::array<fr, RETURN_VALUES_LENGTH> call(
         address const& external_contract_address,
         std::string const& external_function_name,
         std::function<void(FunctionExecutionContext<Composer>&, std::array<NT::fr, ARGS_LENGTH>)> f,
         std::array<fr, ARGS_LENGTH> const& args)
     {
-        if (nested_execution_contexts.contains(external_function_name)) {
-            throw_or_abort("Choose a different string to represent the function being called");
-        }
 
         Composer f_composer;
-        NativeOracle f_oracle(oracle.oracle.db,
+
+        // Convert function name to bytes and use the first 4 bytes as the function encoding, for now:
+        std::vector<uint8_t> f_name_bytes(external_function_name.begin(), external_function_name.end());
+        std::vector<uint8_t> f_encoding_bytes(f_name_bytes.begin(), f_name_bytes.begin() + 4);
+        uint32_t f_encoding;
+        memcpy(&f_encoding, f_encoding_bytes.data(), sizeof(f_encoding));
+
+        const FunctionSignature<NT> f_function_signature{
+            .function_encoding = f_encoding,
+            .is_private = true,
+            .is_constructor = false,
+        };
+
+        const CallContext<NT> f_call_context{
+            .msg_sender = oracle.get_this_contract_address().get_value(), // the sender is `this` contract!
+            .storage_contract_address = external_contract_address.get_value(),
+            .tx_origin = oracle.get_tx_origin().get_value(),
+            .is_delegate_call = false,
+            .is_static_call = false,
+            .is_contract_deployment = false,
+            .reference_block_num = 0,
+        };
+
+        NativeOracle f_oracle(oracle.native_oracle.db,
                               external_contract_address.get_value(),
-                              oracle.get_this_contract_address().get_value(),
-                              oracle.get_tx_origin().get_value(),
-                              oracle.get_msg_sender_private_key().get_value());
+                              f_function_signature,
+                              f_call_context,
+                              oracle.get_msg_sender_private_key()
+                                  .get_value() // TODO: consider whether a nested function should even be able to access
+                                               // a private key, given that the call is now coming from a contract
+                                               // (which cannot own a secret), rather than a human.
+        );
         OracleWrapperInterface<Composer> f_oracle_wrapper(f_composer, f_oracle);
 
         // We need an exec_ctx reference which won't go out of scope, so we store a shared_ptr to the newly created
-        // exec_ctx in `this` exec_ctx, and pass a reference to the function we're calling:
-        auto& f_exec_ctx = nested_execution_contexts[external_function_name];
+        // exec_ctx in `this` exec_ctx.
+        auto f_exec_ctx = std::make_shared<FunctionExecutionContext<Composer>>(f_composer, f_oracle_wrapper);
 
-        f_exec_ctx = std::make_shared<FunctionExecutionContext<Composer>>(f_composer, f_oracle_wrapper);
+        array_push(nested_private_call_exec_ctxs, f_exec_ctx);
 
         auto native_args = to_nt<Composer>(args);
 
@@ -229,7 +308,7 @@ template <typename Composer> class FunctionExecutionContext {
         private_circuit_public_inputs.set_public(composer);
         final_private_circuit_public_inputs =
             private_circuit_public_inputs.remove_optionality().template to_native_type<Composer>();
-    };
+    }
 };
 
 } // namespace aztec3::circuits::apps

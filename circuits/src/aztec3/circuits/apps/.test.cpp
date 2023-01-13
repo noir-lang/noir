@@ -88,26 +88,47 @@ namespace aztec3::circuits::apps {
 
 class state_var_tests : public ::testing::Test {
   protected:
-    NativeOracle get_test_native_oracle()
+    FunctionExecutionContext<C> get_test_exec_ctx()
     {
+        C composer;
         DB db;
-        // No cheating: you have to grab this stuff from the oracle in your tests - hence the 'private' scope.
-        NT::fr msg_sender_private_key = 123456789;
-        NT::address contract_address = 12345;
-        NT::address msg_sender = NT::fr(
-            uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
-        NT::address tx_origin = msg_sender;
 
-        return NativeOracle(db, contract_address, msg_sender, tx_origin, msg_sender_private_key);
+        const NT::address contract_address = 12345;
+        const NT::fr msg_sender_private_key = 123456789;
+        const NT::address msg_sender = NT::fr(
+            uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+        const NT::address tx_origin = msg_sender;
+
+        FunctionSignature<NT> function_signature{
+            .function_encoding = 1, // TODO: deduce this from the contract, somehow.
+            .is_private = true,
+            .is_constructor = false,
+        };
+
+        CallContext<NT> call_context{
+            .msg_sender = msg_sender,
+            .storage_contract_address = contract_address,
+            .tx_origin = msg_sender,
+            .is_delegate_call = false,
+            .is_static_call = false,
+            .is_contract_deployment = false,
+            .reference_block_num = 0,
+        };
+
+        NativeOracle oracle =
+            NativeOracle(db, contract_address, function_signature, call_context, msg_sender_private_key);
+        OracleWrapper oracle_wrapper = OracleWrapper(composer, oracle);
+
+        FunctionExecutionContext<C> exec_ctx(composer, oracle_wrapper);
+
+        return exec_ctx;
     };
 };
 
 TEST_F(state_var_tests, mapping)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    auto& composer = exec_ctx.composer;
 
     // TODO:
     // Interestingly, if I scope the below, the debugger works, but running the test via the command line fails. This is
@@ -135,10 +156,8 @@ TEST_F(state_var_tests, mapping)
 
 TEST_F(state_var_tests, mapping_within_mapping)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
 
     // {
     ::Contract contract("TestContract");
@@ -156,10 +175,8 @@ TEST_F(state_var_tests, mapping_within_mapping)
 
 TEST_F(state_var_tests, partial_mapping)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
 
     // {
     ::Contract contract("TestContract");
@@ -177,10 +194,9 @@ TEST_F(state_var_tests, partial_mapping)
 
 TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
+    auto& oracle = exec_ctx.oracle;
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);
@@ -223,10 +239,9 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 
 TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
+    auto& oracle = exec_ctx.oracle;
 
     // bool sort(NT::uint256 i, NT::uint256 j)
     // {
@@ -284,10 +299,9 @@ TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
 
 TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
+    auto& oracle = exec_ctx.oracle;
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);
@@ -331,10 +345,9 @@ TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
 
 TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
 {
-    C composer;
-    NativeOracle native_oracle = get_test_native_oracle();
-    OracleWrapper oracle = OracleWrapper(composer, native_oracle);
-    FunctionExecutionContext<C> exec_ctx(composer, oracle);
+    auto exec_ctx = get_test_exec_ctx();
+    // auto& composer = exec_ctx.composer;
+    auto& oracle = exec_ctx.oracle;
 
     ::Contract contract("TestContract");
     exec_ctx.register_contract(&contract);

@@ -27,8 +27,7 @@ template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDe
             throw_or_abort("Name already exists");
         }
         function_signatures[function.name] = FunctionSignature<NCT>{
-            // TODO: vk_index to actually be derived as 1st 4-bytes of hash of function signature.
-            .vk_index = uint32(i),
+            .function_encoding = uint32(i),
             .is_private = function.is_private,
             .is_constructor = function.is_constructor,
         };

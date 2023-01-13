@@ -2,6 +2,7 @@
 #include "function_signature.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "public_circuit_public_inputs.hpp"
+
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
@@ -62,17 +63,10 @@ template <typename NCT, CallType call_type> struct CallStackItem {
         std::vector<fr> inputs = {
             contract_address.to_field(),
             function_signature.hash(),
-            public_inputs
-                .hash(), // Note: this public_inputs.hash() omits hashing of the public_inputs.call_context, because we
-                         // want to 'unwrap' it with the fewest hashes possible in the kernel circuit.
+            public_inputs.hash(),
         };
 
-        fr call_stack_item_hash_no_context = NCT::compress(inputs, GeneratorIndex::CALL_STACK_ITEM);
-
-        fr call_context_hash = public_inputs.call_context.hash();
-
-        fr call_stack_item_hash =
-            NCT::compress({ call_context_hash, call_stack_item_hash_no_context }, GeneratorIndex::CALL_STACK_ITEM_2);
+        fr call_stack_item_hash = NCT::compress(inputs, GeneratorIndex::CALL_STACK_ITEM);
 
         return call_stack_item_hash;
     }

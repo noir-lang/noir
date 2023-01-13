@@ -4,6 +4,7 @@
 // #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 // #include <numeric/random/engine.hpp>
 #include "index.hpp"
+#include "init.hpp"
 
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 
@@ -23,6 +24,8 @@
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
 // #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 // #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
+
+#include <aztec3/circuits/apps/function_execution_context.hpp>
 
 // #include <aztec3/circuits/mock/mock_circuit.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
@@ -86,8 +89,24 @@ TEST(private_kernel_tests, test_deposit)
     Composer deposit_composer;
     DB db;
 
+    FunctionSignature<NT> function_signature{
+        .function_encoding = 1, // TODO: deduce this from the contract, somehow.
+        .is_private = true,
+        .is_constructor = false,
+    };
+
+    CallContext<NT> call_context{
+        .msg_sender = msg_sender,
+        .storage_contract_address = escrow_contract_address,
+        .tx_origin = msg_sender,
+        .is_delegate_call = false,
+        .is_static_call = false,
+        .is_contract_deployment = false,
+        .reference_block_num = 0,
+    };
+
     NativeOracle deposit_oracle =
-        NativeOracle(db, escrow_contract_address, msg_sender, tx_origin, msg_sender_private_key);
+        NativeOracle(db, escrow_contract_address, function_signature, call_context, msg_sender_private_key);
     OracleWrapper deposit_oracle_wrapper = OracleWrapper(deposit_composer, deposit_oracle);
 
     FunctionExecutionContext deposit_ctx(deposit_composer, deposit_oracle_wrapper);
@@ -113,12 +132,7 @@ TEST(private_kernel_tests, test_deposit)
     TxObject<NT> deposit_tx_object = TxObject<NT>{
         .from = tx_origin,
         .to = escrow_contract_address,
-        .function_signature =
-            FunctionSignature<NT>{
-                .vk_index = 0, // TODO: deduce this from the contract, somehow.
-                .is_private = true,
-                .is_constructor = false,
-            },
+        .function_signature = function_signature,
         .args = deposit_public_inputs.args,
         .nonce = 0,
         .tx_context =
@@ -203,10 +217,6 @@ TEST(private_kernel_tests, test_deposit)
 
     Composer private_kernel_composer;
 
-    // TODO: I think we need a different kind of oracle for the kernel circuits...
-    NativeOracle private_kernel_oracle = NativeOracle(db, escrow_contract_address, msg_sender, msg_sender_private_key);
-    OracleWrapper private_kernel_oracle_wrapper = OracleWrapper(private_kernel_composer, private_kernel_oracle);
-
     PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
         .signed_tx_object = signed_deposit_tx_object,
 
@@ -220,7 +230,7 @@ TEST(private_kernel_tests, test_deposit)
         .private_call =
             PrivateCallData<NT>{
                 .call_stack_item = deposit_call_stack_item,
-                // .call_context_reconciliation_data = TODO
+                .private_call_stack_preimages = deposit_ctx.get_private_call_stack_items(),
 
                 .proof = deposit_proof,
                 .vk = deposit_vk,
@@ -234,7 +244,7 @@ TEST(private_kernel_tests, test_deposit)
             },
     };
 
-    private_kernel_circuit(private_kernel_composer, private_kernel_oracle_wrapper, private_inputs);
+    private_kernel_circuit(private_kernel_composer, private_inputs);
 
     info("computed witness: ", private_kernel_composer.computed_witness);
     info("witness: ", private_kernel_composer.witness);

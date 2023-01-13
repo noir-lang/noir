@@ -16,7 +16,7 @@ class abi_tests : public ::testing::Test {};
 TEST(abi_tests, test_native_function_signature)
 {
     FunctionSignature<NT> function_signature = {
-        .vk_index = 11,
+        .function_encoding = 11,
         .is_private = false,
         .is_constructor = false,
     };
@@ -32,7 +32,7 @@ TEST(abi_tests, test_native_function_signature)
 TEST(abi_tests, test_native_to_circuit_function_signature)
 {
     FunctionSignature<NT> native_function_signature = {
-        .vk_index = 11,
+        .function_encoding = 11,
         .is_private = false,
         .is_constructor = false,
     };
@@ -132,7 +132,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //     CallStackItem<NT, CallType::Public> call_stack_item = {
 //         .function_signature = {
 //             // .contract_address = 10,
-//             .vk_index = 11,
+//             .function_encoding = 11,
 //             .is_private = false,
 //             .is_constructor = false,
 //         },
@@ -165,7 +165,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //     CallStackItem<NT, CallType::Public> native_call_stack_item = {
 //         .function_signature = {
 //             // .contract_address = 10,
-//             .vk_index = 11,
+//             .function_encoding = 11,
 //             .is_private = false,
 //             .is_constructor = false,
 //         },

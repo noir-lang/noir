@@ -11,6 +11,6 @@ using aztec3::circuits::abis::private_kernel::PrivateInputs;
 // using abis::private_kernel::PublicInputs;
 
 // TODO: decide what to return.
-void private_kernel_circuit(Composer& composer, OracleWrapper& oracle, PrivateInputs<NT> const& _private_inputs);
+void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs);
 
 } // namespace aztec3::circuits::kernel::private_kernel

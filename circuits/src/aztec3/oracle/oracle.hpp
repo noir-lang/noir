@@ -3,6 +3,7 @@
 #include "fake_db.hpp"
 
 #include <aztec3/circuits/abis/call_context.hpp>
+#include <aztec3/circuits/abis/function_signature.hpp>
 
 #include <aztec3/circuits/apps/utxo_datum.hpp>
 
@@ -14,11 +15,9 @@
 namespace aztec3::oracle {
 
 using aztec3::circuits::abis::CallContext;
+using aztec3::circuits::abis::FunctionSignature;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
-
-using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
-using aztec3::circuits::apps::notes::DefaultSingletonPrivateNotePreimage;
 
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
@@ -30,50 +29,13 @@ template <typename DB> class NativeOracleInterface {
     DB& db;
 
     NativeOracleInterface(DB& db,
-                          NT::fr const& contract_address,
-                          //   NT::fr const& portal_contract_address,
-                          NT::address const& msg_sender,
-                          NT::address const& tx_origin,
-                          NT::boolean const& is_delegate_call = false,
-                          NT::boolean const& is_static_call = false,
-                          NT::fr const& reference_block_num = 0)
+                          NT::address const& actual_contract_address,
+                          FunctionSignature<NT> function_signature,
+                          CallContext<NT> const& call_context,
+                          std::optional<NT::fr> const& msg_sender_private_key = std::nullopt)
         : db(db)
-        , call_context({
-              .msg_sender = msg_sender,
-              .storage_contract_address = contract_address,
-              .tx_origin = tx_origin,
-              .is_delegate_call = is_delegate_call,
-              .is_static_call = is_static_call,
-              .reference_block_num = reference_block_num,
-          })
-        // , portal_contract_address(portal_contract_address)
-        {};
-
-    // Include the msg_sender_private_key
-    NativeOracleInterface(DB& db,
-                          NT::fr const& contract_address,
-                          //   NT::fr const& portal_contract_address,
-                          NT::address const& msg_sender,
-                          NT::address const& tx_origin,
-                          std::optional<NT::fr> msg_sender_private_key,
-                          NT::boolean const& is_delegate_call = false,
-                          NT::boolean const& is_static_call = false,
-                          NT::fr const& reference_block_num = 0)
-        : db(db)
-        , call_context({
-              .msg_sender = msg_sender,
-              .storage_contract_address = contract_address,
-              .tx_origin = tx_origin,
-              .is_delegate_call = is_delegate_call,
-              .is_static_call = is_static_call,
-              .reference_block_num = reference_block_num,
-          })
-        // , portal_contract_address(portal_contract_address)
-        , msg_sender_private_key(msg_sender_private_key){};
-
-    // CallContext as struct
-    NativeOracleInterface(DB& db, CallContext<NT> call_context, std::optional<NT::fr> msg_sender_private_key)
-        : db(db)
+        , actual_contract_address(actual_contract_address)
+        , function_signature(function_signature)
         , call_context(call_context)
         // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
@@ -98,6 +60,10 @@ template <typename DB> class NativeOracleInterface {
     //     portal_contract_address_already_got = true;
     //     return portal_contract_address;
     // };
+
+    NT::address get_actual_contract_address() { return actual_contract_address; };
+
+    FunctionSignature<NT> get_function_signature() { return function_signature; };
 
     CallContext<NT> get_call_context()
     {
@@ -137,12 +103,18 @@ template <typename DB> class NativeOracleInterface {
     // untrustworthy oracle could give two different pieces of information. As long as this (trusted) oracle catches
     // double-queries, we can ensure the circuit we build doesn't query twice.
 
-    // A circuit doesn't know its own address, so we need to track the address from 'outside'.
+    // Note: actual_contract_address and function_signature are NOT to be provided to the circuit, so don't include
+    // getter methods for these in the OracleWrapper.
+    NT::address actual_contract_address; // not to be confused with call_context.storage_contract_address;
+    FunctionSignature<NT> function_signature;
+
     CallContext<NT> call_context;
     // NT::fr portal_contract_address;
     std::optional<NT::fr> msg_sender_private_key;
 
     // Ensure functions called only once:
+    bool actual_contract_address_already_got = false;
+    bool function_signature_already_got = false;
     bool call_context_already_got = false;
     // bool portal_contract_address_already_got = false;
     bool msg_sender_private_key_already_got = false;

@@ -31,20 +31,20 @@ template <typename Composer> class OracleWrapperInterface {
 
   public:
     Composer& composer;
-    NativeOracle& oracle;
+    NativeOracle& native_oracle;
 
     // Initialise from Native.
     // Used when initialising for a user's first call.
-    OracleWrapperInterface(Composer& composer, NativeOracle& oracle)
+    OracleWrapperInterface(Composer& composer, NativeOracle& native_oracle)
         : composer(composer)
-        , oracle(oracle){};
+        , native_oracle(native_oracle){};
 
     fr& get_msg_sender_private_key()
     {
         if (msg_sender_private_key) {
             return *msg_sender_private_key;
         }
-        msg_sender_private_key = plonk::stdlib::types::to_ct(composer, oracle.get_msg_sender_private_key());
+        msg_sender_private_key = plonk::stdlib::types::to_ct(composer, native_oracle.get_msg_sender_private_key());
         validate_msg_sender_private_key();
         return *msg_sender_private_key;
     };
@@ -56,7 +56,7 @@ template <typename Composer> class OracleWrapperInterface {
         if (call_context) {
             return *call_context;
         }
-        call_context = oracle.get_call_context().to_circuit_type(composer);
+        call_context = native_oracle.get_call_context().to_circuit_type(composer);
         return *call_context;
     };
 
@@ -66,11 +66,11 @@ template <typename Composer> class OracleWrapperInterface {
 
     address& get_tx_origin() { return get_call_context().tx_origin; };
 
-    fr generate_salt() const { return plonk::stdlib::types::to_ct(composer, oracle.generate_salt()); }
+    fr generate_salt() const { return plonk::stdlib::types::to_ct(composer, native_oracle.generate_salt()); }
 
     fr generate_random_element() const
     {
-        return plonk::stdlib::types::to_ct(composer, oracle.generate_random_element());
+        return plonk::stdlib::types::to_ct(composer, native_oracle.generate_random_element());
     }
 
     template <typename NotePreimage>
@@ -80,7 +80,7 @@ template <typename Composer> class OracleWrapperInterface {
 
         auto native_advice = advice.template to_native_type<Composer>();
 
-        auto native_utxo_sload_datum = oracle.get_utxo_sload_datum(native_storage_slot_point, native_advice);
+        auto native_utxo_sload_datum = native_oracle.get_utxo_sload_datum(native_storage_slot_point, native_advice);
 
         return native_utxo_sload_datum.to_circuit_type(composer);
     }
@@ -94,7 +94,8 @@ template <typename Composer> class OracleWrapperInterface {
 
         auto native_advice = advice.template to_native_type<Composer>();
 
-        auto native_utxo_sload_data = oracle.get_utxo_sload_data(native_storage_slot_point, num_notes, native_advice);
+        auto native_utxo_sload_data =
+            native_oracle.get_utxo_sload_data(native_storage_slot_point, num_notes, native_advice);
 
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 

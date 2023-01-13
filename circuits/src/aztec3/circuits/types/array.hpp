@@ -50,6 +50,8 @@ typename CircuitTypes<Composer>::fr array_pop(std::array<typename CircuitTypes<C
 
         already_popped |= is_non_zero;
     }
+    already_popped.assert_equal(true, "Cannot pop from an empty array");
+
     return popped_value;
 };
 
@@ -72,18 +74,32 @@ void array_push(std::array<typename CircuitTypes<Composer>::fr, SIZE>& arr,
 
         already_pushed |= is_zero;
     }
+    already_pushed.assert_equal(true, "Cannot push to a full array");
 };
 
 template <typename Composer, size_t SIZE>
-inline void array_push(std::array<std::optional<typename CircuitTypes<Composer>::fr>, SIZE>& arr,
-                       typename CircuitTypes<Composer>::fr const& value)
+inline size_t array_push(std::array<std::optional<typename CircuitTypes<Composer>::fr>, SIZE>& arr,
+                         typename CircuitTypes<Composer>::fr const& value)
 {
     for (size_t i = 0; i < arr.size(); ++i) {
         if (arr[i] == std::nullopt) {
             arr[i] = value;
-            return;
+            return i;
         }
     }
+    throw_or_abort("Cannot push to a full array");
+};
+
+template <typename T, size_t SIZE>
+inline size_t array_push(std::array<std::shared_ptr<T>, SIZE>& arr, std::shared_ptr<T> const& value)
+{
+    for (size_t i = 0; i < arr.size(); ++i) {
+        if (arr[i] == nullptr) {
+            arr[i] = value;
+            return i;
+        }
+    }
+    throw_or_abort("Cannot push to a full array");
 };
 
 /**

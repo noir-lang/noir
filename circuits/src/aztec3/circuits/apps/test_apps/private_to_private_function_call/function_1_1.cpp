@@ -86,7 +86,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
 
     exec_ctx.finalise();
 
-    info("final public inputs: ", exec_ctx.final_private_circuit_public_inputs);
+    info("final public inputs: ", exec_ctx.get_final_private_circuit_public_inputs());
 
     // TODO: also return note preimages and nullifier preimages.
 };

@@ -30,8 +30,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
 
-    std::array<fr, OUTPUT_COMMITMENTS_LENGTH> output_commitments;
-    std::array<fr, INPUT_NULLIFIERS_LENGTH> input_nullifiers;
+    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments;
+    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers;
 
     std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
@@ -60,8 +60,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
             to_ct(emitted_events),
 
-            to_ct(output_commitments),
-            to_ct(input_nullifiers),
+            to_ct(new_commitments),
+            to_ct(new_nullifiers),
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
@@ -91,8 +91,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
             to_nt(emitted_events),
 
-            to_nt(output_commitments),
-            to_nt(input_nullifiers),
+            to_nt(new_commitments),
+            to_nt(new_nullifiers),
 
             to_nt(private_call_stack),
             to_nt(public_call_stack),
@@ -121,8 +121,8 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
         spread_arr_into_vec(emitted_events, inputs);
 
-        spread_arr_into_vec(output_commitments, inputs);
-        spread_arr_into_vec(input_nullifiers, inputs);
+        spread_arr_into_vec(new_commitments, inputs);
+        spread_arr_into_vec(new_nullifiers, inputs);
 
         spread_arr_into_vec(private_call_stack, inputs);
         spread_arr_into_vec(public_call_stack, inputs);
@@ -153,8 +153,8 @@ template <typename NCT> void read(uint8_t const*& it, PrivateCircuitPublicInputs
     read(it, pis.args);
     read(it, pis.return_values);
     read(it, pis.emitted_events);
-    read(it, pis.output_commitments);
-    read(it, pis.input_nullifiers);
+    read(it, pis.new_commitments);
+    read(it, pis.new_nullifiers);
     read(it, pis.private_call_stack);
     read(it, pis.public_call_stack);
     read(it, pis.l1_msg_stack);
@@ -176,8 +176,8 @@ void write(std::vector<uint8_t>& buf, PrivateCircuitPublicInputs<NCT> const& pri
     write(buf, pis.args);
     write(buf, pis.return_values);
     write(buf, pis.emitted_events);
-    write(buf, pis.output_commitments);
-    write(buf, pis.input_nullifiers);
+    write(buf, pis.new_commitments);
+    write(buf, pis.new_nullifiers);
     write(buf, pis.private_call_stack);
     write(buf, pis.public_call_stack);
     write(buf, pis.l1_msg_stack);
@@ -197,8 +197,8 @@ std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const
               << "args: " << pis.args << "\n"
               << "return_values: " << pis.return_values << "\n"
               << "emitted_events: " << pis.emitted_events << "\n"
-              << "output_commitments: " << pis.output_commitments << "\n"
-              << "input_nullifiers: " << pis.input_nullifiers << "\n"
+              << "new_commitments: " << pis.new_commitments << "\n"
+              << "new_nullifiers: " << pis.new_nullifiers << "\n"
               << "private_call_stack: " << pis.private_call_stack << "\n"
               << "public_call_stack: " << pis.public_call_stack << "\n"
               << "l1_msg_stack: " << pis.l1_msg_stack << "\n"
@@ -226,8 +226,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     std::array<opt_fr, EMITTED_EVENTS_LENGTH> emitted_events;
 
-    std::array<opt_fr, OUTPUT_COMMITMENTS_LENGTH> output_commitments;
-    std::array<opt_fr, INPUT_NULLIFIERS_LENGTH> input_nullifiers;
+    std::array<opt_fr, NEW_COMMITMENTS_LENGTH> new_commitments;
+    std::array<opt_fr, NEW_NULLIFIERS_LENGTH> new_nullifiers;
 
     std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
@@ -248,8 +248,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
                                             std::array<opt_fr, EMITTED_EVENTS_LENGTH> const& emitted_events,
 
-                                            std::array<opt_fr, OUTPUT_COMMITMENTS_LENGTH> const& output_commitments,
-                                            std::array<opt_fr, INPUT_NULLIFIERS_LENGTH> const& input_nullifiers,
+                                            std::array<opt_fr, NEW_COMMITMENTS_LENGTH> const& new_commitments,
+                                            std::array<opt_fr, NEW_NULLIFIERS_LENGTH> const& new_nullifiers,
 
                                             std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> const& private_call_stack,
                                             std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
@@ -264,8 +264,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         , args(args)
         , return_values(return_values)
         , emitted_events(emitted_events)
-        , output_commitments(output_commitments)
-        , input_nullifiers(input_nullifiers)
+        , new_commitments(new_commitments)
+        , new_nullifiers(new_nullifiers)
         , private_call_stack(private_call_stack)
         , public_call_stack(public_call_stack)
         , l1_msg_stack(l1_msg_stack)
@@ -288,8 +288,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         new_inputs.emitted_events.fill(std::nullopt);
 
-        new_inputs.output_commitments.fill(std::nullopt);
-        new_inputs.input_nullifiers.fill(std::nullopt);
+        new_inputs.new_commitments.fill(std::nullopt);
+        new_inputs.new_nullifiers.fill(std::nullopt);
 
         new_inputs.private_call_stack.fill(std::nullopt);
         new_inputs.public_call_stack.fill(std::nullopt);
@@ -306,21 +306,21 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     void set_commitments(std::vector<fr> commitments)
     {
-        if (commitments.size() > output_commitments.size()) {
+        if (commitments.size() > new_commitments.size()) {
             throw_or_abort("Too many commitments for the number supported by the public inputs ABI.");
         }
         for (size_t i = 0; i < commitments.size(); ++i) {
-            output_commitments[i] = commitments[i];
+            new_commitments[i] = commitments[i];
         }
     }
 
     void set_nullifiers(std::vector<fr> nullifiers)
     {
-        if (nullifiers.size() > input_nullifiers.size()) {
+        if (nullifiers.size() > new_nullifiers.size()) {
             throw_or_abort("Too many commitments for the number supported by the public inputs ABI.");
         }
         for (size_t i = 0; i < nullifiers.size(); ++i) {
-            input_nullifiers[i] = nullifiers[i];
+            new_nullifiers[i] = nullifiers[i];
         }
     }
 
@@ -335,8 +335,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         make_unused_array_elements_zero(composer, emitted_events);
 
-        make_unused_array_elements_zero(composer, output_commitments);
-        make_unused_array_elements_zero(composer, input_nullifiers);
+        make_unused_array_elements_zero(composer, new_commitments);
+        make_unused_array_elements_zero(composer, new_nullifiers);
 
         make_unused_array_elements_zero(composer, private_call_stack);
         make_unused_array_elements_zero(composer, public_call_stack);
@@ -366,8 +366,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         set_array_public(emitted_events);
 
-        set_array_public(output_commitments);
-        set_array_public(input_nullifiers);
+        set_array_public(new_commitments);
+        set_array_public(new_nullifiers);
 
         set_array_public(private_call_stack);
         set_array_public(public_call_stack);
@@ -399,8 +399,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             to_ct(emitted_events),
 
-            to_ct(output_commitments),
-            to_ct(input_nullifiers),
+            to_ct(new_commitments),
+            to_ct(new_nullifiers),
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
@@ -433,8 +433,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             to_nt(emitted_events),
 
-            to_nt(output_commitments),
-            to_nt(input_nullifiers),
+            to_nt(new_commitments),
+            to_nt(new_nullifiers),
 
             to_nt(private_call_stack),
             to_nt(public_call_stack),
@@ -468,8 +468,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
         spread_arr_opt_into_vec(emitted_events, inputs);
 
-        spread_arr_opt_into_vec(output_commitments, inputs);
-        spread_arr_opt_into_vec(input_nullifiers, inputs);
+        spread_arr_opt_into_vec(new_commitments, inputs);
+        spread_arr_opt_into_vec(new_nullifiers, inputs);
 
         spread_arr_opt_into_vec(private_call_stack, inputs);
         spread_arr_opt_into_vec(public_call_stack, inputs);
@@ -497,8 +497,8 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
             .emitted_events = map(emitted_events, get_value),
 
-            .output_commitments = map(output_commitments, get_value),
-            .input_nullifiers = map(input_nullifiers, get_value),
+            .new_commitments = map(new_commitments, get_value),
+            .new_nullifiers = map(new_nullifiers, get_value),
 
             .private_call_stack = map(private_call_stack, get_value),
             .public_call_stack = map(public_call_stack, get_value),
@@ -590,8 +590,8 @@ void read(uint8_t const*& it, OptionalPrivateCircuitPublicInputs<NCT>& private_c
     read(it, pis.args);
     read(it, pis.return_values);
     read(it, pis.emitted_events);
-    read(it, pis.output_commitments);
-    read(it, pis.input_nullifiers);
+    read(it, pis.new_commitments);
+    read(it, pis.new_nullifiers);
     read(it, pis.private_call_stack);
     read(it, pis.public_call_stack);
     read(it, pis.l1_msg_stack);
@@ -613,8 +613,8 @@ void write(std::vector<uint8_t>& buf, OptionalPrivateCircuitPublicInputs<NCT> co
     write(buf, pis.args);
     write(buf, pis.return_values);
     write(buf, pis.emitted_events);
-    write(buf, pis.output_commitments);
-    write(buf, pis.input_nullifiers);
+    write(buf, pis.new_commitments);
+    write(buf, pis.new_nullifiers);
     write(buf, pis.private_call_stack);
     write(buf, pis.public_call_stack);
     write(buf, pis.l1_msg_stack);
@@ -634,8 +634,8 @@ std::ostream& operator<<(std::ostream& os, OptionalPrivateCircuitPublicInputs<NC
               << "args: " << pis.args << "\n"
               << "return_values: " << pis.return_values << "\n"
               << "emitted_events: " << pis.emitted_events << "\n"
-              << "output_commitments: " << pis.output_commitments << "\n"
-              << "input_nullifiers: " << pis.input_nullifiers << "\n"
+              << "new_commitments: " << pis.new_commitments << "\n"
+              << "new_nullifiers: " << pis.new_nullifiers << "\n"
               << "private_call_stack: " << pis.private_call_stack << "\n"
               << "public_call_stack: " << pis.public_call_stack << "\n"
               << "l1_msg_stack: " << pis.l1_msg_stack << "\n"

@@ -38,12 +38,13 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs
 {
     public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
 
-    // Ensure the arrays are the same as previously, before we start pushing more data onto them:
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other functions
+    // within this circuit:
     auto& end = public_inputs.end;
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
-    end.output_commitments = start.output_commitments;
-    end.input_nullifiers = start.input_nullifiers;
+    end.new_commitments = start.new_commitments;
+    end.new_nullifiers = start.new_nullifiers;
 
     end.private_call_stack = start.private_call_stack;
     end.public_call_stack = start.public_call_stack;
@@ -56,38 +57,38 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
-    const auto& output_commitments = private_call_public_inputs.output_commitments;
-    const auto& input_nullifiers = private_call_public_inputs.input_nullifiers;
+    const auto& new_commitments = private_call_public_inputs.new_commitments;
+    const auto& new_nullifiers = private_call_public_inputs.new_nullifiers;
 
     const auto& is_static_call = private_inputs.private_call.call_stack_item.public_inputs.call_context.is_static_call;
 
     // No state changes are allowed for static calls:
-    is_static_call.must_imply(is_array_empty<Composer>(output_commitments) == true);
-    is_static_call.must_imply(is_array_empty<Composer>(input_nullifiers) == true);
+    is_static_call.must_imply(is_array_empty<Composer>(new_commitments) == true);
+    is_static_call.must_imply(is_array_empty<Composer>(new_nullifiers) == true);
 
     const auto& storage_contract_address =
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     { // commitments & nullifiers
-        std::array<CT::fr, OUTPUT_COMMITMENTS_LENGTH> siloed_output_commitments;
-        for (size_t i = 0; i < output_commitments.size(); ++i) {
-            siloed_output_commitments[i] =
-                CT::fr::conditional_assign(output_commitments[i] == 0,
+        std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
+        for (size_t i = 0; i < new_commitments.size(); ++i) {
+            siloed_new_commitments[i] =
+                CT::fr::conditional_assign(new_commitments[i] == 0,
                                            0,
-                                           CT::compress({ storage_contract_address.to_field(), output_commitments[i] },
+                                           CT::compress({ storage_contract_address.to_field(), new_commitments[i] },
                                                         GeneratorIndex::OUTER_COMMITMENT));
         }
-        std::array<CT::fr, INPUT_NULLIFIERS_LENGTH> siloed_input_nullifiers;
-        for (size_t i = 0; i < input_nullifiers.size(); ++i) {
-            siloed_input_nullifiers[i] =
-                CT::fr::conditional_assign(input_nullifiers[i] == 0,
+        std::array<CT::fr, NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers;
+        for (size_t i = 0; i < new_nullifiers.size(); ++i) {
+            siloed_new_nullifiers[i] =
+                CT::fr::conditional_assign(new_nullifiers[i] == 0,
                                            0,
-                                           CT::compress({ storage_contract_address.to_field(), input_nullifiers[i] },
+                                           CT::compress({ storage_contract_address.to_field(), new_nullifiers[i] },
                                                         GeneratorIndex::OUTER_NULLIFIER));
         }
 
-        push_array_to_array<Composer>(siloed_output_commitments, public_inputs.end.output_commitments);
-        push_array_to_array<Composer>(siloed_input_nullifiers, public_inputs.end.input_nullifiers);
+        push_array_to_array<Composer>(siloed_new_commitments, public_inputs.end.new_commitments);
+        push_array_to_array<Composer>(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
     {
@@ -101,10 +102,6 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
         // - Commitment and nullifier preimages
         // - Hash paths and leaf indices
         // - Any and all preimage data derived by the circuit or through oracle calls.
-
-        // Update on this topic: I've created call_context_reconciliation_data, which allows the call_context to
-        // be efficiently unpacked from a call_stack_item_hash. We'll need some "functions calling functions"
-        // tests cases to see how best to move this data around neatly.
     }
 
     const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
@@ -150,53 +147,51 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 
     // Base Case
     {
-        // Validate callstack lengths:
-        is_base_case.must_imply(
-            start_private_call_stack_length ==
-                    1 // TODO: might change to allow 3, so a fee can be paid and a gas rebate can be paid.
-                && start_public_call_stack_length == 0 && start_l1_msg_stack_length == 0,
-            "Invalid callstacks for base case.");
+        std::vector<std::pair<CT::boolean, std::string>> base_case_conditions{
+            { start_private_call_stack_length == 1,
+              "Private call stack must be length 1" }, // TODO: might change to allow 3, so a fee can be paid and a gas
+                                                       // rebate can be paid.
+            { start_public_call_stack_length == 0, "Public call stack must be empty" },
+            { start_l1_msg_stack_length == 0, "L1 msg stack must be empty" },
 
-        is_base_case.must_imply(next_call.public_inputs.call_context.is_delegate_call == false &&
-                                    next_call.public_inputs.call_context.is_static_call == false,
-                                "A user cannot make a delegatecall or staticcall");
+            { next_call.public_inputs.call_context.is_delegate_call == false, "Users cannot make a delegatecall" },
+            { next_call.public_inputs.call_context.is_static_call == false, "Users cannot make a static call" },
 
-        // The below also prevents delegatecall/staticcall
-        is_base_case.must_imply(next_call.public_inputs.call_context.storage_contract_address ==
-                                    next_call.contract_address,
-                                "Storage contract address must be that of the called contract in the base case");
+            // The below also prevents delegatecall/staticcall in the base case
+            { next_call.public_inputs.call_context.storage_contract_address == next_call.contract_address,
+              "Storage contract address must be that of the called contract" }
+        };
+
+        is_base_case.must_imply(base_case_conditions);
     }
 
     // Recursive Case
     {
-        is_recursive_case.must_imply(private_inputs.previous_kernel.public_inputs.is_private == true,
-                                     "Cannot verify a non-private kernel snark in the private kernel circuit");
+        std::vector<std::pair<CT::boolean, std::string>> recursive_case_conditions{
+            { private_inputs.previous_kernel.public_inputs.is_private == true,
+              "Cannot verify a non-private kernel snark in the private kernel circuit" },
+            { next_call.function_signature.is_constructor == false,
+              "A constructor must be executed as the first tx in the recursion" },
+            { start_private_call_stack_length != 0,
+              "Cannot execute private kernel circuit with an empty private call stack" }
+        };
 
-        is_recursive_case.must_imply(next_call.function_signature.is_constructor == false,
-                                     "A constructor must be executed as the first tx in the recursion");
-
-        is_recursive_case.must_imply(start_private_call_stack_length != 0);
+        is_recursive_case.must_imply(recursive_case_conditions);
     }
 
     validate_private_call_hash(private_inputs);
 }
 
+// NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-void private_kernel_circuit(Composer& composer, OracleWrapper& oracle, PrivateInputs<NT> const& _private_inputs)
+void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
 {
-    (void)oracle; // To avoid unused variable compiler errors whilst building.
-
     const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
 
     // We'll be pushing data to this during execution of this circuit.
     PublicInputs<CT> public_inputs{};
-
-    // const auto& start = private_inputs.previous_kernel.public_inputs.end;
-
-    // const CT::boolean is_base_case = start.private_call_count == 0;
-    // const CT::boolean is_recursive_case = !is_base_case;
 
     validate_inputs(private_inputs);
 

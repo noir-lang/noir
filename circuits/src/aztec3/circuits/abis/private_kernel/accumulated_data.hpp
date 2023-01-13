@@ -21,12 +21,12 @@ template <typename NCT> struct AccumulatedData {
 
     fr private_call_count;
 
-    std::array<fr, KERNEL_OUTPUT_COMMITMENTS_LENGTH> output_commitments;
-    std::array<fr, KERNEL_INPUT_NULLIFIERS_LENGTH> input_nullifiers;
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments;
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers;
 
     std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, KERNEL_L1_CALL_STACK_LENGTH> l1_msg_stack;
+    std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack;
 
     std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data;
 
@@ -50,8 +50,8 @@ template <typename NCT> struct AccumulatedData {
 
             to_ct(private_call_count),
 
-            to_ct(output_commitments),
-            to_ct(input_nullifiers),
+            to_ct(new_commitments),
+            to_ct(new_nullifiers),
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
@@ -71,8 +71,8 @@ template <typename NCT> struct AccumulatedData {
 
         private_call_count.set_public();
 
-        set_array_public(output_commitments);
-        set_array_public(input_nullifiers);
+        set_array_public(new_commitments);
+        set_array_public(new_nullifiers);
 
         set_array_public(private_call_stack);
         set_array_public(public_call_stack);
