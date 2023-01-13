@@ -22,8 +22,8 @@ struct ModCollector<'a> {
 }
 
 /// Walk a module and collect it's definitions
-pub fn collect_defs<'a>(
-    def_collector: &'a mut DefCollector,
+pub fn collect_defs(
+    def_collector: &mut DefCollector,
     ast: ParsedModule,
     file_id: FileId,
     module_id: LocalModuleId,

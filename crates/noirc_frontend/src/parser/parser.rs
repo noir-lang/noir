@@ -783,7 +783,7 @@ fn field_name() -> impl NoirParser<Ident> {
     ident().or(tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
-            let reason = format!("Unexpected '{}', expected a field name", other);
+            let reason = format!("Unexpected '{other}', expected a field name");
             emit(ParserError::with_reason(reason, span));
             Ident::error(span)
         }

@@ -74,7 +74,7 @@ impl HirPattern {
             HirPattern::Tuple(fields, _) => {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }
-            other => panic!("Tried to iterate over the fields of '{:?}', which has none", other),
+            other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
         }
     }
 }

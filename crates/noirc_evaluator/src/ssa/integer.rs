@@ -114,7 +114,7 @@ fn truncate(
     // get type
     let obj = &ctx[obj_id];
     let obj_type = obj.get_type();
-    let obj_name = format!("{}", obj);
+    let obj_name = format!("{obj}");
     //ensure truncate is needed:
     let v_max = &max_map[&obj_id];
 

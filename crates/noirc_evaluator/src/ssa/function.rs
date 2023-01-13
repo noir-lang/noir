@@ -294,7 +294,7 @@ impl IRGenerator {
 
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
-            let result_index = self.new_array(&format!("{}_result", op), elem_type, len, None).1;
+            let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;
             node::ObjectType::Pointer(result_index)
         } else {
             elem_type

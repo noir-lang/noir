@@ -425,11 +425,11 @@ impl Display for Literal {
                 write!(f, "[{}]", contents.join(", "))
             }
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                write!(f, "[{}; {}]", repeated_element, length)
+                write!(f, "[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
-            Literal::Str(string) => write!(f, "\"{}\"", string),
+            Literal::Str(string) => write!(f, "\"{string}\""),
         }
     }
 }
@@ -440,7 +440,7 @@ impl Display for BlockExpression {
         for statement in &self.0 {
             let statement = statement.to_string();
             for line in statement.lines() {
-                writeln!(f, "    {}", line)?;
+                writeln!(f, "    {line}")?;
             }
         }
         write!(f, "}}")
@@ -490,11 +490,8 @@ impl Display for CastExpression {
 
 impl Display for ConstructorExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fields = self
-            .fields
-            .iter()
-            .map(|(ident, expr)| format!("{}: {}", ident, expr))
-            .collect::<Vec<_>>();
+        let fields =
+            self.fields.iter().map(|(ident, expr)| format!("{ident}: {expr}")).collect::<Vec<_>>();
 
         write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
     }
@@ -549,7 +546,7 @@ impl Display for IfExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "if {} {}", self.condition, self.consequence)?;
         if let Some(alternative) = &self.alternative {
-            write!(f, " else {}", alternative)?;
+            write!(f, " else {alternative}")?;
         }
         Ok(())
     }
@@ -558,11 +555,11 @@ impl Display for IfExpression {
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(attribute) = &self.attribute {
-            writeln!(f, "{}", attribute)?;
+            writeln!(f, "{attribute}")?;
         }
 
         let parameters = vecmap(&self.parameters, |(name, r#type, visibility)| {
-            format!("{}: {} {}", name, visibility, r#type)
+            format!("{name}: {visibility} {type}")
         });
 
         write!(

@@ -255,10 +255,10 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),
-            Type::Array(len, elems) => write!(f, "[{}; {}]", elems, len),
+            Type::Array(len, elems) => write!(f, "[{elems}; {len}]"),
             Type::Integer(sign, bits) => match sign {
-                Signedness::Unsigned => write!(f, "u{}", bits),
-                Signedness::Signed => write!(f, "i{}", bits),
+                Signedness::Unsigned => write!(f, "u{bits}"),
+                Signedness::Signed => write!(f, "i{bits}"),
             },
             Type::Bool => write!(f, "bool"),
             Type::Unit => write!(f, "()"),

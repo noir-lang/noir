@@ -145,7 +145,7 @@ impl SsaContext {
     fn id_to_string(&self, id: NodeId) -> String {
         let mut result = String::new();
         if let Some(var) = self.try_get_node(id) {
-            result = format!("{}", var);
+            result = format!("{var}");
         }
         if result.is_empty() {
             result = format!("unknown {:?}", id.0.into_raw_parts().0)
@@ -184,7 +184,7 @@ impl SsaContext {
             BinaryOp::Shr => "shr",
         };
 
-        format!("{} {}, {}", op, lhs, rhs)
+        format!("{op} {lhs}, {rhs}")
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
@@ -195,23 +195,20 @@ impl SsaContext {
             Operation::Cast(value) => format!("cast {}", self.id_to_string(*value)),
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 format!(
-                    "truncate {}, bitsize = {}, max bitsize = {}",
+                    "truncate {}, bitsize = {bit_size}, max bitsize = {max_bit_size}",
                     self.id_to_string(*value),
-                    bit_size,
-                    max_bit_size
                 )
             }
             Operation::Not(v) => format!("not {}", self.id_to_string(*v)),
             Operation::Constrain(v, ..) => format!("constrain {}", self.id_to_string(*v)),
-            Operation::Jne(v, b) => format!("jne {}, {:?}", self.id_to_string(*v), b),
-            Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.id_to_string(*v), b),
-            Operation::Jmp(b) => format!("jmp {:?}", b),
+            Operation::Jne(v, b) => format!("jne {}, {b:?}", self.id_to_string(*v)),
+            Operation::Jeq(v, b) => format!("jeq {}, {b:?}", self.id_to_string(*v)),
+            Operation::Jmp(b) => format!("jmp {b:?}"),
             Operation::Phi { root, block_args } => {
                 let mut s = format!("phi {}", self.id_to_string(*root));
                 for (value, block) in block_args {
                     s = format!(
-                        "{}, {} from block {}",
-                        s,
+                        "{s}, {} from block {}",
                         self.id_to_string(*value),
                         block.0.into_raw_parts().0
                     );
@@ -221,29 +218,28 @@ impl SsaContext {
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let lhs = self.id_to_string(*lhs);
                 let rhs = self.id_to_string(*rhs);
-                format!("cond({}) {}, {}", self.id_to_string(*condition), lhs, rhs)
+                format!("cond({}) {lhs}, {rhs}", self.id_to_string(*condition))
             }
             Operation::Load { array_id, index } => {
-                format!("load {:?}, index {}", array_id, self.id_to_string(*index))
+                format!("load {array_id:?}, index {}", self.id_to_string(*index))
             }
             Operation::Store { array_id, index, value } => {
                 format!(
-                    "store {:?}, index {}, value {}",
-                    array_id,
+                    "store {array_id:?}, index {}, value {}",
                     self.id_to_string(*index),
                     self.id_to_string(*value)
                 )
             }
-            Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
+            Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
             Operation::Nop => "nop".into(),
             Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
                 let f = self.id_to_string(*func_id);
-                format!("call {}({}) _ {:?}", f, join(arguments), returned_arrays)
+                format!("call {f}({}) _ {returned_arrays:?}", join(arguments))
             }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.id_to_string(*call_instruction);
-                format!("result {} of {}", index, call)
+                format!("result {index} of {call}")
             }
         }
     }
@@ -278,24 +274,22 @@ impl SsaContext {
                 if let Mark::ReplaceWith(replacement) = ins.mark {
                     let new = self.node_to_string(replacement);
                     str_res = format!(
-                        "{} -REPLACED with ({}) {},    original was",
-                        str_res,
+                        "{str_res} -REPLACED with ({}) {new},    original was",
                         replacement.0.into_raw_parts().0,
-                        new
                     );
                 } else if ins.is_deleted() {
-                    str_res = format!("{}: DELETED", str_res);
+                    str_res = format!("{str_res}: DELETED");
                 }
                 let ins_str = self.operation_to_string(&ins.operation);
-                format!("{}: {}", str_res, ins_str)
+                format!("{str_res}: {ins_str}")
             }
-            Some(other) => format!("{}", other),
+            Some(other) => format!("{other}"),
             None => format!("unknown {:?}", id.0.into_raw_parts().0),
         }
     }
 
     pub fn print(&self, text: &str) {
-        println!("{}", text);
+        println!("{text}");
         for (_, b) in self.blocks.iter() {
             self.print_block(b);
         }
@@ -511,7 +505,7 @@ impl SsaContext {
         let variable_id = *v_name;
 
         if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{}{}", root_name, variable_id);
+            nvar.name = format!("{root_name}{variable_id}");
         }
     }
 
@@ -684,7 +678,7 @@ impl SsaContext {
     pub fn log(&self, show_log: bool, before: &str, after: &str) {
         if show_log {
             self.print(before);
-            println!("{}", after);
+            println!("{after}");
         }
     }
 
@@ -1038,7 +1032,7 @@ impl SsaContext {
 
         let a_type = self.get_object_type(a);
 
-        let name = format!("if_{}_ret{}", exit_block.0.into_raw_parts().0, c);
+        let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
         if let node::ObjectType::Pointer(adr1) = a_type {
             let len = self.mem[adr1].len;

@@ -446,15 +446,15 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::FieldElement(comptime) => {
-                write!(f, "{}Field", comptime)
+                write!(f, "{comptime}Field")
             }
             Type::Array(len, typ) => match len.array_length() {
-                Some(len) => write!(f, "[{}; {}]", typ, len),
-                None => write!(f, "[{}]", typ),
+                Some(len) => write!(f, "[{typ}; {len}]"),
+                None => write!(f, "[{typ}]"),
             },
             Type::Integer(comptime, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}i{}", comptime, num_bits),
-                Signedness::Unsigned => write!(f, "{}u{}", comptime, num_bits),
+                Signedness::Signed => write!(f, "{comptime}i{num_bits}"),
+                Signedness::Unsigned => write!(f, "{comptime}u{num_bits}"),
             },
             Type::PolymorphicInteger(_, binding) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
@@ -478,14 +478,14 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Bool(comptime) => write!(f, "{}bool", comptime),
+            Type::Bool(comptime) => write!(f, "{comptime}bool"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
             Type::NamedGeneric(binding, name) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_) => write!(f, "{}", name),
+                TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
             Type::ArrayLength(n) => n.fmt(f),
             Type::Forall(typevars, typ) => {
@@ -947,7 +947,7 @@ impl Type {
                 let size = size
                     .array_length()
                     .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array { length: size as u128, typ: Box::new(typ.as_abi_type()) }
+                AbiType::Array { length: size, typ: Box::new(typ.as_abi_type()) }
             }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
@@ -996,7 +996,7 @@ impl Type {
                 let fields = fields.iter().enumerate();
                 vecmap(fields, |(i, field)| (i.to_string(), field.clone()))
             }
-            other => panic!("Tried to iterate over the fields of '{}', which has none", other),
+            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
         };
         fields.into_iter()
     }
@@ -1010,7 +1010,7 @@ impl Type {
                 let mut fields = fields.iter().enumerate();
                 fields.find(|(i, _)| i.to_string() == *field_name).unwrap().1.clone()
             }
-            other => panic!("Tried to iterate over the fields of '{}', which has none", other),
+            other => panic!("Tried to iterate over the fields of '{other}', which has none"),
         }
     }
 

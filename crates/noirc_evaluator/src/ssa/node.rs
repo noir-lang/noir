@@ -34,11 +34,11 @@ impl std::fmt::Display for NodeObj {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use FunctionKind::*;
         match self {
-            NodeObj::Obj(o) => write!(f, "{}", o),
-            NodeObj::Instr(i) => write!(f, "{}", i),
-            NodeObj::Const(c) => write!(f, "{}", c),
+            NodeObj::Obj(o) => write!(f, "{o}"),
+            NodeObj::Instr(i) => write!(f, "{i}"),
+            NodeObj::Const(c) => write!(f, "{c}"),
             NodeObj::Function(Normal(id), ..) => write!(f, "f{}", id.0),
-            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{}", opcode),
+            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{opcode}"),
         }
     }
 }
