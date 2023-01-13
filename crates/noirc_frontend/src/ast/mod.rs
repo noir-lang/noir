@@ -61,19 +61,19 @@ impl std::fmt::Display for UnresolvedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedType::*;
         match self {
-            FieldElement(is_const) => write!(f, "{}Field", is_const),
+            FieldElement(is_const) => write!(f, "{is_const}Field"),
             Array(len, typ) => match len {
-                None => write!(f, "[{}]", typ),
-                Some(expr) => write!(f, "[{}; {}]", typ, expr),
+                None => write!(f, "[{typ}]"),
+                Some(len) => write!(f, "[{typ}; {len}]"),
             },
             Integer(is_const, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{}i{}", is_const, num_bits),
-                Signedness::Unsigned => write!(f, "{}u{}", is_const, num_bits),
+                Signedness::Signed => write!(f, "{is_const}i{num_bits}"),
+                Signedness::Unsigned => write!(f, "{is_const}u{num_bits}"),
             },
             Named(s, args) => {
                 let args = vecmap(args, ToString::to_string);
                 if args.is_empty() {
-                    write!(f, "{}", s)
+                    write!(f, "{s}")
                 } else {
                     write!(f, "{}<{}>", s, args.join(", "))
                 }
@@ -83,7 +83,7 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            Bool(is_const) => write!(f, "{}bool", is_const),
+            Bool(is_const) => write!(f, "{is_const}bool"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

@@ -226,8 +226,10 @@ impl Anchor {
                         }
                     }
                     _ => {
-                        dbg!(&ins_iter.operation);
-                        unreachable!("invalid operator in the memory anchor list")
+                        unreachable!(
+                            "invalid operator in the memory anchor list: {:?}",
+                            ins_iter.operation
+                        )
                     }
                 }
             }
