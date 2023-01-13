@@ -13,8 +13,6 @@ pub enum OPCODE {
     HashToField,
     EcdsaSecp256k1,
     FixedBaseScalarMul,
-    ToBits,
-    ToBytes,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -35,8 +33,6 @@ impl OPCODE {
             OPCODE::HashToField => 6,
             OPCODE::EcdsaSecp256k1 => 7,
             OPCODE::FixedBaseScalarMul => 8,
-            OPCODE::ToBits => 9,
-            OPCODE::ToBytes => 10,
         }
     }
     pub fn name(&self) -> &str {
@@ -50,8 +46,6 @@ impl OPCODE {
             OPCODE::HashToField => "hash_to_field",
             OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
             OPCODE::FixedBaseScalarMul => "fixed_base_scalar_mul",
-            OPCODE::ToBits => "to_bits",
-            OPCODE::ToBytes => "to_bytes",
         }
     }
     pub fn lookup(op_name: &str) -> Option<OPCODE> {
@@ -64,8 +58,6 @@ impl OPCODE {
             "hash_to_field" => Some(OPCODE::HashToField),
             "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
             "fixed_base_scalar_mul" => Some(OPCODE::FixedBaseScalarMul),
-            "to_bits" => Some(OPCODE::ToBits),
-            "to_bytes" => Some(OPCODE::ToBytes),
             _ => None,
         }
     }
@@ -117,16 +109,6 @@ impl OPCODE {
                 name: self.name().into(),
                 input_size: InputSize::Fixed(1),
                 output_size: OutputSize(2),
-            },
-            OPCODE::ToBits => GadgetDefinition {
-                name: self.name().into(),
-                input_size: InputSize::Fixed(2),
-                output_size: OutputSize(1),
-            },
-            OPCODE::ToBytes => GadgetDefinition {
-                name: self.name().into(),
-                input_size: InputSize::Fixed(2),
-                output_size: OutputSize(1),
             },
         }
     }

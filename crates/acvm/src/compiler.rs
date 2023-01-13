@@ -1,4 +1,3 @@
-
 use indexmap::IndexMap;
 
 use crate::{simplify::CircuitSimplifier, CustomGate, Language};

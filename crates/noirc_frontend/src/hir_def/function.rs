@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiFEType, MAIN_RETURN_NAME};
+use noirc_abi::{Abi, AbiParameter, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -38,7 +38,7 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiFEType);
+pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiVisibility);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -60,8 +60,8 @@ impl Parameters {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
-            let as_abi = param.1.as_abi_type(param.2);
-            (param_name, as_abi)
+            let as_abi = param.1.as_abi_type();
+            AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
         });
         noirc_abi::Abi { parameters }
     }
@@ -118,7 +118,7 @@ pub struct FuncMeta {
 
     pub attributes: Option<Attribute>,
     pub parameters: Parameters,
-    pub return_visibility: AbiFEType,
+    pub return_visibility: AbiVisibility,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -147,8 +147,12 @@ impl FuncMeta {
         let mut abi = self.parameters.into_abi(interner);
 
         if return_type != Type::Unit {
-            let typ = return_type.as_abi_type(self.return_visibility);
-            abi.parameters.push((MAIN_RETURN_NAME.into(), typ));
+            let return_param = AbiParameter {
+                name: MAIN_RETURN_NAME.into(),
+                typ: return_type.as_abi_type(),
+                visibility: self.return_visibility,
+            };
+            abi.parameters.push(return_param);
         }
 
         abi

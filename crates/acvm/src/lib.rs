@@ -134,42 +134,21 @@ pub trait PartialWitnessGenerator {
                             _ => true,
                         }
                     }
-                    Directive::Split { a, b, bit_size } => {
+                    Directive::ToRadix { a, b, radix } => {
                         match Self::get_value(a, initial_witness) {
                             Some(val_a) => {
                                 let a_big = BigUint::from_bytes_be(&val_a.to_bytes());
-                                for i in 0..*bit_size {
-                                    let j = i as usize;
-                                    let v = if a_big.bit(j as u64) {
-                                        FieldElement::one()
+                                let a_dec = a_big.to_radix_le(*radix);
+                                if b.len() < a_dec.len() {
+                                    return GateResolution::UnsatisfiedConstrain;
+                                }
+                                for i in 0..b.len() {
+                                    let v = if i < a_dec.len() {
+                                        FieldElement::from_be_bytes_reduce(&[a_dec[i]])
                                     } else {
                                         FieldElement::zero()
                                     };
-                                    match initial_witness.entry(b[j]) {
-                                        std::collections::btree_map::Entry::Vacant(e) => {
-                                            e.insert(v);
-                                        }
-                                        std::collections::btree_map::Entry::Occupied(e) => {
-                                            if e.get() != &v {
-                                                return GateResolution::UnsatisfiedConstrain;
-                                            }
-                                        }
-                                    }
-                                }
-                                false
-                            }
-                            _ => true,
-                        }
-                    }
-                    Directive::ToBytes { a, b, byte_size } => {
-                        match Self::get_value(a, initial_witness) {
-                            Some(val_a) => {
-                                let mut a_bytes = val_a.to_bytes();
-                                a_bytes.reverse();
-                                for i in 0..*byte_size {
-                                    let i_usize = i as usize;
-                                    let v = FieldElement::from_be_bytes_reduce(&[a_bytes[i_usize]]);
-                                    match initial_witness.entry(b[i_usize]) {
+                                    match initial_witness.entry(b[i]) {
                                         std::collections::btree_map::Entry::Vacant(e) => {
                                             e.insert(v);
                                         }
@@ -191,14 +170,6 @@ pub trait PartialWitnessGenerator {
                 unsolved_gates.push(gate);
             }
         }
-        dbg!(&unsolved_gates.len());
-        //     if unsolved_gates.len() ==1 {
-        // for g in &unsolved_gates {
-        //         println!("{:?}",g);
-        //     }
-        //     dbg!(&initial_witness);
-        //     todo!();
-        //     }
 
         self.solve(initial_witness, unsolved_gates)
     }

@@ -8,7 +8,7 @@ use acir::{
     native_types::{Expression, Linear, Witness},
     FieldElement,
 };
-// , pwg::arithmetic::{MulTerm}};
+
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Zero};
 
@@ -87,7 +87,7 @@ impl CircuitSimplifier {
         self.solved.contains_key(&w)
     }
 
-    // simplify a gate and propagate the solved witness onto the previous gates
+    // simplify a gate and propagate the solved witness onto the previous gates, as long as it can solve some witness
     // returns false if a constraint is not satisfied
     pub fn simplify(&mut self, gates: &mut Vec<Gate>) -> SimplifyResult {
         let mut first = true;
@@ -166,11 +166,10 @@ impl CircuitSimplifier {
             Gate::Directive(Directive::Quotient(quotient)) => {
                 self.simplify_quotient(quotient, gate_idx, first)
             }
-            Gate::Directive(Directive::Split { a, b, bit_size }) => {
-                self.simplify_split(a, b.clone(), *bit_size, gate_idx, first)
+            Gate::Directive(Directive::ToRadix { a, b, radix }) => {
+                self.simplify_radix(a, b.clone(), *radix, gate_idx, first)
             }
             Gate::GadgetCall(gadget) => self.simplify_gadget(gadget, gate_idx, first),
-            _ => SimplifyResult::Unresolved,
         }
     }
 
@@ -191,17 +190,17 @@ impl CircuitSimplifier {
         SimplifyResult::Unresolved
     }
 
-    fn simplify_split(
+    fn simplify_radix(
         &mut self,
         a: &Expression,
         b: Vec<Witness>,
-        bit_size: u32,
+        radix: u32,
         gate_idx: usize,
         first: bool,
     ) -> SimplifyResult {
         let expr = self.evaluate_arith(a, gate_idx, first);
         if expr != *a {
-            SimplifyResult::Replace(Gate::Directive(Directive::Split { a: expr, b, bit_size }))
+            SimplifyResult::Replace(Gate::Directive(Directive::ToRadix { a: expr, b, radix }))
         } else {
             SimplifyResult::Unresolved
         }
@@ -325,11 +324,6 @@ impl CircuitSimplifier {
         }
         result.q_c += expr.q_c;
         result
-    }
-
-    fn pow(base: u32, exp: u32) -> FieldElement {
-        let big = BigUint::from(base).pow(exp);
-        FieldElement::from_be_bytes_reduce(&big.to_bytes_be())
     }
 
     fn simplify_quotient(

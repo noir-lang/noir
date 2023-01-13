@@ -20,7 +20,7 @@ impl CliError {
             .expect("cannot set color for stderr in StandardStream");
         writeln!(&mut stderr, "{}", self).expect("cannot write to stderr");
 
-        std::process::exit(0)
+        std::process::exit(1)
     }
 }
 

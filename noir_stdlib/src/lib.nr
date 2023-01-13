@@ -8,11 +8,19 @@ mod sha256;
 mod sha512;
 
 
-#[builtin(to_bits)]
-fn to_bits(_x : Field, _bit_size: u32) -> [u1; 256] {}
+ #[builtin(to_bits)]
+fn to_bits(_x : Field, _bit_size: u32) -> [u1] {}
 
-#[builtin(to_bytes)]
-fn to_bytes(_x : Field, _byte_size: u32) -> [u8; 32] {}
+fn to_bytes(x : Field, byte_size: u32) -> [u8] {
+    to_radix(x, 256, byte_size)
+}
+
+#[builtin(to_radix)]
+//decompose _x into a _result_len vector over the _radix basis
+//_radix must be less than 256
+fn to_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
+
+
 
 // Returns base^exponent. 
 // ^ means to the power of and not xor

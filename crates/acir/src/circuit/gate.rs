@@ -39,8 +39,7 @@ impl Gate {
             Gate::Xor(_) => "xor",
             Gate::Directive(Directive::Invert { .. }) => "invert",
             Gate::Directive(Directive::Quotient { .. }) => "quotient",
-            Gate::Directive(Directive::Split { .. }) => "split",
-            Gate::Directive(Directive::ToBytes { .. }) => "to_bytes",
+            Gate::Directive(Directive::ToRadix { .. }) => "to_radix",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
@@ -99,20 +98,12 @@ impl std::fmt::Debug for Gate {
             Gate::And(g) => write!(f, "{:?}", g),
             Gate::Xor(g) => write!(f, "{:?}", g),
             Gate::GadgetCall(g) => write!(f, "{:?}", g),
-            Gate::Directive(Directive::Split { a, b, bit_size: _ }) => {
+            Gate::Directive(Directive::ToRadix { a, b, radix }) => {
                 write!(
                     f,
-                    "Split: {} into x{}...x{}",
+                    "To Radix: {} into base {}; x{}...x{}",
                     a,
-                    b.first().unwrap().witness_index(),
-                    b.last().unwrap().witness_index(),
-                )
-            }
-            Gate::Directive(Directive::ToBytes { a, b, byte_size: _ }) => {
-                write!(
-                    f,
-                    "To Bytes: {} into x{}...x{}",
-                    a,
+                    radix,
                     b.first().unwrap().witness_index(),
                     b.last().unwrap().witness_index(),
                 )
@@ -139,11 +130,8 @@ pub enum Directive {
     //Performs euclidian division of a / b (as integers) and stores the quotient in q and the rest in r
     Quotient(QuotientDirective),
 
-    //bit decomposition of a: a=\sum b[i]*2^i
-    Split { a: Expression, b: Vec<Witness>, bit_size: u32 },
-
-    //byte decomposition of a: a=\sum b[i]*2^i where b is a byte array
-    ToBytes { a: Expression, b: Vec<Witness>, byte_size: u32 },
+    //decomposition of a: a=\sum b[i]*radix^i where b is an array of witnesses < radix
+    ToRadix { a: Expression, b: Vec<Witness>, radix: u32 },
 }
 
 // Note: Some gadgets will not use all of the witness
