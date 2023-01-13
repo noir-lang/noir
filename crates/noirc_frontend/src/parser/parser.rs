@@ -480,6 +480,11 @@ fn generic_type_args(
     type_parser: impl NoirParser<UnresolvedType>,
 ) -> impl NoirParser<Vec<UnresolvedType>> {
     type_parser
+        // Without checking for a terminating ',' or '>' here we may incorrectly
+        // parse a generic `N * 2` as just the type `N` then fail when there is no
+        // separator afterward. Failing early here ensures we try the `type_expression`
+        // parser afterward.
+        .then_ignore(just([Token::Comma, Token::Greater]).rewind())
         .or(type_expression().map(UnresolvedType::Expression))
         .separated_by(just(Token::Comma))
         .allow_trailing()
