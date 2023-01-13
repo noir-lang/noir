@@ -68,7 +68,7 @@ You can also interact with your local aztec network directly via the [CLI](https
 
 You can deploy your own bridge contracts to the mainnet fork devnet.
 
-Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
+Here is an [example script](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/deployment/example/ExampleDeployment.s.sol) that shows how you would deploy the [ExampleBridge.sol](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/example/ExampleBridge.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
 
 Set these local environment variables before running the deployment script.
 
@@ -89,7 +89,7 @@ export ROLLUP_PROCESSOR_ADDRESS=0xDA437738D931677e83a480C9c397d2d0A473c209
 Then run the deployment script.
 
 ```bash
-forge script AddressRegistryDeployment --sig "deployAndList()" --broadcast --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+forge script ExampleDeployment --sig "deployAndList()" --broadcast --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
 Run this from the aztec connect bridges repo containing the deployment script. The private key here is associated with the first [anvil](https://book.getfoundry.sh/anvil/) account. It has enough ETH and permission to deploy and list new bridges.
@@ -104,7 +104,7 @@ After your bridge contract is deployed to your local Ethereum network, you need 
 
 Do this by appending the appropriate info for your bridge to the "bridgeConfigs" array in [config.json](https://github.com/AztecProtocol/dev-rel/blob/main/falafel-runtime-config.json) and sending it as a PATCH request to http://localhost:8081/runtime-config. You will need to set a couple of headers in the request for this to work: `server-auth-token`: `!changeme#` and `Content-Type`: `application/json`.
 
-For the AddressRegistry, it might looks like
+For the ExampleBridge, it might looks like
 
 ```json
 {
@@ -112,7 +112,7 @@ For the AddressRegistry, it might looks like
     // ... other configs here
     {
       "numTxs": 1,
-      "gas": 120000,
+      "gas": 250000,
       "bridgeAddressId": 14,
       "permittedAssets": [0]
     }
