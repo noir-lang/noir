@@ -22,20 +22,20 @@ Mac M1s run this on an emulator so they will be slower.
 
 #### Basic Network
 
-For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run 
+For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run
 
 ```bash
-curl -s https://gist.githubusercontent.com/critesjosh/4e9575148043b6041a6f3e44aedb8780/raw/26eecc2918897140dda37b5476ee36a3e4cf8b6d/docker-compose.yml | docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml | docker-compose -f - up --force-recreate
 ```
 
 This will be useful for testing basic functionality of the Aztec network like deposits, withdrawals, account registrations, account migrations, account recovery and asset transfers.
 
 #### Mainnet fork with bridge contracts
 
-Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run 
+Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run
 
 ```bash
-curl -s https://gist.githubusercontent.com/critesjosh/6b471bc776def8ab54fe336cb8199b23/raw/008bb25f840e760b67cfec98c10a1f61a4bb37c6/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
 ```
 
 This network will be useful for testing functionality associated with bridge contracts and interacting with other contracts/protocols that are on Ethereum.
@@ -48,7 +48,7 @@ This mainnet fork deployment takes considerably longer than the basic devnet.
 
 These scripts will get the docker compose file from a github gist and run it.
 
-You can download the [docker-compose.dev.yml here](https://gist.github.com/critesjosh/4e9575148043b6041a6f3e44aedb8780) or [docker-compose.fork.yml here](https://gist.github.com/critesjosh/6b471bc776def8ab54fe336cb8199b23).
+You can download the [docker-compose.dev.yml here](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml) or [docker-compose.fork.yml here](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml).
 
 ### Check the sequencer
 
@@ -58,7 +58,7 @@ Once it is up and running, you can use it to run testing scripts against or poin
 
 ### Connect the SDK
 
-For a web application, point Metamask to the locally running Ethereum network (details below). 
+For a web application, point Metamask to the locally running Ethereum network (details below).
 
 Connect the Aztec SDK to `http://localhost:8081`.
 
@@ -68,17 +68,17 @@ You can also interact with your local aztec network directly via the [CLI](https
 
 You can deploy your own bridge contracts to the mainnet fork devnet.
 
-Here is an [example script](https://gist.github.com/critesjosh/a53aa1afc5042a8dfbba4d379356314f#file-addressregistrydeployment-s-sol) that shows how you would deploy the [AddressRegistry.sol](https://github.com/critesjosh/aztec-connect-starter/blob/nft-bridge/src/bridges/registry/AddressRegistry.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
+Here is an [example script](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/deployment/example/ExampleDeployment.s.sol) that shows how you would deploy the [ExampleBridge.sol](https://github.com/AztecProtocol/aztec-connect-bridges/blob/master/src/bridges/example/ExampleBridge.sol) contract in the [aztec-connect-bridges repo](https://github.com/AztecProtocol/aztec-connect-bridges).
 
 Set these local environment variables before running the deployment script.
 
 ```bash
 export NETWORK=None
-export simulateAdmin=false # to broadcast your deployment to the devnet
+export SIMULATE_ADMIN=false # to broadcast your deployment to the devnet
 export LISTER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
 
-Check the `rollupProcessorContract` address on your local Aztec sequencer at [http://localhost:8081](http://localhost:8081) and export it as an environment variable as well.
+Check the `rollupProcessorContract` address on your local Aztec sequencer at [http://localhost:8081/status](http://localhost:8081/status) and export it as an environment variable as well.
 
 For example:
 
@@ -89,14 +89,41 @@ export ROLLUP_PROCESSOR_ADDRESS=0xDA437738D931677e83a480C9c397d2d0A473c209
 Then run the deployment script.
 
 ```bash
-forge script --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --legacy AddressRegistryDeployment --sig "deployAndList()" --broadcast
-``` 
+forge script ExampleDeployment --sig "deployAndList()" --broadcast --fork-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+```
 
-Run this from the aztec connect bridges repo containing the deployment script. The private key here is associated with the first [anvil](https://book.getfoundry.sh/anvil/) account and has ETH and access to deploy and list new bridges.
+Run this from the aztec connect bridges repo containing the deployment script. The private key here is associated with the first [anvil](https://book.getfoundry.sh/anvil/) account. It has enough ETH and permission to deploy and list new bridges.
 
 Make sure you run `yarn setup` in the aztec-connect-bridges repo to set up forge for this repo.
 
 See more example deployment scripts in the [aztec-connect-bridges repo here](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment).
+
+#### Update runtime config
+
+After your bridge contract is deployed to your local Ethereum network, you need to update the Aztec sequencer (falafel) with information about how to interact with the new bridge.
+
+Do this by appending the appropriate info for your bridge to the "bridgeConfigs" array in [config.json](https://github.com/AztecProtocol/dev-rel/blob/main/falafel-runtime-config.json) and sending it as a PATCH request to http://localhost:8081/runtime-config. You will need to set a couple of headers in the request for this to work: `server-auth-token`: `!changeme#` and `Content-Type`: `application/json`.
+
+For the ExampleBridge, it might looks like
+
+```json
+{
+  "bridgeConfigs": [
+    // ... other configs here
+    {
+      "numTxs": 1,
+      "gas": 250000,
+      "bridgeAddressId": 14,
+      "permittedAssets": [0]
+    }
+  ],
+  "feePayingAssetIds": [0, 1]
+}
+```
+
+where `numTxs` is the number of transactions per batch for the bridge. `gas` is the max gas that a bridge call requires. The rollup contract needs to know how much gas to send with a transaction. `bridgeAddressId` will be the `id` of the bridge that you deployed and `permittedAssets` are the [asset ids](../glossary#asset-ids) of the assets that can be sent to the bridge (you can check what assets are currently configured by checking the `localhost:8081/status` endpoint).
+
+To get you up and running, here is a [postman collection](https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/local-devnet-postman-collection.json) that is plug and play. You learn how to import postman collections [here](https://learning.postman.com/docs/getting-started/importing-and-exporting-data/).
 
 ### Connect Metamask
 

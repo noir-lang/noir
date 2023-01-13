@@ -45,7 +45,14 @@ Asset Ids are unique numbers that correspond to various assets in Aztec.
 | ETH | 0 |
 | DAI | 1 |
 | wstETH | 2 |
-
+| yvDAI | 3 |
+| yvWETH | 4 |
+| weWETH | 5 |
+| wewstETH | 6 |
+| weDAI | 7 |
+| wa2DAI | 8 |
+| wa2WETH | 9 |
+ 
 ### Barretenberg
 
 Aztec's cryptography back-end. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
