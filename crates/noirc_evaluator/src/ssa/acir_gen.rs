@@ -232,18 +232,29 @@ impl Acir {
             }
             Operation::SetPub(node_ids, _) => {
                 for node_id in node_ids {
-                    let mut object = self.substitute(*node_id, evaluator, ctx);
-
-                    // TODO(Open issue): We want to semantically specify that
-                    // TODO you cannot return constant values as public outputs.
-                    // TODO: in that case, you should just have a constant.
-                    // TODO: For now, we will support this usecase.
-                    let witness = if object.expression.is_const() {
-                        evaluator.create_intermediate_variable(object.expression)
-                    } else {
-                        object.generate_witness(evaluator)
+                    // An array produces a single node_id
+                    // We therefore need to check if the node_id is referring to an array
+                    // and deference to get the elements
+                    let objects = match Memory::deref(ctx, *node_id) {
+                        Some(a) => {
+                            let array = &ctx.mem[a];
+                            self.load_array(array, false, evaluator)
+                        }
+                        None => vec![self.substitute(*node_id, evaluator, ctx)],
                     };
-                    evaluator.public_inputs.push(witness);
+
+                    for mut object in objects {
+                        // TODO(Open issue): We want to semantically specify that
+                        // TODO you cannot return constant values as public outputs.
+                        // TODO: in that case, you should just have a constant.
+                        // TODO: For now, we will support this usecase.
+                        let witness = if object.expression.is_const() {
+                            evaluator.create_intermediate_variable(object.expression)
+                        } else {
+                            object.generate_witness(evaluator)
+                        };
+                        evaluator.public_inputs.push(witness);
+                    }
                 }
 
                 InternalVar::default()
