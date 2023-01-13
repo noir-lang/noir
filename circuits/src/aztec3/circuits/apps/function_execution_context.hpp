@@ -35,6 +35,7 @@ using aztec3::circuits::types::array_push;
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
+using plonk::stdlib::types::to_ct;
 using plonk::stdlib::types::to_nt;
 
 template <typename Composer> class FunctionExecutionContext {
@@ -158,30 +159,37 @@ template <typename Composer> class FunctionExecutionContext {
      * that class was really shoehorned into existence, and is a bit bleurgh.
      */
     std::array<fr, RETURN_VALUES_LENGTH> call(
-        address const& external_contract_address,
-        std::string const& external_function_name,
+        address const& f_contract_address,
+        std::string const& f_name,
         std::function<void(FunctionExecutionContext<Composer>&, std::array<NT::fr, ARGS_LENGTH>)> f,
         std::array<fr, ARGS_LENGTH> const& args)
     {
-
-        Composer f_composer;
-
         // Convert function name to bytes and use the first 4 bytes as the function encoding, for now:
-        std::vector<uint8_t> f_name_bytes(external_function_name.begin(), external_function_name.end());
+        std::vector<uint8_t> f_name_bytes(f_name.begin(), f_name.end());
         std::vector<uint8_t> f_encoding_bytes(f_name_bytes.begin(), f_name_bytes.begin() + 4);
         uint32_t f_encoding;
         memcpy(&f_encoding, f_encoding_bytes.data(), sizeof(f_encoding));
 
-        const FunctionSignature<NT> f_function_signature{
-            .function_encoding = f_encoding,
+        fr f_encoding_ct = fr(f_encoding);
+        // Important Note: we MUST constrain this function_encoding value against a fixed selector value. Without the
+        // below line, an attacker could pass any f_encoding as a witness.
+        f_encoding_ct.convert_constant_to_fixed_witness(&composer);
+
+        /// @dev The above constraining could alternatively be achieved as follows:
+        // fr alternative_f_encoding_ct = fr(to_ct(composer, f_encoding));
+        // alternative_f_encoding_ct.fix_witness();
+
+        const FunctionSignature<CT> f_function_signature_ct{
+            // Note: we MUST
+            .function_encoding = f_encoding_ct,
             .is_private = true,
             .is_constructor = false,
         };
 
-        const CallContext<NT> f_call_context{
-            .msg_sender = oracle.get_this_contract_address().get_value(), // the sender is `this` contract!
-            .storage_contract_address = external_contract_address.get_value(),
-            .tx_origin = oracle.get_tx_origin().get_value(),
+        const CallContext<CT> f_call_context_ct{
+            .msg_sender = oracle.get_this_contract_address(), // the sender is `this` contract!
+            .storage_contract_address = f_contract_address,
+            .tx_origin = oracle.get_tx_origin(),
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,
@@ -189,17 +197,20 @@ template <typename Composer> class FunctionExecutionContext {
         };
 
         NativeOracle f_oracle(oracle.native_oracle.db,
-                              external_contract_address.get_value(),
-                              f_function_signature,
-                              f_call_context,
+                              f_contract_address.get_value(),
+                              f_function_signature_ct.template to_native_type<Composer>(),
+                              f_call_context_ct.template to_native_type<Composer>(),
                               oracle.get_msg_sender_private_key()
                                   .get_value() // TODO: consider whether a nested function should even be able to access
                                                // a private key, given that the call is now coming from a contract
                                                // (which cannot own a secret), rather than a human.
         );
+
+        Composer f_composer;
+
         OracleWrapperInterface<Composer> f_oracle_wrapper(f_composer, f_oracle);
 
-        // We need an exec_ctx reference which won't go out of scope, so we store a shared_ptr to the newly created
+        // We need an exec_ctx reference which won't go out of scope, so we store a shared_ptr to the newly-created
         // exec_ctx in `this` exec_ctx.
         auto f_exec_ctx = std::make_shared<FunctionExecutionContext<Composer>>(f_composer, f_oracle_wrapper);
 
@@ -224,11 +235,18 @@ template <typename Composer> class FunctionExecutionContext {
         // - call_context (TODO: maybe this only needs to be done in the kernel circuit).
         auto f_public_inputs_ct = f_public_inputs_nt.to_circuit_type(composer);
 
+        // Constrain that the arguments of the executed function match those we expect:
         for (size_t i = 0; i < f_public_inputs_ct.args.size(); ++i) {
             args[i].assert_equal(f_public_inputs_ct.args[i]);
         }
 
-        auto call_stack_item_hash = f_public_inputs_ct.hash();
+        CallStackItem<CT, CallType::Private> f_call_stack_item_ct{
+            .contract_address = f_contract_address,
+            .function_signature = f_function_signature_ct,
+            .public_inputs = f_public_inputs_ct,
+        };
+
+        auto call_stack_item_hash = f_call_stack_item_ct.hash();
 
         array_push<Composer>(private_circuit_public_inputs.private_call_stack, call_stack_item_hash);
 

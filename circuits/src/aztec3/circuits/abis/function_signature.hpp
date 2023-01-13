@@ -44,6 +44,20 @@ template <typename NCT> struct FunctionSignature {
         return function_signature;
     };
 
+    template <typename Composer> FunctionSignature<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+
+        FunctionSignature<NativeTypes> fs = {
+            to_nt(function_encoding),
+            to_nt(is_private),
+            to_nt(is_constructor),
+        };
+
+        return fs;
+    };
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
