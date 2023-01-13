@@ -233,7 +233,16 @@ impl Acir {
             Operation::SetPub(node_ids, _) => {
                 for node_id in node_ids {
                     let mut object = self.substitute(*node_id, evaluator, ctx);
-                    let witness = object.generate_witness(evaluator);
+
+                    // TODO(Open issue): We want to semantically specify that
+                    // TODO you cannot return constant values as public outputs.
+                    // TODO: in that case, you should just have a constant.
+                    // TODO: For now, we will support this usecase.
+                    let witness = if object.expression.is_const() {
+                        evaluator.create_intermediate_variable(object.expression)
+                    } else {
+                        object.generate_witness(evaluator)
+                    };
                     evaluator.public_inputs.push(witness);
                 }
 
