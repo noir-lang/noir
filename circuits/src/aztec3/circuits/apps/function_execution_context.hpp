@@ -153,6 +153,9 @@ template <typename Composer> class FunctionExecutionContext {
 
     /**
      * @brief Allows a call to be made to a function of another contract
+     *
+     * TODO: maybe we want to move some of the code that's in this function into a method in the Opcodes class. Although
+     * that class was really shoehorned into existence, and is a bit bleurgh.
      */
     std::array<fr, RETURN_VALUES_LENGTH> call(
         address const& external_contract_address,
@@ -211,7 +214,7 @@ template <typename Composer> class FunctionExecutionContext {
         // Remember: the data held in the f_exec_ctc was built with a different composer than that
         // of `this` exec_ctx. So we only allow ourselves to get the native types, so that we can consciously declare
         // circuit types for `this` exec_ctx using `this->composer`.
-        auto& f_public_inputs_nt = f_exec_ctx->final_private_circuit_public_inputs;
+        auto f_public_inputs_nt = f_exec_ctx->get_final_private_circuit_public_inputs();
 
         // Since we've made a call to another function, we now need to push a call_stack_item_hash to `this` function's
         // private call stack.
@@ -308,6 +311,7 @@ template <typename Composer> class FunctionExecutionContext {
         private_circuit_public_inputs.set_public(composer);
         final_private_circuit_public_inputs =
             private_circuit_public_inputs.remove_optionality().template to_native_type<Composer>();
+        is_finalised = true;
     }
 };
 

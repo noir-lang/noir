@@ -16,23 +16,20 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 
 class escrow_tests : public ::testing::Test {
   protected:
-    FunctionExecutionContext get_test_exec_ctx()
+    NativeOracle get_test_native_oracle(DB& db)
     {
-        C composer;
-        DB db;
-
         const NT::address contract_address = 12345;
         const NT::fr msg_sender_private_key = 123456789;
         const NT::address msg_sender = NT::fr(
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
-        const FunctionSignature<NT> function_signature{
+        FunctionSignature<NT> function_signature{
             .function_encoding = 1, // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
         };
 
-        const CallContext<NT> call_context{
+        CallContext<NT> call_context{
             .msg_sender = msg_sender,
             .storage_contract_address = contract_address,
             .tx_origin = msg_sender,
@@ -42,20 +39,21 @@ class escrow_tests : public ::testing::Test {
             .reference_block_num = 0,
         };
 
-        NativeOracle oracle =
-            NativeOracle(db, contract_address, function_signature, call_context, msg_sender_private_key);
-        OracleWrapper oracle_wrapper = OracleWrapper(composer, oracle);
-
-        FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
-
-        return exec_ctx;
+        return NativeOracle(db, contract_address, function_signature, call_context, msg_sender_private_key);
     };
 };
 
 TEST_F(escrow_tests, test_deposit)
 {
-    auto exec_ctx = get_test_exec_ctx();
-    auto& composer = exec_ctx.composer;
+    // TODO: currently, we can't hide all of this boilerplate in a test fixture function, because each of these classes
+    // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
+    // if all this stuff were to be declared in a setup function's scope.
+    // We could instead store shared_ptrs in every class...?
+    C composer;
+    DB db;
+    NativeOracle native_oracle = get_test_native_oracle(db);
+    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto asset_id = NT::fr(1);
@@ -75,8 +73,11 @@ TEST_F(escrow_tests, test_deposit)
 
 TEST_F(escrow_tests, test_transfer)
 {
-    auto exec_ctx = get_test_exec_ctx();
-    auto& composer = exec_ctx.composer;
+    C composer;
+    DB db;
+    NativeOracle native_oracle = get_test_native_oracle(db);
+    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto to = NT::address(657756);
@@ -98,8 +99,11 @@ TEST_F(escrow_tests, test_transfer)
 
 TEST_F(escrow_tests, test_withdraw)
 {
-    auto exec_ctx = get_test_exec_ctx();
-    auto& composer = exec_ctx.composer;
+    C composer;
+    DB db;
+    NativeOracle native_oracle = get_test_native_oracle(db);
+    OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
+    FunctionExecutionContext exec_ctx(composer, oracle_wrapper);
 
     auto amount = NT::fr(5);
     auto asset_id = NT::fr(1);

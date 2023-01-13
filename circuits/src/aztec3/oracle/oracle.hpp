@@ -30,7 +30,7 @@ template <typename DB> class NativeOracleInterface {
 
     NativeOracleInterface(DB& db,
                           NT::address const& actual_contract_address,
-                          FunctionSignature<NT> function_signature,
+                          FunctionSignature<NT> const& function_signature,
                           CallContext<NT> const& call_context,
                           std::optional<NT::fr> const& msg_sender_private_key = std::nullopt)
         : db(db)

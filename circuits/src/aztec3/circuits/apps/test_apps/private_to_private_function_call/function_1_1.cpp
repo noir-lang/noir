@@ -82,13 +82,7 @@ void function_1_1(FunctionExecutionContext& exec_ctx, std::array<NT::fr, ARGS_LE
     public_inputs.args[1] = b;
     public_inputs.args[2] = c;
 
-    // public_inputs.private_call_stack[0] = ...
-
     exec_ctx.finalise();
-
-    info("final public inputs: ", exec_ctx.get_final_private_circuit_public_inputs());
-
-    // TODO: also return note preimages and nullifier preimages.
 };
 
 } // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call
