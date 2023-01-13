@@ -4,9 +4,6 @@
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using namespace honk::sumcheck;
 namespace test_sumcheck_polynomials {
 

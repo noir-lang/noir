@@ -379,8 +379,10 @@ template <class T> void write(const T t)
     fwrite(&t, sizeof(t), 1, fp);
     fclose(fp);
 }
+
+#if !defined(__wasm__)
 TEST(g2, initialization_check)
 {
-
     EXPECT_NO_THROW(write<barretenberg::g2::affine_element>({}));
 }
+#endif

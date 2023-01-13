@@ -1,27 +1,22 @@
-FROM alpine:3.13 AS builder
+FROM alpine:3.17 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
-        clang \
+        clang15 \
+        openmp-dev \
         cmake \
         git \
         curl \
         perl
-# libomp is not available in alpine by default. Download and build.
-RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
-  && cd llvm-project && mkdir build-openmp && cd build-openmp \
-  && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
-  && make -j$(nproc) \
-  && make install \
-  && cd ../.. && rm -rf llvm-project
+
 WORKDIR /usr/src/barretenberg/cpp
 
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
-RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DCI=ON .. && make -j$(nproc)
+RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON .. && make -j$(nproc)
 
-FROM alpine:3.13
-RUN apk update && apk add llvm10-libs curl
+FROM alpine:3.17
+RUN apk update && apk add curl openmp
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/*_tests /usr/src/barretenberg/cpp/build/bin/

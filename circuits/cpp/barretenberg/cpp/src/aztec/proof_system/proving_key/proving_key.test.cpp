@@ -65,6 +65,20 @@ TEST(proving_key, proving_key_from_mmaped_key)
     std::filesystem::create_directories(pk_dir);
     std::string pk_path = pk_dir + "/proving_key";
     std::ofstream os(pk_path);
+    // TODO: Investigate why this test fails in CI.
+    // WASI-SDK does not include support for <filesystem>, so we had to replace the call to
+    // `std::filesystem::create_directories(pk_dir);`
+    // with
+    // `mkdir(pk_dir.c_str(), 0700);`.
+    // It looks like the POSIX method would set the ERRNO after attempting to create the directory.
+    // The exception block is left here to help solve the problem later.
+    // try {
+    //     os.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    // } catch (const std::ios_base::failure& e) {
+    //     std::cout << "Caught an ios_base::failure.\n"
+    //               << "Error code: " << e.code().value() << " (" << e.code().message() << ")\n"
+    //               << "Error category: " << e.code().category().name() << '\n';
+    // }
     if (!os.good()) {
         std::cerr << "OS failed in composer_from_mmap_keys! \n";
     }

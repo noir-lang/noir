@@ -13,15 +13,11 @@ if(NOT WASM)
         add_subdirectory(${leveldb_SOURCE_DIR} ${leveldb_BINARY_DIR} EXCLUDE_FROM_ALL)
     endif()
 
+    # Silence all compiler warnings from LevelDB
     target_compile_options(
         leveldb
         PRIVATE
-        -Wno-sign-conversion
-        -Wno-unused-parameter
-        -Wno-shorten-64-to-32
-        -Wno-implicit-int-conversion
-        -Wno-conversion
-        -Wno-implicit-fallthrough
+        -w
     )
 
     link_libraries(leveldb)

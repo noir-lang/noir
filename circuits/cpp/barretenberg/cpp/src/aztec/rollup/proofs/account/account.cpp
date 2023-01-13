@@ -8,9 +8,6 @@
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace rollup {
 namespace proofs {
 namespace account {

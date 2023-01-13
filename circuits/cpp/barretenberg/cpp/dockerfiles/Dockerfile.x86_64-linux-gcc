@@ -1,4 +1,4 @@
-FROM alpine:3.13 AS builder
+FROM alpine:3.17 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
@@ -11,7 +11,7 @@ COPY . .
 # Build the entire project (not just rollup_cli and db_cli), as we want to check everything builds under gcc.
 RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc -DCI=ON .. && make -j$(nproc)
 
-FROM alpine:3.13
+FROM alpine:3.17
 RUN apk update && apk add libstdc++ libgomp
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/db_cli /usr/src/barretenberg/cpp/build/bin/db_cli
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/rollup_cli /usr/src/barretenberg/cpp/build/bin/rollup_cli

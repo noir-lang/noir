@@ -5,9 +5,6 @@
 #include "../../../rollup/constants.hpp"
 #include "../../../rollup/constants.hpp"
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace plonk {
 namespace stdlib {
 

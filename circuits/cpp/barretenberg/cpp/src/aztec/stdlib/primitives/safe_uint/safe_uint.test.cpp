@@ -1,4 +1,5 @@
 
+#include <cstddef>
 #include <gtest/gtest.h>
 #include "safe_uint.hpp"
 #include <numeric/random/engine.hpp>
@@ -66,6 +67,7 @@ TEST(stdlib_safeuint, test_constructor_with_value_in_range)
 
 // * OPERATOR
 
+#if !defined(__wasm__)
 TEST(stdlib_safeuint, test_multiply_operation_out_of_range_fails)
 {
     // Since max is initally set to (1 << 2) - 1 = 3 (as bit range checks are easier than generic integer bounds),
@@ -116,7 +118,6 @@ TEST(stdlib_safeuint, test_multiply_operation_on_constants_out_of_range_fails)
         FAIL() << "Expected std::runtime_error modulus in safe_uint class";
     }
 }
-
 // + OPERATOR
 
 TEST(stdlib_safeuint, test_add_operation_out_of_range_fails)
@@ -138,7 +139,7 @@ TEST(stdlib_safeuint, test_add_operation_out_of_range_fails)
         FAIL() << "Expected std::runtime_error modulus in safe_uint class";
     }
 }
-
+#endif
 // SUBTRACT METHOD
 
 TEST(stdlib_safeuint, test_subtract_method)
@@ -172,6 +173,7 @@ TEST(stdlib_safeuint, test_subtract_method_minued_gt_lhs_fails)
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: subtract: d - c");
 }
 
+#if !defined(__wasm__)
 TEST(stdlib_safeuint, test_subtract_method_underflow_fails)
 {
 
@@ -189,7 +191,7 @@ TEST(stdlib_safeuint, test_subtract_method_underflow_fails)
         FAIL() << "Expected std::runtime_error modulus in safe_uint class";
     }
 }
-
+#endif
 // - OPERATOR
 
 TEST(stdlib_safeuint, test_minus_operator)
@@ -207,6 +209,7 @@ TEST(stdlib_safeuint, test_minus_operator)
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
+#if !defined(__wasm__)
 TEST(stdlib_safeuint, test_minus_operator_underflow_fails)
 {
 
@@ -223,6 +226,7 @@ TEST(stdlib_safeuint, test_minus_operator_underflow_fails)
         FAIL() << "Expected std::runtime_error modulus in safe_uint class";
     }
 }
+#endif
 
 // DIVIDE METHOD
 
@@ -263,6 +267,7 @@ TEST(stdlib_safeuint, test_divide_method_quotient_range_too_small_fails)
     EXPECT_EQ(result.err, "safe_uint_t range constraint failure: divide method quotient: d/c");
 }
 
+#if !defined(__wasm__)
 TEST(stdlib_safeuint, test_divide_remainder_too_large)
 {
     // test failure when range for remainder too small
@@ -273,6 +278,7 @@ TEST(stdlib_safeuint, test_divide_remainder_too_large)
     suint_t b;
     EXPECT_ANY_THROW(b = c / d);
 }
+#endif
 
 TEST(stdlib_safeuint, test_divide_method_quotient_remainder_incorrect_fails)
 {

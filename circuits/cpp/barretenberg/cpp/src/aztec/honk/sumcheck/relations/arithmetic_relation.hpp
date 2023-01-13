@@ -7,9 +7,6 @@
 #include "../polynomials/barycentric_data.hpp"
 #include "../polynomials/univariate.hpp"
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace honk::sumcheck {
 
 template <typename FF> class ArithmeticRelation : public Relation<FF> {

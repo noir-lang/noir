@@ -410,9 +410,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #endif
     }
 
-    size_t widget_counter = 0;
     for (auto& widget : transition_widgets) {
-        widget_counter = widget_counter + 1;
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
     }
 

@@ -174,15 +174,7 @@ TEST(stdlib_schnorr, test_scalar_mul_low_high)
 {
     run_scalar_mul_test(grumpkin::fr::random_element(), true);
     run_scalar_mul_test(grumpkin::fr(static_cast<uint256_t>(1) << 128), false);
-}
-
-/**
- * @brief Death test for cases exluded by `ASSERT` in variable_base_mul.KH
- */
-TEST(stdlib_schnorrDeathTest, test_scalar_mul_low_high)
-{
-    // without the assert causing the death here, the test passes (i.e., verification fails).
-    ASSERT_DEATH(run_scalar_mul_test(0, false), "");
+    run_scalar_mul_test(0, false);
 }
 
 /**

@@ -10,12 +10,14 @@ using namespace barretenberg;
 
 size_t CAPACITY = 1024 * 64;
 
+#if !defined(__wasm__)
 TEST(polynomial_cache, get_unknown)
 {
     PolynomialStoreMem mem_store;
     PolynomialCache cache(&mem_store, CAPACITY);
     EXPECT_THROW(cache.get("unknown"), std::runtime_error);
 }
+#endif
 
 TEST(polynomial_cache, get_unknown_with_size)
 {

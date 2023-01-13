@@ -4,6 +4,7 @@
 #include <list>
 #include "polynomial_store.hpp"
 #include "../../plonk/proof_system/types/polynomial_manifest.hpp"
+#include <algorithm>
 
 namespace waffle {
 

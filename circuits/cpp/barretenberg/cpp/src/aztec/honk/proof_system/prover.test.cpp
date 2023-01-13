@@ -6,9 +6,6 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using namespace honk;
 namespace honk_prover_tests {
 

@@ -3,9 +3,6 @@
 #include <algorithm>
 #include "univariate.hpp"
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 /* IMPROVEMENT(Cody): This could or should be improved in various ways. In no particular order:
    1) Edge cases are not considered. One non-use case situation (I forget which) leads to a segfault.
 

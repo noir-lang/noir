@@ -6,9 +6,6 @@
 #include <common/serialize.hpp>
 #include <common/assert.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace honk::sumcheck {
 
 template <class Fr, size_t view_length> class UnivariateView;
@@ -34,7 +31,7 @@ template <class Fr, size_t _length> class Univariate {
 
     // Construct Univariate from UnivariateView
     explicit Univariate(UnivariateView<Fr, _length> in)
-        : evaluations({ { 0 } })
+        : evaluations{}
     {
         for (size_t i = 0; i < in.evaluations.size(); ++i) {
             evaluations[i] = in.evaluations[i];

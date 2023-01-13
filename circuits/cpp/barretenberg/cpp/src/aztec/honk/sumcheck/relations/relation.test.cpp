@@ -12,9 +12,6 @@
 
 #include <gtest/gtest.h>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using namespace honk::sumcheck;
 
 namespace honk_relation_tests {

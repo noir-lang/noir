@@ -3,9 +3,6 @@
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using namespace barretenberg;
 using namespace plonk;
 

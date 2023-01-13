@@ -155,7 +155,6 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
     grumpkin::g1::affine_element pub_key_native(pub_key.x.get_value(), pub_key.y.get_value());
     grumpkin::g1::affine_element current_accumulator_native(current_accumulator.x.get_value(),
                                                             current_accumulator.y.get_value());
-    ASSERT(pub_key_native.on_curve() && current_accumulator_native.on_curve());
 
     field_t<C> two(pub_key.x.context, 2);
 

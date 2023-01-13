@@ -287,7 +287,7 @@ template <typename Composer> class Transcript {
         challenge_keys.push_back(challenge_name);
 
         std::vector<field_pt> challenge_elements;
-        for (const auto challenge : round_challenges) {
+        for (const auto& challenge : round_challenges) {
             challenge_elements.push_back(static_cast<field_pt>(challenge));
         }
         challenge_values.push_back(challenge_elements);

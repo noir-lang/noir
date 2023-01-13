@@ -2,6 +2,7 @@
 #include "composer_base.hpp"
 #include "plookup_tables/plookup_tables.hpp"
 #include "../proof_system/types/polynomial_manifest.hpp"
+#include <optional>
 
 namespace waffle {
 
@@ -268,10 +269,11 @@ class UltraComposer : public ComposerBase {
     /**
      * Generalized Permutation Methods
      **/
-    std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index,
-                                                       const size_t num_bits,
-                                                       const size_t target_range_bitnum = DEFAULT_PLOOKUP_RANGE_BITNUM,
-                                                       std::string const& msg = "decompose_into_default_range");
+    std::vector<uint32_t> decompose_into_default_range(
+        const uint32_t variable_index,
+        const uint64_t num_bits,
+        const uint64_t target_range_bitnum = DEFAULT_PLOOKUP_RANGE_BITNUM,
+        std::string const& msg = "decompose_into_default_range");
     std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(
         const uint32_t variable_index,
         const size_t num_bits,

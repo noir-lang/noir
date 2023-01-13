@@ -6,9 +6,6 @@
 #include <plonk/composer/turbo_composer.hpp>
 #include <numeric/random/engine.hpp>
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace test_stdlib_field {
 
 namespace {

@@ -4,9 +4,6 @@
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace honk::sumcheck {
 
 template <typename FF> class GrandProductComputationRelation : public Relation<FF> {

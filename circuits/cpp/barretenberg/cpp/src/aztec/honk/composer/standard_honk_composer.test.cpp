@@ -1,4 +1,6 @@
 #include "standard_honk_composer.hpp"
+#include "numeric/uint256/uint256.hpp"
+#include <cstdint>
 #include <honk/proof_system/prover.hpp>
 
 #include <gtest/gtest.h>
@@ -208,7 +210,9 @@ TEST(standard_honk_composer, test_assert_equal)
                 break;
             }
             auto starting_element = i;
-            auto next_element = (size_t)sigma_polynomials[i / proving_key->n][i % proving_key->n];
+            auto next_element_big = static_cast<uint256_t>(sigma_polynomials[i / proving_key->n][i % proving_key->n]);
+            EXPECT_LE(next_element_big, uint256_t(UINT32_MAX));
+            auto next_element = static_cast<size_t>(next_element_big.data[0]);
             size_t cycle_length = 1;
             visited_indices[i] = true;
 
@@ -218,7 +222,10 @@ TEST(standard_honk_composer, test_assert_equal)
                 cycle_length++;
                 visited_indices[next_element] = true;
                 // Get next index
-                next_element = (size_t)sigma_polynomials[next_element / proving_key->n][next_element % proving_key->n];
+                next_element_big = static_cast<uint256_t>(
+                    sigma_polynomials[next_element / proving_key->n][next_element % proving_key->n]);
+                EXPECT_LE(next_element_big, uint256_t(UINT32_MAX));
+                next_element = static_cast<size_t>(next_element_big.data[0]);
             }
             // If cycle_length is larger than permutation length, then instead of just a cycle we have a runway,too,
             // which is incorrect

@@ -8,8 +8,6 @@
 #include "../../fixtures/compute_or_load_fixture.hpp"
 #include <filesystem>
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace root_rollup {

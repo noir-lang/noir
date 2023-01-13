@@ -510,10 +510,19 @@ TEST(scalar_multiplication, endomorphism_split)
     fr* k2_t = (fr*)&scalar.data[2];
 
     fr::split_into_endomorphism_scalars(scalar, *k1_t, *k2_t);
-
+    // The compiler really doesn't like what we're doing here,
+    // and disabling the array-bounds error project-wide seems unsafe.
+    // The large macro blocks are here to warn that we should be careful when
+    // aliasing the arguments to split_into_endomorphism_scalars
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     fr k1{ (*k1_t).data[0], (*k1_t).data[1], 0, 0 };
     fr k2{ (*k2_t).data[0], (*k2_t).data[1], 0, 0 };
-
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     g1::element result;
     g1::element t1 = g1::affine_one * k1;
     g1::affine_element generator = g1::affine_one;

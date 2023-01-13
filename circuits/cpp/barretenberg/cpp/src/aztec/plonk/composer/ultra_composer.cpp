@@ -1148,8 +1148,8 @@ UltraComposer::RangeList UltraComposer::create_range_list(const uint64_t target_
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t variable_index,
-                                                                  const size_t num_bits,
-                                                                  const size_t target_range_bitnum,
+                                                                  const uint64_t num_bits,
+                                                                  const uint64_t target_range_bitnum,
                                                                   std::string const& msg)
 {
     assert_valid_variables({ variable_index });
@@ -1168,8 +1168,8 @@ std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t
     std::vector<uint32_t> sublimb_indices;
 
     const bool has_remainder_bits = (num_bits % target_range_bitnum != 0);
-    const size_t num_limbs = (num_bits / target_range_bitnum) + has_remainder_bits;
-    const size_t last_limb_size = num_bits - ((num_bits / target_range_bitnum) * target_range_bitnum);
+    const uint64_t num_limbs = (num_bits / target_range_bitnum) + has_remainder_bits;
+    const uint64_t last_limb_size = num_bits - ((num_bits / target_range_bitnum) * target_range_bitnum);
     const uint64_t last_limb_range = ((uint64_t)1 << last_limb_size) - 1;
 
     uint256_t accumulator = val;
@@ -1187,17 +1187,17 @@ std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t
         }
     }
 
-    const size_t num_limb_triples = (num_limbs / 3) + ((num_limbs % 3) != 0);
-    const size_t leftovers = (num_limbs % 3) == 0 ? 3 : (num_limbs % 3);
+    const uint64_t num_limb_triples = (num_limbs / 3) + ((num_limbs % 3) != 0);
+    const uint64_t leftovers = (num_limbs % 3) == 0 ? 3 : (num_limbs % 3);
 
     accumulator = val;
     uint32_t accumulator_idx = variable_index;
 
     for (size_t i = 0; i < num_limb_triples; ++i) {
         const bool real_limbs[3]{
-            (i == num_limb_triples - 1 && leftovers < 1) ? false : true,
-            (i == num_limb_triples - 1 && leftovers < 2) ? false : true,
-            (i == num_limb_triples - 1 && leftovers < 3) ? false : true,
+            (i == (num_limb_triples - 1) && (leftovers < 1)) ? false : true,
+            (i == (num_limb_triples - 1) && (leftovers < 2)) ? false : true,
+            (i == (num_limb_triples - 1) && (leftovers < 3)) ? false : true,
         };
 
         const uint64_t round_sublimbs[3]{

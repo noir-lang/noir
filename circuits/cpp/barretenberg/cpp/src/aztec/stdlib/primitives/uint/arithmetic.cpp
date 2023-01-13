@@ -1,9 +1,6 @@
 #include "../composers/composers.hpp"
 #include "uint.hpp"
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using namespace barretenberg;
 
 namespace plonk {

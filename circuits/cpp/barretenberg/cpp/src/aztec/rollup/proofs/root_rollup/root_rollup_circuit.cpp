@@ -10,8 +10,6 @@
 #include <common/container.hpp>
 #include "./root_rollup_proof_data.hpp"
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace root_rollup {
