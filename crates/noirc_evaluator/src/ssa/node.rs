@@ -191,11 +191,14 @@ pub enum ObjectType {
     Signed(u32),   //bit size
     Pointer(ArrayId),
 
-    Function,
+    Function(ArrayIdSet), // Function with a set of arrays that may be returned
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ArrayIdSet(pub u32);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NumericType {
@@ -224,7 +227,7 @@ impl ObjectType {
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
             ObjectType::Pointer(_) => 0,
-            ObjectType::Function => 0,
+            ObjectType::Function(_) => 0,
         }
     }
 

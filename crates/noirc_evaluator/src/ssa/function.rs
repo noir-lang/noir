@@ -7,7 +7,7 @@ use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, T
 
 use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::node::{Node, Operation};
+use super::node::{ArrayIdSet, Node, Operation};
 use super::{
     block,
     block::BlockId,
@@ -48,10 +48,12 @@ impl SSAFunction {
         idx: FuncIndex,
         ctx: &mut SsaContext,
     ) -> SSAFunction {
+        // Temporary ArrayIdSet - the actual arrays returned by this function are not yet known.
+        let typ = ObjectType::Function(ArrayIdSet(u32::MAX));
         SSAFunction {
             entry_block: block_id,
             id,
-            node_id: ctx.push_function_id(id, ObjectType::Function),
+            node_id: ctx.push_function_id(id, typ),
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
@@ -179,32 +181,46 @@ impl IRGenerator {
         let function_body = self.program.take_function_body(func_id);
         let last_value = self.codegen_expression(&function_body)?;
         let return_values = last_value.to_node_ids();
+        let mut returned_arrays = vec![];
 
         func.result_types.clear();
-        let return_values = try_vecmap(return_values, |mut return_id| {
-            let node_opt = self.context.try_get_node(return_id);
-            let typ = node_opt.map_or(ObjectType::NotAnObject, |node| node.get_type());
+        let return_values =
+            try_vecmap(return_values.into_iter().enumerate(), |(i, mut return_id)| {
+                let node_opt = self.context.try_get_node(return_id);
+                let typ = node_opt.map_or(ObjectType::NotAnObject, |node| {
+                    let typ = node.get_type();
+                    if let ObjectType::Pointer(array_id) = typ {
+                        returned_arrays.push((array_id, i as u32));
+                    }
+                    typ
+                });
 
-            if let Some(ins) = self.context.try_get_instruction(return_id) {
-                if ins.operation.opcode() == Opcode::Results {
-                    // n.b. this required for result instructions, but won't hurt if done for all i
-                    let new_var = node::Variable {
-                        id: NodeId::dummy(),
-                        obj_type: typ,
-                        name: format!("return_{}", return_id.0.into_raw_parts().0),
-                        root: None,
-                        def: None,
-                        witness: None,
-                        parent_block: self.context.current_block,
-                    };
-                    let b_id = self.context.add_variable(new_var, None);
-                    let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
-                    return_id = ssa_form::get_current_value(&mut self.context, b_id1);
+                if let Some(ins) = self.context.try_get_instruction(return_id) {
+                    if ins.operation.opcode() == Opcode::Results {
+                        // n.b. this required for result instructions, but won't hurt if done for all i
+                        let new_var = node::Variable {
+                            id: NodeId::dummy(),
+                            obj_type: typ,
+                            name: format!("return_{}", return_id.0.into_raw_parts().0),
+                            root: None,
+                            def: None,
+                            witness: None,
+                            parent_block: self.context.current_block,
+                        };
+                        let b_id = self.context.add_variable(new_var, None);
+                        let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
+                        return_id = ssa_form::get_current_value(&mut self.context, b_id1);
+                    }
                 }
-            }
-            func.result_types.push(typ);
-            Ok::<NodeId, RuntimeError>(return_id)
-        })?;
+                func.result_types.push(typ);
+                Ok::<NodeId, RuntimeError>(return_id)
+            })?;
+
+        let array_set_id = self.context.push_array_set(returned_arrays);
+        let function_type = ObjectType::Function(array_set_id);
+
+        // Push a standard NodeId for this FuncId
+        self.context.set_function_type(func_id, func.node_id, function_type);
 
         self.context.new_instruction(
             node::Operation::Return(return_values),
@@ -216,7 +232,7 @@ impl IRGenerator {
         self.context.current_block = current_block;
         self.function_context = current_function;
 
-        Ok(ObjectType::Function)
+        Ok(function_type)
     }
 
     fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {
@@ -238,46 +254,30 @@ impl IRGenerator {
             self.call_low_level(opcode, arguments)
         } else {
             let return_types = call.return_type.flatten().into_iter().enumerate();
+            let returned_arrays = self.context.get_returned_arrays(func);
             let predicate = AssumptionId::dummy();
             let location = call.location;
-
             let call = Operation::Call {
                 func,
-                arguments: arguments.clone(),
-                returned_arrays: vec![],
+                arguments,
+                returned_arrays: returned_arrays.clone(),
                 predicate,
                 location,
             };
-
             let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
-            let mut returned_arrays = vec![];
 
-            let result_ids = try_vecmap(return_types, |(i, typ)| {
+            try_vecmap(return_types, |(i, typ)| {
                 let result = Operation::Result { call_instruction, index: i as u32 };
                 let typ = match typ {
-                    Type::Array(_, elem_type) => {
-                        let elem_type = self.context.convert_type(&elem_type);
-
-                        // FIXME: We crash in anchor.rs if the user tries to use an index
-                        // above this temporary length.
-                        let max_array_size = 100_000;
-
-                        let array_id =
-                            self.context.new_array("", elem_type, max_array_size, None).1;
-                        returned_arrays.push((array_id, i as u32));
-                        ObjectType::Pointer(array_id)
+                    Type::Array(_, _) => {
+                        let id = returned_arrays.iter().find(|(_, index)| *index == i as u32);
+                        ObjectType::Pointer(id.unwrap().0)
                     }
                     other => self.context.convert_type(&other),
                 };
 
                 self.context.new_instruction(result, typ)
-            });
-
-            // Update the call instruction with the fresh array ids in returned_arrays
-            self.context.get_mut_instruction(call_instruction).operation =
-                Operation::Call { func, arguments, returned_arrays, predicate, location };
-
-            result_ids
+            })
         }
     }
 
