@@ -15,9 +15,9 @@ TYPED_TEST(GeminiTest, single)
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t m = 4; // = log(n)
+    const size_t log_n = 4;
 
-    auto u = this->random_evaluation_point(m);
+    auto u = this->random_evaluation_point(log_n);
     auto poly = this->random_polynomial(n);
     auto commitment = this->commit(poly);
     auto eval = poly.evaluate_mle(u);
@@ -25,14 +25,16 @@ TYPED_TEST(GeminiTest, single)
     // create opening claim
     auto claims = { MLEOpeningClaim{ commitment, eval } };
 
-    this->consume(u);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
 
-    auto [prover_claim, witness, proof] =
-        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, this->prover_challenges);
+    transcript->mock_inputs_prior_to_challenge("rho");
+
+    auto [prover_claim, witness, proof] = Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, transcript);
 
     this->verify_batch_opening_claim(prover_claim, witness);
 
-    auto verifier_claim = Gemini::reduce_verify(u, claims, {}, proof, this->verifier_challenges);
+    auto verifier_claim = Gemini::reduce_verify(u, claims, {}, proof, transcript);
 
     this->verify_batch_opening_claim(verifier_claim, witness);
 
@@ -46,9 +48,9 @@ TYPED_TEST(GeminiTest, shift)
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t m = 4; // = log(n)
+    const size_t log_n = 4;
 
-    auto u = this->random_evaluation_point(m);
+    auto u = this->random_evaluation_point(log_n);
 
     // shiftable polynomial must have 0 as last coefficient
     auto poly = this->random_polynomial(n);
@@ -62,27 +64,30 @@ TYPED_TEST(GeminiTest, shift)
         MLEOpeningClaim{ commitment, eval_shift },
     };
 
-    this->consume(u);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("rho");
 
     auto [prover_claim, witness, proof] =
-        Gemini::reduce_prove(this->ck(), u, {}, claims_shift, {}, { &poly }, this->prover_challenges);
+        Gemini::reduce_prove(this->ck(), u, {}, claims_shift, {}, { &poly }, transcript);
 
     this->verify_batch_opening_claim(prover_claim, witness);
 
-    auto verifier_claim = Gemini::reduce_verify(u, {}, claims_shift, proof, this->verifier_challenges);
+    auto verifier_claim = Gemini::reduce_verify(u, {}, claims_shift, proof, transcript);
 
     EXPECT_EQ(prover_claim, verifier_claim);
 }
 
-TYPED_TEST(GeminiTest, Double)
+TYPED_TEST(GeminiTest, double)
 {
     using Gemini = MultilinearReductionScheme<TypeParam>;
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t m = 4; // = log(n)
+    const size_t log_n = 4;
 
-    auto u = this->random_evaluation_point(m);
+    auto u = this->random_evaluation_point(log_n);
 
     auto poly1 = this->random_polynomial(n);
     auto poly2 = this->random_polynomial(n);
@@ -98,14 +103,17 @@ TYPED_TEST(GeminiTest, Double)
         MLEOpeningClaim{ commitment2, eval2 },
     };
 
-    this->consume(u);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("rho");
 
     auto [prover_claim, witness, proof] =
-        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly1, &poly2 }, {}, this->prover_challenges);
+        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly1, &poly2 }, {}, transcript);
 
     this->verify_batch_opening_claim(prover_claim, witness);
 
-    auto verifier_claim = Gemini::reduce_verify(u, claims, {}, proof, this->verifier_challenges);
+    auto verifier_claim = Gemini::reduce_verify(u, claims, {}, proof, transcript);
 
     this->verify_batch_opening_claim(verifier_claim, witness);
     EXPECT_EQ(prover_claim, verifier_claim);
@@ -118,9 +126,9 @@ TYPED_TEST(GeminiTest, double_shift)
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t m = 4; // = log(n)
+    const size_t log_n = 4;
 
-    auto u = this->random_evaluation_point(m);
+    auto u = this->random_evaluation_point(log_n);
 
     auto poly1 = this->random_polynomial(n);
     auto poly2 = this->random_polynomial(n);
@@ -142,15 +150,19 @@ TYPED_TEST(GeminiTest, double_shift)
         MLEOpeningClaim{ commitment2, eval2_shift },
     };
 
-    this->consume(u);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
 
-    auto [prover_claim, witness, proof] = Gemini::reduce_prove(
-        this->ck(), u, claims, claims_shift, { &poly1, &poly2 }, { &poly2 }, this->prover_challenges);
+    transcript->mock_inputs_prior_to_challenge("rho");
+
+    auto [prover_claim, witness, proof] =
+        Gemini::reduce_prove(this->ck(), u, claims, claims_shift, { &poly1, &poly2 }, { &poly2 }, transcript);
 
     this->verify_batch_opening_claim(prover_claim, witness);
 
-    auto verifier_claim = Gemini::reduce_verify(u, claims, claims_shift, proof, this->verifier_challenges);
+    auto verifier_claim = Gemini::reduce_verify(u, claims, claims_shift, proof, transcript);
 
     ASSERT_EQ(prover_claim, verifier_claim);
 }
+
 } // namespace honk::pcs::gemini

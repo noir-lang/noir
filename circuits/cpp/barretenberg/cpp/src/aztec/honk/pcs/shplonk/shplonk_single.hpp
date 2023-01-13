@@ -1,5 +1,6 @@
 #pragma once
 #include "shplonk.hpp"
+#include "honk/pcs/commitment_key.hpp"
 
 namespace honk::pcs::shplonk {
 
@@ -24,15 +25,16 @@ template <typename Params> class SingleBatchOpeningScheme {
      * @param ck CommitmentKey
      * @param claims list of opening claims (Cⱼ, xⱼ, vⱼ) for a witness polynomial fⱼ(X), s.t. fⱼ(xⱼ) = vⱼ.
      * @param witness_polynomials list of polynomials fⱼ(X).
-     * @param challenge_generator Oracle used to derive challenges.
+     * @param transcript
      * @return Output{OpeningClaim, WitnessPolynomial, Proof}
      */
     static ProverOutput<Params> reduce_prove(CK* ck,
                                              std::span<const OpeningClaim<Params>> claims,
                                              std::span<const Polynomial> witness_polynomials,
-                                             auto& challenge_generator)
+                                             const auto& transcript)
     {
-        const Fr rho = challenge_generator.generate_challenge();
+        transcript->apply_fiat_shamir("nu");
+        Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
 
         const size_t num_claims = claims.size();
 
@@ -45,7 +47,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         Polynomial Q(max_poly_size, max_poly_size);
         Polynomial tmp(max_poly_size, max_poly_size);
 
-        Fr current_rho = Fr::one();
+        Fr current_nu = Fr::one();
         for (size_t j = 0; j < num_claims; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
             const auto& [commitment_j, opening_j, eval_j] = claims[j];
@@ -55,23 +57,24 @@ template <typename Params> class SingleBatchOpeningScheme {
             tmp[0] -= eval_j;
             tmp.factor_roots(opening_j);
 
-            Q.add_scaled(tmp, current_rho);
-            current_rho *= rho;
+            Q.add_scaled(tmp, current_nu);
+            current_nu *= nu;
         }
 
         // [Q]
         Commitment Q_commitment = ck->commit(Q);
-        challenge_generator.consume(Q_commitment);
+        transcript->add_element("Q", static_cast<barretenberg::g1::affine_element>(Q_commitment).to_buffer());
 
-        // generate random evaluation challenge r
-        Fr r = challenge_generator.generate_challenge();
+        // generate random evaluation challenge zeta_challenge
+        transcript->apply_fiat_shamir("z");
+        const Fr zeta_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
 
         // {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
         std::vector<Fr> inverse_vanishing_evals;
         inverse_vanishing_evals.reserve(num_claims);
         {
             for (const auto& claim_j : claims) {
-                inverse_vanishing_evals.emplace_back(r - claim_j.opening_point);
+                inverse_vanishing_evals.emplace_back(zeta_challenge - claim_j.opening_point);
             }
             Fr::batch_invert(inverse_vanishing_evals);
         }
@@ -85,7 +88,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
         //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
         Commitment G_commitment = Q_commitment;
-        current_rho = Fr::one();
+        current_nu = Fr::one();
         for (size_t j = 0; j < num_claims; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
             const auto& [commitment_j, opening_j, eval_j] = claims[j];
@@ -93,7 +96,7 @@ template <typename Params> class SingleBatchOpeningScheme {
             // tmp = ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )
             tmp = witness_polynomials[j];
             tmp[0] -= eval_j;
-            Fr scaling_factor = current_rho * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
+            Fr scaling_factor = current_nu * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
 
             // G -= ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )
             G.add_scaled(tmp, -scaling_factor);
@@ -103,12 +106,12 @@ template <typename Params> class SingleBatchOpeningScheme {
             // [G] -= ρʲ / ( r − xⱼ )⋅[fⱼ]
             G_commitment -= commitment_j * scaling_factor;
 
-            current_rho *= rho;
+            current_nu *= nu;
         }
         // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
         G_commitment += Commitment::one() * G_commitment_constant;
 
-        return { .claim = { .commitment = G_commitment, .opening_point = r, .eval = Fr::zero() },
+        return { .claim = { .commitment = G_commitment, .opening_point = zeta_challenge, .eval = Fr::zero() },
                  .witness = std::move(G),
                  .proof = Q_commitment };
     };
@@ -119,17 +122,16 @@ template <typename Params> class SingleBatchOpeningScheme {
      *
      * @param claims list of opening claims (Cⱼ, xⱼ, vⱼ) for a witness polynomial fⱼ(X), s.t. fⱼ(xⱼ) = vⱼ.
      * @param proof [Q(X)] = [ ∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( X − xⱼ ) ]
-     * @param challenge_generator an Oracle used to rederive challenges.
+     * @param transcript
      * @return OpeningClaim
      */
     static OpeningClaim<Params> reduce_verify(std::span<const OpeningClaim<Params>> claims,
                                               const Proof<Params>& proof,
-                                              auto& challenge_generator)
+                                              const auto& transcript)
     {
         const size_t num_claims = claims.size();
-        const Fr rho = challenge_generator.generate_challenge();
-        challenge_generator.consume(proof);
-        const Fr r = challenge_generator.generate_challenge();
+        const Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
+        const Fr zeta_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
 
         // compute simulated commitment to [G] as a linear combination of
         // [Q], { [fⱼ] }, [1]:
@@ -148,29 +150,29 @@ template <typename Params> class SingleBatchOpeningScheme {
         inverse_vanishing_evals.reserve(num_claims);
         {
             for (const auto& claim_j : claims) {
-                inverse_vanishing_evals.emplace_back(r - claim_j.opening_point);
+                inverse_vanishing_evals.emplace_back(zeta_challenge - claim_j.opening_point);
             }
             Fr::batch_invert(inverse_vanishing_evals);
         }
 
-        Fr current_rho{ Fr::one() };
+        Fr current_nu{ Fr::one() };
         for (size_t j = 0; j < num_claims; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
             const auto& [commitment_j, opening_j, eval_j] = claims[j];
 
-            Fr scaling_factor = current_rho * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
+            Fr scaling_factor = current_nu * inverse_vanishing_evals[j]; // = ρʲ / ( r − xⱼ )
 
             // G₀ += ρʲ / ( r − xⱼ ) ⋅ vⱼ
             G_commitment_constant += scaling_factor * eval_j;
             // [G] -= ρʲ / ( r − xⱼ )⋅[fⱼ]
             G_commitment -= commitment_j * scaling_factor;
 
-            current_rho *= rho;
+            current_nu *= nu;
         }
         // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
         G_commitment += Commitment::one() * G_commitment_constant;
 
-        return { .commitment = G_commitment, .opening_point = r, .eval = Fr::zero() };
+        return { .commitment = G_commitment, .opening_point = zeta_challenge, .eval = Fr::zero() };
     };
 };
 } // namespace honk::pcs::shplonk

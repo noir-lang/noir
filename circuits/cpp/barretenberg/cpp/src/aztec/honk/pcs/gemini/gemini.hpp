@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../claim.hpp"
+#include "common/log.hpp"
+#include "honk/pcs/commitment_key.hpp"
 #include "polynomials/polynomial.hpp"
 
 #include <common/assert.hpp>
@@ -140,7 +142,7 @@ template <typename Params> class MultilinearReductionScheme {
      * @param claims a set of MLE claims for the same point u
      * @param mle_witness_polynomials the MLE polynomials for each evaluation.
      *      Internally, it contains a reference to the non-shifted polynomial.
-     * @param challenge_generator used to derive Fiat-Shamir challenges
+     * @param transcript
      * @return Output (result_claims, proof, folded_witness_polynomials)
      */
     static ProverOutput<Params> reduce_prove(CK* ck,
@@ -149,7 +151,7 @@ template <typename Params> class MultilinearReductionScheme {
                                              std::span<const MLEOpeningClaim<Params>> claims_shifted,
                                              const std::vector<Polynomial*>& mle_witness_polynomials,
                                              const std::vector<Polynomial*>& mle_witness_polynomials_shifted,
-                                             auto& challenge_generator)
+                                             const auto& transcript)
     {
         // Relabel inputs to be consistent with the comments
         auto& claims_f = claims;
@@ -166,7 +168,8 @@ template <typename Params> class MultilinearReductionScheme {
         ASSERT(claims_g.size() == num_polys_g);
 
         // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
-        Fr rho = challenge_generator.generate_challenge();
+        transcript->apply_fiat_shamir("rho");
+        Fr rho = Fr::serialize_from_buffer(transcript->get_challenge("rho").begin());
         const std::vector<Fr> rhos = powers_of_rho(rho, num_polys);
         std::span<const Fr> rhos_span{ rhos };
         std::span rhos_f = rhos_span.subspan(0, num_polys_f);
@@ -251,10 +254,14 @@ template <typename Params> class MultilinearReductionScheme {
         }
 
         /*
-         * Add commitments to transcript and generate evaluation challenge r, and derive -r, r²
+         * Add commitments FOLD_i, i = 1,...,d-1 to transcript and generate evaluation challenge r, and derive -r, r²
          */
-        challenge_generator.consume(commitments);
-        const Fr r = challenge_generator.generate_challenge();
+        for (size_t i = 0; i < commitments.size(); ++i) {
+            std::string label = "FOLD_" + std::to_string(i + 1);
+            transcript->add_element(label, static_cast<barretenberg::g1::affine_element>(commitments[i]).to_buffer());
+        }
+        transcript->apply_fiat_shamir("r");
+        const Fr r = Fr::serialize_from_buffer(transcript->get_challenge("r").begin());
 
         /*
          * Compute the witness polynomials for the resulting claim
@@ -303,7 +310,13 @@ template <typename Params> class MultilinearReductionScheme {
             evals.emplace_back(A_l.evaluate(r_l_neg));
         }
 
-        challenge_generator.consume(evals);
+        /*
+         * Add evaluations a_i, i = 0,...,m-1 to transcript
+         */
+        for (size_t i = 0; i < evals.size(); ++i) {
+            std::string label = "a_" + std::to_string(i);
+            transcript->add_element(label, evals[i].to_buffer());
+        }
 
         Proof<Params> proof = { commitments, evals };
         /*
@@ -324,14 +337,14 @@ template <typename Params> class MultilinearReductionScheme {
      * @param claims_shifted MLE claims with (C, v↺) and C is a univariate commitment
      *      to the non-shifted polynomial
      * @param proof commitments to the m-1 folded polynomials, and alleged evaluations.
-     * @param challenge_generator Oracle used to derive challenges
+     * @param transcript
      * @return BatchOpeningClaim
      */
     static OutputClaim<Params> reduce_verify(std::span<const Fr> mle_opening_point,
                                              std::span<const MLEOpeningClaim<Params>> claims,
                                              std::span<const MLEOpeningClaim<Params>> claims_shifted,
                                              const Proof<Params>& proof,
-                                             auto& challenge_generator)
+                                             const auto& transcript)
     {
         // Relabel inputs to be more consistent with the math comments.
         auto& claims_f = claims;
@@ -343,14 +356,12 @@ template <typename Params> class MultilinearReductionScheme {
         const size_t num_claims = num_claims_f + num_claims_g;
 
         // batching challenge ρ
-        const Fr rho = challenge_generator.generate_challenge();
+        const Fr rho = Fr::serialize_from_buffer(transcript->get_challenge("rho").begin());
         // compute vector of powers of rho only once
         std::vector<Fr> rhos = powers_of_rho(rho, num_claims);
 
         // random evaluation point r
-        challenge_generator.consume(proof.commitments);
-        const Fr r = challenge_generator.generate_challenge();
-        challenge_generator.consume(proof.evals);
+        const Fr r = Fr::serialize_from_buffer(transcript->get_challenge("r").begin());
 
         std::vector<Fr> r_squares = squares_of_r(r, num_variables);
 

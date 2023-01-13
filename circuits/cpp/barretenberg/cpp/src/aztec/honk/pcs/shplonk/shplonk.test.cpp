@@ -58,8 +58,7 @@ TYPED_TEST(ShplonkTest, single_poly_two_points)
     using Fr = typename TypeParam::Fr;
     using Polynomial = barretenberg::Polynomial<Fr>;
     constexpr size_t n = 16;
-
-    this->consume(true);
+    const size_t log_n = 4;
 
     auto queries = this->random_opening_set(2);
     std::vector<MultiOpeningClaim> claims;
@@ -67,11 +66,15 @@ TYPED_TEST(ShplonkTest, single_poly_two_points)
 
     this->add_random_batch_opening_sub_claims(claims, polys, queries, std::array{ n });
 
-    const auto [prover_claim, witness, proof] =
-        Shplonk::reduce_prove(this->ck(), claims, polys, this->prover_challenges);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("nu");
+
+    const auto [prover_claim, witness, proof] = Shplonk::reduce_prove(this->ck(), claims, polys, transcript);
 
     this->verify_opening_claim(prover_claim, witness);
-    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, this->verifier_challenges);
+    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, transcript);
     EXPECT_EQ(prover_claim, verifier_claim);
     this->verify_opening_claim(prover_claim, witness);
 }
@@ -83,8 +86,7 @@ TYPED_TEST(ShplonkTest, two_polys_different_size_at_two_different_points)
     using Fr = typename TypeParam::Fr;
     using Polynomial = barretenberg::Polynomial<Fr>;
     const size_t n = 16;
-
-    this->consume(true);
+    const size_t log_n = 4;
 
     std::vector<MultiOpeningClaim> claims;
     std::vector<Polynomial> polys;
@@ -94,11 +96,15 @@ TYPED_TEST(ShplonkTest, two_polys_different_size_at_two_different_points)
     this->add_random_batch_opening_sub_claims(claims, polys, { queries[0] }, std::array{ n });
     this->add_random_batch_opening_sub_claims(claims, polys, { queries[1] }, std::array{ n - 1 });
 
-    const auto [prover_claim, witness, proof] =
-        Shplonk::reduce_prove(this->ck(), claims, polys, this->prover_challenges);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("nu");
+
+    const auto [prover_claim, witness, proof] = Shplonk::reduce_prove(this->ck(), claims, polys, transcript);
 
     this->verify_opening_claim(prover_claim, witness);
-    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, this->verifier_challenges);
+    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, transcript);
     EXPECT_EQ(prover_claim, verifier_claim);
     this->verify_opening_claim(prover_claim, witness);
 }
@@ -110,8 +116,7 @@ TYPED_TEST(ShplonkTest, three_polys_different_sizes_and_different_queries)
     using Fr = typename TypeParam::Fr;
     using Polynomial = barretenberg::Polynomial<Fr>;
     const size_t n = 16;
-
-    this->consume(true);
+    const size_t log_n = 4;
 
     std::vector<MultiOpeningClaim> claims;
     std::vector<Polynomial> polys;
@@ -122,15 +127,20 @@ TYPED_TEST(ShplonkTest, three_polys_different_sizes_and_different_queries)
     this->add_random_batch_opening_sub_claims(claims, polys, { queries[1], queries[2] }, std::array{ n - 1, n + 2 });
     this->add_random_batch_opening_sub_claims(claims, polys, { queries[0], queries[2] }, std::array{ n });
 
-    const auto [prover_claim, witness, proof] =
-        Shplonk::reduce_prove(this->ck(), claims, polys, this->prover_challenges);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("nu");
+
+    const auto [prover_claim, witness, proof] = Shplonk::reduce_prove(this->ck(), claims, polys, transcript);
 
     this->verify_opening_claim(prover_claim, witness);
-    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, this->verifier_challenges);
+    const auto verifier_claim = Shplonk::reduce_verify(claims, proof, transcript);
     EXPECT_EQ(prover_claim, verifier_claim);
     this->verify_opening_claim(prover_claim, witness);
 }
 
+// Test of Shplonk prover/verifier using real Gemini claim
 TYPED_TEST(ShplonkTest, Gemini)
 {
     using Shplonk = SingleBatchOpeningScheme<TypeParam>;
@@ -138,9 +148,9 @@ TYPED_TEST(ShplonkTest, Gemini)
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t m = 4; // = log(n)
+    const size_t log_n = 4;
 
-    const auto u = this->random_evaluation_point(m);
+    const auto u = this->random_evaluation_point(log_n);
     auto poly = this->random_polynomial(n);
     const auto commitment = this->commit(poly);
     const auto eval = poly.evaluate_mle(u);
@@ -148,19 +158,22 @@ TYPED_TEST(ShplonkTest, Gemini)
     // create opening claim
     const auto claims = { MLEOpeningClaim{ commitment, eval } };
 
-    this->consume(u);
+    using Transcript = transcript::StandardTranscript;
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+
+    transcript->mock_inputs_prior_to_challenge("rho");
 
     auto [gemini_claim, gemini_witness, gemini_proof] =
-        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, this->prover_challenges);
+        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, transcript);
 
-    Gemini::reduce_verify(u, claims, {}, gemini_proof, this->verifier_challenges);
+    Gemini::reduce_verify(u, claims, {}, gemini_proof, transcript);
 
     const auto [prover_claim, witness, proof] =
-        Shplonk::reduce_prove(this->ck(), gemini_claim, gemini_witness, this->prover_challenges);
+        Shplonk::reduce_prove(this->ck(), gemini_claim, gemini_witness, transcript);
 
     this->verify_opening_claim(prover_claim, witness);
 
-    const auto verifier_claim = Shplonk::reduce_verify(gemini_claim, proof, this->verifier_challenges);
+    const auto verifier_claim = Shplonk::reduce_verify(gemini_claim, proof, transcript);
     EXPECT_EQ(prover_claim, verifier_claim);
 }
 } // namespace honk::pcs::shplonk

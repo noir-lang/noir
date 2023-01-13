@@ -1,5 +1,6 @@
 #pragma once
 #include "shplonk.hpp"
+#include "honk/pcs/commitment_key.hpp"
 
 namespace honk::pcs::shplonk {
 
@@ -26,15 +27,16 @@ template <typename Params> class MultiBatchOpeningScheme {
      * @param witness_polynomials witnesses corresponsing to the commitments in 'batch_claim'.
      *        Note that the order of the polynomials must follow the order of the commitments
      *        in 'batch_claim'.
-     * @param challenge_generator Oracle used to derive challenges.
+     * @param transcript
      * @return Output{OpeningClaim, WitnessPolynomial, Proof}
      */
     static ProverOutput<Params> reduce_prove(CK* ck,
                                              std::span<const MultiOpeningClaim<Params>> multi_claims,
                                              std::span<const Polynomial> witness_polynomials,
-                                             auto& challenge_generator)
+                                             const auto& transcript)
     {
-        const Fr rho = challenge_generator.generate_challenge();
+        transcript->apply_fiat_shamir("nu");
+        Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
 
         const size_t num_multi_claims = multi_claims.size();
 
@@ -62,7 +64,7 @@ template <typename Params> class MultiBatchOpeningScheme {
         // keep track of number of polynomials we have mergeds
         size_t current_poly_idx = 0;
 
-        Fr current_rho = Fr::one();
+        Fr current_nu = Fr::one();
         // iterate over all claims, grouped by common opening set
         for (const auto& [queries_k, openings_k] : multi_claims) {
             const size_t num_queries_k = queries_k.size();
@@ -86,15 +88,15 @@ template <typename Params> class MultiBatchOpeningScheme {
 
             for (const auto& [C_j, evals_j] : openings_k) {
                 // add ρʲ⋅pⱼ to merged polynomial Bₖ(X)
-                B_k.add_scaled(witness_polynomials[current_poly_idx], current_rho);
+                B_k.add_scaled(witness_polynomials[current_poly_idx], current_nu);
                 // add ρʲ⋅Cⱼ to the merged commitment Cₖ
-                C_k = C_k + (C_j * current_rho);
+                C_k = C_k + (C_j * current_nu);
                 for (size_t i = 0; i < num_queries_k; ++i) {
                     // add ρʲ⋅yʲᵢ to yᵏᵢ
-                    evals_k[i] += current_rho * evals_j[i];
+                    evals_k[i] += current_nu * evals_j[i];
                 }
 
-                current_rho *= rho;
+                current_nu *= nu;
                 current_poly_idx++;
             }
             // compute the interpolation polynomial Tₖ(X) of Yₖ over Ωₖ.
@@ -121,10 +123,11 @@ template <typename Params> class MultiBatchOpeningScheme {
 
         // commit to Q(X) and add [Q] to the transcript
         Commitment Q_commitment = ck->commit(Q);
-        challenge_generator.consume(Q_commitment);
+        transcript->add_element("Q", static_cast<barretenberg::g1::affine_element>(Q_commitment).to_buffer());
 
-        // generate random evaluation challenge r
-        Fr r = challenge_generator.generate_challenge();
+        // generate random evaluation challenge zeta_challenge
+        transcript->apply_fiat_shamir("z");
+        const Fr zeta_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
 
         // reuse the quotient polynomial Q(X)
         // G(X) = Q(X)
@@ -136,7 +139,7 @@ template <typename Params> class MultiBatchOpeningScheme {
             for (const auto& [queries_k, openings_k] : multi_claims) {
                 Fr eval{ Fr::one() };
                 for (const Fr& x : queries_k) {
-                    eval *= (r - x);
+                    eval *= (zeta_challenge - x);
                 }
                 inverse_vanishing_evals.emplace_back(eval);
             }
@@ -149,7 +152,7 @@ template <typename Params> class MultiBatchOpeningScheme {
         for (size_t k = 0; k < num_multi_claims; ++k) {
             // evaluate Tₖ(r)
             auto& T_k = interpolated_polynomials[k];
-            T_r[k] = T_k.evaluate(r);
+            T_r[k] = T_k.evaluate(zeta_challenge);
 
             // subtract ( Bₖ(X) − Tₖ(r) )/zₖ(r) from G(X)
             merged_polynomials[k][0] -= T_r[k];
@@ -170,7 +173,9 @@ template <typename Params> class MultiBatchOpeningScheme {
             G_commitment += (Commitment::one() * G_commitment_constant);
         }
 
-        return { .claim = OpeningClaim<Params>{ .commitment = G_commitment, .opening_point = r, .eval = Fr::zero() },
+        return { .claim = OpeningClaim<Params>{ .commitment = G_commitment,
+                                                .opening_point = zeta_challenge,
+                                                .eval = Fr::zero() },
                  .witness = std::move(Q),
                  .proof = Q_commitment };
     };
@@ -181,16 +186,15 @@ template <typename Params> class MultiBatchOpeningScheme {
      *
      * @param multi_claims a set of commitments and evaluation queries claimed
      * @param proof [Q(X)]
-     * @param challenge_generator an Oracle used to rederive challenges.
+     * @param transcript
      * @return OpeningClaim
      */
     static OpeningClaim<Params> reduce_verify(std::span<const MultiOpeningClaim<Params>> multi_claims,
                                               const Proof<Params>& proof,
-                                              auto& challenge_generator)
+                                              const auto& transcript)
     {
-        const Fr rho = challenge_generator.generate_challenge();
-        challenge_generator.consume(proof);
-        const Fr r = challenge_generator.generate_challenge();
+        const Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
+        const Fr zeta_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
 
         // compute simulated commitment to [G] as
         //     [Q] - ∑ₖ (1/zₖ(r))[Bₖ]  + ( ∑ₖ (1/zₖ(r)) Tₖ(r) )[1]
@@ -202,7 +206,7 @@ template <typename Params> class MultiBatchOpeningScheme {
         //  [Q] - ∑ₖ (1/zₖ(r)[Bₖ] + C₀[1]
         Commitment commitment = Commitment::zero();
 
-        Fr current_rho{ Fr::one() };
+        Fr current_nu{ Fr::one() };
 
         // iterate over all queries_k = Ωₖ, and openings_k = [(Cⱼ, Yⱼ)]ⱼ
         for (const auto& [queries_k, openings_k] : multi_claims) {
@@ -221,10 +225,10 @@ template <typename Params> class MultiBatchOpeningScheme {
             // - yᵏᵢ = Bₖ(xᵏᵢ) for all k,i
             for (const auto& [C_j, evals_j] : openings_k) {
                 for (size_t i = 0; i < num_queries; ++i) {
-                    merged_evals_k[i] += current_rho * evals_j[i];
+                    merged_evals_k[i] += current_nu * evals_j[i];
                 }
-                merged_commitment += C_j * current_rho;
-                current_rho *= rho;
+                merged_commitment += C_j * current_nu;
+                current_nu *= nu;
             }
 
             // zₖ = ∏ (r − xᵢ), ranging over xᵢ ∈ Ωₖ.
@@ -239,7 +243,7 @@ template <typename Params> class MultiBatchOpeningScheme {
             for (size_t i = 0; i < num_queries; ++i) {
                 Fr x_i{ queries_k[i] };
                 Fr y_i{ merged_evals_k[i] };
-                z_k *= (r - x_i);
+                z_k *= (zeta_challenge - x_i);
 
                 // dᵢ = ∏ { j ≠ i} (xᵢ − xⱼ)
                 Fr d_i{ Fr::one() };
@@ -247,7 +251,7 @@ template <typename Params> class MultiBatchOpeningScheme {
                     if (x_i != x_j) {
                         d_i *= (x_i - x_j);
                     } else {
-                        d_i *= (r - x_i);
+                        d_i *= (zeta_challenge - x_i);
                     }
                 }
                 // NOTE: these inversions are expensive, but this method aims to mimick an
@@ -265,7 +269,7 @@ template <typename Params> class MultiBatchOpeningScheme {
         commitment += proof;
         commitment += Commitment::one() * commitment_constant;
 
-        return { .commitment = commitment, .opening_point = r, .eval = Fr::zero() };
+        return { .commitment = commitment, .opening_point = zeta_challenge, .eval = Fr::zero() };
     };
 };
 } // namespace honk::pcs::shplonk

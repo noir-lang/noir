@@ -1,4 +1,5 @@
 #include "transcript.hpp"
+#include "transcript/manifest.hpp"
 #include <array>
 #include <common/throw_or_abort.hpp>
 #include <common/assert.hpp>
@@ -100,6 +101,32 @@ void Transcript::compute_challenge_map()
             for (const auto& element : manifest.elements) {
                 challenge_map.insert({ element.name, element.challenge_map_index });
             }
+        }
+    }
+}
+
+/**
+ * @brief Mock prover transcript interactions up to fiat-shamir of a given challenge.
+ *
+ * @details This is useful for testing individual parts of the prover since all
+ * transcript interactions must occur sequentially according to the manifest.
+ *
+ * @param challenge_in
+ */
+void Transcript::mock_inputs_prior_to_challenge(const std::string& challenge_in)
+{
+    // Perform operations only up to fiat-shamir of challenge_in
+    for (auto& manifest : manifest.get_round_manifests()) // loop over RoundManifests
+    {
+        for (auto& entry : manifest.elements) // loop over ManifestEntrys
+        {
+            std::vector<uint8_t> buffer(entry.num_bytes, 1); // arbitrary buffer of 1's
+            add_element(entry.name, buffer);
+        }
+        if (challenge_in == manifest.challenge) {
+            break;
+        } else {
+            apply_fiat_shamir(manifest.challenge);
         }
     }
 }

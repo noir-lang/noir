@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <gtest/gtest.h>
 
 #include <concepts>
@@ -11,7 +12,8 @@
 #include <ecc/curves/bn254/g1.hpp>
 
 #include "../oracle/oracle.hpp"
-#include "../transcript/transcript.hpp"
+#include "../../transcript/transcript_wrappers.hpp"
+#include "../../proof_system/flavor/flavor.hpp"
 
 #include "claim.hpp"
 #include "commitment_key.hpp"
@@ -54,14 +56,11 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     using Fr = typename Params::Fr;
     using Commitment = typename Params::Commitment;
     using Polynomial = typename Params::Polynomial;
+    using Transcript = transcript::StandardTranscript;
 
   public:
     CommitmentTest()
-        : prover_transcript{}
-        , verifier_transcript{}
-        , prover_challenges{ &prover_transcript }
-        , verifier_challenges{ &verifier_transcript }
-        , engine{ &numeric::random::get_debug_engine() }
+        : engine{ &numeric::random::get_debug_engine() }
     {}
 
     CK* ck() { return commitment_key; }
@@ -168,16 +167,6 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
         }
     }
 
-    template <typename... T> void consume(const T&... args)
-    {
-        (prover_challenges.consume(args), ...);
-        (verifier_challenges.consume(args), ...);
-    }
-
-    Transcript<Fr> prover_transcript;
-    Transcript<Fr> verifier_transcript;
-    Oracle<Transcript<Fr>> prover_challenges;
-    Oracle<Transcript<Fr>> verifier_challenges;
     numeric::random::Engine* engine;
 
     // Per-test-suite set-up.
@@ -212,7 +201,9 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 template <typename Params> typename Params::CK* CommitmentTest<Params>::commitment_key = nullptr;
 template <typename Params> typename Params::VK* CommitmentTest<Params>::verification_key = nullptr;
 
-using CommitmentSchemeParams =
-    ::testing::Types<fake::Params<barretenberg::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
+using CommitmentSchemeParams = ::testing::Types<kzg::Params>;
+// IMPROVEMENT: reinstate typed-tests for multiple field types, i.e.:
+// using CommitmentSchemeParams =
+//     ::testing::Types<fake::Params<barretenberg::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
 
 } // namespace honk::pcs
