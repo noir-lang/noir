@@ -1,22 +1,21 @@
-use std::collections::HashSet;
-use std::{collections::BTreeMap, path::PathBuf};
-
-use acvm::acir::circuit::PublicInputs;
-use acvm::acir::native_types::Witness;
-use acvm::FieldElement;
-use acvm::ProofSystemCompiler;
-use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
-use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::{Format, InputValue};
-use std::path::Path;
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::{Path, PathBuf},
+};
 
-use crate::errors::CliError;
+use acvm::acir::{circuit::PublicInputs, native_types::Witness, FieldElement};
+use acvm::{GateResolution, PartialWitnessGenerator, ProofSystemCompiler};
+use noirc_abi::{
+    errors::AbiError,
+    input_parser::{Format, InputValue},
+};
 
 use super::{
     create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file, PROOFS_DIR,
     PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
 };
+use crate::errors::CliError;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();

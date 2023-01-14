@@ -1,13 +1,18 @@
-use super::compile_cmd::compile_circuit;
-use super::prove_cmd::dedup_public_input_indices_values;
-use super::{read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::errors::CliError;
-use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::{Format, InputValue};
-use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
+
+use acvm::ProofSystemCompiler;
+use noirc_abi::{
+    errors::AbiError,
+    input_parser::{Format, InputValue},
+};
+use noirc_driver::CompiledProgram;
+
+use super::{
+    compile_cmd::compile_circuit, prove_cmd::dedup_public_input_indices_values,
+    read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE,
+};
+use crate::errors::CliError;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
