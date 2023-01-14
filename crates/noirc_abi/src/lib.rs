@@ -141,12 +141,23 @@ impl Abi {
     pub fn encode(
         self,
         inputs: &BTreeMap<String, InputValue>,
-        allow_undefined_return: bool,
+        skip_output: bool,
     ) -> Result<Vec<FieldElement>, AbiError> {
-        let param_names = self.parameter_names();
+        // Condition that specifies whether we should filter the "return"
+        // parameter. We do this in the case that it is not in the `inputs`
+        // map specified.
+        // TODO Adding a `public outputs` field into acir and
+        // TODO the ABI will clean up this logic
+        // TODO For prosperity; the prover does not know about a `return` value
+        // TODO so we skip this when encoding the ABI
+        let return_condition =
+            |param_name: &&String| !skip_output || (param_name != &MAIN_RETURN_NAME);
+
+        let parameters = self.parameters.iter().filter(|param| return_condition(&&param.name));
+        let param_names: Vec<&String> = parameters.clone().map(|param| &param.name).collect();
         let mut encoded_inputs = Vec::new();
 
-        for param in self.parameters.iter() {
+        for param in parameters {
             let value = inputs
                 .get(&param.name)
                 .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
@@ -154,26 +165,6 @@ impl Abi {
 
             if !value.matches_abi(&param.typ) {
                 return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
-            }
-
-            // As the circuit calculates the return value in the process of calculating rest of the witnesses
-            // it's not absolutely necessary to provide them as inputs. We then tolerate an undefined value for
-            // the return value input and just skip it.
-            if allow_undefined_return
-                && param.name == MAIN_RETURN_NAME
-                && matches!(value, InputValue::Undefined)
-            {
-                let return_witness_len = param.typ.field_count();
-
-                // We do not support undefined arrays for now - TODO
-                if return_witness_len != 1 {
-                    return Err(AbiError::Generic(
-                        "Values of array returned from main must be specified".to_string(),
-                    ));
-                } else {
-                    // This assumes that the return value is at the end of the ABI, otherwise values will be misaligned.
-                    continue;
-                }
             }
 
             encoded_inputs.extend(Self::encode_value(value, &param.name)?);
@@ -221,7 +212,6 @@ impl Abi {
 
         let mut index = 0;
         let mut decoded_inputs = BTreeMap::new();
-
         for param in &self.parameters {
             let (next_index, decoded_value) =
                 Self::decode_value(index, encoded_inputs, &param.typ)?;
