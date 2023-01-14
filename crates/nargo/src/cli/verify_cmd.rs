@@ -1,4 +1,5 @@
 use super::compile_cmd::compile_circuit;
+use super::prove_cmd::dedup_public_input_indices_values;
 use super::{read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::errors::CliError;
 use acvm::ProofSystemCompiler;
@@ -56,7 +57,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
 }
 
 fn verify_proof(
-    compiled_program: CompiledProgram,
+    mut compiled_program: CompiledProgram,
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
@@ -68,8 +69,14 @@ fn verify_proof(
         _ => CliError::from(error),
     })?;
 
+    // Similarly to when proving -- we must remove the duplicate public witnesses which
+    // can be present because a public input can also be added as a public output.
+    let (dedup_public_indices, dedup_public_values) =
+        dedup_public_input_indices_values(compiled_program.circuit.public_inputs, public_inputs);
+    compiled_program.circuit.public_inputs = dedup_public_indices;
+
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+    let valid_proof = backend.verify_from_cs(&proof, dedup_public_values, compiled_program.circuit);
 
     Ok(valid_proof)
 }

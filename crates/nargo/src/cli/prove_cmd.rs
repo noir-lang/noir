@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::{collections::BTreeMap, path::PathBuf};
 
+use acvm::acir::circuit::PublicInputs;
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
@@ -127,10 +129,18 @@ pub fn prove_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) =
+    let (mut compiled_program, solved_witness) =
         compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
+
+    // Since the public outputs are added into the public inputs list
+    // There can be duplicates. We keep the duplicates for when one is
+    // encoding the return values into the Verifier.toml
+    // However, for creating a proof, we remove these duplicates.
+    compiled_program.circuit.public_inputs =
+        dedup_public_input_indices(compiled_program.circuit.public_inputs);
+
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
@@ -144,4 +154,35 @@ pub fn prove_with_path<P: AsRef<Path>>(
     println!("{:?}", std::fs::canonicalize(&proof_path));
 
     Ok(proof_path)
+}
+
+// Removes duplicates from the list of public input witnesses
+fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
+    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
+    PublicInputs(duplicates_removed.into_iter().collect())
+}
+
+// Removes duplicates from the list of public input witnesses and the
+// associated list of duplicate values.
+pub(crate) fn dedup_public_input_indices_values(
+    indices: PublicInputs,
+    values: Vec<FieldElement>,
+) -> (PublicInputs, Vec<FieldElement>) {
+    // Assume that the public input index lists and the values contain duplicates
+    assert_eq!(indices.0.len(), values.len());
+
+    let mut public_inputs_without_duplicates = Vec::new();
+    let mut already_seen_public_indices = HashSet::new();
+
+    for (index, value) in indices.0.iter().zip(values) {
+        if !already_seen_public_indices.contains(&index) {
+            already_seen_public_indices.insert(index);
+            public_inputs_without_duplicates.push(value)
+        }
+    }
+
+    (
+        PublicInputs(already_seen_public_indices.into_iter().cloned().collect()),
+        public_inputs_without_duplicates,
+    )
 }
