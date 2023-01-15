@@ -16,8 +16,3 @@ fm.workspace = true
 serde.workspace = true
 dirs.workspace = true
 pathdiff.workspace = true
-
-[features]
-default = []
-std = ["fm/std"]
-wasm = ["fm/wasm"]
