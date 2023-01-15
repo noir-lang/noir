@@ -94,7 +94,7 @@ impl Memory {
     }
 
     pub fn as_u32(value: FieldElement) -> u32 {
-        let big_v = BigUint::from_bytes_be(&value.to_bytes());
+        let big_v = BigUint::from_bytes_be(&value.to_be_bytes());
         let mut modulus = BigUint::from(2_u32);
         modulus = modulus.pow(32);
         let result = big_v % modulus;

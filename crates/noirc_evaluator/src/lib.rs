@@ -1,8 +1,9 @@
 mod errors;
 mod ssa;
 
-use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
+use acvm::acir::circuit::{opcodes::Opcode as Gate, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
+use acvm::compiler::fallback::IsBlackBoxSupported;
 use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
@@ -31,6 +32,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
+    is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
@@ -43,11 +45,15 @@ pub fn create_circuit(
     let optimised_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
-            gates: evaluator.gates,
+            opcodes: evaluator.gates,
             public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
-    );
+        is_blackbox_supported,
+    )
+    // TODO: We should move the optimisation pass
+    // TODO out of this and just create the circuit
+    .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     Ok(optimised_circuit)
 }

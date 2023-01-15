@@ -549,7 +549,7 @@ impl SsaContext {
     // Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
+        let value = BigUint::from_bytes_be(&x.to_be_bytes()); //TODO a const should be a field element
         if let Some(prev_const) = self.find_const_with_type(&value, t) {
             return prev_const;
         }

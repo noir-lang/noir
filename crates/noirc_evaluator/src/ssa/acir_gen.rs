@@ -14,9 +14,11 @@ use crate::ssa::context::SsaContext;
 use crate::ssa::node::Node;
 use crate::ssa::{mem, node};
 use crate::Evaluator;
-use crate::Gate;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
+use acvm::acir::circuit::directives::Directive;
+use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
+
+use acvm::acir::circuit::Opcode as Gate;
 use acvm::acir::native_types::{Expression, Linear, Witness};
 use num_bigint::BigUint;
 
@@ -289,7 +291,7 @@ impl Acir {
                     let mut sub_var = sub_expr.into();
                     //TODO: uses interval analysis for more precise check
                     if let Some(lhs_const) = l_c.to_const() {
-                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_bytes()) {
+                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_be_bytes()) {
                             sub_var = InternalVar::from(subtract(
                                 &l_c.expression,
                                 FieldElement::one(),
@@ -498,8 +500,8 @@ impl Acir {
         args: &[NodeId],
         cfg: &SsaContext,
         evaluator: &mut Evaluator,
-    ) -> Vec<GadgetInput> {
-        let mut inputs: Vec<GadgetInput> = Vec::new();
+    ) -> Vec<FunctionInput> {
+        let mut inputs: Vec<FunctionInput> = Vec::new();
 
         for a in args {
             let l_obj = cfg.try_get_node(*a).unwrap();
@@ -513,17 +515,17 @@ impl Acir {
                                 let address = array.adr + i;
                                 if self.memory_map.contains_key(&address) {
                                     if let Some(wit) = self.memory_map[&address].witness {
-                                        inputs.push(GadgetInput { witness: wit, num_bits });
+                                        inputs.push(FunctionInput { witness: wit, num_bits });
                                     } else {
                                         //TODO we should store the witnesses somewhere, else if the inputs are re-used
                                         //we will duplicate the witnesses.
                                         let w = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
-                                        inputs.push(GadgetInput { witness: w, num_bits });
+                                        inputs.push(FunctionInput { witness: w, num_bits });
                                     }
                                 } else {
-                                    inputs.push(GadgetInput {
+                                    inputs.push(FunctionInput {
                                         witness: array.values[i as usize].witness.unwrap(),
                                         num_bits,
                                     });
@@ -532,7 +534,8 @@ impl Acir {
                         }
                         _ => {
                             if let Some(w) = v.witness {
-                                inputs.push(GadgetInput { witness: w, num_bits: v.size_in_bits() });
+                                inputs
+                                    .push(FunctionInput { witness: w, num_bits: v.size_in_bits() });
                             } else {
                                 todo!("generate a witness");
                             }
@@ -544,7 +547,7 @@ impl Acir {
                         let mut var = self.arith_cache[a].clone();
                         let witness =
                             var.witness.unwrap_or_else(|| var.generate_witness(evaluator));
-                        inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
+                        inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         unreachable!("invalid input: {:?}", l_obj)
                     }
@@ -587,12 +590,12 @@ impl Acir {
                 let output_count = op.definition().output_size.0 as u32;
                 outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
 
-                let call_gate = GadgetCall {
+                let call_gate = BlackBoxFuncCall {
                     name: op,
                     inputs,                   //witness + bit size
                     outputs: outputs.clone(), //witness
                 };
-                evaluator.gates.push(Gate::GadgetCall(call_gate));
+                evaluator.gates.push(Gate::BlackBoxFuncCall(call_gate));
             }
         }
 
@@ -825,12 +828,17 @@ pub fn evaluate_and(
     let result = evaluator.add_witness_to_cs();
     let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bsize < FieldElement::max_num_bits() - 1);
-    evaluator.gates.push(Gate::And(acvm::acir::circuit::gate::AndGate {
-        a: a_witness,
-        b: b_witness,
-        result,
-        num_bits: bsize,
-    }));
+
+    let gate = Gate::BlackBoxFuncCall(BlackBoxFuncCall {
+        name: acvm::acir::BlackBoxFunc::AND,
+        inputs: vec![
+            FunctionInput { witness: a_witness, num_bits: bsize },
+            FunctionInput { witness: b_witness, num_bits: bsize },
+        ],
+        outputs: vec![result],
+    });
+    evaluator.gates.push(gate);
+
     Expression::from(Linear::from_witness(result))
 }
 
@@ -858,12 +866,17 @@ pub fn evaluate_xor(
     let b_witness = rhs.generate_witness(evaluator);
     let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bsize < FieldElement::max_num_bits() - 1);
-    evaluator.gates.push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
-        a: a_witness,
-        b: b_witness,
-        result,
-        num_bits: bsize,
-    }));
+
+    let gate = Gate::BlackBoxFuncCall(BlackBoxFuncCall {
+        name: acvm::acir::BlackBoxFunc::XOR,
+        inputs: vec![
+            FunctionInput { witness: a_witness, num_bits: bsize },
+            FunctionInput { witness: b_witness, num_bits: bsize },
+        ],
+        outputs: vec![result],
+    });
+    evaluator.gates.push(gate);
+
     from_witness(result)
 }
 
@@ -910,7 +923,7 @@ pub fn evaluate_truncate(
 
     //0. Check for constant expression. This can happen through arithmetic simplifications
     if let Some(a_c) = lhs.to_const() {
-        let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         let two = BigUint::from(2_u32);
         a_big %= two.pow(rhs);
         return InternalVar::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
@@ -954,7 +967,7 @@ pub fn evaluate_udiv(
         b: rhs.expression.clone(),
         q: q_witness,
         r: r_witness,
-        predicate: Some(Box::new(predicate.expression.clone())),
+        predicate: Some(predicate.expression.clone()),
     }));
 
     //r<b
@@ -1260,7 +1273,7 @@ pub fn range_constraint(
         // new witnesses; r is constrained to num_bits-1 and b is 1 bit
         let r_witness = evaluator.add_witness_to_cs();
         let b_witness = evaluator.add_witness_to_cs();
-        evaluator.gates.push(Gate::Directive(Directive::Oddrange {
+        evaluator.gates.push(Gate::Directive(Directive::OddRange {
             a: witness,
             b: b_witness,
             r: r_witness,
@@ -1277,7 +1290,12 @@ pub fn range_constraint(
         let my_constraint = add(&res, -FieldElement::one(), &from_witness(witness));
         evaluator.gates.push(Gate::Arithmetic(my_constraint));
     } else {
-        evaluator.gates.push(Gate::Range(witness, num_bits));
+        let gate = Gate::BlackBoxFuncCall(BlackBoxFuncCall {
+            name: acvm::acir::BlackBoxFunc::RANGE,
+            inputs: vec![FunctionInput { witness: witness, num_bits }],
+            outputs: vec![],
+        });
+        evaluator.gates.push(gate);
     }
 
     Ok(())

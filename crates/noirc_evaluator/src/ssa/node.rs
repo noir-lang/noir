@@ -248,7 +248,7 @@ impl ObjectType {
     pub fn max_size(&self) -> BigUint {
         match self {
             &ObjectType::NativeField => {
-                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_bytes())
+                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_be_bytes())
             }
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
