@@ -1292,7 +1292,7 @@ pub fn range_constraint(
     } else {
         let gate = Gate::BlackBoxFuncCall(BlackBoxFuncCall {
             name: acvm::acir::BlackBoxFunc::RANGE,
-            inputs: vec![FunctionInput { witness: witness, num_bits }],
+            inputs: vec![FunctionInput { witness, num_bits }],
             outputs: vec![],
         });
         evaluator.gates.push(gate);

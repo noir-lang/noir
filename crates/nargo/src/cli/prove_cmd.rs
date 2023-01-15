@@ -106,7 +106,7 @@ fn solve_witness(
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone());
 
-    solver_res.map_err(|res_err| CliError::from(res_err))?;
+    solver_res.map_err(CliError::from)?;
 
     Ok(solved_witness)
 }

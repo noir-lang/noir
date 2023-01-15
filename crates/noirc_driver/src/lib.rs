@@ -1,5 +1,4 @@
 use acvm::acir::circuit::Circuit;
-use acvm::default_is_blackbox_supported;
 
 use acvm::Language;
 use fm::FileType;
@@ -161,6 +160,7 @@ impl Driver {
         Some(abi)
     }
 
+    #[allow(deprecated)]
     pub fn into_compiled_program(
         mut self,
         np_language: acvm::Language,
@@ -194,7 +194,7 @@ impl Driver {
         let circuit = match create_circuit(
             ast,
             np_language.clone(),
-            default_is_blackbox_supported(np_language),
+            acvm::default_is_blackbox_supported(np_language),
             show_ssa,
         ) {
             Ok(circuit) => circuit,
