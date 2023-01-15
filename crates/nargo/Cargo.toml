@@ -13,7 +13,7 @@ dirs = "4"
 dirs.workspace = true
 url.workspace = true
 iter-extended.workspace = true
-noirc_driver = { path = "../noirc_driver", features = ["std"] }
+noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_abi.workspace = true
 fm.workspace = true

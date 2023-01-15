@@ -48,13 +48,13 @@ impl TypeCheckError {
                 diag
             }
             TypeCheckError::OpCannotBeUsed { op, place, span } => Diagnostic::simple_error(
-                format!("The operator {:?} cannot be used in a {}", op, place),
+                format!("The operator {op:?} cannot be used in a {place}"),
                 String::new(),
                 span,
             ),
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
-                    format!("Expected type {}, found type {}", expected_typ, expr_typ),
+                    format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     expr_span,
                 )
@@ -69,18 +69,17 @@ impl TypeCheckError {
             } => {
                 let mut diag = Diagnostic::simple_error(
                     format!(
-                        "Non homogeneous array, different element types found at indices ({},{})",
-                        first_index, second_index
+                        "Non homogeneous array, different element types found at indices ({first_index},{second_index})"
                     ),
-                    format!("Found type {}", first_type),
+                    format!("Found type {first_type}"),
                     first_span,
                 );
-                diag.add_secondary(format!("but then found type {}", second_type), second_span);
+                diag.add_secondary(format!("but then found type {second_type}"), second_span);
                 diag
             }
             TypeCheckError::ArityMisMatch { expected, found, span } => {
                 let plural = if expected == 1 { "" } else { "s" };
-                let msg = format!("Expected {} argument{}, but found {}", expected, plural, found);
+                let msg = format!("Expected {expected} argument{plural}, but found {found}");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
             TypeCheckError::Unstructured { msg, span } => {
@@ -88,7 +87,7 @@ impl TypeCheckError {
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
-                format!("return type is {}", typ),
+                format!("return type is {typ}"),
                 span,
             ),
         }

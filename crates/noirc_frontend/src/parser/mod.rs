@@ -340,7 +340,7 @@ impl ForRange {
                 let start_range = Expression::new(start_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let fresh_name1 = format!("$i{}", next_unique_id);
+                let fresh_name1 = format!("$i{next_unique_id}");
                 let array_span = array.span;
                 let fresh_ident1 = Ident::new(fresh_name1.clone(), array_span);
 
@@ -363,7 +363,7 @@ impl ForRange {
                 let end_range = Expression::new(end_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let fresh_name = format!("$i{}", next_unique_id);
+                let fresh_name = format!("$i{next_unique_id}");
                 let fresh_identifier = Ident::new(fresh_name.clone(), array_span);
 
                 // array[i]
@@ -402,7 +402,7 @@ impl std::fmt::Display for TopLevelStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => write!(f, "mod {}", m),
+            TopLevelStatement::Module(m) => write!(f, "mod {m}"),
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
@@ -416,31 +416,31 @@ impl std::fmt::Display for TopLevelStatement {
 impl std::fmt::Display for ParsedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for decl in &self.module_decls {
-            writeln!(f, "mod {};", decl)?;
+            writeln!(f, "mod {decl};")?;
         }
 
         for import in &self.imports {
-            write!(f, "{}", import)?;
+            write!(f, "{import}")?;
         }
 
         for global_const in &self.globals {
-            write!(f, "{}", global_const)?;
+            write!(f, "{global_const}")?;
         }
 
         for type_ in &self.types {
-            write!(f, "{}", type_)?;
+            write!(f, "{type_}")?;
         }
 
         for function in &self.functions {
-            write!(f, "{}", function)?;
+            write!(f, "{function}")?;
         }
 
         for impl_ in &self.impls {
-            write!(f, "{}", impl_)?;
+            write!(f, "{impl_}")?;
         }
 
         for submodule in &self.submodules {
-            write!(f, "{}", submodule)?;
+            write!(f, "{submodule}")?;
         }
 
         Ok(())
@@ -452,7 +452,7 @@ impl std::fmt::Display for SubModule {
         write!(f, "mod {} {{", self.name)?;
 
         for line in self.contents.to_string().lines() {
-            write!(f, "\n    {}", line)?;
+            write!(f, "\n    {line}")?;
         }
 
         write!(f, "\n}}")

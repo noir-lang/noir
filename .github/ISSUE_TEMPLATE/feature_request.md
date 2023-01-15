@@ -8,16 +8,16 @@ assignees: ""
 
 # Problem
 
-(Describe the problem your suggestion sets out to solve.)
+<!-- Describe the problem your suggestion sets out to solve. -->
 
 # Solution
 
-(Describe your suggestion.)
+<!-- Describe your suggestion. -->
 
 # Alternatives considered
 
-(Describe any alternative solutions you have considered.)
+<!-- Describe any alternative solutions you have considered. -->
 
 # Additional context
 
-(If applicable.)
+<!-- If applicable. -->

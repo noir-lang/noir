@@ -197,7 +197,7 @@ impl Abi {
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::Struct(object) => {
                 for (field_name, value) in object {
-                    let new_name = format!("{}.{}", param_name, field_name);
+                    let new_name = format!("{param_name}.{field_name}");
                     encoded_value.extend(Self::encode_value(value, &new_name)?)
                 }
             }

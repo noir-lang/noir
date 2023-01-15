@@ -137,13 +137,13 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Token::Ident(ref s) => write!(f, "{}", s),
+            Token::Ident(ref s) => write!(f, "{s}"),
             Token::Int(n) => write!(f, "{}", n.to_u128()),
-            Token::Bool(b) => write!(f, "{}", b),
-            Token::Str(ref b) => write!(f, "{}", b),
-            Token::Keyword(k) => write!(f, "{}", k),
-            Token::Attribute(ref a) => write!(f, "{}", a),
-            Token::IntType(ref i) => write!(f, "{}", i),
+            Token::Bool(b) => write!(f, "{b}"),
+            Token::Str(ref b) => write!(f, "{b}"),
+            Token::Keyword(k) => write!(f, "{k}"),
+            Token::Attribute(ref a) => write!(f, "{a}"),
+            Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -178,7 +178,7 @@ impl fmt::Display for Token {
             Token::Bang => write!(f, "!"),
             Token::Underscore => write!(f, "_"),
             Token::EOF => write!(f, "end of input"),
-            Token::Invalid(c) => write!(f, "{}", c),
+            Token::Invalid(c) => write!(f, "{c}"),
         }
     }
 }
@@ -196,7 +196,7 @@ pub enum TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenKind::Token(ref tok) => write!(f, "{}", tok),
+            TokenKind::Token(ref tok) => write!(f, "{tok}"),
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
@@ -237,8 +237,8 @@ pub enum IntType {
 impl fmt::Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            IntType::Unsigned(num) => write!(f, "u{}", num),
-            IntType::Signed(num) => write!(f, "i{}", num),
+            IntType::Unsigned(num) => write!(f, "u{num}"),
+            IntType::Signed(num) => write!(f, "i{num}"),
         }
     }
 }
@@ -292,9 +292,9 @@ pub enum Attribute {
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Attribute::Foreign(ref k) => write!(f, "#[foreign({})]", k),
-            Attribute::Builtin(ref k) => write!(f, "#[builtin({})]", k),
-            Attribute::Alternative(ref k) => write!(f, "#[alternative({})]", k),
+            Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
+            Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
+            Attribute::Alternative(ref k) => write!(f, "#[alternative({k})]"),
         }
     }
 }
@@ -379,6 +379,7 @@ pub enum Keyword {
     Mod,
     Mut,
     Pub,
+    Return,
     Struct,
     Use,
     While,
@@ -405,6 +406,7 @@ impl fmt::Display for Keyword {
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
+            Keyword::Return => write!(f, "return"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Use => write!(f, "use"),
             Keyword::While => write!(f, "while"),
@@ -436,6 +438,7 @@ impl Keyword {
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
+            "return" => Keyword::Return,
             "struct" => Keyword::Struct,
             "use" => Keyword::Use,
             "while" => Keyword::While,

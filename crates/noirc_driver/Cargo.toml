@@ -14,7 +14,6 @@ noirc_abi.workspace = true
 acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
 fm.workspace = true
 serde.workspace = true
-
 dirs.workspace = true
 pathdiff.workspace = true
 
