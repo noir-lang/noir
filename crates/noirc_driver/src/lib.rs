@@ -1,4 +1,6 @@
 use acvm::acir::circuit::Circuit;
+use acvm::default_is_blackbox_supported;
+
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -189,7 +191,12 @@ impl Driver {
         let ast = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match create_circuit(ast, np_language, show_ssa) {
+        let circuit = match create_circuit(
+            ast,
+            np_language.clone(),
+            default_is_blackbox_supported(np_language),
+            show_ssa,
+        ) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
