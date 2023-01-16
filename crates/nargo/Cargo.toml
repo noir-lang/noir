@@ -13,7 +13,7 @@ dirs = "4"
 dirs = "3.0.1"
 url = "2.2.0"
 iter-extended = { path = "../iter-extended" }
-noirc_driver = { path = "../noirc_driver", features = ["std"] }
+noirc_driver = { path = "../noirc_driver" }
 noirc_frontend = { path = "../noirc_frontend" }
 noirc_abi = { path = "../noirc_abi" }
 fm = { path = "../fm" }

@@ -17,8 +17,3 @@ serde = { version = "1.0.136", features = ["derive"] }
 
 dirs = "3.0"
 pathdiff = "0.2"
-
-[features]
-default = []
-std = ["fm/std"]
-wasm = ["fm/wasm"]
