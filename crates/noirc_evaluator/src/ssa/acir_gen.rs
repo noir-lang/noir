@@ -177,7 +177,44 @@ impl Acir {
                 InternalVar::from(v)
             }
             Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
-            Operation::Return(_) => todo!(), //return from main
+            Operation::Return(node_ids) => {
+                // This can only ever be called in the main context.
+                // In all other context's, the return operation is transformed.
+
+                for node_id in node_ids {
+                    // An array produces a single node_id
+                    // We therefore need to check if the node_id is referring to an array
+                    // and deference to get the elements
+                    let objects = match Memory::deref(ctx, *node_id) {
+                        Some(a) => {
+                            let array = &ctx.mem[a];
+                            self.load_array(array, false, evaluator)
+                        }
+                        None => vec![self.substitute(*node_id, evaluator, ctx)],
+                    };
+
+                    for mut object in objects {
+                        // TODO(Open issue): We want to semantically specify that
+                        // TODO you cannot return constant values as public outputs.
+                        // TODO: in that case, you should just have a constant.
+                        // TODO: For now, we will support this usecase.
+                        let witness = if object.expression.is_const() {
+                            evaluator.create_intermediate_variable(object.expression)
+                        } else {
+                            object.generate_witness(evaluator)
+                        };
+
+                        // Before pushing to the public inputs, we need to check that
+                        // it was not a private ABI input
+                        if evaluator.is_private_abi_input(witness) {
+                            todo!("we do not allow private ABI inputs to be used as public outputs")
+                        }
+                        evaluator.public_inputs.push(witness);
+                    }
+                }
+
+                InternalVar::default()
+            }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self.substitute(*condition, evaluator, ctx);
                 let l_c = self.substitute(*lhs, evaluator, ctx);
@@ -229,35 +266,6 @@ impl Acir {
                 } else {
                     todo!("dynamic arrays are not implemented yet");
                 }
-            }
-            Operation::SetPub(node_ids, _) => {
-                for node_id in node_ids {
-                    // An array produces a single node_id
-                    // We therefore need to check if the node_id is referring to an array
-                    // and deference to get the elements
-                    let objects = match Memory::deref(ctx, *node_id) {
-                        Some(a) => {
-                            let array = &ctx.mem[a];
-                            self.load_array(array, false, evaluator)
-                        }
-                        None => vec![self.substitute(*node_id, evaluator, ctx)],
-                    };
-
-                    for mut object in objects {
-                        // TODO(Open issue): We want to semantically specify that
-                        // TODO you cannot return constant values as public outputs.
-                        // TODO: in that case, you should just have a constant.
-                        // TODO: For now, we will support this usecase.
-                        let witness = if object.expression.is_const() {
-                            evaluator.create_intermediate_variable(object.expression)
-                        } else {
-                            object.generate_witness(evaluator)
-                        };
-                        evaluator.public_inputs.push(witness);
-                    }
-                }
-
-                InternalVar::default()
             }
         };
         output.id = Some(ins.id);
