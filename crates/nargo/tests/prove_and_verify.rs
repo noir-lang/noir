@@ -4,10 +4,10 @@ use std::fs;
 const TEST_DIR: &str = "tests";
 const TEST_DATA_DIR: &str = "test_data";
 const CONFIG_FILE: &str = "config.toml";
-
+#[cfg(test)]
 mod tests {
     use super::*;
-
+    use rayon::prelude::*;
     fn load_conf(conf_path: &str) -> BTreeMap<String, Vec<String>> {
         // Parse config.toml into a BTreeMap, do not fail if config file does not exist.
         let mut conf_data = match toml::from_str(conf_path) {
@@ -40,18 +40,29 @@ mod tests {
         cdir.push(TEST_DIR);
         cdir.push(TEST_DATA_DIR);
 
-        for c in fs::read_dir(cdir.as_path()).unwrap().flatten() {
-            let test_name = c.file_name().into_string();
-            if let Ok(str) = test_name {
-                if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                    let r = nargo::cli::prove_and_verify("pp", &c.path(), false);
-                    if conf_data["fail"].contains(&str) {
-                        assert!(!r, "{:?} should not succeed", c.file_name());
-                    } else {
-                        assert!(r, "verification fail for {:?}", c.file_name());
-                    }
+        let flattened_paths: Vec<_> = fs::read_dir(cdir.as_path()).unwrap().flatten().collect();
+
+        let proof_results: Vec<_> = flattened_paths
+            .into_par_iter()
+            .map(|flattened_path| {
+                let path_name = flattened_path.file_name().into_string().unwrap();
+                (flattened_path, path_name)
+            })
+            .filter(|(flattened_path, path_name)| {
+                flattened_path.path().is_dir() && !conf_data["exclude"].contains(&path_name)
+            })
+            .map(|(c, test_name)| {
+                let r = nargo::cli::prove_and_verify("pp", &c.path(), false);
+                if conf_data["fail"].contains(&test_name) {
+                    (!r, format!("{:?} should not succeed", c.file_name()))
+                } else {
+                    (r, format!("verification fail for {:?}", c.file_name()))
                 }
-            }
+            })
+            .collect();
+
+        for (proof_res, assert_condition) in proof_results {
+            assert!(proof_res, "{}", assert_condition);
         }
     }
 }
