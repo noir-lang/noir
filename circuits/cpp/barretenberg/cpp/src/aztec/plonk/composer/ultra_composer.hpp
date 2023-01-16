@@ -18,9 +18,10 @@ class UltraComposer : public ComposerBase {
     // The plookup range proof requires work linear in range size, thus cannot be used directly for
     // large ranges such as 2^64. For such ranges the element will be decomposed into smaller
     // chuncks according to the parameter below
-    static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 9;
+    static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 14;
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_STEP_SIZE = 3;
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1 << DEFAULT_PLOOKUP_RANGE_BITNUM) - 1;
+    static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS = 68;
     static constexpr uint32_t UNINITIALIZED_MEMORY_RECORD = UINT32_MAX;
 
     struct non_native_field_witnesses {
@@ -315,12 +316,14 @@ class UltraComposer : public ComposerBase {
     /**
      * Non Native Field Arithmetic
      **/
-    void range_constrain_two_limbs(const uint32_t lo_idx, const uint32_t hi_idx);
-    std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(const uint32_t limb_idx);
+    void range_constrain_two_limbs(const uint32_t lo_idx,
+                                   const uint32_t hi_idx,
+                                   const size_t lo_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS,
+                                   const size_t hi_limb_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
+        const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
     std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
-        const non_native_field_witnesses& input,
-        const bool range_constrain_quotient_and_remainder = true,
-        const bool range_constrain_remainders = true);
+        const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true);
     std::array<uint32_t, 2> evaluate_partial_non_native_field_multiplication(const non_native_field_witnesses& input);
     typedef std::pair<uint32_t, barretenberg::fr> scaled_witness;
     typedef std::tuple<scaled_witness, scaled_witness, barretenberg::fr> add_simple;

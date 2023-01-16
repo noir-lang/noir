@@ -19,9 +19,9 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 
 #define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer) ? "StandardPlonk"                                            \
-     : typeid(composer) == typeid(waffle::TurboComposer)  ? "TurboPlonk"                                               \
-                                                          : "NULLPlonk")
+    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
+         ? "StandardPlonk"                                                                                             \
+         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
 
 namespace test_stdlib_bigfield {
 using namespace barretenberg;
@@ -103,7 +103,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
     static void test_mul()
     {
         auto composer = Composer();
-        size_t num_repetitions = 1;
+        size_t num_repetitions = 4;
         for (size_t i = 0; i < num_repetitions; ++i) {
             fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
             fq_ct a(witness_ct(&composer, fr(uint256_t(inputs[0]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
@@ -115,7 +115,8 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
             uint64_t before = composer.get_num_gates();
             fq_ct c = a * b;
             uint64_t after = composer.get_num_gates();
-            if (i == num_repetitions - 1) {
+            // Don't profile 1st repetition. It sets up a lookup table, cost is not representative of a typical mul
+            if (i == num_repetitions - 2) {
                 std::cerr << "num gates per mul = " << after - before << std::endl;
                 benchmark_info(GET_COMPOSER_NAME_STRING(Composer), "Bigfield", "MUL", "Gate Count", after - before);
             }

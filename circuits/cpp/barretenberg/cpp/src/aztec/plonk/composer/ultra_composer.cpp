@@ -1238,8 +1238,18 @@ std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t
     return sublimb_indices;
 }
 
+/**
+ * @brief Constrain a variable to a range
+ *
+ * @details Checks if the range [0, target_range] already exists. If it doesn't, then creates a new range. Then tags
+ * variable as belonging to this set.
+ *
+ * @param variable_index
+ * @param target_range
+ */
 void UltraComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
 {
+    ASSERT(target_range != 0);
     if (range_lists.count(target_range) == 0) {
         range_lists.insert({ target_range, create_range_list(target_range) });
     }
@@ -1677,24 +1687,50 @@ void UltraComposer::apply_aux_selectors(const AUX_SELECTORS type)
  * Applies range constraints to two 70-bit limbs, splititng each into 5 14-bit sublimbs.
  * We can efficiently chain together two 70-bit limb checks in 3 gates, using auxiliary gates
  **/
-void UltraComposer::range_constrain_two_limbs(const uint32_t lo_idx, const uint32_t hi_idx)
+void UltraComposer::range_constrain_two_limbs(const uint32_t lo_idx,
+                                              const uint32_t hi_idx,
+                                              const size_t lo_limb_bits,
+                                              const size_t hi_limb_bits)
 {
-    constexpr uint64_t SUBLIMB_SIZE = 1ULL << 14;
+    // Validate limbs are <= 70 bits. If limbs are larger we require more witnesses and cannot use our limb accumulation
+    // custom gate
+    ASSERT(lo_limb_bits <= (14 * 5));
+    ASSERT(hi_limb_bits <= (14 * 5));
 
-    const auto get_sublimbs = [&](const uint32_t& limb_idx) {
+    // Sometimes we try to use limbs that are too large. It's easier to catch this issue here
+    const auto get_sublimbs = [&](const uint32_t& limb_idx, const std::array<uint64_t, 5>& sublimb_masks) {
         const uint256_t limb = get_variable(limb_idx);
-        constexpr uint256_t SUBLIMB_MASK = (uint256_t(1) << 14) - 1;
+        // we can use constant 2^14 - 1 mask here. If the sublimb value exceeds the expected value then witness will
+        // fail the range check below
+        // We also use zero_idx to substitute variables that should be zero
+        constexpr uint256_t MAX_SUBLIMB_MASK = (uint256_t(1) << 14) - 1;
         std::array<uint32_t, 5> sublimb_indices;
-        sublimb_indices[0] = add_variable(limb & SUBLIMB_MASK);
-        sublimb_indices[1] = add_variable((limb >> 14) & SUBLIMB_MASK);
-        sublimb_indices[2] = add_variable((limb >> 28) & SUBLIMB_MASK);
-        sublimb_indices[3] = add_variable((limb >> 42) & SUBLIMB_MASK);
-        sublimb_indices[4] = add_variable((limb >> 56) & SUBLIMB_MASK);
+        sublimb_indices[0] = sublimb_masks[0] != 0 ? add_variable(limb & MAX_SUBLIMB_MASK) : zero_idx;
+        sublimb_indices[1] = sublimb_masks[1] != 0 ? add_variable((limb >> 14) & MAX_SUBLIMB_MASK) : zero_idx;
+        sublimb_indices[2] = sublimb_masks[2] != 0 ? add_variable((limb >> 28) & MAX_SUBLIMB_MASK) : zero_idx;
+        sublimb_indices[3] = sublimb_masks[3] != 0 ? add_variable((limb >> 42) & MAX_SUBLIMB_MASK) : zero_idx;
+        sublimb_indices[4] = sublimb_masks[4] != 0 ? add_variable((limb >> 56) & MAX_SUBLIMB_MASK) : zero_idx;
         return sublimb_indices;
     };
 
-    const std::array<uint32_t, 5> lo_sublimbs = get_sublimbs(lo_idx);
-    const std::array<uint32_t, 5> hi_sublimbs = get_sublimbs(hi_idx);
+    const auto get_limb_masks = [](size_t limb_bits) {
+        std::array<uint64_t, 5> sublimb_masks;
+        sublimb_masks[0] = limb_bits >= 14 ? 14 : limb_bits;
+        sublimb_masks[1] = limb_bits >= 28 ? 14 : (limb_bits > 14 ? limb_bits - 14 : 0);
+        sublimb_masks[2] = limb_bits >= 42 ? 14 : (limb_bits > 28 ? limb_bits - 28 : 0);
+        sublimb_masks[3] = limb_bits >= 56 ? 14 : (limb_bits > 42 ? limb_bits - 42 : 0);
+        sublimb_masks[4] = (limb_bits > 56 ? limb_bits - 56 : 0);
+
+        for (auto& mask : sublimb_masks) {
+            mask = (1ULL << mask) - 1ULL;
+        }
+        return sublimb_masks;
+    };
+
+    const auto lo_masks = get_limb_masks(lo_limb_bits);
+    const auto hi_masks = get_limb_masks(hi_limb_bits);
+    const std::array<uint32_t, 5> lo_sublimbs = get_sublimbs(lo_idx, lo_masks);
+    const std::array<uint32_t, 5> hi_sublimbs = get_sublimbs(hi_idx, hi_masks);
 
     w_l.emplace_back(lo_sublimbs[0]);
     w_r.emplace_back(lo_sublimbs[1]);
@@ -1716,31 +1752,43 @@ void UltraComposer::range_constrain_two_limbs(const uint32_t lo_idx, const uint3
     apply_aux_selectors(AUX_SELECTORS::NONE);
     n += 3;
 
-    create_new_range_constraint(lo_sublimbs[0], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(lo_sublimbs[1], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(lo_sublimbs[2], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(lo_sublimbs[3], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(lo_sublimbs[4], SUBLIMB_SIZE - 1);
-
-    create_new_range_constraint(hi_sublimbs[0], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(hi_sublimbs[1], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(hi_sublimbs[2], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(hi_sublimbs[3], SUBLIMB_SIZE - 1);
-    create_new_range_constraint(hi_sublimbs[4], SUBLIMB_SIZE - 1);
+    for (size_t i = 0; i < 5; i++) {
+        if (lo_masks[i] != 0) {
+            create_new_range_constraint(lo_sublimbs[i], lo_masks[i]);
+        }
+        if (hi_masks[i] != 0) {
+            create_new_range_constraint(hi_sublimbs[i], hi_masks[i]);
+        }
+    }
 };
 
-std::array<uint32_t, 2> UltraComposer::decompose_non_native_field_double_width_limb(const uint32_t limb_idx)
+/**
+ * @brief Decompose a single witness into two, where the lowest is DEFAULT_NON_NATIVE_FIELD_LIMB_BITS (68) range
+ * constrained and the lowst is num_limb_bits - DEFAULT.. range constrained.
+ *
+ * @details Doesn't create gates constraining the limbs to each other.
+ *
+ * @param limb_idx The index of the limb that will be decomposed
+ * @param num_limb_bits The range we want to constrain the original limb to
+ * @return std::array<uint32_t, 2> The indices of new limbs.
+ */
+std::array<uint32_t, 2> UltraComposer::decompose_non_native_field_double_width_limb(const uint32_t limb_idx,
+                                                                                    const size_t num_limb_bits)
 {
-    constexpr barretenberg::fr LIMB_MASK = (uint256_t(1) << 68) - 1;
+    ASSERT(uint256_t(get_variable_reference(limb_idx)) < (uint256_t(1) << num_limb_bits));
+    constexpr barretenberg::fr LIMB_MASK = (uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS) - 1;
     const uint256_t value = get_variable(limb_idx);
     const uint256_t low = value & LIMB_MASK;
-    const uint256_t hi = value >> 68;
-    ASSERT(low + (hi << 68) == value);
+    const uint256_t hi = value >> DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    ASSERT(low + (hi << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS) == value);
 
     const uint32_t low_idx = add_variable(low);
     const uint32_t hi_idx = add_variable(hi);
 
-    range_constrain_two_limbs(low_idx, hi_idx);
+    ASSERT(num_limb_bits > DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    const size_t lo_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    const size_t hi_bits = num_limb_bits - DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    range_constrain_two_limbs(low_idx, hi_idx, lo_bits, hi_bits);
 
     return std::array<uint32_t, 2>{ low_idx, hi_idx };
 }
@@ -1758,9 +1806,7 @@ std::array<uint32_t, 2> UltraComposer::decompose_non_native_field_double_width_l
  * N.B. this method does NOT evaluate the prime field component of non-native field multiplications
  **/
 std::array<uint32_t, 2> UltraComposer::evaluate_non_native_field_multiplication(
-    const non_native_field_witnesses& input,
-    const bool range_constrain_quotient_and_remainder,
-    const bool range_constrain_outputs)
+    const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder)
 {
 
     std::array<fr, 4> a{
@@ -1788,11 +1834,13 @@ std::array<uint32_t, 2> UltraComposer::evaluate_non_native_field_multiplication(
         get_variable(input.r[3]),
     };
 
-    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << 68;
-    constexpr barretenberg::fr LIMB_SHIFT_2 = uint256_t(1) << 136;
-    constexpr barretenberg::fr LIMB_SHIFT_3 = uint256_t(1) << 204;
-    constexpr barretenberg::fr LIMB_RSHIFT = barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << 68);
-    constexpr barretenberg::fr LIMB_RSHIFT_2 = barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << 136);
+    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    constexpr barretenberg::fr LIMB_SHIFT_2 = uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr barretenberg::fr LIMB_SHIFT_3 = uint256_t(1) << (3 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr barretenberg::fr LIMB_RSHIFT =
+        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr barretenberg::fr LIMB_RSHIFT_2 =
+        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
 
     barretenberg::fr lo_0 = a[0] * b[0] - r[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
     barretenberg::fr lo_1 = (lo_0 + q[0] * input.neg_modulus[0] +
@@ -1914,20 +1962,14 @@ std::array<uint32_t, 2> UltraComposer::evaluate_non_native_field_multiplication(
         0,
     });
 
-    // Sometimes we may want to apply this step separately, after adding additional terms into lo_1 and hi_2
-    // For example, if we want to evaluate a field multiplication combined with several field additions.
-    if (range_constrain_outputs) {
-        range_constrain_two_limbs(hi_3_idx, lo_1_idx);
-    }
-
     return std::array<uint32_t, 2>{ lo_1_idx, hi_3_idx };
 }
 
 /**
  * Compute the limb-multiplication part of a non native field mul
  *
- * i.e. compute the low 204 and high 204 bit components of `a * b` where `a, b` are nnf elements composed of 4 68-bit
- *limbs
+ * i.e. compute the low 204 and high 204 bit components of `a * b` where `a, b` are nnf elements composed of 4
+ * limbs with size DEFAULT_NON_NATIVE_FIELD_LIMB_BITS
  *
  **/
 std::array<uint32_t, 2> UltraComposer::evaluate_partial_non_native_field_multiplication(
@@ -1947,7 +1989,7 @@ std::array<uint32_t, 2> UltraComposer::evaluate_partial_non_native_field_multipl
         get_variable(input.b[3]),
     };
 
-    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << 68;
+    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
 
     barretenberg::fr lo_0 = a[0] * b[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
 

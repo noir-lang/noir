@@ -13,7 +13,7 @@ namespace test_stdlib_ecdsa {
 using Composer = waffle::UltraComposer;
 using curve = stdlib::secp256k1<Composer>;
 
-HEAVY_TEST(stdlib_ecdsa, verify_signature)
+TEST(stdlib_ecdsa, verify_signature)
 {
     Composer composer = Composer();
 

@@ -99,7 +99,10 @@ template <typename Composer, typename T> class bigfield {
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
 
-    static bigfield create_from_u512_as_witness(Composer* ctx, const uint512_t& value, const bool can_overflow = false);
+    static bigfield create_from_u512_as_witness(Composer* ctx,
+                                                const uint512_t& value,
+                                                const bool can_overflow = false,
+                                                const size_t maximum_bitlength = 0);
 
     static bigfield from_witness(Composer* ctx, const barretenberg::field<T>& input)
     {
@@ -166,6 +169,7 @@ template <typename Composer, typename T> class bigfield {
     uint512_t get_value() const;
     uint512_t get_maximum_value() const;
 
+    bigfield add_to_lower_limb(const field_t<Composer>& other, uint256_t other_maximum_value) const;
     bigfield operator+(const bigfield& other) const;
     bigfield operator-(const bigfield& other) const;
     bigfield operator*(const bigfield& other) const;
