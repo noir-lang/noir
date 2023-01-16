@@ -130,7 +130,9 @@ impl IRGenerator {
         let value = self.codegen_expression(&main_body)?;
         let node_ids = value.to_node_ids();
 
-        self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
+        if self.program.main().return_type != Type::Unit {
+            self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
+        }
         Ok(())
     }
 

@@ -178,6 +178,10 @@ impl Acir {
             }
             Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(node_ids) => {
+                // XXX: When we return a node_id that was created from
+                // the UnitType, there is a witness associated with it
+                // Ideally no witnesses are created for such types.
+
                 // This can only ever be called in the main context.
                 // In all other context's, the return operation is transformed.
 
