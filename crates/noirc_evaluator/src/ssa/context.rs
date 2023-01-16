@@ -236,13 +236,6 @@ impl SsaContext {
                 let call = self.node_to_string(*call_instruction);
                 format!("result {index} of {call}")
             }
-            Operation::SetPub(node_ids, _) => {
-                let mut s = "setpub ".to_string();
-                for node_id in node_ids {
-                    s = format!("{}, {}", s, self.node_to_string(*node_id),);
-                }
-                s
-            }
         }
     }
 

@@ -127,7 +127,10 @@ impl IRGenerator {
 
     pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        self.codegen_expression(&main_body)?;
+        let value = self.codegen_expression(&main_body)?;
+        let node_ids = value.to_node_ids();
+
+        self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
         Ok(())
     }
 
@@ -362,17 +365,6 @@ impl IRGenerator {
     ) -> Result<Value, RuntimeError> {
         let cond = self.codegen_expression(expr)?.unwrap_id();
         let operation = Operation::Constrain(cond, Some(location));
-        self.context.new_instruction(operation, ObjectType::NotAnObject)?;
-        Ok(Value::dummy())
-    }
-
-    fn codegen_setpub(
-        &mut self,
-        expr: &Expression,
-        location: noirc_errors::Location,
-    ) -> Result<Value, RuntimeError> {
-        let node_ids = self.codegen_expression(expr)?.to_node_ids();
-        let operation = Operation::SetPub(node_ids, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
     }
@@ -612,7 +604,6 @@ impl IRGenerator {
                 self.codegen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
             }
-            Expression::SetPub(expr, location) => self.codegen_setpub(expr, *location),
         }
     }
 
