@@ -581,7 +581,6 @@ pub enum Opcode {
     Assign,
     Cond,
     Constrain,
-    SetPub,
     Cast,     //convert type
     Truncate, //truncate
     Not,      //(!) Bitwise Not

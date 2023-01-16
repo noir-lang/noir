@@ -82,8 +82,7 @@ impl Evaluator {
         // If the `witness_index` is more than the `num_witnesses_abi_len`
         // then it was created after the ABI was processed and is therefore
         // an intermediate variable.
-        let is_intermediate_variable =
-            witness_index.as_usize() > self.num_witnesses_abi_len as usize;
+        let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
         let is_public_input = self.public_inputs.contains(&witness_index);
 
