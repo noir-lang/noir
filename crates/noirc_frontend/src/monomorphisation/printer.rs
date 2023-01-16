@@ -56,10 +56,6 @@ impl AstPrinter {
             Expression::Call(call) => self.print_call(call, f),
             Expression::CallBuiltin(call) => self.print_lowlevel(call, f),
             Expression::CallLowLevel(call) => self.print_builtin(call, f),
-            Expression::SetPub(expr, _) => {
-                write!(f, "setpub ")?;
-                self.print_expr(expr, f)
-            }
             Expression::Let(let_expr) => {
                 write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
                 self.print_expr(&let_expr.expression, f)

@@ -92,16 +92,9 @@ impl Monomorphiser {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    /// The main function is special, we need to check for a return type and if present,
-    /// insert an extra constrain on the return value.
     fn compile_main(&mut self, main_id: node_interner::FuncId) -> Program {
-        let mut main = self.function(main_id, FuncId(0));
+        let main = self.function(main_id, FuncId(0));
         let main_meta = self.interner.function_meta(&main_id);
-
-        if main.return_type != ast::Type::Unit {
-            let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::SetPub(Box::new(main.body), location);
-        }
 
         let abi = main_meta.into_abi(&self.interner);
         Program::new(main, abi)

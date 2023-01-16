@@ -21,7 +21,6 @@ pub enum Expression {
     Call(Call),
     CallBuiltin(CallBuiltin),
     CallLowLevel(CallLowLevel),
-    SetPub(Box<Expression>, Location),
 
     Let(Let),
     Constrain(Box<Expression>, Location),
