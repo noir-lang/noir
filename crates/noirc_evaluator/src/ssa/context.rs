@@ -3,9 +3,7 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{
-    ArrayIdSet, BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation,
-};
+use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation};
 use super::{block, builtin, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
@@ -36,9 +34,6 @@ pub struct SsaContext {
     pub functions: HashMap<FuncId, function::SSAFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
-    /// Maps ArrayIdSet -> Vec<(ArrayId, u32)>,
-    pub function_returned_arrays: Vec<Vec<(ArrayId, /*result_index:*/ u32)>>,
-
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
@@ -56,7 +51,6 @@ impl SsaContext {
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
-            function_returned_arrays: Vec::new(),
             opcode_ids: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
@@ -1036,8 +1030,7 @@ impl SsaContext {
         let block1 = self[exit_block].predecessor[0];
         let block2 = self[exit_block].predecessor[1];
 
-        let mut a_type = self.get_object_type(a);
-        let b_type = self.get_object_type(b);
+        let a_type = self.get_object_type(a);
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
@@ -1062,11 +1055,6 @@ impl SsaContext {
             }
             id
         } else {
-            if let (ObjectType::Function(a), ObjectType::Function(b)) = (a_type, b_type) {
-                let new_array_set_id = self.union_array_sets(a, b);
-                a_type = ObjectType::Function(new_array_set_id);
-            }
-
             let new_var = node::Variable::new(a_type, name, None, exit_block);
             let v = self.add_variable(new_var, None);
             let operation = Operation::Phi { root: v, block_args: vec![(a, block1), (b, block2)] };
@@ -1086,10 +1074,6 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn set_function_type(&mut self, func_id: FuncId, node_id: NodeId, typ: ObjectType) {
-        self[node_id] = NodeObj::Function(FunctionKind::Normal(func_id), node_id, typ);
-    }
-
     /// Return the standard NodeId for this FuncId.
     /// The 'standard' NodeId is just the NodeId assigned to the function when it
     /// is first compiled so that repeated NodeObjs are not made for the same function.
@@ -1107,18 +1091,8 @@ impl SsaContext {
             return *id;
         }
 
-        let (len, elem_type) = opcode.get_result_type();
-        let array_set = if len > 1 {
-            let array = self.new_array(&format!("{}_result", opcode), elem_type, len, None).1;
-            self.push_array_set(vec![(array, 0)])
-        } else {
-            self.push_array_set(vec![])
-        };
-
         let index = self.nodes.insert_with(|index| {
-            let node_id = NodeId(index);
-            let typ = ObjectType::Function(array_set);
-            NodeObj::Function(FunctionKind::Builtin(opcode), node_id, typ)
+            NodeObj::Function(FunctionKind::Builtin(opcode), NodeId(index), ObjectType::Function)
         });
         self.opcode_ids.insert(opcode, NodeId(index));
         NodeId(index)
@@ -1128,33 +1102,6 @@ impl SsaContext {
         match &self[node_id] {
             NodeObj::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,
-        }
-    }
-
-    pub fn push_array_set(&mut self, arrays: Vec<(ArrayId, u32)>) -> ArrayIdSet {
-        let next_id = self.function_returned_arrays.len();
-        self.function_returned_arrays.push(arrays);
-        ArrayIdSet(next_id as u32)
-    }
-
-    pub fn union_array_sets(&mut self, first: ArrayIdSet, second: ArrayIdSet) -> ArrayIdSet {
-        let mut union_set = self.function_returned_arrays[first.0 as usize].clone();
-        union_set.extend_from_slice(&self.function_returned_arrays[second.0 as usize]);
-        // The sort + dedup here is expected to be cheap as the length of this set matches the number
-        // of array parameters of both functions, and the average function only uses roughly 0-2 array parameters.
-        // `union_array_sets` as a whole is also called fairly infrequently - only when function
-        // values are unified in a Phi instruction, e.g. from being returned by an if expression.
-        union_set.sort();
-        union_set.dedup();
-        self.push_array_set(union_set)
-    }
-
-    pub fn get_returned_arrays(&self, func: NodeId) -> Vec<(ArrayId, u32)> {
-        match self[func].get_type() {
-            ObjectType::Function(arrays) => {
-                self.function_returned_arrays[arrays.0 as usize].clone()
-            }
-            other => unreachable!("get_returned_arrays: Expected function type, found {:?}", other),
         }
     }
 
@@ -1176,13 +1123,7 @@ impl SsaContext {
             }
             Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
             Type::Unit => ObjectType::NotAnObject,
-            Type::Function(..) => {
-                // TODO #612: We should not track arrays through ObjectTypes.
-                // This is incorrect, we cannot track arrays through function types in this case
-                // since we do not know which arrays the function uses at this point.
-                let id = self.push_array_set(vec![]);
-                ObjectType::Function(id)
-            }
+            Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
         }
     }
@@ -1264,13 +1205,5 @@ impl std::ops::Index<NodeId> for SsaContext {
 impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
-    }
-}
-
-impl std::ops::Index<ArrayIdSet> for SsaContext {
-    type Output = Vec<(ArrayId, u32)>;
-
-    fn index(&self, index: ArrayIdSet) -> &Self::Output {
-        &self.function_returned_arrays[index.0 as usize]
     }
 }
