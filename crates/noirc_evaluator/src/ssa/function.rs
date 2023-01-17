@@ -7,6 +7,7 @@ use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, T
 
 use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
+use super::mem::ArrayId;
 use super::node::{Node, Operation};
 use super::{
     block,
@@ -240,11 +241,11 @@ impl IRGenerator {
             let predicate = AssumptionId::dummy();
             let location = call.location;
 
-            let call_id =
+            let mut call_op =
                 Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
 
             let call_instruction =
-                self.context.new_instruction(call_id, ObjectType::NotAnObject)?;
+                self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
             // Temporary: this block is needed to fix a bug in 7_function
             // where `foo` is incorrectly inferred to take an array of size 1 and
@@ -263,7 +264,17 @@ impl IRGenerator {
                 return Ok(result);
             }
 
-            self.create_call_results(call, call_instruction)
+            let returned_arrays = match &mut call_op {
+                Operation::Call { returned_arrays, .. } => returned_arrays,
+                _ => unreachable!(),
+            };
+
+            let result_ids = self.create_call_results(call, call_instruction, returned_arrays);
+
+            // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
+            // otherwise.
+            self.context.get_mut_instruction(call_instruction).operation = call_op;
+            result_ids
         }
     }
 
@@ -271,6 +282,7 @@ impl IRGenerator {
         &mut self,
         call: &Call,
         call_instruction: NodeId,
+        returned_arrays: &mut Vec<(ArrayId, u32)>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
         let return_types = call.return_type.flatten().into_iter().enumerate();
 
@@ -280,6 +292,7 @@ impl IRGenerator {
                 Type::Array(len, elem_type) => {
                     let elem_type = self.context.convert_type(&elem_type);
                     let array_id = self.context.new_array("", elem_type, len as u32, None).1;
+                    returned_arrays.push((array_id, i as u32));
                     ObjectType::Pointer(array_id)
                 }
                 other => self.context.convert_type(&other),
