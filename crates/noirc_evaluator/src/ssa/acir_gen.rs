@@ -133,9 +133,9 @@ impl Acir {
         ins: &Instruction,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
-    ) {
+    ) -> Result<(), RuntimeErrorKind> {
         if ins.operation == Operation::Nop {
-            return;
+            return Ok(());
         }
 
         let mut output = match &ins.operation {
@@ -274,6 +274,7 @@ impl Acir {
         };
         output.id = Some(ins.id);
         self.arith_cache.insert(ins.id, output);
+        Ok(())
     }
 
     fn get_predicate(
