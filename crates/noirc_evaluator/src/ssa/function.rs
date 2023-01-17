@@ -269,14 +269,7 @@ impl IRGenerator {
                 return Ok(result);
             }
 
-            let mut returned_arrays = vec![];
-            let result_ids = self.create_call_results(call, call_instruction, &mut returned_arrays);
-
-            // Update the call instruction with the fresh array ids in returned_arrays
-            self.context.get_mut_instruction(call_instruction).operation =
-                Operation::Call { func, arguments, returned_arrays, predicate, location };
-
-            result_ids
+            self.create_call_results(call, call_instruction)
         }
     }
 
@@ -284,7 +277,6 @@ impl IRGenerator {
         &mut self,
         call: &Call,
         call_instruction: NodeId,
-        returned_arrays: &mut Vec<(ArrayId, u32)>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
         let return_types = call.return_type.flatten().into_iter().enumerate();
 
@@ -293,9 +285,7 @@ impl IRGenerator {
             let typ = match typ {
                 Type::Array(len, elem_type) => {
                     let elem_type = self.context.convert_type(&elem_type);
-                    assert_ne!(len, 0);
                     let array_id = self.context.new_array("", elem_type, len as u32, None).1;
-                    returned_arrays.push((array_id, i as u32));
                     ObjectType::Pointer(array_id)
                 }
                 other => self.context.convert_type(&other),
@@ -311,9 +301,6 @@ impl IRGenerator {
         op: builtin::Opcode,
         args: Vec<NodeId>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        // TODO: There is a mismatch between intrinsics and normal function calls:
-        // Normal functions returning arrays have 1 ArrayId on the function itself
-        // Intrinsics generate a new Id on every call
         let (len, elem_type) = op.get_result_type();
 
         let result_type = if len > 1 {
