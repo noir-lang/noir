@@ -89,7 +89,3 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-          # Check is needed as we exclude aztec_backend from tests
-# Tests in the Aztec backend, require an SRS which is too big for github.
-# They are disabled for now and ran locally.
