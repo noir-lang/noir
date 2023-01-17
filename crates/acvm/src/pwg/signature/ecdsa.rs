@@ -74,7 +74,6 @@ mod ecdsa_secp256k1 {
 
         use sha2::{Digest, Sha256};
 
-        use std::convert::TryFrom;
         // Signing
         let signing_key = SigningKey::from_bytes(&[2u8; 32]).unwrap();
         let message =
@@ -109,7 +108,6 @@ mod ecdsa_secp256k1 {
         public_key_y_bytes: &[u8],
         signature: &[u8],
     ) -> Result<(), ()> {
-        use std::convert::TryFrom;
         // Convert the inputs into k256 data structures
 
         let signature = Signature::try_from(signature).unwrap();

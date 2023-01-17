@@ -1,13 +1,13 @@
 [package]
 name = "noirc_errors"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codespan-reporting = "0.9.5"
-codespan = "0.9.5"
-fm = {path = "../fm"}
-chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
+codespan-reporting.workspace = true
+codespan.workspace = true
+fm.workspace = true
+chumsky.workspace = true
