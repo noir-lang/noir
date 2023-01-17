@@ -240,13 +240,8 @@ impl IRGenerator {
             let predicate = AssumptionId::dummy();
             let location = call.location;
 
-            let call_id = Operation::Call {
-                func,
-                arguments,
-                returned_arrays: vec![],
-                predicate,
-                location,
-            };
+            let call_id =
+                Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
 
             let call_instruction =
                 self.context.new_instruction(call_id, ObjectType::NotAnObject)?;
