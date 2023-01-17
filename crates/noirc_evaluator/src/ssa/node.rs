@@ -69,7 +69,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-            NodeObj::Function(_, _, typ) => *typ,
+            NodeObj::Function(..) => ObjectType::Function,
         }
     }
 
@@ -120,7 +120,7 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
-    Function(FunctionKind, NodeId, ObjectType),
+    Function(FunctionKind, NodeId, /*name:*/ String),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -284,7 +284,7 @@ impl std::fmt::Display for Instruction {
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
-    Function(FunctionKind, NodeId, ObjectType),
+    Function(FunctionKind, NodeId),
 }
 
 impl NodeEval {
@@ -299,7 +299,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
-            NodeEval::Function(_, id, _) => Some(id),
+            NodeEval::Function(_, id) => Some(id),
         }
     }
 
@@ -309,7 +309,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
-            NodeEval::Function(_, id, _) => id,
+            NodeEval::Function(_, id) => id,
         }
     }
 
@@ -319,7 +319,7 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            NodeObj::Function(f, id, typ) => NodeEval::Function(*f, *id, *typ),
+            NodeObj::Function(f, id, _name) => NodeEval::Function(*f, *id),
             NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }

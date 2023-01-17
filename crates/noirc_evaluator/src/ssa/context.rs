@@ -232,9 +232,10 @@ impl SsaContext {
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
-                let f = self.id_to_string(*func_id);
-                format!("call {f}({}) _ {returned_arrays:?}", join(arguments))
+            Operation::Call { func, arguments, returned_arrays, .. } => {
+                let name = self.try_get_funcid(*func).map(|id| self.functions[&id].name.clone());
+                let name = name.unwrap_or_else(|| self.id_to_string(*func));
+                format!("call {name}({}) _ {returned_arrays:?}", join(arguments))
             }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
@@ -1065,10 +1066,11 @@ impl SsaContext {
         }
     }
 
-    pub fn push_function_id(&mut self, func_id: FuncId, typ: ObjectType) -> NodeId {
+    pub fn push_function_id(&mut self, func_id: FuncId) -> NodeId {
+        let name = self.functions[&func_id].name.clone();
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
-            NodeObj::Function(FunctionKind::Normal(func_id), node_id, typ)
+            NodeObj::Function(FunctionKind::Normal(func_id), node_id, name)
         });
 
         NodeId(index)
@@ -1092,7 +1094,7 @@ impl SsaContext {
         }
 
         let index = self.nodes.insert_with(|index| {
-            NodeObj::Function(FunctionKind::Builtin(opcode), NodeId(index), ObjectType::Function)
+            NodeObj::Function(FunctionKind::Builtin(opcode), NodeId(index), opcode.to_string())
         });
         self.opcode_ids.insert(opcode, NodeId(index));
         NodeId(index)

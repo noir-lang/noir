@@ -7,6 +7,7 @@ use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, T
 
 use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
+use super::mem::ArrayId;
 use super::node::{Node, Operation};
 use super::{
     block,
@@ -51,7 +52,7 @@ impl SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id,
-            node_id: ctx.push_function_id(id, ObjectType::Function),
+            node_id: ctx.push_function_id(id),
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
@@ -237,11 +238,10 @@ impl IRGenerator {
         if let Some(opcode) = self.context.get_builtin_opcode(func) {
             self.call_low_level(opcode, arguments)
         } else {
-            let return_types = call.return_type.flatten().into_iter().enumerate();
             let predicate = AssumptionId::dummy();
             let location = call.location;
 
-            let call = Operation::Call {
+            let call_id = Operation::Call {
                 func,
                 arguments: arguments.clone(),
                 returned_arrays: vec![],
@@ -249,29 +249,28 @@ impl IRGenerator {
                 location,
             };
 
-            let call_instruction = self.context.new_instruction(call, ObjectType::NotAnObject)?;
+            let call_instruction =
+                self.context.new_instruction(call_id, ObjectType::NotAnObject)?;
+
+            // Temporary: this block is needed to fix a bug in 7_function
+            // where `foo` is incorrectly inferred to take an array of size 1 and
+            // return an array of size 0.
+            if let Some(func_id) = self.context.try_get_funcid(func) {
+                let rtt = self.context.functions[&func_id].result_types.clone();
+                let mut result = Vec::new();
+                for i in rtt.iter().enumerate() {
+                    result.push(self.context.new_instruction(
+                        node::Operation::Result { call_instruction, index: i.0 as u32 },
+                        *i.1,
+                    )?);
+                }
+                // If we have the function directly the ArrayIds in the Result types are correct
+                // and we don't need to set returned_arrays yet as they can be set later.
+                return Ok(result);
+            }
+
             let mut returned_arrays = vec![];
-
-            let result_ids = try_vecmap(return_types, |(i, typ)| {
-                let result = Operation::Result { call_instruction, index: i as u32 };
-                let typ = match typ {
-                    Type::Array(_, elem_type) => {
-                        let elem_type = self.context.convert_type(&elem_type);
-
-                        // FIXME: We crash in anchor.rs if the user tries to use an index
-                        // above this temporary length.
-                        let max_array_size = 100_000;
-
-                        let array_id =
-                            self.context.new_array("", elem_type, max_array_size, None).1;
-                        returned_arrays.push((array_id, i as u32));
-                        ObjectType::Pointer(array_id)
-                    }
-                    other => self.context.convert_type(&other),
-                };
-
-                self.context.new_instruction(result, typ)
-            });
+            let result_ids = self.create_call_results(call, call_instruction, &mut returned_arrays);
 
             // Update the call instruction with the fresh array ids in returned_arrays
             self.context.get_mut_instruction(call_instruction).operation =
@@ -279,6 +278,31 @@ impl IRGenerator {
 
             result_ids
         }
+    }
+
+    fn create_call_results(
+        &mut self,
+        call: &Call,
+        call_instruction: NodeId,
+        returned_arrays: &mut Vec<(ArrayId, u32)>,
+    ) -> Result<Vec<NodeId>, RuntimeError> {
+        let return_types = call.return_type.flatten().into_iter().enumerate();
+
+        try_vecmap(return_types, |(i, typ)| {
+            let result = Operation::Result { call_instruction, index: i as u32 };
+            let typ = match typ {
+                Type::Array(len, elem_type) => {
+                    let elem_type = self.context.convert_type(&elem_type);
+                    assert_ne!(len, 0);
+                    let array_id = self.context.new_array("", elem_type, len as u32, None).1;
+                    returned_arrays.push((array_id, i as u32));
+                    ObjectType::Pointer(array_id)
+                }
+                other => self.context.convert_type(&other),
+            };
+
+            self.context.new_instruction(result, typ)
+        })
     }
 
     //Lowlevel functions with no more than 2 arguments
