@@ -733,10 +733,10 @@ impl SsaContext {
         //ACIR
         self.acir(evaluator)?;
         if enable_logging {
-            Acir::print_circuit(&evaluator.gates);
+            Acir::print_circuit(&evaluator.opcodes);
             println!("DONE");
         }
-        println!("ACIR gates generated : {}", evaluator.gates.len());
+        println!("ACIR opcodes generated : {}", evaluator.opcodes.len());
         Ok(())
     }
 

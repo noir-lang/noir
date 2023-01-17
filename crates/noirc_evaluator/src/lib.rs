@@ -1,7 +1,7 @@
 mod errors;
 mod ssa;
 
-use acvm::acir::circuit::{opcodes::Opcode as Gate, Circuit, PublicInputs};
+use acvm::acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
 use acvm::compiler::fallback::IsBlackBoxSupported;
 use acvm::Language;
@@ -21,7 +21,7 @@ pub struct Evaluator {
     // to compile wasm64.
     current_witness_index: u32,
     public_inputs: Vec<Witness>,
-    gates: Vec<Gate>,
+    opcodes: Vec<AcirOpcode>,
 }
 
 /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -45,7 +45,7 @@ pub fn create_circuit(
     let optimised_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
-            opcodes: evaluator.gates,
+            opcodes: evaluator.opcodes,
             public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
@@ -71,7 +71,7 @@ impl Evaluator {
             // following transformation to the witness index : f(i) = i + 1
             //
             current_witness_index: 0,
-            gates: Vec::new(),
+            opcodes: Vec::new(),
         }
     }
 
@@ -111,7 +111,7 @@ impl Evaluator {
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
-        self.gates.push(Gate::Arithmetic(constraint));
+        self.opcodes.push(AcirOpcode::Arithmetic(constraint));
         inter_var_witness
     }
 
