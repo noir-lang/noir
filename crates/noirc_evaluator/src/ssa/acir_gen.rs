@@ -211,7 +211,9 @@ impl Acir {
                         // Before pushing to the public inputs, we need to check that
                         // it was not a private ABI input
                         if evaluator.is_private_abi_input(witness) {
-                            todo!("we do not allow private ABI inputs to be used as public outputs")
+                            return Err(RuntimeErrorKind::Spanless(String::from(
+                                "we do not allow private ABI inputs to be returned as public outputs",
+                            )));
                         }
                         evaluator.public_inputs.push(witness);
                     }
