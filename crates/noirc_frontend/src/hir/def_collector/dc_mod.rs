@@ -107,6 +107,7 @@ impl<'a> ModCollector<'a> {
             for method in r#impl.methods.iter() {
                 let func_id = context.def_interner.push_empty_fn();
                 unresolved_functions.push_fn(self.module_id, func_id, method.clone());
+                context.def_interner.push_function_definition(method.name().to_owned(), func_id);
             }
 
             let key = (r#impl.type_path.clone(), self.module_id);
@@ -131,6 +132,7 @@ impl<'a> ModCollector<'a> {
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
             let func_id = context.def_interner.push_empty_fn();
+            context.def_interner.push_function_definition(name.0.contents.clone(), func_id);
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace

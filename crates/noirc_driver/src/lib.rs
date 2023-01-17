@@ -186,10 +186,10 @@ impl Driver {
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.into_abi(&self.context.def_interner);
 
-        let ast = monomorphise(main_function, self.context.def_interner);
+        let program = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match create_circuit(ast, np_language, show_ssa) {
+        let circuit = match create_circuit(program, np_language, show_ssa) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

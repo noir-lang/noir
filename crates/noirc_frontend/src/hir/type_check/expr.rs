@@ -23,7 +23,8 @@ pub(crate) fn type_check_expression(
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
-            let (typ, bindings) = interner.id_type(ident.id).instantiate(interner);
+            let t = interner.id_type(ident.id);
+            let (typ, bindings) = t.instantiate(interner);
             interner.store_instantiation_bindings(*expr_id, bindings);
             typ
         }
@@ -91,27 +92,14 @@ pub(crate) fn type_check_expression(
         HirExpression::Index(index_expr) => {
             type_check_index_expression(interner, index_expr, errors)
         }
-        HirExpression::Call(mut call_expr) => {
-            if let Some(meta) = interner.try_function_meta(&call_expr.func_id) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !interner.foreign(&opcode) {
-                        if let Some(func_id2) = interner.get_alt(opcode) {
-                            call_expr.func_id = func_id2;
-                            interner.replace_expr(expr_id, HirExpression::Call(call_expr.clone()));
-                        }
-                    }
-                }
-            }
-
+        HirExpression::Call(call_expr) => {
+            let function = type_check_expression(interner, &call_expr.func, errors);
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))
             });
-            type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
+            let span = interner.expr_span(expr_id);
+            bind_function_type(function, args, span, interner, errors)
         }
         HirExpression::MethodCall(method_call) => {
             let object_type = type_check_expression(interner, &method_call.object, errors);
@@ -124,11 +112,23 @@ pub(crate) fn type_check_expression(
                         (typ, interner.expr_span(arg))
                     });
                     args.append(&mut arg_types);
-                    let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
 
                     // Desugar the method call into a normal, resolved function call
                     // so that the backend doesn't need to worry about methods
-                    let function_call = method_call.into_function_call(method_id);
+                    let location = method_call.location;
+                    let (function_id, function_call) =
+                        method_call.into_function_call(method_id, location, interner);
+
+                    let span = interner.expr_span(expr_id);
+                    let ret = type_check_method_call(
+                        interner,
+                        &function_id,
+                        &method_id,
+                        args,
+                        span,
+                        errors,
+                    );
+
                     interner.replace_expr(expr_id, function_call);
                     ret
                 }
@@ -359,11 +359,14 @@ fn lookup_method(
     }
 }
 
-fn type_check_function_call(
+// We need a special function to typecheck method calls since the method
+// is not a Expression::Ident it must be manually instantiated here
+fn type_check_method_call(
     interner: &mut NodeInterner,
-    expr_id: &ExprId,
+    function_ident_id: &ExprId,
     func_id: &FuncId,
     arguments: Vec<(Type, Span)>,
+    span: Span,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     if func_id == &FuncId::dummy_id() {
@@ -375,7 +378,6 @@ fn type_check_function_call(
         let param_len = func_meta.parameters.len();
         let arg_len = arguments.len();
 
-        let span = interner.expr_span(expr_id);
         if param_len != arg_len {
             errors.push(TypeCheckError::ArityMisMatch {
                 expected: param_len as u16,
@@ -385,8 +387,8 @@ fn type_check_function_call(
         }
 
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
-        interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
-        interner.set_function_type(*expr_id, function_type.clone());
+        interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
+        interner.push_expr_type(function_ident_id, function_type.clone());
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -414,6 +416,23 @@ fn bind_function_type(
             ret
         }
         Type::Function(parameters, ret) => {
+            if parameters.len() != args.len() {
+                let empty_or_s = if parameters.len() == 1 { "" } else { "s" };
+                let was_or_were = if args.len() == 1 { "was" } else { "were" };
+
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!(
+                        "Function expects {} parameter{} but {} {} given",
+                        parameters.len(),
+                        empty_or_s,
+                        args.len(),
+                        was_or_were
+                    ),
+                    span,
+                });
+                return Type::Error;
+            }
+
             for (param, (arg, arg_span)) in parameters.iter().zip(args) {
                 arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),

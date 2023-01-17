@@ -33,6 +33,8 @@ pub enum UnresolvedType {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
+    Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -84,6 +86,10 @@ impl std::fmt::Display for UnresolvedType {
             }
             Expression(expression) => expression.fmt(f),
             Bool(is_const) => write!(f, "{is_const}bool"),
+            Function(args, ret) => {
+                let args = vecmap(args, ToString::to_string);
+                write!(f, "fn({}) -> {ret}", args.join(", "))
+            }
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
@@ -138,11 +144,7 @@ impl UnresolvedTypeExpression {
                 Some(int) => Ok(UnresolvedTypeExpression::Constant(int)),
                 None => Err(expr),
             },
-            ExpressionKind::Path(path) => Ok(UnresolvedTypeExpression::Variable(path)),
-            ExpressionKind::Ident(name) => {
-                let path = Path::from_single(name, expr.span);
-                Ok(UnresolvedTypeExpression::Variable(path))
-            }
+            ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);

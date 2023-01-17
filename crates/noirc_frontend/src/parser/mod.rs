@@ -360,36 +360,45 @@ impl ForRange {
                 let start_range = Expression::new(start_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let fresh_name1 = format!("$i{next_unique_id}");
+                let array_name = format!("$i{next_unique_id}");
                 let array_span = array.span;
-                let fresh_ident1 = Ident::new(fresh_name1.clone(), array_span);
+                let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
                 let let_array = Statement::Let(LetStatement {
-                    pattern: Pattern::Identifier(fresh_ident1),
+                    pattern: Pattern::Identifier(array_ident.clone()),
                     r#type: UnresolvedType::Unspecified,
                     expression: array,
                 });
 
                 let ident = |name: &str| Ident::new(name.to_string(), array_span);
-                let segments = vec![ident("std"), ident("array"), ident("len")];
 
                 // std::array::len(array)
-                let array_ident = ExpressionKind::Ident(fresh_name1.clone());
+                let segments = vec![array_ident];
+                let array_ident =
+                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
+
+                let segments = vec![ident("std"), ident("array"), ident("len")];
+                let func_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
+
                 let end_range = ExpressionKind::Call(Box::new(CallExpression {
-                    func_name: Path { segments, kind: PathKind::Dep },
-                    arguments: vec![Expression::new(array_ident, array_span)],
+                    func: Box::new(Expression::new(func_ident, array_span)),
+                    arguments: vec![Expression::new(array_ident.clone(), array_span)],
                 }));
                 let end_range = Expression::new(end_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-                let fresh_name = format!("$i{next_unique_id}");
-                let fresh_identifier = Ident::new(fresh_name.clone(), array_span);
+                let index_name = format!("$i{next_unique_id}");
+                let fresh_identifier = Ident::new(index_name.clone(), array_span);
 
                 // array[i]
+                let segments = vec![Ident::new(index_name, array_span)];
+                let index_ident =
+                    ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
+
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
-                    collection: Expression::new(ExpressionKind::Ident(fresh_name1), array_span),
-                    index: Expression::new(ExpressionKind::Ident(fresh_name), array_span),
+                    collection: Expression::new(array_ident, array_span),
+                    index: Expression::new(index_ident, array_span),
                 }));
 
                 // let elem = array[i];
