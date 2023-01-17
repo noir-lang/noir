@@ -280,23 +280,9 @@ pub fn inline_in_block(
                     let call_ins = ctx.get_mut_instruction(call_id);
                     call_ins.mark = Mark::Deleted;
                 }
-                Operation::Call { func, arguments, returned_arrays, predicate, location } => {
+                Operation::Call { .. } => {
                     *nested_call = true;
-                    assert!(returned_arrays.is_empty());
-                    let func = *func;
-                    let returned_arrays = returned_arrays.clone();
-
-                    let operation = Operation::Call {
-                        func,
-                        arguments: arguments.clone(),
-                        returned_arrays,
-                        predicate: *predicate,
-                        location: *location,
-                    };
-
-                    let mut new_ins =
-                        Instruction::new(operation, clone.res_type, Some(stack_frame.block));
-                    new_ins.id = clone.id;
+                    let new_ins = new_cloned_instruction(clone, stack_frame.block);
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
                 Operation::Load { array_id, index } => {
