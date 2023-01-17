@@ -236,14 +236,6 @@ impl SsaContext {
                 let call = self.node_to_string(*call_instruction);
                 format!("result {index} of {call}")
             }
-            Operation::Log(log_id) => match log_id {
-                LogInfo::Array(array_log) => {
-                    format!("log {:?}", array_log.array_id)
-                }
-                LogInfo::Node(node_id) => {
-                    format!("log {:?}", self.node_to_string(*node_id))
-                }
-            },
         }
     }
 
