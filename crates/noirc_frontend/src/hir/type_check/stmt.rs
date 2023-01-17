@@ -49,7 +49,6 @@ pub(crate) fn type_check(
         HirStatement::Assign(assign_stmt) => {
             type_check_assign_stmt(interner, assign_stmt, stmt_id, errors)
         }
-        HirStatement::Log(_) => (), // Do not need to type check log expressions right now as we are simply printing a single expressions
         HirStatement::Error => (),
     }
     Type::Unit

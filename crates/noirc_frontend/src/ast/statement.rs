@@ -131,7 +131,6 @@ pub enum Statement {
     // This is an expression with a trailing semi-colon
     // terminology Taken from rustc
     Semi(Expression),
-    Log(Expression),
     // This statement is the result of a recovered parse error.
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
@@ -163,7 +162,6 @@ impl Statement {
             | Statement::Constrain(_)
             | Statement::Assign(_)
             | Statement::Semi(_)
-            | Statement::Log(_)
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
@@ -350,7 +348,6 @@ impl Display for Statement {
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
             Statement::Semi(semi) => write!(f, "{semi};"),
-            Statement::Log(log) => log.fmt(f),
             Statement::Error => write!(f, "Error"),
         }
     }

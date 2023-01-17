@@ -642,6 +642,10 @@ impl Acir {
                     self.map_array(a, &outputs, ctx);
                 }
             }
+            Opcode::Println(is_string_output) => {
+                outputs = Vec::new(); // print statements do not output anything
+                self.evaluate_println(is_string_output, args, ctx, evaluator);
+            }
             Opcode::LowLevel(op) => {
                 let inputs = self.prepare_inputs(args, ctx, evaluator);
                 let output_count = op.definition().output_size.0 as u32;
@@ -683,6 +687,72 @@ impl Acir {
             self.map_array(a, &outputs, ctx);
         }
         outputs
+    }
+
+    fn evaluate_println(
+        &mut self,
+        is_string_output: bool,
+        args: &[NodeId],
+        ctx: &SsaContext,
+        evaluator: &mut Evaluator,
+    ) {
+        assert!(args.len() == 1, "print statements currently only support one argument");
+        let node_id = args[0];
+        let obj_type = ctx.get_object_type(node_id);
+        let mut log_string = "".to_owned();
+        match obj_type {
+            ObjectType::Pointer(array_id) => {
+                let mem_array = &ctx.mem[array_id];
+                let mut field_elements = Vec::new();
+                for idx in 0..mem_array.len {
+                    let absolute_adr = mem_array.absolute_adr(idx);
+                    if self.memory_map.contains_key(&absolute_adr) {
+                        let array_elem_expr = self.memory_map[&absolute_adr].expression.clone();
+                        if array_elem_expr.is_const() {
+                            field_elements.push(array_elem_expr.q_c)
+                        } else {
+                            unreachable!("array elements being logging must be const");
+                        }
+                    } else {
+                        // TODO add handling for if key not found
+                        unreachable!("array element being logging does not exist in memory");
+                    }
+                }
+                if is_string_output {
+                    // TODO: make a decode_string_value method in noirc_abi and use it here this is reused code
+                    let string_as_slice = field_elements
+                        .iter()
+                        .map(|e| {
+                            let mut field_as_bytes = e.to_bytes();
+                            let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                            assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                            char_byte
+                        })
+                        .collect::<Vec<_>>();
+
+                    let final_string = str::from_utf8(&string_as_slice).unwrap();
+                    log_string.push_str(&final_string);
+                } else {
+                    log_string.push_str("[");
+                    let mut iter = field_elements.iter().peekable();
+                    while let Some(elem) = iter.next() {
+                        if iter.peek().is_none() {
+                            log_string.push_str(&format!("{}", elem));
+                        } else {
+                            log_string.push_str(&format!("{}, ", elem));
+                        }
+                    }
+                    log_string.push_str("]");
+                }
+            }
+            _ => match ctx.get_as_constant(node_id) {
+                Some(field) => {
+                    log_string.push_str(&field.to_hex());
+                }
+                None => unreachable!("array objects should not be marked as single values"),
+            },
+        };
+        evaluator.gates.push(Gate::Directive(Directive::Log(log_string)));
     }
 }
 

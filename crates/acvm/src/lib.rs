@@ -210,7 +210,7 @@ pub trait PartialWitnessGenerator {
                     },
                     Directive::Log(log_string) => {
                         println!("{}", log_string);
-                        true
+                        false
                     }
                 },
             };

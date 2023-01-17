@@ -9,6 +9,9 @@ pub enum Opcode {
     LowLevel(OPCODE),
     ToBits,
     ToRadix,
+    // We store strings as arrays and there is no differentiation between them in the SSA.
+    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
+    Println(bool),
 }
 
 impl std::fmt::Display for Opcode {
@@ -22,6 +25,7 @@ impl Opcode {
         match op_name {
             "to_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
+            "println" => Some(Opcode::Println(false)),
             _ => OPCODE::lookup(op_name).map(Opcode::LowLevel),
         }
     }
@@ -31,6 +35,7 @@ impl Opcode {
             Opcode::LowLevel(op) => op.name(),
             Opcode::ToBits => "to_bits",
             Opcode::ToRadix => "to_radix",
+            Opcode::Println(_) => "println",
         }
     }
 
@@ -49,7 +54,7 @@ impl Opcode {
                     _ => todo!("max value must be implemented for opcode {} ", op),
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) => BigUint::zero(), //pointers do not overflow
         }
     }
 
@@ -71,6 +76,7 @@ impl Opcode {
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
             Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
+            Opcode::Println(_) => (0, ObjectType::NotAnObject),
         }
     }
 }

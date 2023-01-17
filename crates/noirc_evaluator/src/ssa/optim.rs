@@ -67,6 +67,8 @@ fn evaluate_intrinsic(
     res_type: &ObjectType,
     block_id: BlockId,
 ) -> Vec<NodeId> {
+    dbg!(args.clone());
+    dbg!(res_type.clone());
     match op {
         builtin::Opcode::ToBits => {
             let bit_count = args[1] as u32;
@@ -353,19 +355,24 @@ fn cse_block_with_anchor(
 
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
-                let args = args.iter().map(|arg| {
-                    NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
-                });
+                match opcode {
+                    builtin::Opcode::Println(_) => (),
+                    _ => {
+                        let args = args.iter().map(|arg| {
+                            NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
+                        });
 
-                if let Some(args) = args.collect() {
-                    update2.mark = Mark::Deleted;
-                    new_list.extend(evaluate_intrinsic(
-                        ctx,
-                        *opcode,
-                        args,
-                        &update2.res_type,
-                        block_id,
-                    ));
+                        if let Some(args) = args.collect() {
+                            update2.mark = Mark::Deleted;
+                            new_list.extend(evaluate_intrinsic(
+                                ctx,
+                                *opcode,
+                                args,
+                                &update2.res_type,
+                                block_id,
+                            ));
+                        }
+                    }
                 }
             }
             let update3 = ctx.get_mut_instruction(*ins_id);

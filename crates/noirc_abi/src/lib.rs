@@ -46,7 +46,9 @@ pub enum AbiType {
         )]
         fields: BTreeMap<String, AbiType>,
     },
-    String { length: u64 },
+    String {
+        length: u64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

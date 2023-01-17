@@ -626,48 +626,38 @@ impl IRGenerator {
                 self.codegen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
             }
-            Expression::Log(expr) => {
-                // dbg!(expr.as_ref());
-                self.codegen_log(expr.as_ref())
-            }
         }
     }
 
-    fn codegen_log(&mut self, expression: &Expression) -> Result<Value, RuntimeError> {
-        let is_string = match expression {
-            Expression::Ident(ident) => match ident.typ {
-                Type::String(_) => true,
-                _ => false,
-            },
-            Expression::Literal(literal) => match literal {
-                Literal::Str(_) => true,
-                _ => false,
-            },
-            _ => unreachable!("logging this expression type is not supported"),
-        };
-
-        let node_id = self.codegen_expression(expression)?.unwrap_id();
-        let obj_type = self.context.get_object_type(node_id);
-        let operation = match obj_type {
-            ObjectType::Pointer(array_id) => {
-                Operation::Log(LogInfo::Array(ArrayLog { array_id, is_string }))
-            }
-            _ => Operation::Log(LogInfo::Node(node_id)),
-        };
-        self.context.new_instruction(operation, ObjectType::NotAnObject)?;
-        Ok(Value::dummy())
-    }
-
     fn codegen_lowlevel(&mut self, call: &CallLowLevel) -> Result<NodeId, RuntimeError> {
-        match super::builtin::Opcode::lookup(&call.opcode) {
-            Some(func) => self.call_low_level(func, call),
+        let func = match super::builtin::Opcode::lookup(&call.opcode) {
+            Some(super::builtin::Opcode::Println(_)) => {
+                assert!(
+                    call.arguments.len() == 1,
+                    "print statements currently only support one argument"
+                );
+                let is_string = match &call.arguments[0] {
+                    Expression::Ident(ident) => match ident.typ {
+                        Type::String(_) => true,
+                        _ => false,
+                    },
+                    Expression::Literal(literal) => match literal {
+                        Literal::Str(_) => true,
+                        _ => false,
+                    },
+                    _ => unreachable!("logging this expression type is not supported"),
+                };
+                super::builtin::Opcode::Println(is_string)
+            }
+            Some(func) => func,
             None => {
                 unreachable!(
                     "cannot find a low level opcode with the name {} in the IR",
                     &call.opcode
                 )
             }
-        }
+        };
+        self.call_low_level(func, call)
     }
 
     fn codegen_literal(&mut self, l: &Literal) -> NodeId {

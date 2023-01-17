@@ -282,7 +282,6 @@ impl Monomorphiser {
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr_infer(expr),
             HirStatement::Semi(expr) => ast::Expression::Semi(Box::new(self.expr_infer(expr))),
-            HirStatement::Log(expr) => ast::Expression::Log(Box::new(self.expr_infer(expr))),
             HirStatement::Error => unreachable!(),
         }
     }

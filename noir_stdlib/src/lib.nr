@@ -20,7 +20,8 @@ fn to_bytes(x : Field, byte_size: u32) -> [u8] {
 //_radix must be less than 256
 fn to_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
 
-
+#[builtin(println)]
+fn println<T>(_input : T) {}
 
 // Returns base^exponent. 
 // ^ means to the power of and not xor

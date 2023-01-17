@@ -336,20 +336,8 @@ where
         constrain(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
-        log(expr_parser.clone()),
         expr_parser.map(Statement::Expression),
     ))
-}
-
-fn log<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
-where
-    P: ExprParser + 'a,
-{
-    let p = ignore_then_commit(
-        keyword(Keyword::Log).labelled("log"),
-        expr_parser.delimited_by(just(Token::LeftParen), just(Token::RightParen)),
-    );
-    p.map(|x| Statement::Log(x))
 }
 
 fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a

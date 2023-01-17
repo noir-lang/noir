@@ -26,7 +26,6 @@ pub enum Expression {
     Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
-    Log(Box<Expression>),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
