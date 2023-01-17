@@ -53,7 +53,7 @@ clap = "2.33.3"
 codespan = "0.9.5"
 codespan-reporting = "0.9.5"
 console_error_panic_hook = "*"
-dirs = "3.0.1"
+dirs = "4"
 flate2 = "1.0.24"
 generational-arena = "0.2.8"
 getrandom = { version = "0.2.4", features = ["js"] }
