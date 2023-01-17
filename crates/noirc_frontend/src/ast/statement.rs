@@ -79,13 +79,10 @@ impl From<SpannedToken> for Ident {
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression { span: i.0.span(), kind: ExpressionKind::Ident(i.0.contents) }
-    }
-}
-
-impl From<Ident> for ExpressionKind {
-    fn from(i: Ident) -> ExpressionKind {
-        ExpressionKind::Ident(i.0.contents)
+        Expression {
+            span: i.0.span(),
+            kind: ExpressionKind::Variable(Path { segments: vec![i], kind: PathKind::Plain }),
+        }
     }
 }
 

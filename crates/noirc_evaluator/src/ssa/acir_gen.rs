@@ -1,14 +1,12 @@
 use super::builtin::{self, Opcode};
 use super::mem::{ArrayId, MemArray, Memory};
-use super::node::{BinaryOp, Instruction, LogInfo, NodeId, ObjectType, Operation};
-use acvm::acir::OPCODE;
+use super::node::{BinaryOp, Instruction, NodeId, ObjectType, Operation};
 use acvm::FieldElement;
 
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
 use std::ops::{Mul, Neg};
 use std::{collections::HashMap, str};
-//use crate::acir::native_types::{Arithmetic, Witness};
 use crate::ssa::context::SsaContext;
 use crate::ssa::node::Node;
 use crate::ssa::{mem, node};

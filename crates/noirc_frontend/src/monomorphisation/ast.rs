@@ -19,8 +19,6 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-    CallBuiltin(CallBuiltin),
-    CallLowLevel(CallLowLevel),
 
     Let(Let),
     Constrain(Box<Expression>, Location),
@@ -28,8 +26,18 @@ pub enum Expression {
     Semi(Box<Expression>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Definition {
+    Local(LocalId),
+    Function(FuncId),
+    Builtin(String),
+    LowLevel(String),
+}
+
+/// ID of a local definition, e.g. from a let binding or
+/// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct DefinitionId(pub u32);
+pub struct LocalId(pub u32);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FuncId(pub u32);
@@ -37,14 +45,15 @@ pub struct FuncId(pub u32);
 #[derive(Debug, Clone)]
 pub struct Ident {
     pub location: Option<Location>,
-    pub id: DefinitionId,
+    pub definition: Definition,
+    pub mutable: bool,
     pub name: String,
     pub typ: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct For {
-    pub index_variable: DefinitionId,
+    pub index_variable: LocalId,
     pub index_name: String,
     pub index_type: Type,
 
@@ -59,6 +68,7 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +91,7 @@ pub struct If {
     pub condition: Box<Expression>,
     pub consequence: Box<Expression>,
     pub alternative: Option<Box<Expression>>,
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -97,21 +108,10 @@ pub struct ArrayLiteral {
 
 #[derive(Debug, Clone)]
 pub struct Call {
-    pub func_id: FuncId,
+    pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CallLowLevel {
-    pub opcode: String,
-    pub arguments: Vec<Expression>,
-}
-
-/// TODO: Ssa doesn't support these yet.
-#[derive(Debug, Clone)]
-pub struct CallBuiltin {
-    pub opcode: String,
-    pub arguments: Vec<Expression>,
+    pub return_type: Type,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -122,7 +122,8 @@ pub struct Index {
 
 #[derive(Debug, Clone)]
 pub struct Let {
-    pub id: DefinitionId,
+    pub id: LocalId,
+    pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
 }
@@ -153,7 +154,7 @@ pub struct Function {
     pub id: FuncId,
     pub name: String,
 
-    pub parameters: Vec<(DefinitionId, /*mutable:*/ bool, /*name:*/ String, Type)>,
+    pub parameters: Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>,
     pub body: Expression,
 
     pub return_type: Type,
@@ -169,6 +170,7 @@ pub enum Type {
     String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
+    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
 impl Type {
@@ -196,6 +198,10 @@ impl Program {
 
     pub fn main(&mut self) -> &mut Function {
         &mut self.functions[0]
+    }
+
+    pub fn main_id(&mut self) -> FuncId {
+        FuncId(0)
     }
 
     pub fn take_main_body(&mut self) -> Expression {
@@ -261,6 +267,10 @@ impl std::fmt::Display for Type {
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);
                 write!(f, "({})", elems.join(", "))
+            }
+            Type::Function(args, ret) => {
+                let args = vecmap(args, ToString::to_string);
+                write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
         }
     }
