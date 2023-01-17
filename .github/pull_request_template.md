@@ -1,22 +1,22 @@
 # Related issue(s)
 
-(If it does not already exist, first create a GitHub issue that describes the problem this Pull Request (PR) solves before creating the PR and link it here.)
+<!-- If it does not already exist, first create a GitHub issue that describes the problem this Pull Request (PR) solves before creating the PR and link it here. -->
 
-Resolves (link to issue)
+Resolves # <!-- link to issue -->
 
 # Description
 
 ## Summary of changes
 
-(Describe the changes in this PR. Point out breaking changes if any.)
+<!-- Describe the changes in this PR. Point out breaking changes if any. -->
 
 ## Dependency additions / changes
 
-(If applicable.)
+<!-- If applicable. -->
 
 ## Test additions / changes
 
-(If applicable.)
+<!-- If applicable. -->
 
 # Checklist
 
@@ -28,4 +28,4 @@ Resolves (link to issue)
 
 # Additional context
 
-(If applicable.)
+<!-- If applicable. -->

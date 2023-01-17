@@ -11,7 +11,6 @@ use super::super::errors::RuntimeError;
 use crate::errors;
 use crate::ssa::block::BlockType;
 use crate::ssa::function;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::*;
@@ -169,7 +168,7 @@ impl IRGenerator {
         name: &str,
         ident_def: Option<DefinitionId>,
         el_type: &noirc_abi::AbiType,
-        len: u128,
+        len: u64,
         witness: Vec<acvm::acir::native_types::Witness>,
     ) -> NodeId {
         let element_type = self.get_object_type_from_abi(el_type);
@@ -187,7 +186,7 @@ impl IRGenerator {
         witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
-            let new_name = format!("{}.{}", struct_name, name);
+            let new_name = format!("{struct_name}.{name}");
             match field_typ {
                 noirc_abi::AbiType::Array { length, typ } => {
                     let v_id =
@@ -195,7 +194,7 @@ impl IRGenerator {
                     Value::Single(v_id)
                 }
                 noirc_abi::AbiType::Struct { fields, .. } => {
-                    let new_name = format!("{}.{}", struct_name, name);
+                    let new_name = format!("{struct_name}.{name}");
                     self.abi_struct(&new_name, None, fields, witnesses.clone())
                 }
                 _ => {
@@ -323,7 +322,7 @@ impl IRGenerator {
         match typ {
             Type::Tuple(fields) => {
                 let values = vecmap(fields.iter().enumerate(), |(i, field)| {
-                    let name = format!("{}.{}", base_name, i);
+                    let name = format!("{base_name}.{i}");
                     self.create_new_value(field, &name, None)
                 });
                 self.insert_new_struct(def, values)
@@ -402,7 +401,7 @@ impl IRGenerator {
                     .into_iter()
                     .enumerate()
                     .map(|(i, value)| {
-                        let name = format!("{}.{}", basename, i);
+                        let name = format!("{basename}.{i}");
                         self.bind_fresh_pattern(&name, value)
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -631,7 +630,7 @@ impl IRGenerator {
     }
 
     fn codegen_lowlevel(&mut self, call: &CallLowLevel) -> Result<NodeId, RuntimeError> {
-        match OPCODE::lookup(&call.opcode) {
+        match super::builtin::Opcode::lookup(&call.opcode) {
             Some(func) => self.call_low_level(func, call),
             None => {
                 unreachable!(

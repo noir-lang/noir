@@ -10,19 +10,19 @@ assignees: ""
 
 ## Aim
 
-(Describe what you tried to achieve.)
+<!-- Describe what you tried to achieve. -->
 
 ## Expected behavior
 
-(Describe what you expected to happen.)
+<!-- Describe what you expected to happen. -->
 
 ## Bug
 
-(Describe the bug. Supplement error codes / terminal logs if applicable.)
+<!-- Describe the bug. Supplement error codes / terminal logs if applicable. -->
 
 # To reproduce
 
-(Describe the steps to reproduce the behavior.)
+<!-- Describe the steps to reproduce the behavior. -->
 
 1.
 2.
@@ -31,7 +31,7 @@ assignees: ""
 
 # Environment
 
-(Specify your setup and versions of dependencies.)
+<!-- Specify your setup and versions of dependencies. -->
 
 - OS:
 
@@ -52,4 +52,4 @@ For TypeScript users
 
 # Additional context
 
-(If applicable.)
+<!-- If applicable. -->
