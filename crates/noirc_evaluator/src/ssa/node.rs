@@ -197,9 +197,6 @@ pub enum ObjectType {
     NotAnObject, //not an object
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ArrayIdSet(pub u32);
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NumericType {
     Signed(u32),
