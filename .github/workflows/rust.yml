@@ -61,6 +61,9 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libomp-dev
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
@@ -83,7 +86,10 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-
+      
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libomp-dev
+      
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
