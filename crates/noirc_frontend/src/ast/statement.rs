@@ -345,7 +345,7 @@ impl Display for Statement {
             Statement::Constrain(constrain) => constrain.fmt(f),
             Statement::Expression(expression) => expression.fmt(f),
             Statement::Assign(assign) => assign.fmt(f),
-            Statement::Semi(semi) => write!(f, "{};", semi),
+            Statement::Semi(semi) => write!(f, "{semi};"),
             Statement::Error => write!(f, "Error"),
         }
     }
@@ -373,8 +373,8 @@ impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LValue::Ident(ident) => ident.fmt(f),
-            LValue::MemberAccess { object, field_name } => write!(f, "{}.{}", object, field_name),
-            LValue::Index { array, index } => write!(f, "{}[{}]", array, index),
+            LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
+            LValue::Index { array, index } => write!(f, "{array}[{index}]"),
         }
     }
 }
@@ -400,7 +400,7 @@ impl Display for ImportStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "use {}", self.path)?;
         if let Some(alias) = &self.alias {
-            write!(f, " as {}", alias)?;
+            write!(f, " as {alias}")?;
         }
         Ok(())
     }
@@ -410,13 +410,13 @@ impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
-            Pattern::Mutable(name, _) => write!(f, "mut {}", name),
+            Pattern::Mutable(name, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
                 write!(f, "({})", fields.join(", "))
             }
             Pattern::Struct(typename, fields, _) => {
-                let fields = vecmap(fields, |(name, pattern)| format!("{}: {}", name, pattern));
+                let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }
         }

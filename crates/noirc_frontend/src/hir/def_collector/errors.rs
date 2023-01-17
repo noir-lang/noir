@@ -29,7 +29,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let func_name = &first_def.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("duplicate definitions of {} function found", func_name),
+                    format!("duplicate definitions of {func_name} function found"),
                     "first definition found here".to_string(),
                     first_span,
                 );
@@ -42,7 +42,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let mod_name = &first_def.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("module {} has been declared twice", mod_name),
+                    format!("module {mod_name} has been declared twice"),
                     "first declaration found here".to_string(),
                     first_span,
                 );
@@ -55,7 +55,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let import_name = &first_def.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("the name `{}` is defined multiple times", import_name),
+                    format!("the name `{import_name}` is defined multiple times"),
                     "first import found here".to_string(),
                     first_span,
                 );
@@ -68,7 +68,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let import_name = &first_def.0.contents;
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("the name `{}` is defined multiple times", import_name),
+                    format!("the name `{import_name}` is defined multiple times"),
                     "first global declaration found here".to_string(),
                     first_span,
                 );
@@ -80,7 +80,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let mod_name = &mod_name.0.contents;
 
                 Diagnostic::simple_error(
-                    format!("could not resolve module `{}` ", mod_name),
+                    format!("could not resolve module `{mod_name}` "),
                     String::new(),
                     span,
                 )

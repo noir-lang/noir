@@ -18,25 +18,25 @@ impl CliError {
         stderr
             .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
             .expect("cannot set color for stderr in StandardStream");
-        writeln!(&mut stderr, "{}", self).expect("cannot write to stderr");
+        writeln!(&mut stderr, "{self}").expect("cannot write to stderr");
 
-        std::process::exit(0)
+        std::process::exit(1)
     }
 }
 
 impl Display for CliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-                CliError::Generic(msg) => write!(f, "Error: {}", msg),
+                CliError::Generic(msg) => write!(f, "Error: {msg}"),
                 CliError::DestinationAlreadyExists(path) =>
                 write!(f, "Error: destination {} already exists", path.display()),
                 CliError::PathNotValid(path) => {
                     write!(f, "Error: {} is not a valid path", path.display())
                 }
                 CliError::ProofNotValid(hex_error) => {
-                    write!(f, "Error: could not parse proof data ({})", hex_error)
+                    write!(f, "Error: could not parse proof data ({hex_error})")
                 }
-                CliError::MissingTomlFile(path) => write!(f, "cannot find input file located at {:?}, run nargo build to generate the missing Prover and/or Verifier toml files", path),
+                CliError::MissingTomlFile(path) => write!(f, "cannot find input file located at {path:?}, run nargo build to generate the missing Prover and/or Verifier toml files"),
             }
     }
 }

@@ -262,19 +262,10 @@ impl<'a> Resolver<'a> {
     fn find_variable(&mut self, name: &Ident) -> Result<HirIdent, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
-        let location = Location::new(name.span(), self.file);
-
         let variable = scope_tree.find(&name.0.contents);
 
-        if let Some((variable_found, lambda_index)) = variable {
-            // Disallow closures from capturing mutable variables
-            if lambda_index < self.lambda_index
-                && self.interner.definition(variable_found.ident.id).mutable
-            {
-                let span = name.0.span();
-                return Err(ResolverError::CapturedMutableVariable { span });
-            }
-
+        let location = Location::new(name.span(), self.file);
+        if let Some((variable_found, _)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
             Ok(HirIdent { location, id })
@@ -628,9 +619,9 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    let local = DefinitionKind::Local(None);
-                    let ident = this.add_variable_decl(identifier, false, local);
-                    (ident, this.resolve_expression(block))
+                    let decl =
+                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None));
+                    (decl, this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {

@@ -337,7 +337,7 @@ fn evaluate_one(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f, id, typ) => Ok(NodeEval::Function(*f, *id, *typ)),
+                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }
@@ -379,7 +379,7 @@ fn evaluate_object(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f, id, typ) => Ok(NodeEval::Function(*f, *id, *typ)),
+                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }

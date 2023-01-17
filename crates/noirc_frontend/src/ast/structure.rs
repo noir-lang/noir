@@ -33,7 +33,7 @@ impl Display for NoirStruct {
         writeln!(f, "struct {} {{", self.name)?;
 
         for (name, typ) in self.fields.iter() {
-            writeln!(f, "    {}: {},", name, typ)?;
+            writeln!(f, "    {name}: {typ},")?;
         }
 
         write!(f, "}}")
@@ -47,7 +47,7 @@ impl Display for NoirImpl {
         for method in self.methods.iter() {
             let method = method.to_string();
             for line in method.lines() {
-                writeln!(f, "    {}", line)?;
+                writeln!(f, "    {line}")?;
             }
         }
 

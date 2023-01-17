@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use crate::{
     hir_def::{
         expr::*,
-        function::{self, Parameters},
+        function::{Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
@@ -158,6 +158,8 @@ impl Monomorphiser {
                 typ,
             }));
 
+            // Need to temporarily swap out main.body here because we cannot
+            // move out of it directly.
             let tmp_body = ast::Expression::Literal(ast::Literal::Unit);
             let main_body = std::mem::replace(&mut main.body, tmp_body);
 
@@ -657,7 +659,7 @@ impl Monomorphiser {
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            function::Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
         }));
 
         let parameters = self.parameters(parameters);

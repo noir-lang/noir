@@ -1,7 +1,12 @@
 use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use std::path::{Path, PathBuf};
+use iter_extended::btree_map;
+use noirc_abi::{Abi, AbiParameter, AbiType};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
@@ -21,30 +26,37 @@ pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
     add_std_lib(&mut driver);
     driver.build(allow_warnings);
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some(x) = driver.compute_abi() {
+    if let Some(abi) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
         let path_to_root = PathBuf::from(p.as_ref());
-        let path_to_prover_input = path_to_root.join(format!("{}.toml", PROVER_INPUT_FILE));
-        let path_to_verifier_input = path_to_root.join(format!("{}.toml", VERIFIER_INPUT_FILE));
+        let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
+        let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&x).unwrap();
+            let toml = toml::to_string(&build_empty_map(abi.clone())).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
-            let abi = x.public_abi();
-            let toml = toml::to_string(&abi).unwrap();
+            let public_abi = abi.public_abi();
+            let toml = toml::to_string(&build_empty_map(public_abi)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
         // This means that this is a library. Libraries do not have ABIs.
     }
     Ok(())
+}
+
+fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
+    btree_map(abi.parameters, |AbiParameter { name, typ, .. }| {
+        let default_value = if matches!(typ, AbiType::Array { .. }) { "[]" } else { "" };
+        (name, default_value)
+    })
 }
 
 #[cfg(test)]

@@ -3,10 +3,8 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{
-    ArrayIdSet, BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation,
-};
-use super::{block, flatten, inline, integer, node, optim};
+use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::{block, builtin, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
@@ -14,7 +12,6 @@ use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
@@ -35,11 +32,7 @@ pub struct SsaContext {
     pub mem: Memory,
 
     pub functions: HashMap<FuncId, function::SSAFunction>,
-    pub function_ids: HashMap<FuncId, NodeId>,
-    pub opcode_ids: HashMap<OPCODE, NodeId>,
-
-    /// Maps ArrayIdSet -> Vec<(ArrayId, u32)>,
-    pub function_returned_arrays: Vec<Vec<(ArrayId, /*result_index:*/ u32)>>,
+    pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
@@ -58,8 +51,6 @@ impl SsaContext {
             sealed_blocks: HashSet::new(),
             mem: Memory::default(),
             functions: HashMap::new(),
-            function_ids: HashMap::new(),
-            function_returned_arrays: Vec::new(),
             opcode_ids: HashMap::new(),
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
@@ -154,7 +145,7 @@ impl SsaContext {
     fn id_to_string(&self, id: NodeId) -> String {
         let mut result = String::new();
         if let Some(var) = self.try_get_node(id) {
-            result = format!("{}", var);
+            result = format!("{var}");
         }
         if result.is_empty() {
             result = format!("unknown {:?}", id.0.into_raw_parts().0)
@@ -193,7 +184,7 @@ impl SsaContext {
             BinaryOp::Shr => "shr",
         };
 
-        format!("{} {}, {}", op, lhs, rhs)
+        format!("{op} {lhs}, {rhs}")
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
@@ -204,23 +195,20 @@ impl SsaContext {
             Operation::Cast(value) => format!("cast {}", self.id_to_string(*value)),
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 format!(
-                    "truncate {}, bitsize = {}, max bitsize = {}",
+                    "truncate {}, bitsize = {bit_size}, max bitsize = {max_bit_size}",
                     self.id_to_string(*value),
-                    bit_size,
-                    max_bit_size
                 )
             }
             Operation::Not(v) => format!("not {}", self.id_to_string(*v)),
             Operation::Constrain(v, ..) => format!("constrain {}", self.id_to_string(*v)),
-            Operation::Jne(v, b) => format!("jne {}, {:?}", self.id_to_string(*v), b),
-            Operation::Jeq(v, b) => format!("jeq {}, {:?}", self.id_to_string(*v), b),
-            Operation::Jmp(b) => format!("jmp {:?}", b),
+            Operation::Jne(v, b) => format!("jne {}, {b:?}", self.id_to_string(*v)),
+            Operation::Jeq(v, b) => format!("jeq {}, {b:?}", self.id_to_string(*v)),
+            Operation::Jmp(b) => format!("jmp {b:?}"),
             Operation::Phi { root, block_args } => {
                 let mut s = format!("phi {}", self.id_to_string(*root));
                 for (value, block) in block_args {
                     s = format!(
-                        "{}, {} from block {}",
-                        s,
+                        "{s}, {} from block {}",
                         self.id_to_string(*value),
                         block.0.into_raw_parts().0
                     );
@@ -230,29 +218,29 @@ impl SsaContext {
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let lhs = self.id_to_string(*lhs);
                 let rhs = self.id_to_string(*rhs);
-                format!("cond({}) {}, {}", self.id_to_string(*condition), lhs, rhs)
+                format!("cond({}) {lhs}, {rhs}", self.id_to_string(*condition))
             }
             Operation::Load { array_id, index } => {
-                format!("load {:?}, index {}", array_id, self.id_to_string(*index))
+                format!("load {array_id:?}, index {}", self.id_to_string(*index))
             }
             Operation::Store { array_id, index, value } => {
                 format!(
-                    "store {:?}, index {}, value {}",
-                    array_id,
+                    "store {array_id:?}, index {}, value {}",
                     self.id_to_string(*index),
                     self.id_to_string(*value)
                 )
             }
-            Operation::Intrinsic(opcode, args) => format!("intrinsic {}({})", opcode, join(args)),
+            Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
             Operation::Nop => "nop".into(),
-            Operation::Call { func: func_id, arguments, returned_arrays, .. } => {
-                let f = self.id_to_string(*func_id);
-                format!("call {}({}) _ {:?}", f, join(arguments), returned_arrays)
+            Operation::Call { func, arguments, returned_arrays, .. } => {
+                let name = self.try_get_funcid(*func).map(|id| self.functions[&id].name.clone());
+                let name = name.unwrap_or_else(|| self.id_to_string(*func));
+                format!("call {name}({}) _ {returned_arrays:?}", join(arguments))
             }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.id_to_string(*call_instruction);
-                format!("result {} of {}", index, call)
+                format!("result {index} of {call}")
             }
         }
     }
@@ -287,24 +275,22 @@ impl SsaContext {
                 if let Mark::ReplaceWith(replacement) = ins.mark {
                     let new = self.node_to_string(replacement);
                     str_res = format!(
-                        "{} -REPLACED with ({}) {},    original was",
-                        str_res,
+                        "{str_res} -REPLACED with ({}) {new},    original was",
                         replacement.0.into_raw_parts().0,
-                        new
                     );
                 } else if ins.is_deleted() {
-                    str_res = format!("{}: DELETED", str_res);
+                    str_res = format!("{str_res}: DELETED");
                 }
                 let ins_str = self.operation_to_string(&ins.operation);
-                format!("{}: {}", str_res, ins_str)
+                format!("{str_res}: {ins_str}")
             }
-            Some(other) => format!("{}", other),
+            Some(other) => format!("{other}"),
             None => format!("unknown {:?}", id.0.into_raw_parts().0),
         }
     }
 
     pub fn print(&self, text: &str) {
-        println!("{}", text);
+        println!("{text}");
         for (_, b) in self.blocks.iter() {
             self.print_block(b);
         }
@@ -520,7 +506,7 @@ impl SsaContext {
         let variable_id = *v_name;
 
         if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{}{}", root_name, variable_id);
+            nvar.name = format!("{root_name}{variable_id}");
         }
     }
 
@@ -693,7 +679,7 @@ impl SsaContext {
     pub fn log(&self, show_log: bool, before: &str, after: &str) {
         if show_log {
             self.print(before);
-            println!("{}", after);
+            println!("{after}");
         }
     }
 
@@ -745,7 +731,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator);
+        self.acir(evaluator)?;
         if enable_logging {
             Acir::print_circuit(&evaluator.gates);
             println!("DONE");
@@ -754,17 +740,18 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator) {
+    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self);
+                acir.evaluate_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
         }
+        Ok(())
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
@@ -1045,10 +1032,9 @@ impl SsaContext {
         let block1 = self[exit_block].predecessor[0];
         let block2 = self[exit_block].predecessor[1];
 
-        let mut a_type = self.get_object_type(a);
-        let b_type = self.get_object_type(b);
+        let a_type = self.get_object_type(a);
 
-        let name = format!("if_{}_ret{}", exit_block.0.into_raw_parts().0, c);
+        let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
         if let node::ObjectType::Pointer(adr1) = a_type {
             let len = self.mem[adr1].len;
@@ -1071,11 +1057,6 @@ impl SsaContext {
             }
             id
         } else {
-            if let (ObjectType::Function(a), ObjectType::Function(b)) = (a_type, b_type) {
-                let new_array_set_id = self.union_array_sets(a, b);
-                a_type = ObjectType::Function(new_array_set_id);
-            }
-
             let new_var = node::Variable::new(a_type, name, None, exit_block);
             let v = self.add_variable(new_var, None);
             let operation = Operation::Phi { root: v, block_args: vec![(a, block1), (b, block2)] };
@@ -1086,13 +1067,13 @@ impl SsaContext {
         }
     }
 
-    pub fn push_function_id(&mut self, func_id: FuncId, typ: ObjectType) {
+    pub fn push_function_id(&mut self, func_id: FuncId, name: &str) -> NodeId {
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
-            NodeObj::Function(FunctionKind::Normal(func_id), node_id, typ)
+            NodeObj::Function(FunctionKind::Normal(func_id), node_id, name.to_owned())
         });
 
-        self.function_ids.insert(func_id, NodeId(index));
+        NodeId(index)
     }
 
     /// Return the standard NodeId for this FuncId.
@@ -1100,66 +1081,29 @@ impl SsaContext {
     /// is first compiled so that repeated NodeObjs are not made for the same function.
     /// If this function returns None, it means the given FuncId has yet to be compiled.
     pub fn get_function_node_id(&self, func_id: FuncId) -> Option<NodeId> {
-        self.function_ids.get(&func_id).copied()
+        self.functions.get(&func_id).map(|f| f.node_id)
     }
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
         self.get_ssafunc(func_id).is_some()
     }
 
-    pub fn get_or_create_opcode_node_id(&mut self, opcode: acvm::acir::OPCODE) -> NodeId {
+    pub fn get_or_create_opcode_node_id(&mut self, opcode: builtin::Opcode) -> NodeId {
         if let Some(id) = self.opcode_ids.get(&opcode) {
             return *id;
         }
 
-        let (len, elem_type) = function::get_result_type(opcode);
-        let array_set = if len > 1 {
-            let array = self.new_array(&format!("{}_result", opcode), elem_type, len, None).1;
-            self.push_array_set(vec![(array, 0)])
-        } else {
-            self.push_array_set(vec![])
-        };
-
         let index = self.nodes.insert_with(|index| {
-            let node_id = NodeId(index);
-            let typ = ObjectType::Function(array_set);
-            NodeObj::Function(FunctionKind::Builtin(opcode), node_id, typ)
+            NodeObj::Function(FunctionKind::Builtin(opcode), NodeId(index), opcode.to_string())
         });
         self.opcode_ids.insert(opcode, NodeId(index));
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<OPCODE> {
+    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
         match &self[node_id] {
             NodeObj::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,
-        }
-    }
-
-    pub fn push_array_set(&mut self, arrays: Vec<(ArrayId, u32)>) -> ArrayIdSet {
-        let next_id = self.function_returned_arrays.len();
-        self.function_returned_arrays.push(arrays);
-        ArrayIdSet(next_id as u32)
-    }
-
-    pub fn union_array_sets(&mut self, first: ArrayIdSet, second: ArrayIdSet) -> ArrayIdSet {
-        let mut union_set = self.function_returned_arrays[first.0 as usize].clone();
-        union_set.extend_from_slice(&self.function_returned_arrays[second.0 as usize]);
-        // The sort + dedup here is expected to be cheap as the length of this set matches the number
-        // of array parameters of both functions, and the average function only uses roughly 0-2 array parameters.
-        // `union_array_sets` as a whole is also called fairly infrequently - only when function
-        // values are unified in a Phi instruction, e.g. from being returned by an if expression.
-        union_set.sort();
-        union_set.dedup();
-        self.push_array_set(union_set)
-    }
-
-    pub fn get_returned_arrays(&self, func: NodeId) -> Vec<(ArrayId, u32)> {
-        match self[func].get_type() {
-            ObjectType::Function(arrays) => {
-                self.function_returned_arrays[arrays.0 as usize].clone()
-            }
-            other => unreachable!("get_returned_arrays: Expected function type, found {:?}", other),
         }
     }
 
@@ -1181,13 +1125,7 @@ impl SsaContext {
             }
             Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
             Type::Unit => ObjectType::NotAnObject,
-            Type::Function(..) => {
-                // TODO #612: We should not track arrays through ObjectTypes.
-                // This is incorrect, we cannot track arrays through function types in this case
-                // since we do not know which arrays the function uses at this point.
-                let id = self.push_array_set(vec![]);
-                ObjectType::Function(id)
-            }
+            Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
         }
     }
@@ -1269,13 +1207,5 @@ impl std::ops::Index<NodeId> for SsaContext {
 impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
-    }
-}
-
-impl std::ops::Index<ArrayIdSet> for SsaContext {
-    type Output = Vec<(ArrayId, u32)>;
-
-    fn index(&self, index: ArrayIdSet) -> &Self::Output {
-        &self.function_returned_arrays[index.0 as usize]
     }
 }

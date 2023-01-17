@@ -71,27 +71,14 @@ fn inline_block(
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
                 if let Operation::Call { func, arguments, returned_arrays, .. } = &ins.operation {
-                    match (ctx.try_get_funcid(*func), to_inline) {
-                        (Some(func_id), Some(func_to_inline)) => {
-                            if func_id == func_to_inline {
-                                call_ins.push((
-                                    ins.id,
-                                    *func,
-                                    arguments.clone(),
-                                    returned_arrays.clone(),
-                                    block_id,
-                                ));
-                            }
-                        }
-                        _ => {
-                            call_ins.push((
-                                ins.id,
-                                *func,
-                                arguments.clone(),
-                                returned_arrays.clone(),
-                                block_id,
-                            ));
-                        }
+                    if to_inline.is_none() || to_inline == ctx.try_get_funcid(*func) {
+                        call_ins.push((
+                            ins.id,
+                            *func,
+                            arguments.clone(),
+                            returned_arrays.clone(),
+                            block_id,
+                        ));
                     }
                 }
             }

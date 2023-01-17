@@ -51,7 +51,7 @@ impl AstPrinter {
             Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".{}", index)
+                write!(f, ".{index}")
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
@@ -93,9 +93,9 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _) => write!(f, "{}", x),
-            super::ast::Literal::Bool(x) => write!(f, "{}", x),
-            super::ast::Literal::Str(s) => write!(f, "{}", s),
+            super::ast::Literal::Integer(x, _) => x.fmt(f),
+            super::ast::Literal::Bool(x) => x.fmt(f),
+            super::ast::Literal::Str(s) => s.fmt(f),
             super::ast::Literal::Unit => write!(f, "()"),
         }
     }
@@ -261,7 +261,7 @@ impl AstPrinter {
             }
             LValue::MemberAccess { object, field_index } => {
                 self.print_lvalue(object, f)?;
-                write!(f, ".{}", field_index)
+                write!(f, ".{field_index}")
             }
         }
     }

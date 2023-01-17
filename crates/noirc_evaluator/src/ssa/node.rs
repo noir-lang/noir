@@ -2,7 +2,6 @@ use std::convert::TryInto;
 
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use acvm::acir::native_types::Witness;
-use acvm::acir::OPCODE;
 use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
@@ -15,9 +14,9 @@ use std::ops::{Add, Mul, Sub};
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use super::block::BlockId;
-use super::conditional;
 use super::context::SsaContext;
 use super::mem::ArrayId;
+use super::{builtin, conditional};
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
@@ -35,11 +34,11 @@ impl std::fmt::Display for NodeObj {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use FunctionKind::*;
         match self {
-            NodeObj::Obj(o) => write!(f, "{}", o),
-            NodeObj::Instr(i) => write!(f, "{}", i),
-            NodeObj::Const(c) => write!(f, "{}", c),
+            NodeObj::Obj(o) => write!(f, "{o}"),
+            NodeObj::Instr(i) => write!(f, "{i}"),
+            NodeObj::Const(c) => write!(f, "{c}"),
             NodeObj::Function(Normal(id), ..) => write!(f, "f{}", id.0),
-            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{}", opcode),
+            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{opcode}"),
         }
     }
 }
@@ -70,7 +69,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
-            NodeObj::Function(_, _, typ) => *typ,
+            NodeObj::Function(..) => ObjectType::Function,
         }
     }
 
@@ -121,13 +120,13 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
-    Function(FunctionKind, NodeId, ObjectType),
+    Function(FunctionKind, NodeId, /*name:*/ String),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum FunctionKind {
     Normal(FuncId),
-    Builtin(OPCODE),
+    Builtin(builtin::Opcode),
 }
 
 #[derive(Debug)]
@@ -192,7 +191,7 @@ pub enum ObjectType {
     Signed(u32),   //bit size
     Pointer(ArrayId),
 
-    Function(ArrayIdSet), // Function with a set of arrays that may be returned
+    Function,
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
@@ -228,7 +227,7 @@ impl ObjectType {
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
             ObjectType::Pointer(_) => 0,
-            ObjectType::Function(_) => 0,
+            ObjectType::Function => 0,
         }
     }
 
@@ -288,7 +287,7 @@ impl std::fmt::Display for Instruction {
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
-    Function(FunctionKind, NodeId, ObjectType),
+    Function(FunctionKind, NodeId),
 }
 
 impl NodeEval {
@@ -303,7 +302,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
-            NodeEval::Function(_, id, _) => Some(id),
+            NodeEval::Function(_, id) => Some(id),
         }
     }
 
@@ -313,7 +312,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
-            NodeEval::Function(_, id, _) => id,
+            NodeEval::Function(_, id) => id,
         }
     }
 
@@ -323,7 +322,7 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            NodeObj::Function(f, id, typ) => NodeEval::Function(*f, *id, *typ),
+            NodeObj::Function(f, id, _name) => NodeEval::Function(*f, *id),
             NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
@@ -540,7 +539,7 @@ pub enum Operation {
         value: NodeId,
     },
 
-    Intrinsic(OPCODE, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
@@ -591,8 +590,8 @@ pub enum Opcode {
     //memory
     Load(ArrayId),
     Store(ArrayId),
-    Intrinsic(OPCODE), //Custom implementation of usefull primitives which are more performant with Aztec backend
-    Nop,               // no op
+    Intrinsic(builtin::Opcode), //Custom implementation of useful primitives
+    Nop,                        // no op
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
