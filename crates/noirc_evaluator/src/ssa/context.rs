@@ -1066,11 +1066,10 @@ impl SsaContext {
         }
     }
 
-    pub fn push_function_id(&mut self, func_id: FuncId) -> NodeId {
-        let name = self.functions[&func_id].name.clone();
+    pub fn push_function_id(&mut self, func_id: FuncId, name: &str) -> NodeId {
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
-            NodeObj::Function(FunctionKind::Normal(func_id), node_id, name)
+            NodeObj::Function(FunctionKind::Normal(func_id), node_id, name.to_owned())
         });
 
         NodeId(index)

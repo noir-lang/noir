@@ -7,7 +7,6 @@ use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, T
 
 use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::mem::ArrayId;
 use super::node::{Node, Operation};
 use super::{
     block,
@@ -52,7 +51,7 @@ impl SSAFunction {
         SSAFunction {
             entry_block: block_id,
             id,
-            node_id: ctx.push_function_id(id),
+            node_id: ctx.push_function_id(id, name),
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
@@ -243,7 +242,7 @@ impl IRGenerator {
 
             let call_id = Operation::Call {
                 func,
-                arguments: arguments.clone(),
+                arguments,
                 returned_arrays: vec![],
                 predicate,
                 location,
