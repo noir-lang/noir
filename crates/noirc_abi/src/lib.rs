@@ -146,10 +146,11 @@ impl Abi {
         // Condition that specifies whether we should filter the "return"
         // parameter. We do this in the case that it is not in the `inputs`
         // map specified.
-        // TODO Adding a `public outputs` field into acir and
-        // TODO the ABI will clean up this logic
-        // TODO For prosperity; the prover does not know about a `return` value
-        // TODO so we skip this when encoding the ABI
+        //
+        // See Issue #645 : Adding a `public outputs` field into acir and
+        // the ABI will clean up this logic
+        // For prosperity; the prover does not know about a `return` value
+        // so we skip this when encoding the ABI
         let return_condition =
             |param_name: &&String| !skip_output || (param_name != &MAIN_RETURN_NAME);
 
