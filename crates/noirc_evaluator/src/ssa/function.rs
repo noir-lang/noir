@@ -236,6 +236,32 @@ impl IRGenerator {
     //generates an instruction for calling the function
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let arguments = self.codegen_expression_list(&call.arguments);
+        let ssa_func = &self.context.functions[&call.func_id];
+        let func_arguments = ssa_func.arguments.clone();
+        for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
+            let mut ret_array = None;
+            if let Some(node::Instruction {
+                operation: node::Operation::Result { call_instruction: func, index: idx },
+                ..
+            }) = self.context.try_get_instruction(*caller_arg)
+            {
+                if let Some(a) = super::mem::Memory::deref(&self.context, func_arg.0) {
+                    ret_array = Some((*func, a, *idx));
+                }
+            }
+            if let Some((func, a, idx)) = ret_array {
+                if let Some(node::Instruction {
+                    operation: node::Operation::Call { returned_arrays, .. },
+                    ..
+                }) = self.context.try_get_mut_instruction(func)
+                {
+                    returned_arrays.push((a, idx));
+                }
+                if let Some(arg) = self.context.try_get_mut_instruction(*caller_arg) {
+                    arg.mark = node::Mark::ReplaceWith(func_arg.0);
+                }
+            }
+        }
         let call_instruction = self.context.new_instruction(
             node::Operation::Call {
                 func_id: call.func_id,
