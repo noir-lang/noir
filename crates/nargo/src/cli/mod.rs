@@ -101,7 +101,7 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
-        Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
+        Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
     };
     if let Err(err) = result {
@@ -184,7 +184,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     ) {
         Ok(p) => p,
         Err(error) => {
-            println!("{}", error);
+            println!("{error}");
             return false;
         }
     };

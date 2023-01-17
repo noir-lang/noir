@@ -146,7 +146,7 @@ impl Evaluator {
             AbiType::Struct { fields } => {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 let new_fields = btree_map(fields, |(inner_name, value)| {
-                    let new_name = format!("{}.{}", name, inner_name);
+                    let new_name = format!("{name}.{inner_name}");
                     (new_name, value.clone())
                 });
                 self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
@@ -192,7 +192,7 @@ impl Evaluator {
                 AbiType::Struct { fields, .. } => {
                     let mut new_fields: BTreeMap<String, AbiType> = BTreeMap::new();
                     for (inner_name, value) in fields {
-                        let new_name = format!("{}.{}", name, inner_name);
+                        let new_name = format!("{name}.{inner_name}");
                         new_fields.insert(new_name, value.clone());
                     }
                     self.generate_struct_witnesses(struct_witnesses, visibility, &new_fields)?
@@ -211,7 +211,7 @@ impl Evaluator {
     fn generate_array_witnesses(
         &mut self,
         visibility: &AbiVisibility,
-        length: &u128,
+        length: &u64,
         typ: &AbiType,
     ) -> Result<Vec<Witness>, RuntimeErrorKind> {
         let mut witnesses = Vec::new();

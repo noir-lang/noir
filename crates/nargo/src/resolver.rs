@@ -82,8 +82,7 @@ impl<'a> Resolver<'a> {
 
             if crate_type == &CrateType::Binary {
                 return Err(CliError::Generic(format!(
-                    "{} is a binary package and so it cannot be depended upon. src : {:?}",
-                    dep_pkg_name, pkg_src
+                    "{dep_pkg_name} is a binary package and so it cannot be depended upon. src : {pkg_src:?}"
                 )));
             }
 

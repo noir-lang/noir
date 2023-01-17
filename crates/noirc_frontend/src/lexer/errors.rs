@@ -44,32 +44,30 @@ impl LexerErrorKind {
                 found,
             } => (
                 "an unexpected character was found".to_string(),
-                format!(" expected {} , but got {}", expected, found),
+                format!(" expected {expected} , but got {found}"),
                 *span,
             ),
             LexerErrorKind::NotADoubleChar { span, found } => (
-                format!("tried to parse {} as double char", found),
+                format!("tried to parse {found} as double char"),
                 format!(
-                    " {:?} is not a double char, this is an internal error",
-                    found
+                    " {found:?} is not a double char, this is an internal error"
                 ),
                 *span,
             ),
             LexerErrorKind::InvalidIntegerLiteral { span, found } => (
                 "invalid integer literal".to_string(),
-                format!(" {} is not an integer", found),
+                format!(" {found} is not an integer"),
                 *span,
             ),
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
                 "malformed function attribute".to_string(),
-                format!(" {} is not a valid attribute", found),
+                format!(" {found} is not a valid attribute"),
                 *span,
             ),
             LexerErrorKind::TooManyBits { span, max, got } => (
                 "integer literal too large".to_string(),
                 format!(
-                    "The maximum number of bits needed to represent a field is {}, This integer type needs {} bits",
-                    max, got
+                    "The maximum number of bits needed to represent a field is {max}, This integer type needs {got} bits"
                 ),
                 *span,
             ),

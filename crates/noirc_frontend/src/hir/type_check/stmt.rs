@@ -122,8 +122,7 @@ fn type_check_assign_stmt(
     let span = interner.expr_span(&assign_stmt.expression);
     expr_type.make_subtype_of(&lvalue_type, span, errors, || {
         let msg = format!(
-            "Cannot assign an expression of type {} to a value of type {}",
-            expr_type, lvalue_type
+            "Cannot assign an expression of type {expr_type} to a value of type {lvalue_type}"
         );
 
         TypeCheckError::Unstructured { msg, span }
@@ -162,7 +161,7 @@ fn type_check_lvalue(
 
             let mut error = |typ| {
                 errors.push(TypeCheckError::Unstructured {
-                    msg: format!("Type {} has no member named {}", typ, field_name),
+                    msg: format!("Type {typ} has no member named {field_name}"),
                     span: field_name.span(),
                 });
                 (Type::Error, None)

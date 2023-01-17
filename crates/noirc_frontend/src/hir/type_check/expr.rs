@@ -239,7 +239,7 @@ fn type_check_index_expression(
         // Specialize the error in the case the user has a Field, just not a comptime one.
         if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
-                msg: format!("Array index must be known at compile-time, but here a non-comptime {} was used instead", index_type),
+                msg: format!("Array index must be known at compile-time, but here a non-comptime {index_type} was used instead"),
                 span,
             }
         } else {
@@ -281,8 +281,7 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
-                "Cannot cast type {}, 'as' is only for primitive field or integer types",
-                from
+                "Cannot cast type {from}, 'as' is only for primitive field or integer types",
             );
             errors.push(TypeCheckError::Unstructured { msg, span });
             return Type::Error;
@@ -340,8 +339,7 @@ fn lookup_method(
                     errors.push(TypeCheckError::Unstructured {
                         span: interner.expr_span(expr_id),
                         msg: format!(
-                            "No method named '{}' found for type '{}'",
-                            method_name, object_type
+                            "No method named '{method_name}' found for type '{object_type}'",
                         ),
                     });
                     None
@@ -357,7 +355,7 @@ fn lookup_method(
         other => {
             errors.push(TypeCheckError::Unstructured {
                 span: interner.expr_span(expr_id),
-                msg: format!("Type '{}' must be a struct type to call methods on it", other),
+                msg: format!("Type '{other}' must be a struct type to call methods on it"),
             });
             None
         }
@@ -432,7 +430,7 @@ fn bind_function_type(
         Type::Error => Type::Error,
         other => {
             errors.push(TypeCheckError::Unstructured {
-                msg: format!("Expected a function, but found a(n) {}", other),
+                msg: format!("Expected a function, but found a(n) {other}"),
                 span,
             });
             Type::Error
@@ -472,10 +470,10 @@ pub fn infix_operand_type_rules(
     match (lhs_type, rhs_type)  {
         (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
-                return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
+                return Err(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} "))
             }
             if bit_width_x != bit_width_y {
-                return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
+                return Err(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} "))
             }
             let comptime = comptime_x.and(comptime_y, op.location.span);
             Ok(Integer(comptime, *sign_x, *bit_width_x))
@@ -491,11 +489,11 @@ pub fn infix_operand_type_rules(
             if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
             }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
-            Err(format!("Integer cannot be used with type {}", typ))
+            Err(format!("Integer cannot be used with type {typ}"))
         }
         // These types are not supported in binary operations
         (Array(..), _) | (_, Array(..)) => Err("Arrays cannot be used in an infix operation".to_string()),
@@ -514,7 +512,7 @@ pub fn infix_operand_type_rules(
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
-        (lhs, rhs) => Err(format!("Unsupported types for binary operation: {} and {}", lhs, rhs)),
+        (lhs, rhs) => Err(format!("Unsupported types for binary operation: {lhs} and {rhs}")),
     }
 }
 
@@ -627,7 +625,7 @@ pub fn check_member_access(
 
     if lhs_type != Type::Error {
         errors.push(TypeCheckError::Unstructured {
-            msg: format!("Type {} has no member named {}", lhs_type, access.rhs),
+            msg: format!("Type {lhs_type} has no member named {}", access.rhs),
             span: interner.expr_span(&access.lhs),
         });
     }
@@ -646,10 +644,10 @@ pub fn comparator_operand_type_rules(
     match (lhs_type, rhs_type)  {
         (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
-                return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
+                return Err(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} "))
             }
             if bit_width_x != bit_width_y {
-                return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
+                return Err(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} "))
             }
             let comptime = comptime_x.and(comptime_y, op.location.span);
             Ok(Bool(comptime))
@@ -665,11 +663,11 @@ pub fn comparator_operand_type_rules(
             if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(Bool(comptime.clone()))
             } else {
-                Err(format!("Types in a binary operation should match, but found {} and {}", lhs_type, rhs_type))
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
             }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
-            Err(format!("Integer cannot be used with type {}", typ))
+            Err(format!("Integer cannot be used with type {typ}"))
         }
         (FieldElement(comptime_x), FieldElement(comptime_y)) => {
             match op.kind {
@@ -696,7 +694,7 @@ pub fn comparator_operand_type_rules(
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
             x_type.unify(y_type, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
-                    msg: format!("Cannot compare {} and {}, the array element types differ", lhs_type, rhs_type),
+                    msg: format!("Cannot compare {lhs_type} and {rhs_type}, the array element types differ"),
                     span: op.location.span,
                 }
             });
@@ -715,7 +713,7 @@ pub fn comparator_operand_type_rules(
             if binding_a == binding_b {
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
-            Err(format!("Unsupported types for comparison: {} and {}", name_a, name_b))
+            Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
         }
         (String(x_size), String(y_size)) => {
             x_size.unify(y_size, op.location.span, errors, || {
