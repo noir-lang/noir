@@ -63,7 +63,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "sha2",
- "sled",
  "tempfile",
 ]
 
@@ -1494,7 +1493,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "acvm 0.3.0",
  "console_error_panic_hook",

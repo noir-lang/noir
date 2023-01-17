@@ -1,7 +1,8 @@
 [package]
 name = "noir_wasm"
-version = "0.10.0"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,13 +16,13 @@ crate-type = ["cdylib"]
 acvm = { git = "https://github.com/noir-lang/acvm", features = ["bn254"] }
 noirc_driver = { path = "../noirc_driver" }
 
-console_error_panic_hook = "*"
+console_error_panic_hook.workspace = true
 
-wasm-bindgen = { version = "*", features = ["serde-serialize"] }
-gloo-utils = { version = "0.1", features = ["serde"] }
+wasm-bindgen.workspace = true
+gloo-utils.workspace = true
 
-getrandom = { version = "0.2.4", features = ["js"] }
-js-sys = "0.3.55"
+getrandom.workspace = true
+js-sys.workspace = true
 
 [dev-dependencies]
-wasm-bindgen-test = "*"
+wasm-bindgen-test.workspace = true
