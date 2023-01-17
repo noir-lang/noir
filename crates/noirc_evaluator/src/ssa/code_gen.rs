@@ -550,7 +550,6 @@ impl IRGenerator {
             Expression::Literal(Literal::Str(string)) => {
                 let string_as_integers = string
                     .bytes()
-                    .into_iter()
                     .map(|byte| {
                         let f = FieldElement::from_be_bytes_reduce(&[byte]);
                         Expression::Literal(Literal::Integer(

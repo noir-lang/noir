@@ -201,10 +201,8 @@ impl Abi {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::String(string) => {
-                let str_as_fields = string
-                    .into_bytes()
-                    .into_iter()
-                    .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
+                let str_as_fields =
+                    string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields)
             }
             InputValue::Struct(object) => {
