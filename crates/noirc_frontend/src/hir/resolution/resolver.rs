@@ -29,7 +29,9 @@ use std::rc::Rc;
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
+use crate::node_interner::{
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+};
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -108,6 +110,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_function(
         mut self,
         func: NoirFunction,
+        func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -116,7 +119,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(func.def.generics.clone());
 
-        let (hir_func, func_meta) = self.intern_function(func);
+        let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -133,7 +136,7 @@ impl<'a> Resolver<'a> {
         for unused_var in unused_vars.iter() {
             let definition_info = self.interner.definition(unused_var.id);
             let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global {
+            if name != ERROR_IDENT && !definition_info.is_global() {
                 let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
                 self.push_err(ResolverError::UnusedVariable { ident });
             }
@@ -165,14 +168,13 @@ impl<'a> Resolver<'a> {
         &mut self,
         name: Ident,
         mutable: bool,
-        is_global: bool,
-        rhs: Option<ExprId>,
+        definition: DefinitionKind,
     ) -> HirIdent {
-        if is_global {
-            return self.add_global_variable_decl(name, rhs);
+        if definition.is_global() {
+            return self.add_global_variable_decl(name, definition);
         }
 
-        let id = self.interner.push_definition(name.0.contents.clone(), mutable, is_global, rhs);
+        let id = self.interner.push_definition(name.0.contents.clone(), mutable, definition);
         let location = Location::new(name.span(), self.file);
         let ident = HirIdent { location, id };
         let resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -189,7 +191,7 @@ impl<'a> Resolver<'a> {
         ident
     }
 
-    fn add_global_variable_decl(&mut self, name: Ident, rhs: Option<ExprId>) -> HirIdent {
+    fn add_global_variable_decl(&mut self, name: Ident, definition: DefinitionKind) -> HirIdent {
         let scope = self.scopes.get_mut_scope();
         let ident;
         let resolver_meta;
@@ -212,7 +214,7 @@ impl<'a> Resolver<'a> {
             ident = hir_let_stmt.ident();
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
         } else {
-            let id = self.interner.push_definition(name.0.contents.clone(), false, true, rhs); // The rhs expr for a global is already interned in a separate map and scope
+            let id = self.interner.push_definition(name.0.contents.clone(), false, definition);
             let location = Location::new(name.span(), self.file);
             ident = HirIdent { location, id };
             resolver_meta = ResolverMeta { num_times_used: 0, ident };
@@ -236,28 +238,35 @@ impl<'a> Resolver<'a> {
     //
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
-    fn find_variable(&mut self, name: &Ident) -> HirIdent {
+    fn find_variable_or_default(&mut self, name: &Ident) -> HirIdent {
+        self.find_variable(name).unwrap_or_else(|error| {
+            self.push_err(error);
+            let id = DefinitionId::dummy_id();
+            let location = Location::new(name.span(), self.file);
+            HirIdent { location, id }
+        })
+    }
+
+    fn find_variable(&mut self, name: &Ident) -> Result<HirIdent, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
         let location = Location::new(name.span(), self.file);
-        let id = if let Some(variable_found) = variable {
+        if let Some(variable_found) = variable {
             variable_found.num_times_used += 1;
-            variable_found.ident.id
+            let id = variable_found.ident.id;
+            Ok(HirIdent { location, id })
         } else {
-            self.push_err(ResolverError::VariableNotDeclared {
+            Err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
                 span: name.0.span(),
-            });
-            DefinitionId::dummy_id()
-        };
-
-        HirIdent { location, id }
+            })
+        }
     }
 
-    pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func);
+    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id);
 
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
@@ -311,6 +320,11 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
+            UnresolvedType::Function(args, ret) => {
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                Type::Function(args, ret)
+            }
         }
     }
 
@@ -338,21 +352,23 @@ impl<'a> Resolver<'a> {
     }
 
     fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
-        if path.segments.len() == 1 {
-            match path.as_ident() {
-                Some(identifier) => self.find_variable(identifier),
-                None => {
-                    self.push_err(ResolverError::PathIsNotIdent { span: path.span() });
-                    let id = DefinitionId::dummy_id();
-                    let location = Location::new(path.span(), self.file);
-                    HirIdent { id, location }
-                }
-            }
-        } else {
-            let stmt_id = self.lookup_global(path);
-            let hir_let_stmt = self.interner.let_statement(&stmt_id);
-            hir_let_stmt.ident()
-        }
+        let location = Location::new(path.span(), self.file);
+
+        let error = match path.as_ident().map(|ident| self.find_variable(ident)) {
+            Some(Ok(ident)) => return ident,
+            // Try to look it up as a global, but still issue the first error if we fail
+            Some(Err(error)) => match self.lookup_global(path) {
+                Ok(id) => return HirIdent { location, id },
+                Err(_) => error,
+            },
+            None => match self.lookup_global(path) {
+                Ok(id) => return HirIdent { location, id },
+                Err(error) => error,
+            },
+        };
+        self.push_err(error);
+        let id = DefinitionId::dummy_id();
+        HirIdent { location, id }
     }
 
     /// Translates an UnresolvedType to a Type
@@ -403,18 +419,17 @@ impl<'a> Resolver<'a> {
         for (stmt_id, global_info) in self.interner.get_all_globals() {
             if global_info.local_id == self.path_resolver.local_module_id() {
                 let global_stmt = self.interner.let_statement(&stmt_id);
-                self.add_global_variable_decl(global_info.ident, Some(global_stmt.expression));
+                let definition = DefinitionKind::Global(global_stmt.expression);
+                self.add_global_variable_decl(global_info.ident, definition);
             }
         }
     }
 
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
-    fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
-        let name = func.name().to_owned();
-
+    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
-        let id = self.interner.push_definition(name, false, false, None);
+        let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
 
         let attributes = func.attribute().cloned();
@@ -440,7 +455,7 @@ impl<'a> Resolver<'a> {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
-            let pattern = self.resolve_pattern(pattern, false, None);
+            let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -461,6 +476,8 @@ impl<'a> Resolver<'a> {
             typ = Type::Forall(generics, Box::new(typ));
         }
 
+        self.interner.push_definition_type(name_ident.id, typ.clone());
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -473,12 +490,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_stmt(&mut self, stmt: Statement, is_global: bool) -> HirStatement {
+    pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
+        let expression = self.resolve_expression(let_stmt.expression);
+        let definition = DefinitionKind::Global(expression);
+        HirStatement::Let(HirLetStatement {
+            pattern: self.resolve_pattern(let_stmt.pattern, definition),
+            r#type: self.resolve_type(let_stmt.r#type),
+            expression,
+        })
+    }
+
+    pub fn resolve_stmt(&mut self, stmt: Statement) -> HirStatement {
         match stmt {
             Statement::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
+                let definition = DefinitionKind::Local(Some(expression));
                 HirStatement::Let(HirLetStatement {
-                    pattern: self.resolve_pattern(let_stmt.pattern, is_global, Some(expression)),
+                    pattern: self.resolve_pattern(let_stmt.pattern, definition),
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
                 })
@@ -499,34 +527,30 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement, is_global: bool) -> StmtId {
-        let hir_stmt = self.resolve_stmt(stmt, is_global);
+    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt);
         self.interner.push_stmt(hir_stmt)
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
         match lvalue {
-            LValue::Ident(ident) => HirLValue::Ident(self.find_variable(&ident)),
+            LValue::Ident(ident) => {
+                HirLValue::Ident(self.find_variable_or_default(&ident), Type::Error)
+            }
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name, field_index: None }
+                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
             }
             LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                HirLValue::Index { array, index }
+                HirLValue::Index { array, index, typ: Type::Error }
             }
         }
     }
 
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
-            ExpressionKind::Ident(string) => {
-                let span = expr.span;
-                let ident: Ident = Spanned::from(span, string).into();
-                let ident_id = self.find_variable(&ident);
-                HirExpression::Ident(ident_id)
-            }
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
                 Literal::Array(ArrayLiteral::Standard(elems)) => {
@@ -557,15 +581,22 @@ impl<'a> Resolver<'a> {
             }
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
-                let func_id = self.lookup_function(call_expr.func_name);
+                let func = self.resolve_expression(*call_expr.func);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                HirExpression::Call(HirCallExpression { func_id, arguments })
+                let location = Location::new(expr.span, self.file);
+                HirExpression::Call(HirCallExpression { func, arguments, location })
             }
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
-                HirExpression::MethodCall(HirMethodCallExpression { arguments, method, object })
+                let location = Location::new(expr.span, self.file);
+                HirExpression::MethodCall(HirMethodCallExpression {
+                    arguments,
+                    method,
+                    object,
+                    location,
+                })
             }
             ExpressionKind::Cast(cast_expr) => HirExpression::Cast(HirCastExpression {
                 lhs: self.resolve_expression(cast_expr.lhs),
@@ -580,7 +611,7 @@ impl<'a> Resolver<'a> {
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
                     (
-                        this.add_variable_decl(identifier, true, false, None),
+                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None)),
                         this.resolve_expression(block),
                     )
                 });
@@ -601,7 +632,7 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Path(path) => {
+            ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module
                 // Otherwise, then it is referring to an Identifier
                 // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
@@ -650,25 +681,25 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
-    fn resolve_pattern(
-        &mut self,
-        pattern: Pattern,
-        is_global: bool,
-        rhs: Option<ExprId>,
-    ) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, None, is_global, rhs)
+    fn resolve_pattern(&mut self, pattern: Pattern, definition: DefinitionKind) -> HirPattern {
+        self.resolve_pattern_mutable(pattern, None, definition)
     }
 
     fn resolve_pattern_mutable(
         &mut self,
         pattern: Pattern,
         mutable: Option<Span>,
-        is_global: bool,
-        rhs: Option<ExprId>,
+        definition: DefinitionKind,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                let id = self.add_variable_decl(name, mutable.is_some(), is_global, rhs);
+                // If this definition is mutable, do not store the rhs because it will
+                // not always refer to the correct value of the variable
+                let definition = match (mutable, definition) {
+                    (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
+                    (_, other) => other,
+                };
+                let id = self.add_variable_decl(name, mutable.is_some(), definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -676,12 +707,12 @@ impl<'a> Resolver<'a> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), is_global, rhs);
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), definition);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
-                    self.resolve_pattern_mutable(field, mutable, is_global, rhs)
+                    self.resolve_pattern_mutable(field, mutable, definition)
                 });
                 HirPattern::Tuple(fields, span)
             }
@@ -689,7 +720,7 @@ impl<'a> Resolver<'a> {
                 let struct_id = self.lookup_type(name);
                 let struct_type = self.get_struct(struct_id);
                 let resolve_field = |this: &mut Self, pattern| {
-                    this.resolve_pattern_mutable(pattern, mutable, is_global, rhs)
+                    this.resolve_pattern_mutable(pattern, mutable, definition)
                 };
                 let fields =
                     self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
@@ -756,28 +787,48 @@ impl<'a> Resolver<'a> {
         typ.field_names()
     }
 
-    fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> T {
+    fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
-        match self.resolve_path(path) {
-            // Could not resolve this symbol, the error is already logged, return a dummy function id
-            None => T::dummy_id(),
-            Some(def_id) => T::try_from(def_id).unwrap_or_else(|| {
-                self.push_err(ResolverError::Expected {
-                    expected: T::description(),
-                    got: def_id.as_str().to_owned(),
-                    span,
-                });
-                T::dummy_id()
-            }),
+        let id = self.resolve_path(path)?;
+        T::try_from(id).ok_or_else(|| ResolverError::Expected {
+            expected: T::description(),
+            got: id.as_str().to_owned(),
+            span,
+        })
+    }
+
+    fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
+        let span = path.span();
+        let id = self.resolve_path(path)?;
+
+        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
+            // Check if this is an unsupported lowlevel opcode. If so, replace it with
+            // an alternative in the stdlib.
+            if let Some(meta) = self.interner.try_function_meta(&function) {
+                if meta.kind == crate::FunctionKind::LowLevel {
+                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                    let opcode = attribute.foreign().expect(
+                        "ice: function marked as foreign, but attribute kind does not match this",
+                    );
+                    if !self.interner.foreign(&opcode) {
+                        if let Some(new_id) = self.interner.get_alt(opcode) {
+                            function = new_id;
+                        }
+                    }
+                }
+            }
+
+            return Ok(self.interner.function_definition_id(function));
         }
-    }
 
-    fn lookup_function(&mut self, path: Path) -> FuncId {
-        self.lookup(path)
-    }
+        if let Some(global) = TryFromModuleDefId::try_from(id) {
+            let let_stmt = self.interner.let_statement(&global);
+            return Ok(let_stmt.ident().id);
+        }
 
-    fn lookup_global(&mut self, path: Path) -> StmtId {
-        self.lookup(path)
+        let expected = "global variable".into();
+        let got = "local variable".into();
+        Err(ResolverError::Expected { span, expected, got })
     }
 
     fn lookup_type(&mut self, path: Path) -> StructId {
@@ -788,7 +839,13 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        self.lookup(path)
+        match self.lookup(path) {
+            Ok(id) => id,
+            Err(error) => {
+                self.push_err(error);
+                StructId::dummy_id()
+            }
+        }
     }
 
     pub fn lookup_struct(&mut self, path: Path) -> Option<Shared<StructType>> {
@@ -800,18 +857,17 @@ impl<'a> Resolver<'a> {
         (self.lookup_type(path), self.errors)
     }
 
-    fn resolve_path(&mut self, path: Path) -> Option<ModuleDefId> {
+    fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         let span = path.span();
         let name = path.as_string();
-        self.path_resolver.resolve(self.def_maps, path).unwrap_or_else(|segment| {
-            self.push_err(ResolverError::PathUnresolved { name, span, segment });
-            None
-        })
+        self.path_resolver
+            .resolve(self.def_maps, path)
+            .map_err(|segment| ResolverError::PathUnresolved { name, span, segment })
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt, false)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
@@ -846,12 +902,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Literal(Literal::Integer(int)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            ExpressionKind::Ident(ident) => {
-                let ident: Ident = Spanned::from(span, ident.to_owned()).into();
-                let ident = self.find_variable(&ident);
-                self.try_eval_array_length_ident(ident.id, span)
-            }
-            ExpressionKind::Path(path) => {
+            ExpressionKind::Variable(path) => {
                 let ident = self.get_ident_from_path(path.clone());
                 self.try_eval_array_length_ident(ident.id, span)
             }
@@ -914,8 +965,10 @@ impl<'a> Resolver<'a> {
         }
 
         let definition = self.interner.definition(id);
-        match definition.rhs {
-            Some(rhs) if definition.is_global || !definition.mutable => {
+
+        use DefinitionKind::{Global, Local};
+        match definition.kind {
+            Global(rhs) | Local(Some(rhs)) if !definition.mutable => {
                 self.try_eval_array_length_id(rhs, span)
             }
             _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
@@ -945,6 +998,7 @@ mod test {
     use std::collections::HashMap;
 
     use fm::FileId;
+    use iter_extended::vecmap;
 
     use crate::{hir::resolution::errors::ResolverError, Ident};
 
@@ -966,10 +1020,11 @@ mod test {
 
         let mut interner = NodeInterner::default();
 
-        let mut func_ids = Vec::new();
-        for _ in 0..func_namespace.len() {
-            func_ids.push(interner.push_fn(HirFunction::empty()));
-        }
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.to_string(), id);
+            id
+        });
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids) {
@@ -981,8 +1036,10 @@ mod test {
 
         let mut errors = Vec::new();
         for func in program.functions {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(func.name().to_string(), id);
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func);
+            let (_, _, err) = resolver.resolve_function(func, id);
             errors.extend(err);
         }
 
@@ -1169,14 +1226,11 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<Option<ModuleDefId>, Ident> {
+        ) -> Result<ModuleDefId, Ident> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             let mod_def = self.0.get(&name.0.contents).cloned();
-            match mod_def {
-                None => Err(name.clone()),
-                Some(_) => Ok(mod_def),
-            }
+            mod_def.ok_or_else(|| name.clone())
         }
 
         fn local_module_id(&self) -> LocalModuleId {

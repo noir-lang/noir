@@ -1,19 +1,18 @@
 [package]
 name = "noirc_driver"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-noirc_errors = { path = "../noirc_errors" }
-noirc_frontend = { path = "../noirc_frontend" }
-noirc_evaluator = { path = "../noirc_evaluator" }
-noirc_abi = { path = "../noirc_abi" }
+noirc_errors.workspace = true
+noirc_frontend.workspace = true
+noirc_evaluator.workspace = true
+noirc_abi.workspace = true
 acvm = { git = "https://github.com/noir-lang/noir", rev = "cc5ee63072e09779bebd7e7dd054ae16be307d7f" }
-fm = { path = "../fm" }
-serde = { version = "1.0.136", features = ["derive"] }
-
-dirs = "3.0"
-pathdiff = "0.2"
+fm.workspace = true
+serde.workspace = true
+dirs.workspace = true
+pathdiff.workspace = true
