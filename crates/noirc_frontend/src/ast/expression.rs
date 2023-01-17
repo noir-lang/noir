@@ -8,7 +8,6 @@ use noirc_errors::{Span, Spanned};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
-    Ident(String),
     Literal(Literal),
     Block(BlockExpression),
     Prefix(Box<PrefixExpression>),
@@ -21,7 +20,7 @@ pub enum ExpressionKind {
     Infix(Box<InfixExpression>),
     For(Box<ForExpression>),
     If(Box<IfExpression>),
-    Path(Path),
+    Variable(Path),
     Tuple(Vec<Expression>),
     Error,
 }
@@ -29,7 +28,7 @@ pub enum ExpressionKind {
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Path(path) => Some(path),
+            ExpressionKind::Variable(path) => Some(path),
             _ => None,
         }
     }
@@ -68,10 +67,6 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
     }
 
-    pub fn function_call((func_name, arguments): (Path, Vec<Expression>)) -> ExpressionKind {
-        ExpressionKind::Call(Box::new(CallExpression { func_name, arguments }))
-    }
-
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
         ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
@@ -89,24 +84,6 @@ impl ExpressionKind {
 
         match literal {
             Literal::Integer(integer) => Some(*integer),
-            _ => None,
-        }
-    }
-
-    /// Returns true if the expression can be used in a range expression
-    /// Currently we only support Identifiers and constants literals
-    pub fn can_be_used_range(&self) -> bool {
-        self.is_identifier() || self.is_integer()
-    }
-
-    /// Returns true if the expression is an identifier
-    fn is_identifier(&self) -> bool {
-        self.as_identifier().is_some()
-    }
-
-    fn as_identifier(&self) -> Option<String> {
-        match self {
-            ExpressionKind::Ident(x) => Some(x.clone()),
             _ => None,
         }
     }
@@ -143,16 +120,6 @@ impl Expression {
         Expression { kind, span }
     }
 
-    pub fn into_ident(self) -> Option<Ident> {
-        let identifier = match self.kind {
-            ExpressionKind::Ident(x) => x,
-            _ => return None,
-        };
-
-        let ident = Ident(Spanned::from(self.span, identifier));
-        Some(ident)
-    }
-
     pub fn member_access_or_method_call(
         lhs: Expression,
         (rhs, args): (Ident, Option<Vec<Expression>>),
@@ -176,6 +143,12 @@ impl Expression {
 
     pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
+        Expression::new(kind, span)
+    }
+
+    pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
+        let func = Box::new(lhs);
+        let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
         Expression::new(kind, span)
     }
 }
@@ -366,7 +339,7 @@ pub enum ArrayLiteral {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpression {
-    pub func_name: Path,
+    pub func: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 
@@ -422,7 +395,6 @@ impl Display for ExpressionKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use ExpressionKind::*;
         match self {
-            Ident(name) => name.fmt(f),
             Literal(literal) => literal.fmt(f),
             Block(block) => block.fmt(f),
             Prefix(prefix) => prefix.fmt(f),
@@ -433,7 +405,7 @@ impl Display for ExpressionKind {
             Infix(infix) => infix.fmt(f),
             For(for_loop) => for_loop.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Path(path) => path.fmt(f),
+            Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
@@ -499,7 +471,7 @@ impl Display for IndexExpression {
 impl Display for CallExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let args = vecmap(&self.arguments, ToString::to_string);
-        write!(f, "{}({})", self.func_name, args.join(", "))
+        write!(f, "{}({})", self.func, args.join(", "))
     }
 }
 

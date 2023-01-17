@@ -118,7 +118,7 @@ impl Evaluator {
     fn param_to_var(
         &mut self,
         name: &str,
-        def: DefinitionId,
+        def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
         igen: &mut IRGenerator,
@@ -241,9 +241,10 @@ impl Evaluator {
         let abi_params = std::mem::take(&mut igen.program.abi.parameters);
         assert_eq!(main_params.len(), abi_params.len());
 
-        for ((param_id, _, param_name1, _), abi_param) in main_params.iter().zip(abi_params) {
-            assert_eq!(param_name1, &abi_param.name);
-            self.param_to_var(param_name1, *param_id, &abi_param.typ, &abi_param.visibility, igen)
+        for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
+            assert_eq!(param_name, &abi_param.name);
+            let def = Definition::Local(*param_id);
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
                 .unwrap();
         }
     }
