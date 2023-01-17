@@ -236,46 +236,53 @@ impl IRGenerator {
         let arguments = self.codegen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func) {
-            self.call_low_level(opcode, arguments)
-        } else {
-            let predicate = AssumptionId::dummy();
-            let location = call.location;
-
-            let mut call_op =
-                Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
-
-            let call_instruction =
-                self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
-
-            // Temporary: this block is needed to fix a bug in 7_function
-            // where `foo` is incorrectly inferred to take an array of size 1 and
-            // return an array of size 0.
-            if let Some(func_id) = self.context.try_get_funcid(func) {
-                let rtt = self.context.functions[&func_id].result_types.clone();
-                let mut result = Vec::new();
-                for i in rtt.iter().enumerate() {
-                    result.push(self.context.new_instruction(
-                        node::Operation::Result { call_instruction, index: i.0 as u32 },
-                        *i.1,
-                    )?);
-                }
-                // If we have the function directly the ArrayIds in the Result types are correct
-                // and we don't need to set returned_arrays yet as they can be set later.
-                return Ok(result);
-            }
-
-            let returned_arrays = match &mut call_op {
-                Operation::Call { returned_arrays, .. } => returned_arrays,
-                _ => unreachable!(),
-            };
-
-            let result_ids = self.create_call_results(call, call_instruction, returned_arrays);
-
-            // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
-            // otherwise.
-            self.context.get_mut_instruction(call_instruction).operation = call_op;
-            result_ids
+            return self.call_low_level(opcode, arguments);
         }
+
+        let predicate = AssumptionId::dummy();
+        let location = call.location;
+
+        let mut call_op =
+            Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
+
+        let call_instruction =
+            self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
+
+        if let Some(id) = self.context.try_get_funcid(func) {
+            let callee = self.context.get_ssafunc(id).unwrap().idx;
+            if let Some(caller) = self.function_context {
+                update_call_graph(&mut self.context.call_graph, caller, callee);
+            }
+        }
+
+        // Temporary: this block is needed to fix a bug in 7_function
+        // where `foo` is incorrectly inferred to take an array of size 1 and
+        // return an array of size 0.
+        if let Some(func_id) = self.context.try_get_funcid(func) {
+            let rtt = self.context.functions[&func_id].result_types.clone();
+            let mut result = Vec::new();
+            for i in rtt.iter().enumerate() {
+                result.push(self.context.new_instruction(
+                    node::Operation::Result { call_instruction, index: i.0 as u32 },
+                    *i.1,
+                )?);
+            }
+            // If we have the function directly the ArrayIds in the Result types are correct
+            // and we don't need to set returned_arrays yet as they can be set later.
+            return Ok(result);
+        }
+
+        let returned_arrays = match &mut call_op {
+            Operation::Call { returned_arrays, .. } => returned_arrays,
+            _ => unreachable!(),
+        };
+
+        let result_ids = self.create_call_results(call, call_instruction, returned_arrays);
+
+        // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
+        // otherwise.
+        self.context.get_mut_instruction(call_instruction).operation = call_op;
+        result_ids
     }
 
     fn create_call_results(
@@ -337,7 +344,7 @@ pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
     }
 }
 
-pub fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, callee: FuncIndex) {
+fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, callee: FuncIndex) {
     let a = caller.0;
     let b = callee.0;
     let max = a.max(b) + 1;

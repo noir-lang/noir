@@ -1,5 +1,5 @@
 use super::context::SsaContext;
-use super::function::{self, FuncIndex};
+use super::function::FuncIndex;
 use super::mem::ArrayId;
 use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
 use super::{block, builtin, node, ssa_form};
@@ -224,13 +224,6 @@ impl IRGenerator {
                     if !self.context.function_already_compiled(id) {
                         let index = self.context.get_function_index();
                         self.create_function(id, index)?;
-                    }
-
-                    // Link this referenced function to the current function's call graph
-                    // regardless of whether it is called later or not.
-                    let callee = self.context.get_ssafunc(id).unwrap().idx;
-                    if let Some(caller) = self.function_context {
-                        function::update_call_graph(&mut self.context.call_graph, caller, callee);
                     }
 
                     let expect_msg = "Expected called function to already be codegen'd";
