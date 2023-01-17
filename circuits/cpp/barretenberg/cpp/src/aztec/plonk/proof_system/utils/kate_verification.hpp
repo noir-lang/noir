@@ -88,6 +88,9 @@ void populate_kate_element_map(verification_key* key,
             kate_g1_elements.insert({ label, element });
             break;
         }
+        case PolynomialSource::OTHER: {
+            break;
+        }
         }
         Field kate_fr_scalar(0);
         if (item.requires_shifted_evaluation) {

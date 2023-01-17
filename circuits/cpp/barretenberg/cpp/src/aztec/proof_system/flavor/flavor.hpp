@@ -11,7 +11,7 @@ struct StandardArithmetization {
         W_R,
         W_O,
         Z_PERM,
-        Z_PERM_SHIFT,
+        Z_PERM_SHIFT, // TODO(Cody): Hid ethis.
         Q_M,
         Q_L,
         Q_R,
@@ -36,7 +36,8 @@ struct StandardHonk {
   public:
     using Arithmetization = proving_system::StandardArithmetization;
     using MULTIVARIATE = Arithmetization::POLYNOMIAL;
-    static constexpr size_t STANDARD_UNROLLED_MANIFEST_SIZE = 12; // cf waffle::STANDARD_UNROLLED_MANIFEST_SIZE
+    // // TODO(Cody): Where to specify? is this polynomial manifest size?
+    // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
     static constexpr size_t MAX_RELATION_LENGTH = 5; // TODO(Cody): increment after fixing add_edge_contribution; kill
                                                      // after moving barycentric class out of relations
 
@@ -100,23 +101,28 @@ struct StandardHonk {
         }
 
         // Rounds 4 + num_sumcheck_rounds
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(       
             {
-              { .name = "w_1",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 0 },
-              { .name = "w_2",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 1 },
-              { .name = "w_3",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 2 },
-              { .name = "sigma_1",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 3 },
-              { .name = "sigma_2",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 4 },
-              { .name = "sigma_3",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 5 },
-              { .name = "q_1",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 6 },
-              { .name = "q_2",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 7 },
-              { .name = "q_3",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 8 },
-              { .name = "q_m",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 9 },
-              { .name = "q_c",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 10 },
-              { .name = "z_perm",       .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 11 },
+              { .name = "w_1",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 0 },
+              { .name = "w_2",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 1 },
+              { .name = "w_3",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 2 },
+              { .name = "z_perm",  .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 3 },
+              { .name = "q_m",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 4 },
+              { .name = "q_1",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 5 },
+              { .name = "q_2",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 6 },
+              { .name = "q_3",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 7 },
+              { .name = "q_c",     .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 8 },
+              { .name = "sigma_1", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 9 },
+              { .name = "sigma_2", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 10 },
+              { .name = "sigma_3", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 11 },
+              { .name = "id_1",    .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 12 },
+              { .name = "id_2",    .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 13 },
+              { .name = "id_3",    .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 14 },
+              { .name = "L_first", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 15 },
+              { .name = "L_last",  .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 16 },
             },
             /* challenge_name = */ "rho",
-            /* num_challenges_in = */ STANDARD_UNROLLED_MANIFEST_SIZE - 1, /* TODO(Cody): this is bad. */
+            /* num_challenges_in = */ 11, /* TODO(Cody): magic number! Where should this be specified? */
             /* map_challenges_in = */ true));
 
         // Rounds 5 + num_sumcheck_rounds

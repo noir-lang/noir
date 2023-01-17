@@ -1,4 +1,7 @@
 #pragma once // just adding these willy-nilly
+#include "numeric/bitop/get_msb.hpp"
+#include "proof_system/proving_key/proving_key.hpp"
+#include "transcript/transcript_wrappers.hpp"
 #include <array>
 #include <algorithm>
 #include <span>
@@ -54,25 +57,54 @@ bool span_arrays_equal(auto& lhs, auto& rhs)
  * NOTE: With ~40 columns, prob only want to allocate 256 EdgeGroup's at once to keep stack under 1MB?
  * TODO(Cody): might want to just do C-style multidimensional array? for guaranteed adjacency?
  */
-template <class FF_, size_t num_polys, size_t num_vars> class Multivariates {
+template <class FF_, size_t num_polys> class Multivariates {
   public:
     using FF = FF_;
-    const static size_t multivariate_d = num_vars;
-    const static size_t multivariate_n = 1 << num_vars;
+    const size_t multivariate_n;
+    const size_t multivariate_d;
     static constexpr size_t num = num_polys;
 
     std::array<std::span<FF>, num_polys> full_polynomials;
-    // TODO(Cody): adjacency issues with std::array of std::arrays?
+    // TODO(Cody): adjacency issues with std::array of std::vectors?
     // IMPROVEMENT(Cody): for each round after the first, we could release half of the memory reserved by
     // folded_polynomials.
-    std::array<std::array<FF, (multivariate_n >> 1)>, num_polys> folded_polynomials;
+    std::array<std::vector<FF>, num_polys> folded_polynomials;
 
     Multivariates() = default;
 
     // TODO(Cody): static span extent below more efficient
     explicit Multivariates(std::array<std::span<FF>, num_polys> full_polynomials)
-        : full_polynomials(full_polynomials){};
+        : multivariate_n(full_polynomials[0].size())
+        , multivariate_d(numeric::get_msb(multivariate_n))
+        , full_polynomials(full_polynomials)
+    {
+        for (auto& polynomial : folded_polynomials) {
+            polynomial.resize(multivariate_n >> 1);
+        }
+    };
 
+    explicit Multivariates(const std::shared_ptr<waffle::proving_key>& proving_key)
+        : multivariate_n(proving_key->n)
+        , multivariate_d(proving_key->log_n)
+    {
+        for (size_t i = 0; i < waffle::STANDARD_HONK_MANIFEST_SIZE; i++) {
+            auto label = proving_key->polynomial_manifest[i].polynomial_label;
+            full_polynomials[i] = proving_key->polynomial_cache.get(std::string(label));
+        }
+
+        for (auto& polynomial : folded_polynomials) {
+            polynomial.resize(multivariate_n >> 1);
+        }
+    }
+
+    explicit Multivariates(transcript::StandardTranscript transcript)
+        : multivariate_n(
+              static_cast<size_t>(transcript.get_field_element("circuit_size").from_montgomery_form().data[0]))
+        , multivariate_d(numeric::get_msb(multivariate_n))
+    {}
+
+    // TODO(Cody): Rename. fold is not descriptive, and it's already in use in the Gemini context.
+    //             Probably just call it partial_evaluation?
     /**
      * @brief Evaluate at the round challenge and prepare class for next round.
      * Illustration of layout in example of first round when d==3 (showing just one Honk polynomial,
@@ -90,7 +122,6 @@ template <class FF_, size_t num_polys, size_t num_vars> class Multivariates {
      *
      * @param challenge
      */
-
     void fold(auto& polynomials, size_t round_size, const FF& round_challenge)
     {
         // after the first round, operate in place on folded_polynomials
@@ -102,11 +133,10 @@ template <class FF_, size_t num_polys, size_t num_vars> class Multivariates {
         }
     };
 
-    std::array<FF, num_polys> batch_evaluate(std::array<FF, num_vars> input)
+    std::array<FF, num_polys> batch_evaluate()
     {
         // TODO(Cody): these just get extracted from the folded multivariates
         // For now, at least initialize properly.
-        static_cast<void>(input);
         std::array<FF, num_polys> result;
         for (auto& entry : result) {
             entry = 1;

@@ -127,6 +127,7 @@ size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type)
         break;
     };
     default: {
+        // Will hit this with Standard Honk.
         throw_or_abort("Received invalid composer type");
     }
     };

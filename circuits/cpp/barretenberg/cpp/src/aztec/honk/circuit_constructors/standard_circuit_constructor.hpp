@@ -14,7 +14,7 @@ inline std::vector<std::string> standard_selector_names()
 class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_WIDTH> {
   public:
     // TODO: replace this with Honk enums after we have a verifier and no longer depend on plonk prover/verifier
-    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD;
+    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD_HONK;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     // These are variables that we have used a gate on, to enforce that they are

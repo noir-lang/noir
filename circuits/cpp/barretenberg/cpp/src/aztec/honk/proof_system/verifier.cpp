@@ -9,6 +9,8 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <math.h>
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 using namespace barretenberg;
 using namespace honk::sumcheck;
 
@@ -72,7 +74,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     const size_t num_polys = program_settings::num_polys;
     using FF = typename program_settings::fr;
     using Transcript = typename program_settings::Transcript;
-    using Multivariates = Multivariates<FF, num_polys, multivariate_d>;
+    using Multivariates = Multivariates<FF, num_polys>;
 
     key->program_width = program_settings::program_width;
 

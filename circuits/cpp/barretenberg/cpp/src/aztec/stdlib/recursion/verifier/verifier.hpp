@@ -103,6 +103,9 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, element });
             break;
         }
+        case waffle::PolynomialSource::OTHER: {
+            break;
+        }
         }
         if (item.requires_shifted_evaluation) {
             const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");

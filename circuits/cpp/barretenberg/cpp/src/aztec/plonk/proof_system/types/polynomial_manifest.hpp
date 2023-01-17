@@ -6,7 +6,7 @@
 
 namespace waffle {
 
-enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION };
+enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION, OTHER };
 
 enum PolynomialRepresentation { MONOMIAL, COSET_FFT };
 
@@ -48,8 +48,8 @@ enum PolynomialIndex {
     S,
     Z,
     Z_LOOKUP,
-    // LAGRANGE_FIRST,
-    // LAGRANGE_LAST,
+    LAGRANGE_FIRST,
+    LAGRANGE_LAST,
     // SUBGROUP_GENERATOR,
     MAX_NUM_POLYNOMIALS,
 };
@@ -170,6 +170,29 @@ static constexpr PolynomialDescriptor ultra_polynomial_manifest[ULTRA_UNROLLED_M
     PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                      //
 };
 
+// TODO(Cody): Get this right; just using for now to extract names.
+static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 17;
+static constexpr PolynomialDescriptor standard_honk_polynomial_manifest[STANDARD_HONK_MANIFEST_SIZE]{
+    PolynomialDescriptor("W_1", "w_1_lagrange", false, false, WITNESS, W_1), //
+    PolynomialDescriptor("W_2", "w_2_lagrange", false, false, WITNESS, W_2), //
+    PolynomialDescriptor("W_3", "w_3_lagrange", false, false, WITNESS, W_3), //
+    PolynomialDescriptor("Z_PERM", "z_perm", true, true, WITNESS, Z),        //
+    // PolynomialDescriptor("Z_PERM_SHIFT", "z_perm_shift", true, true, WITNESS, Z_LOOKUP),                     //
+    PolynomialDescriptor("Q_M", "q_m_lagrange", true, false, SELECTOR, Q_M),                         //
+    PolynomialDescriptor("Q_1", "q_1_lagrange", true, false, SELECTOR, Q_1),                         //
+    PolynomialDescriptor("Q_2", "q_2_lagrange", true, false, SELECTOR, Q_2),                         //
+    PolynomialDescriptor("Q_3", "q_3_lagrange", true, false, SELECTOR, Q_3),                         //
+    PolynomialDescriptor("Q_C", "q_c_lagrange", true, false, SELECTOR, Q_C),                         //
+    PolynomialDescriptor("SIGMA_1", "sigma_1_lagrange", false, false, PERMUTATION, SIGMA_1),         //
+    PolynomialDescriptor("SIGMA_2", "sigma_2_lagrange", false, false, PERMUTATION, SIGMA_2),         //
+    PolynomialDescriptor("SIGMA_3", "sigma_3_lagrange", true, false, PERMUTATION, SIGMA_3),          //
+    PolynomialDescriptor("ID_1", "id_1_lagrange", false, false, PERMUTATION, ID_1),                  //
+    PolynomialDescriptor("ID_2", "id_2_lagrange", false, false, PERMUTATION, ID_2),                  //
+    PolynomialDescriptor("ID_3", "id_3_lagrange", true, false, PERMUTATION, ID_3),                   //
+    PolynomialDescriptor("LAGRANGE_FIRST", "L_first_lagrange", false, false, OTHER, LAGRANGE_FIRST), //
+    PolynomialDescriptor("LAGRANGE_LAST", "L_last_lagrange", false, false, OTHER, LAGRANGE_LAST)     //
+};
+
 // Simple class allowing for access to a polynomial manifest based on composer type
 class PolynomialManifest {
   private:
@@ -196,6 +219,12 @@ class PolynomialManifest {
         case ComposerType::PLOOKUP: {
             std::copy(ultra_polynomial_manifest,
                       ultra_polynomial_manifest + ULTRA_UNROLLED_MANIFEST_SIZE,
+                      std::back_inserter(manifest));
+            break;
+        };
+        case ComposerType::STANDARD_HONK: {
+            std::copy(standard_honk_polynomial_manifest,
+                      standard_honk_polynomial_manifest + STANDARD_HONK_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
@@ -242,6 +271,8 @@ class PrecomputedPolyList {
                 precomputed_poly_ids.emplace_back(label);
                 precomputed_poly_ids.emplace_back(label + "_fft");
                 precomputed_poly_ids.emplace_back(label + "_lagrange");
+                break;
+            case PolynomialSource::OTHER:
                 break;
             }
         }

@@ -26,6 +26,8 @@ using FF = barretenberg::fr;
 template <size_t multivariate_d, size_t MAX_RELATION_LENGTH, size_t num_polys>
 void mock_prover_contributions_to_transcript(Transcript& transcript)
 {
+    transcript.add_element("circuit_size", FF(1 << multivariate_d).to_buffer());
+
     // Write d-many arbitrary round univariates to the transcript
     for (size_t round_idx = 0; round_idx < multivariate_d; round_idx++) {
         auto round_univariate = Univariate<FF, MAX_RELATION_LENGTH>();
@@ -41,10 +43,12 @@ TEST(Sumcheck, Prover)
 {
     const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
-    const size_t multivariate_n(1 << multivariate_d);
-    const size_t max_relation_length = 4;
+    // const size_t multivariate_n(1 << multivariate_d);
 
-    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    // const size_t max_relation_length = 4;
+    constexpr size_t fr_size = 32;
+
+    using Multivariates = ::Multivariates<FF, num_polys>;
 
     std::array<FF, 2> w_l = { 1, 2 };
     std::array<FF, 2> w_r = { 1, 2 };
@@ -70,7 +74,18 @@ TEST(Sumcheck, Prover)
         q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1
     };
 
-    auto transcript = Transcript(transcript::Manifest());
+    std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
+    for (size_t i = 0; i < multivariate_d; i++) {
+        auto label = std::to_string(multivariate_d - i);
+        manifest_rounds.emplace_back(
+            transcript::Manifest::RoundManifest({ { .name = "univariate_" + label,
+                                                    .num_bytes = fr_size * honk::StandardHonk::MAX_RELATION_LENGTH,
+                                                    .derived_by_verifier = false } },
+                                                /* challenge_name = */ "u_" + label,
+                                                /* num_challenges_in = */ 1));
+    }
+
+    auto transcript = Transcript(transcript::Manifest(manifest_rounds));
 
     auto multivariates = Multivariates(full_polynomials);
 
@@ -88,10 +103,10 @@ TEST(Sumcheck, Verifier)
 {
     const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
-    const size_t multivariate_n(1 << multivariate_d);
+    // const size_t multivariate_n(1 << multivariate_d);
     const size_t max_relation_length = 5;
 
-    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    using Multivariates = ::Multivariates<FF, num_polys>;
 
     auto transcript = Transcript(transcript::Manifest());
     mock_prover_contributions_to_transcript<multivariate_d, max_relation_length, num_polys>(transcript);

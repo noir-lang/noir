@@ -24,7 +24,7 @@ namespace waffle {
 proving_key::proving_key(const size_t num_gates,
                          const size_t num_inputs,
                          std::shared_ptr<ProverReferenceString> const& crs,
-                         waffle::ComposerType type = waffle::STANDARD)
+                         waffle::ComposerType type = waffle::STANDARD) // TODO(Cody): Don't use default for Honk
     : composer_type(type)
     , n(num_gates)
     , log_n(numeric::get_msb(num_gates))

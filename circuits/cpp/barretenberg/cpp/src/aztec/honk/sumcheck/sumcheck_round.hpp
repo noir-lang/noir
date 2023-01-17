@@ -208,7 +208,6 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
             accumulate_relation_univariates<>();
         }
 
-        FF running_challenge(1);
         auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(univariate_accumulators,
                                                                                 relation_separator_challenge);
 

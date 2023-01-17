@@ -7,6 +7,7 @@ enum ComposerType {
     STANDARD,
     TURBO,
     PLOOKUP,
+    STANDARD_HONK,
 };
 
 // This variable sets the composer (TURBO or ULTRA) of the entire stdlib and rollup modules.

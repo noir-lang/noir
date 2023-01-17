@@ -22,11 +22,11 @@ namespace test_sumcheck_round {
 TEST(SumcheckRound, ComputeUnivariateProver)
 {
     const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
-    const size_t multivariate_d(1);
+    // const size_t multivariate_d(1);
     const size_t max_relation_length = 5;
 
     using FF = barretenberg::fr;
-    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    using Multivariates = ::Multivariates<FF, num_polys>;
 
     std::array<FF, 2> w_l = { 1, 2 };
     std::array<FF, 2> w_r = { 1, 2 };
@@ -73,12 +73,12 @@ TEST(SumcheckRound, ComputeUnivariateProver)
 TEST(SumcheckRound, ComputeUnivariateVerifier)
 {
     const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
-    const size_t multivariate_d(1);
-    const size_t multivariate_n(1 << multivariate_d);
-    const size_t max_relation_length = 5;
+    // const size_t multivariate_d(1);
+    // const size_t multivariate_n(1 << multivariate_d);
+    // const size_t max_rezlation_length = 5;
 
     using FF = barretenberg::fr;
-    using Multivariates = ::Multivariates<FF, num_polys, multivariate_d>;
+    using Multivariates = ::Multivariates<FF, num_polys>;
 
     FF w_l = { 1 };
     FF w_r = { 2 };
@@ -104,7 +104,7 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
     std::vector<FF> purported_evaluations = { w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
                                               q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1 };
 
-    size_t round_size = 1;
+    // size_t round_size = 1;
     auto relations = std::tuple(
         ArithmeticRelation<FF>(), GrandProductComputationRelation<FF>(), GrandProductInitializationRelation<FF>());
     auto round = SumcheckRound<FF,
@@ -131,7 +131,7 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
 //     using Fr = barretenberg::fr;
 //     using Edge = Edge<Fr>;
 //     using EdgeGroup = EdgeGroup<Fr, num_polys>;
-//     using Multivariates = Multivariates<Fr, num_polys, multivariate_d>;
+//     using Multivariates = Multivariates<Fr, num_polys>;
 //     using Univariate = Univariate<Fr, max_relation_length>;
 //     // TODO(Cody): move this out of round.
 //     EdgeGroup group0({ Edge({ 1, 2 }),

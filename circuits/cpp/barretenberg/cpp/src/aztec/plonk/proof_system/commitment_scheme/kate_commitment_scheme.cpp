@@ -305,6 +305,9 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
             kate_g1_elements.insert({ label, element });
             break;
         }
+        case PolynomialSource::OTHER: {
+            break;
+        }
         }
 
         // We iterate over the polynomials in polynomial_manifest to add their commitments,

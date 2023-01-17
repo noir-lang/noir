@@ -1,11 +1,18 @@
 #include "prover.hpp"
-// #include <honk/sumcheck/sumcheck.hpp> // will need
+#include <honk/sumcheck/sumcheck.hpp> // will need
+#include <array>
 #include <honk/sumcheck/polynomials/univariate.hpp> // will go away
 #include <honk/pcs/commitment_key.hpp>
 #include <vector>
 #include "ecc/curves/bn254/fr.hpp"
 #include "ecc/curves/bn254/g1.hpp"
+#include <honk/sumcheck/polynomials/multivariates.hpp>
+#include <honk/sumcheck/relations/arithmetic_relation.hpp>
+#include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
+#include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
+#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include "proof_system/flavor/flavor.hpp"
+#include "transcript/transcript_wrappers.hpp"
 
 namespace honk {
 
@@ -273,32 +280,40 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
+    using Multivariates = sumcheck::Multivariates<barretenberg::fr, waffle::STANDARD_HONK_MANIFEST_SIZE>;
+    using Transcript = transcript::StandardTranscript;
+    using Sumcheck = sumcheck::Sumcheck<Multivariates,
+                                        Transcript,
+                                        sumcheck::ArithmeticRelation,
+                                        sumcheck::GrandProductComputationRelation,
+                                        sumcheck::GrandProductInitializationRelation>;
+
     // Compute alpha challenge
     transcript.apply_fiat_shamir("alpha");
 
-    // TODO(luke): Run Sumcheck. For now, mock univariates.
-    for (size_t round_idx = 0; round_idx < proving_key->log_n; round_idx++) {
-        honk::sumcheck::Univariate<barretenberg::fr, honk::StandardHonk::MAX_RELATION_LENGTH> round_univariate;
-        for (auto eval : round_univariate.evaluations) {
-            eval = round_idx;
-        }
-        transcript.add_element("univariate_" + std::to_string(proving_key->log_n - round_idx),
-                               round_univariate.to_buffer());
-        transcript.apply_fiat_shamir("u_" + std::to_string(proving_key->log_n - round_idx));
-    }
+    auto multivariates = Multivariates(proving_key);
+    auto sumcheck = Sumcheck(multivariates, transcript);
 
-    transcript.add_element("w_1", barretenberg::fr(100).to_buffer());
-    transcript.add_element("w_2", barretenberg::fr(101).to_buffer());
-    transcript.add_element("w_3", barretenberg::fr(102).to_buffer());
-    transcript.add_element("sigma_1", barretenberg::fr(103).to_buffer());
-    transcript.add_element("sigma_2", barretenberg::fr(104).to_buffer());
-    transcript.add_element("sigma_3", barretenberg::fr(105).to_buffer());
-    transcript.add_element("q_1", barretenberg::fr(106).to_buffer());
-    transcript.add_element("q_2", barretenberg::fr(107).to_buffer());
-    transcript.add_element("q_3", barretenberg::fr(108).to_buffer());
-    transcript.add_element("q_m", barretenberg::fr(109).to_buffer());
-    transcript.add_element("q_c", barretenberg::fr(110).to_buffer());
-    transcript.add_element("z_perm", barretenberg::fr(111).to_buffer());
+    sumcheck.execute_prover();
+
+    // TODO(Cody): Execute as a loop over polynomial manifest? Things thare are called *_lagrange
+    transcript.add_element("w_1", multivariates.folded_polynomials[1][0].to_buffer());
+    transcript.add_element("w_2", multivariates.folded_polynomials[1][0].to_buffer());
+    transcript.add_element("w_3", multivariates.folded_polynomials[2][0].to_buffer());
+    transcript.add_element("z_perm", multivariates.folded_polynomials[3][0].to_buffer());
+    transcript.add_element("q_m", multivariates.folded_polynomials[4][0].to_buffer());
+    transcript.add_element("q_1", multivariates.folded_polynomials[5][0].to_buffer());
+    transcript.add_element("q_2", multivariates.folded_polynomials[6][0].to_buffer());
+    transcript.add_element("q_3", multivariates.folded_polynomials[7][0].to_buffer());
+    transcript.add_element("q_c", multivariates.folded_polynomials[8][0].to_buffer());
+    transcript.add_element("sigma_1", multivariates.folded_polynomials[9][0].to_buffer());
+    transcript.add_element("sigma_2", multivariates.folded_polynomials[10][0].to_buffer());
+    transcript.add_element("sigma_3", multivariates.folded_polynomials[11][0].to_buffer());
+    transcript.add_element("id_1", multivariates.folded_polynomials[12][0].to_buffer());
+    transcript.add_element("id_2", multivariates.folded_polynomials[13][0].to_buffer());
+    transcript.add_element("id_3", multivariates.folded_polynomials[14][0].to_buffer());
+    transcript.add_element("L_first", multivariates.folded_polynomials[15][0].to_buffer());
+    transcript.add_element("L_last", multivariates.folded_polynomials[16][0].to_buffer());
 }
 
 /**

@@ -1,8 +1,9 @@
 #include "standard_honk_composer.hpp"
 #include "numeric/uint256/uint256.hpp"
+#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include <cstdint>
 #include <honk/proof_system/prover.hpp>
-
+#include <honk/sumcheck/polynomials/multivariates.hpp>
 #include <gtest/gtest.h>
 
 using namespace honk;
@@ -264,7 +265,8 @@ TEST(StandarHonkComposer, BaseCase)
 
     auto prover = composer.create_unrolled_prover();
     // waffle::Verifier verifier = composer.create_verifier();
-
+    auto multivariates = honk::sumcheck::Multivariates<fr, waffle::STANDARD_HONK_MANIFEST_SIZE>(prover.proving_key);
+    (void)multivariates;
     waffle::plonk_proof proof = prover.construct_proof();
 
     // bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);

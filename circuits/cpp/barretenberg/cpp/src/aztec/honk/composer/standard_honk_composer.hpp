@@ -13,7 +13,7 @@ namespace honk {
  */
 class StandardHonkComposer {
   public:
-    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD;
+    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD_HONK;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
