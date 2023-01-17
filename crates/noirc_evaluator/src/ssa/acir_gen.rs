@@ -3,10 +3,6 @@ use super::mem::{ArrayId, MemArray, Memory};
 use super::node::{BinaryOp, Instruction, NodeId, ObjectType, Operation};
 use acvm::FieldElement;
 
-use num_traits::{One, Zero};
-use std::cmp::Ordering;
-use std::ops::{Mul, Neg};
-use std::{collections::HashMap, str};
 use crate::ssa::context::SsaContext;
 use crate::ssa::node::Node;
 use crate::ssa::{mem, node};
@@ -16,6 +12,10 @@ use crate::RuntimeErrorKind;
 use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
 use acvm::acir::native_types::{Expression, Linear, Witness};
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
+use std::cmp::Ordering;
+use std::ops::{Mul, Neg};
+use std::{collections::HashMap, str};
 
 #[derive(Default)]
 pub struct Acir {

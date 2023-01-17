@@ -14,7 +14,7 @@ use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId, Expression, Type, Literal};
+use noirc_frontend::monomorphisation::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -1100,30 +1100,32 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId, arguments: &[Expression]) -> Option<builtin::Opcode> {
+    pub fn get_builtin_opcode(
+        &self,
+        node_id: NodeId,
+        arguments: &[Expression],
+    ) -> Option<builtin::Opcode> {
         match &self[node_id] {
-            NodeObj::Function(FunctionKind::Builtin(opcode), ..) => {
-                match opcode {
-                    builtin::Opcode::Println(_) => {
-                        assert!(
-                            arguments.len() == 1,
-                            "print statements currently only support one argument"
-                        );
-                        let is_string = match &arguments[0] {
-                            Expression::Ident(ident) => match ident.typ {
-                                Type::String(_) => true,
-                                _ => false,
-                            },
-                            Expression::Literal(literal) => match literal {
-                                Literal::Str(_) => true,
-                                _ => false,
-                            },
-                            _ => unreachable!("logging this expression type is not supported"),
-                        };
-                        Some(builtin::Opcode::Println(is_string))
-                    }
-                    _ => Some(*opcode),
+            NodeObj::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
+                builtin::Opcode::Println(_) => {
+                    assert!(
+                        arguments.len() == 1,
+                        "print statements currently only support one argument"
+                    );
+                    let is_string = match &arguments[0] {
+                        Expression::Ident(ident) => match ident.typ {
+                            Type::String(_) => true,
+                            _ => false,
+                        },
+                        Expression::Literal(literal) => match literal {
+                            Literal::Str(_) => true,
+                            _ => false,
+                        },
+                        _ => unreachable!("logging this expression type is not supported"),
+                    };
+                    Some(builtin::Opcode::Println(is_string))
                 }
+                _ => Some(*opcode),
             },
             _ => None,
         }
