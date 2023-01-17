@@ -361,10 +361,8 @@ impl Acir {
             BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
-                InternalVar::from(mul(
-                    &l_c.expression,
-                    &from_witness(evaluate_inverse(r_c, &predicate, evaluator)),
-                ))
+                let inverse = from_witness(evaluate_inverse(r_c, &predicate, evaluator));
+                InternalVar::from(mul_with_witness(evaluator, &l_c.expression, &inverse))
             }
             BinaryOp::Eq => InternalVar::from(
                 self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
