@@ -26,10 +26,11 @@ dependencies = [
 
 [[package]]
 name = "acir"
-version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aad7977c11d19ae0dd983b50dc5fd9eb96c002072f75643e45daa6dc0c23fba5"
 dependencies = [
- "acir_field 0.3.0",
+ "acir_field 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2",
  "rmp-serde",
  "serde",
@@ -38,10 +39,9 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aad7977c11d19ae0dd983b50dc5fd9eb96c002072f75643e45daa6dc0c23fba5"
+source = "git+https://github.com/noir-lang/acvm#d4135a84df01950647e6a38c620f6e620936d6dc"
 dependencies = [
- "acir_field 0.3.1",
+ "acir_field 0.3.1 (git+https://github.com/noir-lang/acvm)",
  "flate2",
  "rmp-serde",
  "serde",
@@ -49,8 +49,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -65,8 +66,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
+source = "git+https://github.com/noir-lang/acvm#d4135a84df01950647e6a38c620f6e620936d6dc"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -113,12 +113,13 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99007127e84602134226eefc2245c59b7fe55853bfeba572714b04c5b3fefdea"
 dependencies = [
- "acir 0.3.0",
- "acir_field 0.3.0",
- "acvm_stdlib 0.3.0",
+ "acir 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "acir_field 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "acvm_stdlib 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "blake2",
  "hex",
  "indexmap",
@@ -132,12 +133,11 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99007127e84602134226eefc2245c59b7fe55853bfeba572714b04c5b3fefdea"
+source = "git+https://github.com/noir-lang/acvm#d4135a84df01950647e6a38c620f6e620936d6dc"
 dependencies = [
- "acir 0.3.1",
- "acir_field 0.3.1",
- "acvm_stdlib 0.3.1",
+ "acir 0.3.1 (git+https://github.com/noir-lang/acvm)",
+ "acir_field 0.3.1 (git+https://github.com/noir-lang/acvm)",
+ "acvm_stdlib 0.3.1 (git+https://github.com/noir-lang/acvm)",
  "blake2",
  "hex",
  "indexmap",
@@ -150,21 +150,21 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.3.0"
-source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
 dependencies = [
- "acir 0.3.0",
- "acir_field 0.3.0",
+ "acir 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "acir_field 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "acvm_stdlib"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
+source = "git+https://github.com/noir-lang/acvm#d4135a84df01950647e6a38c620f6e620936d6dc"
 dependencies = [
- "acir 0.3.1",
- "acir_field 0.3.1",
+ "acir 0.3.1 (git+https://github.com/noir-lang/acvm)",
+ "acir_field 0.3.1 (git+https://github.com/noir-lang/acvm)",
 ]
 
 [[package]]
@@ -646,7 +646,7 @@ name = "common"
 version = "0.1.0"
 source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -1487,7 +1487,7 @@ dependencies = [
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "barretenberg_static_lib",
  "cfg-if 1.0.0",
  "clap 2.34.0",
@@ -1558,7 +1558,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1 (git+https://github.com/noir-lang/acvm)",
  "console_error_panic_hook",
  "getrandom",
  "gloo-utils",
@@ -1572,7 +1572,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "blake2",
  "serde",
  "serde_derive",
@@ -1584,7 +1584,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 4.0.0",
  "fm",
  "noirc_abi",
@@ -1609,7 +1609,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arena",
  "fm",
  "iter-extended",
@@ -1626,7 +1626,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arena",
  "chumsky",
  "fm",
@@ -2414,9 +2414,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.24.1"
+version = "1.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d9f76183f91ecfb55e1d7d5602bd1d979e38a3a522fe900241cf195624d67ae"
+checksum = "597a12a59981d9e3c38d216785b0c37399f6e415e8d0712047620f189371b0bb"
 dependencies = [
  "autocfg",
  "bytes",
