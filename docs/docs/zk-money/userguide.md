@@ -138,7 +138,7 @@ From there you will be taken to the exit modal where you can unstake.
 
 ## On Security
 
-Disclaimer: It is responsible for projects using bleeding-edge cryptography, to highlight the risks of use.  Given the absence of an external audit, zk.money should be view as experimental software. Internally the Aztec team has conducted two internal audits of the network, described here. After patching the resultant security flaws, we have high confidence in the soundness and security of our cryptography. Users are nonetheless reminded to use any new cryptographic system with extreme caution, and to remember that you do so at your own risk.
+Disclaimer: It is responsible for projects using bleeding-edge cryptography, to highlight the risks of use.  Given the absence of an external audit, zk.money should be viewed as experimental software. Internally the Aztec team has conducted two internal audits of the network, described here. After patching the resultant security flaws, we have high confidence in the soundness and security of our cryptography. Users are nonetheless reminded to use any new cryptographic system with extreme caution, and to remember that you do so at your own risk.
 
 ## Community Support
 
