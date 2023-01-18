@@ -1,0 +1,16 @@
+{
+  "name": "@noir-lang/noir_wasm",
+  "version": "0.10.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "node": "./noir-node.js",
+      "default": "./noir-browser.js"
+    },
+    "./init": "./init.js"
+  },
+  "files": [
+    "binding/",
+    "*.js"
+  ]
+}

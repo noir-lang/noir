@@ -1,0 +1,5 @@
+world fm {
+  import fs: interface {
+    read-file: func(path: string) -> result<string, string>
+  }
+}

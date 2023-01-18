@@ -1,25 +1,36 @@
 #!/usr/bin/env bash
 
-# Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
-if [ -d ./pkg/ ]; then
-    rm -rf ./pkg/
+# Clear out the existing build artifacts as these aren't automatically removed
+if [ -d ./binding/ ]; then
+    rm -rf ./binding/
 fi
 
-# Build the new wasm package
-wasm-pack build --scope noir-lang --target nodejs --out-dir pkg/nodejs
-
-wasm-pack build --scope noir-lang --target web --out-dir pkg/web
-
-COMMIT_SHORT=$(git rev-parse --short HEAD)
-VERSION_APPENDIX=""
-if [ -n "$COMMIT_SHORT" ]; then
-    VERSION_APPENDIX="-$COMMIT_SHORT"
+# Determine system.
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS=macos
+elif [[ "$OSTYPE" == "linux-gnu" ]]; then
+    OS=linux
 else
-    VERSION_APPENDIX="-NOGIT"
+    echo "Unknown OS: $OSTYPE"
+    exit 1
 fi
 
-jq -s '.[0] * .[1]' pkg/nodejs/package.json pkg/web/package.json | jq '.files = ["nodejs", "web", "package.json"]' | jq ".version += \"$VERSION_APPENDIX\"" | jq '.main = "./nodejs/" + .main | .module = "./web/" + .module | .types = "./web/" + .types | .peerDependencies = { "@noir-lang/noir-source-resolver": "1.0.0" }' | tee ./pkg/package.json
+if [ "$OS" == "macos" ]; then
+    export BREW_PREFIX=$(brew --prefix)
+    # Ensure we have toolchain.
+    if [ ! "$?" -eq 0 ] || [ ! -f "$BREW_PREFIX/opt/llvm/bin/clang++" ]; then
+        echo "Default clang not sufficient. Install homebrew, and then: brew install llvm"
+        exit 1
+    fi
+    export CC=$BREW_PREFIX/opt/llvm/bin/clang
+    export AR=$BREW_PREFIX/opt/llvm/bin/llvm-ar
+else
+    export CC=clang
+    export AR=llvm-ar
+fi
 
-rm pkg/nodejs/package.json pkg/nodejs/README.md pkg/nodejs/.gitignore
-
-rm pkg/web/package.json pkg/web/README.md pkg/web/.gitignore
+# Build the new wasm code
+cargo build --lib --release
+wasm-tools component new ../../target/wasm32-unknown-unknown/release/noir_wasm.wasm -o ../../target/wasm32-unknown-unknown/release/noir_wasm.component.wasm
+# -I is the important part because it allows "instantiation" which allows us to pass in our imports
+wit-bindgen host js -I ../../target/wasm32-unknown-unknown/release/noir_wasm.component.wasm --out-dir binding

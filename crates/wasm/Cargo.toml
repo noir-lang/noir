@@ -15,13 +15,5 @@ crate-type = ["cdylib"]
 acvm = { path = "../acvm", features = ["bn254"] }
 noirc_driver = { path = "../noirc_driver" }
 
-console_error_panic_hook.workspace = true
-
-wasm-bindgen.workspace = true
-gloo-utils.workspace = true
-
-getrandom.workspace = true
-js-sys.workspace = true
-
-[dev-dependencies]
-wasm-bindgen-test.workspace = true
+serde_json.workspace = true
+wit-bindgen-guest-rust.workspace = true

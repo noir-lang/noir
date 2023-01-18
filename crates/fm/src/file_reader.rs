@@ -5,23 +5,19 @@ use std::path::Path;
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
-        use wasm_bindgen::{prelude::*, JsValue};
-
-        #[wasm_bindgen(module = "@noir-lang/noir-source-resolver")]
-        extern "C" {
-            #[wasm_bindgen(catch)]
-            fn read_file(path: &str) -> Result<String, JsValue>;
-        }
+        wit_bindgen_guest_rust::generate!({
+            path: "./wit/fm.wit",
+        });
 
         pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             use std::io::ErrorKind;
             let path_str = path_to_file.as_os_str().to_str().unwrap();
-            match read_file(path_str) {
+            match fs::read_file(path_str) {
                 Ok(buffer) => Ok(buffer),
-                Err(_) => Err(Error::new(ErrorKind::Other, "could not read file using wasm")),
+                Err(msg) => Err(Error::new(ErrorKind::Other, msg)),
             }
         }
-    } else {
+    } else  {
         pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             std::fs::read_to_string(path_to_file)
         }

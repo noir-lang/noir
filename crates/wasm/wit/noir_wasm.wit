@@ -1,0 +1,11 @@
+world noir-wasm {
+    import console: interface {
+        log: func(msg: string)
+        error: func(msg: string)
+    }
+    default export interface {
+        compile: func(src: string) -> string
+        acir-from-bytes: func(bytes: list<u8>) -> string
+        acir-to-bytes: func(acir: string) -> list<u8>
+    }
+}

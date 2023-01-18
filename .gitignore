@@ -5,6 +5,7 @@ examples/9
 .vscode
 node_modules
 pkg/
+crates/wasm/binding/
 
 # Nargo output
 *.proof
