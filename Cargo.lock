@@ -415,12 +415,11 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=kw/acvm3.0#591c7d742176d045447a1ff7c1ebc2f39de56bd3"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
  "common",
- "console_error_panic_hook",
  "dirs 3.0.2",
  "downloader",
  "hex",
@@ -645,9 +644,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=kw/acvm3.0#591c7d742176d045447a1ff7c1ebc2f39de56bd3"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "blake2",
  "dirs 3.0.2",
  "downloader",
