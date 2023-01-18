@@ -208,8 +208,44 @@ pub trait PartialWitnessGenerator {
                         }
                         _ => true,
                     },
-                    Directive::Log(log_string) => {
-                        println!("{}", log_string);
+                    Directive::Log { output_string, witnesses } => {
+                        if !witnesses.is_empty() {
+                            if witnesses.len() == 1 {
+                                match initial_witness.entry(witnesses[0]) {
+                                    std::collections::btree_map::Entry::Vacant(_) => {
+                                        unreachable!("log entry does must have a witness");
+                                    }
+                                    std::collections::btree_map::Entry::Occupied(e) => {
+                                        println!("{}", e.get().to_hex());
+                                    }
+                                }
+                            } else {
+                                let mut output_witnesses_string = "".to_owned();
+                                output_witnesses_string.push_str("[");
+                                let mut iter = witnesses.iter().peekable();
+                                while let Some(w) = iter.next() {
+                                    let elem = match initial_witness.entry(*w) {
+                                        std::collections::btree_map::Entry::Vacant(_) => {
+                                            unreachable!("log entry does must have a witness");
+                                        }
+                                        std::collections::btree_map::Entry::Occupied(e) => {
+                                            e.get().clone()
+                                        }
+                                    };
+                                    if iter.peek().is_none() {
+                                        output_witnesses_string
+                                            .push_str(&format!("{}", elem.to_hex()));
+                                    } else {
+                                        output_witnesses_string
+                                            .push_str(&format!("{}, ", elem.to_hex()));
+                                    }
+                                }  
+                                output_witnesses_string.push_str("]");
+                                println!("{}", output_witnesses_string);
+                            }
+                        } else {
+                            println!("{}", output_string);
+                        }
                         false
                     }
                 },

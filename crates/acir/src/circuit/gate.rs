@@ -42,7 +42,7 @@ impl Gate {
             Gate::Directive(Directive::Quotient { .. }) => "quotient",
             Gate::Directive(Directive::Oddrange { .. }) => "odd_range",
             Gate::Directive(Directive::ToRadix { .. }) => "to_radix",
-            Gate::Directive(Directive::Log(_)) => "log",
+            Gate::Directive(Directive::Log { .. }) => "log",
             Gate::GadgetCall(g) => g.name.name(),
         }
     }
@@ -130,8 +130,17 @@ impl std::fmt::Debug for Gate {
                     b.last().unwrap().witness_index(),
                 )
             }
-            Gate::Directive(Directive::Log(log_string)) => {
-                write!(f, "Log: {}", log_string)
+            Gate::Directive(Directive::Log { output_string, witnesses }) => {
+                if !witnesses.is_empty() {
+                    write!(
+                        f,
+                        "Log: x{}...x{}",
+                        witnesses.first().unwrap().witness_index(),
+                        witnesses.last().unwrap().witness_index()
+                    )
+                } else {
+                    write!(f, "Log: {}", output_string)
+                }
             }
         }
     }
@@ -178,7 +187,13 @@ pub enum Directive {
         radix: u32,
     },
 
-    Log(String),
+    // If values are compile time and known during evaluation we can form an output string during ACIR gen
+    // Otherwise, we must store the witnesses to fetch during the PWG. If the witnesses vector is not empty
+    // we know that we must construct the output string in the PWG.
+    Log {
+        output_string: String,
+        witnesses: Vec<Witness>,
+    },
 }
 
 // Note: Some gadgets will not use all of the witness

@@ -14,8 +14,8 @@ use acvm::acir::native_types::{Expression, Linear, Witness};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::ops::{Mul, Neg};
-use std::{collections::HashMap, str};
 
 #[derive(Default)]
 pub struct Acir {
@@ -634,8 +634,11 @@ impl Acir {
     ) {
         assert!(args.len() == 1, "print statements can only support one argument");
         let node_id = args[0];
-        let obj_type = ctx.get_object_type(node_id);
+
         let mut log_string = "".to_owned();
+        let mut log_witnesses = Vec::new();
+
+        let obj_type = ctx.get_object_type(node_id);
         match obj_type {
             ObjectType::Pointer(array_id) => {
                 let mem_array = &ctx.mem[array_id];
@@ -647,24 +650,36 @@ impl Acir {
                         if array_elem_expr.is_const() {
                             field_elements.push(array_elem_expr.q_c)
                         } else {
-                            unreachable!("array elements being logging must be const");
+                            if self.arith_cache.contains_key(&node_id) {
+                                let var = self.arith_cache[&node_id].clone();
+                                if let Some(w) = var.witness {
+                                    log_witnesses.push(w);
+                                }
+                            } else {
+                                let var = InternalVar::from(array_elem_expr);
+                                if let Some(w) = var.witness {
+                                    log_witnesses.push(w);
+                                } else {
+                                    unreachable!("array element to be logged is missing a witness");
+                                }
+                            }
                         }
                     } else {
-                        // TODO add handling for if key not found
-                        unreachable!("array element being logging does not exist in memory");
+                        unreachable!("array element being logged does not exist in memory");
                     }
                 }
+
                 if is_string_output {
                     let final_string = noirc_abi::decode_string_value(&field_elements);
                     log_string.push_str(&final_string);
-                } else {
+                } else if !field_elements.is_empty() {
                     log_string.push_str("[");
                     let mut iter = field_elements.iter().peekable();
                     while let Some(elem) = iter.next() {
                         if iter.peek().is_none() {
-                            log_string.push_str(&format!("{}", elem));
+                            log_string.push_str(&format!("{}", elem.to_hex()));
                         } else {
-                            log_string.push_str(&format!("{}, ", elem));
+                            log_string.push_str(&format!("{}, ", elem.to_hex()));
                         }
                     }
                     log_string.push_str("]");
@@ -672,12 +687,36 @@ impl Acir {
             }
             _ => match ctx.get_as_constant(node_id) {
                 Some(field) => {
-                    log_string.push_str(&format!("{}", field));
+                    log_string.push_str(&format!("{}", field.to_hex()));
                 }
-                None => unreachable!("array objects should not be marked as single values"),
+                None => {
+                    if self.arith_cache.contains_key(&node_id) {
+                        let var = self.arith_cache[&node_id].clone();
+                        dbg!(var.clone());
+                        if let Some(field) = var.to_const() {
+                            log_string.push_str(&format!("{}", field.to_hex()));
+                        } else if let Some(w) = var.witness {
+                            log_witnesses.push(w);
+                        } else {
+                            unreachable!("array element to be logged is missing a witness");
+                        }
+                    } else {
+                        unreachable!(
+                            "invalid input for print statement: {:?}",
+                            ctx.try_get_node(node_id).expect("node is missing from SSA")
+                        )
+                    }
+                }
             },
         };
-        evaluator.gates.push(Gate::Directive(Directive::Log(log_string)));
+
+        // Only one of the witness vector or the output string should be non-empty
+        assert!(log_witnesses.is_empty() ^ log_string.is_empty());
+
+        evaluator.gates.push(Gate::Directive(Directive::Log {
+            output_string: log_string,
+            witnesses: log_witnesses,
+        }));
     }
 }
 

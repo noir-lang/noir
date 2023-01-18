@@ -7,17 +7,18 @@ fn main(message : pub str[11], y : Field) {
     bad_message = "helld world";
     let x = 10;
     let z = x * 5;
-    std::println(x);
-    std::println(z);
-    std::println(bad_message);
+    std::println(10);
 
-    // Currently broken
-    // let hash = std::hash::pedersen([x])[0];
-    // std::println("five");
+    std::println(z); // x * 5 in println not yet supported
+    std::println(x);
 
     let array = [1, 2, 3, 5, 8];
-    constrain y == 5;
+    constrain y == 5; // Change to y != 5 to see how the later print statements are not called
     std::println(array);
 
+    std::println(bad_message);
     constrain message != bad_message;
+
+    let hash = std::hash::pedersen([x]);
+    std::println(hash);
 }

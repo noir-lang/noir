@@ -300,9 +300,16 @@ fn cse_block_with_anchor(
                     new_list.push(*ins_id);
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
-                Operation::Intrinsic(_, args) => {
+                Operation::Intrinsic(opcode, args) => {
+                    // dbg!(args.clone());
                     //Add dunmmy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
+                    match opcode {
+                        // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
+                        builtin::Opcode::Println(_) => activate_cse = false,
+                        _ => (),
+                    }
+
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
@@ -320,6 +327,7 @@ fn cse_block_with_anchor(
 
                     if activate_cse {
                         if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                            dbg!(similar);
                             *modified = true;
                             new_mark = Mark::ReplaceWith(similar);
                         } else {
@@ -355,6 +363,7 @@ fn cse_block_with_anchor(
             //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 match opcode {
+                    // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
                     _ => {
                         let args = args.iter().map(|arg| {
