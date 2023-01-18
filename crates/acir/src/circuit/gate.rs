@@ -187,9 +187,9 @@ pub enum Directive {
         radix: u32,
     },
 
-    // If values are compile time and known during evaluation we can form an output string during ACIR gen
-    // Otherwise, we must store the witnesses to fetch during the PWG. If the witnesses vector is not empty
-    // we know that we must construct the output string in the PWG.
+    // If values are compile time and/or known during evaluation, we can form an output string during ACIR gen.
+    // Otherwise, we must store witnesses whose values will be fetched during the PWG.
+    // If the witnesses vector is not empty we know that we must instead construct the standard output in the PWG.
     Log {
         output_string: String,
         witnesses: Vec<Witness>,

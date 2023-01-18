@@ -220,6 +220,8 @@ pub trait PartialWitnessGenerator {
                                     }
                                 }
                             } else {
+                                // If multiple witnesses are to be fetched for a log directive,
+                                // it assumed that an array is meant to be printed to standard output
                                 let mut output_witnesses_string = "".to_owned();
                                 output_witnesses_string.push_str("[");
                                 let mut iter = witnesses.iter().peekable();
@@ -239,7 +241,7 @@ pub trait PartialWitnessGenerator {
                                         output_witnesses_string
                                             .push_str(&format!("{}, ", elem.to_hex()));
                                     }
-                                }  
+                                }
                                 output_witnesses_string.push_str("]");
                                 println!("{}", output_witnesses_string);
                             }

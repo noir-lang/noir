@@ -650,18 +650,15 @@ impl Acir {
                         if array_elem_expr.is_const() {
                             field_elements.push(array_elem_expr.q_c)
                         } else {
-                            if self.arith_cache.contains_key(&node_id) {
-                                let var = self.arith_cache[&node_id].clone();
-                                if let Some(w) = var.witness {
-                                    log_witnesses.push(w);
-                                }
+                            let var = if self.arith_cache.contains_key(&node_id) {
+                                self.arith_cache[&node_id].clone()
                             } else {
-                                let var = InternalVar::from(array_elem_expr);
-                                if let Some(w) = var.witness {
-                                    log_witnesses.push(w);
-                                } else {
-                                    unreachable!("array element to be logged is missing a witness");
-                                }
+                                InternalVar::from(array_elem_expr)
+                            };
+                            if let Some(w) = var.witness {
+                                log_witnesses.push(w);
+                            } else {
+                                unreachable!("array element to be logged is missing a witness");
                             }
                         }
                     } else {
@@ -692,7 +689,6 @@ impl Acir {
                 None => {
                     if self.arith_cache.contains_key(&node_id) {
                         let var = self.arith_cache[&node_id].clone();
-                        dbg!(var.clone());
                         if let Some(field) = var.to_const() {
                             log_string.push_str(&format!("{}", field.to_hex()));
                         } else if let Some(w) = var.witness {
