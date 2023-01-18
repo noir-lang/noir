@@ -672,7 +672,7 @@ impl Acir {
             }
             _ => match ctx.get_as_constant(node_id) {
                 Some(field) => {
-                    log_string.push_str(&field.to_hex());
+                    log_string.push_str(&format!("{}", field));
                 }
                 None => unreachable!("array objects should not be marked as single values"),
             },

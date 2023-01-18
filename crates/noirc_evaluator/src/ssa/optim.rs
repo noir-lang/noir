@@ -67,8 +67,6 @@ fn evaluate_intrinsic(
     res_type: &ObjectType,
     block_id: BlockId,
 ) -> Vec<NodeId> {
-    dbg!(args.clone());
-    dbg!(res_type.clone());
     match op {
         builtin::Opcode::ToBits => {
             let bit_count = args[1] as u32;
