@@ -17,7 +17,7 @@ cfg_if::cfg_if! {
                 Err(msg) => Err(Error::new(ErrorKind::Other, msg)),
             }
         }
-    } else  {
+    } else {
         pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             std::fs::read_to_string(path_to_file)
         }
