@@ -51,8 +51,6 @@ pub fn create_circuit(
         np_language,
         is_blackbox_supported,
     )
-    // TODO: We should move the optimisation pass
-    // TODO out of this and just create the circuit
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     Ok(optimised_circuit)
