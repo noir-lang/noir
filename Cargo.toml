@@ -1,16 +1,13 @@
 [workspace]
 
 members = [
-    "crates/noir_field",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",
     "crates/noirc_driver",
-    "crates/acir",
     "crates/nargo",
     "crates/fm",
     "crates/arena",
-    "crates/acvm",
     "crates/noirc_abi",
     "crates/iter-extended",
     "crates/wasm",
@@ -25,13 +22,11 @@ edition = "2021"
 rust-version = "1.64"
 
 [workspace.dependencies]
-acir = { path = "crates/acir" }
 acvm = "0.3.1"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
-noir_field = { path = "crates/noir_field" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }
