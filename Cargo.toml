@@ -26,7 +26,7 @@ rust-version = "1.64"
 
 [workspace.dependencies]
 acir = { path = "crates/acir" }
-acvm = { git = "https://github.com/noir-lang/acvm" }
+acvm = "0.3.1"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

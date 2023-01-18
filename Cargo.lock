@@ -29,7 +29,19 @@ name = "acir"
 version = "0.3.0"
 source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
 dependencies = [
- "acir_field",
+ "acir_field 0.3.0",
+ "flate2",
+ "rmp-serde",
+ "serde",
+]
+
+[[package]]
+name = "acir"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aad7977c11d19ae0dd983b50dc5fd9eb96c002072f75643e45daa6dc0c23fba5"
+dependencies = [
+ "acir_field 0.3.1",
  "flate2",
  "rmp-serde",
  "serde",
@@ -39,6 +51,22 @@ dependencies = [
 name = "acir_field"
 version = "0.3.0"
 source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "blake2",
+ "cfg-if 1.0.0",
+ "hex",
+ "num-bigint",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
+name = "acir_field"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -89,8 +117,27 @@ version = "0.3.0"
 source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
 dependencies = [
  "acir 0.3.0",
- "acir_field",
- "acvm_stdlib",
+ "acir_field 0.3.0",
+ "acvm_stdlib 0.3.0",
+ "blake2",
+ "hex",
+ "indexmap",
+ "k256",
+ "num-bigint",
+ "num-traits",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "acvm"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99007127e84602134226eefc2245c59b7fe55853bfeba572714b04c5b3fefdea"
+dependencies = [
+ "acir 0.3.1",
+ "acir_field 0.3.1",
+ "acvm_stdlib 0.3.1",
  "blake2",
  "hex",
  "indexmap",
@@ -107,7 +154,17 @@ version = "0.3.0"
 source = "git+https://github.com/noir-lang/acvm#dfc957c651602caf80475fa3de97217197a001cc"
 dependencies = [
  "acir 0.3.0",
- "acir_field",
+ "acir_field 0.3.0",
+]
+
+[[package]]
+name = "acvm_stdlib"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
+dependencies = [
+ "acir 0.3.1",
+ "acir_field 0.3.1",
 ]
 
 [[package]]
@@ -1431,7 +1488,7 @@ dependencies = [
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "barretenberg_static_lib",
  "cfg-if 1.0.0",
  "clap 2.34.0",
@@ -1516,7 +1573,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "blake2",
  "serde",
  "serde_derive",
@@ -1528,7 +1585,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "dirs 4.0.0",
  "fm",
  "noirc_abi",
@@ -1553,7 +1610,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "arena",
  "fm",
  "iter-extended",
@@ -1570,7 +1627,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.0",
+ "acvm 0.3.1",
  "arena",
  "chumsky",
  "fm",
