@@ -11,9 +11,8 @@ edition.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-# Compile with bn254 field as a default for now
 
-acvm = { git = "https://github.com/noir-lang/acvm", features = ["bn254"] }
+acvm.workspace = true
 noirc_driver = { path = "../noirc_driver" }
 
 console_error_panic_hook.workspace = true
