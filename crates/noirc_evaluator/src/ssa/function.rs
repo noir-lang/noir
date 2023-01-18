@@ -170,6 +170,7 @@ impl IRGenerator {
             func.result_types.push(match typ {
                 Type::Unit => ObjectType::NotAnObject,
                 Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                Type::Slice(_) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
                 _ => self.context.convert_type(&typ),
             });
         }

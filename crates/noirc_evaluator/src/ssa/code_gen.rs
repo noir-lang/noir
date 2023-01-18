@@ -358,6 +358,13 @@ impl IRGenerator {
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
             }
+            Type::Slice(elem) => {
+                //TODO support array of structs
+                let obj_type = self.context.convert_type(elem);
+                let len = 256; // TODO: Do not have a length for slices
+                let (v_id, _) = self.new_array(base_name, obj_type, len, def);
+                Value::Single(v_id)
+            }
             _ => {
                 let obj_type = self.context.convert_type(typ);
                 let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
