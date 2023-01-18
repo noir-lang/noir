@@ -10,7 +10,7 @@ edition.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
-acvm = { git = "https://github.com/noir-lang/noir" }
+acvm.workspace = true
 arena.workspace = true
 fm.workspace = true
 iter-extended.workspace = true

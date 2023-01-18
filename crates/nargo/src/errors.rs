@@ -1,3 +1,4 @@
+use acvm::OpcodeResolutionError;
 use hex::FromHexError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::{fmt::Display, io::Write, path::PathBuf};
@@ -10,6 +11,12 @@ pub enum CliError {
     PathNotValid(PathBuf),
     ProofNotValid(FromHexError),
     MissingTomlFile(PathBuf),
+}
+
+impl From<OpcodeResolutionError> for CliError {
+    fn from(value: OpcodeResolutionError) -> Self {
+        CliError::Generic(value.to_string())
+    }
 }
 
 impl CliError {
