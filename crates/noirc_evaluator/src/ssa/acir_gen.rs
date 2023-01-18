@@ -632,7 +632,7 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) {
-        assert!(args.len() == 1, "print statements currently only support one argument");
+        assert!(args.len() == 1, "print statements can only support one argument");
         let node_id = args[0];
         let obj_type = ctx.get_object_type(node_id);
         let mut log_string = "".to_owned();
@@ -655,18 +655,7 @@ impl Acir {
                     }
                 }
                 if is_string_output {
-                    // TODO: make a decode_string_value method in noirc_abi and use it here this is reused code
-                    let string_as_slice = field_elements
-                        .iter()
-                        .map(|e| {
-                            let mut field_as_bytes = e.to_bytes();
-                            let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-                            assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-                            char_byte
-                        })
-                        .collect::<Vec<_>>();
-
-                    let final_string = str::from_utf8(&string_as_slice).unwrap();
+                    let final_string = noirc_abi::decode_string_value(&field_elements);
                     log_string.push_str(&final_string);
                 } else {
                     log_string.push_str("[");
