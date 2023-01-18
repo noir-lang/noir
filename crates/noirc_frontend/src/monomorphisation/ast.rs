@@ -164,7 +164,8 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u64, Box<Type>), // Array(4, Field) = [Field; 4]
+    Slice(Box<Type>),
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
     Unit,
@@ -256,6 +257,7 @@ impl std::fmt::Display for Type {
         match self {
             Type::Field => write!(f, "Field"),
             Type::Array(len, elems) => write!(f, "[{elems}; {len}]"),
+            Type::Slice(elems) => write!(f, "[{elems}]"),
             Type::Integer(sign, bits) => match sign {
                 Signedness::Unsigned => write!(f, "u{bits}"),
                 Signedness::Signed => write!(f, "i{bits}"),

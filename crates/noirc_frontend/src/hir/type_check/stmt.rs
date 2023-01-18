@@ -196,6 +196,7 @@ fn type_check_lvalue(
 
             let typ = match result {
                 Type::Array(_, elem_type) => *elem_type,
+                Type::Slice(elem_type) => *elem_type,
                 Type::Error => Type::Error,
                 other => {
                     // TODO: Need a better span here

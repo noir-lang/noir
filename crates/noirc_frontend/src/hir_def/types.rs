@@ -191,7 +191,8 @@ impl std::fmt::Display for StructType {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     FieldElement(Comptime),
-    Array(Box<Type>, Box<Type>),        // Array(4, Field) = [Field; 4]
+    Array(Box<Type>, Box<Type>), // Array(4, Field) = [Field; 4]
+    Slice(Box<Type>),
     Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(Comptime, TypeVariable),
     Bool(Comptime),
@@ -452,6 +453,7 @@ impl std::fmt::Display for Type {
                 Some(len) => write!(f, "[{typ}; {len}]"),
                 None => write!(f, "[{typ}]"),
             },
+            Type::Slice(typ) => write!(f, "[{typ}]"),
             Type::Integer(comptime, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{comptime}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{comptime}u{num_bits}"),
@@ -741,6 +743,8 @@ impl Type {
                 elem_a.try_unify(elem_b, span)
             }
 
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (Tuple(elems_a), Tuple(elems_b)) => {
                 if elems_a.len() != elems_b.len() {
                     Err(SpanKind::None)
@@ -862,6 +866,10 @@ impl Type {
                 elem_a.is_subtype_of(elem_b, span)
             }
 
+            (Array(_len, elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
+            (Slice(elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
             (Tuple(elems_a), Tuple(elems_b)) => {
                 if elems_a.len() != elems_b.len() {
                     Err(SpanKind::None)
@@ -948,6 +956,9 @@ impl Type {
                     .array_length()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 AbiType::Array { length: size, typ: Box::new(typ.as_abi_type()) }
+            }
+            Type::Slice(_) => {
+                panic!("Cannot have variable sized arrays as a parameter to main")
             }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
@@ -1057,6 +1068,10 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
+            Type::Slice(element) => {
+                let element = Box::new(element.substitute(type_bindings));
+                Type::Slice(element)
+            }
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => substitute_binding(binding),
@@ -1100,6 +1115,7 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::Slice(elem) => elem.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
@@ -1136,6 +1152,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
+            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)

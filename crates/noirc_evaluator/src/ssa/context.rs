@@ -1124,6 +1124,7 @@ impl SsaContext {
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
+            Type::Slice(..) => panic!("Cannot convert a slice type {} into an ObjectType since it is unknown which array it refers to", t),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),

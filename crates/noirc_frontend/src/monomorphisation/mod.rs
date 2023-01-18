@@ -485,6 +485,11 @@ impl Monomorphiser {
                 ast::Type::Array(size, Box::new(element))
             }
 
+            HirType::Slice(element) => {
+                let element = Self::convert_type(element.as_ref());
+                ast::Type::Slice(Box::new(element))
+            }
+
             HirType::PolymorphicInteger(_, binding)
             | HirType::TypeVariable(binding)
             | HirType::NamedGeneric(binding, _) => {
