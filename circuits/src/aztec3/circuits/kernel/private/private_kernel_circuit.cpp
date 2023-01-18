@@ -119,67 +119,87 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     }
 }
 
-void validate_private_call_hash(PrivateInputs<CT> const& private_inputs)
+void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
 {
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
-    const auto private_call_hash = array_pop<Composer>(start.private_call_stack);
-    const auto calculated_private_call_hash = private_inputs.private_call.call_stack_item.hash();
+    // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
+    // and the 'gas rebate' tx).
+    const auto this_private_call_hash = array_pop<Composer>(start.private_call_stack);
+    const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
-    private_call_hash.assert_equal(calculated_private_call_hash, "private_call_hash does not reconcile");
+    this_private_call_hash.assert_equal(calculated_this_private_call_hash, "this private_call_hash does not reconcile");
+};
+
+void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
+{
+    auto& stack = private_inputs.private_call.call_stack_item.public_inputs.private_call_stack;
+    auto& preimages = private_inputs.private_call.private_call_stack_preimages;
+    for (size_t i = 0; i < stack.size(); ++i) {
+        const auto& hash = stack[i];
+        const auto& preimage = preimages[i];
+
+        // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
+        // Assumes `hash == 0` means "this stack item is empty".
+        const auto calculated_hash = CT::fr::conditional_assign(hash == 0, 0, preimage.hash());
+
+        hash.assert_equal(calculated_hash, format("private_call_stack[", i, "] = ", hash, "; does not reconcile"));
+    }
 };
 
 void validate_inputs(PrivateInputs<CT> const& private_inputs)
 {
+    const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
-    const auto& next_call = private_inputs.private_call.call_stack_item;
-
-    next_call.function_signature.is_private.assert_equal(
+    this_call_stack_item.function_signature.is_private.assert_equal(
         true, "Cannot execute a non-private function with the private kernel circuit");
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
     const CT::boolean is_base_case = start.private_call_count == 0;
+
+    // TODO: we might want to range-constrain the call_count to prevent some kind of overflow errors
     const CT::boolean is_recursive_case = !is_base_case;
 
     CT::fr start_private_call_stack_length = array_length<Composer>(start.private_call_stack);
     CT::fr start_public_call_stack_length = array_length<Composer>(start.public_call_stack);
     CT::fr start_l1_msg_stack_length = array_length<Composer>(start.l1_msg_stack);
 
+    // Recall: we can't do traditional `if` statements in a circuit; all code paths are always executed. The below is
+    // some syntactic sugar, which seeks readability similar to an `if` statement.
+
     // Base Case
-    {
-        std::vector<std::pair<CT::boolean, std::string>> base_case_conditions{
-            { start_private_call_stack_length == 1,
-              "Private call stack must be length 1" }, // TODO: might change to allow 3, so a fee can be paid and a gas
-                                                       // rebate can be paid.
-            { start_public_call_stack_length == 0, "Public call stack must be empty" },
-            { start_l1_msg_stack_length == 0, "L1 msg stack must be empty" },
+    std::vector<std::pair<CT::boolean, std::string>> base_case_conditions{
+        // TODO: change to allow 3 initial calls on the private call stack, so a fee can be paid and a gas
+        // rebate can be paid.
+        { start_private_call_stack_length == 1, "Private call stack must be length 1" },
+        { start_public_call_stack_length == 0, "Public call stack must be empty" },
+        { start_l1_msg_stack_length == 0, "L1 msg stack must be empty" },
 
-            { next_call.public_inputs.call_context.is_delegate_call == false, "Users cannot make a delegatecall" },
-            { next_call.public_inputs.call_context.is_static_call == false, "Users cannot make a static call" },
+        { this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
+          "Users cannot make a delegatecall" },
+        { this_call_stack_item.public_inputs.call_context.is_static_call == false, "Users cannot make a static call" },
 
-            // The below also prevents delegatecall/staticcall in the base case
-            { next_call.public_inputs.call_context.storage_contract_address == next_call.contract_address,
-              "Storage contract address must be that of the called contract" }
-        };
+        // The below also prevents delegatecall/staticcall in the base case
+        { this_call_stack_item.public_inputs.call_context.storage_contract_address ==
+              this_call_stack_item.contract_address,
+          "Storage contract address must be that of the called contract" }
 
-        is_base_case.must_imply(base_case_conditions);
-    }
+        // TODO: Assert that the previous kernel data is empty. (Or rather, the verify_proof() function needs a valid
+        // dummy proof and vk to complete execution, so actually what we want is for that mockvk to be
+        // hard-coded into the circuit and assert that that is the one which has been used in the base case).
+    };
+    is_base_case.must_imply(base_case_conditions);
 
     // Recursive Case
-    {
-        std::vector<std::pair<CT::boolean, std::string>> recursive_case_conditions{
-            { private_inputs.previous_kernel.public_inputs.is_private == true,
-              "Cannot verify a non-private kernel snark in the private kernel circuit" },
-            { next_call.function_signature.is_constructor == false,
-              "A constructor must be executed as the first tx in the recursion" },
-            { start_private_call_stack_length != 0,
-              "Cannot execute private kernel circuit with an empty private call stack" }
-        };
-
-        is_recursive_case.must_imply(recursive_case_conditions);
-    }
-
-    validate_private_call_hash(private_inputs);
+    std::vector<std::pair<CT::boolean, std::string>> recursive_case_conditions{
+        { private_inputs.previous_kernel.public_inputs.is_private == true,
+          "Cannot verify a non-private kernel snark in the private kernel circuit" },
+        { this_call_stack_item.function_signature.is_constructor == false,
+          "A constructor must be executed as the first tx in the recursion" },
+        { start_private_call_stack_length != 0,
+          "Cannot execute private kernel circuit with an empty private call stack" }
+    };
+    is_recursive_case.must_imply(recursive_case_conditions);
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
@@ -193,9 +213,16 @@ void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _privat
     // We'll be pushing data to this during execution of this circuit.
     PublicInputs<CT> public_inputs{};
 
+    // Do this before any functions can modify the inputs.
+    initialise_end_values(private_inputs, public_inputs);
+
     validate_inputs(private_inputs);
 
-    initialise_end_values(private_inputs, public_inputs);
+    validate_this_private_call_hash(private_inputs);
+
+    validate_this_private_call_stack(private_inputs);
+
+    // update_end_values(private_inputs, public_inputs);
 
     auto aggregation_object = verify_proofs(composer,
                                             private_inputs,

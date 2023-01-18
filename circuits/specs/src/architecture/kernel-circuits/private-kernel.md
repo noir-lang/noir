@@ -125,14 +125,15 @@ Contains many of the same values as [`TxContext`](../contracts/transactions.md#t
 In practice, we'll modularise this all into neat functions when we actually write the code.
 
 Base case:
-* Let `start := previousKernelData.publicInputs.end`
-* if `start.privateCallCount == 0`:
-    * Require previous kernel data to be empty. (Note: bear in mind - the `verify_proof()` function needs a valid dummy proof and vk to complete execution).
-    * Validate that `start.privateCallStack.length == 1 && start.publicCallStack.length == 0 && start.contractDeploymentCallStack.length == 0 && start.l1CallStack.length == 0`
-        - TBD: to allow the option of a fee payment, we might require `start.privateCallStack.length` to be "1" or "2, where one tx has an `isFeePayment` indicator".
-    * Pop the only (TBD) `privateCallHash` off the `start.privateCallStack`.
-        - Validate that `hash(privateCall.callStackItem) == privateCallHash`
-        - If `privateCall.callStackItem.functionSignature.isConstructor == true`:
+* Let `start := previousKernelData.publicInputs.end`  ✅
+* if `start.privateCallCount == 0`: ✅
+    * Require previous kernel data to be empty. (Note: bear in mind - the `verify_proof()` function needs a valid dummy proof and vk to complete execution). ❓
+    * Validate that `start.privateCallStack.length == 1 && start.publicCallStack.length == 0 && start.contractDeploymentCallStack.length == 0 && start.l1CallStack.length == 0` ✅
+        - TBD: to allow the option of a fee payment, we might require `start.privateCallStack.length` to be "1" or "2, where one tx has an `isFeePayment` indicator". ✅
+    * Pop the only (TBD) `privateCallHash` off the `start.privateCallStack`. ✅
+        - Validate that `hash(privateCall.callStackItem) == privateCallHash` ✅
+        - If `privateCall.callStackItem.functionSignature.isConstructor == true`: ❌
+            - THIS SECTION IS OUT OF DATE - IGNORE!
             - then we don't need a signature from the user, since this entire 'callstack' has been instantiated by a Contract Deployment kernel snark (which itself will have been signed by the user).
             - Set `constants.recursionContext.isConstructor := true` - This public input will percolate to -- and be checked by -- the Contract Deployment Kernel Circuit which calls this constructor. This check is required to prevent a person from circumventing the ECDSA signature check by simply setting `isConstructor = true` when making a private call. If this aggregated kernel snark reaches the rollup circuit without this flag being reset to `false` by the Contract Deployment Kernel Circuit (to say "yes, this kernel was indeed a constructor for a Contract Deployment Kernel Circuit"), then the entire tx will be rejected by the rollup circuit.
         - Else:
@@ -145,20 +146,20 @@ Base case:
                     - Assert `privateCall.callStackItem.publicInputs.callContext.storageContractAddress == privateCall.callStackItem.contractAddress`
 
 Recursion:
-* If `previousKernel.publicInputs.isPrivate && start.privateCallCount > 0`:
+* If `previousKernel.publicInputs.isPrivate && start.privateCallCount > 0`: ✅
     - If `privateCall.callStackItem.functionSignature.isConstructor == true`:
         - Revert - only the first call in the kernel recursion can be a constructor.
-    * Verify the `previousKernel.proof` using the `previousKernel.vk`
+    * Verify the `previousKernel.proof` using the `previousKernel.vk` ✅
     * Validate that the `previousKernel.vk` is a valid private kernel VK with a membership check:
         * Calculate `previousKernelVKHash := hash(previousKernel.vk);`
         * Compute `root` using the `previousKernelVKHash`, `previousKernel.vkPath` and `previousKernel.vkIndex`.
         * Validate that `root == privateKernelVKTreeRoot`.
-    * Validate consistency of 'starting' and 'previous end' values:
-        - verify that the `start...` values match the `previousKernel.publicInputs.end...` equivalents.
-    * Validate consistency of values which must remain the same throughout the recursion (when passed from kernel circuit to kernel circuit):
-        * ensure this kernel circuit's 'constant' public inputs match the `previousKernel.publicInputs.constants`.
-            * E.g. old tree roots.
-        - Also ensure that any 'append-only' stacks or arrays have the same entries as the previous kernel proof, before pushing more data onto them!
+    * Validate consistency of 'starting' and 'previous end' values: ✅
+        - verify that the `start...` values match the `previousKernel.publicInputs.end...` equivalents. ✅
+    * Validate consistency of values which must remain the same throughout the recursion (when passed from kernel circuit to kernel circuit): ✅
+        * ensure this kernel circuit's 'constant' public inputs match the `previousKernel.publicInputs.constants`. ✅
+            * E.g. old tree roots. ✅
+        - Also ensure that any 'append-only' stacks or arrays have the same entries as the previous kernel proof, before pushing more data onto them! ✅
 
 Verify the next call on the callstack:
 * Verify `start.privateCallStack.length > 0` and (if not already done during the 'Base Case' logic above, depending on how we do the implementation), pop 1 item off of `start.privateCallStack` (a `privateCallStackItemHash`)
