@@ -12,7 +12,6 @@ members = [
     "crates/iter-extended",
     "crates/wasm",
 ]
-exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]
 
 [workspace.package]
@@ -34,50 +33,15 @@ noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
 
-ark-bn254 = { version = "^0.3.0", default-features = false, features = [
-    "curve",
-] }
-ark-bls12-381 = { version = "^0.3.0", default-features = false, features = [
-    "curve",
-] }
-ark-ff = { version = "^0.3.0", default-features = false }
-blake2 = "0.9.1"
-chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 cfg-if = "1.0.0"
-clap = "2.33.3"
 codespan = "0.9.5"
 codespan-reporting = "0.9.5"
-console_error_panic_hook = "*"
+chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
-flate2 = "1.0.24"
-generational-arena = "0.2.8"
-getrandom = { version = "0.2.4", features = ["js"] }
-gloo-utils = { version = "0.1", features = ["serde"] }
-hex = "0.4.2"
-indexmap = "1.7.0"
-js-sys = "0.3.55"
-lazy_static = "1.4.0"
-k256 = { version = "0.7.2", features = [
-    "ecdsa",
-    "ecdsa-core",
-    "sha256",
-    "digest",
-    "arithmetic",
-] }
-pathdiff = "0.2"
-num-bigint = "0.4"
-num-traits = "0.2.8"
-rmp-serde = "1.1.0"
-rustc-hash = "1.1.0"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_derive = "1.0.123"
 serde_json = "1.0"
-sled = "0.34.6"
-sha2 = "0.9.3"
 smol_str = "0.1.17"
-tempdir = "0.3.7"
-tempfile = "3.2.0"
-termcolor = "1.1.2"
 thiserror = "1.0.21"
 toml = "0.5.8"
 url = "2.2.0"

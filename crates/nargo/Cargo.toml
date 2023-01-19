@@ -19,14 +19,14 @@ noirc_abi.workspace = true
 fm.workspace = true
 acvm.workspace = true
 cfg-if.workspace = true
-
 toml.workspace = true
 serde_derive.workspace = true
 serde = "1.0.123"
-clap.workspace = true
-termcolor.workspace = true
-hex.workspace = true
-tempdir.workspace = true
+clap = "2.33.3"
+hex = "0.4.2"
+termcolor = "1.1.2"
+tempdir = "0.3.7"
+
 
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "441de9d897683f770f8cd09c34ddca69fe41f3f2" }
