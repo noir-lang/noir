@@ -1,13 +1,13 @@
 [package]
 name = "noir_field"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hex = "0.4.2"
+hex.workspace = true
 
 ark-bn254 = { version = "^0.3.0", optional = true, default-features = false, features = [
     "curve",
@@ -17,11 +17,11 @@ ark-bls12-381 = { version = "^0.3.0", optional = true, default-features = false,
 ] }
 ark-ff = { version = "^0.3.0", optional = true, default-features = false }
 
-cfg-if = "1.0.0"
-serde = { version = "1.0.136", features = ["derive"] }
+cfg-if.workspace = true
+serde.workspace = true
 
-num-bigint = "0.4"
-num-traits = "0.2.8"
+num-bigint.workspace = true
+num-traits.workspace = true
 
 [dev-dependencies]
 ark-bn254 = { version = "^0.3.0", features = ["curve"] }

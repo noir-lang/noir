@@ -70,22 +70,11 @@ fn inline_block(
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call { func_id, arguments, returned_arrays, .. } = &ins.operation
-                {
-                    if let Some(func_to_inline) = to_inline {
-                        if *func_id == func_to_inline {
-                            call_ins.push((
-                                ins.id,
-                                *func_id,
-                                arguments.clone(),
-                                returned_arrays.clone(),
-                                block_id,
-                            ));
-                        }
-                    } else {
+                if let Operation::Call { func, arguments, returned_arrays, .. } = &ins.operation {
+                    if to_inline.is_none() || to_inline == ctx.try_get_funcid(*func) {
                         call_ins.push((
                             ins.id,
-                            *func_id,
+                            *func,
                             arguments.clone(),
                             returned_arrays.clone(),
                             block_id,
@@ -97,9 +86,11 @@ fn inline_block(
     }
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
-        let f_copy = ctx.get_ssafunc(f).unwrap().clone();
-        if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
-            result = false;
+        if let Some(func_id) = ctx.try_get_funcid(f) {
+            let f_copy = ctx.get_ssafunc(func_id).unwrap().clone();
+            if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
+                result = false;
+            }
         }
     }
 
@@ -280,13 +271,10 @@ pub fn inline_in_block(
                 Operation::Return(values) => {
                     //we need to find the corresponding result instruction in the target block (using ins.rhs) and replace it by ins.lhs
                     for (i, value) in values.iter().enumerate() {
-                        if ctx
-                            .get_result_instruction_mut(stack_frame.block, call_id, i as u32)
-                            .is_some()
-                        {
+                        if let Some(result) =
                             ctx.get_result_instruction_mut(stack_frame.block, call_id, i as u32)
-                                .unwrap()
-                                .mark = Mark::ReplaceWith(*value);
+                        {
+                            result.mark = Mark::ReplaceWith(*value);
                         }
                     }
                     let call_ins = ctx.get_mut_instruction(call_id);

@@ -446,8 +446,9 @@ where
         int_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone(), expr_parser),
-        tuple_type(recursive_type_parser),
+        tuple_type(recursive_type_parser.clone()),
         bool_type(),
+        function_type(recursive_type_parser),
     ))
 }
 
@@ -522,6 +523,18 @@ where
     parenthesized(fields).map(UnresolvedType::Tuple)
 }
 
+fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
+where
+    T: NoirParser<UnresolvedType>,
+{
+    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
+    keyword(Keyword::Fn)
+        .ignore_then(args)
+        .then_ignore(just(Token::Arrow))
+        .then(type_parser)
+        .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
+}
+
 fn expression() -> impl ExprParser {
     recursive(|expr| expression_with_precedence(Precedence::Lowest, expr)).labelled("expression")
 }
@@ -590,10 +603,14 @@ where
     P: ExprParser + 'a,
 {
     enum UnaryRhs {
+        Call(Vec<Expression>),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess((Ident, Option<Vec<Expression>>)),
     }
+
+    // `(arg1, ..., argN)` in `myfunc(arg1, ..., argN)`
+    let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
     let array_rhs = expr_parser
@@ -614,9 +631,10 @@ where
         .map(UnaryRhs::MemberAccess)
         .labelled("field access");
 
-    let rhs = choice((array_rhs, cast_rhs, member_rhs));
+    let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
 
     foldl_with_span(atom(expr_parser), rhs, |lhs, rhs, span| match rhs {
+        UnaryRhs::Call(args) => Expression::call(lhs, args, span),
         UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
         UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
         UnaryRhs::MemberAccess(field) => Expression::member_access_or_method_call(lhs, field, span),
@@ -739,7 +757,6 @@ where
     P: ExprParser + 'a,
 {
     choice((
-        function_call(expr_parser.clone()),
         if_expr(expr_parser.clone()),
         for_expr(expr_parser.clone()),
         array_expr(expr_parser.clone()),
@@ -773,13 +790,6 @@ fn field_name() -> impl NoirParser<Ident> {
     }))
 }
 
-fn function_call<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    path().then(parenthesized(expression_list(expr_parser))).map(ExpressionKind::function_call)
-}
-
 fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
@@ -803,7 +813,7 @@ where
 }
 
 fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Path)
+    path().map(ExpressionKind::Variable)
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
@@ -911,8 +921,15 @@ mod test {
 
     #[test]
     fn parse_function_call() {
-        let valid = vec!["std::hash ()", " std::hash(x,y,a+b)", "crate::foo (x)", "hash (x,)"];
-        parse_all(function_call(expression()), valid);
+        let valid = vec![
+            "std::hash ()",
+            " std::hash(x,y,a+b)",
+            "crate::foo (x)",
+            "hash (x,)",
+            "(foo + bar)()",
+            "(bar)()()()",
+        ];
+        parse_all(expression(), valid);
     }
 
     #[test]

@@ -31,24 +31,18 @@ assignees: ""
 
 # Environment
 
-<!-- Specify your setup and versions of dependencies. -->
+<!-- Specify your versions of Noir releases used. -->
 
-- OS:
+- [ ] Using `nargo`:
 
-For `nargo` users
+  - [ ] Binary: <!-- Version of binary installed -->
+  - [ ] Compiled from source: <!-- _noir-lang/noir_ commit cloned -->
 
-- _noir-lang/noir_ commit cloned:
-- Proving backend
-  - [ ] default
-    - Clang: (run `clang --version`)
-  - [ ] wasm-base
+- [ ] Using TypeScript:
 
-For TypeScript users
-
-- Node.js: (run `node --version`)
-- @noir-lang/noir_wasm: (from `yarn.lock`)
-- @noir-lang/barretenberg: (from `yarn.lock`)
-- @noir-lang/aztec_backend: (from `yarn.lock`)
+  - @noir-lang/noir_wasm: <!-- Version number from yarn.lock -->
+  - @noir-lang/barretenberg: <!-- Version number from yarn.lock -->
+  - @noir-lang/aztec_backend: <!-- Version number from yarn.lock -->
 
 # Additional context
 

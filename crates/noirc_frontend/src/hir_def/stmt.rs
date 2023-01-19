@@ -82,7 +82,16 @@ impl HirPattern {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
-    Ident(HirIdent),
-    MemberAccess { object: Box<HirLValue>, field_name: Ident, field_index: Option<usize> },
-    Index { array: Box<HirLValue>, index: ExprId },
+    Ident(HirIdent, Type),
+    MemberAccess {
+        object: Box<HirLValue>,
+        field_name: Ident,
+        field_index: Option<usize>,
+        typ: Type,
+    },
+    Index {
+        array: Box<HirLValue>,
+        index: ExprId,
+        typ: Type,
+    },
 }

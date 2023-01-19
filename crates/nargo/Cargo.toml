@@ -1,35 +1,36 @@
 [package]
 name = "nargo"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-dirs = "4"
+dirs.workspace = true
 
 [dependencies]
-dirs = "3.0.1"
-url = "2.2.0"
-iter-extended = { path = "../iter-extended" }
-noirc_driver = { path = "../noirc_driver" }
-noirc_frontend = { path = "../noirc_frontend" }
-noirc_abi = { path = "../noirc_abi" }
-fm = { path = "../fm" }
-acvm = { git = "https://github.com/noir-lang/noir" }
-cfg-if = "1.0.0"
+dirs.workspace = true
+url.workspace = true
+iter-extended.workspace = true
+noirc_driver.workspace = true
+noirc_frontend.workspace = true
+noirc_abi.workspace = true
+fm.workspace = true
+acvm.workspace = true
+cfg-if.workspace = true
 
-toml = "0.5"
-serde_derive = "1.0.123"
+toml.workspace = true
+serde_derive.workspace = true
 serde = "1.0.123"
-clap = "2.33.3"
-termcolor = "1.1.2"
-hex = "0.4.2"
-tempdir = "0.3.7"
+clap.workspace = true
+termcolor.workspace = true
+hex.workspace = true
+tempdir.workspace = true
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "8c8ec2dd9c376bef598d17f023fac172e5e47860" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "441de9d897683f770f8cd09c34ddca69fe41f3f2" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "441de9d897683f770f8cd09c34ddca69fe41f3f2" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "601e24dcb5dcbe72e3de7a33879aaf84e171d541" }
 
 [features]
@@ -37,3 +38,4 @@ default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
 marlin = ["marlin_arkworks_backend/bls12_381"]
+plonk_bn254_wasm = ["aztec_wasm_backend"]
