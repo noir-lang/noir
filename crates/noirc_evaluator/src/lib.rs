@@ -1,8 +1,9 @@
 mod errors;
 mod ssa;
 
-use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
+use acvm::acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
+use acvm::compiler::fallback::IsBlackBoxSupported;
 use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
@@ -23,7 +24,7 @@ pub struct Evaluator {
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
     public_inputs: Vec<Witness>,
-    gates: Vec<Gate>,
+    opcodes: Vec<AcirOpcode>,
 }
 
 /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -34,6 +35,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
+    is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
@@ -46,11 +48,13 @@ pub fn create_circuit(
     let optimised_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
-            gates: evaluator.gates,
+            opcodes: evaluator.opcodes,
             public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
-    );
+        is_blackbox_supported,
+    )
+    .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     Ok(optimised_circuit)
 }
@@ -69,7 +73,7 @@ impl Evaluator {
             // following transformation to the witness index : f(i) = i + 1
             //
             current_witness_index: 0,
-            gates: Vec::new(),
+            opcodes: Vec::new(),
         }
     }
 
@@ -125,14 +129,14 @@ impl Evaluator {
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
-        self.gates.push(Gate::Arithmetic(constraint));
+        self.opcodes.push(AcirOpcode::Arithmetic(constraint));
         inter_var_witness
     }
 
     fn param_to_var(
         &mut self,
         name: &str,
-        def: DefinitionId,
+        def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
         igen: &mut IRGenerator,
@@ -266,9 +270,10 @@ impl Evaluator {
 
         assert_eq!(main_params.len(), abi_params.len());
 
-        for ((param_id, _, param_name1, _), abi_param) in main_params.iter().zip(abi_params) {
-            assert_eq!(param_name1, &abi_param.name);
-            self.param_to_var(param_name1, *param_id, &abi_param.typ, &abi_param.visibility, igen)
+        for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
+            assert_eq!(param_name, &abi_param.name);
+            let def = Definition::Local(*param_id);
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
                 .unwrap();
         }
     }

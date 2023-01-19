@@ -2,7 +2,7 @@ use super::acir_gen::InternalVar;
 use super::context::SsaContext;
 use super::node::{self, Node, NodeId};
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::DefinitionId;
+use noirc_frontend::monomorphisation::ast::{Definition, LocalId};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 
@@ -31,7 +31,7 @@ pub struct MemArray {
     pub element_type: node::ObjectType, //type of elements
     pub values: Vec<InternalVar>,
     pub name: String,
-    pub def: DefinitionId,
+    pub def: Definition,
     pub len: u32,     //number of elements
     pub adr: u32,     //base address of the array
     pub max: BigUint, //Max possible value of array elements
@@ -40,7 +40,7 @@ pub struct MemArray {
 impl MemArray {
     fn new(
         id: ArrayId,
-        definition: DefinitionId,
+        definition: Definition,
         name: &str,
         of: node::ObjectType,
         len: u32,
@@ -85,7 +85,7 @@ impl Memory {
         arr_name: &str,
     ) -> ArrayId {
         let id = ArrayId(self.arrays.len() as u32);
-        let dummy_id = DefinitionId(u32::MAX);
+        let dummy_id = Definition::Local(LocalId(u32::MAX));
         let mut new_array = MemArray::new(id, dummy_id, arr_name, el_type, len);
         new_array.adr = self.last_adr;
         self.arrays.push(new_array);
@@ -94,7 +94,7 @@ impl Memory {
     }
 
     pub fn as_u32(value: FieldElement) -> u32 {
-        let big_v = BigUint::from_bytes_be(&value.to_bytes());
+        let big_v = BigUint::from_bytes_be(&value.to_be_bytes());
         let mut modulus = BigUint::from(2_u32);
         modulus = modulus.pow(32);
         let result = big_v % modulus;

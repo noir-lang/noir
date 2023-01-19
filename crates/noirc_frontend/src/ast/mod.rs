@@ -32,6 +32,8 @@ pub enum UnresolvedType {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
+    Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -68,6 +70,10 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "({})", elements.join(", "))
             }
             Bool(is_const) => write!(f, "{is_const}bool"),
+            Function(args, ret) => {
+                let args = vecmap(args, ToString::to_string);
+                write!(f, "fn({}) -> {ret}", args.join(", "))
+            }
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

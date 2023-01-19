@@ -7,7 +7,7 @@ fn blake2s(_input : [u8]) -> [u8; 32] {}
 #[foreign(pedersen)]
 fn pedersen(_input : [Field]) -> [Field; 2] {}
 
-#[foreign(hash_to_field)]
+#[foreign(hash_to_field_128_security)]
 fn hash_to_field(_input : [Field]) -> Field {}
 
 // mimc-p/p implementation

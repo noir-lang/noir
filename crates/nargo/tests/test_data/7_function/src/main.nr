@@ -94,7 +94,7 @@ fn foo(a: [Field]) -> [Field] {
 fn bar() -> [Field] {
     foo([0])
 }
-fn main(x: u32 , y: u32 , a: Field) {  
+fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {  
     let mut ss: my_struct = my_struct { b: x, a: x+2, };
     test_multiple4(ss);
     test_multiple5((ss.a,ss.b));
@@ -128,4 +128,22 @@ fn main(x: u32 , y: u32 , a: Field) {
     let d = test_multiple2();
     constrain d.b == d.a + 2 as u32;
     test_multiple3(y, y);
+
+    //Regression test for issue #628:
+    let result = first(arr_to_field(arr1), arr_to_field(arr2));
+    constrain result[0] == arr1[0] as Field;
+}
+
+
+// Issue #628
+fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
+    let mut as_field: [Field; 9] = [0 as Field; 9];
+    for i in 0..9 {
+        as_field[i] = arr[i] as Field;
+    }
+    as_field
+}
+
+fn first(a: [Field; 9], _b: [Field; 9]) -> [Field; 9] {
+    a
 }
