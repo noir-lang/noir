@@ -242,8 +242,13 @@ impl IRGenerator {
         let predicate = AssumptionId::dummy();
         let location = call.location;
 
-        let mut call_op =
-            Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
+        let mut call_op = Operation::Call {
+            func,
+            arguments: arguments.clone(),
+            returned_arrays: vec![],
+            predicate,
+            location,
+        };
 
         let call_instruction =
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
@@ -258,6 +263,7 @@ impl IRGenerator {
         // Temporary: this block is needed to fix a bug in 7_function
         // where `foo` is incorrectly inferred to take an array of size 1 and
         // return an array of size 0.
+        // we should check issue #628 again when this block is removed
         if let Some(func_id) = self.context.try_get_funcid(func) {
             let rtt = self.context.functions[&func_id].result_types.clone();
             let mut result = Vec::new();
@@ -267,6 +273,22 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
+            let ssa_func = self.context.get_ssafunc(func_id).unwrap();
+            let func_arguments = ssa_func.arguments.clone();
+            for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
+                let mut is_array_result = false;
+                if let Some(node::Instruction {
+                    operation: node::Operation::Result { .. }, ..
+                }) = self.context.try_get_instruction(*caller_arg)
+                {
+                    is_array_result =
+                        super::mem::Memory::deref(&self.context, func_arg.0).is_some();
+                }
+                if is_array_result {
+                    self.context.handle_assign(func_arg.0, None, *caller_arg)?;
+                }
+            }
+
             // If we have the function directly the ArrayIds in the Result types are correct
             // and we don't need to set returned_arrays yet as they can be set later.
             return Ok(result);
