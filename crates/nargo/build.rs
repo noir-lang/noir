@@ -16,10 +16,10 @@ fn rerun_if_stdlib_changes(directory: &Path) {
     }
 }
 
-fn check_rust_version() {
+fn check_rustc_version() {
     assert!(
         version().unwrap() >= Version::parse("1.6.4").unwrap(),
-        "The minimal supported rust version is 1.64.0."
+        "The minimal supported rustc version is 1.64.0."
     );
 }
 
@@ -71,7 +71,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
 }
 
 fn main() {
-    check_rust_version();
+    check_rustc_version();
     let stdlib_src_dir = Path::new("../../noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");
