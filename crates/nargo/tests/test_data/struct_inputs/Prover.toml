@@ -4,10 +4,12 @@ return = ""
 [y]
 foo = "5"
 bar = "10"
+message = "hello"
 
 [z]
 val = "1"
 array = [0, 1]
+message = "helld"
 
 [a]
 [a.bar_struct]
