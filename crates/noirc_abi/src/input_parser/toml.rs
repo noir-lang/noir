@@ -13,6 +13,9 @@ pub(crate) fn parse_toml(
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
 
+    // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
+    // When parsing the toml map we recursively go through each field to enable struct inputs.
+    // To match this map with the correct abi type we must sort our abi parameters and then flatten each struct.
     let mut sorted_abi = abi.clone();
     sorted_abi.sort();
     let flat_abi_types = sorted_abi.flattened_param_types();
@@ -77,7 +80,7 @@ fn toml_map_to_field(
                             InputValue::Undefined
                         }
                     }
-                    _ => unreachable!("abi type specified does not match with TomlType::String"),
+                    _ => return Err(InputParserError::AbiTypeMismatch(param_type)),
                 }
             }
             TomlTypes::Integer(integer) => {
