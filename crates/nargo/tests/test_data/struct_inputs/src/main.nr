@@ -20,6 +20,8 @@ fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::foo
     constrain (struct_from_bar.val * x) == x;
 
     constrain x != y.bar;
+
+    constrain a.bar_struct.message == "hello";
     
     a.bar_struct.array[1]
 }

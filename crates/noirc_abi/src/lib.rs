@@ -294,7 +294,7 @@ impl Abi {
                 let string_as_slice = field_elements
                     .iter()
                     .map(|e| {
-                        let mut field_as_bytes = e.to_bytes();
+                        let mut field_as_bytes = e.to_be_bytes();
                         let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
                         assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
                         char_byte
