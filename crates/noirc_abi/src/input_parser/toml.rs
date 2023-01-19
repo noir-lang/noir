@@ -1,5 +1,5 @@
 use super::InputValue;
-use crate::errors::InputParserError;
+use crate::{errors::InputParserError, Abi, AbiType};
 use acvm::FieldElement;
 use serde::Serialize;
 use serde_derive::Deserialize;
@@ -7,11 +7,20 @@ use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
     input_string: &str,
+    mut abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
-    toml_map_to_field(data)
+
+    // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
+    // When parsing the toml map we recursively go through each field to enable struct inputs.
+    // To match this map with the correct abi type we must sort our abi parameters and then flatten each struct.
+    abi.sort();
+    let flat_abi_types = abi.flattened_param_types();
+
+    let (_, toml_map) = toml_map_to_field(data, flat_abi_types, 0)?;
+    Ok(toml_map)
 }
 
 pub(crate) fn serialise_to_toml(
@@ -50,32 +59,39 @@ pub(crate) fn serialise_to_toml(
 /// understands for Inputs
 fn toml_map_to_field(
     toml_map: BTreeMap<String, TomlTypes>,
-) -> Result<BTreeMap<String, InputValue>, InputParserError> {
+    flat_abi_types: Vec<AbiType>,
+    initial_index: usize,
+) -> Result<(usize, BTreeMap<String, InputValue>), InputParserError> {
     let mut field_map = BTreeMap::new();
+    let mut abi_index = initial_index;
     for (parameter, value) in toml_map {
         let mapped_value = match value {
             TomlTypes::String(string) => {
-                let new_value = try_str_to_field(&string);
-
-                // We accept UTF-8 strings as input as well as hex strings representing field elements.
-                // We still want developers to be able to pass in hex strings for FieldElement inputs.
-                // Thus, we first try to parse the string into a field element, and if that fails we assume that the input is meant to be a plain string
-                if new_value.is_err() {
-                    InputValue::String(string)
-                } else if let Ok(Some(field_element)) = new_value {
-                    InputValue::Field(field_element)
-                } else {
-                    InputValue::Undefined
+                let param_type = flat_abi_types[abi_index].clone();
+                abi_index += 1;
+                match param_type {
+                    AbiType::String { .. } => InputValue::String(string),
+                    AbiType::Field | AbiType::Integer { .. } => {
+                        let new_value = parse_str_to_field(&string)?;
+                        if let Some(field_element) = new_value {
+                            InputValue::Field(field_element)
+                        } else {
+                            InputValue::Undefined
+                        }
+                    }
+                    _ => return Err(InputParserError::AbiTypeMismatch(param_type)),
                 }
             }
             TomlTypes::Integer(integer) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
+                abi_index += 1;
                 InputValue::Field(new_value)
             }
             TomlTypes::Bool(boolean) => {
                 let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
 
+                abi_index += 1;
                 InputValue::Field(new_value)
             }
             TomlTypes::ArrayNum(arr_num) => {
@@ -84,18 +100,22 @@ fn toml_map_to_field(
                     .map(|elem_num| FieldElement::from(i128::from(elem_num)))
                     .collect();
 
+                abi_index += 1;
                 InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Vec<_> = arr_str
                     .into_iter()
-                    .map(|elem_str| try_str_to_field(&elem_str).unwrap().unwrap())
+                    .map(|elem_str| parse_str_to_field(&elem_str).unwrap().unwrap())
                     .collect();
 
+                abi_index += 1;
                 InputValue::Vec(array_elements)
             }
             TomlTypes::Table(table) => {
-                let native_table = toml_map_to_field(table)?;
+                let (new_index, native_table) =
+                    toml_map_to_field(table, flat_abi_types.clone(), abi_index)?;
+                abi_index = new_index;
 
                 InputValue::Struct(native_table)
             }
@@ -106,7 +126,7 @@ fn toml_map_to_field(
         };
     }
 
-    Ok(field_map)
+    Ok((abi_index, field_map))
 }
 
 fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes> {
@@ -151,7 +171,7 @@ enum TomlTypes {
     Table(BTreeMap<String, TomlTypes>),
 }
 
-fn try_str_to_field(value: &str) -> Result<Option<FieldElement>, InputParserError> {
+fn parse_str_to_field(value: &str) -> Result<Option<FieldElement>, InputParserError> {
     if value.is_empty() {
         Ok(None)
     } else if value.starts_with("0x") {

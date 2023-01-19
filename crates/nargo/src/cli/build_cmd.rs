@@ -22,6 +22,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 // This is exposed so that we can run the examples and verify that they pass
 pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
+
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
     driver.build(allow_warnings);

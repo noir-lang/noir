@@ -34,6 +34,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     }
 }
 
+#[allow(deprecated)]
 pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,

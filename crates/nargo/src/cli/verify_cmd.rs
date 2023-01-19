@@ -47,7 +47,8 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs = read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+        public_inputs =
+            read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;

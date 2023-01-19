@@ -134,6 +134,31 @@ impl Abi {
         self.parameters.iter().map(|param| param.typ.field_count()).sum()
     }
 
+    pub fn sort(&mut self) {
+        self.parameters.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap())
+    }
+
+    pub fn flattened_param_types(&mut self) -> Vec<AbiType> {
+        let mut new_params = Vec::new();
+        for param in self.parameters.iter() {
+            new_params.extend(Self::flatten_param_type(param.typ.clone()))
+        }
+        new_params
+    }
+
+    fn flatten_param_type(typ: AbiType) -> Vec<AbiType> {
+        match typ {
+            AbiType::Struct { fields } => {
+                let mut flat_struct = Vec::new();
+                for (_, param_type) in fields {
+                    flat_struct.extend(Self::flatten_param_type(param_type))
+                }
+                flat_struct
+            }
+            _ => vec![typ],
+        }
+    }
+
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {
@@ -201,10 +226,8 @@ impl Abi {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
             InputValue::String(string) => {
-                let str_as_fields = string
-                    .into_bytes()
-                    .into_iter()
-                    .map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
+                let str_as_fields =
+                    string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields)
             }
             InputValue::Struct(object) => {
@@ -296,7 +319,7 @@ pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
     let string_as_slice = field_elements
         .iter()
         .map(|e| {
-            let mut field_as_bytes = e.to_bytes();
+            let mut field_as_bytes = e.to_be_bytes();
             let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
             assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
             char_byte

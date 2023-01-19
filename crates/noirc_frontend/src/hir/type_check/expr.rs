@@ -737,7 +737,7 @@ pub fn comparator_operand_type_rules(
         (String(x_size), String(y_size)) => {
             x_size.unify(y_size, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
-                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", x_size, y_size),
+                    msg: format!("Can only compare strings of the same length. Here LHS is of length {}, and RHS is {} ", x_size, y_size),
                     span: op.location.span,
                 }
             });

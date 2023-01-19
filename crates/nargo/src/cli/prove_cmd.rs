@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
+use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
-use acvm::{GateResolution, PartialWitnessGenerator};
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
@@ -57,8 +57,10 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+    let abi = compiled_program.abi.as_ref().expect("compiled program is missing an abi object");
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
+    let witness_map =
+        read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, abi.clone())?;
 
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, &witness_map)?;
@@ -73,7 +75,7 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         .map(|index| solved_witness[index])
         .collect();
 
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_abi = abi.clone().public_abi();
     let public_inputs = public_abi.decode(&encoded_public_inputs)?;
 
     // Write public inputs into Verifier.toml
@@ -104,18 +106,9 @@ fn solve_witness(
         .collect();
 
     let backend = crate::backends::ConcreteBackend;
-    let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+    let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone());
 
-    match solver_res {
-        GateResolution::UnsupportedOpcode(opcode) => return Err(CliError::Generic(format!(
-                "backend does not currently support the {opcode} opcode. ACVM does not currently fall back to arithmetic gates.",
-        ))),
-        GateResolution::UnsatisfiedConstrain => return Err(CliError::Generic(
-                "could not satisfy all constraints".to_string()
-        )),
-        GateResolution::Resolved => (),
-        _ => unreachable!(),
-    }
+    solver_res.map_err(CliError::from)?;
 
     Ok(solved_witness)
 }

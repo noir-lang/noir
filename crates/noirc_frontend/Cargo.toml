@@ -7,7 +7,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm = { git = "https://github.com/noir-lang/noir" }
+acvm.workspace = true
 noirc_abi.workspace = true
 noirc_errors.workspace = true
 fm.workspace = true

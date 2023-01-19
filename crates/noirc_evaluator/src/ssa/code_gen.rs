@@ -196,6 +196,18 @@ impl IRGenerator {
                     let new_name = format!("{struct_name}.{name}");
                     self.abi_struct(&new_name, None, fields, witnesses.clone())
                 }
+                noirc_abi::AbiType::String { length } => {
+                    let typ =
+                        noirc_abi::AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                    let v_id = self.abi_array(
+                        &new_name,
+                        None,
+                        &typ,
+                        *length,
+                        witnesses[&new_name].clone(),
+                    );
+                    Value::Single(v_id)
+                }
                 _ => {
                     let obj_type = self.get_object_type_from_abi(field_typ);
                     let v_id = self.create_new_variable(
@@ -357,6 +369,12 @@ impl IRGenerator {
             Type::Array(len, elem) => {
                 //TODO support array of structs
                 let obj_type = self.context.convert_type(elem);
+                let len = *len;
+                let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                Value::Single(v_id)
+            }
+            Type::String(len) => {
+                let obj_type = ObjectType::Unsigned(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
@@ -550,7 +568,6 @@ impl IRGenerator {
             Expression::Literal(Literal::Str(string)) => {
                 let string_as_integers = string
                     .bytes()
-                    .into_iter()
                     .map(|byte| {
                         let f = FieldElement::from_be_bytes_reduce(&[byte]);
                         Expression::Literal(Literal::Integer(
