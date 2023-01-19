@@ -134,6 +134,31 @@ impl Abi {
         self.parameters.iter().map(|param| param.typ.field_count()).sum()
     }
 
+    pub fn sort(&mut self) {
+        self.parameters.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap())
+    }
+
+    pub fn flattened_param_types(&mut self) -> Vec<AbiType> {
+        let mut new_params = Vec::new();
+        for param in self.parameters.iter() {
+            new_params.extend(Self::flatten_param_type(param.typ.clone()))
+        }
+        new_params
+    }
+
+    fn flatten_param_type(typ: AbiType) -> Vec<AbiType> {
+        match typ {
+            AbiType::Struct { fields } => {
+                let mut flat_struct = Vec::new();
+                for (_, param_type) in fields {
+                    flat_struct.extend(Self::flatten_param_type(param_type))
+                }
+                flat_struct
+            }
+            _ => vec![typ],
+        }
+    }
+
     /// ABI with only the public parameters
     #[must_use]
     pub fn public_abi(self) -> Abi {

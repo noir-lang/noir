@@ -1,6 +1,9 @@
 pub use build_cmd::build_from_path;
 use clap::{App, AppSettings, Arg};
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::{
+    input_parser::{Format, InputValue},
+    Abi,
+};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
@@ -138,6 +141,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
     format: Format,
+    abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
@@ -150,7 +154,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
-    Ok(format.parse(&input_string)?)
+    Ok(format.parse(&input_string, abi)?)
 }
 
 fn write_inputs_to_file<P: AsRef<Path>>(

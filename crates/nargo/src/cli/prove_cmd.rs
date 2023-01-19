@@ -57,8 +57,10 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+    let abi = compiled_program.abi.as_ref().expect("compiled program is missing an abi object");
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
+    let witness_map =
+        read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, abi.clone())?;
 
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, &witness_map)?;
@@ -73,7 +75,8 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         .map(|index| solved_witness[index])
         .collect();
 
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    // let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_abi = abi.clone().public_abi();
     let public_inputs = public_abi.decode(&encoded_public_inputs)?;
 
     // Write public inputs into Verifier.toml
