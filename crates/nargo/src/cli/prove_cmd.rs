@@ -75,7 +75,6 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         .map(|index| solved_witness[index])
         .collect();
 
-    // let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
     let public_abi = abi.clone().public_abi();
     let public_inputs = public_abi.decode(&encoded_public_inputs)?;
 

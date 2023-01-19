@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
     input_string: &str,
-    abi: Abi,
+    mut abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
@@ -16,9 +16,8 @@ pub(crate) fn parse_toml(
     // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
     // When parsing the toml map we recursively go through each field to enable struct inputs.
     // To match this map with the correct abi type we must sort our abi parameters and then flatten each struct.
-    let mut sorted_abi = abi.clone();
-    sorted_abi.sort();
-    let flat_abi_types = sorted_abi.flattened_param_types();
+    abi.sort();
+    let flat_abi_types = abi.flattened_param_types();
 
     let (_, toml_map) = toml_map_to_field(data, flat_abi_types, 0)?;
     Ok(toml_map)
