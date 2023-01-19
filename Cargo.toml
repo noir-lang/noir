@@ -26,7 +26,7 @@ rust-version = "1.64"
 
 [workspace.dependencies]
 acir = { path = "crates/acir" }
-acvm = { path = "crates/acvm" }
+acvm = "0.3.1"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -89,8 +89,3 @@ toml = "0.5.8"
 url = "2.2.0"
 wasm-bindgen = { version = "*", features = ["serde-serialize"] }
 wasm-bindgen-test = "*"
-
-
-# Patch github versions of acvm with local copy
-[patch.'https://github.com/noir-lang/noir']
-acvm = { path = "crates/acvm" }

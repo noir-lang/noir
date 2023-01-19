@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::{CustomGate, Language};
+use acvm::Language;
 use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
@@ -546,7 +546,13 @@ impl NodeInterner {
         self.language = language.clone();
     }
 
+    #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
-        self.language.supports(opcode)
+        let is_supported = acvm::default_is_blackbox_supported(self.language.clone());
+        let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
+            Some(black_box_func) => black_box_func,
+            None => return false,
+        };
+        is_supported(&black_box_func)
     }
 }
