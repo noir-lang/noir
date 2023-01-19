@@ -5,7 +5,7 @@ use std::{
 };
 
 use acvm::acir::{circuit::PublicInputs, native_types::Witness, FieldElement};
-use acvm::{GateResolution, PartialWitnessGenerator, ProofSystemCompiler};
+use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use noirc_abi::{
     errors::AbiError,
     input_parser::{Format, InputValue},
