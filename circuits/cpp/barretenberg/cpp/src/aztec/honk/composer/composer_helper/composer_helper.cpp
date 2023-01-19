@@ -87,6 +87,8 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
 {
     auto circuit_verification_key = std::make_shared<waffle::verification_key>(
         proving_key->n, proving_key->num_public_inputs, vrs, proving_key->composer_type);
+    // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
+    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->n, "../srs_db/ignition");
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
         const auto& selector_poly_info = proving_key->polynomial_manifest[i];
@@ -96,30 +98,25 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
 
         if (selector_poly_info.source == waffle::PolynomialSource::SELECTOR) {
             // Fetch the constraint selector polynomial in its vector form.
-            // Disable for now so that GCC doesn't complain
-            // TODO: restore when we actually implement the commitments
-            // fr* selector_poly_coefficients;
-            // selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
+
+            fr* selector_poly_coefficients;
+            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
-            // TODO: Replace with actual commitment
-            auto selector_poly_commitment = g1::affine_one;
 
+            auto selector_poly_commitment = commitment_key.commit({ selector_poly_coefficients, proving_key->n });
             circuit_verification_key->constraint_selectors.insert(
                 { selector_commitment_label, selector_poly_commitment });
 
         } else if (selector_poly_info.source == waffle::PolynomialSource::PERMUTATION) {
             // Fetch the permutation selector polynomial in its coefficient form.
-            // Disable for now so that GCC doesn't complain
-            // TODO: restore when we actually implement the commitments
-            // fr* selector_poly_coefficients;
-            // selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
+            fr* selector_poly_coefficients;
+            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
 
             // Commit to the permutation selector polynomial insert the commitment in the verification key.
 
-            auto selector_poly_commitment = g1::affine_one;
+            auto selector_poly_commitment = commitment_key.commit({ selector_poly_coefficients, proving_key->n });
 
-            // TODO: Replace with actual commitment
             circuit_verification_key->permutation_selectors.insert(
                 { selector_commitment_label, selector_poly_commitment });
         }

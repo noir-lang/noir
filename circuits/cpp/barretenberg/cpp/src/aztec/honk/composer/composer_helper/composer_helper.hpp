@@ -2,6 +2,7 @@
 #include <proof_system/proving_key/proving_key.hpp>
 #include <honk/proof_system/prover.hpp>
 #include <honk/proof_system/verifier.hpp>
+#include <honk/pcs/commitment_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
 #include "permutation_helper.hpp"
@@ -15,6 +16,7 @@ template <typename CircuitConstructor> class ComposerHelper {
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<waffle::proving_key> circuit_proving_key;
     std::shared_ptr<waffle::verification_key> circuit_verification_key;
+    // TODO(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs at all
     std::shared_ptr<waffle::ReferenceStringFactory> crs_factory_;
     bool computed_witness = false;
     ComposerHelper()

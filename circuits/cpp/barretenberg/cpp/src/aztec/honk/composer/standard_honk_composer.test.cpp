@@ -257,6 +257,30 @@ TEST(standard_honk_composer, test_assert_equal)
     EXPECT_EQ(get_maximum_cycle(composer_with_assert_equal), get_maximum_cycle(composer_no_assert_equal) * 2);
 }
 
+TEST(standard_honk_composer, test_verification_key_creation)
+{
+    // Create a composer and a dummy circuit with a few gates
+    StandardHonkComposer composer = StandardHonkComposer();
+    fr a = fr::one();
+    uint32_t a_idx = composer.add_variable(a);
+    fr b = fr::one();
+    fr c = a + b;
+    fr d = a + c;
+    uint32_t b_idx = composer.add_variable(b);
+    uint32_t c_idx = composer.add_variable(c);
+    uint32_t d_idx = composer.add_variable(d);
+    for (size_t i = 0; i < 16; i++) {
+        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+    }
+    auto verification_key = composer.compute_verification_key();
+    // There is nothing we can really check apart from the fact that constraint selectors and permutation selectors were
+    // committed to, we simply check that the verification key now containset he appropriate number of constraint and
+    // permutation selector commitments. This method should work with any future arithemtization
+    EXPECT_EQ(verification_key->constraint_selectors.size(), composer.circuit_constructor.selectors.size());
+    EXPECT_EQ(verification_key->permutation_selectors.size(), composer.program_width * 2);
+}
+
 TEST(StandarHonkComposer, BaseCase)
 {
     auto composer = StandardHonkComposer();
