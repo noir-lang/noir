@@ -7,7 +7,6 @@ pub enum InputParserError {
     ParseHexStr(String),
     DuplicateVariableName(String),
     AbiTypeMismatch(AbiType),
-    EmptyArrayString(String),
 }
 
 impl std::fmt::Display for InputParserError {
@@ -28,9 +27,6 @@ impl std::fmt::Display for InputParserError {
             }
             InputParserError::AbiTypeMismatch(abi_type) => {
                 write!(f, "cannot parse a string toml type into {:?}", abi_type)
-            }
-            InputParserError::EmptyArrayString(arr_str) => {
-                write!(f, "array of strings has an empty value: {arr_str}")
             }
         }
     }
