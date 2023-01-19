@@ -243,8 +243,8 @@ impl IRGenerator {
         let location = call.location;
 
         let mut call_op =
-            Operation::Call { func, arguments, returned_arrays: vec![], predicate, location };
-
+            Operation::Call { func, arguments: arguments.clone(), returned_arrays: vec![], predicate, location };
+        
         let call_instruction =
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
