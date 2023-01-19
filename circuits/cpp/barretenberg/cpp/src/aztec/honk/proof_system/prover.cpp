@@ -1,8 +1,10 @@
 #include "prover.hpp"
+#include <cstddef>
 #include <honk/sumcheck/sumcheck.hpp> // will need
 #include <array>
 #include <honk/sumcheck/polynomials/univariate.hpp> // will go away
 #include <honk/pcs/commitment_key.hpp>
+#include <memory>
 #include <vector>
 #include "ecc/curves/bn254/fr.hpp"
 #include "ecc/curves/bn254/g1.hpp"
@@ -11,10 +13,16 @@
 #include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
 #include "plonk/proof_system/types/polynomial_manifest.hpp"
+#include "polynomials/polynomial.hpp"
 #include "proof_system/flavor/flavor.hpp"
 #include "transcript/transcript_wrappers.hpp"
+#include <string>
+#include <honk/pcs/claim.hpp>
 
 namespace honk {
+
+using Fr = barretenberg::fr;
+using Polynomial = barretenberg::Polynomial<Fr>;
 
 /**
  * Create Prover from proving key, witness and manifest.
@@ -50,7 +58,7 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
         std::string wire_tag = "w_" + std::to_string(i + 1) + "_lagrange";
         std::string commit_tag = "W_" + std::to_string(i + 1);
 
-        std::span<barretenberg::fr> wire_polynomial = proving_key->polynomial_cache.get(wire_tag);
+        std::span<Fr> wire_polynomial = proving_key->polynomial_cache.get(wire_tag);
         auto commitment = commitment_key->commit(wire_polynomial);
 
         transcript.add_element(commit_tag, commitment.to_buffer());
@@ -83,11 +91,8 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
  */
-template <typename settings> void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta)
+template <typename settings> void Prover<settings>::compute_grand_product_polynomial(Fr beta)
 {
-    // TODO: Fr to become template param
-    using Fr = barretenberg::fr;
-    using barretenberg::polynomial;
     using barretenberg::polynomial_arithmetic::copy_polynomial;
     static const size_t program_width = settings::program_width;
 
@@ -157,7 +162,7 @@ template <typename settings> void Prover<settings>::compute_grand_product_polyno
 
     // Construct permutation polynomial 'z_perm' in lagrange form as:
     // z_perm = [1 numererator_accum[0][0] numererator_accum[0][1] ... numererator_accum[0][n-2]]
-    polynomial z_perm(proving_key->n, proving_key->n);
+    Polynomial z_perm(proving_key->n, proving_key->n);
     z_perm[0] = Fr::one();
     copy_polynomial(numererator_accum[0], &z_perm[1], proving_key->n - 1, proving_key->n - 1);
 
@@ -169,7 +174,7 @@ template <typename settings> void Prover<settings>::compute_grand_product_polyno
 
     // TODO(luke): Commit to z_perm here? This would match Plonk but maybe best to do separately?
 
-    proving_key->polynomial_cache.put("z_perm", std::move(z_perm));
+    proving_key->polynomial_cache.put("z_perm_lagrange", std::move(z_perm));
 }
 
 /**
@@ -218,8 +223,8 @@ template <typename settings> void Prover<settings>::execute_wire_commitments_rou
     compute_wire_commitments();
 
     // Add public inputs to transcript
-    const barretenberg::polynomial& public_wires_source = proving_key->polynomial_cache.get("w_2_lagrange");
-    std::vector<barretenberg::fr> public_wires;
+    const Polynomial& public_wires_source = proving_key->polynomial_cache.get("w_2_lagrange");
+    std::vector<Fr> public_wires;
     for (size_t i = 0; i < proving_key->num_public_inputs; ++i) {
         public_wires.push_back(public_wires_source[i]);
     }
@@ -259,7 +264,7 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
 
     auto beta = transcript.get_challenge_field_element("beta");
     compute_grand_product_polynomial(beta);
-    std::span<barretenberg::fr> z_perm = proving_key->polynomial_cache.get("z_perm");
+    std::span<Fr> z_perm = proving_key->polynomial_cache.get("z_perm_lagrange");
     auto commitment = commitment_key->commit(z_perm);
     transcript.add_element("Z_PERM", commitment.to_buffer());
 }
@@ -280,7 +285,7 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    using Multivariates = sumcheck::Multivariates<barretenberg::fr, waffle::STANDARD_HONK_MANIFEST_SIZE>;
+    using Multivariates = sumcheck::Multivariates<Fr, waffle::STANDARD_HONK_TOTAL_NUM_POLYS>;
     using Transcript = transcript::StandardTranscript;
     using Sumcheck = sumcheck::Sumcheck<Multivariates,
                                         Transcript,
@@ -296,24 +301,18 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 
     sumcheck.execute_prover();
 
-    // TODO(Cody): Execute as a loop over polynomial manifest? Things thare are called *_lagrange
-    transcript.add_element("w_1", multivariates.folded_polynomials[1][0].to_buffer());
-    transcript.add_element("w_2", multivariates.folded_polynomials[1][0].to_buffer());
-    transcript.add_element("w_3", multivariates.folded_polynomials[2][0].to_buffer());
-    transcript.add_element("z_perm", multivariates.folded_polynomials[3][0].to_buffer());
-    transcript.add_element("q_m", multivariates.folded_polynomials[4][0].to_buffer());
-    transcript.add_element("q_1", multivariates.folded_polynomials[5][0].to_buffer());
-    transcript.add_element("q_2", multivariates.folded_polynomials[6][0].to_buffer());
-    transcript.add_element("q_3", multivariates.folded_polynomials[7][0].to_buffer());
-    transcript.add_element("q_c", multivariates.folded_polynomials[8][0].to_buffer());
-    transcript.add_element("sigma_1", multivariates.folded_polynomials[9][0].to_buffer());
-    transcript.add_element("sigma_2", multivariates.folded_polynomials[10][0].to_buffer());
-    transcript.add_element("sigma_3", multivariates.folded_polynomials[11][0].to_buffer());
-    transcript.add_element("id_1", multivariates.folded_polynomials[12][0].to_buffer());
-    transcript.add_element("id_2", multivariates.folded_polynomials[13][0].to_buffer());
-    transcript.add_element("id_3", multivariates.folded_polynomials[14][0].to_buffer());
-    transcript.add_element("L_first", multivariates.folded_polynomials[15][0].to_buffer());
-    transcript.add_element("L_last", multivariates.folded_polynomials[16][0].to_buffer());
+    // Add the multilinear evaluations produced by Sumcheck to the transcript.
+    // Note: The number of evaluations is poly manifest size + number of shifted polys.
+    size_t poly_idx = 0;
+    for (auto& entry : proving_key->polynomial_manifest.get()) {
+        std::string label(entry.polynomial_label);
+        transcript.add_element(label, multivariates.folded_polynomials[poly_idx][0].to_buffer());
+        ++poly_idx;
+        if (entry.requires_shifted_evaluation) {
+            transcript.add_element(label + "_shift", multivariates.folded_polynomials[poly_idx][0].to_buffer());
+            ++poly_idx;
+        }
+    }
 }
 
 /**
@@ -325,11 +324,58 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
  * */
 template <typename settings> void Prover<settings>::execute_univariatization_round()
 {
-    transcript.apply_fiat_shamir("rho");
-    // TODO(Cody): Implement
-    for (size_t round_idx = 1; round_idx < proving_key->log_n; round_idx++) {
-        transcript.add_element("FOLD_" + std::to_string(round_idx), barretenberg::g1::affine_one.to_buffer());
+    using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
+    using MLEOpeningClaim = pcs::MLEOpeningClaim<pcs::kzg::Params>;
+
+    // Construct inputs for Gemini:
+    // - Multivariate opening point u = (u_1, ..., u_d)
+    // - MLE opening claim = {commitment, eval} for each multivariate and shifted multivariate polynomial
+    // - Pointers to multivariate and shifted multivariate polynomials
+    std::vector<Fr> opening_point;
+    std::vector<MLEOpeningClaim> opening_claims;
+    std::vector<MLEOpeningClaim> opening_claims_shifted;
+    std::vector<Polynomial*> multivariate_polynomials;
+    std::vector<Polynomial*> multivariate_polynomials_shifted;
+    // TODO(luke): Currently feeding in mock commitments for non-WITNESS polynomials. This may be sufficient for simple
+    // proof verification since the other commitments are only needed to produce 'claims' in gemini.reduce_prove, they
+    // are not needed in the proof itself.
+
+    // Construct MLE opening point
+    for (size_t round_idx = 0; round_idx < proving_key->log_n; round_idx++) {
+        std::string label = "u_" + std::to_string(round_idx + 1);
+        opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
+
+    // Construct opening claims and polynomials
+    for (auto& entry : proving_key->polynomial_manifest.get()) {
+        std::string label(entry.polynomial_label);
+        std::string commitment_label(entry.commitment_label);
+        auto evaluation = Fr::serialize_from_buffer(&transcript.get_element(label)[0]);
+        barretenberg::g1::affine_element commitment;
+        if (entry.source == waffle::WITNESS) {
+            commitment =
+                barretenberg::g1::affine_element::serialize_from_buffer(&transcript.get_element(commitment_label)[0]);
+        } else {                                       // SELECTOR, PERMUTATION, OTHER
+            commitment = barretenberg::g1::affine_one; // mock commitment
+        }
+        opening_claims.emplace_back(commitment, evaluation);
+        multivariate_polynomials.emplace_back(&proving_key->polynomial_cache.get(label));
+        if (entry.requires_shifted_evaluation) {
+            // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
+            // evaluation p_shift(u), but the UNSHIFTED polynomial p and its UNSHIFTED commitment [p].
+            auto shifted_evaluation = Fr::serialize_from_buffer(&transcript.get_element(label + "_shift")[0]);
+            opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
+            multivariate_polynomials_shifted.emplace_back(&proving_key->polynomial_cache.get(label));
+        }
+    }
+
+    gemini_output = Gemini::reduce_prove(commitment_key,
+                                         opening_point,
+                                         opening_claims,
+                                         opening_claims_shifted,
+                                         multivariate_polynomials,
+                                         multivariate_polynomials_shifted,
+                                         &transcript);
 }
 
 /**
@@ -343,11 +389,9 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
  * */
 template <typename settings> void Prover<settings>::execute_pcs_evaluation_round()
 {
-    transcript.apply_fiat_shamir("r");
-    // TODO(Cody): Implement
-    for (size_t round_idx = 0; round_idx < proving_key->log_n; round_idx++) {
-        transcript.add_element("a_" + std::to_string(round_idx), barretenberg::fr(round_idx + 1000).to_buffer());
-    }
+    // TODO(luke): This functionality is performed within Gemini::reduce_prove(), called in the previous round. In the
+    // future we could (1) split the Gemini functionality to match the round structure defined here, or (2) remove this
+    // function from the prover. The former may be necessary to maintain the work_queue paradigm.
 }
 
 /**
@@ -359,10 +403,8 @@ template <typename settings> void Prover<settings>::execute_pcs_evaluation_round
  * */
 template <typename settings> void Prover<settings>::execute_shplonk_round()
 {
-    // TODO(luke): Do Fiat-Shamir to get "nu" challenge.
-    // TODO(luke): Get Shplonk opening point [Q]_1
-    transcript.apply_fiat_shamir("nu");
-    transcript.add_element("Q", barretenberg::g1::affine_one.to_buffer());
+    using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
+    shplonk_output = Shplonk::reduce_prove(commitment_key, gemini_output.claim, gemini_output.witness, &transcript);
 }
 
 /**
@@ -377,12 +419,17 @@ template <typename settings> void Prover<settings>::execute_shplonk_round()
  * */
 template <typename settings> void Prover<settings>::execute_kzg_round()
 {
-    transcript.apply_fiat_shamir("z");
-    // TODO(luke): Do Fiat-Shamir to get "z" challenge.
+    // Note(luke): Fiat-Shamir to get "z" challenge is done in Shplonk::reduce_prove
     // TODO(luke): Get KZG opening point [W]_1
-    transcript.add_element("W", barretenberg::g1::affine_one.to_buffer());
-    // transcript.apply_fiat_shamir("separator");
+    using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
+    using KzgOutput = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>::Output;
+    KzgOutput kzg_output = KZG::reduce_prove(commitment_key, shplonk_output.claim, shplonk_output.witness);
+
+    auto W_commitment = static_cast<barretenberg::g1::affine_element>(kzg_output.proof).to_buffer();
+
+    transcript.add_element("W", W_commitment);
 }
+
 template <typename settings> waffle::plonk_proof& Prover<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();

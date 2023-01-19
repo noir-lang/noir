@@ -1,4 +1,5 @@
 #include "common/serialize.hpp"
+#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"
 #include <proof_system/flavor/flavor.hpp>
@@ -23,13 +24,13 @@ template <class Multivariates, class Transcript, template <class> class... Relat
     Sumcheck(Multivariates multivariates, Transcript& transcript)
         : multivariates(multivariates)
         , transcript(transcript)
-        , round(Multivariates::num, std::tuple(Relations<FF>()...)){};
+        , round(multivariates.multivariate_n, std::tuple(Relations<FF>()...)){};
 
     // verifier instantiates with challenges alone
     explicit Sumcheck(Transcript& transcript)
         : multivariates(transcript)
         , transcript(transcript)
-        , round(Multivariates::num, std::tuple(Relations<FF>()...)){};
+        , round(multivariates.multivariate_n, std::tuple(Relations<FF>()...)){};
 
     /**
      * @brief Compute univariate restriction place in transcript, generate challenge, fold,... repeat until final round,
@@ -45,8 +46,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
 
         // First round
         // This populates multivariates.folded_polynomials.
-        FF relation_separator_challenge = transcript.get_mock_challenge();
-        auto round_univariate = round.compute_univariate(multivariates.full_polynomials, relation_separator_challenge);
+        FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+        auto round_univariate = round.compute_univariate(multivariates.full_polynomials, alpha);
         transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d),
                                round_univariate.to_buffer());
         transcript.apply_fiat_shamir("u_" + std::to_string(multivariates.multivariate_d));
@@ -56,7 +57,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // We operate on multivariates.folded_polynomials in place.
         for (size_t round_idx = 1; round_idx < multivariates.multivariate_d; round_idx++) {
             // Write the round univariate to the transcript
-            round_univariate = round.compute_univariate(multivariates.folded_polynomials, relation_separator_challenge);
+            round_univariate = round.compute_univariate(multivariates.folded_polynomials, alpha);
             transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d - round_idx),
                                    round_univariate.to_buffer());
 
@@ -84,8 +85,9 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // target_total_sum is initialized to zero then mutated in place.
         for (size_t round_idx = 0; round_idx < multivariates.multivariate_d; round_idx++) {
             // Obtain the round univariate from the transcript
+            // info("multivariates.multivariate_d = ", multivariates.multivariate_d);
             auto round_univariate = Univariate<FF, MAX_RELATION_LENGTH>::serialize_from_buffer(
-                &transcript.get_element("univariate_" + std::to_string(round_idx))[0]);
+                &transcript.get_element("univariate_" + std::to_string(round_idx + 1))[0]);
 
             verified = verified && round.check_sum(round_univariate);
             FF round_challenge = transcript.get_mock_challenge();
@@ -93,10 +95,11 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         }
 
         // Final round
-        auto purported_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-        FF relation_separator_challenge = transcript.get_mock_challenge();
+        // TODO(luke): properly construct purported_evaluations from transcript
+        std::vector<FF> purported_evaluations(waffle::STANDARD_HONK_TOTAL_NUM_POLYS);
+        FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
         FF full_honk_relation_purported_value =
-            round.compute_full_honk_relation_purported_value(purported_evaluations, relation_separator_challenge);
+            round.compute_full_honk_relation_purported_value(purported_evaluations, alpha);
         verified = verified && (full_honk_relation_purported_value == round.target_total_sum);
         return verified;
     };

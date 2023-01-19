@@ -151,7 +151,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
         }
 
         // Check consistency between locally computed z_perm and the one computed by the prover
-        EXPECT_EQ(z_perm, honk_prover.proving_key->polynomial_cache.get("z_perm"));
+        EXPECT_EQ(z_perm, honk_prover.proving_key->polynomial_cache.get("z_perm_lagrange"));
     };
 };
 

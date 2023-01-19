@@ -5,6 +5,7 @@
 
 #include <concepts>
 #include <algorithm>
+#include <memory>
 #include <string_view>
 
 #include <polynomials/polynomial.hpp>
@@ -23,19 +24,20 @@ namespace {
 constexpr std::string_view kzg_srs_path = "../srs_db/ignition";
 }
 
-template <class CK> inline CK* CreateCommitmentKey();
+template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
-template <> inline kzg::CommitmentKey* CreateCommitmentKey<kzg::CommitmentKey>()
+template <> inline std::shared_ptr<kzg::CommitmentKey> CreateCommitmentKey<kzg::CommitmentKey>()
 {
     const size_t n = 128;
-    return new kzg::CommitmentKey(n, kzg_srs_path);
+    return std::make_shared<kzg::CommitmentKey>(n, kzg_srs_path);
 }
 
-template <typename CK> inline CK* CreateCommitmentKey()
+template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
 // requires std::default_initializable<CK>
 {
-    return new CK();
+    return std::make_shared<CK>();
 }
+
 template <class VK> inline VK* CreateVerificationKey();
 
 template <> inline kzg::VerificationKey* CreateVerificationKey<kzg::VerificationKey>()
@@ -63,7 +65,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
         : engine{ &numeric::random::get_debug_engine() }
     {}
 
-    CK* ck() { return commitment_key; }
+    std::shared_ptr<CK> ck() { return commitment_key; }
     VK* vk() { return verification_key; }
 
     Commitment commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
@@ -188,17 +190,16 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     // Can be omitted if not needed.
     static void TearDownTestSuite()
     {
-        delete commitment_key;
-        commitment_key = nullptr;
         delete verification_key;
         verification_key = nullptr;
     }
 
-    static typename Params::CK* commitment_key;
+    static typename std::shared_ptr<typename Params::CK> commitment_key;
     static typename Params::VK* verification_key;
 };
 
-template <typename Params> typename Params::CK* CommitmentTest<Params>::commitment_key = nullptr;
+template <typename Params>
+typename std::shared_ptr<typename Params::CK> CommitmentTest<Params>::commitment_key = nullptr;
 template <typename Params> typename Params::VK* CommitmentTest<Params>::verification_key = nullptr;
 
 using CommitmentSchemeParams = ::testing::Types<kzg::Params>;

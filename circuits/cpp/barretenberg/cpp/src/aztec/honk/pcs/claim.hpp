@@ -127,6 +127,11 @@ template <typename Params> struct MLEOpeningClaim {
     using Commitment = typename Params::Commitment;
     using Fr = typename Params::Fr;
 
+    MLEOpeningClaim(auto commitment, auto evaluation)
+        : commitment(commitment)
+        , evaluation(evaluation)
+    {}
+
     // commitment to a univariate polynomial
     // whose coefficients are the multi-linear evaluations
     // of C = [f]

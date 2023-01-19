@@ -3,6 +3,7 @@
 #include "../claim.hpp"
 #include "polynomials/polynomial.hpp"
 
+#include <memory>
 #include <utility>
 
 namespace honk::pcs::kzg {
@@ -68,7 +69,7 @@ template <typename Params> class UnivariateOpeningScheme {
      * @param polynomial the witness polynomial for C
      * @return Output{Accumulator, Proof}
      */
-    static Output reduce_prove(CK* ck, const OpeningClaim<Params>& claim, const Polynomial& polynomial)
+    static Output reduce_prove(std::shared_ptr<CK> ck, const OpeningClaim<Params>& claim, const Polynomial& polynomial)
     {
         Polynomial quotient(polynomial);
         quotient[0] -= claim.eval;

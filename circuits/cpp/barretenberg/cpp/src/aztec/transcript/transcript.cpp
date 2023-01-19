@@ -8,6 +8,7 @@
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/pedersen/pedersen_lookup.hpp>
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <vector>
@@ -110,18 +111,28 @@ void Transcript::compute_challenge_map()
  *
  * @details This is useful for testing individual parts of the prover since all
  * transcript interactions must occur sequentially according to the manifest.
+ * Function allows for optional input of circuit_size since this is needed in some
+ * test cases, e.g. instantiating a Sumcheck from a mocked transcript.
  *
  * @param challenge_in
  */
-void Transcript::mock_inputs_prior_to_challenge(const std::string& challenge_in)
+void Transcript::mock_inputs_prior_to_challenge(const std::string& challenge_in, size_t circuit_size)
 {
     // Perform operations only up to fiat-shamir of challenge_in
     for (auto& manifest : manifest.get_round_manifests()) // loop over RoundManifests
     {
         for (auto& entry : manifest.elements) // loop over ManifestEntrys
         {
-            std::vector<uint8_t> buffer(entry.num_bytes, 1); // arbitrary buffer of 1's
-            add_element(entry.name, buffer);
+            if (entry.name == "circuit_size") {
+                add_element("circuit_size",
+                            { static_cast<uint8_t>(circuit_size >> 24),
+                              static_cast<uint8_t>(circuit_size >> 16),
+                              static_cast<uint8_t>(circuit_size >> 8),
+                              static_cast<uint8_t>(circuit_size) });
+            } else {
+                std::vector<uint8_t> buffer(entry.num_bytes, 1); // arbitrary buffer of 1's
+                add_element(entry.name, buffer);
+            }
         }
         if (challenge_in == manifest.challenge) {
             break;
@@ -133,6 +144,8 @@ void Transcript::mock_inputs_prior_to_challenge(const std::string& challenge_in)
 
 void Transcript::add_element(const std::string& element_name, const std::vector<uint8_t>& buffer)
 {
+    // info("add_element");
+    // info("element_name = ", element_name);
     elements.insert({ element_name, buffer });
 }
 
@@ -150,6 +163,10 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     // TODO(Cody): Coupling: this line insists that the challenges in the manifest
     // are encountered in the order that matches the order of the proof construction functions.
     // Future architecture should specify this data in a single place (?).
+    // info("apply_fiat_shamir: challenge name match");
+    // info("challenge_name = ", challenge_name);
+    // info("manifest.get_round_manifest(current_round).challenge = ",
+    //      manifest.get_round_manifest(current_round).challenge);
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
 
     const size_t num_challenges = manifest.get_round_manifest(current_round).num_challenges;
@@ -166,7 +183,11 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         buffer.insert(buffer.end(), current_challenge.data.begin(), current_challenge.data.end());
     }
     for (auto manifest_element : manifest.get_round_manifest(current_round).elements) {
+        // info("apply_fiat_shamir: manifest element name match");
+        // info("manifest_element.name = ", manifest_element.name);
+        // info("elements.count(manifest_element.name) = ", elements.count(manifest_element.name));
         ASSERT(elements.count(manifest_element.name) == 1);
+
         std::vector<uint8_t>& element_data = elements.at(manifest_element.name);
         if (!manifest_element.derived_by_verifier) {
             ASSERT(manifest_element.num_bytes == element_data.size());
@@ -279,6 +300,8 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
 std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(const std::string& challenge_name,
                                                                             const size_t idx) const
 {
+    // info("get_challenge:");
+    // info("challenge_name = ", challenge_name);
     ASSERT(challenges.count(challenge_name) == 1);
     return challenges.at(challenge_name)[idx].data;
 }

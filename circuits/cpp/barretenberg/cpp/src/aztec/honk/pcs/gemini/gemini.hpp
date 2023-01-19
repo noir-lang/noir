@@ -6,6 +6,7 @@
 #include "polynomials/polynomial.hpp"
 
 #include <common/assert.hpp>
+#include <memory>
 #include <vector>
 
 /**
@@ -145,7 +146,7 @@ template <typename Params> class MultilinearReductionScheme {
      * @param transcript
      * @return Output (result_claims, proof, folded_witness_polynomials)
      */
-    static ProverOutput<Params> reduce_prove(CK* ck,
+    static ProverOutput<Params> reduce_prove(std::shared_ptr<CK> ck,
                                              std::span<const Fr> mle_opening_point,
                                              std::span<const MLEOpeningClaim<Params>> claims,
                                              std::span<const MLEOpeningClaim<Params>> claims_shifted,

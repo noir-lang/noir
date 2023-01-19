@@ -101,7 +101,7 @@ class Transcript {
 
     void compute_challenge_map();
 
-    void mock_inputs_prior_to_challenge(const std::string& challenge_name);
+    void mock_inputs_prior_to_challenge(const std::string& challenge_name, size_t circuit_size = 1);
 
     void print();
 

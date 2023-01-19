@@ -28,7 +28,7 @@ template <typename Params> class SingleBatchOpeningScheme {
      * @param transcript
      * @return Output{OpeningClaim, WitnessPolynomial, Proof}
      */
-    static ProverOutput<Params> reduce_prove(CK* ck,
+    static ProverOutput<Params> reduce_prove(std::shared_ptr<CK> ck,
                                              std::span<const OpeningClaim<Params>> claims,
                                              std::span<const Polynomial> witness_polynomials,
                                              const auto& transcript)

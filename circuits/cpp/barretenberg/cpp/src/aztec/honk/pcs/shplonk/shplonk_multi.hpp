@@ -30,7 +30,7 @@ template <typename Params> class MultiBatchOpeningScheme {
      * @param transcript
      * @return Output{OpeningClaim, WitnessPolynomial, Proof}
      */
-    static ProverOutput<Params> reduce_prove(CK* ck,
+    static ProverOutput<Params> reduce_prove(std::shared_ptr<CK> ck,
                                              std::span<const MultiOpeningClaim<Params>> multi_claims,
                                              std::span<const Polynomial> witness_polynomials,
                                              const auto& transcript)

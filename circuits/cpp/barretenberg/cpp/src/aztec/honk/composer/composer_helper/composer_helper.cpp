@@ -232,7 +232,7 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
     compute_first_and_last_lagrange_polynomials(circuit_proving_key.get());
 
     // TODO(Cody): this is a workaround
-    circuit_proving_key->polynomial_cache.put("z_perm", Polynomial<barretenberg::fr>(1));
+    circuit_proving_key->polynomial_cache.put("z_perm_lagrange", Polynomial<barretenberg::fr>(1));
 
     return circuit_proving_key;
 }
