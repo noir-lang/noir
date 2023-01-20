@@ -204,11 +204,11 @@ fn cse_block_with_anchor(
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
                         let id = ctx.get_dummy_load(a);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
 
                         if let ObjectType::Pointer(a) = ctx.get_object_type(binary.rhs) {
                             let id = ctx.get_dummy_load(a);
-                            anchor.push_mem_instruction(ctx, id);
+                            anchor.push_mem_instruction(ctx, id)?;
                         }
 
                         new_list.push(*ins_id);
@@ -232,7 +232,7 @@ fn cse_block_with_anchor(
                     let prev_ins = anchor.get_mem_all(*x);
                     match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins) {
                         CseAction::Keep => {
-                            anchor.push_mem_instruction(ctx, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id)?;
                             new_list.push(*ins_id)
                         }
                         CseAction::ReplaceWith(new_id) => {
@@ -240,7 +240,7 @@ fn cse_block_with_anchor(
                             new_mark = Mark::ReplaceWith(new_id);
                         }
                         CseAction::Remove(id_to_remove) => {
-                            anchor.push_mem_instruction(ctx, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id)?;
                             new_list.push(*ins_id);
                             // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                             if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
@@ -248,6 +248,7 @@ fn cse_block_with_anchor(
                                 new_list.remove(id);
                             }
                         }
+                        CseAction::Error(err) => return Err(err.into()),
                     }
                 }
                 Operation::Phi { block_args, .. } => {
@@ -278,13 +279,13 @@ fn cse_block_with_anchor(
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {
                         let id = ctx.get_dummy_store(a.0);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
                     }
                     if let Some(f) = ctx.try_get_ssafunc(*func) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
                     }
@@ -293,7 +294,7 @@ fn cse_block_with_anchor(
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
                     }
@@ -307,14 +308,14 @@ fn cse_block_with_anchor(
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                                 activate_cse = false;
                             }
                         }
                     }
                     if let ObjectType::Pointer(a) = ins.res_type {
                         let id = ctx.get_dummy_store(a);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
                         activate_cse = false;
                     }
 

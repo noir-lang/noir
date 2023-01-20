@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use crate::errors::{RuntimeError, RuntimeErrorKind};
+
 use super::{
     context::SsaContext,
     mem::ArrayId,
@@ -18,6 +20,7 @@ pub enum CseAction {
     ReplaceWith(NodeId),
     Remove(NodeId),
     Keep,
+    Error(RuntimeErrorKind),
 }
 
 /// A list of instructions with the same Operation variant
@@ -105,7 +108,11 @@ impl Anchor {
         }
     }
 
-    pub fn push_mem_instruction(&mut self, ctx: &SsaContext, id: NodeId) {
+    pub fn push_mem_instruction(
+        &mut self,
+        ctx: &SsaContext,
+        id: NodeId,
+    ) -> Result<(), RuntimeError> {
         let ins = ctx.get_instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
@@ -134,10 +141,19 @@ impl Anchor {
                     len
                 }
             };
-            self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((item_pos, id));
+            let arr = self.mem_map.get_mut(&array_id).unwrap();
+            if mem_idx > arr.len() {
+                return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                    index: mem_idx as u128,
+                    bound: arr.len() as u128,
+                }
+                .into());
+            }
+            arr[mem_idx].push_front((item_pos, id));
         } else {
             prev_list.push_front(MemItem::NonConst(id));
         }
+        Ok(())
     }
 
     pub fn find_similar_mem_instruction(
@@ -175,6 +191,12 @@ impl Anchor {
                 MemItem::Const(p) | MemItem::ConstLoad(p) => {
                     let a = self.get_mem_map(array_id);
                     let b_idx = b_value.to_u128() as usize;
+                    if b_idx >= a.len() {
+                        return Some(CseAction::Error(RuntimeErrorKind::ArrayOutOfBounds {
+                            index: b_idx as u128,
+                            bound: a.len() as u128,
+                        }));
+                    }
                     for (pos, id) in &a[b_idx] {
                         if pos == p {
                             let action = Anchor::match_mem_id(ctx, *id, index, is_load);
