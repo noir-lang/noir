@@ -168,7 +168,9 @@ impl DecisionTree {
         }
         let pvalue = self[assumption.parent].value.unwrap();
         let condition = self[assumption.parent].condition;
+        // dbg!(ctx.try_get_node(condition));
         let ins = if self.is_true_branch(block.assumption) {
+            // dbg!(ctx.try_get_node(pvalue));
             DecisionTree::new_instruction_after_phi(
                 ctx,
                 block_id,
