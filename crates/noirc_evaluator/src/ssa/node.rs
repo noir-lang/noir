@@ -745,7 +745,7 @@ impl Binary {
                 }
                 assert_eq!(l_type, r_type);
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, l_type, u128::add, Add::add));
+                    return wrapping(lhs, rhs, l_type, u128::add, Add::add);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -760,7 +760,7 @@ impl Binary {
                 }
                 //constant folding
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::wrapping_sub, Sub::sub));
+                    return wrapping(lhs, rhs, res_type, u128::wrapping_sub, Sub::sub);
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
@@ -772,7 +772,7 @@ impl Binary {
                 } else if r_is_zero || l_is_one {
                     return Ok(r_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::mul, Mul::mul));
+                    return wrapping(lhs, rhs, res_type, u128::mul, Mul::mul);
                 }
                 //if only one is const, we could try to do constant propagation but this will be handled by the arithmetization step anyways
                 //so it is probably not worth it.
@@ -893,7 +893,7 @@ impl Binary {
                 } else if r_is_zero {
                     return Ok(r_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::bitand, field_op_not_allowed));
+                    return wrapping_no_field(lhs, rhs, res_type, u128::bitand, "and");
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
@@ -904,7 +904,7 @@ impl Binary {
                 } else if r_is_zero {
                     return Ok(l_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::bitor, field_op_not_allowed));
+                    return wrapping_no_field(lhs, rhs, res_type, u128::bitor, "or");
                 }
                 //TODO if boolean and not zero, also checks this is correct for field elements
             }
@@ -916,7 +916,7 @@ impl Binary {
                 } else if r_is_zero {
                     return Ok(l_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::bitxor, field_op_not_allowed));
+                    return wrapping_no_field(lhs, rhs, res_type, u128::bitxor, "xor");
                 }
                 //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
@@ -928,7 +928,7 @@ impl Binary {
                     return Ok(l_eval);
                 }
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::shl, field_op_not_allowed));
+                    return wrapping_no_field(lhs, rhs, res_type, u128::shl, "shl");
                 }
             }
             BinaryOp::Shr => {
@@ -939,7 +939,7 @@ impl Binary {
                     return Ok(l_eval);
                 }
                 if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(wrapping(lhs, rhs, res_type, u128::shr, field_op_not_allowed));
+                    return wrapping_no_field(lhs, rhs, res_type, u128::shr, "shr");
                 }
             }
             BinaryOp::Assign => (),
@@ -1016,21 +1016,42 @@ fn wrapping(
     res_type: ObjectType,
     u128_op: impl FnOnce(u128, u128) -> u128,
     field_op: impl FnOnce(FieldElement, FieldElement) -> FieldElement,
-) -> NodeEval {
+) -> Result<NodeEval, RuntimeError> {
     if res_type != ObjectType::NativeField {
         let type_modulo = 1_u128 << res_type.bits();
         let lhs = lhs.to_u128() % type_modulo;
         let rhs = rhs.to_u128() % type_modulo;
         let mut x = u128_op(lhs, rhs);
         x %= type_modulo;
-        NodeEval::from_u128(x, res_type)
+        Ok(NodeEval::from_u128(x, res_type))
     } else {
-        NodeEval::Const(field_op(lhs, rhs), res_type)
+        Ok(NodeEval::Const(field_op(lhs, rhs), res_type))
     }
 }
 
-fn field_op_not_allowed(_lhs: FieldElement, _rhs: FieldElement) -> FieldElement {
-    unreachable!("operation not allowed for FieldElement");
+/// Perform the given numeric operation modulto the res_type bit size and returns an error is res_type is a NativeField
+fn wrapping_no_field(
+    lhs: FieldElement,
+    rhs: FieldElement,
+    res_type: ObjectType,
+    u128_op: impl FnOnce(u128, u128) -> u128,
+    op_name: &str,
+) -> Result<NodeEval, RuntimeError> {
+    if res_type != ObjectType::NativeField {
+        let type_modulo = 1_u128 << res_type.bits();
+        let lhs = lhs.to_u128() % type_modulo;
+        let rhs = rhs.to_u128() % type_modulo;
+        let mut x = u128_op(lhs, rhs);
+        x %= type_modulo;
+        Ok(NodeEval::from_u128(x, res_type))
+    } else {
+        Err(RuntimeErrorKind::UnsupportedOp {
+            op: op_name.to_string(),
+            first_type: "FieldElement".to_string(),
+            second_type: "FieldElement".to_string(),
+        }
+        .into())
+    }
 }
 
 impl Operation {
