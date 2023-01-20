@@ -132,6 +132,7 @@ template <typename Params> class MultilinearReductionScheme {
 
     using Fr = typename Params::Fr;
     using Commitment = typename Params::Commitment;
+    using CommitmentAffine = typename Params::C; // TODO(luke): find a better name
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -259,7 +260,7 @@ template <typename Params> class MultilinearReductionScheme {
          */
         for (size_t i = 0; i < commitments.size(); ++i) {
             std::string label = "FOLD_" + std::to_string(i + 1);
-            transcript->add_element(label, static_cast<barretenberg::g1::affine_element>(commitments[i]).to_buffer());
+            transcript->add_element(label, static_cast<CommitmentAffine>(commitments[i]).to_buffer());
         }
         transcript->apply_fiat_shamir("r");
         const Fr r = Fr::serialize_from_buffer(transcript->get_challenge("r").begin());
@@ -325,6 +326,16 @@ template <typename Params> class MultilinearReductionScheme {
          */
         auto result_claims =
             compute_output_claim_from_proof(claims_f, claims_g, mle_opening_point, rhos, r_squares, proof);
+
+        // Add the following to transcript:
+        // - Evaluation \hat{a_0} = Fold_{r}^(0)(r) of the 0th Fold polynomial at +r
+        // - Commitments [Fold_{r}^(0)] and [Fold_{-r}^(0)] of the partially evaluated 0th Fold poly at +/-r
+        Fr a_0_pos = result_claims[0].eval;
+        CommitmentAffine Fold_0_pos_commitment(result_claims[0].commitment);
+        CommitmentAffine Fold_0_neg_commitment(result_claims[1].commitment);
+        transcript->add_element("a_0_pos", a_0_pos.to_buffer());
+        transcript->add_element("FOLD_0_pos", static_cast<CommitmentAffine>(Fold_0_pos_commitment).to_buffer());
+        transcript->add_element("FOLD_0_neg", static_cast<CommitmentAffine>(Fold_0_neg_commitment).to_buffer());
 
         return { result_claims, std::move(witness_polynomials), proof };
     };

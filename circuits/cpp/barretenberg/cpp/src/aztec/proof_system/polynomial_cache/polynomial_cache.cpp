@@ -7,12 +7,12 @@ using namespace barretenberg;
 
 // Set to 1 to enable logging.
 #if 0
-template <typename... Args> inline void debug(Args... args)
+template <typename... Args> inline void info_togglable(Args... args)
 {
     info("PolynomialCache: ", args...);
 }
 #else
-template <typename... Args> inline void debug(Args...) {}
+template <typename... Args> inline void info_togglable(Args...) {}
 #endif
 
 PolynomialCache::PolynomialCache(PolynomialStore* store, size_t capacity_bytes)
@@ -32,37 +32,37 @@ void PolynomialCache::put(std::string const& key, polynomial&& value)
     map_[key] = std::move(value);
     move_to_front(key);
     flush(capacity_bytes_);
-    debug("put: ", key, " moved to cache. volume_bytes: ", get_volume());
+    info_togglable("put: ", key, " moved to cache. volume_bytes: ", get_volume());
 }
 
 polynomial& PolynomialCache::get(std::string const& key, size_t size)
 {
     auto map_it = map_.find(key);
     if (map_it != map_.end()) {
-        debug("get: ", key, " found in cache.");
+        info_togglable("get: ", key, " found in cache.");
         move_to_front(key);
         return map_it->second;
     }
 
     polynomial poly;
     if (store_) {
-        debug("get: ", key, " not in cache, checking store.");
+        info_togglable("get: ", key, " not in cache, checking store.");
         poly = store_->get(key);
     } else {
-        debug("get: ", key, " not in cache.");
+        info_togglable("get: ", key, " not in cache.");
     }
 
     if (poly.get_size() == 0) {
         if (!size) {
             throw_or_abort(format("PolynomialCache: get: ", key, " not found and no size given."));
         }
-        debug("get: ", key, " will be adding as zero poly of size ", size);
+        info_togglable("get: ", key, " will be adding as zero poly of size ", size);
         poly.resize(size);
     }
 
     map_[key] = std::move(poly);
     lru_.push_front(key);
-    debug("get: ", key, " added to cache.");
+    info_togglable("get: ", key, " added to cache.");
     flush(capacity_bytes_);
     return map_[key];
 }
@@ -95,9 +95,9 @@ void PolynomialCache::flush(size_t target_bytes)
         auto it = map_.find(key);
         store_->put(key, it->second);
         map_.erase(it);
-        debug("flush: ", key, " purged.");
+        info_togglable("flush: ", key, " purged.");
     }
-    debug("flush: volume_bytes: ", get_volume());
+    info_togglable("flush: volume_bytes: ", get_volume());
 }
 
 size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type)

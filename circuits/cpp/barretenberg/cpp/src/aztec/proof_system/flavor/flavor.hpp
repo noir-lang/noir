@@ -144,6 +144,13 @@ struct StandardHonk {
             gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
             { .name = "a_" + std::to_string(i), .num_bytes = fr_size, .derived_by_verifier = false }));
         };
+        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+            { .name = "a_0_pos", .num_bytes = fr_size, .derived_by_verifier = false }));
+        // Include two additional commitments that depend on challenge "r" from previous round
+        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+              { .name = "FOLD_0_pos", .num_bytes = g1_size, .derived_by_verifier = false }));
+        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+              { .name = "FOLD_0_neg", .num_bytes = g1_size, .derived_by_verifier = false }));
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
             gemini_evaluation_entries,
             /* challenge_name = */ "nu",
