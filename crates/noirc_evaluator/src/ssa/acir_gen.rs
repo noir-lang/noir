@@ -8,7 +8,7 @@ use crate::ssa::node::Node;
 use crate::ssa::{mem, node};
 use crate::Evaluator;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::directives::Directive;
+use acvm::acir::circuit::directives::{Directive, LogInfo};
 use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
 
 use acvm::acir::circuit::Opcode as AcirOpcode;
@@ -712,10 +712,13 @@ impl Acir {
         // Only one of the witness vector or the output string should be non-empty
         assert!(log_witnesses.is_empty() ^ log_string.is_empty());
 
-        evaluator.gates.push(Gate::Directive(Directive::Log {
-            output_string: log_string,
-            witnesses: log_witnesses,
-        }));
+        let log_directive = if !log_string.is_empty() {
+            Directive::Log(LogInfo::FinalizedOutput(log_string))
+        } else {
+            Directive::Log(LogInfo::WitnessOutput(log_witnesses))
+        };
+
+        evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
     }
 }
 

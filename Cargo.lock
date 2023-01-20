@@ -27,8 +27,7 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aad7977c11d19ae0dd983b50dc5fd9eb96c002072f75643e45daa6dc0c23fba5"
+source = "git+https://github.com/vezenovm/acvm?branch=mv/logging#c1577fe22ca2fe64c11d67cb1f80055f5bb4f0b5"
 dependencies = [
  "acir_field",
  "flate2",
@@ -39,8 +38,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
+source = "git+https://github.com/vezenovm/acvm?branch=mv/logging#c1577fe22ca2fe64c11d67cb1f80055f5bb4f0b5"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -88,8 +86,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99007127e84602134226eefc2245c59b7fe55853bfeba572714b04c5b3fefdea"
+source = "git+https://github.com/vezenovm/acvm?branch=mv/logging#c1577fe22ca2fe64c11d67cb1f80055f5bb4f0b5"
 dependencies = [
  "acir 0.3.1",
  "acir_field",
@@ -107,8 +104,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
+source = "git+https://github.com/vezenovm/acvm?branch=mv/logging#c1577fe22ca2fe64c11d67cb1f80055f5bb4f0b5"
 dependencies = [
  "acir 0.3.1",
  "acir_field",
@@ -386,7 +382,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/logging#5fb7f08d4c8e40d79298233b6bc9ad626f77470c"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -406,7 +402,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/logging#5fb7f08d4c8e40d79298233b6bc9ad626f77470c"
 dependencies = [
  "blake2",
  "common",
@@ -649,7 +645,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/logging#5fb7f08d4c8e40d79298233b6bc9ad626f77470c"
 dependencies = [
  "acvm 0.3.1",
  "blake2",

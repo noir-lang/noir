@@ -301,7 +301,6 @@ fn cse_block_with_anchor(
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
                 Operation::Intrinsic(opcode, args) => {
-                    // dbg!(args.clone());
                     //Add dunmmy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
                     match opcode {
@@ -327,7 +326,6 @@ fn cse_block_with_anchor(
 
                     if activate_cse {
                         if let Some(similar) = anchor.find_similar_instruction(&operator) {
-                            dbg!(similar);
                             *modified = true;
                             new_mark = Mark::ReplaceWith(similar);
                         } else {
