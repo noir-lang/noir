@@ -24,9 +24,9 @@ pub enum SimplifyResult {
 }
 
 pub struct CircuitSimplifier {
-    abi_len: u32,                                //number of witness in the ABI
-    pub solved: BTreeMap<Witness, FieldElement>, //pub is TEMP
-    pub defined: HashSet<Witness>, //list des solved witness ayant une gate pour les definir
+    abi_len: u32, //number of witness in the ABI
+    solved: BTreeMap<Witness, FieldElement>,
+    pub defined: HashSet<Witness>, // list of solved witness that should be defined with a gate
     def_info: BTreeMap<Witness, usize>, //index of the gate that defines a witness
     min_use: usize,                //min of the solved witness def
     pub solved_gates: BTreeSet<usize>, //indexes of the solved gates
@@ -85,6 +85,13 @@ impl CircuitSimplifier {
 
     pub fn contains(&self, w: Witness) -> bool {
         self.solved.contains_key(&w)
+    }
+
+    // generate a gate which set witness to its value
+    pub fn define(&self, w: &Witness) -> Gate {
+        let mut a = Expression::from(w);
+        a.q_c = -self.solved[w];
+        Gate::Arithmetic(a)
     }
 
     // simplify a gate and propagate the solved witness onto the previous gates, as long as it can solve some witness

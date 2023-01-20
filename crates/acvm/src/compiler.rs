@@ -91,9 +91,7 @@ pub fn fallback(acir: &Circuit, np_language: &Language, simplifier: &CircuitSimp
     let mut fallback_gates = Vec::new();
     let mut witness_idx = acir.current_witness_index + 1;
     for w in &simplifier.defined {
-        let mut a = Expression::from(w);
-        a.q_c = -simplifier.solved[w];
-        fallback_gates.push(Gate::Arithmetic(a));
+        fallback_gates.push(simplifier.define(w));
     }
     for (i, g) in acir.gates.iter().enumerate() {
         if !simplifier.solved_gates.contains(&i) {
