@@ -213,7 +213,16 @@ impl Acir {
                                 "we do not allow private ABI inputs to be returned as public outputs",
                             )));
                         }
-                        evaluator.public_inputs.push(witness);
+
+                        // Check if it has already been added as a public input
+                        // If so, we do not need to log it
+                        if !evaluator.public_inputs.contains(&witness) {
+                            evaluator.public_inputs.push(witness);
+                        }
+                        // The public outputs vector _can_ have duplicates
+                        // since it not used by the proving system and is
+                        // used as metadata -- reporting what the program returns
+                        evaluator.public_outputs.push(witness);
                     }
                 }
 

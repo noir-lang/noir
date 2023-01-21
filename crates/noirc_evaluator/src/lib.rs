@@ -24,6 +24,7 @@ pub struct Evaluator {
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
     public_inputs: Vec<Witness>,
+    public_outputs: Vec<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -50,6 +51,7 @@ pub fn create_circuit(
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
             public_inputs: PublicInputs(evaluator.public_inputs),
+            public_outputs: PublicInputs(evaluator.public_outputs),
         },
         np_language,
         is_blackbox_supported,
@@ -63,6 +65,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             public_inputs: Vec::new(),
+            public_outputs: Vec::new(),
             num_witnesses_abi_len: 0,
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
