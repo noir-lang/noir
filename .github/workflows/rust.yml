@@ -101,3 +101,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: streetsidesoftware/cspell-action@v2
+      - with:
+        files: |
+        **/*.{rs, ts,js}
