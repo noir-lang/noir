@@ -9,8 +9,7 @@ use noirc_abi::{
 use noirc_driver::CompiledProgram;
 
 use super::{
-    compile_cmd::compile_circuit, prove_cmd::dedup_public_input_indices_values,
-    read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE,
+    compile_cmd::compile_circuit, read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE,
 };
 use crate::errors::CliError;
 
