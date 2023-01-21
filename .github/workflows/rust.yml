@@ -95,3 +95,9 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+
+  spellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: streetsidesoftware/cspell-action@v2
