@@ -61,7 +61,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
 }
 
 fn verify_proof(
-    mut compiled_program: CompiledProgram,
+    compiled_program: CompiledProgram,
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {

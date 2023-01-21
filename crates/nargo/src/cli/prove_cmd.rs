@@ -1,10 +1,10 @@
 use clap::ArgMatches;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     path::{Path, PathBuf},
 };
 
-use acvm::acir::{circuit::PublicInputs, native_types::Witness, FieldElement};
+use acvm::acir::{native_types::Witness, FieldElement};
 use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use noirc_abi::{
     errors::AbiError,
@@ -130,7 +130,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let (mut compiled_program, solved_witness) =
+    let (compiled_program, solved_witness) =
         compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
