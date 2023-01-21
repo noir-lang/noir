@@ -272,8 +272,8 @@ impl Display for Definition {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
             Definition::Function(id) => write!(f, "f{}", id.0),
-            Definition::Builtin(name) => write!(f, "{}", name),
-            Definition::LowLevel(name) => write!(f, "{}", name),
+            Definition::Builtin(name) => write!(f, "{name}"),
+            Definition::LowLevel(name) => write!(f, "{name}"),
         }
     }
 }
