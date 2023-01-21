@@ -119,6 +119,15 @@ impl Abi {
     pub fn parameter_names(&self) -> Vec<&String> {
         self.parameters.iter().map(|x| &x.name).collect()
     }
+    // Parameters in the ABI excluding the return parameter
+    pub fn input_parameters(&self) -> Vec<&AbiParameter> {
+        self.parameters.iter().filter(|param| param.name != MAIN_RETURN_NAME).collect()
+    }
+
+    // Return parameter in the ABI
+    pub fn output_parameter(&self) -> Option<&AbiParameter> {
+        self.parameters.iter().find(|param| param.name == MAIN_RETURN_NAME)
+    }
 
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
@@ -143,19 +152,25 @@ impl Abi {
         inputs: &BTreeMap<String, InputValue>,
         skip_output: bool,
     ) -> Result<Vec<FieldElement>, AbiError> {
-        // Condition that specifies whether we should filter the "return"
-        // parameter. We do this in the case that it is not in the `inputs`
-        // map specified.
+        // The `Return` parameter is always present in the ABI because the ABI describes
+        // the input and output parameters.
         //
-        // See Issue #645 : Adding a `public outputs` field into acir and
-        // the ABI will clean up this logic
-        // For prosperity; the prover does not know about a `return` value
-        // so we skip this when encoding the ABI
-        let return_condition =
-            |param_name: &&String| !skip_output || (param_name != &MAIN_RETURN_NAME);
+        // When the Prover is creating a proof, they will not supply the `Return` value
+        // in their TOML file. This means that when we encode the ABI for the Prover,
+        // we should skip the `Return` parameter in ABI as this is not supplied by the prover
+        // and therefore cannot be encoded.
 
-        let parameters = self.parameters.iter().filter(|param| return_condition(&&param.name));
-        let param_names: Vec<&String> = parameters.clone().map(|param| &param.name).collect();
+        let parameters = match (skip_output, self.output_parameter()) {
+            (true, _) | (false, None) => self.input_parameters(),
+            (false, Some(output_param)) => {
+                let mut params = self.input_parameters();
+                params.push(output_param);
+                params
+            }
+        };
+
+        let param_names: Vec<&String> =
+            parameters.iter().clone().map(|param| &param.name).collect();
         let mut encoded_inputs = Vec::new();
 
         for param in parameters {
@@ -202,6 +217,7 @@ impl Abi {
     pub fn decode(
         &self,
         encoded_inputs: &Vec<FieldElement>,
+        encoded_outputs: &Vec<FieldElement>,
     ) -> Result<BTreeMap<String, InputValue>, AbiError> {
         let input_length: u32 = encoded_inputs.len().try_into().unwrap();
         if input_length != self.field_count() {
@@ -211,16 +227,40 @@ impl Abi {
             });
         }
 
-        let mut index = 0;
         let mut decoded_inputs = BTreeMap::new();
-        for param in &self.parameters {
-            let (next_index, decoded_value) =
-                Self::decode_value(index, encoded_inputs, &param.typ)?;
 
-            decoded_inputs.insert(param.name.to_owned(), decoded_value);
+        // Decode the input values
+        //
+        {
+            let input_parameters = self.input_parameters();
 
-            index = next_index;
+            let mut index = 0;
+            for param in &input_parameters {
+                let (next_index, decoded_value) =
+                    Self::decode_value(index, encoded_inputs, &param.typ)?;
+
+                decoded_inputs.insert(param.name.to_owned(), decoded_value);
+
+                index = next_index;
+            }
         }
+
+        // Decode the output value
+        //
+        {
+            if encoded_outputs.is_empty() {
+                return Ok(decoded_inputs);
+            }
+
+            let output_parameter = match self.output_parameter() {
+                Some(output) => output,
+                None => unreachable!("infallible: the encoded outputs is none empty, but the ABI specifies no return values"),
+            };
+
+            let (_, decoded_value) = Self::decode_value(0, encoded_outputs, &output_parameter.typ)?;
+            decoded_inputs.insert(output_parameter.name.to_owned(), decoded_value);
+        }
+
         Ok(decoded_inputs)
     }
 
