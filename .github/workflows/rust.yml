@@ -101,6 +101,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: streetsidesoftware/cspell-action@v2
-      - with:
-        files: |
-        **/*.{rs, ts,js}
+        with:
+          root: 'crates' # Should only spellcheck files in crates/ directory
