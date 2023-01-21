@@ -8,6 +8,7 @@ edition.workspace = true
 
 [build-dependencies]
 dirs.workspace = true
+rustc_version.workspace = true
 
 [dependencies]
 dirs.workspace = true
