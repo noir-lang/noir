@@ -64,21 +64,32 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, &witness_map)?;
 
-    // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
-    // `witness_map`. We must then decode these from the circuit's witness values.
-    let encoded_public_inputs: Vec<FieldElement> = compiled_program
-        .circuit
-        .public_inputs
-        .0
-        .iter()
-        .map(|index| solved_witness[index])
-        .collect();
-
+    // We want to figure out which public inputs were inputs to main and which ones
+    // were outputs.
+    //
+    // To do this, we figure out the length of the ABI,
+    // and assuming that the witness indices were contiguous, this tells us the amount of witnesses
+    // used to create the input parameters.
+    // If there are any public inputs, their indices will be less than the ABI length
     let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-    let public_inputs = public_abi.decode(&encoded_public_inputs)?;
+    let abi_len = public_abi.field_count();
+
+    let encoded_public_inputs: Vec<FieldElement> = {
+        let public_input_indices =
+            compiled_program.circuit.public_inputs.0.iter().filter(|index| index.0 < abi_len);
+        public_input_indices.map(|index| solved_witness[index]).collect()
+    };
+
+    let encoded_public_outputs: Vec<FieldElement> = {
+        let public_output_indices = compiled_program.circuit.public_outputs.0.iter();
+        public_output_indices.map(|index| solved_witness[index]).collect()
+    };
+
+    let public_inputs_outputs =
+        public_abi.decode(&encoded_public_inputs, &encoded_public_outputs)?;
 
     // Write public inputs into Verifier.toml
-    write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+    write_inputs_to_file(&public_inputs_outputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
     Ok(solved_witness)
 }
@@ -124,13 +135,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     let backend = crate::backends::ConcreteBackend;
 
-    // Since the public outputs are added into the public inputs list
-    // There can be duplicates. We keep the duplicates for when one is
-    // encoding the return values into the Verifier.toml
-    // However, for creating a proof, we remove these duplicates.
-    compiled_program.circuit.public_inputs =
-        dedup_public_input_indices(compiled_program.circuit.public_inputs);
-
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
@@ -144,35 +148,4 @@ pub fn prove_with_path<P: AsRef<Path>>(
     println!("{:?}", std::fs::canonicalize(&proof_path));
 
     Ok(proof_path)
-}
-
-// Removes duplicates from the list of public input witnesses
-fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
-    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
-    PublicInputs(duplicates_removed.into_iter().collect())
-}
-
-// Removes duplicates from the list of public input witnesses and the
-// associated list of duplicate values.
-pub(crate) fn dedup_public_input_indices_values(
-    indices: PublicInputs,
-    values: Vec<FieldElement>,
-) -> (PublicInputs, Vec<FieldElement>) {
-    // Assume that the public input index lists and the values contain duplicates
-    assert_eq!(indices.0.len(), values.len());
-
-    let mut public_inputs_without_duplicates = Vec::new();
-    let mut already_seen_public_indices = HashSet::new();
-
-    for (index, value) in indices.0.iter().zip(values) {
-        if !already_seen_public_indices.contains(&index) {
-            already_seen_public_indices.insert(index);
-            public_inputs_without_duplicates.push(value)
-        }
-    }
-
-    (
-        PublicInputs(already_seen_public_indices.into_iter().cloned().collect()),
-        public_inputs_without_duplicates,
-    )
 }
