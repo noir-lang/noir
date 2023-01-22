@@ -71,8 +71,9 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     // and assuming that the witness indices were contiguous, this tells us the amount of witnesses
     // used to create the input parameters.
     // If there are any public inputs, their indices will be less than the ABI length
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-    let abi_len = public_abi.field_count();
+    let abi = compiled_program.abi.clone().unwrap();
+    let abi_len = abi.field_count();
+    let public_abi = abi.public_abi();
 
     let encoded_public_inputs: Vec<FieldElement> = {
         let public_input_indices =
@@ -84,7 +85,6 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         let public_output_indices = compiled_program.circuit.public_outputs.0.iter();
         public_output_indices.map(|index| solved_witness[index]).collect()
     };
-
     let public_inputs_outputs =
         public_abi.decode(&encoded_public_inputs, &encoded_public_outputs)?;
 
