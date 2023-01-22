@@ -219,10 +219,18 @@ impl Abi {
         encoded_inputs: &Vec<FieldElement>,
         encoded_outputs: &Vec<FieldElement>,
     ) -> Result<BTreeMap<String, InputValue>, AbiError> {
-        let input_length: u32 = encoded_inputs.len().try_into().unwrap();
-        if input_length != self.field_count() {
+        let input_length: u32 = encoded_inputs
+            .len()
+            .try_into()
+            .expect("number of inputs is expected to be less than u32::MAX");
+        let output_length: u32 = encoded_outputs
+            .len()
+            .try_into()
+            .expect("number of inputs is expected to be less than u32::MAX");
+        let total_length = input_length + output_length;
+        if total_length != self.field_count() {
             return Err(AbiError::UnexpectedInputLength {
-                actual: input_length,
+                actual: total_length,
                 expected: self.field_count(),
             });
         }
