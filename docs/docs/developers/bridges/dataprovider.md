@@ -8,6 +8,8 @@ It is a contract we use as a source of truth when it comes to configuration of b
 
 It is mainly used by a frontend to get a bridge or asset information by a tag, but the information can be used by anyone.
 
+You can also get deployed bridge information from the Aztec sequencer (falafel) endpoint: [https://api.aztec.network/aztec-connect-prod/falafel/status](https://api.aztec.network/aztec-connect-prod/falafel/status).
+
 ## Usage
 
 The contract is deployed [here](https://etherscan.io/address/0xB4319947947781FFe91dDf96A32aF2D4693FEf64) and these are the 4 relevant functions:
