@@ -135,16 +135,14 @@ let networkConfig: Config = {
     rollupProvider: "https://api.aztec.network/aztec-connect-prod/falafel",
     explorerUrl: "https://aztec-connect-prod-explorer.aztec.network/",
   },
-  677868: {
-    rollupProvider: "https://api.aztec.network/aztec-connect-testnet/falafel/",
-    explorerUrl: "https://aztec-connect-testnet-explorer.aztec.network/",
+  31337: { // local devnet
+    rollupProvider: "http://localhost:8081",
+    explorerUrl: "",
   },
 };
 ```
 
-The network of Chain ID `677868` is the Aztec Testnet. It is a test network that was forked from and mimics the Ethereum Mainnet.
-
-To access the Testnet using Metamask, add the network per the instructions [here](./getting-started.md#configuration).
+The network of Chain ID `31337` is the Aztec mainnet fork [local developer network](./local-devnet). It is a local network that is forked from and mimics the Ethereum Mainnet.
 
 ## Account Alias
 

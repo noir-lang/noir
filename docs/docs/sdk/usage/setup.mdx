@@ -37,10 +37,10 @@ const ethereumProvider = new EthersAdapter(ethersProvider);
 
 ## SDK setup
 
-Once the provider is set up you can create an instance of the Aztec SDK, specifying the rollup host. When working on the mainnet fork testnet, the corresponding sequencer endpoint is:
+Once the provider is set up you can create an instance of the Aztec SDK, specifying the rollup host. When working on the mainnet fork [local development environment](../../developers/local-devnet), the corresponding sequencer endpoint is:
 
 ```shell
-https://api.aztec.network/aztec-connect-testnet/falafel
+http://localhost:8081
 ```
 
 You can connect to the Aztec sequencer that is connected to Ethereum at:
@@ -52,7 +52,7 @@ https://api.aztec.network/aztec-connect-prod/falafel
 ```ts title="/src/base.ts"
 const setupSdk = async () => {
   sdk = await createAztecSdk(ethereumProvider, {
-    serverUrl: "https://api.aztec.network/aztec-connect-testnet/falafel", // testnet
+    serverUrl: "http://localhost:8081", // local devnet
     pollInterval: 1000,
     memoryDb: true,            // set to false to save chain data
     debug: "bb:*",             // print debug logs
@@ -61,6 +61,7 @@ const setupSdk = async () => {
   });
 
   await sdk.run();
+  await sdk.awaitSynchronised();
 };
 ```
 
@@ -80,7 +81,7 @@ You can enable debugging when you create the SDK instance.
 
 ```ts
 const sdk = await createAztecSdk(ethereumProvider, {
-  serverUrl: "https://aztec-connect-testnet-sdk.aztec.network", // mainnet fork testnet
+  serverUrl: "http://localhost:8081", // local devnet
   pollInterval: 1000,
   memoryDb: true,     // set to false to save DB in a project file rather than memory
   debug: "bb:*",
