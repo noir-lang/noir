@@ -161,14 +161,14 @@ impl Anchor {
         ctx: &SsaContext,
         op: &Operation,
         prev_ins: &VecDeque<MemItem>,
-    ) -> CseAction {
+    ) -> Result<CseAction, RuntimeErrorKind> {
         for iter in prev_ins.iter() {
-            if let Some(action) = self.match_mem_item(ctx, iter, op) {
-                return action;
+            if let Some(action) = self.match_mem_item(ctx, iter, op)? {
+                return Ok(action);
             }
         }
 
-        CseAction::Keep
+        Ok(CseAction::Keep)
     }
 
     fn get_mem_op(op: &Operation) -> (ArrayId, NodeId, bool) {
@@ -184,7 +184,7 @@ impl Anchor {
         ctx: &SsaContext,
         item: &MemItem,
         op: &Operation,
-    ) -> Option<CseAction> {
+    ) -> Result<Option<CseAction>, RuntimeErrorKind> {
         let (array_id, index, is_load) = Anchor::get_mem_op(op);
         if let Some(b_value) = ctx.get_as_constant(index) {
             match item {
@@ -192,35 +192,35 @@ impl Anchor {
                     let a = self.get_mem_map(array_id);
                     let b_idx = b_value.to_u128() as usize;
                     if b_idx >= a.len() {
-                        return Some(CseAction::Error(RuntimeErrorKind::ArrayOutOfBounds {
+                        return Ok(Some(CseAction::Error(RuntimeErrorKind::ArrayOutOfBounds {
                             index: b_idx as u128,
                             bound: a.len() as u128,
-                        }));
+                        })));
                     }
                     for (pos, id) in &a[b_idx] {
                         if pos == p {
                             let action = Anchor::match_mem_id(ctx, *id, index, is_load);
                             if action.is_some() {
-                                return action;
+                                return Ok(action);
                             }
                         }
                     }
 
-                    None
+                    Ok(None)
                 }
-                MemItem::NonConst(id) => Anchor::match_mem_id(ctx, *id, index, is_load),
+                MemItem::NonConst(id) => Ok(Anchor::match_mem_id(ctx, *id, index, is_load)),
             }
         } else {
             match item {
-                MemItem::Const(_) => Some(CseAction::Keep),
+                MemItem::Const(_) => Ok(Some(CseAction::Keep)),
                 MemItem::ConstLoad(_) => {
                     if is_load {
-                        None
+                        Ok(None)
                     } else {
-                        Some(CseAction::Keep)
+                        Ok(Some(CseAction::Keep))
                     }
                 }
-                MemItem::NonConst(id) => Anchor::match_mem_id(ctx, *id, index, is_load),
+                MemItem::NonConst(id) => Ok(Anchor::match_mem_id(ctx, *id, index, is_load)),
             }
         }
     }
