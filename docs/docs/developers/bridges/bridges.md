@@ -140,7 +140,7 @@ forge test --match-contract ExampleUnitTest -vvv
 
 ### Deployment
 
-The best way to deploy and test your bridge is on a local development Aztec network,  through deployments script with Foundry. You can find more info about starting the local development network and deployment info [here](../local-devnet).
+The best way to deploy and test your bridge is on a local development Aztec network,  through deployments script with Foundry. You can find more info about starting the local development network and deployment info [here](../local-devnet.md).
 
 Refer to [`ExampleDeployment.s.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment/example) and other scripts under [`src/deployment`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment) for inspirations.
 
