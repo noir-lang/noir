@@ -5,7 +5,7 @@ mod foo;
 struct myStruct {
     foo: u32,
     bar: Field,
-    message: str[5],
+    message: str<5>,
 }
 
 fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
