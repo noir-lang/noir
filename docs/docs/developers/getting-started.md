@@ -23,11 +23,9 @@ We are working on making this process more transparent. Feel free to [get in tou
 
 ## Testnet Information
 
-:::caution
-Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com).
-:::
-
 You can run a local development environment by following the instructions on [this page](./local-devnet).
+
+We have a private testnet and access is reserved for people building products on Aztec. If you need access to the Aztec testing environment, please reach out via [email](mailto:devrel@aztecprotocol.com).
 
 ## Building with the SDK
 

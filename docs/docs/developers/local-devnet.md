@@ -32,10 +32,12 @@ This will be useful for testing basic functionality of the Aztec network like de
 
 #### Mainnet fork with bridge contracts
 
-Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run
+Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge contracts deployed + Aztec sequencer, run:
+
+You will need to add a `FORK_URL` with a valid API key.
 
 ```bash
-curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | NETWORK=DONT_CARE CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
 ```
 
 This network will be useful for testing functionality associated with bridge contracts and interacting with other contracts/protocols that are on Ethereum.
@@ -151,3 +153,22 @@ Derivation path:   m/44'/60'/0'/0/
 ```
 
 If you have questions, please reach out on [Discord](https://discord.com/invite/UDtJr9u).
+
+### Add Custom Token
+
+To add support for a custom token that is deployed to the developer network, call `function setSupportedAsset(address _token, uint256 _gasLimit) external;` on the rollup contract.
+
+:::note
+Permissionless token listing to mainnet is not yet supported. This only works for the testnet.
+:::
+
+To do this:
+
+1. Import the [IRollupProcessor.sol](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/interfaces/IRollupProcessor.sol) contract into [Remix](https://remix.ethereum.org)
+2. Compile IRollupProcessor.sol
+3. Connect Metamask to the local network
+4. Connect Remix and Metamask
+5. Create an instance of IRollupProcessor.sol at the proper address
+6. Call `setSupportedAsset()` with your token address and `200000` for the `_gasLimit`. The `_gasLimit` tells the Aztec client how much gas token transfers use. 200,000 is an overestimate that is fine for testnet transactions, but you should test your token for more precise gas usage before deploying to mainnet.
+
+To get the assets that Aztec supports, call `IRollupProcessor.getSupportedAssets()`. This will return two arrays, an array of token addresses and an array of gas limits.

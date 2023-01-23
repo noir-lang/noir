@@ -140,87 +140,17 @@ forge test --match-contract ExampleUnitTest -vvv
 
 ### Deployment
 
-The best way to deploy your bridge is through a deployment script with Foundry.
+The best way to deploy and test your bridge is on a local development Aztec network,  through deployments script with Foundry. You can find more info about starting the local development network and deployment info [here](../local-devnet).
+
+Refer to [`ExampleDeployment.s.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment/example) and other scripts under [`src/deployment`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment) for inspirations.
+
+You can use the same deployment process described in the local development network page linked above to get bridge contracts deployed and listed to the private testnet rollup contract. If you are deploying to testnet, reach out via [email](mailto:devrel@aztecprotocol.com) to get the Aztec testnet sequencer config updated so that the sequencer can handle transactions to the new bridge contract.
+
+Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
 
 :::info
 Read more about Solidity scripting with foundry [here](https://book.getfoundry.sh/tutorials/solidity-scripting).
 :::
-
-Refer to [`ExampleDeployment.s.sol`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment/example) and other scripts under [`src/deployment`](https://github.com/AztecProtocol/aztec-connect-bridges/tree/master/src/deployment) for inspirations.
-
-The following command will run the `deployAndList()` function in `ExampleDeployment.s.sol`. You will need to export a couple of environment variables before running the command.
-
-```shell
-export network=testnet # wont work on mainnet, permissionless bridge listing not enabled yet
-export simulateAdmin=false # to broadcast your deployment to the testnet
-```
-
-```shell
-forge script --fork-url https://aztec-connect-testnet-eth-host.aztec.network:8545 --private-key $PRIV --legacy --ffi ExampleDeployment --sig "deployAndList()" --broadcast
-```
-
-where `$PRIV` is a private key for an Ethereum account on the testnet that has ETH to pay fees.
-
-The bridge id will be printed in the terminal, something similar to:
-
-```
-== Logs ==
-  simulating: testnet
-  Current chain id: 677868
-  Rollup at: 0xca41ca7363323d88598c5d0a8de2c02fb13ab772
-  Deploying example bridge
-  Example bridge deployed to: 0x90c0b9bdcedbac5282451e4d8f8226f6a1bb87cb
-  Example bridge address id: 19
-```
-
-Some notes on the additional flags in the above command:
-
-- `--ffi` allows us to access stuff outside solidity, so we use it to fetch rollup processor address
-- `--sig` is the function signature that we want to call
-- `--legacy` is because ganache (which the testnet is running on) and eip1559 don't play well
-- `-vvvv` prints trace
-- `broadcast` will broadcast the deployment transactions to the testnet (rather than running simulations)
-
-Once the bridge has been deployed and listed to the rollup contract, reach out via [email](mailto:josh@aztecprotocol.com) to get the Aztec testnet sequencer config updated so that the sequencer can handle transactions to the new bridge contract.
-
-Refer to [this section](https://github.com/AztecProtocol/aztec-connect-bridges#writing-a-bridge) of the bridges repo README for more detail.
-
-### Testnet Deployment Info
-
-:::caution 
-Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com). 
-:::
-
-You can use these commands to get all of assets and bridges that the Aztec core team has deployed on the testnet.
-
-```shell
-# export env vars
-export RPC=https://aztec-connect-testnet-eth-host.aztec.network:8545
-export network=testnet
-export simulateAdmin=false
-
-# run script
-forge script --fork-url $RPC --ffi DataProviderDeployment --sig "read()"
-```
-
-### Add Custom Token
-
-To add support for a custom token that is deployed to the testnet, call `function setSupportedAsset(address _token, uint256 _gasLimit) external;` on the rollup contract. The testnet rollup contract address is `0x614957a8ae7b87f18fa3f207b6619c520a022b4f`.
-
-:::note
-Permissionless token listing to mainnet is not yet supported. This only works for the testnet.
-:::
-
-To do this:
-
-1. Import the [IRollupProcessor.sol](https://github.com/AztecProtocol/aztec-connect/blob/master/blockchain/contracts/interfaces/IRollupProcessor.sol) contract into [Remix](https://remix.ethereum.org)
-2. Compile IRollupProcessor.sol
-3. [Connect Metamask to the testnet](../getting-started.md#testnet-information)
-4. Connect Remix and Metamask
-5. Create an instance of IRollupProcessor.sol at address `0x614957a8ae7b87f18fa3f207b6619c520a022b4f`
-6. Call `setSupportedAsset()` with your token address and `200000` for the `_gasLimit`. The `_gasLimit` tells the Aztec client how much gas token transfers use. 200,000 is an overestimate that is fine for testnet transactions, but you should test your token for more precise gas usage before deploying to mainnet.
-
-To get the assets that Aztec supports, call `IRollupProcessor.getSupportedAssets()`. This will return two arrays, an array of token addresses and an array of gas limits.
 
 ### Aux Data
 
