@@ -23,11 +23,9 @@ We are working on making this process more transparent. Feel free to [get in tou
 
 ## Testnet Information
 
-:::caution
-Our testnet is currently undergoing maintenance. If you need access to an Aztec testing environment, please reach out via [email](mailto:josh@aztecprotocol.com).
-:::
-
 You can run a local development environment by following the instructions on [this page](./local-devnet).
+
+We have a private testnet and access is reserved for people building products on Aztec. If you need access to the Aztec testing environment, please reach out via [email](mailto:devrel@aztecprotocol.com).
 
 ## Building with the SDK
 
@@ -56,7 +54,7 @@ If you are building a web interface, you might also find the [Frontend Boilerpla
 :::tip
 By default, Aztec transactions could take up to a few hours to settle on the Testnet like on Mainnet. If you want transactions to settle quickly, be sure to set `TxSettlementTime` as `INSTANT`.
 
-`INSTANT` transactions pay higher fees in Testnet ETH in exchange for settlement within minutes rather than hours.
+`INSTANT` transactions pay higher fees in ETH in exchange for settlement within minutes rather than hours.
 :::
 
 ### Aztec SDK Resources
@@ -67,9 +65,6 @@ By default, Aztec transactions could take up to a few hours to settle on the Tes
 - [✍️ Getting Started with Aztec CLI / SDK](./cli.md)
 - [📝 Aztec CLI](https://github.com/critesjosh/azteccli)
 - [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
-- [📱 zk.money (Testnet)](https://aztec-connect-testnet.zk.money/)
-- [🔍 Testnet Block Explorer](https://aztec-connect-testnet-explorer.aztec.network/)
-- [🔍 Testnet Falafel Status API](https://api.aztec.network/aztec-connect-testnet/falafel/status)
 
 ## Building an Aztec Connect Bridge Contract
 
