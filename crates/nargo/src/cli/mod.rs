@@ -120,19 +120,19 @@ fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
 }
 
 pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{}` directory", name))
+    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
     let mut file = match File::create(path) {
-        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Err(why) => panic!("couldn't create {display}: {why}"),
         Ok(file) => file,
     };
 
     match file.write_all(bytes) {
-        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
 }
