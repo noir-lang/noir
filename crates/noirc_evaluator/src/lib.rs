@@ -147,6 +147,15 @@ impl Evaluator {
                 let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
+            AbiType::Boolean => {
+                let witness = self.add_witness_to_cs();
+                ssa::acir_gen::range_constraint(witness, 1, self)?;
+                if *visibility == AbiVisibility::Public {
+                    self.public_inputs.push(witness);
+                }
+                let obj_type = node::ObjectType::Boolean;
+                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+            }
             AbiType::Struct { fields } => {
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 let new_fields = btree_map(fields, |(inner_name, value)| {
@@ -177,6 +186,14 @@ impl Evaluator {
                     let witness = self.add_witness_to_cs();
                     struct_witnesses.insert(name.clone(), vec![witness]);
                     ssa::acir_gen::range_constraint(witness, *width, self)?;
+                    if *visibility == AbiVisibility::Public {
+                        self.public_inputs.push(witness);
+                    }
+                }
+                AbiType::Boolean => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    ssa::acir_gen::range_constraint(witness, 1, self)?;
                     if *visibility == AbiVisibility::Public {
                         self.public_inputs.push(witness);
                     }

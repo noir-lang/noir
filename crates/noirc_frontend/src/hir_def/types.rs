@@ -966,7 +966,7 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.as_abi_type(),
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
-            Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
+            Type::Bool(_) => AbiType::Boolean,            
             Type::String(size) => {
                 let size = size
                     .array_length()
