@@ -20,7 +20,6 @@ pub enum CseAction {
     ReplaceWith(NodeId),
     Remove(NodeId),
     Keep,
-    Error(RuntimeErrorKind),
 }
 
 /// A list of instructions with the same Operation variant
@@ -192,10 +191,10 @@ impl Anchor {
                     let a = self.get_mem_map(array_id);
                     let b_idx = b_value.to_u128() as usize;
                     if b_idx >= a.len() {
-                        return Ok(Some(CseAction::Error(RuntimeErrorKind::ArrayOutOfBounds {
+                        return Err(RuntimeErrorKind::ArrayOutOfBounds {
                             index: b_idx as u128,
                             bound: a.len() as u128,
-                        })));
+                        });
                     }
                     for (pos, id) in &a[b_idx] {
                         if pos == p {

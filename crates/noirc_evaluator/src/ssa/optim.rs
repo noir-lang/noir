@@ -248,7 +248,6 @@ fn cse_block_with_anchor(
                                 new_list.remove(id);
                             }
                         }
-                        CseAction::Error(err) => return Err(err.into()),
                     }
                 }
                 Operation::Phi { block_args, .. } => {
