@@ -151,7 +151,7 @@ impl DefCollector {
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
+        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id, errors);
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
@@ -254,6 +254,7 @@ fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, StmtId)> {
     let mut global_ids = Vec::new();
 
@@ -261,7 +262,7 @@ fn resolve_globals(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: global.module_id, krate: crate_id });
 
-        let mut resolver = Resolver::new(
+        let resolver = Resolver::new(
             &mut context.def_interner,
             &path_resolver,
             &context.def_maps,
@@ -270,11 +271,13 @@ fn resolve_globals(
 
         let name = global.stmt_def.pattern.name_ident().clone();
 
-        let hir_stmt = resolver.resolve_global_let(global.stmt_def);
-
-        context.def_interner.update_global(global.stmt_id, hir_stmt);
-
-        context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        let (hir_stmt, errs) = resolver.resolve_global_let(global.stmt_def);
+        if !errs.is_empty() {
+            errors.extend(vecmap(errs, |err| err.into_file_diagnostic(global.file_id)));
+        } else {
+            context.def_interner.update_global(global.stmt_id, hir_stmt);
+            context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        }
 
         global_ids.push((global.file_id, global.stmt_id));
     }

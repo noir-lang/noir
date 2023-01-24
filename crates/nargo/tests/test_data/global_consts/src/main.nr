@@ -7,6 +7,22 @@ global N: Field = 5;
 global T_LEN = 2; // Type inference is allowed on globals
 //global N: Field = 5; // Uncomment to see duplicate globals error 
 
+// Global arrays that match the input arrays c and d.
+global GlobalC: [Field; 3] = [3, 3, 3];
+global GlobalD: [Field; 5] = [5, 5, 5, 5, 5];
+
+// global badGlobal = if M == 32 {
+//      constrain 1 == 1;
+// };
+
+// global badGlobal2 = for i in 0..1 {
+//      constrain i == 0;
+// };
+
+// global BAD = 10;
+// global A = [BAD, ELEMS];
+// global ELEMS = 11;
+
 struct Dummy {
      x: [Field; N],
      y: [Field; foo::MAGIC_NUMBER]
