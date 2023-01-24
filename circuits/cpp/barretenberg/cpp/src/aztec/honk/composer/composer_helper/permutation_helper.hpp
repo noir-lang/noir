@@ -184,7 +184,9 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
  * @tparam program_width The number of witness polynomials
  * @param key Proving key where we will save the polynomials
  */
-template <size_t program_width> void compute_standard_honk_id_polynomials(waffle::proving_key* key)
+// TODO(Cody): why not a shared pointer here?/s
+template <size_t program_width>
+void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_ptr<proving_key>
 {
     const size_t n = key->n;
     // Fill id polynomials with default values
@@ -210,9 +212,10 @@ template <size_t program_width> void compute_standard_honk_id_polynomials(waffle
  *
  * @param key Proving key where we will save the polynomials
  */
-inline void compute_first_and_last_lagrange_polynomials(waffle::proving_key* key)
+inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key* and share_ptr<proving_key>
 {
     const size_t n = key->n;
+    // info("Computing Lagrange basis polys, the  value of n is: ",/s n);
     barretenberg::polynomial lagrange_polynomial_0(n, n);
     barretenberg::polynomial lagrange_polynomial_n_min_1(n, n);
     lagrange_polynomial_0[0] = 1;

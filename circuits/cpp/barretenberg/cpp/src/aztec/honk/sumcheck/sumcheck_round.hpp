@@ -63,7 +63,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
     BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
 
     // Prover constructor
-    SumcheckRound(size_t initial_round_size, auto relations) // TOPO: want auto&& relations
+    SumcheckRound(size_t initial_round_size, auto&& relations)
         : round_size(initial_round_size)
         , relations(relations)
         , barycentric_utils(BarycentricData<FF, Relations<FF>::RELATION_LENGTH, MAX_RELATION_LENGTH>()...)
@@ -78,9 +78,21 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
     {
         // FF's default constructor may not initialize to zero (e.g., barretenberg::fr), hence we can't rely on
         // aggregate initialization of the evaluations array.
-        std::fill(evaluations.begin(), evaluations.end(), 0);
+        std::fill(evaluations.begin(), evaluations.end(), FF(0));
     };
 
+    /**
+     * @brief After computing the round univariate, it is necessary to zero-out the accumulators used to compute it.
+     */
+    template <size_t idx = 0> void reset_accumulators()
+    {
+        auto& univariate = std::get<idx>(univariate_accumulators);
+        std::fill(univariate.evaluations.begin(), univariate.evaluations.end(), FF(0));
+
+        if constexpr (idx + 1 < NUM_RELATIONS) {
+            reset_accumulators<idx + 1>();
+        }
+    };
     // IMPROVEMENT(Cody): This is kind of ugly. There should be a one-liner with folding
     // or std::apply or something.
 
@@ -96,6 +108,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
             scale_tuple<idx + 1>(tuple, challenge, running_challenge);
         }
     };
+
     /**
      * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
      * return t_0 + αt_1 + ... + α^{NUM_RELATIONS-1}t_{NUM_RELATIONS-1}).
@@ -199,7 +212,8 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
 
     /**
      * @brief Return the evaluations of the univariate restriction (S_l(X_l) in the thesis) at num_multivariates-many
-     * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12.
+     * values. Most likely this will end up being S_l(0), ... , S_l(t-1) where t is around 12. At the end, reset all
+     * univariate accumulators to be zero.
      */
     Univariate<FF, MAX_RELATION_LENGTH> compute_univariate(auto& polynomials, FF& relation_separator_challenge)
     {
@@ -211,17 +225,19 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(univariate_accumulators,
                                                                                 relation_separator_challenge);
 
+        reset_accumulators<>();
+
         return result;
     }
 
-    FF compute_full_honk_relation_purported_value(std::vector<FF> purported_evaluations,
+    FF compute_full_honk_relation_purported_value(std::vector<FF>& purported_evaluations,
                                                   FF& relation_separator_challenge)
     {
         accumulate_relation_evaluations<>(purported_evaluations);
 
         // IMPROVEMENT(Cody): Reuse functions from univariate_accumulators batching?
-        FF running_challenge(1);
-        FF output(0);
+        FF running_challenge = 1;
+        FF output = 0;
         for (auto& evals : evaluations) {
             output += evals * running_challenge;
             running_challenge *= relation_separator_challenge;
@@ -235,7 +251,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         FF total_sum = univariate.value_at(0) + univariate.value_at(1);
         bool sumcheck_round_failed = (target_total_sum != total_sum);
         round_failed = round_failed || sumcheck_round_failed;
-        return sumcheck_round_failed;
+        return !sumcheck_round_failed;
     };
 
     FF compute_next_target_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate, FF& round_challenge)

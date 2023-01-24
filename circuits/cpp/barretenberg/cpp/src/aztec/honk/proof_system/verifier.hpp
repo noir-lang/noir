@@ -7,13 +7,14 @@
 #include "../sumcheck/polynomials/multivariates.hpp"
 #include "../sumcheck/sumcheck.hpp"
 #include "../sumcheck/relations/arithmetic_relation.hpp"
+#include "proof_system/flavor/flavor.hpp"
 
 namespace honk {
 template <typename program_settings> class Verifier {
 
   public:
     Verifier(std::shared_ptr<waffle::verification_key> verifier_key = nullptr,
-             const transcript::Manifest& manifest = transcript::Manifest());
+             const transcript::Manifest& manifest = honk::StandardHonk::create_unrolled_manifest(0));
     Verifier(Verifier&& other);
     Verifier(const Verifier& other) = delete;
     Verifier& operator=(const Verifier& other) = delete;
@@ -32,5 +33,6 @@ template <typename program_settings> class Verifier {
 extern template class Verifier<waffle::standard_verifier_settings>;
 
 typedef Verifier<honk::standard_verifier_settings> StandardVerifier;
+typedef Verifier<honk::standard_verifier_settings> StandardUnrolledVerifier;
 
 } // namespace honk

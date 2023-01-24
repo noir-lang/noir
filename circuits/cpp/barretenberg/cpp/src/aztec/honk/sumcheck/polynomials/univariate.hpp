@@ -284,5 +284,21 @@ template <class Fr, size_t view_length> class UnivariateView {
         res *= other;
         return res;
     }
+
+    // Output is immediately parsable as a list of integers by Python.
+    friend std::ostream& operator<<(std::ostream& os, const UnivariateView& u)
+    {
+        os << "[";
+        os << u.evaluations[0] << "," << std::endl;
+        for (size_t i = 1; i < u.evaluations.size(); i++) {
+            os << " " << u.evaluations[i];
+            if (i + 1 < u.evaluations.size()) {
+                os << "," << std::endl;
+            } else {
+                os << "]";
+            };
+        }
+        return os;
+    }
 };
 } // namespace honk::sumcheck

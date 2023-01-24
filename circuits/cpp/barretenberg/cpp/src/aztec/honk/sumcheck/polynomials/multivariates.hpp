@@ -9,9 +9,9 @@
 #include <cstddef>
 #include <span>
 #include <common/log.hpp>
+#include <common/serialize.hpp>
 
-namespace honk {
-namespace sumcheck {
+namespace honk::sumcheck {
 
 // std::span has no comparison operator, so this is a quick-and-dirty workaround for testing
 // IMPROVEMENT(Cody): Move and/or implement as == in some class
@@ -75,7 +75,6 @@ template <class FF_, size_t num_polys> class Multivariates {
 
     Multivariates() = default;
 
-    // TODO(Cody): static span extent below more efficient
     explicit Multivariates(std::array<std::span<FF>, num_polys> full_polynomials)
         : multivariate_n(full_polynomials[0].size())
         , multivariate_d(numeric::get_msb(multivariate_n))
@@ -103,6 +102,7 @@ template <class FF_, size_t num_polys> class Multivariates {
         }
 
         for (auto& polynomial : folded_polynomials) {
+            polynomial.reserve(multivariate_n >> 1);
             polynomial.resize(multivariate_n >> 1);
         }
     }
@@ -134,7 +134,7 @@ template <class FF_, size_t num_polys> class Multivariates {
      *
      * @param challenge
      */
-    void fold(auto& polynomials, size_t round_size, const FF& round_challenge)
+    void fold(auto& polynomials, size_t round_size, FF round_challenge)
     {
         // after the first round, operate in place on folded_polynomials
         for (size_t j = 0; j < num_polys; ++j) {
@@ -144,17 +144,5 @@ template <class FF_, size_t num_polys> class Multivariates {
             }
         }
     };
-
-    std::array<FF, num_polys> batch_evaluate()
-    {
-        // TODO(Cody): these just get extracted from the folded multivariates
-        // For now, at least initialize properly.
-        std::array<FF, num_polys> result;
-        for (auto& entry : result) {
-            entry = 1;
-        }
-        return result;
-    };
 };
-} // namespace sumcheck
-} // namespace honk
+} // namespace honk::sumcheck

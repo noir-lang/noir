@@ -4,10 +4,10 @@
 #include <proof_system/flavor/flavor.hpp>
 
 namespace honk {
-enum StandardSelectors { QM, QC, Q1, Q2, Q3, NUM };
+enum StandardSelectors { QM, Q1, Q2, Q3, QC, NUM };
 inline std::vector<std::string> standard_selector_names()
 {
-    std::vector<std::string> result{ "q_m", "q_c", "q_1", "q_2", "q_3" };
+    std::vector<std::string> result{ "q_m", "q_1", "q_2", "q_3", "q_c" };
     return result;
 }
 
@@ -27,6 +27,8 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
+        // To effieciently constrain wires to zero, we set the first value of w_1 to be 0, and use copy constraints for
+        // all future zero values.
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
 

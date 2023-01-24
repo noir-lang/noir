@@ -1,3 +1,6 @@
+#include "numeric/bitop/get_msb.hpp"
+#include "plonk/proof_system/constants.hpp"
+#include "proof_system/flavor/flavor.hpp"
 #include "prover.hpp"
 #include "proof_system/proving_key/proving_key.hpp"
 #include "transcript/transcript.hpp"
@@ -8,6 +11,7 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
+#include <honk/composer/composer_helper/permutation_helper.hpp>
 
 using namespace barretenberg;
 using namespace honk;
@@ -17,18 +21,9 @@ namespace test_honk_verifier {
 template <class FF> class VerifierTests : public testing::Test {
   public:
     // TODO(luke): replace this with an appropriate mock honk manifest
-    static transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
+    static transcript::Manifest create_manifest(const size_t num_public_inputs, const size_t num_sumcheck_rounds)
     {
-        // constexpr size_t g1_size = 64;
-        constexpr size_t fr_size = 32;
-        const size_t public_input_size = fr_size * num_public_inputs;
-        const transcript::Manifest output = transcript::Manifest(
-            { transcript::Manifest::RoundManifest(
-                  { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
-              transcript::Manifest::RoundManifest({}, "eta", 0),
-              transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false } }, "beta", 2),
-              transcript::Manifest::RoundManifest({}, "alpha", 0) });
-        return output;
+        return honk::StandardHonk::create_unrolled_manifest(num_public_inputs, num_sumcheck_rounds);
     }
 
     static StandardVerifier generate_verifier(std::shared_ptr<waffle::proving_key> circuit_proving_key)
@@ -44,7 +39,7 @@ template <class FF> class VerifierTests : public testing::Test {
         poly_coefficients[7] = circuit_proving_key->polynomial_cache.get("sigma_3_lagrange").get_coefficients();
 
         std::vector<barretenberg::g1::affine_element> commitments;
-        scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
+        scalar_multiplication::pippenger_runtime_state prover(circuit_proving_key->n);
         commitments.resize(8);
 
         for (size_t i = 0; i < 8; ++i) {
@@ -52,7 +47,7 @@ template <class FF> class VerifierTests : public testing::Test {
                 scalar_multiplication::pippenger(poly_coefficients[i],
                                                  circuit_proving_key->reference_string->get_monomials(),
                                                  circuit_proving_key->n,
-                                                 state));
+                                                 prover));
         }
 
         auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");
@@ -69,7 +64,7 @@ template <class FF> class VerifierTests : public testing::Test {
         circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[6] });
         circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
 
-        StandardVerifier verifier(circuit_verification_key, create_manifest());
+        StandardVerifier verifier(circuit_verification_key, create_manifest(0, circuit_proving_key->log_n));
 
         // TODO(luke): set verifier PCS ala the following:
         // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
@@ -81,13 +76,14 @@ template <class FF> class VerifierTests : public testing::Test {
 
     // TODO: this example is adapted from a corresponding PlonK verifier test. Needs to be
     // updated further as the Honk PoC comes together.
-    static StandardProver generate_test_data(const size_t n)
+    static StandardUnrolledProver generate_test_data(const size_t n)
     {
         // Create some constraints that satisfy our arithmetic circuit relation
         // even indices = mul gates, odd incides = add gates
 
         auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
-        std::shared_ptr<waffle::proving_key> key = std::make_shared<waffle::proving_key>(n, 0, crs, waffle::STANDARD);
+        std::shared_ptr<waffle::proving_key> proving_key =
+            std::make_shared<waffle::proving_key>(n, 0, crs, waffle::STANDARD_HONK);
 
         polynomial w_l;
         polynomial w_r;
@@ -171,40 +167,47 @@ template <class FF> class VerifierTests : public testing::Test {
             sigma_3_mapping[n - 1 - j] = (uint32_t)n - 1 - j + (1U << 31U);
         }
 
-        polynomial sigma_1(key->n);
-        polynomial sigma_2(key->n);
-        polynomial sigma_3(key->n);
+        polynomial sigma_1(proving_key->n);
+        polynomial sigma_2(proving_key->n);
+        polynomial sigma_3(proving_key->n);
 
         // TODO(luke): This is part of the permutation functionality that needs to be updated for honk
         // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping,
-        // key->small_domain); waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2,
-        // sigma_2_mapping, key->small_domain);
+        // proving_key->small_domain); waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2,
+        // sigma_2_mapping, proving_key->small_domain);
         // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping,
-        // key->small_domain);
+        // proving_key->small_domain);
 
-        polynomial sigma_1_lagrange_base(sigma_1, key->n);
-        polynomial sigma_2_lagrange_base(sigma_2, key->n);
-        polynomial sigma_3_lagrange_base(sigma_3, key->n);
+        polynomial sigma_1_lagrange_base(sigma_1, proving_key->n);
+        polynomial sigma_2_lagrange_base(sigma_2, proving_key->n);
+        polynomial sigma_3_lagrange_base(sigma_3, proving_key->n);
 
-        key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
-        key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
-        key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
+        proving_key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
+        proving_key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
+        proving_key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
-        key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
-        key->polynomial_cache.put("w_2_lagrange", std::move(w_r));
-        key->polynomial_cache.put("w_3_lagrange", std::move(w_o));
+        honk::compute_standard_honk_id_polynomials<3>(proving_key);
+        honk::compute_first_and_last_lagrange_polynomials(proving_key);
 
-        key->polynomial_cache.put("q_1_lagrange", std::move(q_l));
-        key->polynomial_cache.put("q_2_lagrange", std::move(q_r));
-        key->polynomial_cache.put("q_3_lagrange", std::move(q_o));
-        key->polynomial_cache.put("q_m_lagrange", std::move(q_m));
-        key->polynomial_cache.put("q_c_lagrange", std::move(q_c));
+        proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
+        proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_r));
+        proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_o));
 
-        // TODO(luke): add a PCS to the proving key
+        proving_key->polynomial_cache.put("q_1_lagrange", std::move(q_l));
+        proving_key->polynomial_cache.put("q_2_lagrange", std::move(q_r));
+        proving_key->polynomial_cache.put("q_3_lagrange", std::move(q_o));
+        proving_key->polynomial_cache.put("q_m_lagrange", std::move(q_m));
+        proving_key->polynomial_cache.put("q_c_lagrange", std::move(q_c));
 
-        StandardProver state = StandardProver(std::move(key), create_manifest());
+        // TODO(Cody): This should be more generic
+        StandardUnrolledProver prover = StandardUnrolledProver(proving_key, create_manifest(0, proving_key->log_n));
 
-        return state;
+        std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
+            std::make_unique<pcs::kzg::CommitmentKey>(proving_key->n, "../srs_db/ignition");
+
+        prover.commitment_key = std::move(kate_commitment_key);
+
+        return prover;
     }
 };
 
@@ -213,17 +216,17 @@ TYPED_TEST_SUITE(VerifierTests, FieldTypes);
 
 // This test is modeled after a corresponding test for the Plonk Verifier. As is the case there, this test relies on
 // valid proof construction which makes the scope quite large. Not really a unit test but a nice test nonetheless.
-TYPED_TEST(VerifierTests, verify_arithmetic_proof_small)
+TYPED_TEST(VerifierTests, VerifyArithmeticProofSmall)
 {
-    GTEST_SKIP() << "Broken by improved mock of construct_proof.";
+    GTEST_SKIP() << "It's good to have a standalone test, but for now we just rely on composer tests.";
     size_t n = 8;
 
-    StandardProver state = TestFixture::generate_test_data(n);
+    StandardUnrolledProver prover = TestFixture::generate_test_data(n);
 
-    StandardVerifier verifier = TestFixture::generate_verifier(state.proving_key);
+    StandardVerifier verifier = TestFixture::generate_verifier(prover.proving_key);
 
     // construct proof
-    waffle::plonk_proof proof = state.construct_proof();
+    waffle::plonk_proof proof = prover.construct_proof();
 
     // verify proof
     bool result = verifier.verify_proof(proof);

@@ -56,8 +56,9 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
             selector_values.emplace_back(fr::zero());
         }
 
-        // TODO: Now that we can't accomodate this, what do we do?
+        // // TODO(Cody): We used to use a nonzero value to avoid the zero selector case.
         // selector_values.emplace_back(i + 1);
+        selector_values.emplace_back(fr::zero());
 
         // Compute selector vector
         polynomial selector_poly_lagrange(subgroup_size);
@@ -267,15 +268,15 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
  * @return The verifier.
  * */
 template <typename CircuitConstructor>
-waffle::Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
+StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
 {
-    compute_verification_key(circuit_constructor);
-    // TODO figure out types, actuallt
+    auto verification_key = compute_verification_key(circuit_constructor);
+    // TODO figure out types, actually
     // circuit_verification_key->composer_type = type;
 
     // TODO: initialize verifier according to manifest and key
     // Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
-    waffle::Verifier output_state;
+    StandardVerifier output_state;
     // TODO: Do we need a commitment scheme defined here?
     // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
     //    std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -286,14 +287,15 @@ waffle::Verifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitCons
 }
 
 template <typename CircuitConstructor>
-waffle::UnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
+StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
     CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
-    // UnrolledVerifier output_state(circuit_verification_key,
-    //                               create_unrolled_manifest(circuit_constructor.n,
-    //                               circuit_constructor.public_inputs.size()));
-    waffle::UnrolledVerifier output_state;
+    StandardUnrolledVerifier output_state(
+        circuit_verification_key,
+        honk::StandardHonk::create_unrolled_manifest(circuit_constructor.public_inputs.size(),
+                                                     numeric::get_msb(circuit_verification_key->n)));
+    // StandardUnrolledVerifier output_state;
 
     // TODO: Deal with commitments
     // std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
@@ -316,15 +318,6 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
     size_t num_sumcheck_rounds(circuit_proving_key->log_n);
     auto manifest = Flavor::create_unrolled_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
     StandardUnrolledProver output_state(circuit_proving_key, manifest);
-
-    // TODO: Initialize constraints
-    // std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
-    //     std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
-    // std::unique_ptr<ProverArithmeticWidget<unrolled_standard_settings>> arithmetic_widget =
-    //     std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get());
-
-    // output_state.random_widgets.emplace_back(std::move(permutation_widget));
-    // output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
     // TODO(Cody): This should be more generic
     std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =

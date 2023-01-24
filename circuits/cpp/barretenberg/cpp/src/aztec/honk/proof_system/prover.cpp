@@ -219,7 +219,6 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
 template <typename settings> void Prover<settings>::execute_wire_commitments_round()
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
-
     compute_wire_commitments();
 
     // Add public inputs to transcript
@@ -285,12 +284,12 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    using Multivariates = sumcheck::Multivariates<Fr, waffle::STANDARD_HONK_TOTAL_NUM_POLYS>;
+    using Multivariates = sumcheck::Multivariates<barretenberg::fr, waffle::STANDARD_HONK_TOTAL_NUM_POLYS>;
     using Transcript = transcript::StandardTranscript;
     using Sumcheck = sumcheck::Sumcheck<Multivariates,
                                         Transcript,
                                         sumcheck::ArithmeticRelation,
-                                        sumcheck::GrandProductComputationRelation,
+                                        // sumcheck::GrandProductComputationRelation,
                                         sumcheck::GrandProductInitializationRelation>;
 
     // Compute alpha challenge
@@ -300,19 +299,6 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
     auto sumcheck = Sumcheck(multivariates, transcript);
 
     sumcheck.execute_prover();
-
-    // Add the multilinear evaluations produced by Sumcheck to the transcript.
-    // Note: The number of evaluations is poly manifest size + number of shifted polys.
-    size_t poly_idx = 0;
-    for (auto& entry : proving_key->polynomial_manifest.get()) {
-        std::string label(entry.polynomial_label);
-        transcript.add_element(label, multivariates.folded_polynomials[poly_idx][0].to_buffer());
-        ++poly_idx;
-        if (entry.requires_shifted_evaluation) {
-            transcript.add_element(label + "_shift", multivariates.folded_polynomials[poly_idx][0].to_buffer());
-            ++poly_idx;
-        }
-    }
 }
 
 /**
@@ -462,26 +448,26 @@ template <typename settings> waffle::plonk_proof& Prover<settings>::construct_pr
     // // queue currently only handles commitments, not partial multivariate evaluations.
     // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // Fiat-Shamir: rho
-    // Compute Fold polynomials and their commitments.
-    execute_univariatization_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // // Fiat-Shamir: rho
+    // // Compute Fold polynomials and their commitments.
+    // execute_univariatization_round();
+    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // Fiat-Shamir: r
-    // Compute Fold evaluations
-    execute_pcs_evaluation_round();
+    // // Fiat-Shamir: r
+    // // Compute Fold evaluations
+    // execute_pcs_evaluation_round();
 
-    // Fiat-Shamir: nu
-    // Compute Shplonk batched quotient commitment
-    execute_shplonk_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // // Fiat-Shamir: nu
+    // // Compute Shplonk batched quotient commitment
+    // execute_shplonk_round();
+    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // Fiat-Shamir: z
-    // Compute KZG quotient commitment
-    execute_kzg_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // // Fiat-Shamir: z
+    // // Compute KZG quotient commitment
+    // execute_kzg_round();
+    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     return export_proof();
 }

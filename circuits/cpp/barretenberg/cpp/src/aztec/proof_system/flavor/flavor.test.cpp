@@ -22,7 +22,7 @@ namespace test_flavor {
 //     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::ID_1, 13);
 //     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::ID_2, 14);
 //     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::ID_3, 15);
-//     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::LAGRANGE_1, 16);
+//     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::LAGRANGE_FIRST, 16);
 //     EXPECT_EQ(StandardArithmetization::MULTIVARIATE::COUNT, 17);
 
 // }

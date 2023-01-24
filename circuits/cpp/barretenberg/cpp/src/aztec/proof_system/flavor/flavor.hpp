@@ -1,4 +1,5 @@
 #pragma once
+#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include <common/log.hpp>
 #include <transcript/manifest.hpp>
 
@@ -11,7 +12,7 @@ struct StandardArithmetization {
         W_R,
         W_O,
         Z_PERM,
-        Z_PERM_SHIFT, // TODO(Cody): Hid ethis.
+        Z_PERM_SHIFT,
         Q_M,
         Q_L,
         Q_R,
@@ -23,7 +24,8 @@ struct StandardArithmetization {
         ID_1,
         ID_2,
         ID_3,
-        LAGRANGE_1,
+        LAGRANGE_FIRST,
+        LAGRANGE_LAST,
         COUNT
     };
 
@@ -38,7 +40,7 @@ struct StandardHonk {
     using MULTIVARIATE = Arithmetization::POLYNOMIAL;
     // // TODO(Cody): Where to specify? is this polynomial manifest size?
     // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
-    static constexpr size_t MAX_RELATION_LENGTH = 5; // TODO(Cody): increment after fixing add_edge_contribution; kill
+    static constexpr size_t MAX_RELATION_LENGTH = 4; // TODO(Cody): increment after fixing add_edge_contribution; kill
                                                      // after moving barycentric class out of relations
 
     // TODO(Cody): should extract this from the parameter pack. Maybe that should be done here?
@@ -101,80 +103,62 @@ struct StandardHonk {
         }
 
         // Rounds 4 + num_sumcheck_rounds
-        // TODO(luke): The "_lagrange" suffix does not make sense here but is a byproduct of including the same tag in the polynomial_labels in the Honk polynomial manifest. Fix this when we resolve what we're doing there. One option is to remove any mention of "lagrange" from Honk altogether since there is no ambiguity.
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(       
             {
-              { .name = "w_1_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 0 },
-              { .name = "w_2_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 1 },
-              { .name = "w_3_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 2 },
-              { .name = "z_perm_lagrange",       .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 3 },
-              { .name = "z_perm_lagrange_shift", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 4 },
-              { .name = "q_m_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 5 },
-              { .name = "q_1_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 6 },
-              { .name = "q_2_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 7 },
-              { .name = "q_3_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 8 },
-              { .name = "q_c_lagrange",          .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 9 },
-              { .name = "sigma_1_lagrange",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 10 },
-              { .name = "sigma_2_lagrange",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 11 },
-              { .name = "sigma_3_lagrange",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 12 },
-              { .name = "id_1_lagrange",         .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 13 },
-              { .name = "id_2_lagrange",         .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 14 },
-              { .name = "id_3_lagrange",         .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 15 },
-              { .name = "L_first_lagrange",      .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 16 },
-              { .name = "L_last_lagrange",       .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = 17 },
+              { .name = "multivariate_evaluations",     .num_bytes = fr_size * waffle::STANDARD_HONK_TOTAL_NUM_POLYS, .derived_by_verifier = false, .challenge_map_index = 0 },
             },
             /* challenge_name = */ "rho",
-            /* num_challenges_in = */ 11, /* TODO(Cody): magic number! Where should this be specified? */
+            /* num_challenges_in = */ 1, /* TODO(Cody): magic number! Where should this be specified? */
             /* map_challenges_in = */ true));
 
-        // Rounds 5 + num_sumcheck_rounds
-        std::vector<transcript::Manifest::ManifestEntry> fold_commitment_entries;
-        for (size_t i = 1; i < num_sumcheck_rounds; i++) {
-            fold_commitment_entries.emplace_back(transcript::Manifest::ManifestEntry(
-              { .name = "FOLD_" + std::to_string(i), .num_bytes = g1_size, .derived_by_verifier = false }));
-        };
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
-            fold_commitment_entries,
-            /* challenge_name = */ "r",
-            /* num_challenges_in */ 1));
+        // // Rounds 5 + num_sumcheck_rounds
+        // std::vector<transcript::Manifest::ManifestEntry> fold_commitment_entries;
+        // for (size_t i = 1; i < num_sumcheck_rounds; i++) {
+        //     fold_commitment_entries.emplace_back(transcript::Manifest::ManifestEntry(
+        //       { .name = "FOLD_" + std::to_string(i), .num_bytes = g1_size, .derived_by_verifier = false }));
+        // };
+        // manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+        //     fold_commitment_entries,
+        //     /* challenge_name = */ "r",
+        //     /* num_challenges_in */ 1));
 
-        // Rounds 6 + num_sumcheck_rounds
-        std::vector<transcript::Manifest::ManifestEntry> gemini_evaluation_entries;
-        for (size_t i = 0; i < num_sumcheck_rounds; i++) {
-            gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
-            { .name = "a_" + std::to_string(i), .num_bytes = fr_size, .derived_by_verifier = false }));
-        };
-        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
-            { .name = "a_0_pos", .num_bytes = fr_size, .derived_by_verifier = false }));
-        // Include two additional commitments that depend on challenge "r" from previous round
-        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
-              { .name = "FOLD_0_pos", .num_bytes = g1_size, .derived_by_verifier = false }));
-        gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
-              { .name = "FOLD_0_neg", .num_bytes = g1_size, .derived_by_verifier = false }));
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
-            gemini_evaluation_entries,
-            /* challenge_name = */ "nu",
-            /* num_challenges_in */ 1));
+        // // Rounds 6 + num_sumcheck_rounds
+        // std::vector<transcript::Manifest::ManifestEntry> gemini_evaluation_entries;
+        // for (size_t i = 0; i < num_sumcheck_rounds; i++) {
+        //     gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+        //     { .name = "a_" + std::to_string(i), .num_bytes = fr_size, .derived_by_verifier = false }));
+        // };
+        // gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+        //     { .name = "a_0_pos", .num_bytes = fr_size, .derived_by_verifier = false }));
+        // // Include two additional commitments that depend on challenge "r" from previous round
+        // gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+        //       { .name = "FOLD_0_pos", .num_bytes = g1_size, .derived_by_verifier = false }));
+        // gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
+        //       { .name = "FOLD_0_neg", .num_bytes = g1_size, .derived_by_verifier = false }));
+        // manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+        //     gemini_evaluation_entries,
+        //     /* challenge_name = */ "nu",
+        //     /* num_challenges_in */ 1));
 
-        // Rounds 7 + num_sumcheck_rounds
-        manifest_rounds.emplace_back(
-            transcript::Manifest::RoundManifest(
-            { 
-              { .name = "Q", .num_bytes = g1_size, .derived_by_verifier = false } 
-            },
-            /* challenge_name = */ "z",
-            /* num_challenges_in */ 1));
+        // // Rounds 7 + num_sumcheck_rounds
+        // manifest_rounds.emplace_back(
+        //     transcript::Manifest::RoundManifest(
+        //     { 
+        //       { .name = "Q", .num_bytes = g1_size, .derived_by_verifier = false } 
+        //     },
+        //     /* challenge_name = */ "z",
+        //     /* num_challenges_in */ 1));
 
-        // Rounds 8 + num_sumcheck_rounds
-        manifest_rounds.emplace_back(
-            transcript::Manifest::RoundManifest(
-            { 
-              { .name = "W", .num_bytes = g1_size, .derived_by_verifier = false }
-            },
-            /* challenge_name = */ "separator",
-            /* num_challenges_in */ 1));
+        // // Rounds 8 + num_sumcheck_rounds
+        // manifest_rounds.emplace_back(
+        //     transcript::Manifest::RoundManifest(
+        //     { 
+        //       { .name = "W", .num_bytes = g1_size, .derived_by_verifier = false }
+        //     },
+        //     /* challenge_name = */ "separator",
+        //     /* num_challenges_in */ 1));
 
-        //clang-format on
+        // clang-format on
 
         auto output = transcript::Manifest(manifest_rounds);
         return output;

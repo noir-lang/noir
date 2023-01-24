@@ -45,7 +45,7 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto id_3 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::ID_1]);
         auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM]);
         auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-        // auto lagrange_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_1]);
+        // auto lagrange_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
 
         // Contribution (1)
         evals += z_perm;
@@ -69,7 +69,7 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto id_3 = purported_evaluations[MULTIVARIATE::ID_1];
         auto z_perm = purported_evaluations[MULTIVARIATE::Z_PERM];
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
-        // auto lagrange_1 = purported_evaluations[MULTIVARIATE::LAGRANGE_1];
+        // auto lagrange_1 = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
 
         // Contribution (1)
         full_honk_relation_value += z_perm;

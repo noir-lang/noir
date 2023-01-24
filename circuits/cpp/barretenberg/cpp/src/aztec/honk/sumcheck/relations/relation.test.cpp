@@ -116,7 +116,7 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
     auto id_3 = UnivariateView(extended_edges[MULTIVARIATE::ID_1]);
     auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
     auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-    // auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_1]);
+    // auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
     // TODO(luke): use real transcript/challenges once manifest is done
     FF beta = FF::one();
     FF gamma = FF::one();
@@ -146,7 +146,7 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
     using MULTIVARIATE = proving_system::StandardArithmetization::POLYNOMIAL;
 
     auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
-    auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_1]);
+    auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
     // expectede_evals, lenght 3, extends to { { 0, 2, 6, 12, 20 } }
     auto expected_evals = lagrange_1 * (z_perm - FF(1));
 
