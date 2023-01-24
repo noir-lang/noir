@@ -34,6 +34,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
+    // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
+    for type_check_fn in interner.take_delayed_type_check_functions() {
+        if let Err(error) = type_check_fn() {
+            errors.push(error);
+        }
+    }
+
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet

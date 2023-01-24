@@ -10,6 +10,7 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
@@ -123,7 +124,6 @@ enum Node {
     Expression(HirExpression),
 }
 
-#[derive(Debug, Clone)]
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
@@ -166,7 +166,11 @@ pub struct NodeInterner {
 
     //used for fallback mechanism
     language: Language,
+
+    delayed_type_checks: Vec<TypeCheckFn>,
 }
+
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone)]
 pub struct DefinitionInfo {
@@ -230,6 +234,7 @@ impl Default for NodeInterner {
             next_type_variable_id: 0,
             globals: HashMap::new(),
             language: Language::R1CS,
+            delayed_type_checks: vec![],
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -497,7 +502,7 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index>) -> Location {
+    pub fn id_location(&self, index: impl Into<Index> + std::fmt::Debug) -> Location {
         self.id_to_location.get(&index.into()).copied().unwrap()
     }
 
@@ -554,5 +559,13 @@ impl NodeInterner {
             None => return false,
         };
         is_supported(&black_box_func)
+    }
+
+    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
+        self.delayed_type_checks.push(f);
+    }
+
+    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
+        std::mem::take(&mut self.delayed_type_checks)
     }
 }
