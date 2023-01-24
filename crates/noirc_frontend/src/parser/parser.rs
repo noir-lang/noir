@@ -76,7 +76,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    let p = then_commit(p, expression());
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
@@ -268,7 +268,8 @@ fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
             UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
             UnresolvedType::Integer(_, sign, size) => {
                 UnresolvedType::Integer(Comptime::Yes(None), sign, size)
-            }
+            },
+            UnresolvedType::Array(size, elem) => UnresolvedType::Array(size, elem),
             other => other,
         })
         .or_not()
