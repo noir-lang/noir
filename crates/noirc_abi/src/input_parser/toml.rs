@@ -15,7 +15,7 @@ pub(crate) fn parse_toml(
 
     // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
     // When parsing the toml map we recursively go through each field to enable struct inputs.
-    // To match this map with the correct abi type we reorganize our ABI by parameter name, while the struct fields
+    // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
     // in the abi are already stored in a BTreeMap.
     let abi_map = abi.to_btree_map();
 
