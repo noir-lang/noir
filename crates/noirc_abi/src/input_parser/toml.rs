@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
     input_string: &str,
-    mut abi: Abi,
+    abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap, converting the argument to field elements
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)
@@ -15,11 +15,11 @@ pub(crate) fn parse_toml(
 
     // The toml map is stored in an ordered BTreeMap. As the keys are strings the map is in alphanumerical order.
     // When parsing the toml map we recursively go through each field to enable struct inputs.
-    // To match this map with the correct abi type we must sort our abi parameters and then flatten each struct.
-    abi.sort();
-    let flat_abi_types = abi.flattened_param_types();
+    // To match this map with the correct abi type we reorganize our ABI by parameter name, while the struct fields
+    // in the abi are already stored in a BTreeMap.
+    let abi_map = abi.to_btree_map();
 
-    let (_, toml_map) = toml_map_to_field(data, flat_abi_types, 0)?;
+    let toml_map = toml_map_to_field(data, abi_map)?;
     Ok(toml_map)
 }
 
@@ -59,16 +59,13 @@ pub(crate) fn serialise_to_toml(
 /// understands for Inputs
 fn toml_map_to_field(
     toml_map: BTreeMap<String, TomlTypes>,
-    flat_abi_types: Vec<AbiType>,
-    initial_index: usize,
-) -> Result<(usize, BTreeMap<String, InputValue>), InputParserError> {
+    abi_map: BTreeMap<String, AbiType>,
+) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     let mut field_map = BTreeMap::new();
-    let mut abi_index = initial_index;
     for (parameter, value) in toml_map {
         let mapped_value = match value {
             TomlTypes::String(string) => {
-                let param_type = flat_abi_types[abi_index].clone();
-                abi_index += 1;
+                let param_type = abi_map.get(&parameter).unwrap();
                 match param_type {
                     AbiType::String { .. } => InputValue::String(string),
                     AbiType::Field | AbiType::Integer { .. } => {
@@ -79,19 +76,17 @@ fn toml_map_to_field(
                             InputValue::Undefined
                         }
                     }
-                    _ => return Err(InputParserError::AbiTypeMismatch(param_type)),
+                    _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
                 }
             }
             TomlTypes::Integer(integer) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
-                abi_index += 1;
                 InputValue::Field(new_value)
             }
             TomlTypes::Bool(boolean) => {
                 let new_value = if boolean { FieldElement::one() } else { FieldElement::zero() };
 
-                abi_index += 1;
                 InputValue::Field(new_value)
             }
             TomlTypes::ArrayNum(arr_num) => {
@@ -100,7 +95,6 @@ fn toml_map_to_field(
                     .map(|elem_num| FieldElement::from(i128::from(elem_num)))
                     .collect();
 
-                abi_index += 1;
                 InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayString(arr_str) => {
@@ -109,13 +103,15 @@ fn toml_map_to_field(
                     .map(|elem_str| parse_str_to_field(&elem_str).unwrap().unwrap())
                     .collect();
 
-                abi_index += 1;
                 InputValue::Vec(array_elements)
             }
             TomlTypes::Table(table) => {
-                let (new_index, native_table) =
-                    toml_map_to_field(table, flat_abi_types.clone(), abi_index)?;
-                abi_index = new_index;
+                let param_type = abi_map.get(&parameter).unwrap();
+                let fields = match param_type {
+                    AbiType::Struct { fields } => fields.clone(),
+                    _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+                };
+                let native_table = toml_map_to_field(table, fields)?;
 
                 InputValue::Struct(native_table)
             }
@@ -126,7 +122,7 @@ fn toml_map_to_field(
         };
     }
 
-    Ok((abi_index, field_map))
+    Ok(field_map)
 }
 
 fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes> {
