@@ -41,8 +41,6 @@ template <typename Fr> class Polynomial {
     Polynomial& operator=(const Polynomial& other);
     ~Polynomial();
 
-    explicit constexpr operator std::span<Fr>() const noexcept { return std::span<Fr>(coefficients_, size()); };
-
     void clear()
     {
         free();

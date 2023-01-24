@@ -38,7 +38,7 @@ Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const t
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , proving_key(input_key)
     , commitment_key(nullptr) // TODO(Cody): Need better constructors for prover.
-    , queue(proving_key.get(), &transcript)
+// , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed 
 {}
 
 /**
@@ -91,12 +91,11 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
  */
-template <typename settings> void Prover<settings>::compute_grand_product_polynomial(Fr beta)
+template <typename settings>
+void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, barretenberg::fr gamma)
 {
     using barretenberg::polynomial_arithmetic::copy_polynomial;
     static const size_t program_width = settings::program_width;
-
-    Fr gamma = beta * beta; // TODO(Cody): We already do this and it's kosher, right?
 
     // Allocate scratch space for accumulators
     Fr* numererator_accum[program_width];
@@ -261,8 +260,9 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
 
     transcript.apply_fiat_shamir("beta");
 
-    auto beta = transcript.get_challenge_field_element("beta");
-    compute_grand_product_polynomial(beta);
+    auto beta = transcript.get_challenge_field_element("beta", 0);
+    auto gamma = transcript.get_challenge_field_element("beta", 1);
+    compute_grand_product_polynomial(beta, gamma);
     std::span<Fr> z_perm = proving_key->polynomial_cache.get("z_perm_lagrange");
     auto commitment = commitment_key->commit(z_perm);
     transcript.add_element("Z_PERM", commitment.to_buffer());

@@ -1,5 +1,6 @@
 #pragma once
 #include <ecc/curves/bn254/fr.hpp>
+#include <utility>
 
 namespace honk {
 static constexpr uint32_t DUMMY_TAG = 0;
@@ -98,55 +99,60 @@ template <size_t program_width_> class CircuitConstructorBase {
   public:
     static constexpr size_t program_width = program_width_;
     std::vector<std::string> selector_names_;
-    size_t n; // the circuit size; we should rename
+    size_t num_gates = 0;
+    // TODO(Adrian): It would be better to store an array of size program_width_
+    // to make the composer agnostic of the wire name.
     std::vector<uint32_t> w_l;
     std::vector<uint32_t> w_r;
     std::vector<uint32_t> w_o;
     std::vector<uint32_t> w_4;
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
-    std::vector<uint32_t> next_var_index; // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
-    std::vector<uint32_t>
-        prev_var_index; // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
-    std::vector<uint32_t> real_variable_index; // indices of corresponding real variables
+    // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
+    std::vector<uint32_t> next_var_index;
+    // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
+    std::vector<uint32_t> prev_var_index;
+    // indices of corresponding real variables
+    std::vector<uint32_t> real_variable_index;
     std::vector<uint32_t> real_variable_tags;
     uint32_t current_tag = DUMMY_TAG;
-    std::map<uint32_t, uint32_t>
-        tau; // The permutation on variable tags. See
-             // https://github.com/AztecProtocol/plonk-with-lookups-private/blob/new-stuff/GenPermuations.pdf
-             // DOCTODO: replace with the relevant wiki link.
+    // The permutation on variable tags. See
+    // https://github.com/AztecProtocol/plonk-with-lookups-private/blob/new-stuff/GenPermuations.pdf
+    // DOCTODO: replace with the relevant wiki link.
+    std::map<uint32_t, uint32_t> tau;
 
     size_t num_selectors;
     std::vector<std::vector<barretenberg::fr>> selectors;
-    numeric::random::Engine* rand_engine;
+    numeric::random::Engine* rand_engine = nullptr;
     bool _failed = false;
     std::string _err;
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
     static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
-    static constexpr size_t NUM_RESERVED_GATES = 4; // this must be >= num_roots_cut_out_of_vanishing_polynomial
 
     // Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
-    enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
+    // TODO(Adrian): This is unused, and this type of hard coded data should be avoided
+    // enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
     CircuitConstructorBase(std::vector<std::string> selector_names, size_t num_selectors = 0, size_t size_hint = 0)
-        : selector_names_(selector_names)
-        , n(0)
+        : selector_names_(std::move(selector_names))
         , num_selectors(num_selectors)
         , selectors(num_selectors)
-        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
 
-    CircuitConstructorBase(CircuitConstructorBase&& other) = default;
-    CircuitConstructorBase& operator=(CircuitConstructorBase&& other) = default;
-    virtual ~CircuitConstructorBase(){};
+    CircuitConstructorBase(const CircuitConstructorBase& other) = delete;
+    CircuitConstructorBase(CircuitConstructorBase&& other) noexcept = default;
+    CircuitConstructorBase& operator=(const CircuitConstructorBase& other) = delete;
+    CircuitConstructorBase& operator=(CircuitConstructorBase&& other) noexcept = default;
+    virtual ~CircuitConstructorBase() = default;
 
-    virtual size_t get_num_gates() const { return n; }
-    virtual void print_num_gates() const { std::cout << n << std::endl; }
+    virtual size_t get_num_gates() const { return num_gates; }
+    virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }
+    // TODO(Adrian): Feels wrong to let the zero_idx be changed.
     uint32_t zero_idx = 0;
 
     virtual void create_add_gate(const add_triple& in) = 0;
@@ -264,24 +270,24 @@ template <size_t program_width_> class CircuitConstructorBase {
      * */
     virtual void set_public_input(const uint32_t witness_index)
     {
-        bool does_not_exist = true;
-        for (size_t i = 0; i < public_inputs.size(); ++i) {
-            does_not_exist = does_not_exist && (public_inputs[i] != witness_index);
+        for (const uint32_t public_input : public_inputs) {
+            if (public_input == witness_index) {
+                if (!failed()) {
+                    failure("Attempted to set a public input that is already public!");
+                }
+                return;
+            }
         }
-        if (does_not_exist) {
-            public_inputs.emplace_back(witness_index);
-        }
-        ASSERT(does_not_exist);
-        if (!does_not_exist && !failed()) {
-            failure("Attempted to set a public input that is already public!");
-        }
+        public_inputs.emplace_back(witness_index);
     }
 
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");
 
-    size_t get_circuit_subgroup_size(const size_t num_gates)
+    // TODO(Adrian): This method should belong in the ComposerHelper, where the number of reserved gates can be
+    // correctly set
+    size_t get_circuit_subgroup_size(const size_t num_gates) const
     {
-        size_t log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
+        auto log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
         if ((1UL << log2_n) != (num_gates)) {
             ++log2_n;
         }
@@ -299,19 +305,16 @@ template <size_t program_width_> class CircuitConstructorBase {
     // uint32::MAX number of variables
     void assert_valid_variables(const std::vector<uint32_t>& variable_indices)
     {
-        for (size_t i = 0; i < variable_indices.size(); i++) {
-            ASSERT(is_valid_variable(variable_indices[i]));
+        for (const auto& variable_index : variable_indices) {
+            ASSERT(is_valid_variable(variable_index));
         }
     }
-    bool is_valid_variable(uint32_t variable_index)
-    {
-        return static_cast<uint32_t>(variables.size()) > variable_index;
-    };
+    bool is_valid_variable(uint32_t variable_index) { return variable_index < variables.size(); };
 
     bool failed() const { return _failed; };
     const std::string& err() const { return _err; };
 
-    void set_err(std::string msg) { _err = msg; }
+    void set_err(std::string msg) { _err = std::move(msg); }
     void failure(std::string msg)
     {
         _failed = true;

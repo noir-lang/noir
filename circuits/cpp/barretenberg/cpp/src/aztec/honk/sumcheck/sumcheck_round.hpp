@@ -1,3 +1,4 @@
+#pragma once
 #include <common/log.hpp>
 #include <array>
 #include <algorithm>

@@ -1,8 +1,7 @@
+#pragma once
 #include "relation.hpp"
 #include <proof_system/flavor/flavor.hpp>
-#include "../polynomials/multivariates.hpp"
 #include "../polynomials/univariate.hpp"
-#include "../polynomials/barycentric_data.hpp"
 
 namespace honk::sumcheck {
 
@@ -19,26 +18,24 @@ template <typename FF> class GrandProductInitializationRelation : public Relatio
      * @brief Add contribution of the permutation relation for a given edge
      *
      * @detail There are 2 relations associated with enforcing the wire copy relations
-     * This file handles the relation Z_perm(0) = 1 via the relation:
+     * This file handles the relation Z_perm_shift(n_last) = 0 via the relation:
      *
-     *                      C(X) = L_1(X)(z_perm(X) - 1)
+     *                      C(X) = L_LAST(X) * Z_perm_shift(X)
      */
     void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals)
     {
-        auto z_perm = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM]);
-        auto lagrange_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
-        auto one = FF(1);
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
 
-        evals += lagrange_1 * (z_perm - one);
+        evals += lagrange_last * z_perm_shift;
     };
 
     void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value)
     {
-        auto z_perm = purported_evaluations[MULTIVARIATE::Z_PERM];
-        auto lagrange_1 = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
-        auto one = FF(1);
+        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
+        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
 
-        full_honk_relation_value += lagrange_1 * (z_perm - one);
+        full_honk_relation_value += lagrange_last * z_perm_shift;
     };
 };
 } // namespace honk::sumcheck

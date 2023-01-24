@@ -1,6 +1,6 @@
-#include "../../srs/reference_string/file_reference_string.hpp"
-#include "./prover.hpp"
+#include "prover.hpp"
 
+#include <srs/reference_string/file_reference_string.hpp>
 #include <array>
 #include <vector>
 #include <cstddef>
@@ -80,8 +80,13 @@ template <class Fscalar> class ProverTests : public testing::Test {
         // Instantiate a Prover with pointer to the proving_key just constructed
         auto honk_prover = StandardProver(proving_key);
 
+        // Get random challenges
+        // (TODO(luke): set these up to come from a transcript. Must match actual implementation
+        Fscalar beta = Fscalar::one();
+        Fscalar gamma = Fscalar::one();
+
         // Method 1: Compute z_perm using 'compute_grand_product_polynomial' as the prover would in practice
-        honk_prover.compute_grand_product_polynomial();
+        honk_prover.compute_grand_product_polynomial(beta, gamma);
 
         // Method 2: Compute z_perm locally using the simplest non-optimized syntax possible. The comment below,
         // which describes the computation in 4 steps, is adapted from a similar comment in
@@ -111,11 +116,6 @@ template <class Fscalar> class ProverTests : public testing::Test {
         // Make scratch space for the numerator and denominator accumulators.
         std::array<std::array<Fscalar, num_gates>, program_width> numererator_accum;
         std::array<std::array<Fscalar, num_gates>, program_width> denominator_accum;
-
-        // Get random challenges
-        // (TODO(luke): set these up to come from a transcript. Must match actual implementation
-        Fscalar beta = Fscalar::one();
-        Fscalar gamma = Fscalar::one();
 
         // Step (1)
         for (size_t i = 0; i < proving_key->n; ++i) {

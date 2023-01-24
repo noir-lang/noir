@@ -45,11 +45,12 @@ template <class FF> class SumcheckRelation : public testing::Test {
         auto id_1 = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto id_2 = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto id_3 = Univariate<5>({ 1, 2, 3, 4, 5 });
-        auto lagrange_1 = Univariate<5>({ 1, 2, 3, 4, 5 });
+        auto lagrange_first = Univariate<5>({ 1, 2, 3, 4, 5 });
+        auto lagrange_last = Univariate<5>({ 1, 2, 3, 4, 5 });
 
         std::array<Univariate<5>, proving_system::StandardArithmetization::NUM_POLYNOMIALS> extended_edges = {
-            w_l, w_r,     w_o,     z_perm,  z_perm_shift, q_m,  q_l,  q_r,       q_o,
-            q_c, sigma_1, sigma_2, sigma_3, id_1,         id_2, id_3, lagrange_1
+            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
         };
         return extended_edges;
     }
@@ -116,16 +117,19 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
     auto id_3 = UnivariateView(extended_edges[MULTIVARIATE::ID_1]);
     auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
     auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-    // auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
+    auto lagrange_first = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
+    auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
     // TODO(luke): use real transcript/challenges once manifest is done
     FF beta = FF::one();
     FF gamma = FF::one();
+    FF public_input_delta = FF::one();
 
     auto expected_evals = Univariate();
     // expected_evals is { { 27, 125, 343, 729, 1331 } }
-    expected_evals += z_perm * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) * (w_3 + id_3 * beta + gamma);
-    expected_evals -=
-        z_perm_shift * (w_1 + sigma_1 * beta + gamma) * (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
+    expected_evals += (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+                      (w_3 + id_3 * beta + gamma);
+    expected_evals -= (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
+                      (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
 
     auto evals = Univariate();
     relation.add_edge_contribution(extended_edges, evals);
@@ -145,10 +149,10 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
     // Manually compute the expected edge contribution
     using MULTIVARIATE = proving_system::StandardArithmetization::POLYNOMIAL;
 
-    auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
-    auto lagrange_1 = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
+    auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
+    auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
     // expectede_evals, lenght 3, extends to { { 0, 2, 6, 12, 20 } }
-    auto expected_evals = lagrange_1 * (z_perm - FF(1));
+    auto expected_evals = (z_perm_shift * lagrange_last);
 
     // Compute the edge contribution using add_edge_contribution
     auto evals = Univariate();

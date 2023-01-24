@@ -1,10 +1,11 @@
 #include "standard_honk_composer.hpp"
 #include "common/assert.hpp"
 #include "numeric/uint256/uint256.hpp"
-#include "plonk/proof_system/types/polynomial_manifest.hpp"
-#include <cstdint>
 #include <honk/proof_system/prover.hpp>
 #include <honk/sumcheck/polynomials/multivariates.hpp>
+#include <honk/utils/public_inputs.hpp>
+
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -22,90 +23,108 @@ namespace test_standard_honk_composer {
  */
 TEST(standard_honk_composer, test_sigma_and_id_correctness)
 {
+    auto test_permutation = [](StandardHonkComposer& composer) {
+        auto proving_key = composer.compute_proving_key();
+        const auto n = proving_key->n;
+
+        auto public_inputs = composer.circuit_constructor.get_public_inputs();
+        auto num_public_inputs = public_inputs.size();
+        auto num_gates = composer.circuit_constructor.get_num_gates();
+
+        // Using the same random beta and gamma as in the permutation argument
+        barretenberg::fr beta = barretenberg::fr::random_element();
+        barretenberg::fr gamma = barretenberg::fr::random_element();
+
+        barretenberg::fr left = barretenberg::fr::one();
+        barretenberg::fr right = barretenberg::fr::one();
+
+        // Let's check that indices are the same and nothing is lost, first
+        for (size_t j = 0; j < composer.program_width; ++j) {
+            std::string index = std::to_string(j + 1);
+            const auto& sigma_j = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
+            for (size_t i = 0; i < n; ++i) {
+                left *= (gamma + j * n + i);
+                right *= (gamma + sigma_j[i]);
+            }
+            // Ensure that the public inputs cycles are correctly broken
+            // and fix the cycle by adding the extra terms
+            if (j == 0) {
+                for (size_t i = 0; i < num_public_inputs; ++i) {
+                    EXPECT_EQ(sigma_j[i], -fr(i + 1));
+                    left *= (gamma - (i + 1));
+                    right *= (gamma + (n + i));
+                }
+            }
+        }
+
+        EXPECT_EQ(left, right);
+
+        left = barretenberg::fr::one();
+        right = barretenberg::fr::one();
+
+        // Now let's check that witness values correspond to the permutation
+        composer.compute_witness();
+
+        for (size_t j = 0; j < composer.program_width; ++j) {
+            std::string index = std::to_string(j + 1);
+            const auto& permutation_polynomial = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
+            const auto& witness_polynomial = proving_key->polynomial_cache.get("w_" + index + "_lagrange");
+            const auto& id_polynomial = proving_key->polynomial_cache.get("id_" + index + "_lagrange");
+            // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
+            // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
+            for (size_t i = 0; i < proving_key->n; ++i) {
+                const auto current_witness = witness_polynomial[i];
+                left *= current_witness + beta * id_polynomial[i] + gamma;
+                right *= current_witness + beta * permutation_polynomial[i] + gamma;
+            }
+            // check that the first rows are correctly set to handle public inputs.
+            for (size_t i = 0; i < num_public_inputs; ++i) {
+                if ((j == 0) || (j == 1)) {
+                    EXPECT_EQ(witness_polynomial[i], public_inputs[i]);
+                } else {
+                    EXPECT_EQ(witness_polynomial[i], 0);
+                }
+            }
+            // Check that the last rows are all 0
+            for (size_t i = num_public_inputs + num_gates; i < n; ++i) {
+                EXPECT_EQ(witness_polynomial[i], 0);
+            }
+        }
+
+        // test correctness of the public input delta
+        auto delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
+        EXPECT_EQ(left / right, delta);
+
+        for (size_t i = 0; i < num_public_inputs; ++i) {
+            left *= public_inputs[i] - beta * (i + 1) + gamma;
+            right *= public_inputs[i] + beta * (n + i) + gamma;
+        }
+        EXPECT_EQ(left, right);
+    };
+
     StandardHonkComposer composer = StandardHonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_variable(a);
     fr b = fr::one();
     fr c = a + b;
-    fr d = a + c;
     uint32_t b_idx = composer.add_variable(b);
     uint32_t c_idx = composer.add_variable(c);
-    uint32_t d_idx = composer.add_variable(d);
+    fr d = a + c;
+    uint32_t d_idx = composer.add_public_variable(d);
+
+    uint32_t e_idx = composer.put_constant_variable(d);
+    composer.assert_equal(e_idx, d_idx, "");
+
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-
     composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
-
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-
-    auto proving_key = composer.compute_proving_key();
-    barretenberg::fr left = barretenberg::fr::one();
-    barretenberg::fr right = barretenberg::fr::one();
-    // Let's check that indices are the same and nothing is lost, first
-    for (size_t i = 0; i < composer.program_width; i++) {
-
-        std::string index = std::to_string(i + 1);
-        auto polynomial = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
-        for (size_t j = 0; j < proving_key->n; j++) {
-            left *= i * (proving_key->n) + j;
-            right *= polynomial[j];
-        }
+    for (size_t i = 0; i < 30; ++i) {
+        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     }
 
-    EXPECT_EQ(left, right);
-    // Using the same random beta and gamma as in the permutation argument
-    barretenberg::fr beta = barretenberg::fr::random_element();
-    barretenberg::fr gamma = barretenberg::fr::random_element();
-    left = barretenberg::fr::one();
-    right = barretenberg::fr::one();
-
-    // Now let's check that witness values correspond to the permutation
-    composer.compute_witness();
-    for (size_t i = 0; i < composer.program_width; i++) {
-
-        std::string index = std::to_string(i + 1);
-        auto permutation_polynomial = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
-        auto witness_polynomial = proving_key->polynomial_cache.get("w_" + index + "_lagrange");
-        auto id_polynomial = proving_key->polynomial_cache.get("id_" + index + "_lagrange");
-        // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
-        // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
-        for (size_t j = 0; j < proving_key->n; j++) {
-            auto current_witness = witness_polynomial[j];
-            left *= current_witness + beta * id_polynomial[j] + gamma;
-            right *= current_witness + beta * permutation_polynomial[j] + gamma;
-        }
-    }
-    EXPECT_EQ(left, right);
+    test_permutation(composer);
 }
 
 /**
@@ -162,7 +181,6 @@ TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
  */
 TEST(standard_honk_composer, test_assert_equal)
 {
-
     /**
      * @brief A function that creates a simple circuit with repeated gates, leading to large permutation cycles
      *

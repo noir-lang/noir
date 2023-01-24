@@ -1,9 +1,13 @@
 #include "composer_helper.hpp"
-#include "polynomials/polynomial.hpp"
-#include <cstddef>
+#include "permutation_helper.hpp"
+#include <polynomials/polynomial.hpp>
 #include <proof_system/flavor/flavor.hpp>
 #include <honk/pcs/commitment_key.hpp>
 #include <numeric/bitop/get_msb.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 namespace honk {
 
@@ -23,53 +27,44 @@ namespace honk {
  * */
 template <typename CircuitConstructor>
 std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
-    CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_reserved_gates)
+    const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
 {
-    /*
-     * Map internal composer members for easier usage
-     */
+    const size_t num_gates = constructor.num_gates;
+    std::span<const uint32_t> public_inputs = constructor.public_inputs;
 
-    auto& n = constructor.n;
-    auto& public_inputs = constructor.public_inputs;
-    auto& selector_names = constructor.selector_names_;
-    auto& selectors = constructor.selectors;
-
-    const size_t num_filled_gates = n + public_inputs.size();
-    const size_t total_num_gates = std::max(minimum_circuit_size, num_filled_gates);
+    const size_t num_public_inputs = public_inputs.size();
+    const size_t num_constraints = num_gates + num_public_inputs;
+    const size_t total_num_constraints = std::max(minimum_circuit_size, num_constraints);
     const size_t subgroup_size =
-        constructor.get_circuit_subgroup_size(total_num_gates + num_reserved_gates); // next power of 2
+        constructor.get_circuit_subgroup_size(total_num_constraints + num_randomized_gates); // next power of 2
 
     auto crs = crs_factory_->get_prover_crs(subgroup_size + 1);
 
     // Initialize circuit_proving_key
     // TODO: replace composer types.
     circuit_proving_key = std::make_shared<waffle::proving_key>(
-        subgroup_size, public_inputs.size(), crs, waffle::ComposerType::STANDARD_HONK);
+        subgroup_size, num_public_inputs, crs, waffle::ComposerType::STANDARD_HONK);
 
-    for (size_t i = 0; i < constructor.num_selectors; ++i) {
-        std::vector<barretenberg::fr>& selector_values = selectors[i];
-        ASSERT(n == selector_values.size());
+    for (size_t j = 0; j < constructor.num_selectors; ++j) {
+        std::span<const barretenberg::fr> selector_values = constructor.selectors[j];
+        ASSERT(num_gates == selector_values.size());
 
-        // Fill unfilled gates' selector values with zeroes (stopping 1 short; the last value will be nonzero).
-        // TODO: (Do we want to copy the vectors and do it in a different place or do this iside the circuit itself?)
-        for (size_t j = num_filled_gates; j < subgroup_size - 1; ++j) {
-            selector_values.emplace_back(fr::zero());
+        // Compute selector vector, initialized to 0.
+        // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
+        // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
+        polynomial selector_poly_lagrange(subgroup_size, subgroup_size);
+        for (size_t i = 0; i < num_gates; ++i) {
+            selector_poly_lagrange[num_public_inputs + i] = selector_values[i];
         }
+        // TODO(Adrian): We may want to add a unique value (e.g. j+1) in the last position of each selector polynomial
+        // to guard against some edge cases that may occur during the MSM.
+        // If we do so, we should ensure that this does not clash with any other values we want to place at the end of
+        // of the witness vectors.
+        // In later iterations of the Sumcheck, we will be able to efficiently cancel out any checks in the last 2^k
+        // rows, so any randomness or unique values should be placed there.
 
-        // // TODO(Cody): We used to use a nonzero value to avoid the zero selector case.
-        // selector_values.emplace_back(i + 1);
-        selector_values.emplace_back(fr::zero());
-
-        // Compute selector vector
-        polynomial selector_poly_lagrange(subgroup_size);
-        for (size_t k = 0; k < public_inputs.size(); ++k) {
-            selector_poly_lagrange[k] = fr::zero();
-        }
-        for (size_t k = public_inputs.size(); k < subgroup_size; ++k) {
-            selector_poly_lagrange[k] = selector_values[k - public_inputs.size()];
-        }
-
-        circuit_proving_key->polynomial_cache.put(selector_names[i] + "_lagrange", std::move(selector_poly_lagrange));
+        circuit_proving_key->polynomial_cache.put(constructor.selector_names_[j] + "_lagrange",
+                                                  std::move(selector_poly_lagrange));
     }
 
     return circuit_proving_key;
@@ -140,69 +135,55 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
  * */
 template <typename CircuitConstructor>
 template <size_t program_width>
-void ComposerHelper<CircuitConstructor>::compute_witness_base(CircuitConstructor& circuit_constructor,
+void ComposerHelper<CircuitConstructor>::compute_witness_base(const CircuitConstructor& circuit_constructor,
                                                               const size_t minimum_circuit_size)
 {
     if (computed_witness) {
         return;
     }
-    auto& n = circuit_constructor.n;
-    auto& public_inputs = circuit_constructor.public_inputs;
-    auto& w_l = circuit_constructor.w_l;
-    auto& w_r = circuit_constructor.w_r;
-    auto& w_o = circuit_constructor.w_o;
-    auto& w_4 = circuit_constructor.w_4;
-    auto zero_idx = circuit_constructor.zero_idx;
+    const size_t num_gates = circuit_constructor.num_gates;
+    std::span<const uint32_t> public_inputs = circuit_constructor.public_inputs;
+    const size_t num_public_inputs = public_inputs.size();
 
-    const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
-    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+    const size_t num_constraints = std::max(minimum_circuit_size, num_gates + num_public_inputs);
+    // TODO(Adrian): Not a fan of specifying NUM_RANDOMIZED_GATES everywhere,
+    // Each flavor of Honk should have a "fixed" number of random places to add randomness to.
+    // It should be taken care of in as few places possible.
+    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(num_constraints + NUM_RANDOMIZED_GATES);
+
+    // construct a view over all the wire's variable indices
+    // w[j][i] is the index of the variable in the j-th wire, at gate i
+    // Each array should be of size `num_gates`
+    std::array<std::span<const uint32_t>, program_width> w;
+    w[0] = circuit_constructor.w_l;
+    w[1] = circuit_constructor.w_r;
+    w[2] = circuit_constructor.w_o;
+    if constexpr (program_width > 3) {
+        w[3] = circuit_constructor.w_4;
+    }
 
     // Note: randomness is added to 3 of the last 4 positions in plonk/proof_system/prover/prover.cpp
     // StandardProverBase::execute_preamble_round().
-    for (size_t i = total_num_gates; i < subgroup_size; ++i) {
-        w_l.emplace_back(zero_idx);
-        w_r.emplace_back(zero_idx);
-        w_o.emplace_back(zero_idx);
-    }
-    if (program_width > 3) {
-        for (size_t i = total_num_gates; i < subgroup_size; ++i) {
-            w_4.emplace_back(zero_idx);
+    for (size_t j = 0; j < program_width; ++j) {
+        // Initialize the polynomial with all the actual copies variable values
+        // Expect all values to be set to 0 initially
+        polynomial w_lagrange(subgroup_size, subgroup_size);
+
+        // Place all public inputs at the start of w_l and w_r.
+        // All selectors at these indices are set to 0 so these values are not constrained at all.
+        if ((j == 0) || (j == 1)) {
+            for (size_t i = 0; i < num_public_inputs; ++i) {
+                w_lagrange[i] = circuit_constructor.get_variable(public_inputs[i]);
+            }
         }
-    }
-    polynomial w_1_lagrange = polynomial(subgroup_size);
-    polynomial w_2_lagrange = polynomial(subgroup_size);
-    polynomial w_3_lagrange = polynomial(subgroup_size);
-    polynomial w_4_lagrange;
 
-    if (program_width > 3)
-        w_4_lagrange = polynomial(subgroup_size);
-
-    // Push the public inputs' values to the beginning of the wire witness polynomials.
-    // Note: each public input variable is assigned to both w_1 and w_2. See
-    // plonk/proof_system/public_inputs/public_inputs_impl.hpp for a giant comment explaining why.
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(circuit_constructor.get_variable(public_inputs[i]), w_1_lagrange[i]);
-        fr::__copy(circuit_constructor.get_variable(public_inputs[i]), w_2_lagrange[i]);
-        fr::__copy(fr::zero(), w_3_lagrange[i]);
-        if (program_width > 3)
-            fr::__copy(fr::zero(), w_4_lagrange[i]);
-    }
-
-    // Assign the variable values (which are pointed-to by the `w_` wires) to the wire witness polynomials `poly_w_`,
-    // shifted to make room for the public inputs at the beginning.
-    for (size_t i = public_inputs.size(); i < total_num_gates; ++i) {
-        fr::__copy(circuit_constructor.get_variable(w_l[i - public_inputs.size()]), w_1_lagrange.at(i));
-        fr::__copy(circuit_constructor.get_variable(w_r[i - public_inputs.size()]), w_2_lagrange.at(i));
-        fr::__copy(circuit_constructor.get_variable(w_o[i - public_inputs.size()]), w_3_lagrange.at(i));
-        if (program_width > 3)
-            fr::__copy(circuit_constructor.get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
-    }
-
-    circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_1_lagrange));
-    circuit_proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_2_lagrange));
-    circuit_proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_3_lagrange));
-    if (program_width > 3) {
-        circuit_proving_key->polynomial_cache.put("w_4_lagrange", std::move(w_4_lagrange));
+        // Assign the variable values (which are pointed-to by the `w_` wires) to the wire witness polynomials
+        // `poly_w_`, shifted to make room for the public inputs at the beginning.
+        for (size_t i = 0; i < num_gates; ++i) {
+            w_lagrange[num_public_inputs + i] = circuit_constructor.get_variable(w[j][i]);
+        }
+        std::string index = std::to_string(j + 1);
+        circuit_proving_key->polynomial_cache.put("w_" + index + "_lagrange", std::move(w_lagrange));
     }
 
     computed_witness = true;
@@ -217,7 +198,7 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(CircuitConstructor
 
 template <typename CircuitConstructor>
 std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
-    CircuitConstructor& circuit_constructor)
+    const CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
         return circuit_proving_key;
@@ -245,7 +226,7 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
  * */
 template <typename CircuitConstructor>
 std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
-    CircuitConstructor& circuit_constructor)
+    const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
         return circuit_verification_key;
@@ -268,7 +249,7 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
  * @return The verifier.
  * */
 template <typename CircuitConstructor>
-StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitConstructor& circuit_constructor)
+StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     auto verification_key = compute_verification_key(circuit_constructor);
     // TODO figure out types, actually
@@ -288,7 +269,7 @@ StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(CircuitCons
 
 template <typename CircuitConstructor>
 StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
-    CircuitConstructor& circuit_constructor)
+    const CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
     StandardUnrolledVerifier output_state(
@@ -310,7 +291,7 @@ template <typename CircuitConstructor>
 template <typename Flavor>
 // TODO(Cody): this file should be generic with regard to flavor/arithmetization/whatever.
 StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(
-    CircuitConstructor& circuit_constructor)
+    const CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
@@ -337,7 +318,7 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
  * @return Initialized prover.
  * */
 template <typename CircuitConstructor>
-StandardProver ComposerHelper<CircuitConstructor>::create_prover(CircuitConstructor& circuit_constructor)
+StandardProver ComposerHelper<CircuitConstructor>::create_prover(const CircuitConstructor& circuit_constructor)
 {
     // Compute q_l, etc. and sigma polynomials.
     compute_proving_key(circuit_constructor);
@@ -369,5 +350,5 @@ StandardProver ComposerHelper<CircuitConstructor>::create_prover(CircuitConstruc
 
 template class ComposerHelper<StandardCircuitConstructor>;
 template StandardUnrolledProver ComposerHelper<StandardCircuitConstructor>::create_unrolled_prover<StandardHonk>(
-    StandardCircuitConstructor& circuit_constructor);
+    const StandardCircuitConstructor& circuit_constructor);
 } // namespace honk

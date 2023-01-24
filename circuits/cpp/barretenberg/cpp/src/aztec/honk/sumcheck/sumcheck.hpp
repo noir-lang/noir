@@ -1,3 +1,4 @@
+#pragma once
 #include "common/serialize.hpp"
 #include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include "common/throw_or_abort.hpp"

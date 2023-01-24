@@ -53,7 +53,7 @@ class Manifest {
          * */
         bool includes_element(const std::string& element_name)
         {
-            for (auto ele : elements) {
+            for (const auto& ele : elements) {
                 if (element_name == ele.name) {
                     return true;
                 }

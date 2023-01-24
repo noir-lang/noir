@@ -1,5 +1,7 @@
-#include "../circuit_constructors/standard_circuit_constructor.hpp"
+#pragma once
+
 #include "composer_helper/composer_helper.hpp"
+#include <honk/circuit_constructors/standard_circuit_constructor.hpp>
 #include <srs/reference_string/file_reference_string.hpp>
 #include <transcript/manifest.hpp>
 #include <proof_system/flavor/flavor.hpp>
@@ -56,9 +58,11 @@ class StandardHonkComposer {
         , composer_helper(p_key, v_key)
     {}
 
+    StandardHonkComposer(const StandardHonkComposer& other) = delete;
     StandardHonkComposer(StandardHonkComposer&& other) = default;
+    StandardHonkComposer& operator=(const StandardHonkComposer& other) = delete;
     StandardHonkComposer& operator=(StandardHonkComposer&& other) = default;
-    ~StandardHonkComposer() {}
+    ~StandardHonkComposer() = default;
 
     /**Methods related to circuit construction
      * They simply get proxied to the circuit constructor

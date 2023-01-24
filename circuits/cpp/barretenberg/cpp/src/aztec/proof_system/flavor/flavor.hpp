@@ -25,7 +25,7 @@ struct StandardArithmetization {
         ID_2,
         ID_3,
         LAGRANGE_FIRST,
-        LAGRANGE_LAST,
+        LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
         COUNT
     };
 

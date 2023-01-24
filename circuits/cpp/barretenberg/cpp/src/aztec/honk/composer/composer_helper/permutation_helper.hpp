@@ -1,118 +1,98 @@
-#include <stdint.h>
-#include <stddef.h>
-#include <vector>
+#pragma once
+
+#include <ecc/curves/bn254/fr.hpp>
+#include <polynomials/polynomial.hpp>
 #include <proof_system/proving_key/proving_key.hpp>
+
+#include <algorithm>
+#include <cstdint>
+#include <initializer_list>
+#include <cstdint>
+#include <cstddef>
+#include <utility>
+#include <vector>
+
 namespace honk {
-// Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
-enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
 /**
- * @brief cycle_node represents a particular witness at a particular gate. Used to collect permutation sets
- *
+ * @brief cycle_node represents the index of a value of the circuit.
+ * It will belong to a CyclicPermutation, such that all nodes in a CyclicPermutation
+ * must have the value.
+ * The total number of constraints is always <2^32 since that is the type used to represent variables, so we can save
+ * space by using a type smaller than size_t.
  */
 struct cycle_node {
+    uint32_t wire_index;
     uint32_t gate_index;
-    WireType wire_type;
-
-    cycle_node(const uint32_t a, const WireType b)
-        : gate_index(a)
-        , wire_type(b)
-    {}
-    cycle_node(const cycle_node& other)
-        : gate_index(other.gate_index)
-        , wire_type(other.wire_type)
-    {}
-    cycle_node(cycle_node&& other)
-        : gate_index(other.gate_index)
-        , wire_type(other.wire_type)
-    {}
-    cycle_node& operator=(const cycle_node& other)
-    {
-        gate_index = other.gate_index;
-        wire_type = other.wire_type;
-        return *this;
-    }
-    bool operator==(const cycle_node& other) const
-    {
-        return ((gate_index == other.gate_index) && (wire_type == other.wire_type));
-    }
 };
-typedef std::vector<std::vector<cycle_node>> CycleCollector;
+using CyclicPermutation = std::vector<cycle_node>;
 
 /**
- * Compute wire copy cycles
- *
- * First set all wire_copy_cycles corresponding to public_inputs to point to themselves.
- * Then go through all witnesses in w_l, w_r, w_o and w_4 (if program width is > 3) and
- * add them to cycles of their real indexes.
+ * Compute all CyclicPermutations of the circuit. Each CyclicPermutation represents the indices of the values in the
+ * witness wires that must have the same value.
  *
  * @tparam program_width Program width
  * */
 template <size_t program_width, typename CircuitConstructor>
-void compute_wire_copy_cycles(CircuitConstructor& circuit_constructor, CycleCollector& wire_copy_cycles)
+std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor& circuit_constructor)
 {
     // Reference circuit constructor members
-    const std::vector<uint32_t>& real_variable_index = circuit_constructor.real_variable_index;
-    const std::vector<uint32_t>& public_inputs = circuit_constructor.public_inputs;
-
-    const std::vector<uint32_t>& w_l = circuit_constructor.w_l;
-    const std::vector<uint32_t>& w_r = circuit_constructor.w_r;
-    const std::vector<uint32_t>& w_o = circuit_constructor.w_o;
-    const size_t n = circuit_constructor.n;
-    const std::vector<uint32_t>& w_4 = circuit_constructor.w_4;
-
-    size_t number_of_cycles = 0;
-
+    const size_t num_gates = circuit_constructor.num_gates;
+    std::span<const uint32_t> public_inputs = circuit_constructor.public_inputs;
     const size_t num_public_inputs = public_inputs.size();
 
-    // Initialize wire_copy_cycles of public input variables to point to themselves ( we could actually ignore this step
-    // for HONK because of the way we construct the permutation)
-    for (size_t counter = 0; counter < num_public_inputs; ++counter) {
-        size_t i = num_public_inputs - 1 - counter;
-        cycle_node left{ static_cast<uint32_t>(i), WireType::LEFT };
-        cycle_node right{ static_cast<uint32_t>(i), WireType::RIGHT };
+    // Get references to the wires containing the index of the value inside constructor.variables
+    // These wires only contain the "real" gate constraints, and are not padded.
+    std::array<std::span<const uint32_t>, program_width> wire_indices;
+    wire_indices[0] = circuit_constructor.w_l;
+    wire_indices[1] = circuit_constructor.w_r;
+    wire_indices[2] = circuit_constructor.w_o;
+    if constexpr (program_width > 3) {
+        wire_indices[3] = circuit_constructor.w_4;
+    }
 
-        const auto public_input_index = real_variable_index[public_inputs[i]];
-        if (static_cast<size_t>(public_input_index) >= number_of_cycles) {
-            wire_copy_cycles.resize(public_input_index + 1);
-        }
-        std::vector<cycle_node>& cycle = wire_copy_cycles[static_cast<size_t>(public_input_index)];
+    // Each variable represents one cycle
+    const size_t number_of_cycles = circuit_constructor.variables.size();
+    std::vector<CyclicPermutation> copy_cycles(number_of_cycles);
+
+    // Represents the index of a variable in circuit_constructor.variables
+    std::span<const uint32_t> real_variable_index = circuit_constructor.real_variable_index;
+
+    // We use the permutation argument to enforce the public input variables to be equal to values provided by the
+    // verifier. The convension we use is to place the public input values as the first rows of witness vectors.
+    // More specifically, we set the LEFT and RIGHT wires to be the public inputs and set the other elements of the row
+    // to 0. All selectors are zero at these rows, so they are fully unconstrained. The "real" gates that follow can use
+    // references to these variables.
+    //
+    // The copy cycle for the i-th public variable looks like
+    //   (i) -> (n+i) -> (i') -> ... -> (i'')
+    // (Using the convention that W^L_i = W_i and W^R_i = W_{n+i}, W^O_i = W_{2n+i})
+    //
+    // This loop initializes the i-th cycle with (i) -> (n+i), meaning that we always expect W^L_i = W^R_i,
+    // for all i s.t. row i defines a public input.
+    for (size_t i = 0; i < num_public_inputs; ++i) {
+        const uint32_t public_input_index = real_variable_index[public_inputs[i]];
+        const auto gate_index = static_cast<uint32_t>(i);
         // These two nodes must be in adjacent locations in the cycle for correct handling of public inputs
-        cycle.emplace_back(left);
-        cycle.emplace_back(right);
+        copy_cycles[public_input_index].emplace_back(cycle_node{ 0, gate_index });
+        copy_cycles[public_input_index].emplace_back(cycle_node{ 1, gate_index });
     }
 
-    // Go through all witnesses and add them to the wire_copy_cycles
-    for (size_t counter = 0; counter < n; ++counter) {
-        // Start from the back. This way we quickly get the maximum real variable index
-        size_t i = n - 1 - counter;
-        const uint32_t w_1_index = real_variable_index[w_l[i]];
-        const uint32_t w_2_index = real_variable_index[w_r[i]];
-        const uint32_t w_3_index = real_variable_index[w_o[i]];
-        // Check the maximum index of a variable. If it is more or equal to the cycle vector size, extend the vector
-        const uint32_t max_index = std::max({ w_1_index, w_2_index, w_3_index });
-        if (max_index >= number_of_cycles) {
-            wire_copy_cycles.resize(max_index + 1);
-            number_of_cycles = max_index + 1;
-        }
-        wire_copy_cycles[static_cast<size_t>(w_1_index)].emplace_back(static_cast<uint32_t>(i + num_public_inputs),
-                                                                      WireType::LEFT);
-        wire_copy_cycles[static_cast<size_t>(w_2_index)].emplace_back(static_cast<uint32_t>(i + num_public_inputs),
-                                                                      WireType::RIGHT);
-        wire_copy_cycles[static_cast<size_t>(w_3_index)].emplace_back(static_cast<uint32_t>(i + num_public_inputs),
-                                                                      WireType::OUTPUT);
-
-        // Handle width 4 separately
-        if constexpr (program_width > 3) {
-            static_assert(program_width == 4);
-            const auto w_4_index = real_variable_index[w_4[i]];
-            if (w_4_index >= number_of_cycles) {
-                wire_copy_cycles.resize(w_4_index + 1);
-            }
-            wire_copy_cycles[static_cast<size_t>(w_4_index)].emplace_back(static_cast<uint32_t>(i + num_public_inputs),
-                                                                          WireType::FOURTH);
+    // Iterate over all variables of the "real" gates, and add a corresponding node to the cycle for that variable
+    for (size_t j = 0; j < program_width; ++j) {
+        for (size_t i = 0; i < num_gates; ++i) {
+            // We are looking at the j-th wire in the i-th row.
+            // The value in this position should be equal to the value of the element at index `var_index`
+            // of the `constructor.variables` vector.
+            // Therefore, we add (i,j) to the cycle at index `var_index` to indicate that w^j_i should have the values
+            // constructor.variables[var_index].
+            const uint32_t var_index = circuit_constructor.real_variable_index[wire_indices[j][i]];
+            const auto wire_index = static_cast<uint32_t>(j);
+            const auto gate_index = static_cast<uint32_t>(i + num_public_inputs);
+            copy_cycles[var_index].emplace_back(cycle_node{ wire_index, gate_index });
         }
     }
+    return copy_cycles;
 }
 
 /**
@@ -131,47 +111,64 @@ template <size_t program_width, typename CircuitConstructor>
 void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, waffle::proving_key* key)
 {
     // Compute wire copy cycles for public and private variables
-    CycleCollector wire_copy_cycles;
-    compute_wire_copy_cycles<program_width>(circuit_constructor, wire_copy_cycles);
+    std::vector<CyclicPermutation> copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
     const size_t n = key->n;
-    // Fill sigma polynomials with default values
-    std::vector<barretenberg::polynomial> sigma_polynomials_lagrange;
-    for (size_t i = 0; i < program_width; ++i) {
-        // Construct permutation polynomials in lagrange base
-        std::string index = std::to_string(i + 1);
-        sigma_polynomials_lagrange.push_back(barretenberg::polynomial(key->n));
-        barretenberg::polynomial& sigma_polynomial_lagrange = sigma_polynomials_lagrange[i];
-        for (size_t j = 0; j < key->n; j++) {
-            sigma_polynomial_lagrange[j] = (i * n + j);
+
+    // Initialize sigma[0], sigma[1], ..., as the identity permutation
+    // at the end of the loop, sigma[j][i] = j*n + i
+    std::array<barretenberg::polynomial, program_width> sigma;
+    for (size_t j = 0; j < program_width; ++j) {
+        sigma[j] = barretenberg::polynomial(n, n);
+        for (size_t i = 0; i < n; i++) {
+            sigma[j][i] = (j * n + i);
         }
     }
-    // Go through each cycle
-    for (auto& single_copy_cycle : wire_copy_cycles) {
+
+    // Each cycle is a partition of the indexes
+    for (auto& single_copy_cycle : copy_cycles) {
+        const size_t cycle_size = single_copy_cycle.size();
 
         // If we use assert equal, we lose a real variable index, which creates an empty cycle
-        if (single_copy_cycle.size() == 0) {
+        if (cycle_size == 0) {
             continue;
         }
-        size_t cycle_size = single_copy_cycle.size();
-        // Get the index value of the last element
-        cycle_node current_element = single_copy_cycle[cycle_size - 1];
-        auto last_index =
-            sigma_polynomials_lagrange[current_element.wire_type >> 30].data()[current_element.gate_index];
 
-        // Propagate indices through the cycle
-        for (size_t j = 0; j < cycle_size; j++) {
+        // next_index represents the index of the variable that the current node in the cycle should point to.
+        // We iterate over the cycle in reverse order, so the index of the last node should map to the index of the
+        // first one.
+        const auto [first_col, first_idx] = single_copy_cycle.front();
+        auto next_index = sigma[first_col][first_idx];
 
-            current_element = single_copy_cycle[j];
-            auto temp_index =
-                sigma_polynomials_lagrange[current_element.wire_type >> 30].data()[current_element.gate_index];
-            sigma_polynomials_lagrange[current_element.wire_type >> 30].data()[current_element.gate_index] = last_index;
-            last_index = temp_index;
+        // The index of variable reference by the j-th node should map to the index of the (j+1)-th node.
+        // The last one points to the first, and the index of the latter is stored in `next_index`.
+        // When we get to the second node in the list, we replace it with the index of the third node, and save the
+        // index it currently points to into `next_index`
+        for (size_t j = cycle_size - 1; j != 0; --j) {
+            const auto [current_col, current_idx] = single_copy_cycle[j];
+            next_index = std::exchange(sigma[current_col][current_idx], next_index);
         }
+        // After the loop ends, we make the first node point to the index of the second node,
+        // thereby completing the cycle.
+        sigma[first_col][first_idx] = next_index;
     }
+
+    // We intentionally want to break the cycles of the public input variables.
+    // During the witness generation, the left and right wire polynomials at index i contain the i-th public input.
+    // The CyclicPermutation created for these variables always start with (i) -> (n+i), followed by the indices of the
+    // variables in the "real" gates.
+    // We make i point to -(i+1), so that the only way of repairing the cycle is add the mapping
+    //  -(i+1) -> (n+i)
+    // These indices are chosen so they can easily be computed by the verifier. They can expect the running product
+    // to be equal to the "public input delta" that is computed in <honk/utils/public_inputs.hpp>
+    const auto num_public_inputs = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
+    for (size_t i = 0; i < num_public_inputs; ++i) {
+        sigma[0][i] = -barretenberg::fr(i + 1);
+    }
+
     // Save to polynomial cache
-    for (size_t i = 0; i < program_width; i++) {
-        std::string index = std::to_string(i + 1);
-        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomials_lagrange[i]));
+    for (size_t j = 0; j < program_width; j++) {
+        std::string index = std::to_string(j + 1);
+        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
     }
 }
 
@@ -190,20 +187,14 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_pt
 {
     const size_t n = key->n;
     // Fill id polynomials with default values
-    std::vector<barretenberg::polynomial> id_polynomials_lagrange;
-    for (size_t i = 0; i < program_width; ++i) {
+    for (size_t j = 0; j < program_width; ++j) {
         // Construct permutation polynomials in lagrange base
-        std::string index = std::to_string(i + 1);
-        id_polynomials_lagrange.push_back(barretenberg::polynomial(key->n));
-        barretenberg::polynomial& id_polynomial_lagrange = id_polynomials_lagrange[i];
-        for (size_t j = 0; j < key->n; j++) {
-            id_polynomial_lagrange[j] = (i * n + j);
+        barretenberg::polynomial id_j(n, n);
+        for (size_t i = 0; i < key->n; ++i) {
+            id_j[i] = (j * n + i);
         }
-    }
-    // Save to polynomial cache
-    for (size_t i = 0; i < program_width; i++) {
-        std::string index = std::to_string(i + 1);
-        key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_polynomials_lagrange[i]));
+        std::string index = std::to_string(j + 1);
+        key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_j));
     }
 }
 

@@ -19,6 +19,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.
+    // TODO(Adrian): Why is this not in CircuitConstructorBase
     std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 
     StandardCircuitConstructor(const size_t size_hint = 0)
@@ -29,12 +30,15 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
         w_o.reserve(size_hint);
         // To effieciently constrain wires to zero, we set the first value of w_1 to be 0, and use copy constraints for
         // all future zero values.
+        // TODO(Adrian): This should be done in a constant way, maybe by initializing the constant_variable_indices map
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
 
+    StandardCircuitConstructor(const StandardCircuitConstructor& other) = delete;
     StandardCircuitConstructor(StandardCircuitConstructor&& other) = default;
+    StandardCircuitConstructor& operator=(const StandardCircuitConstructor& other) = delete;
     StandardCircuitConstructor& operator=(StandardCircuitConstructor&& other) = default;
-    ~StandardCircuitConstructor() {}
+    ~StandardCircuitConstructor() override = default;
 
     void assert_equal_constant(uint32_t const a_idx,
                                barretenberg::fr const& b,
@@ -54,6 +58,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
 
     fixed_group_add_quad previous_add_quad;
 
+    // TODO(Adrian): This should be a virtual overridable method in the base class.
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
@@ -74,6 +79,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
     accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
     accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
+    // TODO(Adrian): The 2 following methods should be virtual in the base class
     uint32_t put_constant_variable(const barretenberg::fr& variable);
 
     size_t get_num_constant_gates() const override { return 0; }
