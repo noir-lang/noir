@@ -1,0 +1,32 @@
+{
+  "barretenberg-x86_64-linux-clang": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-x86_64-linux-clang-assert": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-x86_64-linux-gcc": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-wasm-linux-clang": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
+  "barretenberg.js": {
+    "buildDir": "js",
+    "dockerfile": "js/Dockerfile",
+    "rebuildPatterns": ["^js/"],
+    "dependencies": ["barretenberg-wasm-linux-clang"]
+  }
+}

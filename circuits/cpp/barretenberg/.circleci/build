@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+# Builds a docker image and pushes it to it's repository. Leverages caches where possible.
+# Cached images include previous successfully built images built on this branch.
+# The images output are cache images, meaning they will eventually get purged.
+# The deploy phase will tag the images such that they become permanent.
+#
+# usage: ./build <repository>
+# example: ./build barretenberg-x86_64-linux-clang
+# output image:
+#   278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-x86_64-linux-clang:cache-deadbeefcafebabe1337c0d3
+
+set -e
+
+REPOSITORY=$1
+DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
+PROJECT_DIR=$(query_manifest projectDir $REPOSITORY)
+
+echo "Repository: $REPOSITORY"
+echo "Working directory: $PWD"
+echo "Dockerfile: $DOCKERFILE"
+
+cd $(query_manifest buildDir $REPOSITORY)
+
+function fetch_image() {
+  echo "Pulling: $1"
+  if ! docker pull $1 > /dev/null 2>&1; then
+    echo "Image not found: $1"
+    return 1
+  fi
+  return 0
+}
+
+# Ensure ECR repository exists.
+ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
+
+LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY)
+echo "Last successful commit: $LAST_SUCCESSFUL_COMMIT"
+
+# If we have previously successful commit, we can early out if nothing relevant has changed since.
+if ! check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
+  echo "No rebuild necessary. Retagging..."
+  STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
+  for STAGE in $STAGES; do
+    tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT-$STAGE cache-$COMMIT_HASH-$STAGE || true
+  done
+  tag_remote_image $REPOSITORY cache-$LAST_SUCCESSFUL_COMMIT cache-$COMMIT_HASH
+  untag_remote_image $REPOSITORY tainted
+  exit 0
+fi
+
+# Validate any terraform if it exists.
+if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
+  ensure_terraform
+  export TF_IN_AUTOMATION=1
+  pushd $ROOT_PATH/$PROJECT_DIR/terraform
+  for DIR in . $(find . -maxdepth 1 -type d); do
+    pushd $DIR
+    if [ -f ./main.tf ]; then
+      terraform init -input=false -backend-config="key=dummy"
+      terraform validate
+    fi
+    popd
+  done
+  popd
+fi
+
+# Pull latest parents that are not ours.
+echo "$DOCKERHUB_PASSWORD" | docker login -u aztecprotocolci --password-stdin
+PARENTS=$(cat $DOCKERFILE | sed -n -e 's/^FROM \([^[:space:]]\+\).*/\1/p' | grep -v $ECR_DEPLOY_URL | sort | uniq)
+for PARENT in $PARENTS; do
+  fetch_image $PARENT
+done
+
+# For each parent that's ours, pull in the latest image.
+PARENTS=$(cat $DOCKERFILE | sed -n -e "s/^FROM $ECR_DEPLOY_URL\/\([^[:space:]]\+\).*/\1/p")
+for PARENT in $PARENTS; do
+  # Extract repository name (i.e. discard tag).
+  PARENT_REPO=${PARENT%:*}
+  PARENT_COMMIT_HASH=$(last_successful_commit $PARENT_REPO)
+  # There must be a parent image to continue.
+  if [ -z "$PARENT_COMMIT_HASH" ]; then
+    echo "No parent image found for $PARENT_REPO"
+    exit 1
+  fi
+  PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:cache-$PARENT_COMMIT_HASH
+  echo "Pulling dependency $PARENT_REPO..."
+  fetch_image $PARENT_IMAGE_URI
+  # Tag it to look like an official release as that's what we use in Dockerfiles.
+  docker tag $PARENT_IMAGE_URI $ECR_DEPLOY_URL/$PARENT
+done
+
+# Pull, build and push each named stage to cache.
+STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
+for STAGE in $STAGES; do
+  # Get the last build of this stage to leverage layer caching.
+  if [ -n "$LAST_SUCCESSFUL_COMMIT" ]; then
+    echo "Pulling stage: $STAGE"
+    STAGE_IMAGE_LAST_URI=$ECR_URL/$REPOSITORY:cache-$LAST_SUCCESSFUL_COMMIT-$STAGE
+    if fetch_image $STAGE_IMAGE_LAST_URI; then
+      STAGE_CACHE_FROM="--cache-from $STAGE_IMAGE_LAST_URI"
+    fi
+  fi
+
+  echo "Building stage: $STAGE"
+  STAGE_IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$COMMIT_HASH-$STAGE
+  docker build --target $STAGE $STAGE_CACHE_FROM -t $STAGE_IMAGE_COMMIT_URI -f $DOCKERFILE .
+
+  # We don't want to have redo this stages work when building the final image. Use it as a layer cache.
+  CACHE_FROM="--cache-from $STAGE_IMAGE_COMMIT_URI $CACHE_FROM"
+
+  echo "Pushing stage: $STAGE"
+  docker push $STAGE_IMAGE_COMMIT_URI > /dev/null 2>&1
+  echo
+done
+
+# Pull previous image to use it as a layer cache if it exists.
+if [ -n "$LAST_SUCCESSFUL_COMMIT" ]; then
+  LAST_SUCCESSFUL_URI=$ECR_URL/$REPOSITORY:cache-$LAST_SUCCESSFUL_COMMIT
+  echo "Pulling previous build of $REPOSITORY..."
+  fetch_image $LAST_SUCCESSFUL_URI || true
+  CACHE_FROM="--cache-from $LAST_SUCCESSFUL_URI $CACHE_FROM"
+  echo
+fi
+
+# Build the actual image and give it a commit tag.
+IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$COMMIT_HASH
+echo "Building image: $IMAGE_COMMIT_URI"
+docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE $CACHE_FROM --build-arg COMMIT_TAG=$COMMIT_TAG .
+echo "Pushing image: $IMAGE_COMMIT_URI"
+docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
+untag_remote_image $REPOSITORY tainted

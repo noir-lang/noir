@@ -1,0 +1,3 @@
+IdentityFile ~/.ssh/build_instance_key
+StrictHostKeyChecking no
+User ubuntu

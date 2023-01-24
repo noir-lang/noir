@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+shift
+
+cd $(query_manifest projectDir $REPOSITORY)
+
+mkdir -p /tmp/test-logs
+
+cond_spot_run_script $REPOSITORY $JOB_NAME 32 ./scripts/run_tests $@ | tee "/tmp/test-logs/$JOB_NAME.log"

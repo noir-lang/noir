@@ -1,0 +1,31 @@
+#!/bin/bash
+# Conditionally runs a script on a remote spot instance if any dependent code has changed between
+# the last successful run and the present commit.
+#
+# It's expected to be run from the project directory, and that there be a directory called `scripts`
+# containing the given named script to execute on the remote machine.
+#
+# This script is only useful if there is nothing to do in the event there is no rebuild. This is fine
+# for running a suite of tests for example, but is not useful for performing a build, as even if a
+# build has nothing to do, the previous images are retagged with the new commit hash for upstream jobs.
+#
+# Arguments are:
+# 1. REPOSITORY: The project repository name in ECR. Used to determine if there are changes since last success.
+# 2. SUCCESS_TAG: To track if this job needs to be run, the repository image is tagged with a success tag after a
+#    successful run. The script will only run if there were relevant code changes since the last successful commit.
+# 3... ARGS: Arguments to pass to spot_run_script.
+set -e
+
+REPOSITORY=$1
+shift
+SUCCESS_TAG=$1
+shift
+
+LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY $SUCCESS_TAG)
+
+echo "Last successful commit for $SUCCESS_TAG: $LAST_SUCCESSFUL_COMMIT"
+
+if check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
+  spot_run_script $@
+  tag_remote_image $REPOSITORY cache-$COMMIT_HASH cache-$COMMIT_HASH-$SUCCESS_TAG
+fi

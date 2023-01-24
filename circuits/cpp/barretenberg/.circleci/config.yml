@@ -1,0 +1,282 @@
+# This config consists of currently 3 workflows.
+# - system: The main Aztec infrastructure, services, frontends etc.
+# - metrics: The metrics grafana and prometheus instances, and some prometheus data sources.
+# - website: The company website.
+#
+# The default workflow is system. To trigger the other workflows, trigger a workflow from CCI
+# setting a string variable called `workflow` to another name.
+#
+# This file uses YAML anchors and aliases to prevent repetition of blocks of config:
+# https://support.atlassian.com/bitbucket-cloud/docs/yaml-anchors/
+#
+# Two primary anchors are checkout and setup_env, called as the first step of almost all jobs:
+# - checkout: A custom checkout step to reduce the amount of data downloaded to improve speed.
+# - setup_env: Sets up the common environment used by all build steps.
+#
+# Two CCI executors are used:
+# - docker (small): Used only to launch external EC2 instances for big workloads. It's the cheapest option.
+# - machine (large): Used for building in CCI itself. 4cpus, 15GB has the optimal power/cost ratio.
+#
+# The docker executor uses a custom image build in `build_image`. It's specifically streamlined for fast download
+# with just enough tools to execute the build system, and launch EC2 instances etc.
+#
+# There are some `join` steps that are just noops. They are just used to produce cleaner graph rendering in CCI.
+
+version: 2.1
+
+# This build step checks out the code from the repository. It has a hardcoded readonly key to allow the checkout.
+# Initially it just fetches the repo metadata for the current commit hash to a depth of 50 commits.
+# We need historical commit hashes to calculate diffs between previous and current commits.
+# It then checks out the fetched head to actually download the data.
+checkout: &checkout
+  run:
+    name: "Checkout code"
+    command: |
+      cd $HOME
+      mkdir -p .ssh
+      chmod 0700 .ssh
+      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
+
+      # A read only key for cloning the repository.
+      echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
+
+      chmod 0600 .ssh/id_rsa
+
+      # Shallow checkout this commit.
+      mkdir -p project
+      cd project
+      git init
+      git remote add origin $CIRCLE_REPOSITORY_URL
+      git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
+      git checkout FETCH_HEAD
+
+# This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
+# Initially it just fetches the latest version.
+benchmark_add_keys: &benchmark_add_keys
+  run:
+    name: "Add keys for getting the benchmark archive"
+    command: |
+      cd $HOME
+      mkdir -p .ssh
+      chmod 0700 .ssh
+      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
+
+      # A read-write key for updating the repository.
+      echo "$GITHUB_BENCMARK_REPOSITORY_SSH_KEY" | base64 -d > .ssh/id_ed25519
+
+      # This allows github to discern wich key to use.
+      echo "Host github.com
+        Hostname github.com
+        IdentityFile=/root/.ssh/id_rsa
+
+      Host github.com-logs
+        Hostname github.com
+        IdentityFile=/root/.ssh/id_ed25519" > .ssh/config
+
+      chmod 0600 .ssh/id_ed25519
+      ssh-add .ssh/id_ed25519
+
+# Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
+# It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
+# the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
+setup_env: &setup_env
+  run:
+    name: "Setup environment"
+    command: cd .circleci && ./setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+
+# This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
+save_logs: &save_logs
+  persist_to_workspace:
+    root: /tmp/test-logs
+    paths:
+      - ./*
+
+jobs:
+  wasm-linux-clang:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-wasm-linux-clang 64
+
+  x86_64-linux-gcc:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-gcc 64
+
+  x86_64-linux-clang:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang 64
+
+  x86_64-linux-clang-assert:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang-assert 64
+
+  barretenberg-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert bb-tests
+      - *save_logs
+
+  stdlib-primitives-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert stdlib_primitives_tests
+      - *save_logs
+
+  stdlib-recursion-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert stdlib_recursion_tests
+      - *save_logs
+
+  tx-rollup-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_tx_rollup_tests --gtest_filter=-rollup_full_tests.*
+      - *save_logs
+
+  tx-rollup-full-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_tx_rollup_tests --gtest_filter=rollup_full_tests.*
+      - *save_logs
+
+  root-rollup-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_rollup_tests --gtest_filter=-root_rollup_full_tests.*
+      - *save_logs
+
+  root-rollup-full-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_rollup_tests --gtest_filter=root_rollup_full_tests.*
+      - *save_logs
+
+  root-verifier-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert rollup_proofs_root_verifier_tests
+      - *save_logs
+
+  benchmark-aggregator:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/test-logs
+      - *checkout
+      - *setup_env
+      - *benchmark_add_keys
+      - run:
+          name: "Test"
+          command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
+
+# Repeatable config for defining the workflow below.
+bb_test: &bb_test
+  requires:
+    - x86_64-linux-clang-assert
+
+workflows:
+  system:
+    jobs:
+      - x86_64-linux-gcc
+      - x86_64-linux-clang
+      - x86_64-linux-clang-assert
+      - wasm-linux-clang
+      - barretenberg-tests: *bb_test
+      - stdlib-primitives-tests: *bb_test
+      - stdlib-recursion-tests: *bb_test
+      - tx-rollup-tests: *bb_test
+      - tx-rollup-full-tests: *bb_test
+      - root-rollup-tests: *bb_test
+      - root-rollup-full-tests: *bb_test
+      - root-verifier-tests: *bb_test
+      - benchmark-aggregator:
+          requires:
+            - barretenberg-tests
+            - stdlib-primitives-tests
+            - stdlib-recursion-tests
+            - tx-rollup-tests
+            - tx-rollup-full-tests
+            - root-verifier-tests
+            - root-rollup-tests
+            - root-rollup-full-tests
+          filters:
+            branches:
+              only:
+                - master

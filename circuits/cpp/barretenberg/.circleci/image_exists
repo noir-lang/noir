@@ -1,0 +1,2 @@
+#!/bin/bash
+aws ecr describe-images --region=$ECR_REGION --repository-name=$1 --image-ids=imageTag=$2 > /dev/null 2>&1

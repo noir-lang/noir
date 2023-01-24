@@ -1,0 +1,4 @@
+#!/bin/bash
+REPOSITORY=$1
+TAG=$2
+aws ecr batch-delete-image --region=$ECR_REGION --repository-name $REPOSITORY --image-ids imageTag=$2 > /dev/null

@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+
+NAME=$1
+CPUS=${2:-32}
+
+export AWS_DEFAULT_REGION=us-east-2
+
+BID_PER_CPU_HOUR=0.03125
+PRICE=$(jq -n "$BID_PER_CPU_HOUR*$CPUS*100000 | round / 100000")
+
+>&2 echo "Requesting $CPUS cpu instance (bid: $PRICE)..."
+SIR=$(aws ec2 request-spot-instances \
+  --spot-price "$PRICE" \
+  --instance-count 1 \
+  --type "one-time" \
+  --launch-specification file://$BUILD_SYSTEM_PATH/remote/${CPUS}core.json \
+  --query "SpotInstanceRequests[*].[SpotInstanceRequestId]" \
+  --output text)
+
+>&2 echo "Waiting for instance id for spot request: $SIR..."
+sleep 5
+for I in {1..6}; do
+  IID=$(aws ec2 describe-spot-instance-requests \
+    --spot-instance-request-ids $SIR \
+    --query "SpotInstanceRequests[*].[InstanceId]" \
+    --output text)
+
+  [ -z "$IID" -o "$IID" == "None" ] || break
+
+  if [ $I -eq 6 ]; then
+    # Cancel spot request. We may still get allocated an instance if it's *just* happened.
+    aws ec2 cancel-spot-instance-requests --spot-instance-request-ids $SIR > /dev/null
+  fi
+
+  sleep 5
+done
+
+if [ -z "$IID" -o "$IID" == "None" ]; then
+  # Request on-demand instance.
+  >&2 echo "Falling back to on-demand instance..."
+  IID=$(aws ec2 run-instances \
+    --cli-input-json file://$BUILD_SYSTEM_PATH/remote/${CPUS}core.json \
+    --query "Instances[*].[InstanceId]" \
+    --output text)
+fi
+
+aws ec2 create-tags --resources $IID --tags "Key=Name,Value=$NAME"
+aws ec2 create-tags --resources $IID --tags "Key=Group,Value=build-instance"
+
+while [ -z "$IP" ]; do
+  sleep 1
+  IP=$(aws ec2 describe-instances \
+    --filter "Name=instance-id,Values=$IID" \
+    --query "Reservations[*].Instances[*].PublicIpAddress" \
+    --output=text)
+done
+
+# Wait till ssh port is open.
+>&2 echo "Waiting for SSH at $IP..."
+while ! nc -z $IP 22; do sleep 1; done;
+
+echo $IP

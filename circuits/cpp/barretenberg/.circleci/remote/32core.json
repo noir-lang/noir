@@ -1,0 +1,14 @@
+{
+  "ImageId": "ami-0e5df77ac318c7a18",
+  "KeyName": "build-instance",
+  "SecurityGroupIds": ["sg-0ccd4e5df0dcca0c9"],
+  "InstanceType": "r5.8xlarge",
+  "BlockDeviceMappings": [
+    {
+      "DeviceName": "/dev/sda1",
+      "Ebs": {
+        "VolumeSize": 16
+      }
+    }
+  ]
+}

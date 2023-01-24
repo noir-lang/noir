@@ -1,0 +1,18 @@
+#!/bin/bash
+
+REPOSITORY=$1
+
+if [ -n "$2" ]; then
+  TAG_POSTFIX=-$2
+fi
+
+# We are assuming that there has been a successful build of the given repo
+# within the last 50 commits. If not return nothing.
+for COMMIT_HASH in $(git log -n 50 --pretty=format:"%H"); do
+  >&2 echo "Checking if image exists for commit $COMMIT_HASH..."
+  if image_exists $REPOSITORY cache-${COMMIT_HASH}$TAG_POSTFIX; then
+    >&2 echo "Found."
+    echo $COMMIT_HASH
+    exit 0
+  fi
+done

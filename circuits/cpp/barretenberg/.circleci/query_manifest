@@ -1,0 +1,39 @@
+#!/bin/bash
+
+CMD=$1
+REPO=$2
+
+ROOT=$(git rev-parse --show-toplevel)
+
+case "$CMD" in
+  dockerfile)
+    jq -r ".\"$REPO\".dockerfile // \"Dockerfile\"" $ROOT/build_manifest.json
+    ;;
+  buildDir)
+    jq -r ".\"$REPO\".buildDir" $ROOT/build_manifest.json
+    ;;
+  projectDir)
+    jq -r ".\"$REPO\".projectDir // .\"$REPO\".buildDir" $ROOT/build_manifest.json
+    ;;
+  dependencies)
+    ALL_DEPS=()
+    add_deps() {
+      DEPS=($(jq -r ".\"$1\".dependencies // [] | .[]" $ROOT/build_manifest.json))
+      ALL_DEPS=(${ALL_DEPS[@]} ${DEPS[@]})
+      for DEP in "${DEPS[@]}"; do
+        add_deps $DEP
+      done
+    }
+    add_deps $REPO
+    printf "%s\n" "${ALL_DEPS[@]}" | sort | uniq
+    ;;
+  rebuildPatterns)
+    ALL_PATTERNS=($(jq -r ".\"$REPO\".rebuildPatterns | .[]" $ROOT/build_manifest.json))
+    DEPS=($($0 dependencies $REPO))
+    for DEP in "${DEPS[@]}"; do
+      PATTERNS=($(jq -r ".\"$DEP\".rebuildPatterns | .[]" $ROOT/build_manifest.json))
+      ALL_PATTERNS=(${ALL_PATTERNS[@]} ${PATTERNS[@]})
+    done
+    printf "%s\n" "${ALL_PATTERNS[@]}" | sort | uniq
+    ;;
+esac

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Succeeds if any files matching the rebuild patterns, have changed since the base commit.
+set -e
+
+BASE_COMMIT=$1
+REPOSITORY=$2
+
+# If given nothing, then return true to rebuild.
+[ -n "$BASE_COMMIT" ] || exit 0
+
+# If a tainted tag exists, remove it and return true to rebuild.
+if image_exists $REPOSITORY tainted; then
+  echo "$REPOSITORY has been tainted. Will rebuild."
+  exit 0
+fi
+
+# Compute .rebuild_patterns from the build manifest.
+query_manifest rebuildPatterns $REPOSITORY > .rebuild_patterns
+
+echo "Rebuild patterns:"
+cat .rebuild_patterns
+
+git config diff.renameLimit 999999
+
+if git diff --name-only ${BASE_COMMIT} ${COMMIT_HASH} | grep -q -f .rebuild_patterns; then
+  exit 0
+else
+  exit 1
+fi

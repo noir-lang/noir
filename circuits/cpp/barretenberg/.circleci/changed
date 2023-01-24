@@ -1,0 +1,10 @@
+#!/bin/bash
+LAST_SUCCESSFUL_COMMIT=$1
+
+[ -n "$COMMIT_HASH" ] || exit 1
+
+if git diff --name-only $LAST_SUCCESSFUL_COMMIT $COMMIT_HASH | grep -q $2; then
+  exit 0
+else
+  exit 1
+fi

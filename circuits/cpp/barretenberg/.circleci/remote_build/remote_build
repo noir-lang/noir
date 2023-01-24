@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+echo "Initialising remote build..."
+
+# Shallow checkout this commit.
+mkdir project
+cd project
+git init
+git remote add origin $GIT_REPOSITORY_URL
+# Configure to only download metadata when fetching.
+git config remote.origin.promisor true
+git config remote.origin.partialclonefilter blob:none
+git fetch --depth 50 origin $COMMIT_HASH
+git checkout FETCH_HEAD
+
+echo "Git operations completed..."
+
+cd .circleci
+BASH_ENV=/tmp/bash_env
+echo "Calling setup env..."
+source ./setup_env "$COMMIT_HASH" "$COMMIT_TAG" "$JOB_NAME" "$GIT_REPOSITORY_URL"
+cd ..
+echo "Calling build..."
+build $@

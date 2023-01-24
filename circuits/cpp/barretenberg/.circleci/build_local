@@ -1,0 +1,63 @@
+#!/bin/bash
+# Builds the PROJECTS in the given order.
+# Will terminate build at TARGET_PROJECT (if given).
+# Will only build TARGET_PROJECT if ONLY_TARGET given.
+# Will push TARGET_PROJECT to ECR with PUSH_LABEL (if given).
+# PROJECT elements have structure WORKING_DIR:PROJECT:DOCKERFILE:REPO.
+# If DOCKERFILE is excluded it tries to default to ./Dockerfile then ./REPO/Dockerfile
+
+set -e
+
+TARGET_PROJECT=$1
+ONLY_TARGET=$2
+PUSH_LABEL=$3
+
+PROJECTS=(
+  cpp:barretenberg-cpp:./dockerfiles/Dockerfile.x86_64-linux-clang:barretenberg-x86_64-linux-clang
+  cpp:barretenberg-cpp:./dockerfiles/Dockerfile.wasm-linux-clang:barretenberg-wasm-linux-clang
+  js:barretenberg-js
+)
+
+for E in ${PROJECTS[@]}; do
+  ARR=(${E//:/ })
+  WORKING_DIR=${ARR[0]}
+  PROJECT=${ARR[1]}
+  DOCKERFILE=${ARR[2]}
+  REPO=${ARR[3]:-$PROJECT}
+
+  if [ -n "$ONLY_TARGET" -a ! "$PROJECT" = "$TARGET_PROJECT" ]; then
+    continue
+  fi
+
+  pushd $WORKING_DIR
+
+  if [ ! -f "$DOCKERFILE" ]; then
+    DOCKERFILE=./Dockerfile
+    if [ ! -f "$DOCKERFILE" ]; then
+      DOCKERFILE=./$REPO/Dockerfile
+      if [ ! -f "$DOCKERFILE" ]; then
+        echo "Dockerfile not found."
+        exit 1
+      fi
+    fi
+  fi
+
+  echo
+  echo
+  echo
+  echo "*** Building $PROJECT:$DOCKERFILE -> $REPO ***"
+  echo
+
+  time docker build -f $DOCKERFILE -t $ECR_DEPLOY_URL/$REPO:latest .
+
+  if [ -n "$TERM_AT_TARGET" -a "$PROJECT" = "$TARGET_PROJECT" ]; then
+    if [ -n "$PUSH_LABEL" ]; then
+      $(aws ecr get-login --region eu-west-2 --no-include-email) 2> /dev/null
+      docker tag $ECR_DEPLOY_URL/$REPO:latest $ECR_DEPLOY_URL/$REPO:$PUSH_LABEL
+      docker push $ECR_DEPLOY_URL/$REPO:$PUSH_LABEL
+    fi
+    break
+  fi
+
+  popd
+done

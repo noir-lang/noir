@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e
+
+LIFECYCLE_POLICY='{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "No more than 200 cache images.",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPrefixList": ["cache-"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 200
+      },
+      "action": {
+        "type": "expire"
+      }
+    }
+  ]
+}
+'
+
+REPOSITORY=$1
+REGION=$2
+REFRESH_LIFECYCLE=$3
+
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$REGION.amazonaws.com 2> /dev/null
+
+# Create the repository if it doesn't exist.
+if ! aws ecr describe-repositories --region $REGION --repository-names $REPOSITORY > /dev/null 2>&1; then
+  echo "Creating repo: $REPOSITORY"
+  aws ecr create-repository --region $REGION --repository-name $REPOSITORY > /dev/null 2>&1
+  aws ecr put-lifecycle-policy --region $REGION --repository-name $REPOSITORY --lifecycle-policy-text "$LIFECYCLE_POLICY" > /dev/null 2>&1
+elif [ -n "$REFRESH_LIFECYCLE" ]; then
+  echo "Refreshing lifecycle rules for repo: $REPOSITORY"
+  aws ecr put-lifecycle-policy --region $REGION --repository-name $REPOSITORY --lifecycle-policy-text "$LIFECYCLE_POLICY" > /dev/null 2>&1
+fi
+echo

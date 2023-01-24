@@ -1,0 +1,22 @@
+#!/bin/bash
+# Runs a test script on a remote spot instance. Arguments are:
+# 1. SPEC: Instance specification filename.
+# 2... ARGS: Arguments to pass to remote_run_script.
+set -e
+
+SPEC=$1
+shift
+
+# Get spot instance.
+IP=$(request_spot $COMMIT_HASH:$JOB_NAME $SPEC)
+
+# Run script remotely on spot instance, capturing success or failure.
+set +e
+remote_run_script $IP $@
+CODE=$?
+
+# Shutdown spot.
+echo "Terminating spot instance..."
+ssh -F $SSH_CONFIG_PATH $IP sudo halt -p > /dev/null 2>&1
+
+exit $CODE

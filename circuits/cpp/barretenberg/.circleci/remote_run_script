@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+IP=$1
+FULL_PATH=$2
+shift
+shift
+
+SSH_CONFIG_PATH=${SSH_CONFIG_PATH:-$BUILD_SYSTEM_PATH/remote/ssh_config}
+DIR_NAME=$(dirname $FULL_PATH)
+SCRIPT_NAME=$(basename $FULL_PATH)
+
+# Copy all files in script directory to spot instance.
+scp -F $SSH_CONFIG_PATH $DIR_NAME/* $IP:.
+
+# Run script on remote instance.
+ssh -A -F $SSH_CONFIG_PATH $IP "COMMIT_HASH=$COMMIT_HASH COMMIT_TAG=$COMMIT_TAG JOB_NAME=$JOB_NAME GIT_REPOSITORY_URL=$GIT_REPOSITORY_URL DOCKERHUB_PASSWORD=$DOCKERHUB_PASSWORD ./$SCRIPT_NAME $@"

@@ -76,14 +76,14 @@ TEST(schnorr, hmac_signature_consistency)
     ASSERT_NE(account_a.private_key, account_b.private_key);
     ASSERT_NE(account_a.public_key, account_b.public_key);
 
-    // k is no longer identical, so signatures should be different.
+    // same message signed twice should produce identical sigs due to identical k
     auto signature_a =
         construct_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_a, account_a);
     auto signature_b =
         construct_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_a, account_a);
 
-    ASSERT_NE(signature_a.e, signature_b.e);
-    ASSERT_NE(signature_a.s, signature_b.s);
+    ASSERT_EQ(signature_a.e, signature_b.e);
+    ASSERT_EQ(signature_a.s, signature_b.s);
 
     // same message, different accounts should give different sigs!
     auto signature_c =
