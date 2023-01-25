@@ -303,10 +303,9 @@ fn cse_block_with_anchor(
                 Operation::Intrinsic(opcode, args) => {
                     //Add dunmmy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
-                    match opcode {
-                        // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
-                        builtin::Opcode::Println(_) => activate_cse = false,
-                        _ => (),
+                    // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
+                    if let builtin::Opcode::Println(_) = opcode {
+                        activate_cse = false
                     }
 
                     for arg in args {

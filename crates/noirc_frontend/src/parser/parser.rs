@@ -445,7 +445,7 @@ where
         field_type(),
         int_type(),
         named_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone(), expr_parser.clone()),
+        array_type(recursive_type_parser.clone(), expr_parser),
         tuple_type(recursive_type_parser.clone()),
         bool_type(),
         string_type(),

@@ -1113,14 +1113,8 @@ impl SsaContext {
                         "print statements currently only support one argument"
                     );
                     let is_string = match &arguments[0] {
-                        Expression::Ident(ident) => match ident.typ {
-                            Type::String(_) => true,
-                            _ => false,
-                        },
-                        Expression::Literal(literal) => match literal {
-                            Literal::Str(_) => true,
-                            _ => false,
-                        },
+                        Expression::Ident(ident) => matches!(ident.typ, Type::String(_)),
+                        Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
                         _ => unreachable!("logging this expression type is not supported"),
                     };
                     Some(builtin::Opcode::Println(is_string))

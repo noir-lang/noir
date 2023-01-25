@@ -673,27 +673,27 @@ impl Acir {
                     let final_string = noirc_abi::decode_string_value(&field_elements);
                     log_string.push_str(&final_string);
                 } else if !field_elements.is_empty() {
-                    log_string.push_str("[");
+                    log_string.push('[');
                     let mut iter = field_elements.iter().peekable();
                     while let Some(elem) = iter.next() {
                         if iter.peek().is_none() {
-                            log_string.push_str(&format!("{}", elem.to_hex()));
+                            log_string.push_str(&elem.to_hex());
                         } else {
                             log_string.push_str(&format!("{}, ", elem.to_hex()));
                         }
                     }
-                    log_string.push_str("]");
+                    log_string.push(']');
                 }
             }
             _ => match ctx.get_as_constant(node_id) {
                 Some(field) => {
-                    log_string.push_str(&format!("{}", field.to_hex()));
+                    log_string.push_str(&field.to_hex());
                 }
                 None => {
                     if self.arith_cache.contains_key(&node_id) {
                         let var = self.arith_cache[&node_id].clone();
                         if let Some(field) = var.to_const() {
-                            log_string.push_str(&format!("{}", field.to_hex()));
+                            log_string.push_str(&field.to_hex());
                         } else if let Some(w) = var.witness {
                             log_witnesses.push(w);
                         } else {
