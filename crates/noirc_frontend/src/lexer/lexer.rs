@@ -112,16 +112,16 @@ impl<'a> Lexer<'a> {
             Some(':') => self.glue(Token::Colon),
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
-            Some('+') => self.glue(Token::Plus),
-            Some('*') => self.glue(Token::Star),
-            Some('%') => self.glue(Token::Percent),
             Some('&') => self.ampersand(),
             Some('|') => self.pipe(),
+            Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
+            Some('*') => self.single_char_token(Token::Star),
             Some('(') => self.single_char_token(Token::LeftParen),
             Some(')') => self.single_char_token(Token::RightParen),
             Some(',') => self.single_char_token(Token::Comma),
+            Some('+') => self.single_char_token(Token::Plus),
             Some('{') => self.single_char_token(Token::LeftBrace),
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
@@ -192,32 +192,14 @@ impl<'a> Lexer<'a> {
                     Ok(prev_token.into_single_span(start))
                 }
             }
-            Token::Minus => {
-                let start = self.position;
-                if self.peek_char_is('>') {
-                    self.next_char();
-                    Ok(Token::Arrow.into_span(start, start + 1))
-                } else if self.peek_char_is('=') {
-                    self.next_char();
-                    Ok(Token::MinusEqual.into_span(start, start + 1))
-                } else {
-                    Ok(prev_token.into_single_span(start))
-                }
-            }
-            Token::Plus => self.single_double_peek_token('=', prev_token, Token::PlusEqual),
-            Token::Star => self.single_double_peek_token('=', prev_token, Token::StarEqual),
-            Token::Percent => self.single_double_peek_token('=', prev_token, Token::PercentEqual),
             Token::Bang => self.single_double_peek_token('=', prev_token, Token::NotEqual),
             Token::Assign => self.single_double_peek_token('=', prev_token, Token::Equal),
+            Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
             Token::Colon => self.single_double_peek_token(':', prev_token, Token::DoubleColon),
             Token::Slash => {
-                let start = self.position;
                 if self.peek_char_is('/') {
                     self.next_char();
                     return self.parse_comment();
-                } else if self.peek_char_is('=') {
-                    self.next_char();
-                    return Ok(Token::SlashEqual.into_span(start, start + 1));
                 }
                 Ok(spanned_prev_token)
             }
@@ -478,11 +460,16 @@ fn test_arithematic_sugar() {
     let input = "+= -= *= /= %=";
 
     let expected = vec![
-        Token::PlusEqual,
-        Token::MinusEqual,
-        Token::StarEqual,
-        Token::SlashEqual,
-        Token::PercentEqual,
+        Token::Plus,
+        Token::Assign,
+        Token::Minus,
+        Token::Assign,
+        Token::Star,
+        Token::Assign,
+        Token::Slash,
+        Token::Assign,
+        Token::Percent,
+        Token::Assign,
     ];
 
     let mut lexer = Lexer::new(input);

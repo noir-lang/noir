@@ -3,10 +3,10 @@ use dep::std;
 fn sort(mut a: [u32; 4]) -> [u32; 4] { 
     for i in 1..4 {
         for j in 0..i {
-            if(a[i] < a[j]) {
+            if a[i] < a[j] {
                 let c = a[j];
                 a[j] = a[i];
-                a[i]= c;
+                a[i] = c;
             }
         }
     }
@@ -201,11 +201,11 @@ fn test5(a : u32) {
 
 fn foo() {
     let mut x = 1;
-    x = x/0;
+    x /= 0;
 }
 
 fn bar(x:Field) {
-    if x ==15 {
+    if x == 15 {
         foo();
     }
 }

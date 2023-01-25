@@ -74,24 +74,14 @@ pub enum Token {
     NotEqual,
     // +
     Plus,
-    // +=
-    PlusEqual,
     // -
     Minus,
-    // -=
-    MinusEqual,
     // *
     Star,
-    // *=
-    StarEqual,
     // /
     Slash,
-    // /=
-    SlashEqual,
     // %
     Percent,
-    // %=
-    PercentEqual,
     // &
     Ampersand,
     // ^
@@ -161,15 +151,10 @@ impl fmt::Display for Token {
             Token::Equal => write!(f, "=="),
             Token::NotEqual => write!(f, "!="),
             Token::Plus => write!(f, "+"),
-            Token::PlusEqual => write!(f, "+="),
             Token::Minus => write!(f, "-"),
-            Token::MinusEqual => write!(f, "-="),
             Token::Star => write!(f, "*"),
-            Token::StarEqual => write!(f, "*="),
             Token::Slash => write!(f, "/"),
-            Token::SlashEqual => write!(f, "/="),
             Token::Percent => write!(f, "%"),
-            Token::PercentEqual => write!(f, "%="),
             Token::Ampersand => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
@@ -238,8 +223,40 @@ impl Token {
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
         self.into_span(position, position)
     }
+
     pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
         SpannedToken(Spanned::from_position(start, end, self))
+    }
+
+    /// These are all the operators allowed as part of
+    /// a short-hand assignment: a <op>= b
+    pub fn assign_shorthand_operators() -> [Token; 10] {
+        use Token::*;
+        [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
+    }
+
+    pub fn try_into_binop(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
+        use crate::BinaryOpKind::*;
+        let binop = match self {
+            Token::Plus => Add,
+            Token::Ampersand => And,
+            Token::Caret => Xor,
+            Token::ShiftLeft => ShiftLeft,
+            Token::ShiftRight => ShiftRight,
+            Token::Pipe => Or,
+            Token::Minus => Subtract,
+            Token::Star => Multiply,
+            Token::Slash => Divide,
+            Token::Equal => Equal,
+            Token::NotEqual => NotEqual,
+            Token::Less => Less,
+            Token::LessEqual => LessEqual,
+            Token::Greater => Greater,
+            Token::GreaterEqual => GreaterEqual,
+            Token::Percent => Modulo,
+            _ => return None,
+        };
+        Some(Spanned::from(span, binop))
     }
 }
 
