@@ -62,7 +62,7 @@ fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    const TEST_DATA_DIR: &str = "tests/check_tests_data";
+    const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
     fn pass() {
