@@ -17,7 +17,7 @@ pub struct Evaluator {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
-    // so it is safer to use a u64, at least until clang is changed
+    // so it is safer to use a u32, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
     public_inputs: Vec<Witness>,
