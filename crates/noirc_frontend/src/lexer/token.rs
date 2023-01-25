@@ -74,14 +74,24 @@ pub enum Token {
     NotEqual,
     // +
     Plus,
+    // +=
+    PlusEqual,
     // -
     Minus,
+    // -=
+    MinusEqual,
     // *
     Star,
+    // *=
+    StarEqual,
     // /
     Slash,
+    // /=
+    SlashEqual,
     // %
     Percent,
+    // %=
+    PercentEqual,
     // &
     Ampersand,
     // ^
@@ -151,10 +161,15 @@ impl fmt::Display for Token {
             Token::Equal => write!(f, "=="),
             Token::NotEqual => write!(f, "!="),
             Token::Plus => write!(f, "+"),
+            Token::PlusEqual => write!(f, "+="),
             Token::Minus => write!(f, "-"),
+            Token::MinusEqual => write!(f, "-="),
             Token::Star => write!(f, "*"),
+            Token::StarEqual => write!(f, "*="),
             Token::Slash => write!(f, "/"),
+            Token::SlashEqual => write!(f, "/="),
             Token::Percent => write!(f, "%"),
+            Token::PercentEqual => write!(f, "%="),
             Token::Ampersand => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
