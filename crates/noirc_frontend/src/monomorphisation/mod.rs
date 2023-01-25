@@ -1,4 +1,4 @@
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -396,11 +396,13 @@ impl Monomorphiser {
             }
             HirPattern::Struct(_, patterns, _) => {
                 let fields = unwrap_struct_type(typ);
-                let patterns = patterns.into_iter().map(|(ident, pattern)| {
+                // We map each pattern to its respective field in a BTreeMap
+                // Fields in struct types are ordered, and doing this map guarantees we extract the correct field index
+                let patterns_map = btree_map(patterns, |(ident, pattern)| {
                     let typ = fields[&ident.0.contents].clone();
-                    (pattern, typ)
+                    (ident.0.contents, (pattern, typ))
                 });
-                self.unpack_tuple_pattern(value, patterns)
+                self.unpack_tuple_pattern(value, patterns_map.into_values())
             }
         }
     }
@@ -477,6 +479,10 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
+            HirType::String(size) => {
+                let size = size.array_length().unwrap_or(0);
+                ast::Type::String(size)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
