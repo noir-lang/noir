@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
@@ -552,7 +553,7 @@ impl Monomorphiser {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen')
+    /// Try to evaluate certain builtin functions (currently only 'arraylen', 'modulus_bits')
     /// at their callsite.
     /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
@@ -570,6 +571,12 @@ impl Monomorphiser {
                     let len = typ.array_length().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
                         (len as u128).into(),
+                        ast::Type::Field,
+                    )))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_bits" => {
+                    Some(ast::Expression::Literal(ast::Literal::Integer(
+                        (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
                     )))
                 }
