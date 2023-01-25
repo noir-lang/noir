@@ -1,5 +1,5 @@
 #pragma once
-#include "plonk/proof_system/types/polynomial_manifest.hpp"
+#include "proof_system/types/polynomial_manifest.hpp"
 #include <common/log.hpp>
 #include <transcript/manifest.hpp>
 

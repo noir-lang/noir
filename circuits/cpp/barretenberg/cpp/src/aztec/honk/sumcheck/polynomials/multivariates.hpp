@@ -1,6 +1,5 @@
 #pragma once // just adding these willy-nilly
 #include "numeric/bitop/get_msb.hpp"
-#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include "polynomials/polynomial.hpp"
 #include "proof_system/proving_key/proving_key.hpp"
 #include "transcript/transcript_wrappers.hpp"

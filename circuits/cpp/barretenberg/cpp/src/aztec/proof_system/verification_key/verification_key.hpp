@@ -3,7 +3,7 @@
 #include <srs/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <crypto/sha256/sha256.hpp>
-#include "../types/polynomial_manifest.hpp"
+#include "../../proof_system/types/polynomial_manifest.hpp"
 
 namespace waffle {
 

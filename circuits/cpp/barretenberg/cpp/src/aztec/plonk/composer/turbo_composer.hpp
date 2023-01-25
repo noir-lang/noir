@@ -1,6 +1,5 @@
 #pragma once
 #include "composer_base.hpp"
-#include "../proof_system/types/polynomial_manifest.hpp"
 
 namespace waffle {
 class TurboComposer : public ComposerBase {

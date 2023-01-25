@@ -1,7 +1,6 @@
 #include "composer_base.hpp"
 #include <proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/utils/permutation.hpp>
-#include <plonk/proof_system/verification_key/verification_key.hpp>
 
 namespace waffle {
 

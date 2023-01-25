@@ -1,6 +1,6 @@
 #pragma once
 #include "common/serialize.hpp"
-#include "plonk/proof_system/types/polynomial_manifest.hpp"
+#include "proof_system/types/polynomial_manifest.hpp"
 #include "common/throw_or_abort.hpp"
 #include "ecc/curves/bn254/fr.hpp"
 #include "sumcheck_round.hpp"

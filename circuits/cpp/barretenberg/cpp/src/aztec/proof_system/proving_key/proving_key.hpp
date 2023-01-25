@@ -6,7 +6,7 @@
 
 #include <srs/reference_string/reference_string.hpp>
 #include <plonk/proof_system/constants.hpp>
-#include <plonk/proof_system/types/polynomial_manifest.hpp>
+#include <proof_system/types/polynomial_manifest.hpp>
 #include <unordered_map>
 
 #include "../polynomial_cache/polynomial_cache.hpp"

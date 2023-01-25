@@ -2,7 +2,6 @@
 
 #include <map>
 
-#include "../verification_key/verification_key.hpp"
 namespace waffle {
 
 template <typename Field, typename Transcript, typename program_settings>

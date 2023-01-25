@@ -3,7 +3,7 @@
 #include <srs/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 
-#include <plonk/proof_system/types/polynomial_manifest.hpp>
+#include <proof_system/types/polynomial_manifest.hpp>
 
 #include <plonk/proof_system/utils/linearizer.hpp>
 #include <plonk/proof_system/utils/kate_verification.hpp>

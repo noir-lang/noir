@@ -1,5 +1,3 @@
-#include "verification_key.hpp"
-
 namespace waffle {
 
 /**

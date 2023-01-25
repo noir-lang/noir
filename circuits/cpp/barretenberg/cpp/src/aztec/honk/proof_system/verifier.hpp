@@ -1,7 +1,7 @@
 #pragma once
 #include "../../plonk/proof_system/types/plonk_proof.hpp"
 #include "./program_settings.hpp"
-#include "../../plonk/proof_system/verification_key/verification_key.hpp"
+#include "../../proof_system/verification_key/verification_key.hpp"
 #include <transcript/manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/commitment_scheme.hpp>
 #include "../sumcheck/polynomials/multivariates.hpp"

@@ -5,7 +5,6 @@
 #include "../../primitives/bool/bool.hpp"
 #include "../../primitives/field/field.hpp"
 
-#include "../verification_key/verification_key.hpp"
 #include "../transcript/transcript.hpp"
 
 #include <plonk/proof_system/utils/linearizer.hpp>

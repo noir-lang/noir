@@ -3,7 +3,6 @@
 #include "root_rollup_tx.hpp"
 #include "root_rollup_circuit.hpp"
 #include <proof_system/proving_key/proving_key.hpp>
-#include <plonk/proof_system/verification_key/verification_key.hpp>
 #include "./root_rollup_proof_data.hpp"
 
 namespace rollup {

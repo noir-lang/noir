@@ -12,7 +12,6 @@
 #include <honk/sumcheck/relations/arithmetic_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
-#include "plonk/proof_system/types/polynomial_manifest.hpp"
 #include "polynomials/polynomial.hpp"
 #include "proof_system/flavor/flavor.hpp"
 #include "transcript/transcript_wrappers.hpp"

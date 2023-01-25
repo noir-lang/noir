@@ -1,7 +1,6 @@
 #pragma once
 #include "composer_base.hpp"
 #include "plookup_tables/plookup_tables.hpp"
-#include "../proof_system/types/polynomial_manifest.hpp"
 #include <optional>
 
 namespace waffle {

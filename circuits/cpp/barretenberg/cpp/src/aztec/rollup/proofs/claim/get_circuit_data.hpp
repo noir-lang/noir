@@ -2,7 +2,6 @@
 #include "claim_tx.hpp"
 #include "claim_circuit.hpp"
 #include <proof_system/proving_key/proving_key.hpp>
-#include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include "../compute_circuit_data.hpp"
 #include "../../constants.hpp"

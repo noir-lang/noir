@@ -1,6 +1,6 @@
 #include <crypto/sha256/sha256.hpp>
 #include "verification_key.hpp"
-#include "../constants.hpp"
+#include "../../plonk/proof_system/constants.hpp"
 
 namespace waffle {
 

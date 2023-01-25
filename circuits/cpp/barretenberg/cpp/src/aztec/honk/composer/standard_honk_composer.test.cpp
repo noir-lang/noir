@@ -1,6 +1,7 @@
 #include "standard_honk_composer.hpp"
 #include "common/assert.hpp"
 #include "numeric/uint256/uint256.hpp"
+#include <cstdint>
 #include <honk/proof_system/prover.hpp>
 #include <honk/sumcheck/polynomials/multivariates.hpp>
 #include <honk/utils/public_inputs.hpp>
