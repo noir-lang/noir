@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, create_named_dir, write_to_file, BUILD_DIR};
+use super::{add_std_lib, create_named_dir, write_to_file, TARGET_DIR};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -19,7 +19,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let curr_dir = std::env::current_dir().unwrap();
     let mut circuit_path = PathBuf::new();
-    circuit_path.push(BUILD_DIR);
+    circuit_path.push(TARGET_DIR);
 
     let result = generate_circuit_and_witness_to_disk(
         circuit_name,
