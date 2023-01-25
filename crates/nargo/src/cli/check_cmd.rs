@@ -11,16 +11,16 @@ use std::{
 use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("build").unwrap();
+    let args = args.subcommand_matches("check").unwrap();
     let allow_warnings = args.is_present("allow-warnings");
 
     let package_dir = std::env::current_dir().unwrap();
-    build_from_path(package_dir, allow_warnings)?;
+    check_from_path(package_dir, allow_warnings)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 // This is exposed so that we can run the examples and verify that they pass
-pub fn build_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
+pub fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
@@ -62,7 +62,7 @@ fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    const TEST_DATA_DIR: &str = "tests/build_tests_data";
+    const TEST_DATA_DIR: &str = "tests/check_tests_data";
 
     #[test]
     fn pass() {
@@ -73,7 +73,7 @@ mod tests {
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::build_from_path(path.clone(), false).is_ok(),
+                super::check_from_path(path.clone(), false).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -90,7 +90,7 @@ mod tests {
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::build_from_path(path.clone(), false).is_err(),
+                super::check_from_path(path.clone(), false).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -105,7 +105,7 @@ mod tests {
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(super::build_from_path(path.clone(), true).is_ok(), "path: {}", path.display());
+            assert!(super::check_from_path(path.clone(), true).is_ok(), "path: {}", path.display());
         }
     }
 }
