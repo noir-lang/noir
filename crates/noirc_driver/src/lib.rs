@@ -101,7 +101,7 @@ impl Driver {
 
         // Cannot depend on a binary
         if self.context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-            panic!("crates cannot depend on binaries. {:?} is a binary crate", crate_name)
+            panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
         }
 
         self.context

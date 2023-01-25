@@ -39,6 +39,7 @@ pub enum AbiType {
         sign: Sign,
         width: u32,
     },
+    Boolean,
     Struct {
         #[serde(
             serialize_with = "serialization::serialize_struct_fields",
@@ -80,7 +81,7 @@ pub enum Sign {
 impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
-            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
             AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
             AbiType::String { length } => *length as usize,
@@ -90,7 +91,7 @@ impl AbiType {
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
-            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
             AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
@@ -134,29 +135,12 @@ impl Abi {
         self.parameters.iter().map(|param| param.typ.field_count()).sum()
     }
 
-    pub fn sort(&mut self) {
-        self.parameters.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap())
-    }
-
-    pub fn flattened_param_types(&mut self) -> Vec<AbiType> {
-        let mut new_params = Vec::new();
+    pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
+        let mut map = BTreeMap::new();
         for param in self.parameters.iter() {
-            new_params.extend(Self::flatten_param_type(param.typ.clone()))
+            map.insert(param.name.clone(), param.typ.clone());
         }
-        new_params
-    }
-
-    fn flatten_param_type(typ: AbiType) -> Vec<AbiType> {
-        match typ {
-            AbiType::Struct { fields } => {
-                let mut flat_struct = Vec::new();
-                for (_, param_type) in fields {
-                    flat_struct.extend(Self::flatten_param_type(param_type))
-                }
-                flat_struct
-            }
-            _ => vec![typ],
-        }
+        map
     }
 
     /// ABI with only the public parameters
@@ -276,7 +260,7 @@ impl Abi {
         let mut index = initial_index;
 
         let value = match value_type {
-            AbiType::Field | AbiType::Integer { .. } => {
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
                 let field_element = encoded_inputs[index];
                 index += 1;
 

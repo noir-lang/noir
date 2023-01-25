@@ -448,7 +448,7 @@ where
         array_type(recursive_type_parser.clone(), expr_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         bool_type(),
-        string_type(expr_parser),
+        string_type(),
         function_type(recursive_type_parser),
     ))
 }
@@ -475,13 +475,10 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
     maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
-fn string_type<P>(expr_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    P: NoirParser<Expression>,
-{
+fn string_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::String)
         .ignore_then(
-            expr_parser.delimited_by(just(Token::LeftBracket), just(Token::RightBracket)).or_not(),
+            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
         )
         .map(UnresolvedType::String)
 }
@@ -513,6 +510,11 @@ fn generic_type_args(
         .delimited_by(just(Token::Less), just(Token::Greater))
         .or_not()
         .map(Option::unwrap_or_default)
+}
+
+fn type_expression() -> impl NoirParser<Expression> {
+    recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))
+        .labelled("type expression")
 }
 
 fn array_type<T, P>(type_parser: T, expr_parser: P) -> impl NoirParser<UnresolvedType>
@@ -548,7 +550,8 @@ where
 }
 
 fn expression() -> impl ExprParser {
-    recursive(|expr| expression_with_precedence(Precedence::Lowest, expr)).labelled("expression")
+    recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
+        .labelled("expression")
 }
 
 // An expression is a single term followed by 0 or more (OP subexpr)*
@@ -557,18 +560,27 @@ fn expression() -> impl ExprParser {
 fn expression_with_precedence<'a, P>(
     precedence: Precedence,
     expr_parser: P,
+    // True if we should only parse the restricted subset of operators valid within type expressions
+    is_type_expression: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
 {
     if precedence == Precedence::Highest {
-        term(expr_parser).boxed().labelled("term")
+        if is_type_expression {
+            type_expression_term(expr_parser).boxed().labelled("term")
+        } else {
+            term(expr_parser).boxed().labelled("term")
+        }
     } else {
-        expression_with_precedence(precedence.higher(), expr_parser.clone())
+        let next_precedence =
+            if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
+
+        expression_with_precedence(precedence.next(), expr_parser.clone(), is_type_expression)
             .then(
                 then_commit(
                     operator_with_precedence(precedence),
-                    expression_with_precedence(precedence.higher(), expr_parser),
+                    expression_with_precedence(next_precedence, expr_parser, is_type_expression),
                 )
                 .repeated(),
             )
@@ -607,6 +619,17 @@ where
             // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
             // awkward for casts so -a as i32 actually binds as -(a as i32).
             .or(atom_or_right_unary(expr_parser))
+    })
+}
+
+/// The equivalent of a 'term' for use in type expressions. Unlike regular terms, the grammar here
+/// is restricted to no longer include right-unary expressions, unary not, and most atoms.
+fn type_expression_term<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    recursive(move |term_parser| {
+        negation(term_parser).map_with_span(Expression::new).or(type_expression_atom(expr_parser))
     })
 }
 
@@ -781,6 +804,19 @@ where
     .or(parenthesized(expr_parser.clone()))
     .or(tuple(expr_parser))
     .labelled("atom")
+}
+
+/// Atoms within type expressions are limited to only variables, literals, and parenthesized
+/// type expressions.
+fn type_expression_atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+where
+    P: ExprParser + 'a,
+{
+    variable()
+        .or(literal())
+        .map_with_span(Expression::new)
+        .or(parenthesized(expr_parser))
+        .labelled("atom")
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>

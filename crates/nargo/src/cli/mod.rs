@@ -1,4 +1,4 @@
-pub use build_cmd::build_from_path;
+pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use noirc_abi::{
     input_parser::{Format, InputValue},
@@ -17,7 +17,7 @@ use tempdir::TempDir;
 
 use crate::errors::CliError;
 
-mod build_cmd;
+mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
 mod gates_cmd;
@@ -32,7 +32,7 @@ const VERIFIER_INPUT_FILE: &str = "Verifier";
 const SRC_DIR: &str = "src";
 const PKG_FILE: &str = "Nargo.toml";
 const PROOF_EXT: &str = "proof";
-const BUILD_DIR: &str = "build";
+const TARGET_DIR: &str = "target";
 const ACIR_EXT: &str = "acir";
 const WITNESS_EXT: &str = "tr";
 
@@ -50,7 +50,9 @@ pub fn start_cli() {
         .version("0.1")
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(
-            App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()),
+            App::new("check")
+                .about("Checks the constraint system for errors")
+                .arg(allow_warnings.clone()),
         )
         .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
@@ -98,7 +100,7 @@ pub fn start_cli() {
 
     let result = match matches.subcommand_name() {
         Some("new") => new_cmd::run(matches),
-        Some("build") => build_cmd::run(matches),
+        Some("check") => check_cmd::run(matches),
         Some("contract") => contract_cmd::run(matches),
         Some("prove") => prove_cmd::run(matches),
         Some("compile") => compile_cmd::run(matches),
@@ -120,19 +122,19 @@ fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
 }
 
 pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{}` directory", name))
+    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
     let mut file = match File::create(path) {
-        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Err(why) => panic!("couldn't create {display}: {why}"),
         Ok(file) => file,
     };
 
     match file.write_all(bytes) {
-        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
 }

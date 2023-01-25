@@ -11,7 +11,7 @@ mod sha512;
  #[builtin(to_bits)]
 fn to_bits(_x : Field, _bit_size: u32) -> [u1] {}
 
-fn to_bytes(x : Field, byte_size: u32) -> [u8] {
+fn to_le_bytes(x : Field, byte_size: u32) -> [u8] {
     to_radix(x, 256, byte_size)
 }
 

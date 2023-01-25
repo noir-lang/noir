@@ -8,6 +8,7 @@ edition.workspace = true
 
 [build-dependencies]
 dirs.workspace = true
+rustc_version.workspace = true
 
 [dependencies]
 dirs.workspace = true
@@ -31,7 +32,7 @@ tempdir.workspace = true
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/logging" }
 aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/logging" }
-marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "601e24dcb5dcbe72e3de7a33879aaf84e171d541" }
+marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 
 [features]
 default = ["plonk_bn254"]

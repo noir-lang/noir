@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(message : pub str[11], y : Field, hex_as_string : str[4], hex_as_field : Field) {
+fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field : Field) {
     let mut bad_message = "hello world";
 
     constrain message == "hello world";

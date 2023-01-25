@@ -150,6 +150,7 @@ impl IRGenerator {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
+            noirc_abi::AbiType::Boolean => ObjectType::Boolean,
             noirc_abi::AbiType::Array { .. } => {
                 unreachable!("array of arrays are not supported for now")
             }
@@ -566,16 +567,13 @@ impl IRGenerator {
                 Ok(Value::Single(new_var))
             }
             Expression::Literal(Literal::Str(string)) => {
-                let string_as_integers = string
-                    .bytes()
-                    .map(|byte| {
-                        let f = FieldElement::from_be_bytes_reduce(&[byte]);
-                        Expression::Literal(Literal::Integer(
-                            f,
-                            Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
-                        ))
-                    })
-                    .collect::<Vec<_>>();
+                let string_as_integers = vecmap(string.bytes(), |byte| {
+                    let f = FieldElement::from_be_bytes_reduce(&[byte]);
+                    Expression::Literal(Literal::Integer(
+                        f,
+                        Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                    ))
+                });
 
                 let string_arr_literal = ArrayLiteral {
                     contents: string_as_integers,
