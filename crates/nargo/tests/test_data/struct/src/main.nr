@@ -71,7 +71,7 @@ fn main(x: Field, y: Field) {
 
     // Regression test for issue #670
     let Animal { legs, eyes } = get_dog();
-    let six = legs + eyes as Field; // <-- Versus this line
+    let six = legs + eyes as Field;
 
     constrain six == 6;
 }

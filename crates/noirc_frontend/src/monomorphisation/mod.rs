@@ -402,7 +402,7 @@ impl Monomorphiser {
                     let typ = fields[&ident.0.contents].clone();
                     (ident.0.contents, (pattern, typ))
                 });
-                self.unpack_tuple_pattern(value, patterns_map.values().cloned())
+                self.unpack_tuple_pattern(value, patterns_map.into_values())
             }
         }
     }
