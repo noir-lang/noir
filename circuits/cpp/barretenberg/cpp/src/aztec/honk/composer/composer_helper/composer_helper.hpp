@@ -8,6 +8,7 @@
 #include <honk/pcs/commitment_key.hpp>
 #include <proof_system/verification_key/verification_key.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
+#include <proof_system/composer/composer_base.hpp>
 
 #include <utility>
 

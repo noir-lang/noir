@@ -1,7 +1,8 @@
 #include "bit_array.hpp"
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
-#include <plonk/composer/standard_composer.hpp>
+#include <honk/composer/standard_honk_composer.hpp>
+// #include <plonk/composer/standard_composer.hpp>
 
 namespace test_stdlib_bit_array {
 
@@ -12,16 +13,16 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-typedef stdlib::bool_t<waffle::StandardComposer> bool_t;
-typedef stdlib::field_t<waffle::StandardComposer> field_t;
-typedef stdlib::uint32<waffle::StandardComposer> uint32;
-typedef stdlib::witness_t<waffle::StandardComposer> witness_t;
-typedef stdlib::bit_array<waffle::StandardComposer> bit_array;
-typedef stdlib::byte_array<waffle::StandardComposer> byte_array;
+typedef stdlib::bool_t<honk::StandardHonkComposer> bool_t;
+typedef stdlib::field_t<honk::StandardHonkComposer> field_t;
+typedef stdlib::uint32<honk::StandardHonkComposer> uint32;
+typedef stdlib::witness_t<honk::StandardHonkComposer> witness_t;
+typedef stdlib::bit_array<honk::StandardHonkComposer> bit_array;
+typedef stdlib::byte_array<honk::StandardHonkComposer> byte_array;
 
 TEST(stdlib_bit_array, test_uint32_input_output_consistency)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();
@@ -47,7 +48,7 @@ TEST(stdlib_bit_array, test_uint32_input_output_consistency)
 
 TEST(stdlib_bit_array, test_binary_input_output_consistency)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
 
     bit_array test_bit_array = bit_array(&composer, 5);
 
@@ -70,7 +71,7 @@ TEST(stdlib_bit_array, test_binary_input_output_consistency)
 
 TEST(stdlib_bit_array, test_string_input_output_consistency)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
     bit_array test_bit_array = bit_array(&composer, expected);
@@ -82,7 +83,7 @@ TEST(stdlib_bit_array, test_string_input_output_consistency)
 
 TEST(stdlib_bit_array, test_byte_array_conversion)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
     bit_array test_bit_array = bit_array(&composer, expected);
@@ -96,7 +97,7 @@ TEST(stdlib_bit_array, test_byte_array_conversion)
 
 TEST(stdlib_bit_array, test_uint32_vector_constructor)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();

@@ -1,6 +1,7 @@
 #pragma once
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
+#include "honk/composer/standard_honk_composer.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -73,6 +74,7 @@ template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T
 }
 
 EXTERN_STDLIB_TYPE(bool_t);
+extern template class bool_t<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace plonk

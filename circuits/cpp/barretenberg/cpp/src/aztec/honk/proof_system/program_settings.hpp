@@ -16,7 +16,7 @@ class standard_verifier_settings : public waffle::standard_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
 
-    static constexpr size_t num_polys = proving_system::StandardArithmetization::NUM_POLYNOMIALS;
+    static constexpr size_t num_polys = bonk::StandardArithmetization::NUM_POLYNOMIALS;
 };
 
 } // namespace honk

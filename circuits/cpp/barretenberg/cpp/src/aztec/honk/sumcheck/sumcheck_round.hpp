@@ -136,7 +136,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      * @details Should only be called externally with relation_idx equal to 0.
      *
      */
-    template <typename T> void extend_edges(T multivariate, size_t edge_idx)
+    void extend_edges(auto& multivariate, size_t edge_idx)
     {
         for (size_t idx = 0; idx < num_multivariates; idx++) {
             auto edge = Univariate<FF, 2>({ multivariate[idx][edge_idx], multivariate[idx][edge_idx + 1] });

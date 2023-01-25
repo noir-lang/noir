@@ -7,6 +7,7 @@
 
 #include "./plookup/uint.hpp"
 
+#include <honk/composer/standard_honk_composer.hpp>
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/composer/ultra_composer.hpp>

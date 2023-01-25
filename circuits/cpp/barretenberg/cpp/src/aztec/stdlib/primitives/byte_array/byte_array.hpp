@@ -3,6 +3,7 @@
 #include "../composers/composers_fwd.hpp"
 #include "../field/field.hpp"
 #include "../safe_uint/safe_uint.hpp"
+#include "honk/composer/standard_honk_composer.hpp"
 namespace plonk {
 namespace stdlib {
 
@@ -102,6 +103,7 @@ inline std::ostream& operator<<(std::ostream& os, byte_array<ComposerContext> co
 }
 
 EXTERN_STDLIB_TYPE(byte_array);
+extern template class byte_array<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace plonk

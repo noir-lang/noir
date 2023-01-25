@@ -5,6 +5,7 @@
 #include "../bool/bool.hpp"
 #include <common/assert.hpp>
 #include "../field/field.hpp"
+#include "honk/composer/standard_honk_composer.hpp"
 
 // The purpose of this class is to enable positive integer operations without a risk of overflow.
 // Despite the name, it is *not* a "safe" version of the uint class - as operations are positive integer
@@ -283,6 +284,7 @@ inline std::ostream& operator<<(std::ostream& os, safe_uint_t<ComposerContext> c
 }
 
 EXTERN_STDLIB_TYPE(safe_uint_t);
+extern template class safe_uint_t<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace plonk

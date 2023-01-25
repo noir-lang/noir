@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 using namespace barretenberg;
+using namespace bonk;
 
 namespace waffle {
 #define STANDARD_SELECTOR_REFS                                                                                         \
@@ -484,14 +485,14 @@ void StandardComposer::create_fixed_group_add_gate(const fixed_group_add_quad& i
 
 void StandardComposer::create_fixed_group_add_gate_final(const add_quad& in)
 {
-    waffle::fixed_group_add_quad final_round_quad{ .a = in.a,
-                                                   .b = in.b,
-                                                   .c = in.c,
-                                                   .d = in.d,
-                                                   .q_x_1 = fr::zero(),
-                                                   .q_x_2 = fr::zero(),
-                                                   .q_y_1 = fr::zero(),
-                                                   .q_y_2 = fr::zero() };
+    fixed_group_add_quad final_round_quad{ .a = in.a,
+                                           .b = in.b,
+                                           .c = in.c,
+                                           .d = in.d,
+                                           .q_x_1 = fr::zero(),
+                                           .q_x_2 = fr::zero(),
+                                           .q_y_1 = fr::zero(),
+                                           .q_y_2 = fr::zero() };
     create_fixed_group_add_gate(final_round_quad);
 }
 
@@ -555,14 +556,14 @@ std::vector<uint32_t> StandardComposer::decompose_into_base4_accumulators(const 
     return accumulators;
 }
 
-waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint32_t a,
-                                                                     const uint32_t b,
-                                                                     const size_t num_bits,
-                                                                     const bool is_xor_gate)
+accumulator_triple StandardComposer::create_logic_constraint(const uint32_t a,
+                                                             const uint32_t b,
+                                                             const size_t num_bits,
+                                                             const bool is_xor_gate)
 {
     assert_valid_variables({ a, b });
 
-    waffle::accumulator_triple accumulators;
+    accumulator_triple accumulators;
 
     const uint256_t left_witness_value(get_variable(a));
     const uint256_t right_witness_value(get_variable(b));
@@ -708,16 +709,12 @@ uint32_t StandardComposer::put_constant_variable(const barretenberg::fr& variabl
     }
 }
 
-waffle::accumulator_triple StandardComposer::create_and_constraint(const uint32_t a,
-                                                                   const uint32_t b,
-                                                                   const size_t num_bits)
+accumulator_triple StandardComposer::create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, false);
 }
 
-waffle::accumulator_triple StandardComposer::create_xor_constraint(const uint32_t a,
-                                                                   const uint32_t b,
-                                                                   const size_t num_bits)
+accumulator_triple StandardComposer::create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, true);
 }

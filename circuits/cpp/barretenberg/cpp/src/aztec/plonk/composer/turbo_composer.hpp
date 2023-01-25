@@ -1,6 +1,8 @@
 #pragma once
 #include "composer_base.hpp"
 
+using namespace bonk;
+
 namespace waffle {
 class TurboComposer : public ComposerBase {
   public:

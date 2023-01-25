@@ -29,7 +29,7 @@ using FF = barretenberg::fr;
 
 TEST(Sumcheck, Prover)
 {
-    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
 
@@ -112,7 +112,7 @@ TEST(Sumcheck, Prover)
 
 TEST(Sumcheck, ProverAndVerifier)
 {
-    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
     // const size_t max_relation_length = 5;
@@ -197,7 +197,7 @@ TEST(Sumcheck, ProverAndVerifier)
 TEST(Sumcheck, ProverAndVerifierLonger)
 {
     auto run_test = [](bool expect_verified) {
-        const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+        const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
         const size_t multivariate_d(2);
         const size_t multivariate_n(1 << multivariate_d);
         // const size_t max_relation_length = 5;

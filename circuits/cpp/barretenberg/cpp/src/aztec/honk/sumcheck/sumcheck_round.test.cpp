@@ -20,7 +20,7 @@ namespace test_sumcheck_round {
 
 TEST(SumcheckRound, ComputeUnivariateProver)
 {
-    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     // const size_t multivariate_d(1);
     const size_t max_relation_length = 5;
 
@@ -46,7 +46,7 @@ TEST(SumcheckRound, ComputeUnivariateProver)
     std::array<FF, 2> lagrange_first = { 1, 2 };
     std::array<FF, 2> lagrange_last = { 1, 2 };
 
-    std::array<std::span<FF>, proving_system::StandardArithmetization::NUM_POLYNOMIALS> full_polynomials = {
+    std::array<std::span<FF>, bonk::StandardArithmetization::NUM_POLYNOMIALS> full_polynomials = {
         w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
         sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
@@ -72,7 +72,7 @@ TEST(SumcheckRound, ComputeUnivariateProver)
 
 TEST(SumcheckRound, ComputeUnivariateVerifier)
 {
-    const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     // const size_t multivariate_d(1);
     // const size_t multivariate_n(1 << multivariate_d);
     // const size_t max_rezlation_length = 5;
@@ -125,7 +125,7 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
 // {
 //     // arithmetic relation G is deegree 3 in 8 variables
 //     // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-//     const size_t num_polys(proving_system::StandardArithmetization::NUM_POLYNOMIALS);
+//     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
 //     const size_t multivariate_d(2);
 //     const size_t multivariate_n(1 << multivariate_d);
 //     const size_t max_relation_length = 5;

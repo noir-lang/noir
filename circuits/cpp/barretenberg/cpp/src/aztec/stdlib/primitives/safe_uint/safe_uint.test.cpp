@@ -4,9 +4,10 @@
 #include "safe_uint.hpp"
 #include <numeric/random/engine.hpp>
 #include "../byte_array/byte_array.hpp"
-#include <plonk/composer/standard_composer.hpp>
-#include <plonk/composer/ultra_composer.hpp>
-#include <plonk/composer/turbo_composer.hpp>
+#include <honk/composer/standard_honk_composer.hpp>
+// #include <plonk/composer/standard_composer.hpp>
+// #include <plonk/composer/ultra_composer.hpp>
+// #include <plonk/composer/turbo_composer.hpp>
 #include <stdlib/types/types.hpp>
 
 namespace {
@@ -18,6 +19,7 @@ using namespace plonk::stdlib::types;
 namespace test_stdlib_safe_uint {
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
+using Composer = honk::StandardHonkComposer;
 typedef plonk::stdlib::bool_t<Composer> bool_t;
 typedef plonk::stdlib::field_t<Composer> field_t;
 typedef plonk::stdlib::safe_uint_t<Composer> suint_t;
@@ -59,8 +61,8 @@ TEST(stdlib_safeuint, test_constructor_with_value_in_range)
     field_t a(witness_t(&composer, 100));
     suint_t b(a, 7);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -152,8 +154,8 @@ TEST(stdlib_safeuint, test_subtract_method)
     suint_t d(b, 4);
     c = d.subtract(c, 3);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -203,8 +205,8 @@ TEST(stdlib_safeuint, test_minus_operator)
     suint_t d(b, 4);
     c = d - c;
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -247,8 +249,8 @@ TEST(stdlib_safeuint, test_divide_method)
     suint_t d2(b2, 32);
     c2 = d2.divide(c2, 32, 8);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -321,8 +323,8 @@ TEST(stdlib_safeuint, test_div_operator)
 
     a = a / b;
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
@@ -347,8 +349,8 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t d2(b2, 32);
         d2 / c2;
 
-        Prover prover = composer.create_prover();
-        Verifier verifier = composer.create_verifier();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -361,8 +363,8 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        Prover prover = composer.create_prover();
-        Verifier verifier = composer.create_verifier();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -375,8 +377,8 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        Prover prover = composer.create_prover();
-        Verifier verifier = composer.create_verifier();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -389,8 +391,8 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        Prover prover = composer.create_prover();
-        Verifier verifier = composer.create_verifier();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -403,8 +405,8 @@ TEST(stdlib_safeuint, test_divide_operator)
         suint_t c(a, 2);
         suint_t d(b, 5);
         d = d / c;
-        Prover prover = composer.create_prover();
-        Verifier verifier = composer.create_verifier();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -429,8 +431,8 @@ TEST(stdlib_safeuint, test_slice)
     EXPECT_EQ(slice_data[1].get_value(), fr(169));
     EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -453,8 +455,8 @@ TEST(stdlib_safeuint, test_slice_equal_msb_lsb)
     EXPECT_EQ(slice_data[1].get_value(), fr(1));
     EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -479,8 +481,8 @@ TEST(stdlib_safeuint, test_slice_random)
     EXPECT_EQ(slice[1].get_value(), fr(expected1));
     EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
@@ -521,7 +523,7 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
     // const uint32_t delta_idx = composer.add_variable(delta);
 
     // // constraint: other - remainder - delta - 1 == 0
-    // const waffle::add_triple delta_gate{ .a = b.get_witness_index(),
+    //         const add_triple delta_gate{ .a = b.get_witness_index(),
     //                                      .b = remainder.get_witness_index(),
     //                                      .c = delta_idx,
     //                                      .a_scaling = 1,
@@ -536,8 +538,8 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
 
     a.assert_equal(int_val);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
@@ -564,8 +566,8 @@ TEST(stdlib_safeuint, div_remainder_constraint)
 
     a.divide(b, 32, 32, "", supply_bad_witnesses);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);

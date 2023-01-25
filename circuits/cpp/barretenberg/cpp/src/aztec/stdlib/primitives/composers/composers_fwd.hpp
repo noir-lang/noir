@@ -6,6 +6,10 @@ class TurboComposer;
 class UltraComposer;
 } // namespace waffle
 
+namespace honk {
+class StandardHonkComposer;
+} // namespace honk
+
 #define EXTERN_STDLIB_TYPE(stdlib_type)                                                                                \
     extern template class stdlib_type<waffle::StandardComposer>;                                                       \
     extern template class stdlib_type<waffle::TurboComposer>;                                                          \
@@ -21,6 +25,7 @@ class UltraComposer;
     extern template class stdlib_type<waffle::TurboComposer>;
 
 #define EXTERN_STDLIB_BASIC_TYPE_VA(stdlib_type, ...)                                                                  \
+    extern template class stdlib_type<honk::StandardHonkComposer, __VA_ARGS__>;                                        \
     extern template class stdlib_type<waffle::StandardComposer, __VA_ARGS__>;                                          \
     extern template class stdlib_type<waffle::TurboComposer, __VA_ARGS__>;
 

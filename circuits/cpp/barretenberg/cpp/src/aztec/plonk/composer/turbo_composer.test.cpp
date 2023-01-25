@@ -4,6 +4,7 @@
 #include <proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
+using namespace bonk;
 using namespace crypto::pedersen;
 
 namespace {
@@ -281,16 +282,16 @@ TEST(turbo_composer, small_scalar_multipliers)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = composer.add_variable(accumulator_transcript[i]);
         round_quad.a = composer.add_variable(multiplication_transcript[i].x);
         round_quad.b = composer.add_variable(multiplication_transcript[i].y);
@@ -312,15 +313,15 @@ TEST(turbo_composer, small_scalar_multipliers)
         }
     }
 
-    waffle::add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
-                               composer.add_variable(multiplication_transcript[num_quads].y),
-                               composer.add_variable(x_alpha),
-                               composer.add_variable(accumulator_transcript[num_quads]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
+                       composer.add_variable(multiplication_transcript[num_quads].y),
+                       composer.add_variable(x_alpha),
+                       composer.add_variable(accumulator_transcript[num_quads]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     composer.create_big_add_gate(add_quad);
 
     grumpkin::g1::element expected_point =
@@ -411,16 +412,16 @@ TEST(turbo_composer, large_scalar_multipliers)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = composer.add_variable(accumulator_transcript[i]);
         round_quad.a = composer.add_variable(multiplication_transcript[i].x);
         round_quad.b = composer.add_variable(multiplication_transcript[i].y);
@@ -442,15 +443,15 @@ TEST(turbo_composer, large_scalar_multipliers)
         }
     }
 
-    waffle::add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
-                               composer.add_variable(multiplication_transcript[num_quads].y),
-                               composer.add_variable(x_alpha),
-                               composer.add_variable(accumulator_transcript[num_quads]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
+                       composer.add_variable(multiplication_transcript[num_quads].y),
+                       composer.add_variable(x_alpha),
+                       composer.add_variable(accumulator_transcript[num_quads]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     composer.create_big_add_gate(add_quad);
 
     grumpkin::g1::element expected_point =
@@ -559,8 +560,7 @@ TEST(turbo_composer, and_constraint_failure)
     uint32_t right_witness_index = composer.add_variable(right_witness_value);
 
     // 4 && 5 is 4, so 3 bits are needed, but we only constrain 2
-    waffle::accumulator_triple accumulators =
-        composer.create_and_constraint(left_witness_index, right_witness_index, 2);
+    accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -595,7 +595,7 @@ TEST(turbo_composer, and_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        waffle::accumulator_triple accumulators =
+        accumulator_triple accumulators =
             composer.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
         // composer.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
@@ -665,8 +665,7 @@ TEST(turbo_composer, xor_constraint_failure)
     uint32_t right_witness_index = composer.add_variable(right_witness_value);
 
     // 4 && 1 is 5, so 3 bits are needed, but we only constrain 2
-    waffle::accumulator_triple accumulators =
-        composer.create_and_constraint(left_witness_index, right_witness_index, 2);
+    accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -701,7 +700,7 @@ TEST(turbo_composer, xor_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        waffle::accumulator_triple accumulators =
+        accumulator_triple accumulators =
             composer.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
@@ -768,15 +767,15 @@ TEST(turbo_composer, big_add_gate_with_bit_extract)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        waffle::add_quad gate{ composer.add_variable(uint256_t(input)),
-                               composer.add_variable(uint256_t(output)),
-                               right_idx,
-                               left_idx,
-                               fr(6),
-                               -fr(6),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+        add_quad gate{ composer.add_variable(uint256_t(input)),
+                       composer.add_variable(uint256_t(output)),
+                       right_idx,
+                       left_idx,
+                       fr(6),
+                       -fr(6),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
 
         composer.create_big_add_gate_with_bit_extraction(gate);
     };
@@ -1050,16 +1049,16 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = composer.add_variable(accumulator_transcript[i]);
         round_quad.a = composer.add_variable(multiplication_transcript[i].x);
         round_quad.b = composer.add_variable(multiplication_transcript[i].y);
@@ -1081,15 +1080,15 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
         }
     }
 
-    waffle::add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
-                               composer.add_variable(multiplication_transcript[num_quads].y),
-                               composer.add_variable(x_alpha),
-                               composer.add_variable(accumulator_transcript[num_quads]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ composer.add_variable(multiplication_transcript[num_quads].x),
+                       composer.add_variable(multiplication_transcript[num_quads].y),
+                       composer.add_variable(x_alpha),
+                       composer.add_variable(accumulator_transcript[num_quads]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     composer.create_big_add_gate(add_quad);
 
     grumpkin::g1::element expected_point =
@@ -1154,7 +1153,7 @@ TEST(turbo_composer, test_check_circuit_xor)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        waffle::accumulator_triple accumulators =
+        accumulator_triple accumulators =
             composer.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
     }
 

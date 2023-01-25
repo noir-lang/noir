@@ -2,6 +2,7 @@
 #include "uint.hpp"
 
 using namespace barretenberg;
+using namespace bonk;
 
 namespace plonk {
 namespace stdlib {
@@ -25,7 +26,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator+(const u
     const uint256_t overflow = sum >> width;
     const uint256_t remainder = sum & MASK;
 
-    const waffle::add_quad gate{
+    const add_quad gate{
         is_constant() ? ctx->zero_idx : witness_index,
         other.is_constant() ? ctx->zero_idx : other.witness_index,
         ctx->add_variable(remainder),
@@ -70,7 +71,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator-(const u
     const uint256_t overflow = difference >> width;
     const uint256_t remainder = difference & MASK;
 
-    const waffle::add_quad gate{
+    const add_quad gate{
         lhs_idx,
         rhs_idx,
         ctx->add_variable(remainder),
@@ -112,7 +113,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator*(const u
     const uint256_t overflow = product >> width;
     const uint256_t remainder = product & MASK;
 
-    const waffle::mul_quad gate{
+    const mul_quad gate{
         witness_index,
         rhs_idx,
         ctx->add_variable(remainder),
@@ -209,7 +210,7 @@ std::pair<uint_plookup<Composer, Native>, uint_plookup<Composer, Native>> uint_p
     const uint32_t quotient_idx = ctx->add_variable(q);
     const uint32_t remainder_idx = ctx->add_variable(r);
 
-    const waffle::mul_quad division_gate{
+    const mul_quad division_gate{
         quotient_idx,            // q
         divisor_idx,             // b
         dividend_idx,            // a
@@ -227,7 +228,7 @@ std::pair<uint_plookup<Composer, Native>, uint_plookup<Composer, Native>> uint_p
     const uint256_t delta = divisor - r;
 
     const uint32_t delta_idx = ctx->add_variable(delta);
-    const waffle::add_triple delta_gate{
+    const add_triple delta_gate{
         divisor_idx,             // b
         remainder_idx,           // r
         delta_idx,               // d

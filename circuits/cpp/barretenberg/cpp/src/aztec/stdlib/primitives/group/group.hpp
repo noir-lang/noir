@@ -6,6 +6,9 @@
 #include <crypto/pedersen/pedersen.hpp>
 
 #include "../../hash/pedersen/pedersen.hpp"
+
+using namespace bonk;
+
 namespace plonk {
 namespace stdlib {
 
@@ -152,15 +155,15 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     fr x_alpha = accumulator_offset;
     std::vector<uint32_t> accumulator_witnesses;
     for (size_t i = 0; i < num_quads; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
         round_quad.a = ctx->add_variable(multiplication_transcript[i].x);
         round_quad.b = ctx->add_variable(multiplication_transcript[i].y);
@@ -191,15 +194,15 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
         accumulator_witnesses.push_back(round_quad.d);
     }
 
-    waffle::add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
-                               ctx->add_variable(multiplication_transcript[num_quads].y),
-                               ctx->add_variable(x_alpha),
-                               ctx->add_variable(accumulator_transcript[num_quads]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
+                       ctx->add_variable(multiplication_transcript[num_quads].y),
+                       ctx->add_variable(x_alpha),
+                       ctx->add_variable(accumulator_transcript[num_quads]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     ctx->create_big_add_gate(add_quad);
     accumulator_witnesses.push_back(add_quad.d);
 

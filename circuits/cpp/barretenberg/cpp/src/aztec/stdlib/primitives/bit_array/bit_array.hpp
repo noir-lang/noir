@@ -1,6 +1,7 @@
 #pragma once
 #include "../composers/composers_fwd.hpp"
 #include "../uint/uint.hpp"
+#include "honk/composer/standard_honk_composer.hpp"
 #include <algorithm>
 
 namespace plonk {
@@ -181,6 +182,7 @@ template <typename ComposerContext> class bit_array {
 };
 
 EXTERN_STDLIB_TYPE(bit_array);
+extern template class bit_array<honk::StandardHonkComposer>;
 
 } // namespace stdlib
 } // namespace plonk

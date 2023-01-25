@@ -1,5 +1,6 @@
 #include "byte_array.hpp"
 #include <gtest/gtest.h>
+#include <honk/composer/standard_honk_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/composer/ultra_composer.hpp>
 
@@ -7,7 +8,7 @@
 namespace test_stdlib_byte_array {
 using namespace barretenberg;
 using namespace plonk;
-typedef waffle::TurboComposer Composer;
+typedef honk::StandardHonkComposer Composer;
 typedef stdlib::bool_t<Composer> bool_t;
 typedef stdlib::field_t<Composer> field_t;
 typedef stdlib::witness_t<Composer> witness_t;

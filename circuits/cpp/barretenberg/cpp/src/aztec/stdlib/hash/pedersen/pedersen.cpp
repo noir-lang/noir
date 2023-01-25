@@ -11,6 +11,7 @@ namespace stdlib {
 
 using namespace barretenberg;
 using namespace crypto::pedersen;
+using namespace bonk;
 
 namespace {
 /**
@@ -161,10 +162,10 @@ point<C> pedersen<C>::hash_single(const field_t& in,
 
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     /**
      * Fill the gates as following:
@@ -197,7 +198,7 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     fr x_alpha = accumulator_offset;
     std::vector<uint32_t> accumulator_witnesses;
     for (size_t i = 0; i < num_quads; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
         round_quad.a = ctx->add_variable(multiplication_transcript[i].x);
         round_quad.b = ctx->add_variable(multiplication_transcript[i].y);
@@ -242,16 +243,16 @@ point<C> pedersen<C>::hash_single(const field_t& in,
                  *        - init_quad.q_x_2 * round_quad.d
                  *        + init_quad.q_x_2
                  * */
-                waffle::mul_quad x_init_quad{ .a = round_quad.a,
-                                              .b = round_quad.c,
-                                              .c = 0,
-                                              .d = round_quad.d,
-                                              .mul_scaling = -1,
-                                              .a_scaling = 0,
-                                              .b_scaling = init_quad.q_x_1,
-                                              .c_scaling = 0,
-                                              .d_scaling = -init_quad.q_x_2,
-                                              .const_scaling = init_quad.q_x_2 };
+                mul_quad x_init_quad{ .a = round_quad.a,
+                                      .b = round_quad.c,
+                                      .c = 0,
+                                      .d = round_quad.d,
+                                      .mul_scaling = -1,
+                                      .a_scaling = 0,
+                                      .b_scaling = init_quad.q_x_1,
+                                      .c_scaling = 0,
+                                      .d_scaling = -init_quad.q_x_2,
+                                      .const_scaling = init_quad.q_x_2 };
                 ctx->create_big_mul_gate(x_init_quad);
             }
             ctx->create_fixed_group_add_gate_with_init(round_quad, init_quad);
@@ -262,15 +263,15 @@ point<C> pedersen<C>::hash_single(const field_t& in,
 
     // In Turbo PLONK, this effectively just adds the last row of the table as witnesses.
     // In Standard PLONK, this also creates the constraint involving the final two rows.
-    waffle::add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
-                               ctx->add_variable(multiplication_transcript[num_quads].y),
-                               ctx->add_variable(x_alpha),
-                               ctx->add_variable(accumulator_transcript[num_quads]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
+                       ctx->add_variable(multiplication_transcript[num_quads].y),
+                       ctx->add_variable(x_alpha),
+                       ctx->add_variable(accumulator_transcript[num_quads]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     ctx->create_fixed_group_add_gate_final(add_quad);
     accumulator_witnesses.push_back(add_quad.d);
 

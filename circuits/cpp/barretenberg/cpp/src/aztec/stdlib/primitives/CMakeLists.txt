@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_primitives plonk)
+barretenberg_module(stdlib_primitives plonk honk)

@@ -222,7 +222,7 @@ TYPED_TEST(VerifierTests, VerifyArithmeticProofSmall)
 
     StandardUnrolledProver prover = TestFixture::generate_test_data(n);
 
-    StandardVerifier verifier = TestFixture::generate_verifier(prover.proving_key);
+    StandardVerifier verifier = TestFixture::generate_verifier(prover.key);
 
     // construct proof
     waffle::plonk_proof proof = prover.construct_proof();

@@ -35,9 +35,9 @@ template <typename settings>
 Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const transcript::Manifest& input_manifest)
     : n(input_key == nullptr ? 0 : input_key->n)
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
-    , proving_key(input_key)
+    , key(input_key)
     , commitment_key(nullptr) // TODO(Cody): Need better constructors for prover.
-// , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed 
+// , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed
 {}
 
 /**
@@ -57,7 +57,7 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
         std::string wire_tag = "w_" + std::to_string(i + 1) + "_lagrange";
         std::string commit_tag = "W_" + std::to_string(i + 1);
 
-        std::span<Fr> wire_polynomial = proving_key->polynomial_cache.get(wire_tag);
+        std::span<Fr> wire_polynomial = key->polynomial_cache.get(wire_tag);
         auto commitment = commitment_key->commit(wire_polynomial);
 
         transcript.add_element(commit_tag, commitment.to_buffer());
@@ -100,8 +100,8 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     Fr* numererator_accum[program_width];
     Fr* denominator_accum[program_width];
     for (size_t i = 0; i < program_width; ++i) {
-        numererator_accum[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * proving_key->n));
-        denominator_accum[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * proving_key->n));
+        numererator_accum[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->n));
+        denominator_accum[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->n));
     }
 
     // Populate wire and permutation polynomials
@@ -110,15 +110,15 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     for (size_t i = 0; i < program_width; ++i) {
         std::string wire_id = "w_" + std::to_string(i + 1) + "_lagrange";
         std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
-        wires[i] = proving_key->polynomial_cache.get(wire_id).get_coefficients();
-        sigmas[i] = proving_key->polynomial_cache.get(sigma_id).get_coefficients();
+        wires[i] = key->polynomial_cache.get(wire_id).get_coefficients();
+        sigmas[i] = key->polynomial_cache.get(sigma_id).get_coefficients();
     }
 
     // Step (1)
-    for (size_t i = 0; i < proving_key->n; ++i) {
+    for (size_t i = 0; i < key->n; ++i) {
         for (size_t k = 0; k < program_width; ++k) {
             // TODO(luke): maybe this idx is replaced by proper ID polys in the future
-            Fr idx = k * proving_key->n + i;
+            Fr idx = k * key->n + i;
             numererator_accum[k][i] = wires[k][i] + (idx * beta) + gamma;          // w_k(i) + β.(k*n+i) + γ
             denominator_accum[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
         }
@@ -126,14 +126,14 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Step (2)
     for (size_t k = 0; k < program_width; ++k) {
-        for (size_t i = 0; i < proving_key->n - 1; ++i) {
+        for (size_t i = 0; i < key->n - 1; ++i) {
             numererator_accum[k][i + 1] *= numererator_accum[k][i];
             denominator_accum[k][i + 1] *= denominator_accum[k][i];
         }
     }
 
     // Step (3)
-    for (size_t i = 0; i < proving_key->n; ++i) {
+    for (size_t i = 0; i < key->n; ++i) {
         for (size_t k = 1; k < program_width; ++k) {
             numererator_accum[0][i] *= numererator_accum[k][i];
             denominator_accum[0][i] *= denominator_accum[k][i];
@@ -146,12 +146,12 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     // numererator_accum[0].
     Fr* inversion_coefficients = &denominator_accum[1][0]; // arbitrary scratch space
     Fr inversion_accumulator = Fr::one();
-    for (size_t i = 0; i < proving_key->n; ++i) {
+    for (size_t i = 0; i < key->n; ++i) {
         inversion_coefficients[i] = numererator_accum[0][i] * inversion_accumulator;
         inversion_accumulator *= denominator_accum[0][i];
     }
     inversion_accumulator = inversion_accumulator.invert(); // perform single inversion per thread
-    for (size_t i = proving_key->n - 1; i != size_t(0) - 1; --i) {
+    for (size_t i = key->n - 1; i != size_t(0) - 1; --i) {
         // TODO(luke): What needs to be done Re the comment below:
         // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
         numererator_accum[0][i] = inversion_accumulator * inversion_coefficients[i];
@@ -160,9 +160,9 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Construct permutation polynomial 'z_perm' in lagrange form as:
     // z_perm = [1 numererator_accum[0][0] numererator_accum[0][1] ... numererator_accum[0][n-2]]
-    Polynomial z_perm(proving_key->n, proving_key->n);
+    Polynomial z_perm(key->n, key->n);
     z_perm[0] = Fr::one();
-    copy_polynomial(numererator_accum[0], &z_perm[1], proving_key->n - 1, proving_key->n - 1);
+    copy_polynomial(numererator_accum[0], &z_perm[1], key->n - 1, key->n - 1);
 
     // free memory allocated for scratch space
     for (size_t k = 0; k < program_width; ++k) {
@@ -172,7 +172,7 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // TODO(luke): Commit to z_perm here? This would match Plonk but maybe best to do separately?
 
-    proving_key->polynomial_cache.put("z_perm_lagrange", std::move(z_perm));
+    key->polynomial_cache.put("z_perm_lagrange", std::move(z_perm));
 }
 
 /**
@@ -197,10 +197,10 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
                              static_cast<uint8_t>(n) });
 
     transcript.add_element("public_input_size",
-                           { static_cast<uint8_t>(proving_key->num_public_inputs >> 24),
-                             static_cast<uint8_t>(proving_key->num_public_inputs >> 16),
-                             static_cast<uint8_t>(proving_key->num_public_inputs >> 8),
-                             static_cast<uint8_t>(proving_key->num_public_inputs) });
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
+                             static_cast<uint8_t>(key->num_public_inputs >> 16),
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
 
     transcript.apply_fiat_shamir("init");
 }
@@ -220,9 +220,9 @@ template <typename settings> void Prover<settings>::execute_wire_commitments_rou
     compute_wire_commitments();
 
     // Add public inputs to transcript
-    const Polynomial& public_wires_source = proving_key->polynomial_cache.get("w_2_lagrange");
+    const Polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
     std::vector<Fr> public_wires;
-    for (size_t i = 0; i < proving_key->num_public_inputs; ++i) {
+    for (size_t i = 0; i < key->num_public_inputs; ++i) {
         public_wires.push_back(public_wires_source[i]);
     }
     transcript.add_element("public_inputs", ::to_buffer(public_wires));
@@ -262,7 +262,7 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
     auto beta = transcript.get_challenge_field_element("beta", 0);
     auto gamma = transcript.get_challenge_field_element("beta", 1);
     compute_grand_product_polynomial(beta, gamma);
-    std::span<Fr> z_perm = proving_key->polynomial_cache.get("z_perm_lagrange");
+    std::span<Fr> z_perm = key->polynomial_cache.get("z_perm_lagrange");
     auto commitment = commitment_key->commit(z_perm);
     transcript.add_element("Z_PERM", commitment.to_buffer());
 }
@@ -294,7 +294,7 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
     // Compute alpha challenge
     transcript.apply_fiat_shamir("alpha");
 
-    auto multivariates = Multivariates(proving_key);
+    auto multivariates = Multivariates(key);
     auto sumcheck = Sumcheck(multivariates, transcript);
 
     sumcheck.execute_prover();
@@ -326,13 +326,13 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     // are not needed in the proof itself.
 
     // Construct MLE opening point
-    for (size_t round_idx = 0; round_idx < proving_key->log_n; round_idx++) {
+    for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
         std::string label = "u_" + std::to_string(round_idx + 1);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
     // Construct opening claims and polynomials
-    for (auto& entry : proving_key->polynomial_manifest.get()) {
+    for (auto& entry : key->polynomial_manifest.get()) {
         std::string label(entry.polynomial_label);
         std::string commitment_label(entry.commitment_label);
         auto evaluation = Fr::serialize_from_buffer(&transcript.get_element(label)[0]);
@@ -344,13 +344,13 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
             commitment = barretenberg::g1::affine_one; // mock commitment
         }
         opening_claims.emplace_back(commitment, evaluation);
-        multivariate_polynomials.emplace_back(&proving_key->polynomial_cache.get(label));
+        multivariate_polynomials.emplace_back(&key->polynomial_cache.get(label));
         if (entry.requires_shifted_evaluation) {
             // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
             // evaluation p_shift(u), but the UNSHIFTED polynomial p and its UNSHIFTED commitment [p].
             auto shifted_evaluation = Fr::serialize_from_buffer(&transcript.get_element(label + "_shift")[0]);
             opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
-            multivariate_polynomials_shifted.emplace_back(&proving_key->polynomial_cache.get(label));
+            multivariate_polynomials_shifted.emplace_back(&key->polynomial_cache.get(label));
         }
     }
 

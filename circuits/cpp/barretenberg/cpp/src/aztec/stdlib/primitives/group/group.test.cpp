@@ -1,13 +1,20 @@
 #include "../../types/types.hpp"
+#include "honk/composer/standard_honk_composer.hpp"
+#include "stdlib/primitives/witness/witness.hpp"
 #include <common/test.hpp>
 #include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
-
+// using namespace plonk::stdlib::types;
+namespace stdlib_group_tests {
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
+
+using Composer = honk::StandardHonkComposer;
+using witness_ct = plonk::stdlib::witness_t<Composer>;
+using field_ct = plonk::stdlib::field_t<Composer>;
+using group_ct = plonk::stdlib::group<Composer>;
 
 TEST(stdlib_group, test_fixed_base_scalar_mul)
 {
@@ -86,3 +93,4 @@ TEST(stdlib_group, test_fixed_base_scalar_mul_with_two_limbs)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
+} // namespace stdlib_group_tests

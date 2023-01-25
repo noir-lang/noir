@@ -2,6 +2,7 @@
 #include "uint.hpp"
 
 using namespace barretenberg;
+using namespace bonk;
 
 namespace plonk {
 namespace stdlib {
@@ -79,7 +80,7 @@ uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) cons
      * is {0, 1, 2}.
      **/
 
-    const waffle::add_quad gate{
+    const add_quad gate{
         .a = witness_index,
         .b = other.witness_index,
         .c = ctx->add_variable(remainder),
@@ -160,7 +161,7 @@ uint<Composer, Native> uint<Composer, Native>::operator-(const uint& other) cons
     //   witness - other_witness - remainder - 2**width . overflow + (2**width + constant_term) == 0
     // and
     //   overflow in {0, 1, 2}
-    const waffle::add_quad gate{
+    const add_quad gate{
         .a = lhs_idx,
         .b = rhs_idx,
         .c = ctx->add_variable(remainder),
@@ -231,7 +232,7 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
      *      ab + a const_b + b const_a - r - (2**width) overflow + (const_a const_b % 2**width) == 0
      */
 
-    const waffle::mul_quad gate{
+    const mul_quad gate{
         .a = witness_index, // a
         .b = rhs_idx,       // b
         .c = ctx->add_variable(remainder),
@@ -343,16 +344,16 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
 
     // constraint: qb + const_b q + 0 b - a + r - const_a == 0
     // i.e., a + const_a = q(b + const_b) + r
-    const waffle::mul_quad division_gate{ .a = quotient_idx,  // q
-                                          .b = divisor_idx,   // b
-                                          .c = dividend_idx,  // a
-                                          .d = remainder_idx, // r
-                                          .mul_scaling = fr::one(),
-                                          .a_scaling = other.additive_constant,
-                                          .b_scaling = fr::zero(),
-                                          .c_scaling = fr::neg_one(),
-                                          .d_scaling = fr::one(),
-                                          .const_scaling = -fr(additive_constant) };
+    const mul_quad division_gate{ .a = quotient_idx,  // q
+                                  .b = divisor_idx,   // b
+                                  .c = dividend_idx,  // a
+                                  .d = remainder_idx, // r
+                                  .mul_scaling = fr::one(),
+                                  .a_scaling = other.additive_constant,
+                                  .b_scaling = fr::zero(),
+                                  .c_scaling = fr::neg_one(),
+                                  .d_scaling = fr::one(),
+                                  .const_scaling = -fr(additive_constant) };
     ctx->create_big_mul_gate(division_gate);
 
     // set delta = (b + const_b - r - 1)
@@ -360,13 +361,13 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     const uint32_t delta_idx = ctx->add_variable(delta);
 
     // constraint: b - r - delta + const_b - 1 == 0
-    const waffle::add_triple delta_gate{ .a = divisor_idx,
-                                         .b = remainder_idx,
-                                         .c = delta_idx,
-                                         .a_scaling = fr::one(),
-                                         .b_scaling = fr::neg_one(),
-                                         .c_scaling = fr::neg_one(),
-                                         .const_scaling = other.additive_constant + fr::neg_one() };
+    const add_triple delta_gate{ .a = divisor_idx,
+                                 .b = remainder_idx,
+                                 .c = delta_idx,
+                                 .a_scaling = fr::one(),
+                                 .b_scaling = fr::neg_one(),
+                                 .c_scaling = fr::neg_one(),
+                                 .const_scaling = other.additive_constant + fr::neg_one() };
 
     ctx->create_add_gate(delta_gate);
 
@@ -400,6 +401,11 @@ template class uint<waffle::StandardComposer, uint8_t>;
 template class uint<waffle::StandardComposer, uint16_t>;
 template class uint<waffle::StandardComposer, uint32_t>;
 template class uint<waffle::StandardComposer, uint64_t>;
+
+template class uint<honk::StandardHonkComposer, uint8_t>;
+template class uint<honk::StandardHonkComposer, uint16_t>;
+template class uint<honk::StandardHonkComposer, uint32_t>;
+template class uint<honk::StandardHonkComposer, uint64_t>;
 
 } // namespace stdlib
 } // namespace plonk

@@ -45,7 +45,7 @@ template <typename settings> class Prover {
     // TODO(luke): maybe pointer instead?
     transcript::StandardTranscript transcript;
 
-    std::shared_ptr<waffle::proving_key> proving_key;
+    std::shared_ptr<waffle::proving_key> key;
 
     std::shared_ptr<pcs::kzg::CommitmentKey> commitment_key;
 

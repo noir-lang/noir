@@ -5,6 +5,7 @@
 #include <proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
+using namespace bonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -286,7 +287,7 @@ TEST(standard_composer, and_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        waffle::accumulator_triple accumulators =
+        accumulator_triple accumulators =
             composer.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
         // composer.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
@@ -357,7 +358,7 @@ TEST(standard_composer, xor_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        waffle::accumulator_triple accumulators =
+        accumulator_triple accumulators =
             composer.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
@@ -424,15 +425,15 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        waffle::add_quad gate{ composer.add_variable(uint256_t(input)),
-                               composer.add_variable(uint256_t(output)),
-                               right_idx,
-                               left_idx,
-                               fr(6),
-                               -fr(6),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+        add_quad gate{ composer.add_variable(uint256_t(input)),
+                       composer.add_variable(uint256_t(output)),
+                       right_idx,
+                       left_idx,
+                       fr(6),
+                       -fr(6),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
 
         composer.create_big_add_gate_with_bit_extraction(gate);
     };
@@ -468,15 +469,15 @@ TEST(standard_composer, test_unrolled_composer)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        waffle::add_quad gate{ composer.add_variable(uint256_t(input)),
-                               composer.add_variable(uint256_t(output)),
-                               right_idx,
-                               left_idx,
-                               fr(6),
-                               -fr(6),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+        add_quad gate{ composer.add_variable(uint256_t(input)),
+                       composer.add_variable(uint256_t(output)),
+                       right_idx,
+                       left_idx,
+                       fr(6),
+                       -fr(6),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
 
         composer.create_big_add_gate_with_bit_extraction(gate);
     };
@@ -582,12 +583,12 @@ TEST(standard_composer, test_fixed_group_add_gate_with_init)
     for (size_t i = 0; i < 2; ++i) {
         fr starting_accumulator = origin_accumulators[i]; // skew = 0
 
-        waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                                 (origin_points[0].x - origin_points[1].x),
-                                                 origin_points[0].y,
-                                                 (origin_points[0].y - origin_points[1].y) };
+        fixed_group_init_quad init_quad{ origin_points[0].x,
+                                         (origin_points[0].x - origin_points[1].x),
+                                         origin_points[0].y,
+                                         (origin_points[0].y - origin_points[1].y) };
 
-        waffle::fixed_group_add_quad round_quad{
+        fixed_group_add_quad round_quad{
             .a = composer.add_variable(origin_points[i].x),
             .b = composer.add_variable(origin_points[i].y),
             .c = composer.add_variable(accumulator_offset),
@@ -674,14 +675,14 @@ TEST(standard_composer, test_fixed_group_add_gate)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
-                                             (origin_points[0].x - origin_points[1].x),
-                                             origin_points[0].y,
-                                             (origin_points[0].y - origin_points[1].y) };
+    fixed_group_init_quad init_quad{ origin_points[0].x,
+                                     (origin_points[0].x - origin_points[1].x),
+                                     origin_points[0].y,
+                                     (origin_points[0].y - origin_points[1].y) };
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < 2; ++i) {
-        waffle::fixed_group_add_quad round_quad;
+        fixed_group_add_quad round_quad;
         round_quad.d = composer.add_variable(accumulator_transcript[i]);
         round_quad.a = composer.add_variable(multiplication_transcript[i].x);
         round_quad.b = composer.add_variable(multiplication_transcript[i].y);
@@ -712,15 +713,15 @@ TEST(standard_composer, test_fixed_group_add_gate)
         }
     }
 
-    waffle::add_quad add_quad{ composer.add_variable(multiplication_transcript[2].x),
-                               composer.add_variable(multiplication_transcript[2].y),
-                               composer.add_variable(x_alpha),
-                               composer.add_variable(accumulator_transcript[2]),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero(),
-                               fr::zero() };
+    add_quad add_quad{ composer.add_variable(multiplication_transcript[2].x),
+                       composer.add_variable(multiplication_transcript[2].y),
+                       composer.add_variable(x_alpha),
+                       composer.add_variable(accumulator_transcript[2]),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero(),
+                       fr::zero() };
     composer.create_fixed_group_add_gate_final(add_quad);
     waffle::Prover prover = composer.create_prover();
 

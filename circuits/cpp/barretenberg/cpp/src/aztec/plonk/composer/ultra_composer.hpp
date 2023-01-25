@@ -3,6 +3,8 @@
 #include "plookup_tables/plookup_tables.hpp"
 #include <optional>
 
+using namespace bonk;
+
 namespace waffle {
 
 class UltraComposer : public ComposerBase {
