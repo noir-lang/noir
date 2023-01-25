@@ -278,7 +278,7 @@ impl Abi {
                 let final_string = decode_string_value(field_elements);
 
                 index += *length as usize;
-                InputValue::String(final_string.to_owned())
+                InputValue::String(final_string)
             }
             AbiType::Struct { fields, .. } => {
                 let mut struct_map = BTreeMap::new();
