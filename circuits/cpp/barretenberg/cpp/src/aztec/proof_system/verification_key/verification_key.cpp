@@ -10,6 +10,7 @@ verification_key::verification_key(const size_t num_gates,
                                    uint32_t composer_type_)
     : composer_type(composer_type_)
     , n(num_gates)
+    , log_n(numeric::get_msb(num_gates))
     , num_public_inputs(num_inputs)
     , domain(n)
     , reference_string(crs)
@@ -19,6 +20,7 @@ verification_key::verification_key(const size_t num_gates,
 verification_key::verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs)
     : composer_type(data.composer_type)
     , n(data.n)
+    , log_n(numeric::get_msb(data.n))
     , num_public_inputs(data.num_public_inputs)
     , domain(n)
     , reference_string(crs)
@@ -32,6 +34,7 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
 verification_key::verification_key(const verification_key& other)
     : composer_type(other.composer_type)
     , n(other.n)
+    , log_n(numeric::get_msb(other.n))
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
@@ -45,6 +48,7 @@ verification_key::verification_key(const verification_key& other)
 verification_key::verification_key(verification_key&& other)
     : composer_type(other.composer_type)
     , n(other.n)
+    , log_n(numeric::get_msb(other.n))
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
@@ -59,6 +63,7 @@ verification_key& verification_key::operator=(verification_key&& other)
 {
     composer_type = other.composer_type;
     n = other.n;
+    log_n = numeric::get_msb(other.n);
     num_public_inputs = other.num_public_inputs;
     reference_string = std::move(other.reference_string);
     constraint_selectors = std::move(other.constraint_selectors);

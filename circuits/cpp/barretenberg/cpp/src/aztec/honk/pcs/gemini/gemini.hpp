@@ -57,14 +57,14 @@ namespace honk::pcs::gemini {
  * @tparam Params CommitmentScheme parameters
  */
 template <typename Params> struct Proof {
-    /** @brief Commitments to folded polynomials (size = m-2)
+    /** @brief Commitments to folded polynomials (size = m-1)
      *
      * [ C₁, …,  Cₘ₋₁], where Cₗ = commit(Aₗ(X)) of size 2ᵐ⁻ˡ
      */
     std::vector<typename Params::Commitment> commitments;
 
     /**
-     * @brief Evaluations of batched and folded polynomials (size m-1)
+     * @brief Evaluations of batched and folded polynomials (size m)
      *
      * [A₀(-r) , ..., Aₘ₋₁(-r^{2ᵐ⁻¹})]
      */
@@ -146,6 +146,11 @@ template <typename Params> class MultilinearReductionScheme {
      *      Internally, it contains a reference to the non-shifted polynomial.
      * @param transcript
      * @return Output (result_claims, proof, folded_witness_polynomials)
+     *
+     * Note: Only the proof and witness produced by this function are needed
+     * in the simple construction and verification of a single Honk proof. The
+     * result_claims constructed in this function are only relevant in a
+     * recursion setting.
      */
     static ProverOutput<Params> reduce_prove(std::shared_ptr<CK> ck,
                                              std::span<const Fr> mle_opening_point,
@@ -320,22 +325,18 @@ template <typename Params> class MultilinearReductionScheme {
             transcript->add_element(label, evals[i].to_buffer());
         }
 
+        /*
+         * Construct the 'Proof' which consists of:
+         * (1) The m-1 commitments [Fold^{l}], l = 1, ..., m-1
+         * (2) The m evaluations a_0 = Fold_{-r}^(0)(-r), and a_l = Fold^(l)(-r^{2^l}), l = 1, ..., m-1
+         */
         Proof<Params> proof = { commitments, evals };
+
         /*
          * Compute new claims and add them to the output
          */
         auto result_claims =
             compute_output_claim_from_proof(claims_f, claims_g, mle_opening_point, rhos, r_squares, proof);
-
-        // Add the following to transcript:
-        // - Evaluation \hat{a_0} = Fold_{r}^(0)(r) of the 0th Fold polynomial at +r
-        // - Commitments [Fold_{r}^(0)] and [Fold_{-r}^(0)] of the partially evaluated 0th Fold poly at +/-r
-        Fr a_0_pos = result_claims[0].eval;
-        CommitmentAffine Fold_0_pos_commitment(result_claims[0].commitment);
-        CommitmentAffine Fold_0_neg_commitment(result_claims[1].commitment);
-        transcript->add_element("a_0_pos", a_0_pos.to_buffer());
-        transcript->add_element("FOLD_0_pos", static_cast<CommitmentAffine>(Fold_0_pos_commitment).to_buffer());
-        transcript->add_element("FOLD_0_neg", static_cast<CommitmentAffine>(Fold_0_neg_commitment).to_buffer());
 
         return { result_claims, std::move(witness_polynomials), proof };
     };

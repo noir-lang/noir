@@ -7,7 +7,11 @@
 #include "../sumcheck/polynomials/multivariates.hpp"
 #include "../sumcheck/sumcheck.hpp"
 #include "../sumcheck/relations/arithmetic_relation.hpp"
+#include "honk/pcs/commitment_key.hpp"
 #include "proof_system/flavor/flavor.hpp"
+#include <honk/pcs/gemini/gemini.hpp>
+#include <honk/pcs/shplonk/shplonk_single.hpp>
+#include <honk/pcs/kzg/kzg.hpp>
 
 namespace honk {
 template <typename program_settings> class Verifier {
@@ -27,7 +31,7 @@ template <typename program_settings> class Verifier {
     std::shared_ptr<waffle::verification_key> key;
     std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
     std::map<std::string, barretenberg::fr> kate_fr_elements;
-    std::unique_ptr<waffle::CommitmentScheme> commitment_scheme;
+    std::shared_ptr<pcs::kzg::VerificationKey> kate_verification_key;
 };
 
 extern template class Verifier<waffle::standard_verifier_settings>;

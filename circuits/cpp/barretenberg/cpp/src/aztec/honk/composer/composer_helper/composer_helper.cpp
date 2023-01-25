@@ -103,8 +103,11 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
             auto selector_poly_commitment = commitment_key.commit({ selector_poly_coefficients, proving_key->n });
             circuit_verification_key->constraint_selectors.insert(
                 { selector_commitment_label, selector_poly_commitment });
-
-        } else if (selector_poly_info.source == waffle::PolynomialSource::PERMUTATION) {
+            // TODO(luke): Adding commitments to polys with label OTHER to 'permutation_selectors' for now. In the
+            // future the Verifier should have a single std::map called 'commitments' and this will store, um.. all the
+            // commitments.
+        } else if (selector_poly_info.source == waffle::PolynomialSource::PERMUTATION ||
+                   selector_poly_info.source == waffle::PolynomialSource::OTHER) {
             // Fetch the permutation selector polynomial in its coefficient form.
             fr* selector_poly_coefficients;
             selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
@@ -276,13 +279,11 @@ StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_ver
         circuit_verification_key,
         honk::StandardHonk::create_unrolled_manifest(circuit_constructor.public_inputs.size(),
                                                      numeric::get_msb(circuit_verification_key->n)));
-    // StandardUnrolledVerifier output_state;
 
-    // TODO: Deal with commitments
-    // std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
-    //     std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
+    // TODO(Cody): This should be more generic
+    auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
 
-    // output_state.commitment_scheme = std::move(kate_commitment_scheme);
+    output_state.kate_verification_key = std::move(kate_verification_key);
 
     return output_state;
 }

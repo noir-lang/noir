@@ -64,6 +64,7 @@ struct verification_key {
 
     uint32_t composer_type;
     size_t n;
+    size_t log_n;
     size_t num_public_inputs;
 
     barretenberg::evaluation_domain domain;

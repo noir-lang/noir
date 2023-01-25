@@ -54,7 +54,6 @@ TYPED_TEST_SUITE(ShplonkTest, CommitmentSchemeParams);
 
 TYPED_TEST(ShplonkTest, single_poly_two_points)
 {
-    GTEST_SKIP_("Need to reinstate latter half of manifest, which would break the composer tests.");
     using Shplonk = MultiBatchOpeningScheme<TypeParam>;
     using MultiOpeningClaim = MultiOpeningClaim<TypeParam>;
     using Fr = typename TypeParam::Fr;
@@ -83,7 +82,6 @@ TYPED_TEST(ShplonkTest, single_poly_two_points)
 
 TYPED_TEST(ShplonkTest, two_polys_different_size_at_two_different_points)
 {
-    GTEST_SKIP_("Need to reinstate latter half of manifest, which would break the composer tests.");
     using Shplonk = MultiBatchOpeningScheme<TypeParam>;
     using MultiOpeningClaim = MultiOpeningClaim<TypeParam>;
     using Fr = typename TypeParam::Fr;
@@ -114,7 +112,6 @@ TYPED_TEST(ShplonkTest, two_polys_different_size_at_two_different_points)
 
 TYPED_TEST(ShplonkTest, three_polys_different_sizes_and_different_queries)
 {
-    GTEST_SKIP_("Need to reinstate latter half of manifest, which would break the composer tests.");
     using Shplonk = MultiBatchOpeningScheme<TypeParam>;
     using MultiOpeningClaim = MultiOpeningClaim<TypeParam>;
     using Fr = typename TypeParam::Fr;
@@ -147,7 +144,6 @@ TYPED_TEST(ShplonkTest, three_polys_different_sizes_and_different_queries)
 // Test of Shplonk prover/verifier using real Gemini claim
 TYPED_TEST(ShplonkTest, Gemini)
 {
-    GTEST_SKIP_("Need to reinstate latter half of manifest, which would break the composer tests.");
     using Shplonk = SingleBatchOpeningScheme<TypeParam>;
     using Gemini = gemini::MultilinearReductionScheme<TypeParam>;
     using MLEOpeningClaim = MLEOpeningClaim<TypeParam>;
@@ -168,17 +164,19 @@ TYPED_TEST(ShplonkTest, Gemini)
 
     transcript->mock_inputs_prior_to_challenge("rho");
 
-    auto [gemini_claim, gemini_witness, gemini_proof] =
+    const auto [gemini_prover_claim, gemini_witness, gemini_proof] =
         Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, transcript);
 
-    Gemini::reduce_verify(u, claims, {}, gemini_proof, transcript);
+    const auto gemini_verifier_claim = Gemini::reduce_verify(u, claims, {}, gemini_proof, transcript);
+
+    EXPECT_EQ(gemini_prover_claim, gemini_verifier_claim);
 
     const auto [prover_claim, witness, proof] =
-        Shplonk::reduce_prove(this->ck(), gemini_claim, gemini_witness, transcript);
+        Shplonk::reduce_prove(this->ck(), gemini_prover_claim, gemini_witness, transcript);
 
     this->verify_opening_claim(prover_claim, witness);
 
-    const auto verifier_claim = Shplonk::reduce_verify(gemini_claim, proof, transcript);
+    const auto verifier_claim = Shplonk::reduce_verify(gemini_prover_claim, proof, transcript);
     EXPECT_EQ(prover_claim, verifier_claim);
 }
 } // namespace honk::pcs::shplonk

@@ -21,6 +21,7 @@
 namespace honk {
 
 using Fr = barretenberg::fr;
+using Commitment = barretenberg::g1::affine_element;
 using Polynomial = barretenberg::Polynomial<Fr>;
 
 /**
@@ -331,24 +332,22 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
+    // Get vector of multivariate evaluations produced by Sumcheck
+    auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
+
     // Construct opening claims and polynomials
+    // Note: the prover does not require genuine commitments to produce genuine proofs so we mock them.
+    size_t eval_idx = 0;
     for (auto& entry : key->polynomial_manifest.get()) {
         std::string label(entry.polynomial_label);
-        std::string commitment_label(entry.commitment_label);
-        auto evaluation = Fr::serialize_from_buffer(&transcript.get_element(label)[0]);
-        barretenberg::g1::affine_element commitment;
-        if (entry.source == waffle::WITNESS) {
-            commitment =
-                barretenberg::g1::affine_element::serialize_from_buffer(&transcript.get_element(commitment_label)[0]);
-        } else {                                       // SELECTOR, PERMUTATION, OTHER
-            commitment = barretenberg::g1::affine_one; // mock commitment
-        }
+        auto evaluation = multivariate_evaluations[eval_idx++];
+        auto commitment = Commitment::one();
         opening_claims.emplace_back(commitment, evaluation);
         multivariate_polynomials.emplace_back(&key->polynomial_cache.get(label));
         if (entry.requires_shifted_evaluation) {
             // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
             // evaluation p_shift(u), but the UNSHIFTED polynomial p and its UNSHIFTED commitment [p].
-            auto shifted_evaluation = Fr::serialize_from_buffer(&transcript.get_element(label + "_shift")[0]);
+            auto shifted_evaluation = multivariate_evaluations[eval_idx++];
             opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
             multivariate_polynomials_shifted.emplace_back(&key->polynomial_cache.get(label));
         }
@@ -410,7 +409,7 @@ template <typename settings> void Prover<settings>::execute_kzg_round()
     using KzgOutput = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>::Output;
     KzgOutput kzg_output = KZG::reduce_prove(commitment_key, shplonk_output.claim, shplonk_output.witness);
 
-    auto W_commitment = static_cast<barretenberg::g1::affine_element>(kzg_output.proof).to_buffer();
+    auto W_commitment = static_cast<Commitment>(kzg_output.proof).to_buffer();
 
     transcript.add_element("W", W_commitment);
 }
@@ -447,26 +446,26 @@ template <typename settings> waffle::plonk_proof& Prover<settings>::construct_pr
     // // queue currently only handles commitments, not partial multivariate evaluations.
     // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // // Fiat-Shamir: rho
-    // // Compute Fold polynomials and their commitments.
-    // execute_univariatization_round();
-    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // Fiat-Shamir: rho
+    // Compute Fold polynomials and their commitments.
+    execute_univariatization_round();
+    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // // Fiat-Shamir: r
-    // // Compute Fold evaluations
-    // execute_pcs_evaluation_round();
+    // Fiat-Shamir: r
+    // Compute Fold evaluations
+    execute_pcs_evaluation_round();
 
-    // // Fiat-Shamir: nu
-    // // Compute Shplonk batched quotient commitment
-    // execute_shplonk_round();
-    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // Fiat-Shamir: nu
+    // Compute Shplonk batched quotient commitment
+    execute_shplonk_round();
+    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // // Fiat-Shamir: z
-    // // Compute KZG quotient commitment
-    // execute_kzg_round();
-    // // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // Fiat-Shamir: z
+    // Compute KZG quotient commitment
+    execute_kzg_round();
+    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    // // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
+    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     return export_proof();
 }

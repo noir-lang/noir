@@ -92,11 +92,9 @@ template <class FF_, size_t num_polys> class Multivariates {
         size_t poly_idx = 0;
         for (auto& entry : proving_key->polynomial_manifest.get()) {
             std::string label(entry.polynomial_label);
-            full_polynomials[poly_idx] = proving_key->polynomial_cache.get(label);
-            ++poly_idx;
+            full_polynomials[poly_idx++] = proving_key->polynomial_cache.get(label);
             if (entry.requires_shifted_evaluation) {
-                full_polynomials[poly_idx] = proving_key->polynomial_cache.get(label).shifted();
-                ++poly_idx;
+                full_polynomials[poly_idx++] = proving_key->polynomial_cache.get(label).shifted();
             }
         }
 
