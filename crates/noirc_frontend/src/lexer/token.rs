@@ -363,6 +363,7 @@ impl AsRef<str> for Attribute {
 pub enum Keyword {
     As,
     Bool,
+    Char,
     Comptime,
     Constrain,
     Crate,
@@ -379,6 +380,7 @@ pub enum Keyword {
     Mod,
     Mut,
     Pub,
+    String,
     Return,
     Struct,
     Use,
@@ -390,6 +392,7 @@ impl fmt::Display for Keyword {
         match *self {
             Keyword::As => write!(f, "as"),
             Keyword::Bool => write!(f, "bool"),
+            Keyword::Char => write!(f, "char"),
             Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Crate => write!(f, "crate"),
@@ -406,6 +409,7 @@ impl fmt::Display for Keyword {
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
+            Keyword::String => write!(f, "str"),
             Keyword::Return => write!(f, "return"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Use => write!(f, "use"),
@@ -422,6 +426,7 @@ impl Keyword {
         let keyword = match word {
             "as" => Keyword::As,
             "bool" => Keyword::Bool,
+            "char" => Keyword::Char,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
             "crate" => Keyword::Crate,
@@ -438,6 +443,7 @@ impl Keyword {
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
+            "str" => Keyword::String,
             "return" => Keyword::Return,
             "struct" => Keyword::Struct,
             "use" => Keyword::Use,

@@ -479,6 +479,10 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
+            HirType::String(size) => {
+                let size = size.array_length().unwrap_or(0);
+                ast::Type::String(size)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
