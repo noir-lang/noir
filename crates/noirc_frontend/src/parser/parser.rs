@@ -567,24 +567,12 @@ where
     P: ExprParser + 'a,
 {
     if precedence == Precedence::Highest {
-        // term(expr_parser).boxed().labelled("term")
         if is_type_expression {
             type_expression_term(expr_parser).boxed().labelled("term")
         } else {
             term(expr_parser).boxed().labelled("term")
         }
     } else {
-        // expression_with_precedence(precedence.higher(), expr_parser.clone())
-        //     .then(
-        //         then_commit(
-        //             operator_with_precedence(precedence),
-        //             expression_with_precedence(precedence.higher(), expr_parser),
-        //         )
-        //         .repeated(),
-        //     )
-        //     .foldl(create_infix_expression)
-        //     .boxed()
-        //     .labelled("expression")
         let next_precedence =
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
 
