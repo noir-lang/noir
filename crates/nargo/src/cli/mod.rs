@@ -29,7 +29,7 @@ const VERIFIER_INPUT_FILE: &str = "Verifier";
 const SRC_DIR: &str = "src";
 const PKG_FILE: &str = "Nargo.toml";
 const PROOF_EXT: &str = "proof";
-const COMPILE_CMD_DIR: &str = "check";
+const TARGET_DIR: &str = "check";
 const ACIR_EXT: &str = "acir";
 const WITNESS_EXT: &str = "tr";
 
