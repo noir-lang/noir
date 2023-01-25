@@ -6,7 +6,7 @@ use acvm::FieldElement;
 use serde::Serialize;
 
 use crate::errors::InputParserError;
-use crate::AbiType;
+use crate::{Abi, AbiType};
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
@@ -14,6 +14,7 @@ use crate::AbiType;
 pub enum InputValue {
     Field(FieldElement),
     Vec(Vec<FieldElement>),
+    String(String),
     Struct(BTreeMap<String, InputValue>),
     Undefined,
 }
@@ -37,6 +38,10 @@ impl InputValue {
                 field_elements
                     .iter()
                     .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+            }
+
+            (InputValue::String(string), AbiType::String { length }) => {
+                string.len() == *length as usize
             }
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
@@ -85,9 +90,10 @@ impl Format {
     pub fn parse(
         &self,
         input_string: &str,
+        abi: Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
-            Format::Toml => toml::parse_toml(input_string),
+            Format::Toml => toml::parse_toml(input_string, abi),
         }
     }
 

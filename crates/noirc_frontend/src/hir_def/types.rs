@@ -195,6 +195,7 @@ pub enum Type {
     Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(Comptime, TypeVariable),
     Bool(Comptime),
+    String(Box<Type>),
     Unit,
     Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
@@ -499,6 +500,10 @@ impl std::fmt::Display for Type {
                 write!(f, "({})", elements.join(", "))
             }
             Type::Bool(comptime) => write!(f, "{comptime}bool"),
+            Type::String(len) => match len.array_length() {
+                Some(len) => write!(f, "str[{}]", len),
+                None => write!(f, "str[]]"),
+            },
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
@@ -982,6 +987,12 @@ impl Type {
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
             Type::Bool(_) => AbiType::Boolean,
+            Type::String(size) => {
+                let size = size
+                    .array_length()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                AbiType::String { length: size }
+            }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::ArrayLength(_) => unreachable!(),
@@ -1077,6 +1088,10 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
+            Type::String(size) => {
+                let size = Box::new(size.substitute(type_bindings));
+                Type::String(size)
+            }
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => substitute_binding(binding),
@@ -1120,6 +1135,7 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
@@ -1156,6 +1172,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
+            String(size) => String(Box::new(size.follow_bindings())),
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, convert::TryInto};
+use std::{collections::BTreeMap, convert::TryInto, str};
 
 use acvm::FieldElement;
 use errors::AbiError;
@@ -47,6 +47,9 @@ pub enum AbiType {
         )]
         fields: BTreeMap<String, AbiType>,
     },
+    String {
+        length: u64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +84,7 @@ impl AbiType {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
             AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
+            AbiType::String { length } => *length as usize,
         }
     }
 
@@ -92,6 +96,7 @@ impl AbiType {
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
+            AbiType::String { length } => *length as u32,
         }
     }
 }
@@ -128,6 +133,14 @@ impl Abi {
     /// Returns the number of field elements required to represent the ABI's input once encoded.
     pub fn field_count(&self) -> u32 {
         self.parameters.iter().map(|param| param.typ.field_count()).sum()
+    }
+
+    pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
+        let mut map = BTreeMap::new();
+        for param in self.parameters.iter() {
+            map.insert(param.name.clone(), param.typ.clone());
+        }
+        map
     }
 
     /// ABI with only the public parameters
@@ -196,6 +209,11 @@ impl Abi {
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::String(string) => {
+                let str_as_fields =
+                    string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
+                encoded_value.extend(str_as_fields)
+            }
             InputValue::Struct(object) => {
                 for (field_name, value) in object {
                     let new_name = format!("{param_name}.{field_name}");
@@ -253,6 +271,24 @@ impl Abi {
 
                 index += *length as usize;
                 InputValue::Vec(field_elements.to_vec())
+            }
+            AbiType::String { length } => {
+                let field_elements = &encoded_inputs[index..index + (*length as usize)];
+
+                let string_as_slice = field_elements
+                    .iter()
+                    .map(|e| {
+                        let mut field_as_bytes = e.to_be_bytes();
+                        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                        char_byte
+                    })
+                    .collect::<Vec<_>>();
+
+                let final_string = str::from_utf8(&string_as_slice).unwrap();
+
+                index += *length as usize;
+                InputValue::String(final_string.to_owned())
             }
             AbiType::Struct { fields, .. } => {
                 let mut struct_map = BTreeMap::new();

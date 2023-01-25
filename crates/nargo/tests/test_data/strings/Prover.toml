@@ -1,0 +1,3 @@
+message = "hello world"
+hex_as_string = "0x41"
+hex_as_field = "0x41"

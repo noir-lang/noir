@@ -17,7 +17,7 @@ pub struct Evaluator {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
-    // so it is safer to use a u64, at least until clang is changed
+    // so it is safer to use a u32, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
     public_inputs: Vec<Witness>,
@@ -165,6 +165,11 @@ impl Evaluator {
                 self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
                 igen.abi_struct(name, Some(def), fields, struct_witnesses);
             }
+            AbiType::String { length } => {
+                let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                let witnesses = self.generate_array_witnesses(visibility, length, &typ)?;
+                igen.abi_array(name, Some(def), &typ, *length, witnesses);
+            }
         }
         Ok(())
     }
@@ -212,6 +217,12 @@ impl Evaluator {
                         new_fields.insert(new_name, value.clone());
                     }
                     self.generate_struct_witnesses(struct_witnesses, visibility, &new_fields)?
+                }
+                AbiType::String { length } => {
+                    let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                    let internal_str_witnesses =
+                        self.generate_array_witnesses(visibility, length, &typ)?;
+                    struct_witnesses.insert(name.clone(), internal_str_witnesses);
                 }
             }
         }

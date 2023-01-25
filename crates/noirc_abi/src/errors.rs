@@ -1,4 +1,4 @@
-use crate::{input_parser::InputValue, AbiParameter};
+use crate::{input_parser::InputValue, AbiParameter, AbiType};
 
 #[derive(Debug)]
 pub enum InputParserError {
@@ -6,6 +6,7 @@ pub enum InputParserError {
     ParseStr(String),
     ParseHexStr(String),
     DuplicateVariableName(String),
+    AbiTypeMismatch(AbiType),
 }
 
 impl std::fmt::Display for InputParserError {
@@ -23,6 +24,9 @@ impl std::fmt::Display for InputParserError {
             }
             InputParserError::DuplicateVariableName(err_msg) => {
                 write!(f, "duplicate variable name {err_msg}")
+            }
+            InputParserError::AbiTypeMismatch(abi_type) => {
+                write!(f, "cannot parse a string toml type into {:?}", abi_type)
             }
         }
     }
