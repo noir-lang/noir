@@ -335,6 +335,40 @@ fn find_join_helper(
     unreachable!("no join");
 }
 
+// Find the LCA of x and y
+// n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flatenning
+pub fn lca(ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
+    if x == y {
+        return x;
+    }
+    let mut pred_x: HashSet<BlockId> = HashSet::new();
+    let mut pred_y: HashSet<BlockId> = HashSet::new();
+    let mut to_process_x = ctx[x].predecessor.clone();
+    let mut to_process_y = ctx[y].predecessor.clone();
+    pred_x.insert(x);
+    pred_y.insert(y);
+    pred_x.extend(&ctx[x].predecessor);
+    pred_y.extend(&ctx[y].predecessor);
+
+    while !to_process_x.is_empty() || !to_process_y.is_empty() {
+        if let Some(b) = to_process_x.pop() {
+            if pred_y.contains(&b) {
+                return b;
+            }
+            to_process_x.extend(&ctx[b].predecessor);
+            pred_x.extend(&ctx[b].predecessor);
+        }
+        if let Some(b) = to_process_y.pop() {
+            if pred_x.contains(&b) {
+                return b;
+            }
+            to_process_y.extend(&ctx[b].predecessor);
+            pred_y.extend(&ctx[b].predecessor);
+        }
+    }
+    unreachable!("Blocks {:?} and {:?} are not connected", x, y);
+}
+
 //get the most direct descendant which is 'only child'
 fn get_only_descendant(
     ctx: &SsaContext,
@@ -361,25 +395,23 @@ fn get_only_descendant(
 }
 
 //Set left as the left block of block_id
+//Set block_id as the only parent of left
 pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId) {
     let block = &mut ctx[block_id];
+    if let Some(old_left) = block.left {
+        if left != old_left {
+            let i = block.dominated.iter().position(|value| *value == old_left).unwrap();
+            block.dominated.swap_remove(i);
+        }
+    }
     if !block.dominated.contains(&left) {
         block.dominated.push(left);
-    }
-    if let Some(old_left) = block.left {
-        if left == old_left {
-            return;
-        }
-        let i = block.dominated.iter().position(|value| *value == old_left).unwrap();
-        block.dominated.swap_remove(i);
     }
     block.left = Some(left);
     assert!(block.right != Some(left));
 
-    ctx[left].predecessor.push(block_id);
-    if ctx[left].predecessor.len() == 1 {
-        ctx[left].dominator = Some(block_id);
-    }
+    ctx[left].predecessor = vec![block_id];
+    ctx[left].dominator = Some(block_id);
 }
 
 //replace all instructions by a false constraint, except for return instruction which is kept and zeroed

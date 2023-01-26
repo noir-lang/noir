@@ -71,9 +71,9 @@ pub(crate) fn type_check_expression(
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
-                HirLiteral::Str(_) => unimplemented!(
-                    "[Coming Soon] : Currently string literal types have not been implemented"
-                ),
+                HirLiteral::Str(string) => {
+                    Type::String(Box::new(Type::ArrayLength(string.len() as u64)))
+                }
             }
         }
         HirExpression::Infix(infix_expr) => {
@@ -718,9 +718,12 @@ pub fn comparator_operand_type_rules(
                 }
             });
 
-            if x_size != y_size {
-                return Err(format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "));
-            }
+            x_size.unify(y_size, op.location.span, errors, || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {}, and RHS is {} ", x_size, y_size),
+                    span: op.location.span,
+                }
+            });
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
@@ -731,6 +734,16 @@ pub fn comparator_operand_type_rules(
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
         }
-        (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
+        (String(x_size), String(y_size)) => {
+            x_size.unify(y_size, op.location.span, errors, || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Can only compare strings of the same length. Here LHS is of length {}, and RHS is {} ", x_size, y_size),
+                    span: op.location.span,
+                }
+            });
+
+            Ok(Bool(Comptime::No(Some(op.location.span))))
+        }
+        (lhs, rhs) => Err(format!("Unsupported types for comparison: {} and {}", lhs, rhs)),
     }
 }
