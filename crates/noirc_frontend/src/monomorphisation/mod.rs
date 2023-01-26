@@ -580,6 +580,21 @@ impl Monomorphiser {
                         ast::Type::Field,
                     )))
                 }
+                Definition::Builtin(opcode) if opcode == "modulus_be_byte_array" => {
+                    let modulus = FieldElement::modulus();
+                    let bytes = modulus.to_bytes_be();
+                    let bytes_as_expr = vecmap(bytes, |byte| {
+                        ast::Expression::Literal(ast::Literal::Integer(
+                            (byte as u128).into(),
+                            ast::Type::Integer(crate::Signedness::Unsigned, 8),
+                        ))
+                    });
+                    let arr_literal = ast::ArrayLiteral {
+                        contents: bytes_as_expr,
+                        element_type: ast::Type::Integer(crate::Signedness::Unsigned, 8),
+                    };
+                    Some(ast::Expression::Literal(ast::Literal::Array(arr_literal)))
+                }
                 _ => None,
             },
             _ => None,

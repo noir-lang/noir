@@ -23,6 +23,9 @@ fn to_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
 #[builtin(modulus_bits)]
 fn modulus_bits() -> comptime Field {}
 
+#[builtin(modulus_be_byte_array)]
+fn modulus_be_byte_array() -> [u8] {}
+
 // Returns base^exponent. 
 // ^ means to the power of and not xor
 // Caution: we assume the exponent fits into 32 bits
