@@ -19,8 +19,8 @@ fn modulus_be_bits() -> [u1] {}
 #[builtin(modulus_le_bits)]
 fn modulus_le_bits() -> [u1] {}
 
-#[builtin(modulus_be_byte_array)]
-fn modulus_be_byte_array() -> [u8] {}
+#[builtin(modulus_be_bytes)]
+fn modulus_be_bytes() -> [u8] {}
 
-#[builtin(modulus_le_byte_array)]
-fn modulus_le_byte_array() -> [u8] {}
+#[builtin(modulus_le_bytes)]
+fn modulus_le_bytes() -> [u8] {}

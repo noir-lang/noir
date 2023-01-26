@@ -591,12 +591,12 @@ impl Monomorphiser {
                     let bits = modulus.to_radix_be(2);
                     Some(self.modulus_array_literal(bits, 1))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_be_byte_array" => {
+                Definition::Builtin(opcode) if opcode == "modulus_be_bytes" => {
                     let modulus = FieldElement::modulus();
                     let bytes = modulus.to_bytes_be();
                     Some(self.modulus_array_literal(bytes, 8))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_le_byte_array" => {
+                Definition::Builtin(opcode) if opcode == "modulus_le_bytes" => {
                     let modulus = FieldElement::modulus();
                     let bytes = modulus.to_bytes_le();
                     Some(self.modulus_array_literal(bytes, 8))
