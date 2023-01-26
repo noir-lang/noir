@@ -502,7 +502,7 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index> + std::fmt::Debug) -> Location {
+    pub fn id_location(&self, index: impl Into<Index>) -> Location {
         self.id_to_location.get(&index.into()).copied().unwrap()
     }
 
