@@ -524,9 +524,9 @@ pub fn infix_operand_type_rules(
                 // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                 interner.push_delayed_type_check(Box::new(move || {
                     if other.is_field() {
-                        Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.".into()))
+                        Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first".into()))
                     } else if other.is_bindable() {
-                        Err(make_error("The number of bits to use for this bitwise operation is ambiguous. The type of at least one operand should be specified before this point".into()))
+                        Err(make_error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified".into()))
                     } else {
                         Ok(())
                     }
