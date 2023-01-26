@@ -8,7 +8,7 @@ fn f1(mut x: Field) -> Field {
 }
 
 fn f2(mut x: Field) -> Field{
-    x = x + 2;
+    x += 2;
     x
 }
 
