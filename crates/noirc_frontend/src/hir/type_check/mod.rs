@@ -120,6 +120,9 @@ mod test {
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
+        interner.push_expr_location(x_expr_id, Span::single_char(0), file);
+        interner.push_expr_location(y_expr_id, Span::single_char(0), file);
+
         // Create let statement
         let let_stmt = HirLetStatement {
             pattern: Identifier(z),
