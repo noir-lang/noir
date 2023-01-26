@@ -8,9 +8,9 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement, FunctionDefinition,
+    Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
+    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
 };
 
 use chumsky::prelude::*;

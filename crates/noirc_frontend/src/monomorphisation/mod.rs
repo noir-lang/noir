@@ -1,5 +1,5 @@
-use noirc_abi::Abi;
 use iter_extended::{btree_map, vecmap};
+use noirc_abi::Abi;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
