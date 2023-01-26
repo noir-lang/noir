@@ -64,7 +64,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
     for i in 0..2 {
-        let mut as_bits = std::to_bits(arr[i] as Field, 2);
+        let mut as_bits = std::field::to_bits(arr[i] as Field, 2);
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {

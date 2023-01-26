@@ -6,25 +6,34 @@ mod ecdsa_secp256k1;
 mod scalar_mul;
 mod sha256;
 mod sha512;
+mod field;
 
+//  #[builtin(to_bits)]
+// fn to_bits(_x : Field, _bit_size: u32) -> [u1] {}
 
- #[builtin(to_bits)]
-fn to_bits(_x : Field, _bit_size: u32) -> [u1] {}
+// fn to_le_bytes(x : Field, byte_size: u32) -> [u8] {
+//     to_radix(x, 256, byte_size)
+// }
 
-fn to_le_bytes(x : Field, byte_size: u32) -> [u8] {
-    to_radix(x, 256, byte_size)
-}
+// #[builtin(to_radix)]
+// //decompose _x into a _result_len vector over the _radix basis
+// //_radix must be less than 256
+// fn to_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
 
-#[builtin(to_radix)]
-//decompose _x into a _result_len vector over the _radix basis
-//_radix must be less than 256
-fn to_radix(_x : Field, _radix: u32, _result_len: u32) -> [u8] {}
+// #[builtin(modulus_num_bits)]
+// fn modulus_num_bits() -> comptime Field {}
 
-#[builtin(modulus_bits)]
-fn modulus_bits() -> comptime Field {}
+// #[builtin(modulus_be_bits)]
+// fn modulus_be_bits() -> [u1] {}
 
-#[builtin(modulus_be_byte_array)]
-fn modulus_be_byte_array() -> [u8] {}
+// #[builtin(modulus_le_bits)]
+// fn modulus_le_bits() -> [u1] {}
+
+// #[builtin(modulus_be_byte_array)]
+// fn modulus_be_byte_array() -> [u8] {}
+
+// #[builtin(modulus_le_byte_array)]
+// fn modulus_le_byte_array() -> [u8] {}
 
 // Returns base^exponent. 
 // ^ means to the power of and not xor
@@ -32,7 +41,7 @@ fn modulus_be_byte_array() -> [u8] {}
 // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
 fn pow_32(base: Field, exponent: Field) -> Field {
     let mut r = 1 as Field;
-    let b = crate::to_bits(exponent, 32);
+    let b = field::to_bits(exponent, 32);
 
     for i in 1..33 {
         r = r*r;
