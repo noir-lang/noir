@@ -71,13 +71,16 @@ impl InternalVar {
         }
         evaluator.create_intermediate_variable(expr)
     }
+}
 
+impl PartialEq for InternalVar {
     fn eq(&self, other: &Self) -> bool {
         self.expression == other.expression
             || (self.witness.is_some() && self.witness == other.witness)
             || (self.id.is_some() && self.id == other.id)
     }
 }
+impl Eq for InternalVar {}
 
 impl From<Expression> for InternalVar {
     fn from(arith: Expression) -> InternalVar {
@@ -766,7 +769,7 @@ fn simplify_bitwise(
     bit_size: u32,
     opcode: &BinaryOp,
 ) -> Option<InternalVar> {
-    if lhs.eq(rhs) {
+    if lhs == rhs {
         //simplify bitwise operation of the form: a OP a
         return Some(match opcode {
             BinaryOp::And => lhs.clone(),
