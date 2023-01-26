@@ -29,6 +29,14 @@ template <class Fr, size_t _length> class Univariate {
         : evaluations(std::move(other.evaluations))
     {}
 
+    // Construct Univariate from scalar
+    explicit Univariate(Fr value)
+        : evaluations{}
+    {
+        for (size_t i = 0; i < _length; ++i) {
+            evaluations[i] = value;
+        }
+    }
     // Construct Univariate from UnivariateView
     explicit Univariate(UnivariateView<Fr, _length> in)
         : evaluations{}

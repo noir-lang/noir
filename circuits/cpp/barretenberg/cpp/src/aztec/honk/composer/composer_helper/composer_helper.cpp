@@ -328,7 +328,7 @@ StandardProver ComposerHelper<CircuitConstructor>::create_prover(const CircuitCo
     compute_witness(circuit_constructor);
     // TODO: Initialize prover properly
     // Prover output_state(circuit_proving_key, create_manifest(public_inputs.size()));
-    StandardProver output_state;
+    StandardProver output_state(circuit_proving_key);
     // Initialize constraints
 
     // std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =

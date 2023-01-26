@@ -93,7 +93,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
         // compute_grand_product_polynomial.
         /*
          * Assume program_width 3. Z_perm may be defined in terms of its values
-         * on X_i = 0,1,...,n-1 as Z_perm[0] = 1 and for i = 1:n-1
+         * on X_i = 0,1,...,n-1 as Z_perm[0] = 0 and for i = 1:n-1
          *
          *                  (w_1(j) + β⋅id_1(j) + γ) ⋅ (w_2(j) + β⋅id_2(j) + γ) ⋅ (w_3(j) + β⋅id_3(j) + γ)
          * Z_perm[i] = ∏ --------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
 
         // Step (4)
         polynomial z_perm(proving_key->n, proving_key->n);
-        z_perm[0] = Fscalar::one(); // Z_0 = 1
+        z_perm[0] = Fscalar::zero(); // Z_0 = 1
         // Note: in practice, we replace this expensive element-wise division with Montgomery batch inversion
         for (size_t i = 0; i < proving_key->n - 1; ++i) {
             z_perm[i + 1] = numererator_accum[0][i] / denominator_accum[0][i];

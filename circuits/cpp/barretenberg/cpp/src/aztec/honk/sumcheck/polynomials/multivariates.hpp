@@ -36,7 +36,7 @@ bool span_arrays_equal(auto& lhs, auto& rhs)
  * Suppose now the Honk polynomials (multilinear in d variables) are called P_1, ..., P_N. At initialization,
  * we think of these as lying in a two-dimensional array, where each column records the value of one P_i on H^d. After
  * the first round, the array will be updated ('folded'), so that the first n/2 rows will represent the evaluations
- * P_i(X1, ..., X_{d-1}, u_d) as a low-degree extension on H^{d-1}. In reality, we elide copying all of the polynomial-
+ * P_i(X1, ..., X_{d-1}, u_d) as a low-degree extension on H^{d-1}. In reality, we elude copying all of the polynomial-
  * defining data by only populating folded_multivariates after the first round. I.e.:
 
        We imagine all of the defining polynomial data in a matrix like this:

@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <honk/proof_system/prover.hpp>
 #include <honk/sumcheck/polynomials/multivariates.hpp>
+#include <honk/sumcheck/sumcheck_round.hpp>
+#include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
+#include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
 #include <honk/utils/public_inputs.hpp>
 
 #include <cstdint>
@@ -304,7 +307,164 @@ TEST(standard_honk_composer, test_verification_key_creation)
     EXPECT_EQ(verification_key->permutation_selectors.size(), composer.program_width * 2 + 2);
 }
 
-TEST(StandardHonkComposer, BaseCase)
+/**
+ * @brief A test taking sumcheck relations and applying them to the witness and selector polynomials to ensure that the
+ * realtions are correct.
+ *
+ * TODO(kesha): We'll have to update this function once we add zk, since the relation will be incorrect for he first few
+ * indices
+ *
+ */
+TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
+{
+    // Create a composer and a dummy circuit with a few gates
+    StandardHonkComposer composer = StandardHonkComposer();
+    fr a = fr::one();
+    // Using the public variable to check that public_input_delta is computed and added to the relation correctly
+    uint32_t a_idx = composer.add_public_variable(a);
+    fr b = fr::one();
+    fr c = a + b;
+    fr d = a + c;
+    uint32_t b_idx = composer.add_variable(b);
+    uint32_t c_idx = composer.add_variable(c);
+    uint32_t d_idx = composer.add_variable(d);
+    for (size_t i = 0; i < 16; i++) {
+        composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+        composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+    }
+    // Create a prover (it will compute proving key and witness)
+    auto prover = composer.create_prover();
+
+    // Generate beta and gamma
+    fr beta = fr::random_element();
+    fr gamma = fr::random_element();
+
+    // Compute grand product polynomial (now all the necessary polynomials are inside the proving key)
+    prover.compute_grand_product_polynomial(beta, gamma);
+
+    // Compute public input delta
+    const auto public_inputs = composer.circuit_constructor.get_public_inputs();
+    auto public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->n);
+
+    // Retrieve polynomials from proving key
+    polynomial z_perm = prover.key->polynomial_cache.get("z_perm_lagrange");
+    polynomial w_1 = prover.key->polynomial_cache.get("w_1_lagrange");
+    polynomial w_2 = prover.key->polynomial_cache.get("w_2_lagrange");
+    polynomial w_3 = prover.key->polynomial_cache.get("w_3_lagrange");
+    polynomial q_m = prover.key->polynomial_cache.get("q_m_lagrange");
+    polynomial q_1 = prover.key->polynomial_cache.get("q_1_lagrange");
+    polynomial q_2 = prover.key->polynomial_cache.get("q_2_lagrange");
+    polynomial q_3 = prover.key->polynomial_cache.get("q_3_lagrange");
+    polynomial q_c = prover.key->polynomial_cache.get("q_c_lagrange");
+    polynomial sigma_1 = prover.key->polynomial_cache.get("sigma_1_lagrange");
+    polynomial sigma_2 = prover.key->polynomial_cache.get("sigma_2_lagrange");
+    polynomial sigma_3 = prover.key->polynomial_cache.get("sigma_3_lagrange");
+    polynomial id_1 = prover.key->polynomial_cache.get("id_1_lagrange");
+    polynomial id_2 = prover.key->polynomial_cache.get("id_2_lagrange");
+    polynomial id_3 = prover.key->polynomial_cache.get("id_3_lagrange");
+    polynomial L_first = prover.key->polynomial_cache.get("L_first_lagrange");
+    polynomial L_last = prover.key->polynomial_cache.get("L_last_lagrange");
+
+    // Specify sumcheck configuration
+    using honk::sumcheck::Univariate;
+    using honk::sumcheck::UnivariateView;
+    using Multivariates = honk::sumcheck::Multivariates<fr, bonk::StandardArithmetization::NUM_POLYNOMIALS>;
+    using SumCheckRound = honk::sumcheck::SumcheckRound<fr,
+                                                        Multivariates::num,
+                                                        honk::sumcheck::ArithmeticRelation,
+                                                        honk::sumcheck::GrandProductComputationRelation,
+                                                        honk::sumcheck::GrandProductInitializationRelation>;
+    using StandardUnivariate = Univariate<fr, SumCheckRound::MAX_RELATION_LENGTH>;
+    std::vector<
+        std::array<Univariate<fr, SumCheckRound::MAX_RELATION_LENGTH>, bonk::StandardArithmetization::NUM_POLYNOMIALS>>
+        sumcheck_typed_polynomial_vector;
+    using ArithmeticUnivariate = Univariate<fr, honk::sumcheck::ArithmeticRelation<fr>::RELATION_LENGTH>;
+
+    using GrandProductComputationUnivariate =
+        Univariate<fr, honk::sumcheck::GrandProductComputationRelation<fr>::RELATION_LENGTH>;
+    using GrandProductInitializationUnivariate =
+        Univariate<fr, honk::sumcheck::GrandProductInitializationRelation<fr>::RELATION_LENGTH>;
+
+    // Construct the round for applying sumcheck relations and results for storing computed results
+    auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<fr>(),
+                                honk::sumcheck::GrandProductComputationRelation<fr>(),
+                                honk::sumcheck::GrandProductInitializationRelation<fr>());
+    auto round = SumCheckRound(relations);
+    auto results = std::make_tuple(
+        ArithmeticUnivariate(0), GrandProductComputationUnivariate(0), GrandProductInitializationUnivariate(0));
+
+    // Transpose the polynomials so that each entry of the vector contains an array of polynomial entries at that
+    // index
+    for (size_t i = 0; i < prover.key->n; i++) {
+        // We only fill in the first element of each univariate with the value of an entry from the original poynomial
+        StandardUnivariate w_1_univariate(0);
+        w_1_univariate.value_at(0) = w_1[i];
+        StandardUnivariate w_2_univariate(0);
+        w_2_univariate.value_at(0) = w_2[i];
+        StandardUnivariate w_3_univariate(0);
+        w_3_univariate.value_at(0) = w_3[i];
+        StandardUnivariate z_perm_univariate(0);
+        z_perm_univariate.value_at(0) = z_perm[i];
+        StandardUnivariate z_perm_shift_univariate(0);
+        z_perm_shift_univariate.value_at(0) = (i < (prover.key->n - 1)) ? z_perm[i + 1] : 0;
+        StandardUnivariate q_m_univariate(0);
+        q_m_univariate.value_at(0) = q_m[i];
+        StandardUnivariate q_1_univariate(0);
+        q_1_univariate.value_at(0) = q_1[i];
+        StandardUnivariate q_2_univariate(0);
+        q_2_univariate.value_at(0) = q_2[i];
+        StandardUnivariate q_3_univariate(0);
+        q_3_univariate.value_at(0) = q_3[i];
+        StandardUnivariate q_c_univariate(0);
+        q_c_univariate.value_at(0) = q_c[i];
+        StandardUnivariate sigma_1_univariate(0);
+        sigma_1_univariate.value_at(0) = sigma_1[i];
+        StandardUnivariate sigma_2_univariate(0);
+        sigma_2_univariate.value_at(0) = sigma_2[i];
+        StandardUnivariate sigma_3_univariate(0);
+        sigma_3_univariate.value_at(0) = sigma_3[i];
+        StandardUnivariate id_1_univariate(0);
+        id_1_univariate.value_at(0) = id_1[i];
+        StandardUnivariate id_2_univariate(0);
+        id_2_univariate.value_at(0) = id_2[i];
+        StandardUnivariate id_3_univariate(0);
+        id_3_univariate.value_at(0) = id_3[i];
+        StandardUnivariate L_first_univariate(0);
+        L_first_univariate.value_at(0) = L_first[i];
+        StandardUnivariate L_last_univariate(0);
+        L_last_univariate.value_at(0) = L_last[i];
+        sumcheck_typed_polynomial_vector.push_back({
+            w_1_univariate,
+            w_2_univariate,
+            w_3_univariate,
+            z_perm_univariate,
+            z_perm_shift_univariate,
+            q_m_univariate,
+            q_1_univariate,
+            q_2_univariate,
+            q_3_univariate,
+            q_c_univariate,
+            sigma_1_univariate,
+            sigma_2_univariate,
+            sigma_3_univariate,
+            id_1_univariate,
+            id_2_univariate,
+            id_3_univariate,
+            L_first_univariate,
+            L_last_univariate,
+        });
+    }
+    // Check all relations at all indices
+    for (size_t i = 0; i < prover.key->n; i++) {
+        round.accumulate_relation_univariates_testing(
+            sumcheck_typed_polynomial_vector[i], results, { beta, gamma, public_input_delta });
+        EXPECT_EQ(std::get<0>(results), ArithmeticUnivariate(0));
+        EXPECT_EQ(std::get<1>(results), GrandProductComputationUnivariate(0));
+        EXPECT_EQ(std::get<2>(results), GrandProductInitializationUnivariate(0));
+    }
+}
+
+TEST(StandarHonkComposer, BaseCase)
 {
     auto composer = StandardHonkComposer();
     fr a = 1;
