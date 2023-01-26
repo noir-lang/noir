@@ -553,7 +553,7 @@ impl Monomorphiser {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen', 'modulus_bits', 'modulus_be_byte_array')
+    /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
     /// at their callsite.
     /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
