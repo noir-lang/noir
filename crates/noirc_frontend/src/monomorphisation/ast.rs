@@ -263,7 +263,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{bits}"),
             },
             Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "str[{}]", len),
+            Type::String(len) => write!(f, "str[{len}]"),
             Type::Unit => write!(f, "()"),
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);
