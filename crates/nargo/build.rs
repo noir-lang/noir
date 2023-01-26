@@ -1,3 +1,4 @@
+use rustc_version::{version, Version};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -13,6 +14,13 @@ fn rerun_if_stdlib_changes(directory: &Path) {
             println!("cargo:rerun-if-changed={}", path.to_string_lossy());
         }
     }
+}
+
+fn check_rustc_version() {
+    assert!(
+        version().unwrap() >= Version::parse("1.6.4").unwrap(),
+        "The minimal supported rustc version is 1.64.0."
+    );
 }
 
 pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::io::Error> {
@@ -63,6 +71,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
 }
 
 fn main() {
+    check_rustc_version();
     let stdlib_src_dir = Path::new("../../noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");

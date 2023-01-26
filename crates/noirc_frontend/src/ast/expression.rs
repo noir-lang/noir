@@ -243,31 +243,6 @@ impl BinaryOpKind {
     }
 }
 
-impl From<&Token> for Option<BinaryOpKind> {
-    fn from(token: &Token) -> Option<BinaryOpKind> {
-        let op = match token {
-            Token::Plus => BinaryOpKind::Add,
-            Token::Ampersand => BinaryOpKind::And,
-            Token::Caret => BinaryOpKind::Xor,
-            Token::ShiftLeft => BinaryOpKind::ShiftLeft,
-            Token::ShiftRight => BinaryOpKind::ShiftRight,
-            Token::Pipe => BinaryOpKind::Or,
-            Token::Minus => BinaryOpKind::Subtract,
-            Token::Star => BinaryOpKind::Multiply,
-            Token::Slash => BinaryOpKind::Divide,
-            Token::Equal => BinaryOpKind::Equal,
-            Token::NotEqual => BinaryOpKind::NotEqual,
-            Token::Less => BinaryOpKind::Less,
-            Token::LessEqual => BinaryOpKind::LessEqual,
-            Token::Greater => BinaryOpKind::Greater,
-            Token::GreaterEqual => BinaryOpKind::GreaterEqual,
-            Token::Percent => BinaryOpKind::Modulo,
-            _ => return None,
-        };
-        Some(op)
-    }
-}
-
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 pub enum UnaryOp {
     Minus,
@@ -563,7 +538,7 @@ impl Display for IfExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{}: {}", name, r#type));
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
 
         write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
     }

@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -100,7 +101,7 @@ impl Driver {
 
         // Cannot depend on a binary
         if self.context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-            panic!("crates cannot depend on binaries. {:?} is a binary crate", crate_name)
+            panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
         }
 
         self.context
@@ -159,6 +160,7 @@ impl Driver {
         Some(abi)
     }
 
+    #[allow(deprecated)]
     pub fn into_compiled_program(
         mut self,
         np_language: acvm::Language,
@@ -189,7 +191,12 @@ impl Driver {
         let program = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match create_circuit(program, np_language, show_ssa) {
+        let circuit = match create_circuit(
+            program,
+            np_language.clone(),
+            acvm::default_is_blackbox_supported(np_language),
+            show_ssa,
+        ) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

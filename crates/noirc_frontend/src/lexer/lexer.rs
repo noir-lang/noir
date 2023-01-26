@@ -445,6 +445,31 @@ fn test_int_type() {
         assert_eq!(got, token);
     }
 }
+
+#[test]
+fn test_arithematic_sugar() {
+    let input = "+= -= *= /= %=";
+
+    let expected = vec![
+        Token::Plus,
+        Token::Assign,
+        Token::Minus,
+        Token::Assign,
+        Token::Star,
+        Token::Assign,
+        Token::Slash,
+        Token::Assign,
+        Token::Percent,
+        Token::Assign,
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let got = lexer.next_token().unwrap();
+        assert_eq!(got, token);
+    }
+}
+
 #[test]
 fn test_comment() {
     let input = "// hello

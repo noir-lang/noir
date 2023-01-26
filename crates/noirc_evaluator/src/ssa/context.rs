@@ -585,7 +585,7 @@ impl SsaContext {
     // Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
-        let value = BigUint::from_bytes_be(&x.to_bytes()); //TODO a const should be a field element
+        let value = BigUint::from_bytes_be(&x.to_be_bytes()); //TODO a const should be a field element
         if let Some(prev_const) = self.find_const_with_type(&value, t) {
             return prev_const;
         }
@@ -733,10 +733,10 @@ impl SsaContext {
         //ACIR
         self.acir(evaluator)?;
         if enable_logging {
-            Acir::print_circuit(&evaluator.gates);
+            Acir::print_circuit(&evaluator.opcodes);
             println!("DONE");
         }
-        println!("ACIR gates generated : {}", evaluator.gates.len());
+        println!("ACIR opcodes generated : {}", evaluator.opcodes.len());
         Ok(())
     }
 
@@ -1123,10 +1123,11 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
+            Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
+            Type::String(_) => todo!("Conversion to ObjectType is unimplemented for strings"),
         }
     }
 

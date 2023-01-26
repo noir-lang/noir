@@ -61,6 +61,10 @@ Concretely the following items are on the road map:
 
 [noir-lang/noirup](https://github.com/noir-lang/noirup) repository contains install scripts for Linux, macOS, and Windows systems to allow easy installation.
 
+## Minimum Rust version
+
+This crate's minimum supported rustc version is 1.64.0.
+
 ## License
 
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)
