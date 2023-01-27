@@ -73,7 +73,7 @@ impl std::fmt::Display for UnresolvedType {
             Bool(is_const) => write!(f, "{is_const}bool"),
             String(len) => match len {
                 None => write!(f, "str[]"),
-                Some(len) => write!(f, "str[{}]", len),
+                Some(len) => write!(f, "str[{len}]"),
             },
             Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);

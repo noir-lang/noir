@@ -25,7 +25,7 @@ pub fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
-    driver.build(allow_warnings);
+    driver.check(allow_warnings);
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(abi) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
