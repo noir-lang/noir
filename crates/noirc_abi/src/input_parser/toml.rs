@@ -1,6 +1,7 @@
 use super::InputValue;
 use crate::{errors::InputParserError, Abi, AbiType};
 use acvm::FieldElement;
+use iter_extended::btree_map;
 use serde::Serialize;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
@@ -26,23 +27,13 @@ pub(crate) fn parse_toml(
 pub(crate) fn serialise_to_toml(
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<String, InputParserError> {
-    let to_map = toml_remap(w_map);
-
     // Toml requires that values be emitted before tables. Thus, we must reorder our map in case a TomlTypes::Table comes before any other values in the toml map
     // BTreeMap orders by key and we need the name of the input as our key, so we must split our maps in case a table type has a name that is alphanumerically less
     // than any other value type
-    let mut tables_map = BTreeMap::new();
-    let to_map: BTreeMap<String, TomlTypes> = to_map
-        .into_iter()
-        .filter(|(k, v)| {
-            if matches!(v, TomlTypes::Table(_)) {
-                tables_map.insert(k.clone(), v.clone());
-                false
-            } else {
-                true
-            }
-        })
-        .collect();
+    let (tables_map, to_map): (BTreeMap<String, TomlTypes>, BTreeMap<String, TomlTypes>) = w_map
+        .iter()
+        .map(|(key, value)| (key.to_owned(), TomlTypes::from(value.clone())))
+        .partition(|(_, v)| matches!(v, TomlTypes::Table(_)));
 
     let mut toml_string = toml::to_string(&to_map)
         .map_err(|err_msg| InputParserError::ParseTomlMap(err_msg.to_string()))?;
@@ -125,30 +116,6 @@ fn toml_map_to_field(
     Ok(field_map)
 }
 
-fn toml_remap(map: &BTreeMap<String, InputValue>) -> BTreeMap<String, TomlTypes> {
-    let mut toml_map = BTreeMap::new();
-    for (parameter, value) in map {
-        let mapped_value = match value {
-            InputValue::Field(f) => {
-                let f_str = format!("0x{}", f.to_hex());
-                TomlTypes::String(f_str)
-            }
-            InputValue::Vec(v) => {
-                let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
-                TomlTypes::ArrayString(array)
-            }
-            InputValue::String(s) => TomlTypes::String(s.clone()),
-            InputValue::Struct(map) => {
-                let map_with_toml_types = toml_remap(map);
-                TomlTypes::Table(map_with_toml_types)
-            }
-            InputValue::Undefined => unreachable!(),
-        };
-        toml_map.insert(parameter.clone(), mapped_value);
-    }
-    toml_map
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 enum TomlTypes {
@@ -165,6 +132,28 @@ enum TomlTypes {
     ArrayString(Vec<String>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
+}
+
+impl From<InputValue> for TomlTypes {
+    fn from(value: InputValue) -> Self {
+        match value {
+            InputValue::Field(f) => {
+                let f_str = format!("0x{}", f.to_hex());
+                TomlTypes::String(f_str)
+            }
+            InputValue::Vec(v) => {
+                let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
+                TomlTypes::ArrayString(array)
+            }
+            InputValue::String(s) => TomlTypes::String(s),
+            InputValue::Struct(map) => {
+                let map_with_toml_types =
+                    btree_map(map, |(key, value)| (key, TomlTypes::from(value)));
+                TomlTypes::Table(map_with_toml_types)
+            }
+            InputValue::Undefined => unreachable!(),
+        }
+    }
 }
 
 fn parse_str_to_field(value: &str) -> Result<Option<FieldElement>, InputParserError> {
