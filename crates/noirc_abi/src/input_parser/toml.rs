@@ -60,11 +60,10 @@ fn toml_map_to_field(
                 match param_type {
                     AbiType::String { .. } => InputValue::String(string),
                     AbiType::Field | AbiType::Integer { .. } => {
-                        let new_value = parse_str_to_field(&string)?;
-                        if let Some(field_element) = new_value {
-                            InputValue::Field(field_element)
-                        } else {
+                        if string.is_empty() {
                             InputValue::Undefined
+                        } else {
+                            InputValue::Field(parse_str_to_field(&string)?)
                         }
                     }
                     _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
@@ -91,7 +90,7 @@ fn toml_map_to_field(
             TomlTypes::ArrayString(arr_str) => {
                 let array_elements: Vec<_> = arr_str
                     .into_iter()
-                    .map(|elem_str| parse_str_to_field(&elem_str).unwrap().unwrap())
+                    .map(|elem_str| parse_str_to_field(&elem_str).unwrap())
                     .collect();
 
                 InputValue::Vec(array_elements)
@@ -156,20 +155,13 @@ impl From<InputValue> for TomlTypes {
     }
 }
 
-fn parse_str_to_field(value: &str) -> Result<Option<FieldElement>, InputParserError> {
-    if value.is_empty() {
-        Ok(None)
-    } else if value.starts_with("0x") {
-        let result = FieldElement::from_hex(value);
-        if result.is_some() {
-            Ok(result)
-        } else {
-            Err(InputParserError::ParseHexStr(value.to_owned()))
-        }
+fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
     } else {
-        let val: i128 = value
+        value
             .parse::<i128>()
-            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))?;
-        Ok(Some(FieldElement::from(val)))
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
+            .map(FieldElement::from)
     }
 }
