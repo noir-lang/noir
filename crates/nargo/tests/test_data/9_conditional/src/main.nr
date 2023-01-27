@@ -59,12 +59,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
 
-    //Regression for to_le_bits() constant evaluation 
+    //Regression for to_bits_le() constant evaluation 
     // binary array representation of u8 1
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
     for i in 0..2 {
-        let mut as_bits = std::field::to_le_bits(arr[i] as Field, 2);
+        let mut as_bits = std::field::to_bits_le(arr[i] as Field, 2);
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {

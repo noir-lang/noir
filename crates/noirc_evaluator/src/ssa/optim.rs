@@ -352,7 +352,7 @@ fn cse_block_with_anchor(
                 result?;
             }
 
-            //cannot simplify to_le_bits() in the previous call because it get replaced with multiple instructions
+            //cannot simplify to_bits_le() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 let args = args.iter().map(|arg| {
                     NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
