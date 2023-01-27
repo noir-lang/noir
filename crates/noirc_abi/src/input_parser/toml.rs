@@ -1,7 +1,7 @@
 use super::InputValue;
 use crate::{errors::InputParserError, Abi, AbiType};
 use acvm::FieldElement;
-use iter_extended::{btree_map, try_btree_map};
+use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
 use serde::Serialize;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
@@ -116,18 +116,13 @@ impl InputValue {
                 InputValue::Field(new_value)
             }
             TomlTypes::ArrayNum(arr_num) => {
-                let array_elements: Vec<_> = arr_num
-                    .into_iter()
-                    .map(|elem_num| FieldElement::from(i128::from(elem_num)))
-                    .collect();
+                let array_elements =
+                    vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
 
                 InputValue::Vec(array_elements)
             }
             TomlTypes::ArrayString(arr_str) => {
-                let array_elements: Vec<_> = arr_str
-                    .into_iter()
-                    .map(|elem_str| parse_str_to_field(&elem_str).unwrap())
-                    .collect();
+                let array_elements = try_vecmap(arr_str, |elem_str| parse_str_to_field(&elem_str))?;
 
                 InputValue::Vec(array_elements)
             }
