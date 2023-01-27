@@ -76,7 +76,7 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData 
      * and return the Univariate represented by {f(0), ..., f(u-1)}.
      *
      * @details Write v_i = f(x_i) on a the domain {x_0, ..., x_{t-1}}. To efficiently compute the needed values of f,
-     * we  use the barycentric formula
+     * we use the barycentric formula
      *      - f(x) = B(x) Σ_{i=0}^{t-1} v_i / (d_i*(x-x_i))
      * where
      *      - B(x) = Π_{i=0}^{t-1} (x-x_i)

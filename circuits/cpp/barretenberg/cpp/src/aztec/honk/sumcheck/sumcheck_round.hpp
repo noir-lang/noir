@@ -35,7 +35,7 @@ namespace honk::sumcheck {
   1   2   5   6
 
  The polynomials Y1, Y2 are stored in an array in Multivariates. In the first round, these are arrays
- of spans living outside of the Multivariates object, and in sebsequent rounts these are arrays of field
+ of spans living outside of the Multivariates object, and in sebsequent rounds these are arrays of field
  elements that are stored in the Multivariates. The rationale for adopting this model is to
  avoid copying the full-length polynomials; this way, the largest polynomial array stores in a
  Multivariates class is multivariates_n/2.
@@ -179,7 +179,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      *   - Outer loop: iterate through the points on the boolean hypercube of dimension = log(round_size), skipping
      *                 every other point. On each iteration, create a Univariate<FF, 2> (an 'edge') for each
      *                 multivariate.
-     *   - Inner loop: iterate throught the relations, feeding each relation the present collection of edges. Each
+     *   - Inner loop: iterate through the relations, feeding each relation the present collection of edges. Each
      *                 relation adds a contribution
      *
      * Result: for each relation, a univariate of some degree is computed by accumulating the contributions of each

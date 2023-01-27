@@ -25,6 +25,7 @@ template <class FF> class SumcheckRelation : public testing::Test {
     static std::array<Univariate<5>, bonk::StandardArithmetization::NUM_POLYNOMIALS> compute_mock_extended_edges()
     {
         // TODO(Cody): build from Univariate<2>'s?
+        // evaluation form, i.e. w_l(0) = 1, w_l(1) = 2,.. The poly is x+1.
         auto w_l = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto w_r = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto w_o = Univariate<5>({ 1, 2, 3, 4, 5 });
@@ -124,9 +125,10 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
     FF public_input_delta = FF::one();
 
     auto expected_evals = Univariate();
-    // expected_evals is { { 27, 125, 343, 729, 1331 } }
+    // expected_evals in the below step { { 27, 250, 1029, 2916, 6655 } }
     expected_evals += (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
                       (w_3 + id_3 * beta + gamma);
+    // expected_evals below is { { 27, 125, 343, 729, 1331 } }
     expected_evals -= (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
                       (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
 
@@ -150,7 +152,7 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
 
     auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
     auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
-    // expectede_evals, lenght 3, extends to { { 0, 2, 6, 12, 20 } }
+    // expectede_evals, lenght 3 (coeff form = x^2 + x), extends to { { 0, 2, 6, 12, 20 } }
     auto expected_evals = (z_perm_shift * lagrange_last);
 
     // Compute the edge contribution using add_edge_contribution

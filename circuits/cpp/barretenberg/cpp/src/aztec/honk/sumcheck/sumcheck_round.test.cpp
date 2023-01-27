@@ -100,7 +100,8 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
     FF lagrange_first = { 0 };
     FF lagrange_last = { 0 };
 
-    // 4 * 1 * 2 + 5 * 1 + 6 * 2 + 7 * 3 + 8 = 54
+    // q_m * w_l * w_r + q_l * w_l + q_r * w_r + q_o * w_o + q_c
+    // = 4 * 1 * 2 + 5 * 1 + 6 * 2 + 7 * 3 + 8 = 54
     FF expected_full_purported_value = 54;
     std::vector<FF> purported_evaluations = { w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,
                                               q_l,     q_r,  q_o,  q_c,    sigma_1,        sigma_2,
@@ -119,76 +120,5 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
         round.compute_full_honk_relation_purported_value(purported_evaluations, relation_separator_challenge);
     EXPECT_EQ(full_purported_value, expected_full_purported_value);
 }
-
-// TODO(Cody): Implement this and better tests.
-// TEST(sumcheck, round)
-// {
-//     // arithmetic relation G is deegree 3 in 8 variables
-//     // G(Y1, ..., Y8) = Y4Y1Y2 + Y5Y1 + Y6Y2 + Y7Y3 + Y8
-//     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
-//     const size_t multivariate_d(2);
-//     const size_t multivariate_n(1 << multivariate_d);
-//     const size_t max_relation_length = 5;
-
-//     using Fr = barretenberg::fr;
-//     using Edge = Edge<Fr>;
-//     using EdgeGroup = EdgeGroup<Fr, num_polys>;
-//     using Multivariates = Multivariates<Fr, num_polys>;
-//     using Univariate = Univariate<Fr, max_relation_length>;
-//     // TODO(Cody): move this out of round.
-//     EdgeGroup group0({ Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }),
-//                        Edge({ 1, 2 }) });
-
-//     EdgeGroup group1({ Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }),
-//                        Edge({ 7, 8 }) });
-
-//     auto polynomials = Multivariates({ group0, group1 });
-//     auto relations = std::make_tuple(ArithmeticRelation<Fr>());
-
-//     auto round = SumcheckRound<..., ArithmeticRelation>(polynomials, relations);
-//     // The values of the univariate restriction S2 created in the first round
-//     // are the sum of a contribution form group0 and a contribution from group1.
-//     // Using Sage;
-//     //    group0 contributes: [5, 22, 57, 116]
-//     //    group1 contributes: [497, 712, 981, 1310]
-//     // Therefore the values of S2 on {0, 1, 2, 3} are: [502, 734, 1038, 1426]
-//     // and S2(0) + S2(1) = 502 + 734 = 1236
-//     round.target_total_sum = 1236;
-//     EXPECT_EQ(round.round_size, 2);
-//     /*
-//     Folding with u2 = -1
-//     2 -------- 8
-//     |          |
-//     |    Yi    |
-//     | i=1...8  |
-//     1 -------- 7        ~~>  0 -------- 6
-//     (2(1-X1)+8X1)  X2         0(1-X1)+6X1
-//    +(1(1-X1)+7X1)(1-X2)
-//  */
-//     round.execute();
-//     EdgeGroup expected_group0({ Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }),
-//                                 Edge({ 0, 6 }) });
-//     EXPECT_EQ(expected_group0, round.polynomials.groups[0]);
-//     ASSERT_FALSE(round.failed);
-//     EXPECT_EQ(round.round_size, 1);
-// }
 
 } // namespace test_sumcheck_round

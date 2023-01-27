@@ -122,11 +122,11 @@ template <class FF_, size_t num_polys> class Multivariates {
      * groups    vertex terms              collected vertex terms               groups after folding
      *     g0 -- v0 (1-X1)(1-X2)(1-X3) --- (v0(1-X3) + v1 X3) (1-X1)(1-X2) ---- (v0(1-u3) + v1 u3) (1-X1)(1-X2)
      *        \- v1 (1-X1)(1-X2)  X3   --/                                  --- (v2(1-u3) + v3 u3) (1-X1)  X2
-     *     g1 -- v2 (1-X1)  X2  (1-X3) --- (v1(1-X3) + v2 X3) (1-X1)  X2  -/ -- (v4(1-u3) + v5 u3)   X1  (1-X2)
+     *     g1 -- v2 (1-X1)  X2  (1-X3) --- (v2(1-X3) + v3 X3) (1-X1)  X2  -/ -- (v4(1-u3) + v5 u3)   X1  (1-X2)
      *        \- v3 (1-X1)  X2    X3   --/                                  / - (v6(1-u3) + v7 u3)   X1    X2
-     *     g2 -- v4   X1  (1-X2)(1-X3) --- (v3(1-X3) + v4 X3)   X1  (1-X2)-/ /
+     *     g2 -- v4   X1  (1-X2)(1-X3) --- (v4(1-X3) + v5 X3)   X1  (1-X2)-/ /
      *        \- v5   X1  (1-X2)  X3   --/                                  /
-     *     g3 -- v6   X1    X2  (1-X3) --- (v5(1-X3) + v6 X3)   X1    X2  -/
+     *     g3 -- v6   X1    X2  (1-X3) --- (v6(1-X3) + v7 X3)   X1    X2  -/
      *        \- v7   X1    X2    X3   --/
      *
      * @param challenge

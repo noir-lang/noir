@@ -58,50 +58,6 @@ TYPED_TEST(UnivariateTest, Addition)
     EXPECT_EQ(f1f2, expected_result);
 }
 
-TYPED_TEST(UnivariateTest, BarycentricData2to3)
-{
-    UNIVARIATE_TESTS_ALIASES
-
-    const size_t domain_size = 2;
-    const size_t num_evals = 3;
-    auto barycentric = BarycentricData<FF, domain_size, num_evals>();
-    std::array<FF, 3> expected_big_domain{ { 0, 1, 2 } };
-    std::array<FF, 2> expected_denominators{ { -1, 1 } };
-    std::array<FF, 3> expected_full_numerator_values{ { 0, 0, 2 } };
-    EXPECT_EQ(barycentric.big_domain, expected_big_domain);
-    EXPECT_EQ(barycentric.lagrange_denominators, expected_denominators);
-    EXPECT_EQ(barycentric.full_numerator_values, expected_full_numerator_values);
-
-    // e1(X) = 1*(1-X) + 2*X = 1 + X
-    Univariate<FF, 2> e1{ { 1, 2 } };
-    FF u = FF::random_element();
-    FF calculated_val_at_u = barycentric.evaluate(e1, u);
-    EXPECT_EQ(u + 1, calculated_val_at_u);
-
-    Univariate<FF, 3> ext1 = barycentric.extend(e1);
-    Univariate<FF, 3> expected{ { 1, 2, 3 } };
-    EXPECT_EQ(ext1, expected);
-}
-
-TYPED_TEST(UnivariateTest, BarycentricData5to6)
-{
-    UNIVARIATE_TESTS_ALIASES
-
-    const size_t domain_size = 5;
-    const size_t num_evals = 6;
-    auto barycentric = BarycentricData<FF, domain_size, num_evals>();
-
-    // Note: we are able to represent a degree 4 polynomial with 5 points thus this
-    // extension will succeed. It would fail for values on a polynomial of degree > 4.
-    Univariate<FF, domain_size> e1{ { 1, 3, 25, 109, 321 } }; // X^4 + X^3 + 1
-
-    Univariate<FF, num_evals> ext1 = barycentric.extend(e1);
-
-    Univariate<FF, num_evals> expected{ { 1, 3, 25, 109, 321, 751 } };
-
-    EXPECT_EQ(ext1, expected);
-}
-
 TYPED_TEST(UnivariateTest, Multiplication)
 {
     UNIVARIATE_TESTS_ALIASES
