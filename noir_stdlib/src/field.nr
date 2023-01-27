@@ -1,5 +1,5 @@
-#[builtin(to_bits)]
-fn to_bits(_x : Field, _bit_size: u32) -> [u1] {}
+#[builtin(to_le_bits)]
+fn to_le_bits(_x : Field, _bit_size: u32) -> [u1] {}
 
 fn to_le_bytes(x : Field, byte_size: u32) -> [u8] {
     to_radix(x, 256, byte_size)

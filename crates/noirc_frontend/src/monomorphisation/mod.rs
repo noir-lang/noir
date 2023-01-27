@@ -568,7 +568,6 @@ impl Monomorphiser {
             ast::Expression::Ident(ident) => match &ident.definition {
                 Definition::Builtin(opcode) if opcode == "arraylen" => {
                     let typ = self.interner.id_type(arguments[0]);
-                    dbg!(typ.clone());
                     let len = typ.array_length().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
                         (len as u128).into(),
