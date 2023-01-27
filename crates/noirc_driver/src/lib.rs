@@ -12,7 +12,6 @@ use noirc_frontend::monomorphisation::monomorphise;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
@@ -129,7 +128,7 @@ impl Driver {
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
     /// Statically analyses the local crate
-    pub fn build(&mut self, allow_warnings: bool) {
+    pub fn check(&mut self, allow_warnings: bool) {
         self.analyse_crate(allow_warnings)
     }
 
@@ -167,7 +166,7 @@ impl Driver {
         show_ssa: bool,
         allow_warnings: bool,
     ) -> CompiledProgram {
-        self.build(allow_warnings);
+        self.check(allow_warnings);
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
