@@ -1,5 +1,6 @@
 #include "../bool/bool.hpp"
 #include "field.hpp"
+#include "plonk/proof_system/constants.hpp"
 #include <gtest/gtest.h>
 #include <honk/composer/standard_honk_composer.hpp>
 #include <plonk/composer/standard_composer.hpp>
@@ -190,7 +191,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         uint64_t expected = fidget(composer);
         auto prover = composer.create_prover();
-        EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[18], fr(expected));
+
+        if constexpr (Composer::type == waffle::ComposerType::STANDARD_HONK) {
+            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[20], fr(expected));
+        } else {
+            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[18], fr(expected));
+        }
 
         EXPECT_EQ(prover.n, 32UL);
         auto verifier = composer.create_verifier();
@@ -243,7 +249,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         auto prover = composer.create_prover();
 
-        EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[17], fr(4181));
+        if constexpr (Composer::type == waffle::ComposerType::STANDARD_HONK) {
+            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[19], fr(4181));
+        } else {
+            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[17], fr(4181));
+        }
+
         EXPECT_EQ(prover.n, 32UL);
         auto verifier = composer.create_verifier();
 

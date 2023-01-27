@@ -66,6 +66,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     virtual size_t get_num_variables() const { return variables.size(); }
     // TODO(Adrian): Feels wrong to let the zero_idx be changed.
     uint32_t zero_idx = 0;
+    uint32_t one_idx = 1;
 
     virtual void create_add_gate(const add_triple& in) = 0;
     virtual void create_mul_gate(const mul_triple& in) = 0;

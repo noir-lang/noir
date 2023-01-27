@@ -149,19 +149,29 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     std::vector<MLEOpeningClaim> opening_claims_shifted;
 
     // Construct MLE opening point
+    // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
     for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
-        std::string label = "u_" + std::to_string(round_idx + 1);
+        std::string label = "u_" + std::to_string(key->log_n - round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
     // Get vector of multivariate evaluations produced by Sumcheck
     auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-
-    // Reconstruct Gemini opening claims and polynomials from the transcript/verification_key
+    std::unordered_map<std::string, barretenberg::fr> evals_map;
     size_t eval_idx = 0;
     for (auto& entry : key->polynomial_manifest.get()) {
+        std::string label(entry.polynomial_label);
+        evals_map[label] = multivariate_evaluations[eval_idx++];
+        if (entry.requires_shifted_evaluation) {
+            evals_map[label + "_shift"] = multivariate_evaluations[eval_idx++];
+        }
+    }
+
+    // Reconstruct Gemini opening claims and polynomials from the transcript/verification_key
+    for (auto& entry : key->polynomial_manifest.get()) {
+        std::string label(entry.polynomial_label);
         std::string commitment_label(entry.commitment_label);
-        auto evaluation = multivariate_evaluations[eval_idx++];
+        auto evaluation = evals_map[label];
         Commitment commitment = Commitment::one(); // initialize to make gcc happy
 
         switch (entry.source) {
@@ -186,7 +196,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
         if (entry.requires_shifted_evaluation) {
             // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
             // evaluation p_shift(u), but the UNSHIFTED commitment [p].
-            auto shifted_evaluation = multivariate_evaluations[eval_idx++];
+            auto shifted_evaluation = evals_map[label + "_shift"];
             opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
         }
     }
@@ -227,8 +237,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     bool result = sumcheck_result && pairing_result;
 
-    // TODO(luke): Change this to 'result' (i.e. genuine full proof verification)
-    return sumcheck_result;
+    return result;
 }
 
 template class Verifier<honk::standard_verifier_settings>;

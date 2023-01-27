@@ -1,4 +1,6 @@
 #include "./transcript_wrappers.hpp"
+#include "transcript/manifest.hpp"
+#include <vector>
 
 namespace transcript {
 void StandardTranscript::add_field_element(const std::string& element_name, const barretenberg::fr& element)

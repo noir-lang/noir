@@ -1,4 +1,5 @@
 #include "bool.hpp"
+#include "plonk/proof_system/constants.hpp"
 #include <gtest/gtest.h>
 // #include <plonk/composer/standard_composer.hpp>
 #include <honk/composer/standard_honk_composer.hpp>
@@ -25,26 +26,45 @@ TEST(stdlib_bool, test_basic_operations)
     bool_t f = e ^ b;    // f = 0
     d = (!f) & a;        // d = 1
     auto prover = composer.preprocess();
-
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[1], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[1], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[1], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[2], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[2], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[2], fr(0));
+    // if constexpr (Composer::type == waffle::ComposerType::STANDARD_HONK) {
     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[3], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[3], fr(0));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[3], fr(1));
     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[3], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[4], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[4], fr(0));
     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[4], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[4], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[4], fr(0));
     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[5], fr(1));
     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[5], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[5], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[6], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[5], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[6], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(0));
     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
-
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[7], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[7], fr(0));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[7], fr(0));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[8], fr(0));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[8], fr(1));
+    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[8], fr(1));
+    // } else {
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[3], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[3], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[3], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[4], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[4], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[4], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[5], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[5], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[5], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[6], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
+    // }
     EXPECT_EQ(prover.n, 16UL);
 }
 

@@ -32,6 +32,11 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
         // all future zero values.
         // TODO(Adrian): This should be done in a constant way, maybe by initializing the constant_variable_indices map
         zero_idx = put_constant_variable(barretenberg::fr::zero());
+        // TODO(Cody): Ensure that no polynomial is ever zero. Maybe there's a better way.
+        one_idx = put_constant_variable(barretenberg::fr::one());
+        // 1 * 1 * 1 + 1 * 1 + 1 * 1 + 1 * 1 + -4
+        // m           l       r       o        c
+        create_poly_gate({ one_idx, one_idx, one_idx, 1, 1, 1, 1, -4 });
     };
 
     StandardCircuitConstructor(const StandardCircuitConstructor& other) = delete;
