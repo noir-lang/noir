@@ -25,6 +25,7 @@ pub enum UnresolvedType {
     Integer(Comptime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
     Bool(Comptime),
     Expression(UnresolvedTypeExpression),
+    String(Option<UnresolvedTypeExpression>),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -86,6 +87,10 @@ impl std::fmt::Display for UnresolvedType {
             }
             Expression(expression) => expression.fmt(f),
             Bool(is_const) => write!(f, "{is_const}bool"),
+            String(len) => match len {
+                None => write!(f, "str[]"),
+                Some(len) => write!(f, "str[{len}]"),
+            },
             Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
@@ -103,7 +108,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(name) => name.fmt(f),
             UnresolvedTypeExpression::Constant(x) => x.fmt(f),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
-                write!(f, "({} {} {})", lhs, op, rhs)
+                write!(f, "({lhs} {op} {rhs})")
             }
         }
     }
@@ -132,7 +137,7 @@ impl UnresolvedTypeExpression {
     ) -> Result<UnresolvedTypeExpression, ParserError> {
         Self::from_expr_helper(expr).map_err(|err| {
             ParserError::with_reason(
-                format!("Expression is invalid in an array-length type: '{}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.", err),
+                format!("Expression is invalid in an array-length type: '{err}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context."),
                 span,
             )
         })

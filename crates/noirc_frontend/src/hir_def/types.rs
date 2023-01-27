@@ -195,6 +195,7 @@ pub enum Type {
     Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
     PolymorphicInteger(Comptime, TypeVariable),
     Bool(Comptime),
+    String(Box<Type>),
     Unit,
     Struct(Shared<StructType>, Vec<Type>),
     Tuple(Vec<Type>),
@@ -474,6 +475,26 @@ impl Type {
     pub fn type_variable(id: TypeVariableId) -> Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
+
+    /// A bit of an awkward name for this function - this function returns
+    /// true for type variables or polymorphic integers which are unbound.
+    /// NamedGenerics will always be false as although they are bindable,
+    /// they shouldn't be bound over until monomorphisation.
+    pub fn is_bindable(&self) -> bool {
+        match self {
+            Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_bindable(),
+                    TypeBinding::Unbound(_) => true,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_field(&self) -> bool {
+        matches!(self.follow_bindings(), Type::FieldElement(_))
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -510,6 +531,7 @@ impl std::fmt::Display for Type {
                 write!(f, "({})", elements.join(", "))
             }
             Type::Bool(comptime) => write!(f, "{comptime}bool"),
+            Type::String(len) => write!(f, "str<{len}>"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
@@ -535,12 +557,12 @@ impl std::fmt::Display for TypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeExpression::Constant(value) => write!(f, "{value}"),
-            TypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({} {} {})", lhs, op, rhs),
+            TypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
             TypeExpression::TypeVariable(var) => var.borrow().fmt(f),
             TypeExpression::NamedGeneric(binding, name) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.fmt(f),
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_) => write!(f, "{}", name),
+                TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
         }
     }
@@ -1032,7 +1054,13 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.as_abi_type(),
                 TypeBinding::Unbound(_) => Type::default_int_type(None).as_abi_type(),
             },
-            Type::Bool(_) => AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 1 },
+            Type::Bool(_) => AbiType::Boolean,
+            Type::String(size) => {
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                AbiType::String { length: size }
+            }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Expression(_) => unreachable!(),
@@ -1128,6 +1156,10 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
+            Type::String(size) => {
+                let size = Box::new(size.substitute(type_bindings));
+                Type::String(size)
+            }
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => substitute_binding(binding),
@@ -1171,6 +1203,7 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
@@ -1207,6 +1240,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
+            String(size) => String(Box::new(size.follow_bindings())),
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)
@@ -1283,8 +1317,7 @@ impl TypeExpression {
             Type::NamedGeneric(var, name) => TypeExpression::NamedGeneric(var, name),
             Type::Expression(expr) => expr,
             other => panic!(
-                "Cannot convert type {} into an array length expression - it is not an integer",
-                other
+                "Cannot convert type {other} into an array length expression - it is not an integer"
             ),
         }
     }

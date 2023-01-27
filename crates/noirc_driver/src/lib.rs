@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -11,7 +12,6 @@ use noirc_frontend::monomorphisation::monomorphise;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
@@ -100,7 +100,7 @@ impl Driver {
 
         // Cannot depend on a binary
         if self.context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-            panic!("crates cannot depend on binaries. {:?} is a binary crate", crate_name)
+            panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
         }
 
         self.context
@@ -128,7 +128,7 @@ impl Driver {
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
     /// Statically analyses the local crate
-    pub fn build(&mut self, allow_warnings: bool) {
+    pub fn check(&mut self, allow_warnings: bool) {
         self.analyse_crate(allow_warnings)
     }
 
@@ -159,13 +159,14 @@ impl Driver {
         Some(abi)
     }
 
+    #[allow(deprecated)]
     pub fn into_compiled_program(
         mut self,
         np_language: acvm::Language,
         show_ssa: bool,
         allow_warnings: bool,
     ) -> CompiledProgram {
-        self.build(allow_warnings);
+        self.check(allow_warnings);
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
@@ -189,7 +190,12 @@ impl Driver {
         let program = monomorphise(main_function, self.context.def_interner);
 
         // Compile Program
-        let circuit = match create_circuit(program, np_language, show_ssa) {
+        let circuit = match create_circuit(
+            program,
+            np_language.clone(),
+            acvm::default_is_blackbox_supported(np_language),
+            show_ssa,
+        ) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

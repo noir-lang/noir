@@ -1,17 +1,15 @@
 [package]
 name = "fm"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2018"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-codespan-reporting = "0.9.5"
-cfg-if = "*"
-
+codespan-reporting.workspace = true
+cfg-if.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "*", features = ["serde-serialize"] }
-
 [dev-dependencies]
-tempfile = "3.1.0"
+tempfile.workspace = true

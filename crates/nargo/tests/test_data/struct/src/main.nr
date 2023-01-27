@@ -44,6 +44,15 @@ fn test_struct_in_tuple(a_bool : bool,x:Field, y:Field) -> (MyStruct, bool) {
     (my_struct, a_bool)
 }
 
+struct Animal {
+    legs: Field,
+    eyes: u8,
+}
+
+fn get_dog() -> Animal {
+    let dog = Animal { legs: 4, eyes: 2 };
+    dog
+}
 
 fn main(x: Field, y: Field) {
     let first = Foo::default(x,y);
@@ -59,5 +68,10 @@ fn main(x: Field, y: Field) {
     constrain a_bool == true;
     constrain struct_from_tuple.my_int == 5;
     constrain struct_from_tuple.my_nest.a == 0;
+
+    // Regression test for issue #670
+    let Animal { legs, eyes } = get_dog();
+    let six = legs + eyes as Field;
+
+    constrain six == 6;
 }
-    

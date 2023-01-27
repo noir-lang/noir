@@ -190,7 +190,7 @@ impl ResolverError {
                 span,
             ),
             ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
-                format!("Cannot find a global or generic type parameter named `{}`", path),
+                format!("Cannot find a global or generic type parameter named `{path}`"),
                 "Only globals or generic type parameters are allowed to be used as an array type's length".to_string(),
                 path.span(),
             ),

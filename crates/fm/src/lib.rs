@@ -43,14 +43,6 @@ impl FileManager {
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
-        // We expect the caller to ensure that the file is a valid noir file
-        let ext = path_to_file
-            .extension()
-            .unwrap_or_else(|| panic!("{:?} does not have an extension", path_to_file));
-        if ext != FILE_EXTENSION {
-            return None;
-        }
-
         let source = file_reader::read_file_to_string(path_to_file).ok()?;
 
         let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
@@ -146,6 +138,17 @@ mod tests {
 
         let _foo_file_path = dummy_file_path(&dir, "foo.nr");
         fm.resolve_path(file_id, "foo").unwrap();
+    }
+    #[test]
+    fn path_resolve_file_module_other_ext() {
+        let dir = tempdir().unwrap();
+        let file_path = dummy_file_path(&dir, "foo.noir");
+
+        let mut fm = FileManager::new();
+
+        let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
+
+        assert!(fm.path(file_id).ends_with("foo"))
     }
     #[test]
     fn path_resolve_sub_module() {

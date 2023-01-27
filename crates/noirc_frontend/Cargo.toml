@@ -1,20 +1,20 @@
 [package]
 name = "noirc_frontend"
-version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm = { git = "https://github.com/noir-lang/noir" }
-noirc_abi = { path = "../noirc_abi" }
-noirc_errors = { path = "../noirc_errors" }
-fm = { path = "../fm" }
-arena = { path = "../arena" }
-iter-extended = { path = "../iter-extended" }
-chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
-thiserror = "1.0.21"
-pathdiff = "0.2"
-smol_str = "0.1.17"
-rustc-hash = "1.1.0"
+acvm.workspace = true
+noirc_abi.workspace = true
+noirc_errors.workspace = true
+fm.workspace = true
+arena.workspace = true
+iter-extended.workspace = true
+chumsky.workspace = true
+thiserror.workspace = true
+pathdiff.workspace = true
+smol_str.workspace = true
+rustc-hash.workspace = true

@@ -286,20 +286,8 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
-            UnresolvedType::Array(length, elem) => {
-                let resolved_size = match length {
-                    None => {
-                        let id = self.interner.next_type_variable_id();
-                        let typevar = Shared::new(TypeBinding::Unbound(id));
-                        new_variables.push((id, typevar.clone()));
-
-                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                        // wont be bound over but this one has no name since we do not currently
-                        // require users to explicitly be generic over array lengths.
-                        Type::NamedGeneric(typevar, Rc::new("".into()))
-                    }
-                    Some(length) => Type::Expression(self.convert_expression_type(length)),
-                };
+            UnresolvedType::Array(size, elem) => {
+                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
@@ -308,6 +296,10 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::String(size) => {
+                let resolved_size = self.resolve_array_size(size, new_variables);
+                Type::String(Box::new(resolved_size))
+            }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
@@ -337,6 +329,26 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
+        }
+    }
+
+    fn resolve_array_size(
+        &mut self,
+        length: Option<UnresolvedTypeExpression>,
+        new_variables: &mut Generics,
+    ) -> Type {
+        match length {
+            None => {
+                let id = self.interner.next_type_variable_id();
+                let typevar = Shared::new(TypeBinding::Unbound(id));
+                new_variables.push((id, typevar.clone()));
+
+                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
+                // wont be bound over but this one has no name since we do not currently
+                // require users to explicitly be generic over array lengths.
+                Type::NamedGeneric(typevar, Rc::new("".into()))
+            }
+            Some(length) => Type::Expression(self.convert_expression_type(length)),
         }
     }
 

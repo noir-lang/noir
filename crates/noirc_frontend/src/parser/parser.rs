@@ -8,10 +8,9 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    AssignStatement, BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
-    UnresolvedTypeExpression,
+    BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement, FunctionDefinition,
+    Ident, IfExpression, ImportStatement, InfixExpression, LValue, NoirFunction, NoirImpl,
+    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -387,12 +386,19 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable =
-        lvalue(expr_parser.clone()).then_ignore(just(Token::Assign)).labelled("statement");
+    let failable = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
 
-    then_commit(failable, expr_parser).map(|(identifier, expression)| {
-        Statement::Assign(AssignStatement { lvalue: identifier, expression })
-    })
+    then_commit(failable, expr_parser).map_with_span(
+        |((identifier, operator), expression), span| {
+            Statement::assign(identifier, operator, expression, span)
+        },
+    )
+}
+
+fn assign_operator() -> impl NoirParser<Token> {
+    let shorthand_operators = Token::assign_shorthand_operators();
+    let shorthand_syntax = one_of(shorthand_operators).then_ignore(just(Token::Assign));
+    just(Token::Assign).or(shorthand_syntax)
 }
 
 enum LValueRhs {
@@ -434,6 +440,7 @@ fn parse_type_inner(
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         bool_type(),
+        string_type(),
         function_type(recursive_type_parser),
     ))
 }
@@ -458,6 +465,14 @@ fn field_type() -> impl NoirParser<UnresolvedType> {
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
     maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+}
+
+fn string_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::String)
+        .ignore_then(
+            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
+        )
+        .map(UnresolvedType::String)
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
@@ -580,8 +595,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     filter_map(move |span, token: Token| {
         if Precedence::token_precedence(&token) == Some(precedence) {
-            let bin_op_kind: Option<BinaryOpKind> = (&token).into();
-            Ok(Spanned::from(span, bin_op_kind.unwrap()))
+            Ok(token.try_into_binop(span).unwrap())
         } else {
             Err(ParserError::expected_label("binary operator".to_string(), token, span))
         }
