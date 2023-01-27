@@ -1447,11 +1447,11 @@ impl BinaryTypeOperator {
     /// Return the actual rust numeric function associated with this operator
     fn function(self) -> fn(u64, u64) -> u64 {
         match self {
-            BinaryTypeOperator::Addition => |a, b| a + b,
-            BinaryTypeOperator::Subtraction => |a, b| a - b,
-            BinaryTypeOperator::Multiplication => |a, b| a * b,
-            BinaryTypeOperator::Division => |a, b| a / b,
-            BinaryTypeOperator::Modulo => |a, b| a % b,
+            BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
+            BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
+            BinaryTypeOperator::Multiplication => |a, b| a.wrapping_mul(b),
+            BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
+            BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
         }
     }
 
