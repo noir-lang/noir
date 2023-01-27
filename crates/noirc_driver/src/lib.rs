@@ -12,7 +12,6 @@ use noirc_frontend::monomorphisation::monomorphise;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
 pub struct Driver {
     context: Context,
 }
