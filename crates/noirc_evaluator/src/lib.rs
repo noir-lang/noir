@@ -39,7 +39,7 @@ pub fn create_circuit(
     np_language: Language,
     is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
-) -> Result<Circuit, RuntimeError> {
+) -> Result<(Circuit, BTreeMap<String, Vec<Witness>>), RuntimeError> {
     let mut evaluator = Evaluator::new();
 
     // First evaluate the main function
@@ -68,7 +68,7 @@ pub fn create_circuit(
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
-    Ok(optimized_circuit)
+    Ok((optimized_circuit, evaluator.param_witnesses))
 }
 
 impl Evaluator {

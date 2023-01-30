@@ -183,7 +183,7 @@ impl Abi {
                 return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
             }
 
-            encoded_inputs.extend(Self::encode_value(value, &param.name)?);
+            encoded_inputs.extend(encode_value(value, &param.name)?);
         }
 
         // Check that no extra witness values have been provided.
@@ -195,27 +195,6 @@ impl Abi {
         }
 
         Ok(encoded_inputs)
-    }
-
-    fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
-        let mut encoded_value = Vec::new();
-        match value {
-            InputValue::Field(elem) => encoded_value.push(elem),
-            InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
-            InputValue::String(string) => {
-                let str_as_fields =
-                    string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
-                encoded_value.extend(str_as_fields)
-            }
-            InputValue::Struct(object) => {
-                for (field_name, value) in object {
-                    let new_name = format!("{param_name}.{field_name}");
-                    encoded_value.extend(Self::encode_value(value, &new_name)?)
-                }
-            }
-            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
-        }
-        Ok(encoded_value)
     }
 
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
@@ -234,59 +213,79 @@ impl Abi {
         let mut field_iterator = encoded_inputs.iter().cloned();
         let mut decoded_inputs = BTreeMap::new();
         for param in &self.parameters {
-            let decoded_value = Self::decode_value(&mut field_iterator, &param.typ)?;
+            let decoded_value = decode_value(&mut field_iterator, &param.typ)?;
 
             decoded_inputs.insert(param.name.to_owned(), decoded_value);
         }
         Ok(decoded_inputs)
     }
+}
 
-    fn decode_value(
-        field_iterator: &mut impl Iterator<Item = FieldElement>,
-        value_type: &AbiType,
-    ) -> Result<InputValue, AbiError> {
-        // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
-        // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
-        let value = match value_type {
-            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-                let field_element = field_iterator.next().unwrap();
-
-                InputValue::Field(field_element)
+pub fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
+    let mut encoded_value = Vec::new();
+    match value {
+        InputValue::Field(elem) => encoded_value.push(elem),
+        InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+        InputValue::String(string) => {
+            let str_as_fields =
+                string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
+            encoded_value.extend(str_as_fields)
+        }
+        InputValue::Struct(object) => {
+            for (field_name, value) in object {
+                let new_name = format!("{param_name}.{field_name}");
+                encoded_value.extend(encode_value(value, &new_name)?)
             }
-            AbiType::Array { length, .. } => {
-                let field_elements: Vec<FieldElement> =
-                    field_iterator.take(*length as usize).collect();
-
-                InputValue::Vec(field_elements)
-            }
-            AbiType::String { length } => {
-                let string_as_slice: Vec<u8> = field_iterator
-                    .take(*length as usize)
-                    .map(|e| {
-                        let mut field_as_bytes = e.to_be_bytes();
-                        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-                        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-                        char_byte
-                    })
-                    .collect();
-
-                let final_string = str::from_utf8(&string_as_slice).unwrap();
-
-                InputValue::String(final_string.to_owned())
-            }
-            AbiType::Struct { fields, .. } => {
-                let mut struct_map = BTreeMap::new();
-
-                for (field_key, param_type) in fields {
-                    let field_value = Self::decode_value(field_iterator, param_type)?;
-
-                    struct_map.insert(field_key.to_owned(), field_value);
-                }
-
-                InputValue::Struct(struct_map)
-            }
-        };
-
-        Ok(value)
+        }
+        InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
     }
+    Ok(encoded_value)
+}
+
+pub fn decode_value(
+    field_iterator: &mut impl Iterator<Item = FieldElement>,
+    value_type: &AbiType,
+) -> Result<InputValue, AbiError> {
+    // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
+    // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
+    let value = match value_type {
+        AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
+            let field_element = field_iterator.next().unwrap();
+
+            InputValue::Field(field_element)
+        }
+        AbiType::Array { length, .. } => {
+            let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
+
+            InputValue::Vec(field_elements)
+        }
+        AbiType::String { length } => {
+            let string_as_slice: Vec<u8> = field_iterator
+                .take(*length as usize)
+                .map(|e| {
+                    let mut field_as_bytes = e.to_be_bytes();
+                    let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                    assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                    char_byte
+                })
+                .collect();
+
+            let final_string = str::from_utf8(&string_as_slice).unwrap();
+
+            InputValue::String(final_string.to_owned())
+        }
+        AbiType::Struct { fields, .. } => {
+            let mut struct_map = BTreeMap::new();
+
+            for (field_key, param_type) in fields {
+                let field_value = decode_value(field_iterator, param_type)?;
+
+                struct_map.insert(field_key.to_owned(), field_value);
+            }
+
+            InputValue::Struct(struct_map)
+        }
+    };
+
+    Ok(value)
 }

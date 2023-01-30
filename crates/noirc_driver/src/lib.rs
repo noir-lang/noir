@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 use acvm::acir::circuit::Circuit;
 
+use acvm::acir::native_types::Witness;
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -12,6 +13,7 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub struct Driver {
@@ -22,6 +24,7 @@ pub struct Driver {
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
+    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
 }
 
 impl Driver {
@@ -187,18 +190,21 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        match create_circuit(program, np_language, blackbox_supported, show_ssa) {
-            Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
-            Err(err) => {
-                // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the call site without a stacktrace
-                let file = err.location.map(|loc| loc.file);
-                let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, allow_warnings);
-                reporter::finish_report(error as u32)?;
-                Err(ReportedError)
-            }
-        }
+        let (circuit, param_witnesses) =
+            match create_circuit(program, np_language, blackbox_supported, show_ssa) {
+                Ok((circuit, param_witnesses)) => (circuit, param_witnesses),
+                Err(err) => {
+                    // The FileId here will be the file id of the file with the main file
+                    // Errors will be shown at the call site without a stacktrace
+                    let file = err.location.map(|loc| loc.file);
+                    let files = &self.context.file_manager;
+                    let error = reporter::report(files, &err.into(), file, allow_warnings);
+                    reporter::finish_report(error as u32)?;
+                    return Err(ReportedError);
+                }
+            };
+
+        Ok(CompiledProgram { circuit, abi: Some(abi), param_witnesses })
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]

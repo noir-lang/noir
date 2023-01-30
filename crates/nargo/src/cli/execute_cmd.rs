@@ -1,11 +1,13 @@
-use clap::ArgMatches;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::{FieldElement, PartialWitnessGenerator};
+use clap::ArgMatches;
+use iter_extended::{try_btree_map, vecmap};
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{Abi, MAIN_RETURN_NAME};
+use noirc_abi::{decode_value, encode_value, AbiParameter, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
 use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
@@ -40,10 +42,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     Ok(())
 }
 
-/// In Barretenberg, the proof system adds a zero witness in the first index,
-/// So when we add witness values, their index start from 1.
-const WITNESS_OFFSET: u32 = 1;
-
 fn execute_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
@@ -75,30 +73,12 @@ pub(crate) fn execute_program(
     Ok((return_value, solved_witness))
 }
 
-pub(crate) fn extract_public_inputs(
-    compiled_program: &CompiledProgram,
-    solved_witness: &WitnessMap,
-) -> Result<InputMap, AbiError> {
-    let encoded_public_inputs: Vec<FieldElement> = compiled_program
-        .circuit
-        .public_inputs
-        .0
-        .iter()
-        .map(|index| solved_witness[index])
-        .collect();
-
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-
-    public_abi.decode(&encoded_public_inputs)
-}
-
 pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap().clone();
-    let mut solved_witness =
-        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
+    let mut solved_witness = input_map_to_witness_map(input_map, &compiled_program.param_witnesses)
+        .map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
             }
@@ -115,18 +95,53 @@ pub(crate) fn solve_witness(
 ///
 /// In particular, this method shows one how to associate values in a Toml/JSON
 /// file with witness indices
-fn input_map_to_witness_map(abi: Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
-    // The ABI map is first encoded as a vector of field elements
-    let encoded_inputs = abi.encode(input_map, true)?;
+fn input_map_to_witness_map(
+    input_map: &InputMap,
+    abi_witness_map: &BTreeMap<String, Vec<Witness>>,
+) -> Result<WitnessMap, AbiError> {
+    // First encode each input separately
+    let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
+        try_btree_map(input_map, |(key, value)| {
+            encode_value(value.clone(), key).map(|v| (key.clone(), v))
+        })?;
 
-    Ok(encoded_inputs
-        .into_iter()
-        .enumerate()
-        .map(|(index, witness_value)| {
-            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
-            (witness, witness_value)
+    // Write input field elements into witness indices specified in `abi_witness_map`.
+    let witness_map = encoded_input_map
+        .iter()
+        .flat_map(|(param_name, encoded_param_fields)| {
+            let param_witness_indices = &abi_witness_map[param_name];
+            param_witness_indices
+                .iter()
+                .zip(encoded_param_fields.iter())
+                .map(|(&witness, &field_element)| (witness, field_element))
         })
-        .collect())
+        .collect();
+
+    Ok(witness_map)
+}
+
+pub(crate) fn extract_public_inputs(
+    compiled_program: &CompiledProgram,
+    solved_witness: &WitnessMap,
+) -> Result<InputMap, AbiError> {
+    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+
+    let public_inputs_map = public_abi
+        .parameters
+        .iter()
+        .map(|AbiParameter { name, typ, .. }| {
+            let param_witness_values =
+                vecmap(compiled_program.param_witnesses[name].clone(), |witness_index| {
+                    solved_witness[&witness_index]
+                });
+
+            decode_value(&mut param_witness_values.into_iter(), typ)
+                .map(|input_value| (name.clone(), input_value))
+                .unwrap()
+        })
+        .collect();
+
+    Ok(public_inputs_map)
 }
 
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
