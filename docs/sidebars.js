@@ -63,12 +63,12 @@ const sidebars = {
             "developers/bridges/dataprovider",
           ],
         },
-        "developers/noir",
         "developers/local-devnet",
         "developers/deposit",
         "developers/transaction-model",
         "developers/sequencer-api",
         "developers/mainnet-info",
+        "developers/noir",
       ],
     },
     {
