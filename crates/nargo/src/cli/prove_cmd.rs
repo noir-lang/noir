@@ -7,6 +7,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::Abi;
 use std::path::Path;
 
 use crate::errors::CliError;
@@ -28,6 +29,14 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
+// A map from the fields in an TOML/JSON file
+// which correspond to some ABI to their values
+pub type AbiMap = BTreeMap<String, InputValue>;
+
+// A map from the witnesses in a constraint system to
+// the field element values
+pub type WitnessMap = BTreeMap<Witness, FieldElement>;
+
 fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
@@ -43,7 +52,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
     allow_unused_variables: bool,
-) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
+) -> Result<(noirc_driver::CompiledProgram, WitnessMap), CliError> {
     let compiled_program = super::compile_cmd::compile_circuit(
         program_dir.as_ref(),
         show_ssa,
@@ -56,7 +65,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
 pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
-) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+) -> Result<WitnessMap, CliError> {
     // Parse the initial witness values from Prover.toml
     let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
 
@@ -84,8 +93,8 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
-    witness_map: &BTreeMap<String, InputValue>,
-) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+    witness_map: &AbiMap,
+) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
     let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
@@ -109,6 +118,24 @@ fn solve_witness(
     solver_res.map_err(CliError::from)?;
 
     Ok(solved_witness)
+}
+
+// Given an AbiMap and an Abi, produce a WitnessMap
+//
+// In particular, this method shows one how to associate values in a Toml/JSON
+// file with witness indices
+fn abi_map_to_witness_map(abi: &Abi, abi_map: &AbiMap) -> Result<WitnessMap, AbiError> {
+    // The ABI map is first encoded as a vector of field elements
+    let encoded_inputs = abi.clone().encode(abi_map, true)?;
+
+    Ok(encoded_inputs
+        .into_iter()
+        .enumerate()
+        .map(|(index, witness_value)| {
+            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
+            (witness, witness_value)
+        })
+        .collect())
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
