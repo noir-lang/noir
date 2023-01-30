@@ -6,6 +6,14 @@ Aztec uses a [UTXO model](https://en.wikipedia.org/wiki/Unspent_transaction_outp
 
 If you are trying to send an amount greater than the value of your largest [value note](./../glossary#value-notes), smaller notes must be merged into a value note greater than or equal to the value of the transaction. Merging value notes requires generating a proof for each note. The SDK handles merging notes automatically, but be aware that this may take a while if there are many notes that need to be merged.
 
+:::caution
+
+A max of two value notes can be used in a single transaction. If you have many small value notes that need to be aggregated into a larger note, you will have to pay transaction fees for each of these note merge transactions. The SDK will handle merging notes for you under the hood, but you will have to pay the corresponding transaction fees.
+
+This means that it only makes sense to make deposits and transfers that are materially greater than the Aztec transaction fee.
+
+:::
+
 ## Chaining notes
 
 It is not required that notes are settled on Ethereum before they can be spent. This improves the user experience around sending notes. We refer to spending unsettled notes as "chaining" them together.
