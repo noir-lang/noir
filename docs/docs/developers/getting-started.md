@@ -9,7 +9,7 @@ There are two common ways that developers can start building on Aztec:
 1. Build a user-facing application that connects to the Aztec network via the TypeScript SDK.
 2. Build an Aztec Connect bridge that connects the Aztec network to Ethereum smart contracts.
 
-We are also working on Noir, a domain specific language that can be used to develop ZK-provable programs. Scroll down for more details.
+We are also working on Noir, an independent domain specific language that can be used to develop ZK-provable programs. Refer to the [Noir page](./noir) for more details.
 
 :::tip
 Running out of ideas to build? Check our [Grants](https://aztec.network/grants) for inspirations!
@@ -78,22 +78,6 @@ The [Aztec Connect Bridges repository](https://github.com/AztecProtocol/aztec-co
 - [🎥 ETHBogota Workshop - Aztec Connect Bridges](https://www.youtube.com/watch?v=I5M8LhOECpM&t=1826s)
 - [✍️ Getting Started with Aztec Connect Bridges](./bridges/bridges.md)
 - [✍️ Element Bridge Explained](https://hackmd.io/@aztec-network/SJ7-6Rbfq)
-
-## Building in Noir
-
-Noir is a domain specific language for building programs provable with Zero-Knowledge Proofs (ZKP), tapping into the privacy and scaling benefits ZKP technology has to offer.
-
-The [Noir page](./noir) covers how to install and develop in Noir in great detail.
-
-### Noir Resources
-
-- [📓 The Noir Book](https://noir-lang.github.io/book/index.html)
-- [🧑‍💻 Noir GitHub Repo](https://github.com/noir-lang/noir)
-- [🎥 ETHBogota Workshop - Noir](https://www.youtube.com/watch?v=I5M8LhOECpM&t=2879s)
-- [✍️ Getting Started with Noir](./noir.md)
-- [📝 Standard Noir Example](https://github.com/vezenovm/basic_mul_noir_example)
-- [📝 Mastermind in Noir](https://github.com/vezenovm/mastermind-noir)
-- [📝 Semaphore in Noir (Concept Build)](https://github.com/vezenovm/simple_shield)
 
 ## Get in Touch
 
