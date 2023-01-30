@@ -101,9 +101,8 @@ The [Noir page](./noir) covers how to install and develop in Noir in great detai
 
 Join [Aztec Discord](https://discord.gg/aztec) for discussions across channels:
 
-- [`#💻│aztec-connect`](https://discord.com/channels/563037431604183070/563038059826774017) for SDK & Bridges
-- [`#🖤│noir`](https://discord.com/channels/563037431604183070/824700393677783080) for Noir
-- [`#🇨🇴│ethbogota`](https://discord.com/channels/563037431604183070/1021410163221086268) for the ETHBogota Hackathon
+- [`#🚅│aztec-connect`](https://discord.com/channels/563037431604183070/1032885517525717022) for SDK & Bridges
+- [`#🖤│noir`](https://discord.com/channels/563037431604183070/1032602753148661780) for Noir
 
 ### Aztec Core Team Contacts
 
