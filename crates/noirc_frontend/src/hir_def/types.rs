@@ -884,6 +884,18 @@ impl Type {
 
             (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
 
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.try_unify(b, span)?;
+                    }
+
+                    ret_b.try_unify(ret_a, span)
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1006,6 +1018,19 @@ impl Type {
             // and do not contain any Comptime variables which is the only part that would differ
             // between unification and subtyping.
             (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
+
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
+
+                    // return types are contravariant, so this must be ret_b <: ret_a instead of the reverse
+                    ret_b.is_subtype_of(ret_a, span)
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
 
             (other_a, other_b) => {
                 if other_a == other_b {

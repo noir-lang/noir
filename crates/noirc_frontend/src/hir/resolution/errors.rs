@@ -40,6 +40,8 @@ pub enum ResolverError {
     IntegerTooLarge { span: Span },
     #[error("No global or generic type parameter found with the given name")]
     NoSuchNumericTypeVariable { path: crate::Path },
+    #[error("Closures cannot capture mutable variables")]
+    CapturedMutableVariable { span: Span },
 }
 
 impl ResolverError {
@@ -193,6 +195,11 @@ impl ResolverError {
                 format!("Cannot find a global or generic type parameter named `{path}`"),
                 "Only globals or generic type parameters are allowed to be used as an array type's length".to_string(),
                 path.span(),
+            ),
+            ResolverError::CapturedMutableVariable { span } => Diagnostic::simple_error(
+                "Closures cannot capture mutable variables".into(),
+                "Mutable variable".into(),
+                span,
             ),
         }
     }
