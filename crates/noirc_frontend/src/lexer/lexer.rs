@@ -89,15 +89,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn pipe(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('|') {
-            let span = Span::new(self.position..self.position + 1);
-            Err(LexerErrorKind::LogicalOr { span })
-        } else {
-            self.single_char_token(Token::Pipe)
-        }
-    }
-
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -113,7 +104,7 @@ impl<'a> Lexer<'a> {
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
-            Some('|') => self.pipe(),
+            Some('|') => self.single_char_token(Token::Pipe),
             Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
