@@ -49,7 +49,7 @@ For a proper walkthrough of setting up the SDK, check the [SDK Setup page](../sd
 
 To learn how the SDK works in action, the [CLI page](./cli) provides a detailed breakdown of the [Aztec CLI](https://github.com/critesjosh/azteccli) tool powered by the SDK.
 
-If you are building a web interface, you might also find the [Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate) useful as a starting point.
+If you are building a web interface, you might also find the [Frontend Boilerplate](https://github.com/AztecProtocol/aztec-frontend-boilerplate) useful as a starting point.
 
 :::tip
 By default, Aztec transactions could take up to a few hours to settle on the Testnet like on Mainnet. If you want transactions to settle quickly, be sure to set `TxSettlementTime` as `INSTANT`.
@@ -64,7 +64,7 @@ By default, Aztec transactions could take up to a few hours to settle on the Tes
 - [🎥 ETHBogota Workshop - Aztec CLI / SDK](https://www.youtube.com/watch?v=I5M8LhOECpM&t=744s)
 - [✍️ Getting Started with Aztec CLI / SDK](./cli.md)
 - [📝 Aztec CLI](https://github.com/critesjosh/azteccli)
-- [📝 Aztec Frontend Boilerplate](https://github.com/Globallager/aztec-frontend-boilerplate)
+- [📝 Aztec Frontend Boilerplate](https://github.com/AztecProtocol/aztec-frontend-boilerplate)
 
 ## Building an Aztec Connect Bridge Contract
 
