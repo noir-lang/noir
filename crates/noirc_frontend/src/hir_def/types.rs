@@ -441,6 +441,26 @@ impl Type {
     pub fn type_variable(id: TypeVariableId) -> Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
+
+    /// A bit of an awkward name for this function - this function returns
+    /// true for type variables or polymorphic integers which are unbound.
+    /// NamedGenerics will always be false as although they are bindable,
+    /// they shouldn't be bound over until monomorphisation.
+    pub fn is_bindable(&self) -> bool {
+        match self {
+            Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(binding) => binding.is_bindable(),
+                    TypeBinding::Unbound(_) => true,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_field(&self) -> bool {
+        matches!(self.follow_bindings(), Type::FieldElement(_))
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -481,7 +501,7 @@ impl std::fmt::Display for Type {
             }
             Type::Bool(comptime) => write!(f, "{comptime}bool"),
             Type::String(len) => match len.array_length() {
-                Some(len) => write!(f, "str[{}]", len),
+                Some(len) => write!(f, "str[{len}]"),
                 None => write!(f, "str[]]"),
             },
             Type::Unit => write!(f, "()"),

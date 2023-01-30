@@ -26,7 +26,7 @@ impl std::fmt::Display for InputParserError {
                 write!(f, "duplicate variable name {err_msg}")
             }
             InputParserError::AbiTypeMismatch(abi_type) => {
-                write!(f, "cannot parse a string toml type into {:?}", abi_type)
+                write!(f, "cannot parse a string toml type into {abi_type:?}")
             }
         }
     }

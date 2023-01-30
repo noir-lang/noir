@@ -59,6 +59,11 @@ impl HirBinaryOp {
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
     }
+
+    pub fn is_bitwise(&self) -> bool {
+        use BinaryOpKind::*;
+        matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
+    }
 }
 
 #[derive(Debug, Clone)]
