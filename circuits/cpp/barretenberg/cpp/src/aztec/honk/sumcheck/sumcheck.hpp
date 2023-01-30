@@ -83,7 +83,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         transcript.apply_fiat_shamir(challenge_label);
         FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
         multivariates.fold(multivariates.full_polynomials, multivariates.multivariate_n, round_challenge);
-        round.round_size = round.round_size >> 1;
+        round.round_size = round.round_size >> 1; // TODO(Cody): Maybe fold should do this and release memory?
 
         // All but final round
         // We operate on multivariates.folded_polynomials in place.
@@ -120,7 +120,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
                                      multivariates.folded_polynomials[14][0],
                                      multivariates.folded_polynomials[15][0],
                                      multivariates.folded_polynomials[16][0],
-                                     multivariates.folded_polynomials[17][0] })));
+                                     multivariates.folded_polynomials[17][0],
+                                     multivariates.folded_polynomials[18][0] })));
     };
 
     /**

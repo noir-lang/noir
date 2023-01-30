@@ -8,7 +8,7 @@ namespace honk::sumcheck {
 template <typename FF> class GrandProductInitializationRelation : public Relation<FF> {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 3;
+    static constexpr size_t RELATION_LENGTH = 4;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
 
     GrandProductInitializationRelation() = default;
@@ -42,8 +42,9 @@ template <typename FF> class GrandProductInitializationRelation : public Relatio
     {
         auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
         auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto pow_zeta = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::POW_ZETA]);
 
-        evals += lagrange_last * z_perm_shift;
+        evals += pow_zeta * (lagrange_last * z_perm_shift);
     }
     /**
      * @brief A version of `add_edge_contribution` used for testing the relation
@@ -65,8 +66,9 @@ template <typename FF> class GrandProductInitializationRelation : public Relatio
     {
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
         auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto pow_zeta = purported_evaluations[MULTIVARIATE::POW_ZETA];
 
-        full_honk_relation_value += lagrange_last * z_perm_shift;
+        full_honk_relation_value += pow_zeta * (lagrange_last * z_perm_shift);
     };
 };
 } // namespace honk::sumcheck

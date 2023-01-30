@@ -24,7 +24,11 @@ template <typename program_settings> class Verifier {
     Verifier& operator=(const Verifier& other) = delete;
     Verifier& operator=(Verifier&& other);
 
-    // TODO: plonk_proof is just an std::vector<uint8_t>; probably shouldn't even exist
+    // TODO(luke): plonk_proof is just an std::vector<uint8_t>; probably shouldn't even exist
+    // Cody: Idk, what's wrong with an informative alias?
+    // An improvement would be to template by flavor and then have proof contain even more info,
+    // so it's easy to extract particular elements without looking at the manifest and counting
+    // numbers of bytes, for instance.
     bool verify_proof(const waffle::plonk_proof& proof);
     transcript::Manifest manifest;
 

@@ -13,7 +13,7 @@ namespace honk::sumcheck {
 template <typename FF> class ArithmeticRelation : public Relation<FF> {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 4;
+    static constexpr size_t RELATION_LENGTH = 5;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
 
     // FUTURE OPTIMIZATION: successively extend as needed?
@@ -66,11 +66,14 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         auto q_r = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_R]);
         auto q_o = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_O]);
         auto q_c = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_C]);
+        auto pow_zeta = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::POW_ZETA]);
 
-        evals += w_l * (q_m * w_r + q_l);
-        evals += q_r * w_r;
-        evals += q_o * w_o;
-        evals += q_c;
+        auto tmp = w_l * (q_m * w_r + q_l);
+        tmp += q_r * w_r;
+        tmp += q_o * w_o;
+        tmp += q_c;
+        tmp *= pow_zeta;
+        evals += tmp;
     };
 
     template <typename T>
@@ -84,11 +87,13 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         auto q_r = purported_evaluations[MULTIVARIATE::Q_R];
         auto q_o = purported_evaluations[MULTIVARIATE::Q_O];
         auto q_c = purported_evaluations[MULTIVARIATE::Q_C];
+        auto pow_zeta = purported_evaluations[MULTIVARIATE::POW_ZETA];
 
         full_honk_relation_value += w_l * (q_m * w_r + q_l);
         full_honk_relation_value += q_r * w_r;
         full_honk_relation_value += q_o * w_o;
         full_honk_relation_value += q_c;
+        full_honk_relation_value *= pow_zeta;
     };
 };
 } // namespace honk::sumcheck

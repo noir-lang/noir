@@ -26,6 +26,7 @@ struct StandardArithmetization {
         ID_3,
         LAGRANGE_FIRST,
         LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
+        POW_ZETA,
         COUNT
     };
 
@@ -40,8 +41,10 @@ struct StandardHonk {
     using MULTIVARIATE = Arithmetization::POLYNOMIAL;
     // // TODO(Cody): Where to specify? is this polynomial manifest size?
     // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
-    static constexpr size_t MAX_RELATION_LENGTH = 5; // TODO(Cody): increment after fixing add_edge_contribution; kill
-                                                     // after moving barycentric class out of relations
+    // TODO(Cody): Maybe relation should be supplied and this should be computed as is done in sumcheck?
+    // Then honk::StandardHonk (or whatever we rename it) would become an alias for a Honk flavor with a
+    // certain set of parameters, including the relations?
+    static constexpr size_t MAX_RELATION_LENGTH = 6;
 
     // TODO(Cody): should extract this from the parameter pack. Maybe that should be done here?
 
@@ -87,10 +90,18 @@ struct StandardHonk {
         // Round 3
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
             { { .name = "Z_PERM", .num_bytes = g1_size, .derived_by_verifier = false } },
-            /* challenge_name = */ "alpha",
-            /* num_challenges_in = */ 1));
+            /* challenge_name = */ "zeta",
+            /* num_challenges_in = */ 1)
+        ); 
 
-        // Rounds 3 + 1, ... 3 + num_sumcheck_rounds
+        // Round 4
+        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+            { { .name = "POW_ZETA", .num_bytes = g1_size, .derived_by_verifier = false } },
+            /* challenge_name = */ "alpha",
+            /* num_challenges_in = */ 1) // Will bump to 2 when zeta if computed in same round at alpha
+        ); 
+
+        // Rounds 4 + 1, ... 4 + num_sumcheck_rounds
         for (size_t i = 0; i < num_sumcheck_rounds; i++) {
             auto label = std::to_string(num_sumcheck_rounds - i);
             manifest_rounds.emplace_back(
@@ -102,7 +113,7 @@ struct StandardHonk {
             /* num_challenges_in = */ 1));
         }
 
-        // Rounds 4 + num_sumcheck_rounds
+        // Round 5 + num_sumcheck_rounds
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(       
             {
               { .name = "multivariate_evaluations",     .num_bytes = fr_size * waffle::STANDARD_HONK_TOTAL_NUM_POLYS, .derived_by_verifier = false, .challenge_map_index = 0 },
@@ -110,7 +121,7 @@ struct StandardHonk {
             /* challenge_name = */ "rho",
             /* num_challenges_in = */ 1)); /* TODO(Cody): magic number! Where should this be specified? */
 
-        // Rounds 5 + num_sumcheck_rounds
+        // Rounds 6 + num_sumcheck_rounds, ... , 6 + 2 * num_sumcheck_rounds - 1
         std::vector<transcript::Manifest::ManifestEntry> fold_commitment_entries;
         for (size_t i = 1; i < num_sumcheck_rounds; i++) {
             fold_commitment_entries.emplace_back(transcript::Manifest::ManifestEntry(
@@ -121,7 +132,7 @@ struct StandardHonk {
             /* challenge_name = */ "r",
             /* num_challenges_in */ 1));
 
-        // Rounds 6 + num_sumcheck_rounds
+        // Rounds 6 + 2 * num_sumcheck_rounds, ..., 6 + 3 * num_sumcheck_rounds
         std::vector<transcript::Manifest::ManifestEntry> gemini_evaluation_entries;
         for (size_t i = 0; i < num_sumcheck_rounds; i++) {
             gemini_evaluation_entries.emplace_back(transcript::Manifest::ManifestEntry(
@@ -132,7 +143,7 @@ struct StandardHonk {
             /* challenge_name = */ "nu",
             /* num_challenges_in */ 1));
 
-        // Rounds 7 + num_sumcheck_rounds
+        // Round 7 + 3 * num_sumcheck_rounds
         manifest_rounds.emplace_back(
             transcript::Manifest::RoundManifest(
             { 
@@ -141,7 +152,7 @@ struct StandardHonk {
             /* challenge_name = */ "z",
             /* num_challenges_in */ 1));
 
-        // Rounds 8 + num_sumcheck_rounds
+        // Round 8 + 3 * num_sumcheck_rounds
         manifest_rounds.emplace_back(
             transcript::Manifest::RoundManifest(
             { 

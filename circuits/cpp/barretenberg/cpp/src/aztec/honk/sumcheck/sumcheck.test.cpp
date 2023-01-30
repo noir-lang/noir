@@ -87,9 +87,11 @@ Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_in
 
 TEST(Sumcheck, PolynomialNormalization)
 {
+    // Todo(Cody): We should not use real constants like this in the tests, at least not in so many of them.
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
+    ;
     const size_t num_public_inputs(1);
 
     constexpr size_t fr_size = 32;
@@ -115,12 +117,13 @@ TEST(Sumcheck, PolynomialNormalization)
     std::array<FF, multivariate_n> id_3 =           { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::array<FF, multivariate_n> lagrange_first = { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::array<FF, multivariate_n> lagrange_last =  { 0, 0, 0, 0, 0, 0, 0, 0 };
+    std::array<FF, multivariate_n> pow_zeta =       { 0, 0, 0, 0, 0, 0, 0, 0 };
     // clang-format on
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -197,12 +200,13 @@ TEST(Sumcheck, Prover)
     std::array<FF, multivariate_n> id_3 =           { 1, 2, 0, 0};
     std::array<FF, multivariate_n> lagrange_first = { 1, 2, 0, 0};
     std::array<FF, multivariate_n> lagrange_last =  { 1, 2, 0, 0};
+    std::array<FF, multivariate_n> pow_zeta      =  { 1, 2, 0, 0};
     // clang-format on
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -241,10 +245,9 @@ TEST(Sumcheck, ProverAndVerifier)
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
-    const size_t num_public_inputs(1);
-
-    const size_t max_relation_length = 4 /* honk::StandardHonk::MAX_RELATION_LENGTH */;
+    const size_t max_relation_length = 6;
     constexpr size_t fr_size = 32;
+    const size_t num_public_inputs(1);
 
     using Multivariates = ::Multivariates<FF, num_polys>;
 
@@ -266,11 +269,12 @@ TEST(Sumcheck, ProverAndVerifier)
     std::array<FF, 2> id_3 = { 0, 0 };    // NOTE: Not set up to be valid.
     std::array<FF, 2> lagrange_first = { 0, 0 };
     std::array<FF, 2> lagrange_last = { 0, 0 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> pow_zeta = { 1, 1 };
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -329,14 +333,15 @@ TEST(Sumcheck, ProverAndVerifierLonger)
     std::array<FF, multivariate_n> id_1           = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> id_2           = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> id_3           = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_first = { 1,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 1 };
+    std::array<FF, multivariate_n> lagrange_first = { 0,  0,  0, 0 };
+    std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 0 };
+    std::array<FF, multivariate_n> pow_zeta       = { 2,  4,  8, 16 }; // TODO(Cody): fails with non-1 entry
         // clang-format on
 
         // These will be owned outside the class, probably by the composer.
         std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
-            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
+            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
+            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
         };
 
         auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);

@@ -13,7 +13,8 @@
 #include <utility>
 
 namespace honk {
-// TODO: change initializations to specify this parameter
+// TODO(Kesha): change initializations to specify this parameter
+// Cody: What does this mean?
 template <typename CircuitConstructor> class ComposerHelper {
   public:
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
@@ -70,6 +71,7 @@ template <typename CircuitConstructor> class ComposerHelper {
     StandardUnrolledProver create_unrolled_prover(const CircuitConstructor& circuit_constructor);
 
     // TODO(Adrian): Seems error prone to provide the number of randomized gates
+    // Cody: Where should this go? In the flavor (or whatever that becomes)?
     std::shared_ptr<waffle::proving_key> compute_proving_key_base(
         const CircuitConstructor& circuit_constructor,
         const size_t minimum_ciricut_size = 0,

@@ -3,6 +3,7 @@
 #include <honk/sumcheck/sumcheck.hpp> // will need
 #include <array>
 #include <honk/sumcheck/polynomials/univariate.hpp> // will go away
+#include <honk/utils/power_polynomial.hpp>
 #include <honk/pcs/commitment_key.hpp>
 #include <memory>
 #include <vector>
@@ -56,7 +57,6 @@ Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const t
  * */
 template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
-    // TODO(luke): Compute wire commitments
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1) + "_lagrange";
         std::string commit_tag = "W_" + std::to_string(i + 1);
@@ -176,7 +176,7 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
         aligned_free(denominator_accumulator[k]);
     }
 
-    // TODO(luke): Commit to z_perm here? This would match Plonk but maybe best to do separately?
+    // Commit to z_perm here? This would match Plonk but maybe best to do separately?
 
     key->polynomial_cache.put("z_perm_lagrange", std::move(z_perm));
 }
@@ -194,6 +194,7 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 template <typename settings> void Prover<settings>::execute_preamble_round()
 {
     // Add some initial data to transcript (circuit size and PI size)
+
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     transcript.add_element("circuit_size",
@@ -299,6 +300,15 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
                                         sumcheck::GrandProductInitializationRelation>;
 
     // Compute alpha challenge
+    transcript.apply_fiat_shamir("zeta");
+
+    // TODO(Cody): This is just temporary of course. Very inefficient, e.g., no commitment needed.
+    Fr zeta_challenge = transcript.get_challenge_field_element("zeta");
+    barretenberg::polynomial pow_zeta = power_polynomial::generate_vector(zeta_challenge, key->n);
+    auto commitment = commitment_key->commit(pow_zeta);
+    transcript.add_element("POW_ZETA", commitment.to_buffer());
+    key->polynomial_cache.put("pow_zeta", std::move(pow_zeta));
+
     transcript.apply_fiat_shamir("alpha");
 
     auto multivariates = Multivariates(key);

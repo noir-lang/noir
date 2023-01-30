@@ -119,6 +119,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     transcript.apply_fiat_shamir("init");
     transcript.apply_fiat_shamir("eta");
     transcript.apply_fiat_shamir("beta");
+    transcript.apply_fiat_shamir("zeta");
     transcript.apply_fiat_shamir("alpha");
     for (size_t idx = 0; idx < log_n; idx++) {
         transcript.apply_fiat_shamir("u_" + std::to_string(log_n - idx));

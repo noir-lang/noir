@@ -137,10 +137,10 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      * @details Should only be called externally with relation_idx equal to 0.
      *
      */
-    void extend_edges(auto& multivariate, size_t edge_idx)
+    void extend_edges(auto& multivariates, size_t edge_idx)
     {
         for (size_t idx = 0; idx < num_multivariates; idx++) {
-            auto edge = Univariate<FF, 2>({ multivariate[idx][edge_idx], multivariate[idx][edge_idx + 1] });
+            auto edge = Univariate<FF, 2>({ multivariates[idx][edge_idx], multivariates[idx][edge_idx + 1] });
             extended_edges[idx] = barycentric_2_to_max.extend(edge);
         }
     }

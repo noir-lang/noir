@@ -8,7 +8,7 @@ namespace honk::sumcheck {
 template <typename FF> class GrandProductComputationRelation : public Relation<FF> {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 5;
+    static constexpr size_t RELATION_LENGTH = 6;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE;
 
   public:
@@ -73,12 +73,13 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
         auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
         auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+        auto pow_zeta = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::POW_ZETA]);
 
         // Contribution (1)
-        evals += ((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                  (w_3 + id_3 * beta + gamma)) -
-                 ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                  (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma));
+        evals += pow_zeta * (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+                              (w_3 + id_3 * beta + gamma)) -
+                             ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
+                              (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma)));
     };
 
     void add_full_relation_value_contribution(auto& purported_evaluations,
@@ -98,16 +99,18 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
         auto lagrange_first = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
         auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+        auto pow_zeta = purported_evaluations[MULTIVARIATE::POW_ZETA];
 
         // Contribution (1)
-        full_honk_relation_value += (z_perm + lagrange_first) *
-                                        (w_1 + relation_parameters.beta * id_1 + relation_parameters.gamma) *
-                                        (w_2 + relation_parameters.beta * id_2 + relation_parameters.gamma) *
-                                        (w_3 + relation_parameters.beta * id_3 + relation_parameters.gamma) -
-                                    (z_perm_shift + lagrange_last * relation_parameters.public_input_delta) *
-                                        (w_1 + relation_parameters.beta * sigma_1 + relation_parameters.gamma) *
-                                        (w_2 + relation_parameters.beta * sigma_2 + relation_parameters.gamma) *
-                                        (w_3 + relation_parameters.beta * sigma_3 + relation_parameters.gamma);
+        full_honk_relation_value +=
+            pow_zeta *
+            ((z_perm + lagrange_first) * (w_1 + relation_parameters.beta * id_1 + relation_parameters.gamma) *
+                 (w_2 + relation_parameters.beta * id_2 + relation_parameters.gamma) *
+                 (w_3 + relation_parameters.beta * id_3 + relation_parameters.gamma) -
+             (z_perm_shift + lagrange_last * relation_parameters.public_input_delta) *
+                 (w_1 + relation_parameters.beta * sigma_1 + relation_parameters.gamma) *
+                 (w_2 + relation_parameters.beta * sigma_2 + relation_parameters.gamma) *
+                 (w_3 + relation_parameters.beta * sigma_3 + relation_parameters.gamma));
     };
 };
 } // namespace honk::sumcheck

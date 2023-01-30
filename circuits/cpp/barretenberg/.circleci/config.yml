@@ -170,7 +170,19 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_primitives_tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_primitives_tests --gtest_filter=-stdlib_biggroup*
+      - *save_logs
+
+  stdlib-biggroup-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_primitives_tests --gtest_filter=stdlib_biggroup*
       - *save_logs
 
   stdlib-recursion-turbo-tests:
@@ -286,6 +298,7 @@ workflows:
       - honk-tests: *bb_test
       - barretenberg-tests: *bb_test
       - stdlib-primitives-tests: *bb_test
+      - stdlib-biggroup-tests: *bb_test
       - stdlib-recursion-turbo-tests: *bb_test
       - stdlib-recursion-ultra-tests: *bb_test
       - tx-rollup-tests: *bb_test
@@ -297,6 +310,7 @@ workflows:
           requires:
             - barretenberg-tests
             - stdlib-primitives-tests
+            - stdlib-biggroup-tests
             - stdlib-recursion-turbo-tests
             - stdlib-recursion-ultra-tests
             - tx-rollup-tests

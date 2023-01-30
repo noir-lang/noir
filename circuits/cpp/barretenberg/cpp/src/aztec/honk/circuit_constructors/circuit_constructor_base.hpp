@@ -43,6 +43,7 @@ template <size_t program_width_> class CircuitConstructorBase {
 
     // Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
     // TODO(Adrian): This is unused, and this type of hard coded data should be avoided
+    // Cody: This is used by compute_wire_copy_cycles in Plonk.
     // enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
     CircuitConstructorBase(std::vector<std::string> selector_names, size_t num_selectors = 0, size_t size_hint = 0)
@@ -197,7 +198,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");
 
     // TODO(Adrian): This method should belong in the ComposerHelper, where the number of reserved gates can be
-    // correctly set
+    // correctly set. Cody: I don't know, this method is about circuit construction, seems like it should be here.
     size_t get_circuit_subgroup_size(const size_t num_gates) const
     {
         auto log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
@@ -237,6 +238,7 @@ template <size_t program_width_> class CircuitConstructorBase {
 
 } // namespace honk
 
+// TODO(Cody): This may need updating, to deal with the new gate we used to ensure that non multivariate is zero?
 /**
  * Composer Example: Pythagorean triples.
  *
