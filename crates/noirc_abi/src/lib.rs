@@ -228,7 +228,7 @@ impl Abi {
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
     pub fn decode(
         &self,
-        encoded_inputs: &Vec<FieldElement>,
+        encoded_inputs: &[FieldElement],
     ) -> Result<BTreeMap<String, InputValue>, AbiError> {
         let input_length: u32 = encoded_inputs.len().try_into().unwrap();
         if input_length != self.field_count() {
@@ -254,7 +254,7 @@ impl Abi {
 
     fn decode_value(
         initial_index: usize,
-        encoded_inputs: &Vec<FieldElement>,
+        encoded_inputs: &[FieldElement],
         value_type: &AbiType,
     ) -> Result<(usize, InputValue), AbiError> {
         let mut index = initial_index;
