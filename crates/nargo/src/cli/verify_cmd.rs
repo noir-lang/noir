@@ -1,7 +1,8 @@
-use super::compile_cmd::compile_circuit;
-use super::prove_cmd::AbiMap;
-use super::{read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::errors::CliError;
+use super::{compile_cmd::compile_circuit, read_inputs_from_file};
+use crate::{
+    constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
+    errors::CliError,
+};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
@@ -48,7 +49,8 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_abi_map = read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+        public_inputs =
+            read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_abi_map, load_proof(proof_path)?)?;

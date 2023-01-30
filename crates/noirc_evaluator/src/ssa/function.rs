@@ -264,6 +264,7 @@ impl IRGenerator {
         // where `foo` is incorrectly inferred to take an array of size 1 and
         // return an array of size 0.
         // we should check issue #628 again when this block is removed
+        // we should also see if the lca check in StackFrame.is_new_array() can be removed (cf. issue #661)
         if let Some(func_id) = self.context.try_get_funcid(func) {
             let rtt = self.context.functions[&func_id].result_types.clone();
             let mut result = Vec::new();

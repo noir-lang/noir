@@ -20,8 +20,8 @@ struct ResolverMeta {
 use crate::hir_def::expr::{
     HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
-    HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-    HirPrefixExpression,
+    HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
+    HirMethodCallExpression, HirPrefixExpression,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
@@ -73,6 +73,13 @@ pub struct Resolver<'a> {
     /// Contains a mapping of the current struct's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     generics: HashMap<Rc<String>, (TypeVariable, Span)>,
+
+    /// Lambdas share the function scope of the function they're defined in,
+    /// so to identify whether they use any variables from the parent function
+    /// we keep track of the scope index a variable is declared in. When a lambda
+    /// is declared we push a scope and set this lambda_index to the scope index.
+    /// Any variable from a scope less than that must be from the parent function.
+    lambda_index: usize,
 }
 
 impl<'a> Resolver<'a> {
@@ -90,6 +97,7 @@ impl<'a> Resolver<'a> {
             self_type: None,
             generics: HashMap::new(),
             errors: Vec::new(),
+            lambda_index: 0,
             file,
         }
     }
@@ -100,6 +108,10 @@ impl<'a> Resolver<'a> {
 
     fn push_err(&mut self, err: ResolverError) {
         self.errors.push(err)
+    }
+
+    fn current_lambda_index(&self) -> usize {
+        self.scopes.current_scope_index()
     }
 
     /// Resolving a function involves interning the metadata
@@ -253,7 +265,7 @@ impl<'a> Resolver<'a> {
         let variable = scope_tree.find(&name.0.contents);
 
         let location = Location::new(name.span(), self.file);
-        if let Some(variable_found) = variable {
+        if let Some((variable_found, _)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
             Ok(HirIdent { location, id })
@@ -286,27 +298,16 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = match &size {
-                    None => {
-                        let id = self.interner.next_type_variable_id();
-                        let typevar = Shared::new(TypeBinding::Unbound(id));
-                        new_variables.push((id, typevar.clone()));
-
-                        // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                        // wont be bound over but this one has no name since we do not currently
-                        // require users to explicitly be generic over array lengths.
-                        Type::NamedGeneric(typevar, Rc::new("".into()))
-                    }
-                    Some(expr) => {
-                        let len = self.eval_array_length(expr);
-                        Type::ArrayLength(len)
-                    }
-                };
+                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::String(size) => {
+                let resolved_size = self.resolve_array_size(size, new_variables);
+                Type::String(Box::new(resolved_size))
+            }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
@@ -339,6 +340,29 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn resolve_array_size(
+        &mut self,
+        size: Option<Expression>,
+        new_variables: &mut Generics,
+    ) -> Type {
+        match &size {
+            None => {
+                let id = self.interner.next_type_variable_id();
+                let typevar = Shared::new(TypeBinding::Unbound(id));
+                new_variables.push((id, typevar.clone()));
+
+                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
+                // wont be bound over but this one has no name since we do not currently
+                // require users to explicitly be generic over array lengths.
+                Type::NamedGeneric(typevar, Rc::new("".into()))
+            }
+            Some(expr) => {
+                let len = self.eval_array_length(expr);
+                Type::ArrayLength(len)
+            }
+        }
+    }
+
     fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
         let location = Location::new(path.span(), self.file);
 
@@ -362,6 +386,15 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    /// Translates a (possibly Unspecified) UnresolvedType to a Type.
+    /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
+    fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
+        match typ {
+            UnresolvedType::Unspecified => self.interner.next_type_variable(),
+            other => self.resolve_type_inner(other, &mut vec![]),
+        }
     }
 
     fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
@@ -598,10 +631,9 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (
-                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None)),
-                        this.resolve_expression(block),
-                    )
+                    let decl =
+                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None));
+                    (decl, this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -662,6 +694,23 @@ impl<'a> Resolver<'a> {
                 let elements = vecmap(elements, |elem| self.resolve_expression(elem));
                 HirExpression::Tuple(elements)
             }
+            // We must stay in the same function scope as the parent function to allow for closures
+            // to capture variables. This is currently limited to immutable variables.
+            ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
+                let new_index = this.current_lambda_index();
+                let old_index = std::mem::replace(&mut this.lambda_index, new_index);
+
+                let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
+                    let parameter = DefinitionKind::Local(None);
+                    (this.resolve_pattern(pattern, parameter), this.resolve_inferred_type(typ))
+                });
+
+                let return_type = this.resolve_inferred_type(lambda.return_type);
+                let body = this.resolve_expression(lambda.body);
+
+                this.lambda_index = old_index;
+                HirExpression::Lambda(HirLambda { parameters, return_type, body })
+            }),
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
@@ -937,6 +986,7 @@ impl<'a> Resolver<'a> {
             | ExpressionKind::Cast(_)
             | ExpressionKind::For(_)
             | ExpressionKind::If(_)
+            | ExpressionKind::Lambda(_)
             | ExpressionKind::Tuple(_) => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
 
             ExpressionKind::Error => Err(None),

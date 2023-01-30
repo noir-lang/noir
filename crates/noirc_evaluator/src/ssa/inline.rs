@@ -107,6 +107,7 @@ pub struct StackFrame {
     pub created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
     pub return_arrays: Vec<ArrayId>,
+    lca_cache: HashMap<(BlockId, BlockId), BlockId>,
 }
 
 impl StackFrame {
@@ -118,6 +119,7 @@ impl StackFrame {
             created_arrays: HashMap::new(),
             zeros: HashMap::new(),
             return_arrays: Vec::new(),
+            lca_cache: HashMap::new(),
         }
     }
 
@@ -125,6 +127,7 @@ impl StackFrame {
         self.stack.clear();
         self.array_map.clear();
         self.created_arrays.clear();
+        self.lca_cache.clear();
     }
 
     pub fn push(&mut self, ins_id: NodeId) {
@@ -160,6 +163,30 @@ impl StackFrame {
     }
     pub fn get_zero(&self, o_type: ObjectType) -> NodeId {
         self.zeros[&o_type]
+    }
+
+    // returns the lca of x and y, using a cache
+    pub fn lca(&mut self, ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
+        let ordered_blocks = if x.0 < y.0 { (x, y) } else { (y, x) };
+        *self.lca_cache.entry(ordered_blocks).or_insert_with(|| block::lca(ctx, x, y))
+    }
+
+    // returns true if the array_id is created in the block of the stack
+    pub fn is_new_array(&mut self, ctx: &SsaContext, array_id: &ArrayId) -> bool {
+        if self.return_arrays.contains(array_id) {
+            //array is defined by the caller
+            return false;
+        }
+        if self.created_arrays[array_id] != self.block {
+            let lca = self.lca(ctx, self.block, self.created_arrays[array_id]);
+            if lca != self.block && lca != self.created_arrays[array_id] {
+                //if the array is defined in a parallel branch, it is new in this branch
+                return true;
+            }
+            false
+        } else {
+            true
+        }
     }
 }
 
