@@ -1,74 +1,44 @@
 use crate::{input_parser::InputValue, AbiParameter, AbiType};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum InputParserError {
+    #[error("input.toml file is badly formed, could not parse, {0}")]
     ParseTomlMap(String),
+    #[error("Expected witness values to be integers, provided value causes `{0}` error")]
     ParseStr(String),
+    #[error("Could not parse hex value {0}")]
     ParseHexStr(String),
+    #[error("duplicate variable name {0}")]
     DuplicateVariableName(String),
+    #[error("cannot parse a string toml type into {0:?}")]
     AbiTypeMismatch(AbiType),
 }
 
-impl std::fmt::Display for InputParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InputParserError::ParseTomlMap(err_msg) => {
-                write!(f, "input.toml file is badly formed, could not parse, {err_msg}")
-            }
-            InputParserError::ParseStr(err_msg) => write!(
-                f,
-                "Expected witness values to be integers, provided value causes `{err_msg}` error"
-            ),
-            InputParserError::ParseHexStr(err_msg) => {
-                write!(f, "Could not parse hex value {err_msg}")
-            }
-            InputParserError::DuplicateVariableName(err_msg) => {
-                write!(f, "duplicate variable name {err_msg}")
-            }
-            InputParserError::AbiTypeMismatch(abi_type) => {
-                write!(f, "cannot parse a string toml type into {abi_type:?}")
-            }
-        }
+impl From<toml::ser::Error> for InputParserError {
+    fn from(err: toml::ser::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
     }
 }
 
-#[derive(Debug)]
+impl From<toml::de::Error> for InputParserError {
+    fn from(err: toml::de::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
+    }
+}
+
+#[derive(Debug, Error)]
 pub enum AbiError {
+    #[error("{0}")]
     Generic(String),
+    #[error("Received parameters not expected by ABI: {0:?}")]
     UnexpectedParams(Vec<String>),
+    #[error("The parameter {} is expected to be a {:?} but found incompatible value {value:?}", .param.name, .param.typ)]
     TypeMismatch { param: AbiParameter, value: InputValue },
+    #[error("ABI expects the parameter `{0}`, but this was not found")]
     MissingParam(String),
+    #[error("Input value `{0}` is not defined")]
     UndefinedInput(String),
+    #[error("ABI specifies an input of length {expected} but received input of length {actual}")]
     UnexpectedInputLength { expected: u32, actual: u32 },
-}
-
-impl std::fmt::Display for AbiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                AbiError::Generic(msg) => msg.clone(),
-                AbiError::UnexpectedParams(unexpected_params) =>
-                    format!("Received parameters not expected by ABI: {unexpected_params:?}"),
-                AbiError::TypeMismatch { param, value } => {
-                    format!(
-                        "The parameter {} is expected to be a {:?} but found incompatible value {:?}",
-                        param.name, param.typ, value
-                    )
-                }
-                AbiError::MissingParam(name) => {
-                    format!("ABI expects the parameter `{name}`, but this was not found")
-                }
-                AbiError::UndefinedInput(name) => {
-                    format!("Input value `{name}` is not defined")
-                }
-                AbiError::UnexpectedInputLength { expected, actual } => {
-                    format!(
-                        "ABI specifies an input of length {expected} but received input of length {actual}"
-                    )
-                }
-            }
-        )
-    }
 }

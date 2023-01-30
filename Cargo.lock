@@ -1705,6 +1705,7 @@ dependencies = [
  "serde_derive",
  "tempdir",
  "termcolor",
+ "thiserror",
  "toml",
  "url",
 ]
@@ -1750,6 +1751,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "thiserror",
  "toml",
 ]
 
