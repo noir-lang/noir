@@ -10,7 +10,7 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{AbiType, AbiVisibility};
+use noirc_abi::AbiType;
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::BTreeMap;
@@ -25,7 +25,7 @@ pub struct Evaluator {
     // This is the number of witnesses indices used when
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
-    public_inputs: Vec<Witness>,
+    param_witnesses: BTreeMap<String, Vec<Witness>>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -43,7 +43,17 @@ pub fn create_circuit(
     let mut evaluator = Evaluator::new();
 
     // First evaluate the main function
-    evaluator.evaluate_main_alt(program, enable_logging)?;
+    evaluator.evaluate_main_alt(program.clone(), enable_logging)?;
+
+    // TODO: shrink this ungodly mess.
+    let public_inputs = program
+        .abi
+        .public_abi()
+        .parameter_names()
+        .into_iter()
+        .cloned()
+        .flat_map(|param_name| evaluator.param_witnesses[&param_name].clone())
+        .collect();
 
     let witness_index = evaluator.current_witness_index();
 
@@ -51,7 +61,7 @@ pub fn create_circuit(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(evaluator.public_inputs),
+            public_inputs: PublicInputs(public_inputs),
         },
         np_language,
         is_blackbox_supported,
@@ -64,8 +74,8 @@ pub fn create_circuit(
 impl Evaluator {
     fn new() -> Self {
         Evaluator {
-            public_inputs: Vec::new(),
             num_witnesses_abi_len: 0,
+            param_witnesses: BTreeMap::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
             // This means that every constraint system at the moment, will either need
@@ -90,7 +100,8 @@ impl Evaluator {
         // an intermediate variable.
         let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
-        let is_public_input = self.public_inputs.contains(&witness_index);
+        let is_public_input =
+            self.param_witnesses.values().flatten().any(|&index| index == witness_index);
 
         !is_intermediate_variable && !is_public_input
     }
@@ -140,46 +151,40 @@ impl Evaluator {
         name: &str,
         def: Definition,
         param_type: &AbiType,
-        visibility: &AbiVisibility,
         ir_gen: &mut IrGenerator,
     ) -> Result<(), RuntimeErrorKind> {
-        match param_type {
+        let witnesses = match param_type {
             AbiType::Field => {
                 let witness = self.add_witness_to_cs();
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
                     node::ObjectType::NativeField,
                     Some(witness),
                 );
+                vec![witness]
             }
             AbiType::Array { length, typ } => {
                 let witnesses = self.generate_array_witnesses(length, typ)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.extend(witnesses.clone());
-                }
-                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
+
+                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses.clone());
+                witnesses
             }
             AbiType::Integer { sign: _, width } => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 let obj_type = ir_gen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+
+                vec![witness]
             }
             AbiType::Boolean => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, 1, self)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 let obj_type = node::ObjectType::Boolean;
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+
+                vec![witness]
             }
             AbiType::Struct { fields } => {
                 let new_fields = btree_map(fields, |(inner_name, value)| {
@@ -189,22 +194,20 @@ impl Evaluator {
 
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
-                if *visibility == AbiVisibility::Public {
-                    let witnesses: Vec<Witness> =
-                        struct_witnesses.values().flatten().cloned().collect();
-                    self.public_inputs.extend(witnesses);
-                }
-                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses);
+
+                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses.clone());
+                struct_witnesses.values().flatten().cloned().collect()
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
                 let witnesses = self.generate_array_witnesses(length, &typ)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.extend(witnesses.clone());
-                }
-                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses);
+                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses.clone());
+                witnesses
             }
-        }
+        };
+
+        self.param_witnesses.insert(name.to_owned(), witnesses);
+
         Ok(())
     }
 
@@ -298,8 +301,7 @@ impl Evaluator {
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
             assert_eq!(param_name, &abi_param.name);
             let def = Definition::Local(*param_id);
-            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, ir_gen)
-                .unwrap();
+            self.param_to_var(param_name, def, &abi_param.typ, ir_gen).unwrap();
         }
 
         // Store the number of witnesses used to represent the types

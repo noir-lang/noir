@@ -122,7 +122,7 @@ mod test {
             let mut eval = Evaluator {
                 current_witness_index: 0,
                 num_witnesses_abi_len: 0,
-                public_inputs: Vec::new(),
+                param_witnesses: BTreeMap::new(),
                 opcodes: Vec::new(),
             };
 
