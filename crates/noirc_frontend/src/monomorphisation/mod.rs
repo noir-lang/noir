@@ -549,7 +549,7 @@ impl Monomorphiser {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Forall(_, _) | HirType::Expression(_) | HirType::Error => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }

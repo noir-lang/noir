@@ -7,7 +7,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    Comptime, Shared, TypeBinding, TypeExpression,
+    Comptime, Shared, TypeBinding,
 };
 
 use super::{bind_pattern, errors::TypeCheckError};
@@ -37,7 +37,7 @@ pub(crate) fn type_check_expression(
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
                     let arr_type = Type::Array(
-                        Box::new(Type::Expression(TypeExpression::Constant(arr.len() as u64))),
+                        Box::new(Type::Constant(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -69,7 +69,7 @@ pub(crate) fn type_check_expression(
                     )
                 }
                 HirLiteral::Str(string) => {
-                    let len = Type::Expression(TypeExpression::Constant(string.len() as u64));
+                    let len = Type::Constant(string.len() as u64);
                     Type::String(Box::new(len))
                 }
             }

@@ -39,8 +39,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeExpression, TypeVariable, UnresolvedType, UnresolvedTypeExpression,
-    ERROR_IDENT,
+    TypeBinding, TypeVariable, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -303,9 +302,7 @@ impl<'a> Resolver<'a> {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
-            UnresolvedType::Expression(expr) => {
-                Type::Expression(self.convert_expression_type(expr))
-            }
+            UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
             UnresolvedType::String(size) => {
@@ -360,17 +357,17 @@ impl<'a> Resolver<'a> {
                 // require users to explicitly be generic over array lengths.
                 Type::NamedGeneric(typevar, Rc::new("".into()))
             }
-            Some(length) => Type::Expression(self.convert_expression_type(length)),
+            Some(length) => self.convert_expression_type(length),
         }
     }
 
-    fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> TypeExpression {
+    fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 if path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
                     if let Some((name, (var, _))) = self.generics.get_key_value(name) {
-                        return TypeExpression::NamedGeneric(var.clone(), name.clone());
+                        return Type::NamedGeneric(var.clone(), name.clone());
                     }
                 }
 
@@ -378,17 +375,29 @@ impl<'a> Resolver<'a> {
                 if let Ok(ModuleDefId::GlobalId(id)) =
                     self.path_resolver.resolve(self.def_maps, path.clone())
                 {
-                    TypeExpression::Constant(self.eval_global_as_array_length(id))
+                    Type::Constant(self.eval_global_as_array_length(id))
                 } else {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-                    TypeExpression::Constant(0)
+                    Type::Constant(0)
                 }
             }
-            UnresolvedTypeExpression::Constant(int) => TypeExpression::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = Rc::new(self.convert_expression_type(*lhs));
-                let rhs = Rc::new(self.convert_expression_type(*rhs));
-                TypeExpression::BinaryOperation(lhs, op, rhs).simplify()
+            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs);
+                let rhs = self.convert_expression_type(*rhs);
+
+                match (lhs, rhs) {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        Type::Constant(op.function()(lhs, rhs))
+                    }
+                    (lhs, _) => {
+                        let span =
+                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                        Type::Constant(0)
+                    }
+                }
             }
         }
     }

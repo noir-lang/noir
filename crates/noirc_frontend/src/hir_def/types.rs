@@ -217,26 +217,9 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    Expression(TypeExpression),
+    Constant(u64),
 
     Error,
-}
-
-/// An integer expression that is allowed in a type position. This is most often used
-/// for array length types. These expressions can only use basic binary operations
-/// and can only reference global variables or type parameters.
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum TypeExpression {
-    /// Some constant value. Restricted to only u64 as TypeExpressions are only used
-    /// for array lengths currently. Global variables are translated into Constants as well,
-    /// using the value they are initialized to directly and eliminating the need to reference
-    /// an external variable.
-    Constant(u64),
-    BinaryOperation(Rc<TypeExpression>, BinaryTypeOperator, Rc<TypeExpression>),
-
-    // These two variants are equivalent to the ones in the Type enum
-    TypeVariable(TypeVariable),
-    NamedGeneric(TypeVariable, Rc<String>),
 }
 
 /// A restricted subset of binary operators useable on
@@ -540,7 +523,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::Expression(e) => e.fmt(f),
+            Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -549,21 +532,6 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
-        }
-    }
-}
-
-impl std::fmt::Display for TypeExpression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeExpression::Constant(value) => write!(f, "{value}"),
-            TypeExpression::BinaryOperation(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
-            TypeExpression::TypeVariable(var) => var.borrow().fmt(f),
-            TypeExpression::NamedGeneric(binding, name) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.fmt(f),
-                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_) => write!(f, "{name}"),
-            },
         }
     }
 }
@@ -742,8 +710,7 @@ impl Type {
         match self {
             Type::PolymorphicInteger(_, var)
             | Type::TypeVariable(var)
-            | Type::NamedGeneric(var, _)
-            | Type::Expression(TypeExpression::TypeVariable(var)) => Some(var.clone()),
+            | Type::NamedGeneric(var, _) => Some(var.clone()),
             _ => None,
         }
     }
@@ -882,8 +849,6 @@ impl Type {
                 }
             }
 
-            (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
-
             (Function(params_a, ret_a), Function(params_b, ret_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b) {
@@ -1014,11 +979,6 @@ impl Type {
                 }
             }
 
-            // Re-using try_unify here should be fine as TypeExpressions only have exact equality
-            // and do not contain any Comptime variables which is the only part that would differ
-            // between unification and subtyping.
-            (Expression(expr_a), Expression(expr_b)) => expr_a.try_unify(expr_b, span),
-
             (Function(params_a, ret_a), Function(params_b, ret_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b) {
@@ -1051,7 +1011,7 @@ impl Type {
                 TypeBinding::Unbound(_) => None,
             },
             Type::Array(len, _elem) => len.evaluate_to_u64(),
-            Type::Expression(expr) => expr.evaluate_to_u64(),
+            Type::Constant(x) => Some(*x),
             _ => None,
         }
     }
@@ -1088,7 +1048,7 @@ impl Type {
             }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::Expression(_) => unreachable!(),
+            Type::Constant(_) => unreachable!(),
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -1213,11 +1173,11 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
-            Type::Expression(expr) => Type::Expression(expr.substitute(type_bindings)),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
+            | Type::Constant(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -1243,11 +1203,11 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
-            Type::Expression(expr) => expr.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
+            | Type::Constant(_)
             | Type::Error
             | Type::Unit => false,
         }
@@ -1285,184 +1245,11 @@ impl Type {
                 Function(args, ret)
             }
 
-            Expression(expr) => Expression(expr.follow_bindings()),
-
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | Unit | Error => self.clone(),
-        }
-    }
-}
-
-impl TypeExpression {
-    fn evaluate_to_u64(&self) -> Option<u64> {
-        match self {
-            TypeExpression::Constant(value) => Some(*value),
-            TypeExpression::TypeVariable(variable) | TypeExpression::NamedGeneric(variable, _) => {
-                match &*variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
-                    TypeBinding::Unbound(_) => None,
-                }
-            }
-            TypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = lhs.evaluate_to_u64()?;
-                let rhs = rhs.evaluate_to_u64()?;
-                Some(op.function()(lhs, rhs))
-            }
-        }
-    }
-
-    fn substitute(
-        &self,
-        type_bindings: &HashMap<TypeVariableId, (Shared<TypeBinding>, Type)>,
-    ) -> TypeExpression {
-        match self {
-            TypeExpression::Constant(x) => TypeExpression::Constant(*x),
-            TypeExpression::TypeVariable(var) | TypeExpression::NamedGeneric(var, _) => match &*var
-                .borrow()
-            {
-                TypeBinding::Bound(binding) => Self::from_type(binding.substitute(type_bindings)),
-                TypeBinding::Unbound(id) => match type_bindings.get(id) {
-                    Some((_, binding)) => Self::from_type(binding.clone()),
-                    None => self.clone(),
-                },
-            },
-            TypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = lhs.substitute(type_bindings);
-                let rhs = rhs.substitute(type_bindings);
-                TypeExpression::BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs))
-            }
-        }
-    }
-
-    fn from_type(typ: Type) -> TypeExpression {
-        match typ {
-            Type::TypeVariable(var) => TypeExpression::TypeVariable(var),
-            Type::NamedGeneric(var, name) => TypeExpression::NamedGeneric(var, name),
-            Type::Expression(expr) => expr,
-            other => panic!(
-                "Cannot convert type {other} into an array length expression - it is not an integer"
-            ),
-        }
-    }
-
-    fn occurs(&self, target_id: TypeVariableId) -> bool {
-        match self {
-            TypeExpression::Constant(_) => false,
-            TypeExpression::TypeVariable(binding) | TypeExpression::NamedGeneric(binding, _) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
-                    TypeBinding::Unbound(id) => *id == target_id,
-                }
-            }
-            TypeExpression::BinaryOperation(lhs, _, rhs) => {
-                lhs.occurs(target_id) || rhs.occurs(target_id)
-            }
-        }
-    }
-
-    fn follow_bindings(&self) -> TypeExpression {
-        match self {
-            TypeExpression::Constant(x) => TypeExpression::Constant(*x),
-            TypeExpression::TypeVariable(var) | TypeExpression::NamedGeneric(var, _) => {
-                match &*var.borrow() {
-                    TypeBinding::Bound(binding) => Self::from_type(binding.follow_bindings()),
-                    TypeBinding::Unbound(_) => self.clone(),
-                }
-            }
-            TypeExpression::BinaryOperation(lhs, op, rhs) => {
-                let lhs = lhs.follow_bindings();
-                let rhs = rhs.follow_bindings();
-                TypeExpression::BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs))
-            }
-        }
-    }
-
-    fn try_unify(&self, other: &TypeExpression, span: Span) -> Result<(), SpanKind> {
-        match (self, other) {
-            (TypeExpression::TypeVariable(var), other)
-            | (other, TypeExpression::TypeVariable(var)) => {
-                if let TypeBinding::Bound(link) = &*var.borrow() {
-                    return link.try_unify(&Type::Expression(other.clone()), span);
-                }
-                Type::Expression(other.clone()).try_bind_to(var)
-            }
-
-            (
-                TypeExpression::NamedGeneric(self_var, self_name),
-                TypeExpression::NamedGeneric(other_var, other_name),
-            ) => {
-                assert!(self_var.borrow().is_unbound());
-                assert!(other_var.borrow().is_unbound());
-
-                if self_name == other_name {
-                    Ok(())
-                } else {
-                    Err(SpanKind::None)
-                }
-            }
-
-            (TypeExpression::Constant(x), TypeExpression::Constant(y)) => {
-                if x == y {
-                    Ok(())
-                } else {
-                    Err(SpanKind::None)
-                }
-            }
-
-            (
-                TypeExpression::BinaryOperation(self_lhs, self_op, self_rhs),
-                TypeExpression::BinaryOperation(other_lhs, other_op, other_rhs),
-            ) => {
-                if self_op != other_op {
-                    return Err(SpanKind::None);
-                }
-
-                let mut result = self_lhs.try_unify(other_lhs, span);
-                result = result.and_then(|()| self_rhs.try_unify(other_rhs, span));
-
-                // If we got an error and our operator is commutative, try swapping the ordering of
-                // the two arguments to see if we succeed. Note that this may still fail in cases
-                // like (N + 1 + M) = (1 + M + N) as this would require multiple nested swaps
-                // instead of just one at a time.
-                if result.is_err() && self_op.commutative() {
-                    // No `and_then` here, we want to discard the previous failure.
-                    result = self_lhs.try_unify(other_rhs, span);
-                    result = result.and_then(|()| self_rhs.try_unify(other_lhs, span));
-                }
-
-                result
-            }
-
-            (TypeExpression::Constant(_), TypeExpression::BinaryOperation(_, _, _))
-            | (TypeExpression::BinaryOperation(_, _, _), TypeExpression::Constant(_)) => {
-                // In the future we could try to evaluate both expressions to see if they
-                // simplify down to the same expression. For now we just fail.
-                Err(SpanKind::None)
-            }
-
-            (TypeExpression::NamedGeneric(..), _) | (_, TypeExpression::NamedGeneric(..)) => {
-                Err(SpanKind::None)
-            }
-        }
-    }
-
-    // This could be more robust, but we'd quickly get into dangerous territory with questions of
-    // whether we should group repeated additions into multiplications, re-arrange nested terms,
-    // etc.
-    pub fn simplify(&self) -> TypeExpression {
-        use TypeExpression::*;
-        match self {
-            Constant(_) | TypeVariable(_) | NamedGeneric(..) => self.clone(),
-            BinaryOperation(lhs, op, rhs) => {
-                let lhs = lhs.simplify();
-                let rhs = rhs.simplify();
-
-                match (lhs, rhs) {
-                    (Constant(lhs), Constant(rhs)) => Constant(op.function()(lhs, rhs)),
-                    (lhs, rhs) => BinaryOperation(Rc::new(lhs), *op, Rc::new(rhs)),
-                }
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | Constant(_) | Unit | Error => {
+                self.clone()
             }
         }
     }
@@ -1470,7 +1257,7 @@ impl TypeExpression {
 
 impl BinaryTypeOperator {
     /// Return the actual rust numeric function associated with this operator
-    fn function(self) -> fn(u64, u64) -> u64 {
+    pub fn function(self) -> fn(u64, u64) -> u64 {
         match self {
             BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
             BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
@@ -1478,10 +1265,5 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
             BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
         }
-    }
-
-    /// True if this operator is commutative
-    fn commutative(self) -> bool {
-        matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
     }
 }
