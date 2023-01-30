@@ -127,8 +127,12 @@ impl InputValue {
                 InputValue::Vec(array_elements)
             }
             TomlTypes::Table(table) => {
+                let fields = match param_type {
+                    AbiType::Struct { fields } => fields,
+                    _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+                };
                 let native_table = try_btree_map(table, |(key, value)| {
-                    InputValue::try_from_toml(value, param_type)
+                    InputValue::try_from_toml(value, &fields[&key])
                         .map(|input_value| (key, input_value))
                 })?;
 
