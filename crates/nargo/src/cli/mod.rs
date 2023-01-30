@@ -56,7 +56,7 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("contract")
-                .about("Generates a Solidity verifier smart contract for the program")
+                .about("Generates a Solidity verifier smart contract for the program"),
         )
         .subcommand(
             App::new("new")
