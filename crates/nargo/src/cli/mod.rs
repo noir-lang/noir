@@ -43,7 +43,10 @@ pub fn start_cli() {
                 .about("Checks the constraint system for errors")
                 .arg(allow_warnings.clone()),
         )
-        .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
+        .subcommand(
+            App::new("contract")
+                .about("Generates a Solidity verifier smart contract for the program"),
+        )
         .subcommand(
             App::new("new")
                 .about("Create a new binary project")
