@@ -22,19 +22,19 @@ Noir also offers one-click generation of a verifier smart contract for every Noi
 
 ### Protocol / Blockchain Developers
 
-Noir is designed to be compilable into different arithmetic schemes of choice, hence it is capable of supporting different proving backends. It could be a great choice for infrastructural development that has to adopt alternative proving backends other than the default Plonk-based proving system due to specific limitations or requirements.
+Noir is designed to be compilable into different arithmetic schemes of choice, hence it is capable of supporting different proving backends. It could be a great choice for infrastructural development that has to adopt alternative proving backends in addition to the default Plonk-based proving system due to specific limitations or requirements.
 
 ## Resources
 
 To learn more about Noir:
 
-### [⭐️ Awesome Noir](https://github.com/noir-lang/awesome-noir)
-
-A curated list of Noir resources.
-
 ### [📓 The Noir Book](https://noir-lang.github.io/book/)
 
 The go-to Noir documentation.
+
+### [⭐️ Awesome Noir](https://github.com/noir-lang/awesome-noir)
+
+A curated list of Noir resources.
 
 ### [👨‍💻 Noir Repo](https://github.com/noir-lang/noir)
 
@@ -42,4 +42,4 @@ The main repository of Noir development.
 
 ### [👾 Discord](https://discord.gg/aztec)
 
-Join the channel [`#🖤│noir`](https://discord.gg/9GBuEZjK7T) for discussions.
+Join the forum channel [`#🖤│noir`](https://discord.com/channels/563037431604183070/1032602753148661780) for discussions.
