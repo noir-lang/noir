@@ -12,6 +12,10 @@ Noir is designed for accessible and flexible development of provable programs. I
 
 > **Circuits:** Source code of ZK programs are sometimes referred to as circuits due to the underlying design and working principles of ZKP systems. For development purposes, you may consider the two terms interchangeable.
 
+:::info
+Noir is a public good for developing ZK-provable programs and is independent from building products on the existing Aztec network.
+:::
+
 ## Who is Noir for?
 
 ### Application Developers
