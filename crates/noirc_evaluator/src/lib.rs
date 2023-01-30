@@ -169,7 +169,7 @@ impl Evaluator {
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
                 if *visibility == AbiVisibility::Public {
                     let witnesses: Vec<Witness> =
-                        struct_witnesses.values().cloned().flatten().collect();
+                        struct_witnesses.values().flatten().cloned().collect();
                     self.public_inputs.extend(witnesses);
                 }
                 igen.abi_struct(name, Some(def), fields, struct_witnesses);
