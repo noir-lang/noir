@@ -295,7 +295,7 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
     using Sumcheck = sumcheck::Sumcheck<Multivariates,
                                         Transcript,
                                         sumcheck::ArithmeticRelation,
-                                        // sumcheck::GrandProductComputationRelation,
+                                        sumcheck::GrandProductComputationRelation,
                                         sumcheck::GrandProductInitializationRelation>;
 
     // Compute alpha challenge

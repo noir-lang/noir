@@ -62,9 +62,10 @@ TEST(SumcheckRound, ComputeUnivariateProver)
                                ArithmeticRelation,
                                GrandProductComputationRelation,
                                GrandProductInitializationRelation>(round_size, relations);
-    FF relation_separator_challenge = 1;
+    const RelationParameters<FF> relation_parameters =
+        RelationParameters<FF>{ .alpha = 1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
     Univariate<FF, max_relation_length> round_univariate =
-        round.compute_univariate(full_polynomials, relation_separator_challenge);
+        round.compute_univariate(full_polynomials, relation_parameters);
     Univariate<FF, max_relation_length> expected_round_univariate{ { 32, 149, 406, 857, 1556 } };
 
     EXPECT_EQ(round_univariate, expected_round_univariate);
@@ -115,9 +116,10 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
                                ArithmeticRelation,
                                GrandProductComputationRelation,
                                GrandProductInitializationRelation>(relations);
-    FF relation_separator_challenge = -1;
+    const RelationParameters<FF> relation_parameters =
+        RelationParameters<FF>{ .alpha = -1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
     FF full_purported_value =
-        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_separator_challenge);
+        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters);
     EXPECT_EQ(full_purported_value, expected_full_purported_value);
 }
 

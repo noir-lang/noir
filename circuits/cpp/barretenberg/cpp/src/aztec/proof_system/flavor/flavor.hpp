@@ -40,7 +40,7 @@ struct StandardHonk {
     using MULTIVARIATE = Arithmetization::POLYNOMIAL;
     // // TODO(Cody): Where to specify? is this polynomial manifest size?
     // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
-    static constexpr size_t MAX_RELATION_LENGTH = 4; // TODO(Cody): increment after fixing add_edge_contribution; kill
+    static constexpr size_t MAX_RELATION_LENGTH = 5; // TODO(Cody): increment after fixing add_edge_contribution; kill
                                                      // after moving barycentric class out of relations
 
     // TODO(Cody): should extract this from the parameter pack. Maybe that should be done here?

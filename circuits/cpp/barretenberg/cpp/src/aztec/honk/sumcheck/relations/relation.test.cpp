@@ -83,7 +83,7 @@ TYPED_TEST(SumcheckRelation, ArithmeticRelation)
     Univariate expected_evals = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + (q_c);
 
     auto evals = Univariate<FF, relation.RELATION_LENGTH>();
-    relation.add_edge_contribution(extended_edges, evals);
+    relation.add_edge_contribution(extended_edges, evals, 0);
 
     EXPECT_EQ(evals, expected_evals);
 };
@@ -120,9 +120,12 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
     auto lagrange_first = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
     auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
     // TODO(luke): use real transcript/challenges once manifest is done
-    FF beta = FF::one();
-    FF gamma = FF::one();
-    FF public_input_delta = FF::one();
+    FF beta = FF::random_element();
+    FF gamma = FF::random_element();
+    FF public_input_delta = FF::random_element();
+    const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
+        .alpha = FF ::zero(), .beta = beta, .gamma = gamma, .public_input_delta = public_input_delta
+    };
 
     auto expected_evals = Univariate();
     // expected_evals in the below step { { 27, 250, 1029, 2916, 6655 } }
@@ -133,7 +136,7 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
                       (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
 
     auto evals = Univariate();
-    relation.add_edge_contribution(extended_edges, evals);
+    relation.add_edge_contribution(extended_edges, evals, relation_parameters);
 
     EXPECT_EQ(evals, expected_evals);
 };
@@ -157,7 +160,7 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
 
     // Compute the edge contribution using add_edge_contribution
     auto evals = Univariate();
-    relation.add_edge_contribution(extended_edges, evals);
+    relation.add_edge_contribution(extended_edges, evals, 0);
 
     EXPECT_EQ(evals, expected_evals);
 };

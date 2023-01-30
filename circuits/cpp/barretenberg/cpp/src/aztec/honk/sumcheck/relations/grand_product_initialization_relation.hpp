@@ -21,8 +21,13 @@ template <typename FF> class GrandProductInitializationRelation : public Relatio
      * This file handles the relation Z_perm_shift(n_last) = 0 via the relation:
      *
      *                      C(X) = L_LAST(X) * Z_perm_shift(X)
+     *
+     *
+     * The final parameter is left to conform to the general argument structure (input,output, challenges) even though
+     * we don't need challenges in this relation.
+     *
      */
-    void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals)
+    template <typename T> void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, T)
     {
         add_edge_contribution_internal(extended_edges, evals);
     };
@@ -55,7 +60,8 @@ template <typename FF> class GrandProductInitializationRelation : public Relatio
         add_edge_contribution_internal(extended_edges, evals);
     }
 
-    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value)
+    template <typename T>
+    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value, T)
     {
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
         auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];

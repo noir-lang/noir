@@ -27,8 +27,11 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
      *
      * @param extended_edges Contain inputs for the relation
      * @param evals Contains the resulting univariate polynomial
+     *
+     * The final parameter is left to conform to the general argument structure (input,output, challenges) even though
+     * we don't need challenges in this relation.
      */
-    void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals)
+    template <typename T> void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, T)
     {
         add_edge_contribution_internal(extended_edges, evals);
     };
@@ -70,7 +73,8 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         evals += q_c;
     };
 
-    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value)
+    template <typename T>
+    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value, T)
     {
         auto w_l = purported_evaluations[MULTIVARIATE::W_L];
         auto w_r = purported_evaluations[MULTIVARIATE::W_R];

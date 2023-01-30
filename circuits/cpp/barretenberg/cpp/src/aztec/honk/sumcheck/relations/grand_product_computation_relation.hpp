@@ -12,19 +12,20 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
     using MULTIVARIATE = StandardHonk::MULTIVARIATE;
 
   public:
-    // TODO(luke): make these real challenges once manifest is done
-    const FF beta_default = FF::one();
-    const FF gamma_default = FF::one();
-    const FF public_input_delta_default = FF::one();
-
     GrandProductComputationRelation() = default;
     explicit GrandProductComputationRelation(auto){}; // TODO(luke): should just be default?
     /**
      * @brief Add contribution of the permutation relation for a given edge (used by sumcheck round)
      */
-    void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals)
+    void add_edge_contribution(auto& extended_edges,
+                               Univariate<FF, RELATION_LENGTH>& evals,
+                               const RelationParameters<FF>& relation_parameters)
     {
-        add_edge_contribution_internal(extended_edges, evals, beta_default, gamma_default, public_input_delta_default);
+        add_edge_contribution_internal(extended_edges,
+                                       evals,
+                                       relation_parameters.beta,
+                                       relation_parameters.gamma,
+                                       relation_parameters.public_input_delta);
     };
 
     /**
@@ -53,8 +54,11 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
      *      delta is the public input correction term
      *
      */
-    inline void add_edge_contribution_internal(
-        auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, FF beta, FF gamma, FF public_input_delta)
+    inline void add_edge_contribution_internal(auto& extended_edges,
+                                               Univariate<FF, RELATION_LENGTH>& evals,
+                                               const FF& beta,
+                                               const FF& gamma,
+                                               const FF& public_input_delta)
     {
         auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
         auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
@@ -77,7 +81,9 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
                   (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma));
     };
 
-    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value)
+    void add_full_relation_value_contribution(auto& purported_evaluations,
+                                              FF& full_honk_relation_value,
+                                              const RelationParameters<FF>& relation_parameters)
     {
         auto w_1 = purported_evaluations[MULTIVARIATE::W_L];
         auto w_2 = purported_evaluations[MULTIVARIATE::W_R];
@@ -86,20 +92,22 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto sigma_2 = purported_evaluations[MULTIVARIATE::SIGMA_2];
         auto sigma_3 = purported_evaluations[MULTIVARIATE::SIGMA_3];
         auto id_1 = purported_evaluations[MULTIVARIATE::ID_1];
-        auto id_2 = purported_evaluations[MULTIVARIATE::ID_1];
-        auto id_3 = purported_evaluations[MULTIVARIATE::ID_1];
+        auto id_2 = purported_evaluations[MULTIVARIATE::ID_2];
+        auto id_3 = purported_evaluations[MULTIVARIATE::ID_3];
         auto z_perm = purported_evaluations[MULTIVARIATE::Z_PERM];
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
         auto lagrange_first = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
         auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
 
         // Contribution (1)
-        full_honk_relation_value +=
-            (z_perm + lagrange_first) * (w_1 + beta_default * id_1 + gamma_default) *
-                (w_2 + beta_default * id_2 + gamma_default) * (w_3 + beta_default * id_3 + gamma_default) -
-            (z_perm_shift + lagrange_last * public_input_delta_default) *
-                (w_1 + beta_default * sigma_1 + gamma_default) * (w_2 + beta_default * sigma_2 + gamma_default) *
-                (w_3 + beta_default * sigma_3 + gamma_default);
+        full_honk_relation_value += (z_perm + lagrange_first) *
+                                        (w_1 + relation_parameters.beta * id_1 + relation_parameters.gamma) *
+                                        (w_2 + relation_parameters.beta * id_2 + relation_parameters.gamma) *
+                                        (w_3 + relation_parameters.beta * id_3 + relation_parameters.gamma) -
+                                    (z_perm_shift + lagrange_last * relation_parameters.public_input_delta) *
+                                        (w_1 + relation_parameters.beta * sigma_1 + relation_parameters.gamma) *
+                                        (w_2 + relation_parameters.beta * sigma_2 + relation_parameters.gamma) *
+                                        (w_3 + relation_parameters.beta * sigma_3 + relation_parameters.gamma);
     };
 };
 } // namespace honk::sumcheck

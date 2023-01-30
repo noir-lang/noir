@@ -1,6 +1,7 @@
 #pragma once
 #include "common/serialize.hpp"
 #include "proof_system/types/polynomial_manifest.hpp"
+#include <honk/utils/public_inputs.hpp>
 #include "common/throw_or_abort.hpp"
 #include "ecc/curves/bn254/fr.hpp"
 #include "sumcheck_round.hpp"
@@ -36,6 +37,34 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         , round(std::tuple(Relations<FF>()...)){};
 
     /**
+     * @brief Get all the challenges and computed parameters used in sumcheck in a convenient format
+     *
+     * @return RelationParameters<FF>
+     */
+    RelationParameters<FF> retrieve_proof_parameters()
+    {
+        const FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+        const FF beta = FF::serialize_from_buffer(transcript.get_challenge("beta").begin());
+        const FF gamma = FF::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+        const auto public_input_size_vector = transcript.get_element("public_input_size");
+        const size_t public_input_size = (static_cast<size_t>(public_input_size_vector[0]) << 24) |
+                                         (static_cast<size_t>(public_input_size_vector[1]) << 16) |
+                                         (static_cast<size_t>(public_input_size_vector[2]) << 8) |
+
+                                         static_cast<size_t>(public_input_size_vector[3]);
+        const auto circut_size_vector = transcript.get_element("circuit_size");
+        const size_t n = (static_cast<size_t>(circut_size_vector[0]) << 24) |
+                         (static_cast<size_t>(circut_size_vector[1]) << 16) |
+                         (static_cast<size_t>(circut_size_vector[2]) << 8) | static_cast<size_t>(circut_size_vector[3]);
+        std::vector<FF> public_inputs = many_from_buffer<FF>(transcript.get_element("public_inputs"));
+        ASSERT(public_inputs.size() == public_input_size);
+        FF public_input_delta = honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, n);
+        const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
+            .alpha = alpha, .beta = beta, .gamma = gamma, .public_input_delta = public_input_delta
+        };
+        return relation_parameters;
+    }
+    /**
      * @brief Compute univariate restriction place in transcript, generate challenge, fold,... repeat until final round,
      * then compute multivariate evaluations and place in transcript.
      *
@@ -45,8 +74,9 @@ template <class Multivariates, class Transcript, template <class> class... Relat
     {
         // First round
         // This populates multivariates.folded_polynomials.
-        FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-        auto round_univariate = round.compute_univariate(multivariates.full_polynomials, alpha);
+
+        const auto relation_parameters = retrieve_proof_parameters();
+        auto round_univariate = round.compute_univariate(multivariates.full_polynomials, relation_parameters);
         transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d),
                                round_univariate.to_buffer());
         std::string challenge_label = "u_" + std::to_string(multivariates.multivariate_d);
@@ -59,7 +89,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // We operate on multivariates.folded_polynomials in place.
         for (size_t round_idx = 1; round_idx < multivariates.multivariate_d; round_idx++) {
             // Write the round univariate to the transcript
-            round_univariate = round.compute_univariate(multivariates.folded_polynomials, alpha);
+            round_univariate = round.compute_univariate(multivariates.folded_polynomials, relation_parameters);
             transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d - round_idx),
                                    round_univariate.to_buffer());
             challenge_label = "u_" + std::to_string(multivariates.multivariate_d - round_idx);
@@ -102,6 +132,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
     {
         bool verified(true);
 
+        const auto relation_parameters = retrieve_proof_parameters();
         // All but final round.
         // target_total_sum is initialized to zero then mutated in place.
 
@@ -127,9 +158,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
 
         // Final round
         auto purported_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-        FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
         FF full_honk_relation_purported_value =
-            round.compute_full_honk_relation_purported_value(purported_evaluations, alpha);
+            round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters);
         verified = verified && (full_honk_relation_purported_value == round.target_total_sum);
         return verified;
     };

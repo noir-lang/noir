@@ -29,11 +29,68 @@ namespace test_sumcheck_round {
 using Transcript = transcript::StandardTranscript;
 using FF = barretenberg::fr;
 
+Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_inputs)
+{
+    // Create a mock manifest containing only elements needed for testing Sumcheck
+    constexpr size_t fr_size = 32;
+    const size_t multivariate_n(1 << multivariate_d);
+    const size_t public_input_size = fr_size * num_public_inputs;
+    std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
+    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+        { { .name = "circuit_size", .num_bytes = 4, .derived_by_verifier = true },
+          { .name = "public_input_size", .num_bytes = 4, .derived_by_verifier = true } },
+        /* challenge_name = */ "init",
+        /* num_challenges_in = */ 1));
+
+    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
+                                                                     /* challenge_name = */ "alpha",
+                                                                     /* num_challenges_in = */ 1));
+    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
+        { { .name = "public_inputs", .num_bytes = public_input_size, .derived_by_verifier = false } },
+        /* challenge_name = */ "beta",
+        /* num_challenges_in = */ 2) // also produce "gamma"
+    );
+
+    for (size_t i = 0; i < multivariate_d; i++) {
+        auto label = std::to_string(multivariate_d - i);
+        manifest_rounds.emplace_back(
+            transcript::Manifest::RoundManifest({ { .name = "univariate_" + label,
+                                                    .num_bytes = fr_size * honk::StandardHonk::MAX_RELATION_LENGTH,
+                                                    .derived_by_verifier = false } },
+                                                /* challenge_name = */ "u_" + label,
+                                                /* num_challenges_in = */ 1));
+    }
+
+    // Create a transcript from the mock manifest
+    auto transcript = Transcript(transcript::Manifest(manifest_rounds));
+
+    transcript.add_element("circuit_size",
+                           { static_cast<uint8_t>(multivariate_n >> 24),
+                             static_cast<uint8_t>(multivariate_n >> 16),
+                             static_cast<uint8_t>(multivariate_n >> 8),
+                             static_cast<uint8_t>(multivariate_n) });
+
+    transcript.add_element("public_input_size",
+                           { static_cast<uint8_t>(num_public_inputs >> 24),
+                             static_cast<uint8_t>(num_public_inputs >> 16),
+                             static_cast<uint8_t>(num_public_inputs >> 8),
+                             static_cast<uint8_t>(num_public_inputs) });
+
+    transcript.apply_fiat_shamir("init");
+    transcript.apply_fiat_shamir("alpha");
+    std::vector<uint8_t> public_inputs_buf(public_input_size, 1); // arbitrary buffer of 1's
+    transcript.add_element("public_inputs", public_inputs_buf);
+    transcript.apply_fiat_shamir("beta");
+
+    return transcript;
+}
+
 TEST(Sumcheck, PolynomialNormalization)
 {
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
+    const size_t num_public_inputs(1);
 
     constexpr size_t fr_size = 32;
 
@@ -66,22 +123,7 @@ TEST(Sumcheck, PolynomialNormalization)
         sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
-    std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
-    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
-                                                                     /* challenge_name = */ "alpha",
-                                                                     /* num_challenges_in = */ 1));
-    for (size_t i = 0; i < multivariate_d; i++) {
-        auto label = std::to_string(multivariate_d - i);
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
-            { { .name = "univariate_" + label,
-                .num_bytes = fr_size * 5 /* honk::StandardHonk::MAX_RELATION_LENGTH */,
-                .derived_by_verifier = false } },
-            /* challenge_name = */ "u_" + label,
-            /* num_challenges_in = */ 1));
-    }
-
-    auto transcript = Transcript(transcript::Manifest(manifest_rounds));
-    transcript.apply_fiat_shamir("alpha");
+    auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
 
     auto multivariates = Multivariates(full_polynomials);
 
@@ -129,6 +171,7 @@ TEST(Sumcheck, Prover)
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(2);
     const size_t multivariate_n(1 << multivariate_d);
+    const size_t num_public_inputs(1);
 
     // const size_t max_relation_length = 4;
     constexpr size_t fr_size = 32;
@@ -162,22 +205,7 @@ TEST(Sumcheck, Prover)
         sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
-    std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
-    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
-                                                                     /* challenge_name = */ "alpha",
-                                                                     /* num_challenges_in = */ 1));
-    for (size_t i = 0; i < multivariate_d; i++) {
-        auto label = std::to_string(multivariate_d - i);
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
-            { { .name = "univariate_" + label,
-                .num_bytes = fr_size * 5 /* honk::StandardHonk::MAX_RELATION_LENGTH */,
-                .derived_by_verifier = false } },
-            /* challenge_name = */ "u_" + label,
-            /* num_challenges_in = */ 1));
-    }
-
-    auto transcript = Transcript(transcript::Manifest(manifest_rounds));
-    transcript.apply_fiat_shamir("alpha");
+    auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
 
     auto multivariates = Multivariates(full_polynomials);
 
@@ -207,37 +235,37 @@ TEST(Sumcheck, Prover)
 }
 
 // TODO(Cody): write standalone test of the verifier.
-
+// TODO(luke): test possibly made obsolete by test ProverAndVerifierLonger
 TEST(Sumcheck, ProverAndVerifier)
 {
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
-    // const size_t max_relation_length = 5;
+    const size_t num_public_inputs(1);
 
     const size_t max_relation_length = 4 /* honk::StandardHonk::MAX_RELATION_LENGTH */;
     constexpr size_t fr_size = 32;
 
     using Multivariates = ::Multivariates<FF, num_polys>;
 
-    std::array<FF, 2> w_l = { 1, 2 };
-    std::array<FF, 2> w_r = { 1, 2 };
-    std::array<FF, 2> w_o = { 2, 4 };
-    std::array<FF, 2> z_perm = { 0, 1 };
-    std::array<FF, 2> z_perm_shift = { 1, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> q_m = { 0, 1 };
-    std::array<FF, 2> q_l = { 1, 0 };
-    std::array<FF, 2> q_r = { 1, 0 };
-    std::array<FF, 2> q_o = { -1, -1 };
+    std::array<FF, 2> w_l = { 0, 1 };
+    std::array<FF, 2> w_r = { 0, 1 };
+    std::array<FF, 2> w_o = { 0, 2 };
+    std::array<FF, 2> z_perm = { 0, 0 };
+    std::array<FF, 2> z_perm_shift = { 0, 0 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> q_m = { 0, 0 };
+    std::array<FF, 2> q_l = { 1, 1 };
+    std::array<FF, 2> q_r = { 0, 1 };
+    std::array<FF, 2> q_o = { 0, -1 };
     std::array<FF, 2> q_c = { 0, 0 };
-    std::array<FF, 2> sigma_1 = { 1, 2 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> sigma_2 = { 1, 2 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> sigma_3 = { 1, 2 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_1 = { 1, 2 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_2 = { 1, 2 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> id_3 = { 1, 2 };    // NOTE: Not set up to be valid.
-    std::array<FF, 2> lagrange_first = { 1, 0 };
-    std::array<FF, 2> lagrange_last = { 0, 1 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> sigma_1 = { 0, 0 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> sigma_2 = { 0, 0 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> sigma_3 = { 0, 0 }; // NOTE: Not set up to be valid.
+    std::array<FF, 2> id_1 = { 0, 0 };    // NOTE: Not set up to be valid.
+    std::array<FF, 2> id_2 = { 0, 0 };    // NOTE: Not set up to be valid.
+    std::array<FF, 2> id_3 = { 0, 0 };    // NOTE: Not set up to be valid.
+    std::array<FF, 2> lagrange_first = { 0, 0 };
+    std::array<FF, 2> lagrange_last = { 0, 0 }; // NOTE: Not set up to be valid.
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
@@ -245,39 +273,14 @@ TEST(Sumcheck, ProverAndVerifier)
         sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
-    std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
-    manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
-                                                                     /* challenge_name = */ "alpha",
-                                                                     /* num_challenges_in = */ 1));
-    for (size_t i = 0; i < multivariate_d; i++) {
-        auto label = std::to_string(multivariate_d - i);
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ { .name = "univariate_" + label,
-                                                                             .num_bytes = fr_size * max_relation_length,
-                                                                             .derived_by_verifier = false } },
-                                                                         /* challenge_name = */ "u_" + label,
-                                                                         /* num_challenges_in = */ 1));
-    }
-
-    auto transcript = Transcript(transcript::Manifest(manifest_rounds));
-    auto mock_transcript = [](Transcript& transcript) {
-        static_assert(multivariate_d < 64);
-        uint64_t multivariate_n = 1 << multivariate_d;
-        transcript.add_element("circuit_size",
-                               { static_cast<uint8_t>(multivariate_n >> 24),
-                                 static_cast<uint8_t>(multivariate_n >> 16),
-                                 static_cast<uint8_t>(multivariate_n >> 8),
-                                 static_cast<uint8_t>(multivariate_n) });
-    };
-
-    mock_transcript(transcript);
-    transcript.apply_fiat_shamir("alpha");
+    auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
 
     auto multivariates = Multivariates(full_polynomials);
 
     auto sumcheck_prover = Sumcheck<Multivariates,
                                     Transcript,
                                     ArithmeticRelation,
-                                    // GrandProductComputationRelation,
+                                    GrandProductComputationRelation,
                                     GrandProductInitializationRelation>(multivariates, transcript);
 
     sumcheck_prover.execute_prover();
@@ -285,39 +288,40 @@ TEST(Sumcheck, ProverAndVerifier)
     auto sumcheck_verifier = Sumcheck<Multivariates,
                                       Transcript,
                                       ArithmeticRelation,
-                                      //   GrandProductComputationRelation,
+                                      GrandProductComputationRelation,
                                       GrandProductInitializationRelation>(transcript);
 
     bool verified = sumcheck_verifier.execute_verifier();
     ASSERT_TRUE(verified);
 }
 
+// TODO: make the inputs to this test more interesting, e.g. num_public_inputs > 0 and non-trivial permutations
 TEST(Sumcheck, ProverAndVerifierLonger)
 {
     auto run_test = [](bool expect_verified) {
         const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
         const size_t multivariate_d(2);
         const size_t multivariate_n(1 << multivariate_d);
-        // const size_t max_relation_length = 5;
+        const size_t num_public_inputs(0);
 
-        const size_t max_relation_length = 4 /* honk::StandardHonk::MAX_RELATION_LENGTH */;
+        const size_t max_relation_length = honk::StandardHonk::MAX_RELATION_LENGTH;
         constexpr size_t fr_size = 32;
 
         using Multivariates = ::Multivariates<FF, num_polys>;
 
         // clang-format off
     std::array<FF, multivariate_n> w_l;
-    if (expect_verified) {         w_l =            { 0,  1,  0, 0 };
-    } else {                       w_l =            { 0,  0,  0, 0 };
+    if (expect_verified) {         w_l =            { 0,  1,  2, 0 };
+    } else {                       w_l =            { 0,  0,  2, 0 };
     }
-    std::array<FF, multivariate_n> w_r            = { 0,  1,  0, 0 };
-    std::array<FF, multivariate_n> w_o            = { 0,  2,  0, 0 };
+    std::array<FF, multivariate_n> w_r            = { 0,  1,  2, 0 };
+    std::array<FF, multivariate_n> w_o            = { 0,  2,  4, 0 };
     std::array<FF, multivariate_n> z_perm         = { 0,  0,  0, 0 }; 
     std::array<FF, multivariate_n> z_perm_shift   = { 0,  0,  0, 0 }; 
-    std::array<FF, multivariate_n> q_m            = { 0,  0,  0, 0 };
+    std::array<FF, multivariate_n> q_m            = { 0,  0,  1, 0 };
     std::array<FF, multivariate_n> q_l            = { 1,  1,  0, 0 };
     std::array<FF, multivariate_n> q_r            = { 0,  1,  0, 0 };
-    std::array<FF, multivariate_n> q_o            = { 0, -1,  0, 0 };
+    std::array<FF, multivariate_n> q_o            = { 0, -1,  -1, 0 };
     std::array<FF, multivariate_n> q_c            = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> sigma_1        = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> sigma_2        = { 0,  0,  0, 0 };
@@ -325,8 +329,8 @@ TEST(Sumcheck, ProverAndVerifierLonger)
     std::array<FF, multivariate_n> id_1           = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> id_2           = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> id_3           = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_first = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 0 };
+    std::array<FF, multivariate_n> lagrange_first = { 1,  0,  0, 0 };
+    std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 1 };
         // clang-format on
 
         // These will be owned outside the class, probably by the composer.
@@ -335,40 +339,14 @@ TEST(Sumcheck, ProverAndVerifierLonger)
             sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
         };
 
-        std::vector<transcript::Manifest::RoundManifest> manifest_rounds;
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
-                                                                         /* challenge_name = */ "alpha",
-                                                                         /* num_challenges_in = */ 1));
-        for (size_t i = 0; i < multivariate_d; i++) {
-            auto label = std::to_string(multivariate_d - i);
-            manifest_rounds.emplace_back(
-                transcript::Manifest::RoundManifest({ { .name = "univariate_" + label,
-                                                        .num_bytes = fr_size * max_relation_length,
-                                                        .derived_by_verifier = false } },
-                                                    /* challenge_name = */ "u_" + label,
-                                                    /* num_challenges_in = */ 1));
-        }
-
-        auto transcript = Transcript(transcript::Manifest(manifest_rounds));
-        auto mock_transcript = [](Transcript& transcript) {
-            static_assert(multivariate_d < 64);
-            uint64_t multivariate_n = 1 << multivariate_d;
-            transcript.add_element("circuit_size",
-                                   { static_cast<uint8_t>(multivariate_n >> 24),
-                                     static_cast<uint8_t>(multivariate_n >> 16),
-                                     static_cast<uint8_t>(multivariate_n >> 8),
-                                     static_cast<uint8_t>(multivariate_n) });
-        };
-
-        mock_transcript(transcript);
-        transcript.apply_fiat_shamir("alpha");
+        auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
 
         auto multivariates = Multivariates(full_polynomials);
 
         auto sumcheck_prover = Sumcheck<Multivariates,
                                         Transcript,
                                         ArithmeticRelation,
-                                        // GrandProductComputationRelation,
+                                        GrandProductComputationRelation,
                                         GrandProductInitializationRelation>(multivariates, transcript);
 
         sumcheck_prover.execute_prover();
@@ -376,7 +354,7 @@ TEST(Sumcheck, ProverAndVerifierLonger)
         auto sumcheck_verifier = Sumcheck<Multivariates,
                                           Transcript,
                                           ArithmeticRelation,
-                                          //   GrandProductComputationRelation,
+                                          GrandProductComputationRelation,
                                           GrandProductInitializationRelation>(transcript);
 
         bool verified = sumcheck_verifier.execute_verifier();

@@ -135,7 +135,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     auto sumcheck = Sumcheck<Multivariates,
                              Transcript,
                              ArithmeticRelation,
-                             //  GrandProductComputationRelation,
+                             GrandProductComputationRelation,
                              GrandProductInitializationRelation>(transcript);
     bool sumcheck_result = sumcheck.execute_verifier();
 
