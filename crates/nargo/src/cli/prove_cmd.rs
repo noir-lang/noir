@@ -94,24 +94,10 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
-    witness_map: &AbiMap,
+    abi_map: &AbiMap,
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
-        AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-        }
-        _ => CliError::from(error),
-    })?;
-
-    let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
-        .into_iter()
-        .enumerate()
-        .map(|(index, witness_value)| {
-            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
-            (witness, witness_value)
-        })
-        .collect();
+    let mut solved_witness = abi_map_to_witness_map(abi, abi_map)?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone());

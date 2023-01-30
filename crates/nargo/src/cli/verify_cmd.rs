@@ -1,4 +1,4 @@
-use super::{compile_cmd::compile_circuit, read_inputs_from_file};
+use super::{compile_cmd::compile_circuit, prove_cmd::AbiMap, read_inputs_from_file};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -49,7 +49,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs =
+        public_abi_map =
             read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
