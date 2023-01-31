@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::Abi;
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -574,7 +575,7 @@ impl Monomorphiser {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen')
+    /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
     /// at their callsite.
     /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
@@ -595,10 +596,50 @@ impl Monomorphiser {
                         ast::Type::Field,
                     )))
                 }
+                Definition::Builtin(opcode) if opcode == "modulus_num_bits" => {
+                    Some(ast::Expression::Literal(ast::Literal::Integer(
+                        (FieldElement::max_num_bits() as u128).into(),
+                        ast::Type::Field,
+                    )))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_le_bits" => {
+                    let modulus = FieldElement::modulus();
+                    let bits = modulus.to_radix_le(2);
+                    Some(self.modulus_array_literal(bits, 1))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_be_bits" => {
+                    let modulus = FieldElement::modulus();
+                    let bits = modulus.to_radix_be(2);
+                    Some(self.modulus_array_literal(bits, 1))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_be_bytes" => {
+                    let modulus = FieldElement::modulus();
+                    let bytes = modulus.to_bytes_be();
+                    Some(self.modulus_array_literal(bytes, 8))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_le_bytes" => {
+                    let modulus = FieldElement::modulus();
+                    let bytes = modulus.to_bytes_le();
+                    Some(self.modulus_array_literal(bytes, 8))
+                }
                 _ => None,
             },
             _ => None,
         }
+    }
+
+    fn modulus_array_literal(&self, bytes: Vec<u8>, arr_elem_bits: u32) -> ast::Expression {
+        let bytes_as_expr = vecmap(bytes, |byte| {
+            ast::Expression::Literal(ast::Literal::Integer(
+                (byte as u128).into(),
+                ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
+            ))
+        });
+        let arr_literal = ast::ArrayLiteral {
+            contents: bytes_as_expr,
+            element_type: ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
+        };
+        ast::Expression::Literal(ast::Literal::Array(arr_literal))
     }
 
     fn queue_function(
