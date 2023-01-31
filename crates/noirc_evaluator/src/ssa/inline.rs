@@ -314,7 +314,6 @@ pub fn inline_in_block(
                 }
                 Operation::Load { array_id, index } => {
                     //Compute the new address:
-                    //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
                         Operation::Load { array_id: b, index: *index },

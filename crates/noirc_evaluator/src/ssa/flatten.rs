@@ -266,7 +266,7 @@ fn evaluate_conditional_jump(
         Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
         Operation::Jmp(_) => return Ok(true),
-        _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
+        _ => panic!("loop without conditional statement!"),
     };
 
     let cond = get_current_value(cond_id, value_array);

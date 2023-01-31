@@ -22,6 +22,7 @@ pub enum ExpressionKind {
     If(Box<IfExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
+    Lambda(Box<Lambda>),
     Error,
 }
 
@@ -295,6 +296,13 @@ pub struct IfExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Lambda {
+    pub parameters: Vec<(Pattern, UnresolvedType)>,
+    pub return_type: UnresolvedType,
+    pub body: Expression,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
@@ -387,6 +395,7 @@ impl Display for ExpressionKind {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
+            Lambda(lambda) => lambda.fmt(f),
             Error => write!(f, "Error"),
         }
     }
@@ -524,6 +533,14 @@ impl Display for IfExpression {
             write!(f, " else {alternative}")?;
         }
         Ok(())
+    }
+}
+
+impl Display for Lambda {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+
+        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
     }
 }
 

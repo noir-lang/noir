@@ -217,9 +217,20 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    ArrayLength(u64),
+    Constant(u64),
 
     Error,
+}
+
+/// A restricted subset of binary operators useable on
+/// type level integers for use in the array length positions of types.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum BinaryTypeOperator {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+    Modulo,
 }
 
 pub type TypeVariable = Shared<TypeBinding>;
@@ -228,6 +239,12 @@ pub type TypeVariable = Shared<TypeBinding>;
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
+}
+
+impl TypeBinding {
+    pub fn is_unbound(&self) -> bool {
+        matches!(self, TypeBinding::Unbound(_))
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -469,10 +486,7 @@ impl std::fmt::Display for Type {
             Type::FieldElement(comptime) => {
                 write!(f, "{comptime}Field")
             }
-            Type::Array(len, typ) => match len.array_length() {
-                Some(len) => write!(f, "[{typ}; {len}]"),
-                None => write!(f, "[{typ}]"),
-            },
+            Type::Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Type::Integer(comptime, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{comptime}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{comptime}u{num_bits}"),
@@ -500,10 +514,7 @@ impl std::fmt::Display for Type {
                 write!(f, "({})", elements.join(", "))
             }
             Type::Bool(comptime) => write!(f, "{comptime}bool"),
-            Type::String(len) => match len.array_length() {
-                Some(len) => write!(f, "str[{len}]"),
-                None => write!(f, "str[]]"),
-            },
+            Type::String(len) => write!(f, "str<{len}>"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
@@ -512,7 +523,7 @@ impl std::fmt::Display for Type {
                 TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_) => write!(f, "{name}"),
             },
-            Type::ArrayLength(n) => n.fmt(f),
+            Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -521,6 +532,18 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryTypeOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryTypeOperator::Addition => write!(f, "+"),
+            BinaryTypeOperator::Subtraction => write!(f, "-"),
+            BinaryTypeOperator::Multiplication => write!(f, "*"),
+            BinaryTypeOperator::Division => write!(f, "/"),
+            BinaryTypeOperator::Modulo => write!(f, "%"),
         }
     }
 }
@@ -664,7 +687,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        if let Type::TypeVariable(binding) = self {
+        if let Some(binding) = self.get_inner_typevariable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var),
                 // Don't recursively bind the same id to itself
@@ -680,6 +703,15 @@ impl Type {
         } else {
             *var.borrow_mut() = TypeBinding::Bound(self.clone());
             Ok(())
+        }
+    }
+
+    fn get_inner_typevariable(&self) -> Option<Shared<TypeBinding>> {
+        match self {
+            Type::PolymorphicInteger(_, var)
+            | Type::TypeVariable(var)
+            | Type::NamedGeneric(var, _) => Some(var.clone()),
+            _ => None,
         }
     }
 
@@ -758,7 +790,7 @@ impl Type {
                     return link.try_unify(other, span);
                 }
 
-                Ok(())
+                other.try_bind_to(binding)
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
@@ -806,14 +838,24 @@ impl Type {
             (Bool(comptime_a), Bool(comptime_b)) => comptime_a.unify(comptime_b, span),
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                let is_unbound = |binding: &Shared<TypeBinding>| {
-                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
-                };
-
                 // Ensure NamedGenerics are never bound during type checking
-                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                assert!(binding_a.borrow().is_unbound());
+                assert!(binding_b.borrow().is_unbound());
+
                 if name_a == name_b {
                     Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.try_unify(b, span)?;
+                    }
+
+                    ret_b.try_unify(ret_a, span)
                 } else {
                     Err(SpanKind::None)
                 }
@@ -829,8 +871,8 @@ impl Type {
         }
     }
 
-    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining are
-    /// between fixed and variable sized arrays, and Comptime tracking.
+    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining
+    /// have to do with Comptime tracking.
     pub fn make_subtype_of(
         &self,
         expected: &Type,
@@ -926,14 +968,25 @@ impl Type {
             (Bool(comptime_a), Bool(comptime_b)) => comptime_a.is_subtype_of(comptime_b, span),
 
             (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
-                let is_unbound = |binding: &Shared<TypeBinding>| {
-                    matches!(&*binding.borrow(), TypeBinding::Unbound(_))
-                };
-
                 // Ensure NamedGenerics are never bound during type checking
-                assert!(is_unbound(binding_a) && is_unbound(binding_b));
+                assert!(binding_a.borrow().is_unbound());
+                assert!(binding_b.borrow().is_unbound());
+
                 if name_a == name_b {
                     Ok(())
+                } else {
+                    Err(SpanKind::None)
+                }
+            }
+
+            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
+
+                    // return types are contravariant, so this must be ret_b <: ret_a instead of the reverse
+                    ret_b.is_subtype_of(ret_a, span)
                 } else {
                     Err(SpanKind::None)
                 }
@@ -949,16 +1002,16 @@ impl Type {
         }
     }
 
-    pub fn array_length(&self) -> Option<u64> {
+    pub fn evaluate_to_u64(&self) -> Option<u64> {
         match self {
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.array_length(),
+                TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
                 TypeBinding::Unbound(_) => None,
             },
-            Type::Array(len, _elem) => len.array_length(),
-            Type::ArrayLength(size) => Some(*size),
+            Type::Array(len, _elem) => len.evaluate_to_u64(),
+            Type::Constant(x) => Some(*x),
             _ => None,
         }
     }
@@ -969,10 +1022,10 @@ impl Type {
         match self {
             Type::FieldElement(_) => AbiType::Field,
             Type::Array(size, typ) => {
-                let size = size
-                    .array_length()
+                let length = size
+                    .evaluate_to_u64()
                     .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array { length: size, typ: Box::new(typ.as_abi_type()) }
+                AbiType::Array { length, typ: Box::new(typ.as_abi_type()) }
             }
             Type::Integer(_, sign, bit_width) => {
                 let sign = match sign {
@@ -989,13 +1042,13 @@ impl Type {
             Type::Bool(_) => AbiType::Boolean,
             Type::String(size) => {
                 let size = size
-                    .array_length()
+                    .evaluate_to_u64()
                     .expect("Cannot have variable sized strings as a parameter to main");
                 AbiType::String { length: size }
             }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
-            Type::ArrayLength(_) => unreachable!(),
+            Type::Constant(_) => unreachable!(),
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
@@ -1124,7 +1177,7 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::ArrayLength(_)
+            | Type::Constant(_)
             | Type::Error
             | Type::Unit => self.clone(),
         }
@@ -1154,7 +1207,7 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::ArrayLength(_)
+            | Type::Constant(_)
             | Type::Error
             | Type::Unit => false,
         }
@@ -1195,9 +1248,22 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | ArrayLength(_) | Unit | Error => {
+            FieldElement(_) | Integer(_, _, _) | Bool(_) | Constant(_) | Unit | Error => {
                 self.clone()
             }
+        }
+    }
+}
+
+impl BinaryTypeOperator {
+    /// Return the actual rust numeric function associated with this operator
+    pub fn function(self) -> fn(u64, u64) -> u64 {
+        match self {
+            BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
+            BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
+            BinaryTypeOperator::Multiplication => |a, b| a.wrapping_mul(b),
+            BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
+            BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
         }
     }
 }

@@ -1,18 +1,19 @@
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
+use noirc_abi::Abi;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
     hir_def::{
         expr::*,
-        function::Parameters,
+        function::{Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     Comptime, FunctionKind, TypeBinding, TypeBindings,
 };
 
-use self::ast::{Definition, FuncId, LocalId, Program};
+use self::ast::{Definition, FuncId, Function, LocalId, Program};
 
 pub mod ast;
 pub mod printer;
@@ -27,6 +28,8 @@ struct Monomorphiser {
     /// Queue of functions to monomorphise next
     queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings)>,
 
+    finished_functions: BTreeMap<FuncId, Function>,
+
     interner: NodeInterner,
 
     next_local_id: u32,
@@ -37,18 +40,19 @@ type HirType = crate::Type;
 
 pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Program {
     let mut monomorphiser = Monomorphiser::new(interner);
-    let mut functions = monomorphiser.compile_main(main);
+    let abi = monomorphiser.compile_main(main);
 
     while !monomorphiser.queue.is_empty() {
         let (next_fn_id, new_id, bindings) = monomorphiser.queue.pop_front().unwrap();
         monomorphiser.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        functions.push_function(monomorphiser.function(next_fn_id, new_id));
+        monomorphiser.function(next_fn_id, new_id);
         undo_instantiation_bindings(bindings);
     }
 
-    functions
+    let functions = vecmap(monomorphiser.finished_functions, |(_, f)| f);
+    Program::new(functions, abi)
 }
 
 impl Monomorphiser {
@@ -57,8 +61,9 @@ impl Monomorphiser {
             globals: HashMap::new(),
             locals: HashMap::new(),
             queue: VecDeque::new(),
+            finished_functions: BTreeMap::new(),
             next_local_id: 0,
-            next_function_id: 1,
+            next_function_id: 0,
             interner,
         }
     }
@@ -126,14 +131,22 @@ impl Monomorphiser {
 
     /// The main function is special, we need to check for a return type and if present,
     /// insert an extra constrain on the return value.
-    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Program {
-        let mut main = self.function(main_id, FuncId(0));
-        let main_meta = self.interner.function_meta(&main_id);
+    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Abi {
+        let new_main_id = self.next_function_id();
+        assert_eq!(new_main_id, Program::main_id());
+        self.function(main_id, new_main_id);
 
+        let main_meta = self.interner.function_meta(&main_id);
+        let main = self.finished_functions.get_mut(&new_main_id).unwrap();
+
+        // If the main function has a return type we manually desugar it here
+        // to add a `constrain ret == expected_ret` where `ret` is the body of main
+        // and `expected_ret` is a new parameter added to the public inputs.
         if main.return_type != ast::Type::Unit {
             let id = self.next_local_id();
 
-            main.parameters.push((id, false, "return".into(), main.return_type));
+            let main = self.finished_functions.get_mut(&new_main_id).unwrap();
+            main.parameters.push((id, false, "return".into(), main.return_type.clone()));
             main.return_type = ast::Type::Unit;
 
             let name = "_".into();
@@ -146,7 +159,12 @@ impl Monomorphiser {
                 typ,
             }));
 
-            let rhs = Box::new(main.body);
+            // Need to temporarily swap out main.body here because we cannot
+            // move out of it directly.
+            let tmp_body = ast::Expression::Literal(ast::Literal::Unit);
+            let main_body = std::mem::replace(&mut main.body, tmp_body);
+
+            let rhs = Box::new(main_body);
             let operator = ast::BinaryOp::Equal;
             let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
 
@@ -154,11 +172,10 @@ impl Monomorphiser {
             main.body = ast::Expression::Constrain(Box::new(eq), location);
         }
 
-        let abi = main_meta.into_abi(&self.interner);
-        Program::new(main, abi)
+        main_meta.into_abi(&self.interner)
     }
 
-    fn function(&mut self, f: node_interner::FuncId, id: FuncId) -> ast::Function {
+    fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
         let meta = self.interner.function_meta(&f);
         let name = self.interner.function_name(&f).to_owned();
 
@@ -166,7 +183,13 @@ impl Monomorphiser {
         let parameters = self.parameters(meta.parameters);
         let body = self.expr_infer(*self.interner.function(&f).as_expr());
 
-        ast::Function { id, name, parameters, body, return_type }
+        let function = ast::Function { id, name, parameters, body, return_type };
+        self.push_function(id, function);
+    }
+
+    fn push_function(&mut self, id: FuncId, function: ast::Function) {
+        let existing = self.finished_functions.insert(id, function);
+        assert!(existing.is_none());
     }
 
     /// Monomorphise each parameter, expanding tuple/struct patterns into multiple parameters
@@ -302,6 +325,8 @@ impl Monomorphiser {
                 ast::Expression::Tuple(fields)
             }
             HirExpression::Constructor(constructor) => self.constructor(constructor, typ),
+
+            HirExpression::Lambda(lambda) => self.lambda(lambda),
 
             HirExpression::MethodCall(_) | HirExpression::Error => unreachable!(),
         }
@@ -480,14 +505,11 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
-            HirType::String(size) => {
-                let size = size.array_length().unwrap_or(0);
-                ast::Type::String(size)
-            }
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
-                let size = size.array_length().unwrap_or(0);
+                let size = size.evaluate_to_u64().unwrap_or(0);
                 let element = Self::convert_type(element.as_ref());
                 ast::Type::Array(size, Box::new(element))
             }
@@ -528,7 +550,7 @@ impl Monomorphiser {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Forall(_, _) | HirType::ArrayLength(_) | HirType::Error => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
@@ -568,7 +590,7 @@ impl Monomorphiser {
             ast::Expression::Ident(ident) => match &ident.definition {
                 Definition::Builtin(opcode) if opcode == "arraylen" => {
                     let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.array_length().unwrap();
+                    let len = typ.evaluate_to_u64().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
                         (len as u128).into(),
                         ast::Type::Field,
@@ -672,6 +694,38 @@ impl Monomorphiser {
                 ast::LValue::Index { array, index }
             }
         }
+    }
+
+    fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
+        let ret_type = Self::convert_type(&lambda.return_type);
+        let lambda_name = "lambda";
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
+
+        // Manually convert to Parameters type so we can reuse the self.parameters method
+        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
+            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+        }));
+
+        let parameters = self.parameters(parameters);
+        let body = self.expr_infer(lambda.body);
+
+        let id = self.next_function_id();
+        let return_type = ret_type.clone();
+        let name = lambda_name.to_owned();
+
+        let function = ast::Function { id, name, parameters, body, return_type };
+        self.push_function(id, function);
+
+        let typ = ast::Type::Function(parameter_types, Box::new(ret_type));
+
+        let name = lambda_name.to_owned();
+        ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(id),
+            mutable: false,
+            location: None,
+            name,
+            typ,
+        })
     }
 }
 

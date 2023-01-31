@@ -7,9 +7,13 @@ use clap::ArgMatches;
 
 use std::path::Path;
 
-use crate::{errors::CliError, resolver::Resolver};
+use crate::{
+    constants::{ACIR_EXT, TARGET_DIR, WITNESS_EXT},
+    errors::CliError,
+    resolver::Resolver,
+};
 
-use super::{add_std_lib, create_named_dir, write_to_file, TARGET_DIR};
+use super::{add_std_lib, create_named_dir, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -47,7 +51,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
     circuit_path.push(circuit_name);
-    circuit_path.set_extension(crate::cli::ACIR_EXT);
+    circuit_path.set_extension(ACIR_EXT);
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
     println!("{:?}", std::fs::canonicalize(&circuit_path));
@@ -59,7 +63,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 
         circuit_path.pop();
         circuit_path.push(circuit_name);
-        circuit_path.set_extension(crate::cli::WITNESS_EXT);
+        circuit_path.set_extension(WITNESS_EXT);
         write_to_file(buf.as_slice(), &circuit_path);
     }
 

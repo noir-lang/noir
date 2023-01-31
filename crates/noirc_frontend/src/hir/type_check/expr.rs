@@ -10,7 +10,7 @@ use crate::{
     Comptime, Shared, TypeBinding,
 };
 
-use super::errors::TypeCheckError;
+use super::{bind_pattern, errors::TypeCheckError};
 
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
@@ -31,16 +31,13 @@ pub(crate) fn type_check_expression(
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    // Type check the contents of the array
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                    // Specify the type of the Array
-                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.len() as u64)),
+                        Box::new(Type::Constant(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -72,7 +69,8 @@ pub(crate) fn type_check_expression(
                     )
                 }
                 HirLiteral::Str(string) => {
-                    Type::String(Box::new(Type::ArrayLength(string.len() as u64)))
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
                 }
             }
         }
@@ -226,6 +224,24 @@ pub(crate) fn type_check_expression(
         HirExpression::Error => Type::Error,
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
+        }
+        HirExpression::Lambda(lambda) => {
+            let params = vecmap(lambda.parameters, |(pattern, typ)| {
+                bind_pattern(interner, &pattern, typ.clone(), errors);
+                typ
+            });
+
+            let actual_return = type_check_expression(interner, &lambda.body, errors);
+
+            let span = interner.expr_span(&lambda.body);
+            actual_return.make_subtype_of(&lambda.return_type, span, errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: lambda.return_type.to_string(),
+                    expr_typ: actual_return.to_string(),
+                    expr_span: span,
+                }
+            });
+            Type::Function(params, Box::new(lambda.return_type))
         }
     };
 
@@ -562,6 +578,20 @@ pub fn infix_operand_type_rules(
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, span, interner, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
+            }
+        }
+
         (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
     }
 }
@@ -751,7 +781,7 @@ pub fn comparator_operand_type_rules(
 
             x_size.unify(y_size, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
-                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size}"),
                     span: op.location.span,
                 }
             });
@@ -764,6 +794,19 @@ pub fn comparator_operand_type_rules(
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
+        }
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return comparator_operand_type_rules(binding, other, op, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+            }
         }
         (String(x_size), String(y_size)) => {
             x_size.unify(y_size, op.location.span, errors, || {

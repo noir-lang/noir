@@ -25,17 +25,6 @@ mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
 
-const CONTRACT_DIR: &str = "contract";
-const PROOFS_DIR: &str = "proofs";
-const PROVER_INPUT_FILE: &str = "Prover";
-const VERIFIER_INPUT_FILE: &str = "Verifier";
-const SRC_DIR: &str = "src";
-const PKG_FILE: &str = "Nargo.toml";
-const PROOF_EXT: &str = "proof";
-const TARGET_DIR: &str = "target";
-const ACIR_EXT: &str = "acir";
-const WITNESS_EXT: &str = "tr";
-
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
         .long("allow-warnings")
@@ -54,7 +43,10 @@ pub fn start_cli() {
                 .about("Checks the constraint system for errors")
                 .arg(allow_warnings.clone()),
         )
-        .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
+        .subcommand(
+            App::new("contract")
+                .about("Generates a Solidity verifier smart contract for the program"),
+        )
         .subcommand(
             App::new("new")
                 .about("Create a new binary project")
