@@ -12,6 +12,7 @@ toml.workspace = true
 serde.workspace = true
 serde_derive.workspace = true
 blake2.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
