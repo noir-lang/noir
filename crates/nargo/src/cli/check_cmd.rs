@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use super::{add_std_lib, write_to_file};
+use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("check").unwrap();

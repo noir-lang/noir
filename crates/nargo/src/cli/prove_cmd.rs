@@ -9,11 +9,10 @@ use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use std::path::Path;
 
-use crate::errors::CliError;
-
-use super::{
-    create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file, PROOFS_DIR,
-    PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
+use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use crate::{
+    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
+    errors::CliError,
 };
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
