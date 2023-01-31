@@ -804,7 +804,7 @@ impl Binary {
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let a = field_to_signed(lhs, res_type.bits());
                     let b = field_to_signed(rhs, res_type.bits());
-                    return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits()), res_type));
+                    return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits())?, res_type));
                 }
             }
             BinaryOp::Urem => {
@@ -825,7 +825,7 @@ impl Binary {
                     let a = field_to_signed(lhs, res_type.bits());
                     let b = field_to_signed(rhs, res_type.bits());
                     return Ok(NodeEval::Const(
-                        signed_to_field(a - b + (a / b), res_type.bits()),
+                        signed_to_field(a - b + (a / b), res_type.bits())?,
                         res_type,
                     ));
                 }
@@ -1257,12 +1257,16 @@ fn field_to_signed(f: FieldElement, n: u32) -> i128 {
     }
 }
 
-fn signed_to_field(a: i128, n: u32) -> FieldElement {
-    assert!(n < 126);
+fn signed_to_field(a: i128, n: u32) -> Result<FieldElement, RuntimeError> {
+    if n >= 126 {
+        return Err(RuntimeErrorKind::UnstructuredError {
+            message: "ICE: cannot convert signed {n} bit size into field".to_string(),
+        })?;
+    }
     if a >= 0 {
-        FieldElement::from(a)
+        Ok(FieldElement::from(a))
     } else {
         let b = (a + 2_i128.pow(n + 1)) as u128;
-        FieldElement::from(b)
+        Ok(FieldElement::from(b))
     }
 }
