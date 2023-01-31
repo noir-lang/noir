@@ -59,7 +59,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
 
-    //Regression for to_bits_le() constant evaluation 
+    //Regression for to_le_bits() constant evaluation 
     // binary array representation of u8 1
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
