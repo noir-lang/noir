@@ -10,7 +10,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
-    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -95,7 +95,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
-        .then(parenthesized(function_parameters(allow_self, expression())))
+        .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(block(expression()))
         .map(
@@ -132,14 +132,14 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
 
-    let fields = struct_fields(expression())
-        .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
+    let fields = struct_fields().delimited_by(just(LeftBrace), just(RightBrace)).recover_with(
+        nested_delimiters(
             LeftBrace,
             RightBrace,
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |_| vec![],
-        ));
+        ),
+    );
 
     keyword(Struct).ignore_then(ident()).then(generics()).then(fields).map_with_span(
         |((name, generics), fields), span| {
@@ -148,19 +148,17 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     )
 }
 
-fn lambda_return_type<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
+fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
     just(Token::Arrow)
-        .ignore_then(parse_type(expr_parser))
+        .ignore_then(parse_type())
         .or_not()
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type<'a>() -> impl NoirParser<(AbiVisibility, UnresolvedType)> + 'a {
+fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
     just(Token::Arrow)
         .ignore_then(optional_visibility())
-        .then(parse_type(expression()))
+        .then(parse_type())
         .or_not()
         .map(|ret| ret.unwrap_or((AbiVisibility::Private, UnresolvedType::Unit)))
 }
@@ -172,20 +170,16 @@ fn attribute() -> impl NoirParser<Attribute> {
     })
 }
 
-fn struct_fields<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<Vec<(Ident, UnresolvedType)>> + 'a {
+fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
     ident()
         .then_ignore(just(Token::Colon))
-        .then(parse_type(expr_parser))
+        .then(parse_type())
         .separated_by(just(Token::Comma))
         .allow_trailing()
 }
 
-fn lambda_parameters<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> + 'a {
-    let typ = parse_type(expr_parser).recover_via(parameter_recovery());
+fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
+    let typ = parse_type().recover_via(parameter_recovery());
     let typ = just(Token::Colon).ignore_then(typ);
 
     let parameter = pattern()
@@ -197,9 +191,8 @@ fn lambda_parameters<'a>(
 
 fn function_parameters<'a>(
     allow_self: bool,
-    expr_parser: impl NoirParser<Expression> + 'a,
 ) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiVisibility)>> + 'a {
-    let typ = parse_type(expr_parser).recover_via(parameter_recovery());
+    let typ = parse_type().recover_via(parameter_recovery());
 
     let full_parameter = pattern()
         .recover_via(parameter_name_recovery())
@@ -282,7 +275,7 @@ fn check_statements_require_semicolon(
 
 /// Parse an optional ': type' and implicitly add a 'comptime' to the type
 fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type(expression()))
+    ignore_then_commit(just(Token::Colon), parse_type())
         .map(|r#type| match r#type {
             UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
             UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
@@ -295,10 +288,8 @@ fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
         .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn optional_type_annotation<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    ignore_then_commit(just(Token::Colon), parse_type(expr_parser))
+fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
+    ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
         .map(|r#type| r#type.unwrap_or(UnresolvedType::Unspecified))
 }
@@ -373,7 +364,7 @@ where
     P: ExprParser + 'a,
 {
     let p = ignore_then_commit(keyword(Keyword::Let).labelled("statement"), pattern());
-    let p = p.then(optional_type_annotation(expr_parser.clone()));
+    let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expr_parser);
     p.map(Statement::new_let)
@@ -453,26 +444,18 @@ where
     })
 }
 
-fn parse_type<'a, P>(expr_parser: P) -> impl NoirParser<UnresolvedType> + 'a
-where
-    P: NoirParser<Expression> + 'a,
-{
-    recursive(move |typ| parse_type_inner(typ, expr_parser))
+fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
+    recursive(parse_type_inner)
 }
 
-fn parse_type_inner<T, P>(
-    recursive_type_parser: T,
-    expr_parser: P,
-) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-    P: NoirParser<Expression>,
-{
+fn parse_type_inner(
+    recursive_type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
     choice((
         field_type(),
         int_type(),
         named_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone(), expr_parser),
+        array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         bool_type(),
         string_type(),
@@ -531,6 +514,12 @@ fn generic_type_args(
     type_parser: impl NoirParser<UnresolvedType>,
 ) -> impl NoirParser<Vec<UnresolvedType>> {
     type_parser
+        // Without checking for a terminating ',' or '>' here we may incorrectly
+        // parse a generic `N * 2` as just the type `N` then fail when there is no
+        // separator afterward. Failing early here ensures we try the `type_expression`
+        // parser afterward.
+        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
+        .or(type_expression().map(UnresolvedType::Expression))
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
@@ -539,21 +528,18 @@ fn generic_type_args(
         .map(Option::unwrap_or_default)
 }
 
-fn type_expression() -> impl NoirParser<Expression> {
-    recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))
-        .labelled("type expression")
-}
-
-fn array_type<T, P>(type_parser: T, expr_parser: P) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-    P: NoirParser<Expression>,
-{
+fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(expr_parser).or_not())
+        .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
         .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
+}
+
+fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+    recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))
+        .labelled("type expression")
+        .try_map(UnresolvedTypeExpression::from_expr)
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -680,10 +666,8 @@ where
         .map(UnaryRhs::ArrayIndex);
 
     // `as Type` in `atom as Type`
-    let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type(expr_parser.clone()))
-        .map(UnaryRhs::Cast)
-        .labelled("cast");
+    let cast_rhs =
+        keyword(Keyword::As).ignore_then(parse_type()).map(UnaryRhs::Cast).labelled("cast");
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
@@ -731,9 +715,9 @@ where
 fn lambda<'a>(
     expr_parser: impl NoirParser<Expression> + 'a,
 ) -> impl NoirParser<ExpressionKind> + 'a {
-    lambda_parameters(expr_parser.clone())
+    lambda_parameters()
         .delimited_by(just(Token::Pipe), just(Token::Pipe))
-        .then(lambda_return_type(expr_parser.clone()))
+        .then(lambda_return_type())
         .then(expr_parser)
         .map(|((parameters, return_type), body)| {
             ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))

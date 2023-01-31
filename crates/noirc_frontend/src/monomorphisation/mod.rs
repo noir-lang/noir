@@ -504,14 +504,11 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
-            HirType::String(size) => {
-                let size = size.array_length().unwrap_or(0);
-                ast::Type::String(size)
-            }
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
-                let size = size.array_length().unwrap_or(0);
+                let size = size.evaluate_to_u64().unwrap_or(0);
                 let element = Self::convert_type(element.as_ref());
                 ast::Type::Array(size, Box::new(element))
             }
@@ -552,7 +549,7 @@ impl Monomorphiser {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Forall(_, _) | HirType::ArrayLength(_) | HirType::Error => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
@@ -592,7 +589,7 @@ impl Monomorphiser {
             ast::Expression::Ident(ident) => match &ident.definition {
                 Definition::Builtin(opcode) if opcode == "arraylen" => {
                     let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.array_length().unwrap();
+                    let len = typ.evaluate_to_u64().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
                         (len as u128).into(),
                         ast::Type::Field,
