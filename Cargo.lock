@@ -1747,6 +1747,7 @@ name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
  "acvm",
+ "iter-extended",
  "serde",
  "serde_derive",
  "serde_json",
