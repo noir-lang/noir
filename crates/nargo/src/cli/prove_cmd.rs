@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
 use clap::Args;
-use noirc_abi::input_parser::Format;
+use noirc_abi::{input_parser::Format, MAIN_RETURN_NAME};
 
 use super::{
     create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
@@ -92,8 +92,21 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.clone().public_abi();
-    let public_inputs = public_abi.decode(&solved_witness)?;
-    write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+    let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
+
+    if let Some(return_value) = return_value.clone() {
+        // Insert return value into public inputs so it's written to file.
+        let mut public_inputs_with_return = public_inputs.clone();
+        public_inputs_with_return.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+        write_inputs_to_file(
+            &public_inputs_with_return,
+            &program_dir,
+            VERIFIER_INPUT_FILE,
+            Format::Toml,
+        )?;
+    } else {
+        write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+    }
 
     let backend = crate::backends::ConcreteBackend;
     let proof =
@@ -101,7 +114,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     println!("Proof successfully created");
     if check_proof {
-        let valid_proof = verify_proof(compiled_program, public_inputs, &proof, verification_key)?;
+        let valid_proof =
+            verify_proof(compiled_program, public_inputs, return_value, &proof, verification_key)?;
         println!("Proof verified : {valid_proof}");
         if !valid_proof {
             return Err(CliError::Generic("Could not verify generated proof".to_owned()));

@@ -10,7 +10,7 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiType, AbiVisibility};
+use noirc_abi::{Abi, AbiType, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
@@ -53,7 +53,13 @@ pub fn create_circuit(
     let witness_index = evaluator.current_witness_index();
 
     let mut abi = program.abi;
-    abi.param_witnesses = evaluator.param_witnesses;
+
+    // TODO: remove return value from `param_witnesses` once we track public outputs
+    // see https://github.com/noir-lang/acvm/pull/56
+    let mut param_witnesses = evaluator.param_witnesses;
+    let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
+    abi.param_witnesses = param_witnesses;
+    abi.return_witnesses = return_witnesses;
 
     let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
