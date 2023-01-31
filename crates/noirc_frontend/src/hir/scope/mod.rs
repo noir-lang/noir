@@ -67,9 +67,11 @@ pub struct ScopeTree<K, V>(pub Vec<Scope<K, V>>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     pub fn new() -> Self {
-        let mut vec: Vec<Scope<K, V>> = Vec::with_capacity(10);
-        vec.push(Scope::new());
-        ScopeTree(vec)
+        ScopeTree(vec![Scope::new()])
+    }
+
+    pub fn last_index(&self) -> usize {
+        self.0.len() - 1
     }
 
     // Returns the last pushed scope on the scope tree
@@ -79,15 +81,16 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
             .expect("Compiler Error: Tried to fetch the last scope, however no Scopes are present")
     }
 
-    // Recursively search for a key in the scope tree
-    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    // Recursively search for a key in the scope tree.
+    // Returns the value if found, along with the index it was found at.
+    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<(&mut V, usize)>
     where
         K: std::borrow::Borrow<Q>,
         Q: std::hash::Hash + Eq,
     {
-        for scope in self.0.iter_mut().rev() {
+        for (i, scope) in self.0.iter_mut().enumerate().rev() {
             if let Some(value_found) = scope.find(key) {
-                return Some(value_found);
+                return Some((value_found, i));
             }
         }
 
@@ -126,8 +129,16 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     pub fn new() -> ScopeForest<K, V> {
         ScopeForest(vec![ScopeTree::new()])
     }
+
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
         self.0.last_mut().expect("ice: tried to fetch the current scope, however none was found")
+    }
+
+    pub fn current_scope_index(&self) -> usize {
+        self.0
+            .last()
+            .expect("ice: tried to fetch the current scope, however none was found")
+            .last_index()
     }
 
     /// Returns the last pushed scope from the current scope tree

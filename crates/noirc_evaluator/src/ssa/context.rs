@@ -1123,10 +1123,11 @@ impl SsaContext {
                     Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
                 }
             }
-            Type::Array(..) => panic!("Cannot convert an array type {} into an ObjectType since it is unknown which array it refers to", t),
+            Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
+            Type::String(_) => todo!("Conversion to ObjectType is unimplemented for strings"),
         }
     }
 

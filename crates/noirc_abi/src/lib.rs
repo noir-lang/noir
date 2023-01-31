@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, convert::TryInto};
+use std::{collections::BTreeMap, convert::TryInto, str};
 
 use acvm::FieldElement;
 use errors::AbiError;
@@ -39,12 +39,16 @@ pub enum AbiType {
         sign: Sign,
         width: u32,
     },
+    Boolean,
     Struct {
         #[serde(
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
         )]
         fields: BTreeMap<String, AbiType>,
+    },
+    String {
+        length: u64,
     },
 }
 
@@ -77,20 +81,22 @@ pub enum Sign {
 impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
-            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
             AbiType::Array { length, typ: _ } => *length as usize,
             AbiType::Struct { fields, .. } => fields.len(),
+            AbiType::String { length } => *length as usize,
         }
     }
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
-            AbiType::Field | AbiType::Integer { .. } => 1,
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
             AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
+            AbiType::String { length } => *length as u32,
         }
     }
 }
@@ -127,6 +133,14 @@ impl Abi {
     /// Returns the number of field elements required to represent the ABI's input once encoded.
     pub fn field_count(&self) -> u32 {
         self.parameters.iter().map(|param| param.typ.field_count()).sum()
+    }
+
+    pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
+        let mut map = BTreeMap::new();
+        for param in self.parameters.iter() {
+            map.insert(param.name.clone(), param.typ.clone());
+        }
+        map
     }
 
     /// ABI with only the public parameters
@@ -195,6 +209,11 @@ impl Abi {
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
             InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
+            InputValue::String(string) => {
+                let str_as_fields =
+                    string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
+                encoded_value.extend(str_as_fields)
+            }
             InputValue::Struct(object) => {
                 for (field_name, value) in object {
                     let new_name = format!("{param_name}.{field_name}");
@@ -209,7 +228,7 @@ impl Abi {
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
     pub fn decode(
         &self,
-        encoded_inputs: &Vec<FieldElement>,
+        encoded_inputs: &[FieldElement],
     ) -> Result<BTreeMap<String, InputValue>, AbiError> {
         let input_length: u32 = encoded_inputs.len().try_into().unwrap();
         if input_length != self.field_count() {
@@ -219,55 +238,63 @@ impl Abi {
             });
         }
 
-        let mut index = 0;
+        let mut field_iterator = encoded_inputs.iter().cloned();
         let mut decoded_inputs = BTreeMap::new();
 
         for param in &self.parameters {
-            let (next_index, decoded_value) =
-                Self::decode_value(index, encoded_inputs, &param.typ)?;
+            let decoded_value = Self::decode_value(&mut field_iterator, &param.typ)?;
 
             decoded_inputs.insert(param.name.to_owned(), decoded_value);
-
-            index = next_index;
         }
         Ok(decoded_inputs)
     }
 
     fn decode_value(
-        initial_index: usize,
-        encoded_inputs: &Vec<FieldElement>,
+        field_iterator: &mut impl Iterator<Item = FieldElement>,
         value_type: &AbiType,
-    ) -> Result<(usize, InputValue), AbiError> {
-        let mut index = initial_index;
-
+    ) -> Result<InputValue, AbiError> {
+        // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
+        // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
         let value = match value_type {
-            AbiType::Field | AbiType::Integer { .. } => {
-                let field_element = encoded_inputs[index];
-                index += 1;
+            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
+                let field_element = field_iterator.next().unwrap();
 
                 InputValue::Field(field_element)
             }
             AbiType::Array { length, .. } => {
-                let field_elements = &encoded_inputs[index..index + (*length as usize)];
+                let field_elements: Vec<FieldElement> =
+                    field_iterator.take(*length as usize).collect();
 
-                index += *length as usize;
-                InputValue::Vec(field_elements.to_vec())
+                InputValue::Vec(field_elements)
+            }
+            AbiType::String { length } => {
+                let string_as_slice: Vec<u8> = field_iterator
+                    .take(*length as usize)
+                    .map(|e| {
+                        let mut field_as_bytes = e.to_be_bytes();
+                        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+                        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+                        char_byte
+                    })
+                    .collect();
+
+                let final_string = str::from_utf8(&string_as_slice).unwrap();
+
+                InputValue::String(final_string.to_owned())
             }
             AbiType::Struct { fields, .. } => {
                 let mut struct_map = BTreeMap::new();
 
                 for (field_key, param_type) in fields {
-                    let (next_index, field_value) =
-                        Self::decode_value(index, encoded_inputs, param_type)?;
+                    let field_value = Self::decode_value(field_iterator, param_type)?;
 
                     struct_map.insert(field_key.to_owned(), field_value);
-                    index = next_index;
                 }
 
                 InputValue::Struct(struct_map)
             }
         };
 
-        Ok((index, value))
+        Ok(value)
     }
 }

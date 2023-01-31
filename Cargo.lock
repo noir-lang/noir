@@ -4,16 +4,6 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
-dependencies = [
- "indexmap",
- "noir_field",
- "serde",
-]
-
-[[package]]
-name = "acir"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aad7977c11d19ae0dd983b50dc5fd9eb96c002072f75643e45daa6dc0c23fba5"
@@ -30,6 +20,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
 dependencies = [
+ "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
  "blake2",
@@ -42,28 +33,11 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
-dependencies = [
- "acir 0.1.0",
- "blake2",
- "hex",
- "indexmap",
- "k256",
- "noir_field",
- "num-bigint",
- "num-traits",
- "sha2",
- "sled",
-]
-
-[[package]]
-name = "acvm"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99007127e84602134226eefc2245c59b7fe55853bfeba572714b04c5b3fefdea"
 dependencies = [
- "acir 0.3.1",
+ "acir",
  "acir_field",
  "acvm_stdlib",
  "blake2",
@@ -82,7 +56,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
 dependencies = [
- "acir 0.3.1",
+ "acir",
  "acir_field",
 ]
 
@@ -187,7 +161,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
- "rustc_version",
+ "rustc_version 0.3.3",
  "zeroize",
 ]
 
@@ -305,9 +279,9 @@ dependencies = [
 [[package]]
 name = "arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/arkworks_backend?rev=ee6d468f5cc635dc2589965b6bf16cd2a839d7d3#ee6d468f5cc635dc2589965b6bf16cd2a839d7d3"
+source = "git+https://github.com/noir-lang/arkworks_backend?rev=2f3f0db182004d5c01008c741bf519fe6798e24d#2f3f0db182004d5c01008c741bf519fe6798e24d"
 dependencies = [
- "acvm 0.1.0",
+ "acvm",
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
@@ -319,8 +293,6 @@ dependencies = [
  "ark-std",
  "blake2",
  "cfg-if 1.0.0",
- "num-bigint",
- "num-traits",
 ]
 
 [[package]]
@@ -358,7 +330,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=c673a14be33e445d98b35969716ac59c682036d6#c673a14be33e445d98b35969716ac59c682036d6"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -378,7 +350,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=c673a14be33e445d98b35969716ac59c682036d6#c673a14be33e445d98b35969716ac59c682036d6"
 dependencies = [
  "blake2",
  "common",
@@ -621,9 +593,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=441de9d897683f770f8cd09c34ddca69fe41f3f2#441de9d897683f770f8cd09c34ddca69fe41f3f2"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=c673a14be33e445d98b35969716ac59c682036d6#c673a14be33e445d98b35969716ac59c682036d6"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -1633,20 +1605,10 @@ dependencies = [
 [[package]]
 name = "marlin_arkworks_backend"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/marlin_arkworks_backend?rev=601e24dcb5dcbe72e3de7a33879aaf84e171d541#601e24dcb5dcbe72e3de7a33879aaf84e171d541"
+source = "git+https://github.com/noir-lang/marlin_arkworks_backend?rev=144378edad821bfaa52bf2cacca8ecc87514a4fc#144378edad821bfaa52bf2cacca8ecc87514a4fc"
 dependencies = [
- "acvm 0.1.0",
+ "acvm",
  "arkworks_backend",
- "blake2",
- "dirs 3.0.2",
- "downloader",
- "indicatif",
- "num-bigint",
- "num-traits",
- "once_cell",
- "regex",
- "sha2",
- "sled",
 ]
 
 [[package]]
@@ -1725,7 +1687,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "barretenberg_static_lib",
  "barretenberg_wasm",
  "cfg-if 1.0.0",
@@ -1738,10 +1700,12 @@ dependencies = [
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",
+ "rustc_version 0.4.0",
  "serde",
  "serde_derive",
  "tempdir",
  "termcolor",
+ "thiserror",
  "toml",
  "url",
 ]
@@ -1765,25 +1729,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_field"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/noir?rev=cc5ee63072e09779bebd7e7dd054ae16be307d7f#cc5ee63072e09779bebd7e7dd054ae16be307d7f"
-dependencies = [
- "ark-bls12-381",
- "ark-ff",
- "blake2",
- "cfg-if 1.0.0",
- "hex",
- "num-bigint",
- "num-traits",
- "serde",
-]
-
-[[package]]
 name = "noir_wasm"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "console_error_panic_hook",
  "getrandom",
  "gloo-utils",
@@ -1797,10 +1746,11 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "serde",
  "serde_derive",
  "serde_json",
+ "thiserror",
  "toml",
 ]
 
@@ -1808,7 +1758,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "dirs 4.0.0",
  "fm",
  "noirc_abi",
@@ -1832,7 +1782,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "arena",
  "fm",
  "iter-extended",
@@ -1848,7 +1798,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acvm 0.3.1",
+ "acvm",
  "arena",
  "chumsky",
  "fm",
@@ -2447,7 +2397,16 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0dfe2087c51c460008730de8b57e6a320782fbfb312e1f4d520e6c6fae155ee"
 dependencies = [
- "semver",
+ "semver 0.11.0",
+]
+
+[[package]]
+name = "rustc_version"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+dependencies = [
+ "semver 1.0.16",
 ]
 
 [[package]]
@@ -2520,6 +2479,12 @@ checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58bc9567378fc7690d6b2addae4e60ac2eeea07becb2c64b9f218b53865cba2a"
 
 [[package]]
 name = "semver-parser"
@@ -2853,9 +2818,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.5.10"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1333c76748e868a4d9d1017b5ab53171dfd095f70c712fdb4653a406547f598f"
+checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
 dependencies = [
  "serde",
 ]
@@ -3366,9 +3331,9 @@ dependencies = [
 
 [[package]]
 name = "which"
-version = "4.3.0"
+version = "4.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c831fbbee9e129a8cf93e7747a82da9d95ba8e16621cae60ec2cdc849bacb7b"
+checksum = "2441c784c52b289a054b7201fc93253e288f094e2f4be9058343127c4226a269"
 dependencies = [
  "either",
  "libc",

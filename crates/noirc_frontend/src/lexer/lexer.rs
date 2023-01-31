@@ -89,15 +89,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn pipe(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('|') {
-            let span = Span::new(self.position..self.position + 1);
-            Err(LexerErrorKind::LogicalOr { span })
-        } else {
-            self.single_char_token(Token::Pipe)
-        }
-    }
-
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -113,7 +104,7 @@ impl<'a> Lexer<'a> {
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
-            Some('|') => self.pipe(),
+            Some('|') => self.single_char_token(Token::Pipe),
             Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
@@ -454,6 +445,31 @@ fn test_int_type() {
         assert_eq!(got, token);
     }
 }
+
+#[test]
+fn test_arithematic_sugar() {
+    let input = "+= -= *= /= %=";
+
+    let expected = vec![
+        Token::Plus,
+        Token::Assign,
+        Token::Minus,
+        Token::Assign,
+        Token::Star,
+        Token::Assign,
+        Token::Slash,
+        Token::Assign,
+        Token::Percent,
+        Token::Assign,
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let got = lexer.next_token().unwrap();
+        assert_eq!(got, token);
+    }
+}
+
 #[test]
 fn test_comment() {
     let input = "// hello

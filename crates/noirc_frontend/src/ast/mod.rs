@@ -24,6 +24,7 @@ pub enum UnresolvedType {
     Array(Option<Expression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Comptime, Signedness, u32),             // u32 = Integer(unsigned, 32)
     Bool(Comptime),
+    String(Option<Expression>),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -70,6 +71,10 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "({})", elements.join(", "))
             }
             Bool(is_const) => write!(f, "{is_const}bool"),
+            String(len) => match len {
+                None => write!(f, "str[]"),
+                Some(len) => write!(f, "str[{len}]"),
+            },
             Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
