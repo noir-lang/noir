@@ -231,7 +231,7 @@ impl Anchor {
         array_id: &ArrayId,
         index: usize,
     ) -> Result<&mut VecDeque<(usize, NodeId)>, RuntimeErrorKind> {
-        let memory_map = self.mem_map.get_mut(&array_id).unwrap();
+        let memory_map = self.mem_map.get_mut(array_id).unwrap();
         let len = memory_map.len() as u128;
         memory_map
             .get_mut(index)
