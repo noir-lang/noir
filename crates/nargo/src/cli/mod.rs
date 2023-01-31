@@ -23,6 +23,7 @@ mod contract_cmd;
 mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
+mod test_cmd;
 mod verify_cmd;
 
 pub fn start_cli() {
@@ -69,6 +70,15 @@ pub fn start_cli() {
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
+            App::new("test")
+                .about("Run the tests for this program")
+                .arg(
+                    Arg::with_name("test_name")
+                        .help("If given, only tests with names containing this string will be run"),
+                )
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
             App::new("compile")
                 .about("Compile the program and its secret execution trace into ACIR format")
                 .arg(
@@ -98,6 +108,7 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
+        Some("test") => test_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
     };

@@ -568,4 +568,16 @@ impl NodeInterner {
     pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
         std::mem::take(&mut self.delayed_type_checks)
     }
+
+    pub fn get_all_test_functions<'a>(&'a self) -> impl Iterator<Item = FuncId> + 'a {
+        self.func_meta.iter().filter_map(|(id, meta)| {
+            let name = match dbg!(meta.attributes.as_ref()?) {
+                crate::token::Attribute::Foreign(name) => name,
+                crate::token::Attribute::Builtin(name) => name,
+                crate::token::Attribute::Alternative(name) => name,
+            };
+
+            (name == "test").then_some(*id)
+        })
+    }
 }

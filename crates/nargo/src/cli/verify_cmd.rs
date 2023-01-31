@@ -58,7 +58,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     Ok(valid_proof)
 }
 
-fn verify_proof(
+pub fn verify_proof(
     compiled_program: CompiledProgram,
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,

@@ -17,7 +17,7 @@ use self::ast::{Definition, FuncId, Function, LocalId, Program};
 pub mod ast;
 pub mod printer;
 
-struct Monomorphiser {
+struct Monomorphiser<'interner> {
     // Store monomorphised globals and locals separately,
     // only locals are cleared on each function call and only globals are monomorphised.
     // Nested HashMaps in globals lets us avoid cloning HirTypes when calling .get()
@@ -29,7 +29,7 @@ struct Monomorphiser {
 
     finished_functions: BTreeMap<FuncId, Function>,
 
-    interner: NodeInterner,
+    interner: &'interner NodeInterner,
 
     next_local_id: u32,
     next_function_id: u32,
@@ -37,7 +37,7 @@ struct Monomorphiser {
 
 type HirType = crate::Type;
 
-pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Program {
+pub fn monomorphise(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
     let mut monomorphiser = Monomorphiser::new(interner);
     let abi = monomorphiser.compile_main(main);
 
@@ -54,8 +54,8 @@ pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Prog
     Program::new(functions, abi)
 }
 
-impl Monomorphiser {
-    fn new(interner: NodeInterner) -> Monomorphiser {
+impl<'interner> Monomorphiser<'interner> {
+    fn new(interner: &'interner NodeInterner) -> Self {
         Monomorphiser {
             globals: HashMap::new(),
             locals: HashMap::new(),

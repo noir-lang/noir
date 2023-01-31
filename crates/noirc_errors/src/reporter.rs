@@ -147,16 +147,18 @@ impl Reporter {
         error_count
     }
 
-    pub fn finish(error_count: usize) {
+    pub fn finish(error_count: usize) -> Result<(), ()> {
         if error_count != 0 {
             let writer = StandardStream::stderr(ColorChoice::Always);
             let mut writer = writer.lock();
 
             writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-
             writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
+            writer.reset().ok(); // Ignore any IO errors, we're exiting at this point anyway
 
-            std::process::exit(1);
+            Err(())
+        } else {
+            Ok(())
         }
     }
 }
