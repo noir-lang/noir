@@ -571,7 +571,6 @@ impl Acir {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(&l_c, 2, bit_size, evaluator);
-                dbg!(outputs.clone());
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.map_array(a, &outputs, ctx);
                 }
