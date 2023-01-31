@@ -147,7 +147,7 @@ fn save_proof_to_dir<P: AsRef<Path>>(
     proof_path.push(proof_name);
     proof_path.set_extension(PROOF_EXT);
 
-    write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
+    write_to_file(hex::encode(proof).as_bytes(), &proof_path);
 
     Ok(proof_path)
 }
