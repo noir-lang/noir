@@ -580,22 +580,22 @@ impl Monomorphiser {
                         ast::Type::Field,
                     )))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_bits_le" => {
+                Definition::Builtin(opcode) if opcode == "modulus_le_bits" => {
                     let modulus = FieldElement::modulus();
                     let bits = modulus.to_radix_le(2);
                     Some(self.modulus_array_literal(bits, 1))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_bits_be" => {
+                Definition::Builtin(opcode) if opcode == "modulus_be_bits" => {
                     let modulus = FieldElement::modulus();
                     let bits = modulus.to_radix_be(2);
                     Some(self.modulus_array_literal(bits, 1))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_bytes_be" => {
+                Definition::Builtin(opcode) if opcode == "modulus_be_bytes" => {
                     let modulus = FieldElement::modulus();
                     let bytes = modulus.to_bytes_be();
                     Some(self.modulus_array_literal(bytes, 8))
                 }
-                Definition::Builtin(opcode) if opcode == "modulus_bytes_le" => {
+                Definition::Builtin(opcode) if opcode == "modulus_le_bytes" => {
                     let modulus = FieldElement::modulus();
                     let bytes = modulus.to_bytes_le();
                     Some(self.modulus_array_literal(bytes, 8))

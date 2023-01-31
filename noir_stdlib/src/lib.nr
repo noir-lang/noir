@@ -14,7 +14,7 @@ mod field;
 // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
 fn pow_32(base: Field, exponent: Field) -> Field {
     let mut r = 1 as Field;
-    let b = field::to_bits_le(exponent, 32);
+    let b = field::to_le_bits(exponent, 32);
 
     for i in 1..33 {
         r = r*r;
