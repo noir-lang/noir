@@ -39,7 +39,7 @@ pub enum Definition {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone)]
@@ -167,6 +167,7 @@ pub enum Type {
     Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
+    String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
@@ -181,25 +182,22 @@ impl Type {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub abi: Abi,
 }
 
 impl Program {
-    pub fn new(main: Function, abi: Abi) -> Program {
-        Program { functions: vec![main], abi }
-    }
-
-    pub fn push_function(&mut self, function: Function) {
-        self.functions.push(function);
+    pub fn new(functions: Vec<Function>, abi: Abi) -> Program {
+        Program { functions, abi }
     }
 
     pub fn main(&mut self) -> &mut Function {
         &mut self.functions[0]
     }
 
-    pub fn main_id(&mut self) -> FuncId {
+    pub fn main_id() -> FuncId {
         FuncId(0)
     }
 
@@ -261,6 +259,7 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{bits}"),
             },
             Type::Bool => write!(f, "bool"),
+            Type::String(len) => write!(f, "str[{len}]"),
             Type::Unit => write!(f, "()"),
             Type::Tuple(elems) => {
                 let elems = vecmap(elems, ToString::to_string);

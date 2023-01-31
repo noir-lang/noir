@@ -28,6 +28,7 @@ clap.workspace = true
 termcolor.workspace = true
 hex.workspace = true
 tempdir.workspace = true
+thiserror.workspace = true
 
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "kw/add-public-outputs" }

@@ -155,11 +155,15 @@ impl IRGenerator {
                 noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
                 noirc_abi::Sign::Signed => ObjectType::Signed(*width),
             },
+            noirc_abi::AbiType::Boolean => ObjectType::Boolean,
             noirc_abi::AbiType::Array { .. } => {
                 unreachable!("array of arrays are not supported for now")
             }
             noirc_abi::AbiType::Struct { .. } => {
                 unreachable!("array of structs are not supported for now")
+            }
+            noirc_abi::AbiType::String { .. } => {
+                unreachable!("array of strings are not supported for now")
             }
         }
     }
@@ -197,6 +201,18 @@ impl IRGenerator {
                 noirc_abi::AbiType::Struct { fields, .. } => {
                     let new_name = format!("{struct_name}.{name}");
                     self.abi_struct(&new_name, None, fields, witnesses.clone())
+                }
+                noirc_abi::AbiType::String { length } => {
+                    let typ =
+                        noirc_abi::AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                    let v_id = self.abi_array(
+                        &new_name,
+                        None,
+                        &typ,
+                        *length,
+                        witnesses[&new_name].clone(),
+                    );
+                    Value::Single(v_id)
                 }
                 _ => {
                     let obj_type = self.get_object_type_from_abi(field_typ);
@@ -359,6 +375,12 @@ impl IRGenerator {
             Type::Array(len, elem) => {
                 //TODO support array of structs
                 let obj_type = self.context.convert_type(elem);
+                let len = *len;
+                let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
+                Value::Single(v_id)
+            }
+            Type::String(len) => {
+                let obj_type = ObjectType::Unsigned(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
@@ -548,6 +570,24 @@ impl IRGenerator {
                     self.context.new_instruction(store, element_type)?;
                 }
                 Ok(Value::Single(new_var))
+            }
+            Expression::Literal(Literal::Str(string)) => {
+                let string_as_integers = vecmap(string.bytes(), |byte| {
+                    let f = FieldElement::from_be_bytes_reduce(&[byte]);
+                    Expression::Literal(Literal::Integer(
+                        f,
+                        Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                    ))
+                });
+
+                let string_arr_literal = ArrayLiteral {
+                    contents: string_as_integers,
+                    element_type: Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                };
+
+                let new_value = self
+                    .codegen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
+                Ok(new_value)
             }
             Expression::Ident(ident) => self.codegen_identifier(ident),
             Expression::Binary(binary) => {

@@ -27,13 +27,13 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     let backend = crate::backends::ConcreteBackend;
 
     println!(
-        "Total ACIR opcodes generated for language {:?}: {}\n",
+        "Total ACIR opcodes generated for language {:?}: {}",
         backend.np_language(),
         num_opcodes
     );
 
     let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
-    println!("\nBackend circuit size: {exact_circuit_size}\n");
+    println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())
 }

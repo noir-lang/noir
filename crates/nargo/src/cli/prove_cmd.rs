@@ -11,10 +11,8 @@ use noirc_abi::{
     input_parser::{Format, InputValue},
 };
 
-use super::{
-    create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file, PROOFS_DIR,
-    PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE,
-};
+use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use crate::constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use crate::errors::CliError;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
@@ -58,8 +56,10 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+    let abi = compiled_program.abi.as_ref().expect("compiled program is missing an abi object");
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml)?;
+    let witness_map =
+        read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, abi.clone())?;
 
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, &witness_map)?;
@@ -85,6 +85,7 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
         let public_output_indices = compiled_program.circuit.public_outputs.0.iter();
         public_output_indices.map(|index| solved_witness[index]).collect()
     };
+
     let public_inputs_outputs =
         public_abi.decode(&encoded_public_inputs, &encoded_public_outputs)?;
 
