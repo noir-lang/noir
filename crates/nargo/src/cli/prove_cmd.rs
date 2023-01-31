@@ -17,9 +17,10 @@ use crate::{
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
-    let proof_name = args.value_of("proof_name").unwrap();
+    let proof_name = args.value_of("proof_name");
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
+
     prove(proof_name, show_ssa, allow_warnings)
 }
 
@@ -27,14 +28,39 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
+fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
-    let mut proof_path = PathBuf::new();
-    proof_path.push(PROOFS_DIR);
-    let result = prove_with_path(proof_name, curr_dir, proof_path, show_ssa, allow_warnings);
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
+
+    let mut proof_dir = PathBuf::new();
+    proof_dir.push(PROOFS_DIR);
+
+    prove_with_path(proof_name, curr_dir, proof_dir, show_ssa, allow_warnings)?;
+
+    Ok(())
+}
+
+pub fn prove_with_path<P: AsRef<Path>>(
+    proof_name: Option<&str>,
+    program_dir: P,
+    proof_dir: P,
+    show_ssa: bool,
+    allow_warnings: bool,
+) -> Result<Option<PathBuf>, CliError> {
+    let (compiled_program, solved_witness) =
+        compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
+
+    let backend = crate::backends::ConcreteBackend;
+    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+
+    println!("Proof successfully created");
+    if let Some(proof_name) = proof_name {
+        let proof_path = save_proof_to_dir(proof, proof_name, proof_dir)?;
+
+        println!("Proof saved to {}", proof_path.display());
+        Ok(Some(proof_path))
+    } else {
+        println!("{}", hex::encode(&proof));
+        Ok(None)
     }
 }
 
@@ -112,28 +138,16 @@ fn solve_witness(
     Ok(solved_witness)
 }
 
-pub fn prove_with_path<P: AsRef<Path>>(
+fn save_proof_to_dir<P: AsRef<Path>>(
+    proof: Vec<u8>,
     proof_name: &str,
-    program_dir: P,
     proof_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let (compiled_program, solved_witness) =
-        compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
-
-    let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
-
     let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
     proof_path.push(proof_name);
     proof_path.set_extension(PROOF_EXT);
 
-    println!("proof : {}", hex::encode(&proof));
-
-    let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
-    println!("Proof successfully created and located at {path}");
-    println!("{:?}", std::fs::canonicalize(&proof_path));
+    write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
 
     Ok(proof_path)
 }
