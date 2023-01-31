@@ -1,6 +1,8 @@
-use super::compile_cmd::compile_circuit;
-use super::{read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
-use crate::errors::CliError;
+use super::{compile_cmd::compile_circuit, read_inputs_from_file};
+use crate::{
+    constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
+    errors::CliError,
+};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
