@@ -117,7 +117,7 @@ pub fn start_cli() {
         Some("gates") => gates_cmd::run(matches),
         Some("execute") => execute_cmd::run(matches),
 
-        Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
+        Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
     };
     if let Err(err) = result {
