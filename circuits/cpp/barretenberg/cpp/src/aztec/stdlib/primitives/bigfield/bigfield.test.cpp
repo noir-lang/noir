@@ -19,11 +19,6 @@
 #include <utility>
 #include <polynomials/polynomial_arithmetic.hpp>
 
-#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
-         ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
-
 namespace test_stdlib_bigfield {
 using namespace barretenberg;
 using namespace plonk;

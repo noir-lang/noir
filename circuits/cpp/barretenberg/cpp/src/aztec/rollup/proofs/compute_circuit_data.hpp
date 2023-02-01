@@ -8,11 +8,6 @@
 #include <proof_system/proving_key/serialize.hpp>
 #include <filesystem>
 
-#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
-         ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
-
 namespace rollup {
 namespace proofs {
 

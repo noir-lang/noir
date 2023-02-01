@@ -19,11 +19,6 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-#define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
-         ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(waffle::TurboComposer) ? "TurboPlonk" : "NULLPlonk")
-
 // using namespace barretenberg;
 using namespace plonk;
 
