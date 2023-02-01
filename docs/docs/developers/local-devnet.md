@@ -72,7 +72,16 @@ If you see this error
 Error: Version mismatch with rollup provider. Error: Rollup provider / SDK version mismatch. Hard refresh your browser or update SDK. 
 ```
 
-check that you are using the [latest SDK version](https://www.npmjs.com/package/@aztec/sdk?activeTab=versions) and Docker images. You can [pull](https://docs.docker.com/engine/reference/commandline/pull/) the latest `aztecprotocol` docker images. You can also get the exact backend release that matches the SDK [directly from Docker Hub](https://hub.docker.com/r/aztecprotocol/falafel/tags).
+check that you are using the [latest SDK version](https://www.npmjs.com/package/@aztec/sdk?activeTab=versions) and Docker images. 
+
+You should [pull](https://docs.docker.com/engine/reference/commandline/pull/) the latest `aztecprotocol` docker images to see if they have been updated. 
+
+ ```bash
+ docker pull aztecprotocol/falafel:latest
+ docker pull aztecprotocol/contracts:latest
+ ```
+
+You can also get the exact backend release that matches the SDK [directly from Docker Hub](https://hub.docker.com/r/aztecprotocol/falafel/tags).
 
 ### Deploy custom bridges
 
