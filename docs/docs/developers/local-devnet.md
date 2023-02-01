@@ -66,6 +66,14 @@ Connect the Aztec SDK to `http://localhost:8081`.
 
 You can also interact with your local aztec network directly via the [CLI](https://github.com/critesjosh/azteccli#development) or the [frontend boilerplate](https://github.com/AztecProtocol/aztec-frontend-boilerplate).
 
+If you see this error
+
+```bash
+Error: Version mismatch with rollup provider. Error: Rollup provider / SDK version mismatch. Hard refresh your browser or update SDK. 
+```
+
+check that you are using the [latest SDK version](https://www.npmjs.com/package/@aztec/sdk?activeTab=versions) and Docker images. You can [pull](https://docs.docker.com/engine/reference/commandline/pull/) the latest `aztecprotocol` docker images. You can also get the exact backend release that matches the SDK [directly from Docker Hub](https://hub.docker.com/r/aztecprotocol/falafel/tags).
+
 ### Deploy custom bridges
 
 You can deploy your own bridge contracts to the mainnet fork devnet.
