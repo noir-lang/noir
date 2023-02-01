@@ -43,5 +43,5 @@ smol_str = "0.1.17"
 thiserror = "1.0.21"
 toml = "0.5.8"
 url = "2.2.0"
-wasm-bindgen = { version = "*", features = ["serde-serialize"] }
-wasm-bindgen-test = "*"
+wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.33"
