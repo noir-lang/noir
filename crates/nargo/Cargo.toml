@@ -21,7 +21,6 @@ fm.workspace = true
 acvm.workspace = true
 cfg-if.workspace = true
 toml.workspace = true
-serde_derive.workspace = true
 thiserror.workspace = true
 serde = "1.0.123"
 clap = "2.33.3"

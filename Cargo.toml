@@ -39,7 +39,6 @@ codespan-reporting = "0.9.5"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
-serde_derive = "1.0.123"
 smol_str = "0.1.17"
 thiserror = "1.0.21"
 toml = "0.5.8"
