@@ -40,7 +40,18 @@ AztecSdk.createWithdrawController(
 
 Fees for withdrawals are calculated using a similar method as for [registrations](register#calculating-fees), deposits and [transfers](transfer#transfer-fees), but using the `getWithdrawalFees` method.
 
-`getWithdrawalFees` has a second optional argument `recipient?: EthAddress`. This is used to check if the recipient address is a contract wallet, for which the fees are higher.
+`getWithdrawalFees` has a second optional options argument.
+
+```ts
+interface GetFeeOptions {
+    userId?: GrumpkinAddress;
+    userSpendingKeyRequired?: boolean;
+    excludePendingNotes?: boolean;
+    feeSignificantFigures?: number;
+} & { recipient?: EthAddress; assetValue?: AssetValue }
+```
+
+`recipient?: EthAddress` is used to check if the recipient address is a contract wallet, for which the fees are higher.
 
 The settlement time is inferred from the fee a user pays, it is not explicitly sent to the controller.
 
@@ -50,9 +61,22 @@ A withdrawal setup and execution looks like this:
 
 ```ts
 const tokenAssetId = sdk.getAssetIdByAddress(tokenAddress);
-const tokenWithdrawFee = (await sdk.getWithdrawFees(tokenAssetId))[settlementTime];
 
 const tokenAssetValue = { assetId: tokenAssetId, value: tokenQuantity };
+
+// optional fee options
+// not relevant if using FeeController
+const feeOptions = {
+    userId: aztecPublicKey,
+    userSpendingKeyRequired: true,
+    excludePendingNotes: true,
+    feeSignificantFigures: 2,
+    assetValue: tokenAssetValue,
+    recipient: ethAddress
+}
+
+const tokenWithdrawFee = (await sdk.getWithdrawFees(tokenAssetId, feeOptions))[settlementTime];
+
 const tokenWithdrawController = sdk.createWithdrawController(
     user,
     signer,

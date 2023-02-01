@@ -49,10 +49,20 @@ const zkETH = sdk.getAssetIdByAddress(EthAddress.ZERO);
 
 ### Transfer fees
 
-You calculate transfer fees similar to how it is done with registrations or deposits.
+You calculate transfer fees similar to how it is done with registrations or deposits, but there is an additional `options` object where you can pass additional information to get a more specific fee quote.
 
 ```ts
-const tokenTransferFee = (await sdk.getTransferFees(assetId))[settlementTime];
+// optional fee options
+// not relevant if using FeeController
+const feeOptions = {
+    userId: aztecPublicKey,
+    userSpendingKeyRequired: true,
+    excludePendingNotes: true,
+    feeSignificantFigures: 2,
+    assetValue: tokenAssetValue
+}
+
+const tokenTransferFee = (await sdk.getTransferFees(assetId, feeOptions))[settlementTime];
 ```
 
 Where `settlementTime` is `TxSettlementTime.INSTANT` or `TxSettlementTime.NEXT_ROLLUP`. `INSTANT` settlement is faster, but more expensive. `NEXT_ROLLUP` will wait until the rollup is filled with transactions and then is posted to Ethereum.
