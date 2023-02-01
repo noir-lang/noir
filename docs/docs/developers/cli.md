@@ -118,7 +118,7 @@ The version of SDK used in Aztec CLI is specified in its [`package.json`](https:
 
 ```json
 "dependencies": {
-    "@aztec/sdk": "2.1.0-testnet.47", // check for a newer version
+    "@aztec/sdk": "2.1.0-testnet.108", // check for a newer version
     ...
   },
 ```
@@ -135,14 +135,14 @@ let networkConfig: Config = {
     rollupProvider: "https://api.aztec.network/aztec-connect-prod/falafel",
     explorerUrl: "https://aztec-connect-prod-explorer.aztec.network/",
   },
-  31337: { // local devnet
+  1337: { // local devnet
     rollupProvider: "http://localhost:8081",
     explorerUrl: "",
   },
 };
 ```
 
-The network of Chain ID `31337` is the Aztec mainnet fork [local developer network](./local-devnet). It is a local network that is forked from and mimics the Ethereum Mainnet.
+The network of Chain ID `1337` is the Aztec mainnet fork [local developer network](./local-devnet). It is a local network that is forked from and mimics the Ethereum Mainnet.
 
 ## Account Alias
 
