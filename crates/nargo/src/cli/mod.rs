@@ -1,5 +1,7 @@
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
+use const_format::formatcp;
+use git_version::git_version;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi,
@@ -25,6 +27,9 @@ mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
 
+const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
+const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
         .long("allow-warnings")
@@ -36,7 +41,7 @@ pub fn start_cli() {
 
     let matches = App::new("nargo")
         .about("Noir's package manager")
-        .version("0.1")
+        .version(VERSION_STRING)
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(
             App::new("check")
