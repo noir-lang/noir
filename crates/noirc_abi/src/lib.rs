@@ -165,50 +165,76 @@ impl Abi {
         self,
         inputs: &BTreeMap<String, InputValue>,
         skip_output: bool,
-    ) -> Result<Vec<FieldElement>, AbiError> {
+    ) -> Result<(Vec<FieldElement>, Option<Vec<FieldElement>>), AbiError> {
         // The `Return` parameter is always present in the ABI because the ABI describes
-        // the input and output parameters.
+        // the input and output parameters, where `Return` is the output parameter.
         //
         // When the Prover is creating a proof, they will not supply the `Return` value
         // in their TOML file. This means that when we encode the ABI for the Prover,
         // we should skip the `Return` parameter in ABI as this is not supplied by the prover
         // and therefore cannot be encoded.
 
-        let parameters = match (skip_output, self.output_parameter()) {
-            (true, _) | (false, None) => self.input_parameters(),
-            (false, Some(output_param)) => {
-                let mut params = self.input_parameters();
-                params.push(output_param);
-                params
-            }
-        };
-
-        let param_names: Vec<&String> =
-            parameters.iter().clone().map(|param| &param.name).collect();
+        // Input parameters
+        //
         let mut encoded_inputs = Vec::new();
+        {
+            for param in self.input_parameters() {
+                let value = inputs
+                    .get(&param.name)
+                    .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
+                    .clone();
 
-        for param in parameters {
+                if !value.matches_abi(&param.typ) {
+                    return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
+                }
+
+                encoded_inputs.extend(Self::encode_value(value, &param.name)?);
+            }
+        }
+
+        // Output parameters
+        //
+        let mut encoded_output = None;
+        {
+            if skip_output {
+                return Ok((encoded_inputs, encoded_output));
+            }
+
+            let output_param = match (skip_output, self.output_parameter()) {
+                (true, _) | (false, None) => return Ok((encoded_inputs, encoded_output)),
+                (false, Some(output_param)) => output_param,
+            };
+
             let value = inputs
-                .get(&param.name)
-                .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
+                .get(&output_param.name)
+                .ok_or_else(|| AbiError::MissingParam(output_param.name.to_owned()))?
                 .clone();
 
-            if !value.matches_abi(&param.typ) {
-                return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
+            if !value.matches_abi(&output_param.typ) {
+                return Err(AbiError::TypeMismatch { param: output_param.to_owned(), value });
             }
 
-            encoded_inputs.extend(Self::encode_value(value, &param.name)?);
+            encoded_output = Some(Self::encode_value(value, &output_param.name)?);
         }
+
+        let all_params: Vec<_> = self
+            .input_parameters()
+            .into_iter()
+            .chain(self.output_parameter().into_iter())
+            .collect();
+
+        let param_names: Vec<&String> =
+            all_params.iter().clone().map(|param| &param.name).collect();
 
         // Check that no extra witness values have been provided.
         // Any missing values should be caught by the above for-loop so this only catches extra values.
-        if param_names.len() != inputs.len() {
+        if all_params.len() != inputs.len() {
             let unexpected_params: Vec<String> =
                 inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
             return Err(AbiError::UnexpectedParams(unexpected_params));
         }
 
-        Ok(encoded_inputs)
+        Ok((encoded_inputs, encoded_output))
     }
 
     fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
@@ -278,7 +304,7 @@ impl Abi {
                 None => unreachable!("infallible: the encoded outputs is none empty, but the ABI specifies no return values"),
             };
 
-            let mut field_iterator = encoded_inputs.iter().cloned();
+            let mut field_iterator = encoded_outputs.iter().cloned();
 
             let decoded_value = Self::decode_value(&mut field_iterator, &output_parameter.typ)?;
             decoded_inputs.insert(output_parameter.name.to_owned(), decoded_value);

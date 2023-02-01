@@ -71,13 +71,28 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
     // and assuming that the witness indices were contiguous, this tells us the amount of witnesses
     // used to create the input parameters.
     // If there are any public inputs, their indices will be less than the ABI length
+    //
+    // Edge case: There is an edge case where a private input
+    // is transformed into a public input, and the private input
+    // was created in the ABI.
+    //
+    // Here we have a private input `x` which is seen as
+    // both a private input and a public output.
+    /*
+    fn main(x : Field) -> pub Field {
+        x
+    }
+    */
+    //
+    // This edge case produces an error in the SSA pass and
+    // thus cannot happen.
     let abi = compiled_program.abi.clone().unwrap();
     let abi_len = abi.field_count();
     let public_abi = abi.public_abi();
 
     let encoded_public_inputs: Vec<FieldElement> = {
         let public_input_indices =
-            compiled_program.circuit.public_inputs.0.iter().filter(|index| index.0 < abi_len);
+            compiled_program.circuit.public_inputs.0.iter().filter(|index| index.0 <= abi_len);
         public_input_indices.map(|index| solved_witness[index]).collect()
     };
 
@@ -100,15 +115,17 @@ fn solve_witness(
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
-        AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-        }
-        _ => CliError::from(error),
-    })?;
+    let (encoded_inputs, encoded_outputs) =
+        abi.clone().encode(witness_map, true).map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
+            }
+            _ => CliError::from(error),
+        })?;
 
     let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
         .into_iter()
+        .chain(encoded_outputs.into_iter().flatten())
         .enumerate()
         .map(|(index, witness_value)| {
             let witness = Witness::new(WITNESS_OFFSET + (index as u32));
