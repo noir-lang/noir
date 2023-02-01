@@ -133,7 +133,7 @@ Add anvil accounts and network information to Metamask.
 
 These devnets start the local Ethereum network at `http://localhost:8545`, so you will have to update the info associated with this network in Metamask.
 
-Chain id is `31337` or `3567` (when running mainnet fork devnet).
+Chain id is `1337` or `3567` (when running mainnet fork devnet).
 
 [Anvil](https://book.getfoundry.sh/anvil/) private keys:
 
