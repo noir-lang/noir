@@ -15,4 +15,4 @@ serde_derive.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
+serde_json = "1.0"
