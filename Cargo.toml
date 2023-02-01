@@ -1,23 +1,47 @@
 [workspace]
 
 members = [
-    "crates/noir_field",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",
     "crates/noirc_driver",
-    "crates/acir",
     "crates/nargo",
     "crates/fm",
     "crates/arena",
-    "crates/acvm",
     "crates/noirc_abi",
     "crates/iter-extended",
     "crates/wasm",
 ]
-exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]
 
-# Patch github versions of acvm with local copy
-[patch.'https://github.com/noir-lang/noir']
-acvm = { path = "crates/acvm" }
+[workspace.package]
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2021"
+rust-version = "1.64"
+
+[workspace.dependencies]
+acvm = "0.3.1"
+arena = { path = "crates/arena" }
+fm = { path = "crates/fm" }
+iter-extended = { path = "crates/iter-extended" }
+nargo = { path = "crates/nargo" }
+noirc_abi = { path = "crates/noirc_abi" }
+noirc_driver = { path = "crates/noirc_driver" }
+noirc_errors = { path = "crates/noirc_errors" }
+noirc_evaluator = { path = "crates/noirc_evaluator" }
+noirc_frontend = { path = "crates/noirc_frontend" }
+noir_wasm = { path = "crates/wasm" }
+
+cfg-if = "1.0.0"
+codespan = "0.9.5"
+codespan-reporting = "0.9.5"
+chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
+dirs = "4"
+serde = { version = "1.0.136", features = ["derive"] }
+smol_str = "0.1.17"
+thiserror = "1.0.21"
+toml = "0.5.8"
+url = "2.2.0"
+wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.33"

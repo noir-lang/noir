@@ -1,8 +1,8 @@
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 
 use iter_extended::vecmap;
 
-use super::ast::{Expression, Function, LValue};
+use super::ast::{Definition, Expression, Function, LValue};
 
 #[derive(Default)]
 pub struct AstPrinter {
@@ -12,13 +12,13 @@ pub struct AstPrinter {
 impl AstPrinter {
     pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}${}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
         })
         .join(", ");
 
         write!(
             f,
-            "fn {}${}({}) -> {} {{",
+            "fn {}$f{}({}) -> {} {{",
             function.name, function.id.0, params, function.return_type
         )?;
         self.indent_level += 1;
@@ -30,7 +30,7 @@ impl AstPrinter {
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
-            Expression::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
+            Expression::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
             Expression::Unary(unary) => self.print_unary(unary, f),
@@ -54,13 +54,11 @@ impl AstPrinter {
                 write!(f, ".{index}")
             }
             Expression::Call(call) => self.print_call(call, f),
-            Expression::CallBuiltin(call) => self.print_lowlevel(call, f),
-            Expression::CallLowLevel(call) => self.print_builtin(call, f),
             Expression::Let(let_expr) => {
                 write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, _) => {
+            Expression::Constrain(expr, ..) => {
                 write!(f, "constrain ")?;
                 self.print_expr(expr, f)
             }
@@ -95,9 +93,10 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _) => write!(f, "{x}"),
-            super::ast::Literal::Bool(x) => write!(f, "{x}"),
-            super::ast::Literal::Str(s) => write!(f, "{s}"),
+            super::ast::Literal::Integer(x, _) => x.fmt(f),
+            super::ast::Literal::Bool(x) => x.fmt(f),
+            super::ast::Literal::Str(s) => s.fmt(f),
+            super::ast::Literal::Unit => write!(f, "()"),
         }
     }
 
@@ -207,13 +206,13 @@ impl AstPrinter {
         self.next_line(f)?;
 
         if let Some(alt) = &if_expr.alternative {
-            write!(f, " else {{")?;
+            write!(f, "}} else {{")?;
             self.indent_level += 1;
             self.print_expr_expect_block(alt, f)?;
             self.indent_level -= 1;
             self.next_line(f)?;
         }
-        Ok(())
+        write!(f, "}}")
     }
 
     fn print_comma_separated(
@@ -245,35 +244,16 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "${}(", call.func_id.0)?;
-        self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
-    }
-
-    fn print_lowlevel(
-        &mut self,
-        call: &super::ast::CallBuiltin,
-        f: &mut Formatter,
-    ) -> Result<(), std::fmt::Error> {
-        write!(f, "{}$lowlevel(", call.opcode)?;
-        self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
-    }
-
-    fn print_builtin(
-        &mut self,
-        call: &super::ast::CallLowLevel,
-        f: &mut Formatter,
-    ) -> Result<(), std::fmt::Error> {
-        write!(f, "{}$builtin(", call.opcode)?;
+        self.print_expr(&call.func, f)?;
+        write!(f, "(")?;
         self.print_comma_separated(&call.arguments, f)?;
         write!(f, ")")
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.id.0),
-            LValue::Index { array, index } => {
+            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            LValue::Index { array, index, .. } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;
                 self.print_expr(index, f)?;
@@ -283,6 +263,17 @@ impl AstPrinter {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{field_index}")
             }
+        }
+    }
+}
+
+impl Display for Definition {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Definition::Local(id) => write!(f, "l{}", id.0),
+            Definition::Function(id) => write!(f, "f{}", id.0),
+            Definition::Builtin(name) => write!(f, "{name}"),
+            Definition::LowLevel(name) => write!(f, "{name}"),
         }
     }
 }

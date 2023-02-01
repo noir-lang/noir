@@ -266,7 +266,7 @@ fn evaluate_conditional_jump(
         Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
         Operation::Jmp(_) => return Ok(true),
-        _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
+        _ => panic!("loop without conditional statement!"),
     };
 
     let cond = get_current_value(cond_id, value_array);
@@ -292,8 +292,8 @@ fn get_current_value_for_node_eval(
     value_array: &HashMap<NodeId, NodeEval>,
 ) -> NodeEval {
     match obj {
-        NodeEval::Const(_, _) => obj,
         NodeEval::VarOrInstruction(obj_id) => get_current_value(obj_id, value_array),
+        NodeEval::Const(..) | NodeEval::Function(..) => obj,
     }
 }
 
@@ -305,7 +305,7 @@ fn evaluate_one(
 ) -> Result<NodeEval, RuntimeError> {
     let mut modified = false;
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => Ok(obj),
+        NodeEval::Const(..) | NodeEval::Function(..) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -337,6 +337,7 @@ fn evaluate_one(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }
@@ -349,7 +350,7 @@ fn evaluate_object(
     ctx: &SsaContext,
 ) -> Result<NodeEval, RuntimeError> {
     match get_current_value_for_node_eval(obj, value_array) {
-        NodeEval::Const(_, _) => Ok(obj),
+        NodeEval::Const(_, _) | NodeEval::Function(..) => Ok(obj),
         NodeEval::VarOrInstruction(obj_id) => {
             if ctx.try_get_node(obj_id).is_none() {
                 return Ok(obj);
@@ -378,6 +379,7 @@ fn evaluate_object(
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
                 NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }

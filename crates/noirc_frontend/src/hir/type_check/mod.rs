@@ -34,6 +34,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
 
+    // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
+    for type_check_fn in interner.take_delayed_type_check_functions() {
+        if let Err(error) = type_check_fn() {
+            errors.push(error);
+        }
+    }
+
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
@@ -68,7 +75,7 @@ mod test {
         function::{FuncMeta, HirFunction, Param},
         stmt::HirStatement,
     };
-    use crate::node_interner::{FuncId, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
     use crate::{graph::CrateId, Ident};
     use crate::{
@@ -87,7 +94,7 @@ mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id = interner.push_definition("x".into(), false, false, None);
+        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
@@ -96,11 +103,11 @@ mod test {
         let x = HirIdent { id: x_id, location };
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, false, None);
+        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
         let y = HirIdent { id: y_id, location };
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, false, None);
+        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
         let z = HirIdent { id: z_id, location };
 
         // Push x and y as expressions
@@ -112,6 +119,9 @@ mod test {
         let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
+
+        interner.push_expr_location(x_expr_id, Span::single_char(0), file);
+        interner.push_expr_location(y_expr_id, Span::single_char(0), file);
 
         // Create let statement
         let let_stmt = HirLetStatement {
@@ -129,7 +139,7 @@ mod test {
 
         let name = HirIdent {
             location,
-            id: interner.push_definition("test_func".into(), false, false, None),
+            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
         };
 
         // Add function meta
@@ -215,14 +225,10 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<Option<ModuleDefId>, Ident> {
+        ) -> Result<ModuleDefId, Ident> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            let mod_def = self.0.get(&name.0.contents).cloned();
-            match mod_def {
-                None => Err(name.clone()),
-                Some(_) => Ok(mod_def),
-            }
+            self.0.get(&name.0.contents).cloned().ok_or_else(|| name.clone())
         }
 
         fn local_module_id(&self) -> LocalModuleId {
@@ -246,10 +252,14 @@ mod test {
         // the whole vec if the assert fails rather than just two booleans
         assert_eq!(errors, vec![]);
 
-        let mut func_ids = Vec::new();
-        for _ in 0..func_namespace.len() {
-            func_ids.push(interner.push_fn(HirFunction::empty()));
-        }
+        let main_id = interner.push_fn(HirFunction::empty());
+        interner.push_function_definition("main".into(), main_id);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.into(), id);
+            id
+        });
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
@@ -261,7 +271,7 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf);
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

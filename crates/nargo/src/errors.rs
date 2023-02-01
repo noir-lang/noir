@@ -1,15 +1,28 @@
+use acvm::OpcodeResolutionError;
 use hex::FromHexError;
 use noirc_abi::errors::{AbiError, InputParserError};
-use std::{fmt::Display, io::Write, path::PathBuf};
+use std::{io::Write, path::PathBuf};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CliError {
+    #[error("{0}")]
     Generic(String),
+    #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
+    #[error("Error: {} is not a valid path", .0.display())]
     PathNotValid(PathBuf),
+    #[error("Error: could not parse proof data ({0})")]
     ProofNotValid(FromHexError),
+    #[error("cannot find input file located at {0:?}, run nargo build to generate the missing Prover and/or Verifier toml files")]
     MissingTomlFile(PathBuf),
+}
+
+impl From<OpcodeResolutionError> for CliError {
+    fn from(value: OpcodeResolutionError) -> Self {
+        CliError::Generic(value.to_string())
+    }
 }
 
 impl CliError {
@@ -21,23 +34,6 @@ impl CliError {
         writeln!(&mut stderr, "{self}").expect("cannot write to stderr");
 
         std::process::exit(1)
-    }
-}
-
-impl Display for CliError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-                CliError::Generic(msg) => write!(f, "Error: {msg}"),
-                CliError::DestinationAlreadyExists(path) =>
-                write!(f, "Error: destination {} already exists", path.display()),
-                CliError::PathNotValid(path) => {
-                    write!(f, "Error: {} is not a valid path", path.display())
-                }
-                CliError::ProofNotValid(hex_error) => {
-                    write!(f, "Error: could not parse proof data ({hex_error})")
-                }
-                CliError::MissingTomlFile(path) => write!(f, "cannot find input file located at {path:?}, run nargo build to generate the missing Prover and/or Verifier toml files"),
-            }
     }
 }
 

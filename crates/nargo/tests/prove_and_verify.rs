@@ -41,11 +41,21 @@ mod tests {
         cdir.push(TEST_DATA_DIR);
 
         for c in fs::read_dir(cdir.as_path()).unwrap().flatten() {
-            let test_name = c.file_name().into_string();
-            if let Ok(str) = test_name {
-                if c.path().is_dir() && !conf_data["exclude"].contains(&str) {
-                    let r = nargo::cli::prove_and_verify("pp", &c.path(), false);
-                    if conf_data["fail"].contains(&str) {
+            if let Ok(test_name) = c.file_name().into_string() {
+                println!("Running test {test_name:?}");
+                if c.path().is_dir() && !conf_data["exclude"].contains(&test_name) {
+                    let verified = std::panic::catch_unwind(|| {
+                        nargo::cli::prove_and_verify("pp", &c.path(), false)
+                    });
+
+                    let r = match verified {
+                        Ok(result) => result,
+                        Err(_) => {
+                            panic!("\n\n\nPanic occured while running test {:?} (ignore the following panic)", c.file_name());
+                        }
+                    };
+
+                    if conf_data["fail"].contains(&test_name) {
                         assert!(!r, "{:?} should not succeed", c.file_name());
                     } else {
                         assert!(r, "verification fail for {:?}", c.file_name());

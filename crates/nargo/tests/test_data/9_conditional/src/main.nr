@@ -3,10 +3,10 @@ use dep::std;
 fn sort(mut a: [u32; 4]) -> [u32; 4] { 
     for i in 1..4 {
         for j in 0..i {
-            if(a[i] < a[j]) {
+            if a[i] < a[j] {
                 let c = a[j];
                 a[j] = a[i];
-                a[i]= c;
+                a[i] = c;
             }
         }
     }
@@ -59,12 +59,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         }
     }
 
-    //Regression for to_bits() constant evaluation 
+    //Regression for to_le_bits() constant evaluation 
     // binary array representation of u8 1
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
     for i in 0..2 {
-        let mut as_bits = std::to_bits(arr[i] as Field, 2);
+        let mut as_bits = std::field::to_le_bits(arr[i] as Field, 2);
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {
@@ -188,6 +188,15 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     constrain c[1] == 2;
 
     test5(4);
+
+    // Regression for issue #661:
+    let mut c_661 :[u32;1]=[0];
+    if a > 5 {
+        c_661 = issue_661_foo(issue_661_bar(c), a);
+    } else {
+        c_661 = issue_661_foo(issue_661_bar(c), x);
+    }
+    constrain c_661[0] < 20000;
 }
 
 fn test5(a : u32) {
@@ -201,11 +210,11 @@ fn test5(a : u32) {
 
 fn foo() {
     let mut x = 1;
-    x = x/0;
+    x /= 0;
 }
 
 fn bar(x:Field) {
-    if x ==15 {
+    if x == 15 {
         foo();
     }
 }
@@ -230,4 +239,14 @@ fn test(flag: bool) -> MyStruct579 {
         my_struct=  MyStruct579::new([1; 2]);
     }
     my_struct
+}
+
+fn issue_661_foo(array: [u32;4], b:u32) ->[u32;1] {
+    [array[0]+b]
+}
+
+fn issue_661_bar(a : [u32;4]) ->[u32;4] {
+    let mut b:[u32;4] = [0;4];
+    b[0]=a[0]+1;
+    b
 }

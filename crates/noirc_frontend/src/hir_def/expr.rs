@@ -2,9 +2,10 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::{DefinitionId, ExprId, FuncId, StmtId, StructId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
+use super::stmt::HirPattern;
 use super::types::{StructType, Type};
 
 #[derive(Debug, Clone)]
@@ -23,6 +24,7 @@ pub enum HirExpression {
     For(HirForExpression),
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
+    Lambda(HirLambda),
     Error,
 }
 
@@ -58,6 +60,11 @@ impl HirBinaryOp {
         let kind = op.contents;
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
+    }
+
+    pub fn is_bitwise(&self) -> bool {
+        use BinaryOpKind::*;
+        matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
     }
 }
 
@@ -105,8 +112,9 @@ pub struct HirCastExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirCallExpression {
-    pub func_id: FuncId,
+    pub func: ExprId,
     pub arguments: Vec<ExprId>,
+    pub location: Location,
 }
 
 /// These nodes are temporary, they're
@@ -118,14 +126,24 @@ pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
     pub arguments: Vec<ExprId>,
+    pub location: Location,
 }
 
 impl HirMethodCallExpression {
-    pub fn into_function_call(mut self, method_id: FuncId) -> HirExpression {
+    pub fn into_function_call(
+        mut self,
+        func: FuncId,
+        location: Location,
+        interner: &mut NodeInterner,
+    ) -> (ExprId, HirExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
-        HirExpression::Call(HirCallExpression { func_id: method_id, arguments })
+        let id = interner.function_definition_id(func);
+        let ident = HirExpression::Ident(HirIdent { location, id });
+        let func = interner.push_expr(ident);
+
+        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
     }
 }
 
@@ -155,4 +173,11 @@ impl HirBlockExpression {
     pub fn statements(&self) -> &[StmtId] {
         &self.0
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct HirLambda {
+    pub parameters: Vec<(HirPattern, Type)>,
+    pub return_type: Type,
+    pub body: ExprId,
 }

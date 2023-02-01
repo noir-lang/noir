@@ -6,8 +6,8 @@ use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{DefinitionId, FuncId, Type};
-use noirc_frontend::{BinaryOpKind, Signedness};
+use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
+use noirc_frontend::BinaryOpKind;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 use std::ops::{Add, Mul, Sub};
@@ -32,10 +32,13 @@ impl std::fmt::Display for Variable {
 
 impl std::fmt::Display for NodeObj {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use FunctionKind::*;
         match self {
             NodeObj::Obj(o) => write!(f, "{o}"),
             NodeObj::Instr(i) => write!(f, "{i}"),
             NodeObj::Const(c) => write!(f, "{c}"),
+            NodeObj::Function(Normal(id), ..) => write!(f, "f{}", id.0),
+            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{opcode}"),
         }
     }
 }
@@ -66,6 +69,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_type(),
             NodeObj::Instr(i) => i.res_type,
             NodeObj::Const(o) => o.value_type,
+            NodeObj::Function(..) => ObjectType::Function,
         }
     }
 
@@ -74,6 +78,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.size_in_bits(),
             NodeObj::Instr(i) => i.res_type.bits(),
             NodeObj::Const(c) => c.size_in_bits(),
+            NodeObj::Function(..) => 0,
         }
     }
 
@@ -82,6 +87,7 @@ impl Node for NodeObj {
             NodeObj::Obj(o) => o.get_id(),
             NodeObj::Instr(i) => i.id,
             NodeObj::Const(c) => c.get_id(),
+            NodeObj::Function(_, id, _) => *id,
         }
     }
 }
@@ -114,6 +120,13 @@ pub enum NodeObj {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
+    Function(FunctionKind, NodeId, /*name:*/ String),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum FunctionKind {
+    Normal(FuncId),
+    Builtin(builtin::Opcode),
 }
 
 #[derive(Debug)]
@@ -135,12 +148,8 @@ pub struct Variable {
     pub id: NodeId,
     pub obj_type: ObjectType,
     pub name: String,
-    //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<DefinitionId>, //TODO redundant with root - should it be an option?
-    //TODO clarify where cur_value and root is stored, and also this:
-    //  pub max_bits: u32,                  //max possible bit size of the expression
-    //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
+    pub def: Option<Definition>, //AST definition of the variable
     pub witness: Option<Witness>,
     pub parent_block: BlockId,
 }
@@ -153,7 +162,7 @@ impl Variable {
     pub fn new(
         obj_type: ObjectType,
         name: String,
-        def: Option<DefinitionId>,
+        def: Option<Definition>,
         parent_block: BlockId,
     ) -> Variable {
         Variable {
@@ -177,7 +186,8 @@ pub enum ObjectType {
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
     Pointer(ArrayId),
-    //custom(u32),   //user-defined struct, u32 refers to the id of the type in...?todo
+
+    Function,
     //TODO big_int
     //TODO floats
     NotAnObject, //not an object
@@ -201,37 +211,6 @@ impl From<ObjectType> for NumericType {
     }
 }
 
-impl From<&Type> for ObjectType {
-    fn from(t: &Type) -> ObjectType {
-        match t {
-            Type::Bool => ObjectType::Boolean,
-            Type::Field => ObjectType::NativeField,
-            Type::Integer(sign, bit_size) => {
-                assert!(
-                    *bit_size < super::integer::short_integer_max_bit_size(),
-                    "long integers are not yet supported"
-                );
-                match sign {
-                    Signedness::Signed => ObjectType::Signed(*bit_size),
-                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
-                }
-            }
-            // TODO: We should probably not convert an array type into the element type
-            Type::Array(_, t) => ObjectType::from(t.as_ref()),
-            Type::Unit => ObjectType::NotAnObject,
-            other => {
-                unimplemented!("Conversion to ObjectType is unimplemented for type {:?}", other)
-            }
-        }
-    }
-}
-
-impl From<Type> for ObjectType {
-    fn from(t: Type) -> ObjectType {
-        ObjectType::from(&t)
-    }
-}
-
 impl ObjectType {
     pub fn bits(&self) -> u32 {
         match self {
@@ -241,6 +220,7 @@ impl ObjectType {
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
             ObjectType::Pointer(_) => 0,
+            ObjectType::Function => 0,
         }
     }
 
@@ -248,7 +228,7 @@ impl ObjectType {
     pub fn max_size(&self) -> BigUint {
         match self {
             &ObjectType::NativeField => {
-                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_bytes())
+                BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_be_bytes())
             }
             _ => (BigUint::one() << self.bits()) - BigUint::one(),
         }
@@ -296,10 +276,11 @@ impl std::fmt::Display for Instruction {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
+    Function(FunctionKind, NodeId),
 }
 
 impl NodeEval {
@@ -314,6 +295,7 @@ impl NodeEval {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
+            NodeEval::Function(_, id) => Some(id),
         }
     }
 
@@ -323,6 +305,7 @@ impl NodeEval {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
+            NodeEval::Function(_, id) => id,
         }
     }
 
@@ -332,7 +315,8 @@ impl NodeEval {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            _ => NodeEval::VarOrInstruction(id),
+            NodeObj::Function(f, id, _name) => NodeEval::Function(*f, *id),
+            NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
 
@@ -379,8 +363,8 @@ impl Instruction {
             | Operation::Cond { .. } => false,
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
-            Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Intrinsic(_, _) => true,
+            Operation::Call { .. } => true, //return values are in the return statment
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -521,10 +505,11 @@ pub enum Operation {
     },
     //Call(function::FunctionCall),
     Call {
-        func_id: FuncId,
+        func: NodeId,
         arguments: Vec<NodeId>,
         returned_arrays: Vec<(super::mem::ArrayId, u32)>,
         predicate: conditional::AssumptionId,
+        location: Location,
     },
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result {
@@ -591,7 +576,7 @@ pub enum Opcode {
     Jmp, //unconditional jump
     Phi,
 
-    Call(FuncId), //Call a function
+    Call(NodeId), //Call a function
     Return,       //Return value(s) from a function block
     Results,      //Get result(s) from a function call
 
@@ -807,9 +792,7 @@ impl Binary {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding - TODO
-                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs / rhs, res_type));
                 }
             }
@@ -818,21 +801,33 @@ impl Binary {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding...TODO
-                else if lhs.is_some() && rhs.is_some() {
-                    todo!("Constant folding for division");
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let a = field_to_signed(lhs, res_type.bits());
+                    let b = field_to_signed(rhs, res_type.bits());
+                    return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits())?, res_type));
                 }
             }
-            BinaryOp::Urem | BinaryOp::Srem => {
+            BinaryOp::Urem => {
                 if r_is_zero {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
                 }
-                //constant folding - TODO
-                else if lhs.is_some() && rhs.is_some() {
-                    todo!("divide lhs/rhs but take sign into account");
+            }
+            BinaryOp::Srem => {
+                if r_is_zero {
+                    return zero_div_error;
+                } else if l_is_zero {
+                    return Ok(l_eval); //TODO what is the correct result?
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let a = field_to_signed(lhs, res_type.bits());
+                    let b = field_to_signed(rhs, res_type.bits());
+                    return Ok(NodeEval::Const(
+                        signed_to_field(a - b + (a / b), res_type.bits())?,
+                        res_type,
+                    ));
                 }
             }
             BinaryOp::Ult => {
@@ -905,8 +900,15 @@ impl Binary {
                     return Ok(r_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitand, field_op_not_allowed));
+                } else {
+                    let n = res_type.bits();
+                    let max = FieldElement::from(2_u128.pow(n) - 1);
+                    if lhs == Some(max) {
+                        return Ok(r_eval);
+                    } else if rhs == Some(max) {
+                        return Ok(l_eval);
+                    }
                 }
-                //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Or => {
                 //Bitwise OR
@@ -916,8 +918,13 @@ impl Binary {
                     return Ok(l_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitor, field_op_not_allowed));
+                } else {
+                    let n = res_type.bits();
+                    let max = FieldElement::from(2_u128.pow(n) - 1);
+                    if lhs == Some(max) || rhs == Some(max) {
+                        return Ok(NodeEval::Const(max, res_type));
+                    }
                 }
-                //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Xor => {
                 if self.lhs == self.rhs {
@@ -929,7 +936,6 @@ impl Binary {
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitxor, field_op_not_allowed));
                 }
-                //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
             BinaryOp::Shl => {
                 if l_is_zero {
@@ -1089,11 +1095,12 @@ impl Operation {
             }
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
-            Call { func_id, arguments, returned_arrays, predicate } => Call {
-                func_id: *func_id,
+            Call { func: func_id, arguments, returned_arrays, predicate, location } => Call {
+                func: f(*func_id),
                 arguments: vecmap(arguments.iter().copied(), f),
                 returned_arrays: returned_arrays.clone(),
                 predicate: *predicate,
+                location: *location,
             },
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
@@ -1140,7 +1147,8 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call { arguments, .. } => {
+            Call { func, arguments, .. } => {
+                *func = f(*func);
                 for arg in arguments {
                     *arg = f(*arg);
                 }
@@ -1189,7 +1197,10 @@ impl Operation {
             }
             Intrinsic(_, args) => args.iter().copied().for_each(f),
             Nop => (),
-            Call { arguments, .. } => arguments.iter().copied().for_each(f),
+            Call { func, arguments, .. } => {
+                f(*func);
+                arguments.iter().copied().for_each(f)
+            }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1209,7 +1220,7 @@ impl Operation {
             Operation::Jmp(_) => Opcode::Jmp,
             Operation::Phi { .. } => Opcode::Phi,
             Operation::Cond { .. } => Opcode::Cond,
-            Operation::Call { func_id, .. } => Opcode::Call(*func_id),
+            Operation::Call { func, .. } => Opcode::Call(*func),
             Operation::Return(_) => Opcode::Return,
             Operation::Result { .. } => Opcode::Results,
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),
@@ -1232,5 +1243,30 @@ impl BinaryOp {
                 | BinaryOp::Or
                 | BinaryOp::Xor
         )
+    }
+}
+
+fn field_to_signed(f: FieldElement, n: u32) -> i128 {
+    assert!(n < 127);
+    let a = f.to_u128();
+    let pow_2 = 2_u128.pow(n);
+    if a < pow_2 {
+        a as i128
+    } else {
+        (a - 2 * pow_2) as i128
+    }
+}
+
+fn signed_to_field(a: i128, n: u32) -> Result<FieldElement, RuntimeError> {
+    if n >= 126 {
+        return Err(RuntimeErrorKind::UnstructuredError {
+            message: "ICE: cannot convert signed {n} bit size into field".to_string(),
+        })?;
+    }
+    if a >= 0 {
+        Ok(FieldElement::from(a))
+    } else {
+        let b = (a + 2_i128.pow(n + 1)) as u128;
+        Ok(FieldElement::from(b))
     }
 }

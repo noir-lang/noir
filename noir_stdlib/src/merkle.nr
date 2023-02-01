@@ -17,7 +17,7 @@ fn check_membership_in_noir(root : Field, leaf : Field, index : Field, hash_path
 // Returns the root of the tree from the provided leaf and its hashpath, using pedersen hash
 fn compute_root_from_leaf(leaf : Field, index : Field, hash_path: [Field]) -> Field {
     let n = crate::array::len(hash_path);
-    let index_bits = crate::to_bits(index, n as u32);
+    let index_bits = crate::field::to_le_bits(index, n as u32);
     let mut current = leaf;
     for i in 0..n {
         let path_bit = index_bits[i] as bool;

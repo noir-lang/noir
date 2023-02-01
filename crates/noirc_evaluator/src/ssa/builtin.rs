@@ -1,4 +1,4 @@
-use acvm::{acir::OPCODE, FieldElement};
+use acvm::{acir::BlackBoxFunc, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -6,7 +6,7 @@ use super::node::ObjectType;
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum Opcode {
-    LowLevel(OPCODE),
+    LowLevel(BlackBoxFunc),
     ToBits,
     ToRadix,
 }
@@ -20,16 +20,16 @@ impl std::fmt::Display for Opcode {
 impl Opcode {
     pub fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_bits" => Some(Opcode::ToBits),
+            "to_le_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
-            _ => OPCODE::lookup(op_name).map(Opcode::LowLevel),
+            _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
     }
 
     pub fn name(&self) -> &str {
         match self {
             Opcode::LowLevel(op) => op.name(),
-            Opcode::ToBits => "to_bits",
+            Opcode::ToBits => "to_le_bits",
             Opcode::ToRadix => "to_radix",
         }
     }
@@ -38,14 +38,14 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
-                    OPCODE::SHA256
-                    | OPCODE::Blake2s
-                    | OPCODE::Pedersen
-                    | OPCODE::FixedBaseScalarMul => BigUint::zero(), //pointers do not overflow
-                    OPCODE::SchnorrVerify | OPCODE::EcdsaSecp256k1 | OPCODE::MerkleMembership => {
-                        BigUint::one()
-                    } //verify returns 0 or 1
-                    OPCODE::HashToField => ObjectType::NativeField.max_size(),
+                    BlackBoxFunc::SHA256
+                    | BlackBoxFunc::Blake2s
+                    | BlackBoxFunc::Pedersen
+                    | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(), //pointers do not overflow
+                    BlackBoxFunc::SchnorrVerify
+                    | BlackBoxFunc::EcdsaSecp256k1
+                    | BlackBoxFunc::MerkleMembership => BigUint::one(), //verify returns 0 or 1
+                    BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
                     _ => todo!("max value must be implemented for opcode {} ", op),
                 }
             }
@@ -58,15 +58,18 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
-                    OPCODE::AES => (0, ObjectType::NotAnObject), //Not implemented
-                    OPCODE::SHA256 => (32, ObjectType::Unsigned(8)),
-                    OPCODE::Blake2s => (32, ObjectType::Unsigned(8)),
-                    OPCODE::HashToField => (1, ObjectType::NativeField),
-                    OPCODE::MerkleMembership => (1, ObjectType::NativeField), //or bool?
-                    OPCODE::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
-                    OPCODE::Pedersen => (2, ObjectType::NativeField),
-                    OPCODE::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
-                    OPCODE::FixedBaseScalarMul => (2, ObjectType::NativeField),
+                    BlackBoxFunc::AES => (0, ObjectType::NotAnObject), //Not implemented
+                    BlackBoxFunc::SHA256 => (32, ObjectType::Unsigned(8)),
+                    BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
+                    BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
+                    BlackBoxFunc::MerkleMembership => (1, ObjectType::NativeField), //or bool?
+                    BlackBoxFunc::SchnorrVerify => (1, ObjectType::NativeField),    //or bool?
+                    BlackBoxFunc::Pedersen => (2, ObjectType::NativeField),
+                    BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField), //field?
+                    BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::NativeField),
+                    BlackBoxFunc::AND => (1, ObjectType::NativeField),
+                    BlackBoxFunc::XOR => (1, ObjectType::NativeField),
+                    BlackBoxFunc::RANGE => (0, ObjectType::NotAnObject),
                 }
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),

@@ -14,9 +14,11 @@ use crate::ssa::context::SsaContext;
 use crate::ssa::node::Node;
 use crate::ssa::{mem, node};
 use crate::Evaluator;
-use crate::Gate;
 use crate::RuntimeErrorKind;
-use acvm::acir::circuit::gate::{Directive, GadgetCall, GadgetInput};
+use acvm::acir::circuit::directives::Directive;
+use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
+
+use acvm::acir::circuit::Opcode as AcirOpcode;
 use acvm::acir::native_types::{Expression, Linear, Witness};
 use num_bigint::BigUint;
 
@@ -71,6 +73,15 @@ impl InternalVar {
     }
 }
 
+impl PartialEq for InternalVar {
+    fn eq(&self, other: &Self) -> bool {
+        self.expression == other.expression
+            || (self.witness.is_some() && self.witness == other.witness)
+            || (self.id.is_some() && self.id == other.id)
+    }
+}
+impl Eq for InternalVar {}
+
 impl From<Expression> for InternalVar {
     fn from(arith: Expression) -> InternalVar {
         let w = is_unit(&arith);
@@ -105,7 +116,7 @@ impl Acir {
         }
         let var = match ctx.try_get_node(id) {
             Some(node::NodeObj::Const(c)) => {
-                let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()); //TODO const should be a field
+                let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 let expr = Expression::from_field(f_value);
                 InternalVar::new(expr, None, id)
             }
@@ -143,7 +154,7 @@ impl Acir {
             Operation::Constrain(value, ..) => {
                 let value = self.substitute(*value, evaluator, ctx);
                 let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
-                evaluator.gates.push(Gate::Arithmetic(subtract));
+                evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
                 value
             }
             Operation::Not(value) => {
@@ -329,7 +340,7 @@ impl Acir {
                     let mut sub_var = sub_expr.into();
                     //TODO: uses interval analysis for more precise check
                     if let Some(lhs_const) = l_c.to_const() {
-                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_bytes()) {
+                        if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_be_bytes()) {
                             sub_var = InternalVar::from(subtract(
                                 &l_c.expression,
                                 FieldElement::one(),
@@ -390,17 +401,35 @@ impl Acir {
             BinaryOp::Lte => unimplemented!(
                 "Field comparison is not implemented yet, try to cast arguments to integer type"
             ),
-            BinaryOp::And => InternalVar::from(evaluate_and(l_c, r_c, res_type.bits(), evaluator)),
-            BinaryOp::Or => InternalVar::from(evaluate_or(l_c, r_c, res_type.bits(), evaluator)),
-            BinaryOp::Xor => InternalVar::from(evaluate_xor(l_c, r_c, res_type.bits(), evaluator)),
+            BinaryOp::And => InternalVar::from(evaluate_bitwise(
+                l_c,
+                r_c,
+                res_type.bits(),
+                evaluator,
+                BinaryOp::And,
+            )),
+            BinaryOp::Or => InternalVar::from(evaluate_bitwise(
+                l_c,
+                r_c,
+                res_type.bits(),
+                evaluator,
+                BinaryOp::Or,
+            )),
+            BinaryOp::Xor => InternalVar::from(evaluate_bitwise(
+                l_c,
+                r_c,
+                res_type.bits(),
+                evaluator,
+                BinaryOp::Xor,
+            )),
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
     }
 
-    pub fn print_circuit(gates: &[Gate]) {
-        for gate in gates {
-            println!("{gate:?}");
+    pub fn print_circuit(opcodes: &[AcirOpcode]) {
+        for opcode in opcodes {
+            println!("{opcode:?}");
         }
     }
 
@@ -515,7 +544,7 @@ impl Acir {
                 witness: Some(diff_witness),
                 id: None,
             };
-            evaluator.gates.push(Gate::Arithmetic(subtract(
+            evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
                 &diff_expr,
                 FieldElement::one(),
                 &from_witness(diff_witness),
@@ -532,57 +561,60 @@ impl Acir {
 
     //Transform the arguments of intrinsic functions into witnesses
     pub fn prepare_inputs(
-        &self,
+        &mut self,
         args: &[NodeId],
         cfg: &SsaContext,
         evaluator: &mut Evaluator,
-    ) -> Vec<GadgetInput> {
-        let mut inputs: Vec<GadgetInput> = Vec::new();
+    ) -> Vec<FunctionInput> {
+        let mut inputs: Vec<FunctionInput> = Vec::new();
 
         for a in args {
             let l_obj = cfg.try_get_node(*a).unwrap();
             match l_obj {
-                node::NodeObj::Obj(v) => {
-                    match l_obj.get_type() {
-                        node::ObjectType::Pointer(a) => {
-                            let array = &cfg.mem[a];
-                            let num_bits = array.element_type.bits();
-                            for i in 0..array.len {
-                                let address = array.adr + i;
-                                if self.memory_map.contains_key(&address) {
-                                    if let Some(wit) = self.memory_map[&address].witness {
-                                        inputs.push(GadgetInput { witness: wit, num_bits });
-                                    } else {
-                                        //TODO we should store the witnesses somewhere, else if the inputs are re-used
-                                        //we will duplicate the witnesses.
+                node::NodeObj::Obj(v) => match l_obj.get_type() {
+                    node::ObjectType::Pointer(a) => {
+                        let array = &cfg.mem[a];
+                        let num_bits = array.element_type.bits();
+                        for i in 0..array.len {
+                            let address = array.adr + i;
+                            if self.memory_map.contains_key(&address) {
+                                if let Some(wit) = self.memory_map[&address].witness {
+                                    inputs.push(FunctionInput { witness: wit, num_bits });
+                                } else {
+                                    let mut var = self.memory_map[&address].clone();
+                                    if var.expression.is_const() {
                                         let w = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
-                                        inputs.push(GadgetInput { witness: w, num_bits });
+                                        var.witness = Some(w);
                                     }
-                                } else {
-                                    inputs.push(GadgetInput {
-                                        witness: array.values[i as usize].witness.unwrap(),
-                                        num_bits,
-                                    });
+                                    let w = var.generate_witness(evaluator);
+                                    self.memory_map.insert(address, var);
+
+                                    inputs.push(FunctionInput { witness: w, num_bits });
                                 }
-                            }
-                        }
-                        _ => {
-                            if let Some(w) = v.witness {
-                                inputs.push(GadgetInput { witness: w, num_bits: v.size_in_bits() });
                             } else {
-                                todo!("generate a witness");
+                                inputs.push(FunctionInput {
+                                    witness: array.values[i as usize].witness.unwrap(),
+                                    num_bits,
+                                });
                             }
                         }
                     }
-                }
+                    _ => {
+                        if let Some(w) = v.witness {
+                            inputs.push(FunctionInput { witness: w, num_bits: v.size_in_bits() });
+                        } else {
+                            todo!("generate a witness");
+                        }
+                    }
+                },
                 _ => {
                     if self.arith_cache.contains_key(a) {
                         let mut var = self.arith_cache[a].clone();
                         let witness =
                             var.witness.unwrap_or_else(|| var.generate_witness(evaluator));
-                        inputs.push(GadgetInput { witness, num_bits: l_obj.size_in_bits() });
+                        inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         unreachable!("invalid input: {:?}", l_obj)
                     }
@@ -625,12 +657,12 @@ impl Acir {
                 let output_count = op.definition().output_size.0 as u32;
                 outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
 
-                let call_gate = GadgetCall {
+                let call_gate = BlackBoxFuncCall {
                     name: op,
                     inputs,                   //witness + bit size
                     outputs: outputs.clone(), //witness
                 };
-                evaluator.gates.push(Gate::GadgetCall(call_gate));
+                evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(call_gate));
             }
         }
 
@@ -755,186 +787,164 @@ pub fn to_radix_base(
     assert!(max < FieldElement::modulus());
 
     let (result, bytes) = to_radix(radix, limb_size, evaluator);
-    evaluator.gates.push(Gate::Directive(Directive::ToRadix {
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
         a: lhs.expression.clone(),
         b: result.clone(),
         radix,
     }));
 
-    evaluator.gates.push(Gate::Arithmetic(subtract(&lhs.expression, FieldElement::one(), &bytes)));
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+        &lhs.expression,
+        FieldElement::one(),
+        &bytes,
+    )));
 
     result
 }
 
-fn const_and(
-    var: InternalVar,
-    b: FieldElement,
+fn simplify_bitwise(
+    lhs: &InternalVar,
+    rhs: &InternalVar,
     bit_size: u32,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    let a_bits = to_radix_base(&var, 2, bit_size, evaluator);
-    let mut result = Expression::default();
-    let mut k = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
-        if *b_iter {
-            result = add(&result, k, &from_witness(a_iter));
-        }
-        k = k.mul(two);
+    opcode: &BinaryOp,
+) -> Option<InternalVar> {
+    if lhs == rhs {
+        //simplify bitwise operation of the form: a OP a
+        return Some(match opcode {
+            BinaryOp::And => lhs.clone(),
+            BinaryOp::Or => lhs.clone(),
+            BinaryOp::Xor => InternalVar::from(FieldElement::zero()),
+            _ => unreachable!(),
+        });
     }
-    result
+
+    assert!(bit_size < FieldElement::max_num_bits());
+    let max = FieldElement::from((1_u128 << bit_size) - 1);
+    let mut field = None;
+    let mut var = lhs;
+    if let Some(l_c) = lhs.to_const() {
+        if l_c == FieldElement::zero() || l_c == max {
+            field = Some(l_c);
+            var = rhs
+        }
+    } else if let Some(r_c) = rhs.to_const() {
+        if r_c == FieldElement::zero() || r_c == max {
+            field = Some(r_c);
+        }
+    }
+    if let Some(field) = field {
+        //simplify bitwise operation of the form: 0 OP var or 1 OP var
+        return Some(match opcode {
+            BinaryOp::And => {
+                if field.is_zero() {
+                    InternalVar::from(field)
+                } else {
+                    var.clone()
+                }
+            }
+            BinaryOp::Xor => {
+                if field.is_zero() {
+                    var.clone()
+                } else {
+                    InternalVar::from(subtract(
+                        &Expression::from_field(field),
+                        FieldElement::one(),
+                        &var.expression,
+                    ))
+                }
+            }
+            BinaryOp::Or => {
+                if field.is_zero() {
+                    var.clone()
+                } else {
+                    InternalVar::from(field)
+                }
+            }
+            _ => unreachable!(),
+        });
+    }
+
+    None
 }
 
-fn const_xor(
-    var: InternalVar,
-    b: FieldElement,
-    bit_size: u32,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    let a_bits = to_radix_base(&var, 2, bit_size, evaluator);
-    let mut result = Expression::default();
-    let mut k = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
-        if *b_iter {
-            let c = subtract(&Expression::one(), FieldElement::one(), &from_witness(a_iter));
-            result = add(&result, k, &c);
-        } else {
-            result = add(&result, k, &from_witness(a_iter));
-        }
-        k = k.mul(two);
-    }
-    result
-}
-
-fn const_or(
-    var: InternalVar,
-    b: FieldElement,
-    bit_size: u32,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    if let Some(l_c) = var.to_const() {
-        return Expression {
-            mul_terms: Vec::new(),
-            linear_combinations: Vec::new(),
-            q_c: (l_c.to_u128() | b.to_u128()).into(),
-        };
-    }
-    let a_bits = to_radix_base(&var, 2, bit_size, evaluator);
-    let mut result = Expression::default();
-    let mut k = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    let mut q_c = FieldElement::zero();
-    for (a_iter, b_iter) in a_bits.into_iter().zip(b.bits().iter().rev()) {
-        if *b_iter {
-            q_c += k;
-        } else {
-            result = add(&result, k, &from_witness(a_iter));
-        }
-        k = k.mul(two);
-    }
-    result.q_c = q_c;
-    result
-}
-
-pub fn evaluate_and(
+fn evaluate_bitwise(
     mut lhs: InternalVar,
     mut rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
+    opcode: BinaryOp,
 ) -> Expression {
-    if let Some(r_c) = rhs.to_const() {
-        return const_and(lhs, r_c, bit_size, evaluator);
+    if let Some(var) = simplify_bitwise(&lhs, &rhs, bit_size, &opcode) {
+        return var.expression;
     }
-    if let Some(l_c) = lhs.to_const() {
-        return const_and(rhs, l_c, bit_size, evaluator);
+    if bit_size == 1 {
+        match opcode {
+            BinaryOp::And => return mul_with_witness(evaluator, &lhs.expression, &rhs.expression),
+            BinaryOp::Xor => {
+                let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
+                let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
+                return subtract(&sum, FieldElement::from(2_i128), &mul);
+            }
+            BinaryOp::Or => {
+                let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
+                let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
+                return subtract(&sum, FieldElement::one(), &mul);
+            }
+            _ => unreachable!(),
+        }
+    }
+    //We generate witness from const values in order to use the ACIR bitwise gates
+    // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
+    // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
+    if rhs.to_const().is_some() && rhs.witness.is_none() {
+        rhs.witness = Some(evaluator.create_intermediate_variable(rhs.expression.clone()));
+        assert!(lhs.to_const().is_none());
+    } else if lhs.to_const().is_some() && lhs.witness.is_none() {
+        assert!(rhs.to_const().is_none());
+        lhs.witness = Some(evaluator.create_intermediate_variable(lhs.expression.clone()));
     }
 
-    let a_witness = lhs.generate_witness(evaluator);
-    let b_witness = rhs.generate_witness(evaluator);
-    //TODO checks the cost of the gate vs bit_size (cf. #164)
-    if bit_size == 1 {
-        return Expression {
-            mul_terms: vec![(FieldElement::one(), a_witness, b_witness)],
-            linear_combinations: Vec::new(),
-            q_c: FieldElement::zero(),
-        };
-    }
+    let mut a_witness = lhs.generate_witness(evaluator);
+    let mut b_witness = rhs.generate_witness(evaluator);
+
     let result = evaluator.add_witness_to_cs();
     let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bsize < FieldElement::max_num_bits() - 1);
-    evaluator.gates.push(Gate::And(acvm::acir::circuit::gate::AndGate {
-        a: a_witness,
-        b: b_witness,
-        result,
-        num_bits: bsize,
-    }));
-    Expression::from(Linear::from_witness(result))
-}
+    let max = FieldElement::from((1_u128 << bit_size) - 1);
+    let bit_gate = match opcode {
+        BinaryOp::And => acvm::acir::BlackBoxFunc::AND,
+        BinaryOp::Xor => acvm::acir::BlackBoxFunc::XOR,
+        BinaryOp::Or => {
+            a_witness = evaluator.create_intermediate_variable(subtract(
+                &Expression::from_field(max),
+                FieldElement::one(),
+                &lhs.expression,
+            ));
+            b_witness = evaluator.create_intermediate_variable(subtract(
+                &Expression::from_field(max),
+                FieldElement::one(),
+                &rhs.expression,
+            ));
+            acvm::acir::BlackBoxFunc::AND
+        }
+        _ => unreachable!(),
+    };
 
-pub fn evaluate_xor(
-    mut lhs: InternalVar,
-    mut rhs: InternalVar,
-    bit_size: u32,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    if let Some(r_c) = rhs.to_const() {
-        return const_xor(lhs, r_c, bit_size, evaluator);
-    }
-    if let Some(l_c) = lhs.to_const() {
-        return const_xor(rhs, l_c, bit_size, evaluator);
-    }
+    let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
+        name: bit_gate,
+        inputs: vec![
+            FunctionInput { witness: a_witness, num_bits: bsize },
+            FunctionInput { witness: b_witness, num_bits: bsize },
+        ],
+        outputs: vec![result],
+    });
+    evaluator.opcodes.push(gate);
 
-    //TODO checks the cost of the gate vs bit_size (cf. #164)
-    if bit_size == 1 {
-        let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-        let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
-        return subtract(&sum, FieldElement::from(2_i128), &mul);
+    if opcode == BinaryOp::Or {
+        subtract(&Expression::from_field(max), FieldElement::one(), &from_witness(result))
+    } else {
+        from_witness(result)
     }
-    let result = evaluator.add_witness_to_cs();
-    let a_witness = lhs.generate_witness(evaluator);
-    let b_witness = rhs.generate_witness(evaluator);
-    let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
-    assert!(bsize < FieldElement::max_num_bits() - 1);
-    evaluator.gates.push(Gate::Xor(acvm::acir::circuit::gate::XorGate {
-        a: a_witness,
-        b: b_witness,
-        result,
-        num_bits: bsize,
-    }));
-    from_witness(result)
-}
-
-pub fn evaluate_or(
-    lhs: InternalVar,
-    rhs: InternalVar,
-    bit_size: u32,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    if let Some(r_c) = rhs.to_const() {
-        return const_or(lhs, r_c, bit_size, evaluator);
-    }
-    if let Some(l_c) = lhs.to_const() {
-        return const_or(rhs, l_c, bit_size, evaluator);
-    }
-
-    if bit_size == 1 {
-        let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-        let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
-        return subtract(&sum, FieldElement::one(), &mul);
-    }
-
-    let lhs_bits = to_radix_base(&lhs, 2, bit_size, evaluator);
-    let rhs_bits = to_radix_base(&rhs, 2, bit_size, evaluator);
-    let mut result = Expression::default();
-    let mut k = FieldElement::one();
-    let two = FieldElement::from(2_i128);
-    for (l_bit, r_bit) in lhs_bits.into_iter().zip(rhs_bits) {
-        let l_or_r = evaluate_or(l_bit.into(), r_bit.into(), 1, evaluator);
-        result = add(&result, k, &l_or_r);
-        k = k.mul(two);
-    }
-    result
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
@@ -944,11 +954,11 @@ pub fn evaluate_truncate(
     max_bits: u32,
     evaluator: &mut Evaluator,
 ) -> InternalVar {
-    assert!(max_bits > rhs, "max_bits = {}, rhs = {}", max_bits, rhs);
+    assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
 
     //0. Check for constant expression. This can happen through arithmetic simplifications
     if let Some(a_c) = lhs.to_const() {
-        let mut a_big = BigUint::from_bytes_be(&a_c.to_bytes());
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         let two = BigUint::from(2_u32);
         a_big %= two.pow(rhs);
         return InternalVar::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
@@ -967,13 +977,13 @@ pub fn evaluate_truncate(
     let c_arith = from_witness(c_witness);
     let res = add(&b_arith, f, &c_arith); //b+2^Nc
     let my_constraint = add(&res, -FieldElement::one(), &lhs.expression);
-    evaluator.gates.push(Gate::Directive(Directive::Truncate {
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
         a: lhs.expression,
         b: b_witness,
         c: c_witness,
         bit_size: rhs,
     }));
-    evaluator.gates.push(Gate::Arithmetic(my_constraint));
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
     InternalVar::from(b_witness)
 }
 
@@ -987,12 +997,12 @@ pub fn evaluate_udiv(
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
     let pa = mul_with_witness(evaluator, &lhs.expression, &predicate.expression);
-    evaluator.gates.push(Gate::Directive(Directive::Quotient {
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Quotient {
         a: lhs.expression.clone(),
         b: rhs.expression.clone(),
         q: q_witness,
         r: r_witness,
-        predicate: Some(Box::new(predicate.expression.clone())),
+        predicate: Some(predicate.expression.clone()),
     }));
 
     //r<b
@@ -1013,7 +1023,7 @@ pub fn evaluate_udiv(
     d = mul_with_witness(evaluator, &d, &predicate.expression);
     let div_eucl = subtract(&pa, FieldElement::one(), &d);
 
-    evaluator.gates.push(Gate::Arithmetic(div_eucl));
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(div_eucl));
     (q_witness, r_witness)
 }
 
@@ -1022,11 +1032,11 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
     let x_witness = x.witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
-    evaluator.gates.push(Gate::Directive(Directive::Invert { x: x_witness, result: m }));
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
 
     //y=x*m         y is 1 if x is not null, and 0 else
     let y_witness = evaluator.add_witness_to_cs();
-    evaluator.gates.push(Gate::Arithmetic(Expression {
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(Expression {
         mul_terms: vec![(FieldElement::one(), x_witness, m)],
         linear_combinations: vec![(FieldElement::one().neg(), y_witness)],
         q_c: FieldElement::zero(),
@@ -1035,7 +1045,7 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
     //x=y*x
     let y_expr = from_witness(y_witness);
     let xy = mul(&from_witness(x_witness), &y_expr);
-    evaluator.gates.push(Gate::Arithmetic(subtract(
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
         &xy,
         FieldElement::one(),
         &from_witness(x_witness),
@@ -1054,14 +1064,14 @@ fn evaluate_inverse(
     let inverse_expr = from_witness(inverse_witness);
     let x_witness = x.generate_witness(evaluator); //TODO avoid creating witnesses here.
     evaluator
-        .gates
-        .push(Gate::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
+        .opcodes
+        .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
 
     //x*inverse = 1
     Expression::default();
     let one = mul(&from_witness(x_witness), &inverse_expr);
     let lhs = mul_with_witness(evaluator, &one, &predicate.expression);
-    evaluator.gates.push(Gate::Arithmetic(subtract(
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
         &lhs,
         FieldElement::one(),
         &predicate.expression,
@@ -1074,7 +1084,7 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
     let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
         let a_witness = evaluator.add_witness_to_cs();
         a_arith = Expression::from(&a_witness);
-        evaluator.gates.push(Gate::Arithmetic(a - &a_arith));
+        evaluator.opcodes.push(AcirOpcode::Arithmetic(a - &a_arith));
         &a_arith
     } else {
         a
@@ -1086,7 +1096,7 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
         } else {
             let b_witness = evaluator.add_witness_to_cs();
             b_arith = Expression::from(&b_witness);
-            evaluator.gates.push(Gate::Arithmetic(b - &b_arith));
+            evaluator.opcodes.push(AcirOpcode::Arithmetic(b - &b_arith));
             &b_arith
         }
     } else {
@@ -1285,7 +1295,7 @@ pub fn range_constraint(
     if num_bits == 1 {
         // Add a bool gate
         let bool_constraint = boolean(witness);
-        evaluator.gates.push(Gate::Arithmetic(bool_constraint));
+        evaluator.opcodes.push(AcirOpcode::Arithmetic(bool_constraint));
     } else if num_bits == FieldElement::max_num_bits() {
         // Don't apply any constraints if the range is for the maximum number of bits
         let message = format!(
@@ -1298,7 +1308,7 @@ pub fn range_constraint(
         // new witnesses; r is constrained to num_bits-1 and b is 1 bit
         let r_witness = evaluator.add_witness_to_cs();
         let b_witness = evaluator.add_witness_to_cs();
-        evaluator.gates.push(Gate::Directive(Directive::Oddrange {
+        evaluator.opcodes.push(AcirOpcode::Directive(Directive::OddRange {
             a: witness,
             b: b_witness,
             r: r_witness,
@@ -1313,9 +1323,14 @@ pub fn range_constraint(
         f = f.pow(&FieldElement::from((num_bits - 1) as i128));
         let res = add(&from_witness(r_witness), f, &from_witness(b_witness));
         let my_constraint = add(&res, -FieldElement::one(), &from_witness(witness));
-        evaluator.gates.push(Gate::Arithmetic(my_constraint));
+        evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
     } else {
-        evaluator.gates.push(Gate::Range(witness, num_bits));
+        let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
+            name: acvm::acir::BlackBoxFunc::RANGE,
+            inputs: vec![FunctionInput { witness, num_bits }],
+            outputs: vec![],
+        });
+        evaluator.opcodes.push(gate);
     }
 
     Ok(())
@@ -1337,15 +1352,15 @@ fn bound_check(
     let r_witness = evaluator.add_witness_to_cs();
     //2^s+a-b=q*2^s +r
     let expr = add(&from_witness(r_witness), two_s, &from_witness(q_witness));
-    evaluator.gates.push(Gate::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
-    evaluator.gates.push(Gate::Directive(Directive::Truncate {
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
         a: sub,
         b: r_witness,
         c: q_witness,
         bit_size: max_bits,
     }));
     try_range_constraint(r_witness, max_bits, evaluator);
-    evaluator.gates.push(Gate::Arithmetic(boolean(q_witness)));
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(boolean(q_witness)));
     q_witness
 }
 
@@ -1384,10 +1399,10 @@ fn bound_constraint_with_offset(
 
         if f < 3 {
             match f {
-                0 => evaluator.gates.push(Gate::Arithmetic(aof)),
+                0 => evaluator.opcodes.push(AcirOpcode::Arithmetic(aof)),
                 1 => {
                     let expr = boolean_expr(&aof, evaluator);
-                    evaluator.gates.push(Gate::Arithmetic(expr))
+                    evaluator.opcodes.push(AcirOpcode::Arithmetic(expr))
                 }
                 2 => {
                     let y = InternalVar::expression_to_witness(
@@ -1397,7 +1412,7 @@ fn bound_constraint_with_offset(
                     let two = FieldElement::from(2_i128);
                     let y_expr = from_witness(y);
                     let eee = subtract(&mul_with_witness(evaluator, &aof, &y_expr), two, &y_expr);
-                    evaluator.gates.push(Gate::Arithmetic(eee));
+                    evaluator.opcodes.push(AcirOpcode::Arithmetic(eee));
                 }
                 _ => unreachable!(),
             }
@@ -1426,16 +1441,14 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
 }
 
 pub fn is_unit(arith: &Expression) -> Option<Witness> {
-    if arith.mul_terms.is_empty()
-        && arith.linear_combinations.len() == 1
-        && arith.linear_combinations[0].0 == FieldElement::one()
-        && arith.q_c == FieldElement::zero()
-    {
-        return Some(arith.linear_combinations[0].1);
-    }
     if arith.mul_terms.is_empty() && arith.linear_combinations.len() == 1 {
-        //todo!("should be simplified");
+        if arith.linear_combinations[0].0.is_one() && arith.q_c.is_zero() {
+            return Some(arith.linear_combinations[0].1);
+        } else {
+            //todo!("should be simplified");
+        }
     }
+
     None
 }
 pub fn from_witness(witness: Witness) -> Expression {

@@ -1,8 +1,9 @@
 mod errors;
 mod ssa;
 
-use acvm::acir::circuit::{gate::Gate, Circuit, PublicInputs};
+use acvm::acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs};
 use acvm::acir::native_types::{Expression, Witness};
+use acvm::compiler::fallback::IsBlackBoxSupported;
 use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
@@ -16,14 +17,14 @@ pub struct Evaluator {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
-    // so it is safer to use a u64, at least until clang is changed
+    // so it is safer to use a u32, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
     // This is the number of witnesses indices used when
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
     public_inputs: Vec<Witness>,
-    gates: Vec<Gate>,
+    opcodes: Vec<AcirOpcode>,
 }
 
 /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -34,6 +35,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
+    is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
@@ -46,11 +48,13 @@ pub fn create_circuit(
     let optimised_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
-            gates: evaluator.gates,
+            opcodes: evaluator.opcodes,
             public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
-    );
+        is_blackbox_supported,
+    )
+    .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     Ok(optimised_circuit)
 }
@@ -69,7 +73,7 @@ impl Evaluator {
             // following transformation to the witness index : f(i) = i + 1
             //
             current_witness_index: 0,
-            gates: Vec::new(),
+            opcodes: Vec::new(),
         }
     }
 
@@ -125,14 +129,14 @@ impl Evaluator {
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
-        self.gates.push(Gate::Arithmetic(constraint));
+        self.opcodes.push(AcirOpcode::Arithmetic(constraint));
         inter_var_witness
     }
 
     fn param_to_var(
         &mut self,
         name: &str,
-        def: DefinitionId,
+        def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
         igen: &mut IRGenerator,
@@ -151,7 +155,10 @@ impl Evaluator {
                 );
             }
             AbiType::Array { length, typ } => {
-                let witnesses = self.generate_array_witnesses(visibility, length, typ)?;
+                let witnesses = self.generate_array_witnesses(length, typ)?;
+                if *visibility == AbiVisibility::Public {
+                    self.public_inputs.extend(witnesses.clone());
+                }
                 igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
             AbiType::Integer { sign: _, width } => {
@@ -163,14 +170,37 @@ impl Evaluator {
                 let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
+            AbiType::Boolean => {
+                let witness = self.add_witness_to_cs();
+                ssa::acir_gen::range_constraint(witness, 1, self)?;
+                if *visibility == AbiVisibility::Public {
+                    self.public_inputs.push(witness);
+                }
+                let obj_type = node::ObjectType::Boolean;
+                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+            }
             AbiType::Struct { fields } => {
-                let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 let new_fields = btree_map(fields, |(inner_name, value)| {
                     let new_name = format!("{name}.{inner_name}");
                     (new_name, value.clone())
                 });
-                self.generate_struct_witnesses(&mut struct_witnesses, visibility, &new_fields)?;
+
+                let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
+                self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
+                if *visibility == AbiVisibility::Public {
+                    let witnesses: Vec<Witness> =
+                        struct_witnesses.values().flatten().cloned().collect();
+                    self.public_inputs.extend(witnesses);
+                }
                 igen.abi_struct(name, Some(def), fields, struct_witnesses);
+            }
+            AbiType::String { length } => {
+                let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                let witnesses = self.generate_array_witnesses(length, &typ)?;
+                if *visibility == AbiVisibility::Public {
+                    self.public_inputs.extend(witnesses.clone());
+                }
+                igen.abi_array(name, Some(def), &typ, *length, witnesses);
             }
         }
         Ok(())
@@ -179,7 +209,6 @@ impl Evaluator {
     fn generate_struct_witnesses(
         &mut self,
         struct_witnesses: &mut BTreeMap<String, Vec<Witness>>,
-        visibility: &AbiVisibility,
         fields: &BTreeMap<String, AbiType>,
     ) -> Result<(), RuntimeErrorKind> {
         for (name, typ) in fields {
@@ -188,20 +217,18 @@ impl Evaluator {
                     let witness = self.add_witness_to_cs();
                     struct_witnesses.insert(name.clone(), vec![witness]);
                     ssa::acir_gen::range_constraint(witness, *width, self)?;
-                    if *visibility == AbiVisibility::Public {
-                        self.public_inputs.push(witness);
-                    }
+                }
+                AbiType::Boolean => {
+                    let witness = self.add_witness_to_cs();
+                    struct_witnesses.insert(name.clone(), vec![witness]);
+                    ssa::acir_gen::range_constraint(witness, 1, self)?;
                 }
                 AbiType::Field => {
                     let witness = self.add_witness_to_cs();
                     struct_witnesses.insert(name.clone(), vec![witness]);
-                    if *visibility == AbiVisibility::Public {
-                        self.public_inputs.push(witness);
-                    }
                 }
                 AbiType::Array { length, typ } => {
-                    let internal_arr_witnesses =
-                        self.generate_array_witnesses(visibility, length, typ)?;
+                    let internal_arr_witnesses = self.generate_array_witnesses(length, typ)?;
                     struct_witnesses.insert(name.clone(), internal_arr_witnesses);
                 }
                 AbiType::Struct { fields, .. } => {
@@ -210,7 +237,12 @@ impl Evaluator {
                         let new_name = format!("{name}.{inner_name}");
                         new_fields.insert(new_name, value.clone());
                     }
-                    self.generate_struct_witnesses(struct_witnesses, visibility, &new_fields)?
+                    self.generate_struct_witnesses(struct_witnesses, &new_fields)?
+                }
+                AbiType::String { length } => {
+                    let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
+                    let internal_str_witnesses = self.generate_array_witnesses(length, &typ)?;
+                    struct_witnesses.insert(name.clone(), internal_str_witnesses);
                 }
             }
         }
@@ -219,23 +251,19 @@ impl Evaluator {
 
     fn generate_array_witnesses(
         &mut self,
-        visibility: &AbiVisibility,
         length: &u64,
         typ: &AbiType,
     ) -> Result<Vec<Witness>, RuntimeErrorKind> {
         let mut witnesses = Vec::new();
-        let mut element_width = None;
-        if let AbiType::Integer { width, .. } = typ {
-            element_width = Some(*width);
-        }
+        let element_width = match typ {
+            AbiType::Integer { width, .. } => Some(*width),
+            _ => None,
+        };
         for _ in 0..*length {
             let witness = self.add_witness_to_cs();
             witnesses.push(witness);
             if let Some(ww) = element_width {
                 ssa::acir_gen::range_constraint(witness, ww, self)?;
-            }
-            if *visibility == AbiVisibility::Public {
-                self.public_inputs.push(witness);
             }
         }
         Ok(witnesses)
@@ -266,9 +294,10 @@ impl Evaluator {
 
         assert_eq!(main_params.len(), abi_params.len());
 
-        for ((param_id, _, param_name1, _), abi_param) in main_params.iter().zip(abi_params) {
-            assert_eq!(param_name1, &abi_param.name);
-            self.param_to_var(param_name1, *param_id, &abi_param.typ, &abi_param.visibility, igen)
+        for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
+            assert_eq!(param_name, &abi_param.name);
+            let def = Definition::Local(*param_id);
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
                 .unwrap();
         }
     }

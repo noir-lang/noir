@@ -1,7 +1,8 @@
+use crate::errors::CliError;
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
-use acvm::ProofSystemCompiler;
 use noirc_abi::{
     errors::AbiError,
     input_parser::{Format, InputValue},
@@ -10,9 +11,9 @@ use noirc_driver::CompiledProgram;
 
 use super::{
     compile_cmd::compile_circuit, prove_cmd::dedup_public_input_indices_values,
-    read_inputs_from_file, PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE,
+    read_inputs_from_file,
 };
-use crate::errors::CliError;
+use crate::constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
@@ -53,7 +54,8 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let curr_dir = program_dir;
-        public_inputs = read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+        public_inputs =
+            read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;

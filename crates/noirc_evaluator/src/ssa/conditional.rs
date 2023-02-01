@@ -357,7 +357,7 @@ impl DecisionTree {
             left,
             exit_block_id,
             self[ctx[left].assumption].value,
-        ));
+        )?);
 
         //merge else branch
         to_remove.extend(block::merge_path(
@@ -365,7 +365,7 @@ impl DecisionTree {
             right,
             exit_block_id,
             self[ctx[right].assumption].value,
-        ));
+        )?);
 
         to_remove.push(right);
         let mut merged_ins;
@@ -390,8 +390,6 @@ impl DecisionTree {
         if_block.kind = BlockType::Normal;
         if_block.instructions.pop();
 
-        let exit_block = &mut ctx[exit_block_id];
-        exit_block.predecessor = Vec::new();
         block::rewire_block_left(ctx, left, exit_block_id);
         for i in to_remove {
             ctx.remove_block(i);
@@ -504,8 +502,10 @@ impl DecisionTree {
                     DecisionTree::new_array(ctx, a.0, stack);
                 }
             }
-            Operation::Store { array_id, .. } => {
-                DecisionTree::new_array(ctx, *array_id, stack);
+            Operation::Store { array_id, index, .. } => {
+                if *index != NodeId::dummy() {
+                    DecisionTree::new_array(ctx, *array_id, stack);
+                }
             }
             _ => {
                 if let ObjectType::Pointer(a) = ins1.res_type {
@@ -617,10 +617,7 @@ impl DecisionTree {
                                 return Ok(false);
                             }
                         }
-                        if (stack.created_arrays[array_id] != stack.block
-                            || stack.return_arrays.contains(array_id))
-                            && ctx.under_assumption(ass_value)
-                        {
+                        if !stack.is_new_array(ctx, array_id) && ctx.under_assumption(ass_value) {
                             let load = Operation::Load { array_id: *array_id, index: *index };
                             let e_type = ctx.mem[*array_id].element_type;
                             let dummy = ctx.add_instruction(Instruction::new(
@@ -682,20 +679,21 @@ impl DecisionTree {
                 }
 
                 Operation::Call {
-                    func_id,
+                    func: func_id,
                     arguments,
                     returned_arrays,
                     predicate: ins_pred,
-                    ..
+                    location,
                 } => {
                     if ctx.under_assumption(ass_value) {
                         assert!(*ins_pred == AssumptionId::dummy());
                         let mut ins2 = ctx.get_mut_instruction(ins_id);
                         ins2.operation = Operation::Call {
-                            func_id: *func_id,
+                            func: *func_id,
                             arguments: arguments.clone(),
                             returned_arrays: returned_arrays.clone(),
                             predicate,
+                            location: *location,
                         };
                     }
                     stack.push(ins_id);
@@ -761,12 +759,8 @@ impl DecisionTree {
                 let right_ins = ctx.get_instruction(*right_node.1);
                 match (&left_ins.operation, &right_ins.operation) {
                     (
-                        Operation::Call {
-                            func_id: left_func, returned_arrays: left_arrays, ..
-                        },
-                        Operation::Call {
-                            func_id: right_func, returned_arrays: right_arrays, ..
-                        },
+                        Operation::Call { func: left_func, returned_arrays: left_arrays, .. },
+                        Operation::Call { func: right_func, returned_arrays: right_arrays, .. },
                     ) if left_func == right_func
                         && left_arrays.is_empty()
                         && right_arrays.is_empty() =>
@@ -811,12 +805,13 @@ impl DecisionTree {
             let mut merged_op = match (&left_ins.operation, &right_ins.operation) {
                 (
                     Operation::Call {
-                        func_id: left_func,
+                        func: left_func,
                         arguments: left_arg,
                         returned_arrays: left_arrays,
+                        location: left_location,
                         ..
                     },
-                    Operation::Call { func_id: right_func, arguments: right_arg, .. },
+                    Operation::Call { func: right_func, arguments: right_arg, .. },
                 ) => {
                     debug_assert_eq!(left_func, right_func);
                     for a in left_arg.iter().enumerate() {
@@ -829,10 +824,11 @@ impl DecisionTree {
                         to_merge.push(Instruction::new(op, typ, Some(block_id)));
                     }
                     Operation::Call {
-                        func_id: *left_func,
+                        func: *left_func,
                         arguments: Vec::new(),
                         returned_arrays: left_arrays.clone(),
                         predicate: self.root,
+                        location: *left_location,
                     }
                 }
                 (
@@ -950,7 +946,7 @@ fn create_if_subgraph(
     };
     //Then block
     ctx.current_block = new_entry;
-    block::new_sealed_block(ctx, block::BlockType::Normal, true);
+    let new_then = block::new_sealed_block(ctx, block::BlockType::Normal, true);
     //Else block
     ctx.current_block = new_entry;
     let new_else = block::new_sealed_block(ctx, block::BlockType::Normal, false);
@@ -958,6 +954,7 @@ fn create_if_subgraph(
     let new_exit = block::new_sealed_block(ctx, block::BlockType::IfJoin, false);
     ctx[new_exit].dominator = Some(new_entry);
     ctx[new_entry].right = Some(new_else);
+    ctx[new_exit].predecessor.push(new_then);
 
     (new_entry, new_exit)
 }

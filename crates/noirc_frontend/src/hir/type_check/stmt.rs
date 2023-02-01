@@ -40,7 +40,6 @@ pub(crate) fn type_check(
         }
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id, errors);
-            interner.make_expr_type_unit(&expr_id);
         }
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt, errors),
         HirStatement::Constrain(constrain_stmt) => {
@@ -135,7 +134,7 @@ fn type_check_lvalue(
     errors: &mut Vec<TypeCheckError>,
 ) -> (Type, HirLValue) {
     match lvalue {
-        HirLValue::Ident(ident) => {
+        HirLValue::Ident(ident, _) => {
             let typ = if ident.id == DefinitionId::dummy_id() {
                 Type::Error
             } else {
@@ -149,10 +148,11 @@ fn type_check_lvalue(
                         span: ident.location.span,
                     });
                 }
-                interner.id_type(ident.id)
+                // Do we need to store TypeBindings here?
+                interner.id_type(ident.id).instantiate(interner).0
             };
 
-            (typ, HirLValue::Ident(ident))
+            (typ.clone(), HirLValue::Ident(ident, typ))
         }
         HirLValue::MemberAccess { object, field_name, .. } => {
             let (result, object) = type_check_lvalue(interner, *object, assign_span, errors);
@@ -177,9 +177,9 @@ fn type_check_lvalue(
                 other => error(other),
             };
 
-            (typ, HirLValue::MemberAccess { object, field_name, field_index })
+            (typ.clone(), HirLValue::MemberAccess { object, field_name, field_index, typ })
         }
-        HirLValue::Index { array, index } => {
+        HirLValue::Index { array, index, .. } => {
             let index_type = type_check_expression(interner, &index, errors);
             let expr_span = interner.expr_span(&index);
 
@@ -208,7 +208,7 @@ fn type_check_lvalue(
                 }
             };
 
-            (typ, HirLValue::Index { array, index })
+            (typ.clone(), HirLValue::Index { array, index, typ })
         }
     }
 }

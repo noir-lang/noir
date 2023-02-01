@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::lexer::token::SpannedToken;
 use crate::parser::ParserError;
 use crate::token::Token;
-use crate::{Expression, ExpressionKind, UnresolvedType};
+use crate::{Expression, ExpressionKind, IndexExpression, MemberAccessExpression, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -79,13 +79,10 @@ impl From<SpannedToken> for Ident {
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression { span: i.0.span(), kind: ExpressionKind::Ident(i.0.contents) }
-    }
-}
-
-impl From<Ident> for ExpressionKind {
-    fn from(i: Ident) -> ExpressionKind {
-        ExpressionKind::Ident(i.0.contents)
+        Expression {
+            span: i.0.span(),
+            kind: ExpressionKind::Variable(Path { segments: vec![i], kind: PathKind::Plain }),
+        }
     }
 }
 
@@ -201,6 +198,30 @@ impl Statement {
             }
         }
     }
+
+    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
+    pub fn assign(
+        lvalue: LValue,
+        operator: Token,
+        mut expression: Expression,
+        span: Span,
+    ) -> Statement {
+        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
+        // which is currently enforced by the restricted syntax of LValues.
+        if operator != Token::Assign {
+            let lvalue_expr = lvalue.as_expression(span);
+            let error_msg = "Token passed to Statement::assign is not a binary operator";
+
+            let infix = crate::InfixExpression {
+                lhs: lvalue_expr,
+                operator: operator.try_into_binop(span).expect(error_msg),
+                rhs: expression,
+            };
+            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
+        }
+
+        Statement::Assign(AssignStatement { lvalue, expression })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -229,7 +250,11 @@ impl Path {
     /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
-        Path { segments: vec![segment], kind: PathKind::Plain }
+        Path::from_ident(segment)
+    }
+
+    pub fn from_ident(name: Ident) -> Path {
+        Path { segments: vec![name], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
@@ -338,6 +363,25 @@ impl Pattern {
 impl Recoverable for Pattern {
     fn error(span: Span) -> Self {
         Pattern::Identifier(Ident::error(span))
+    }
+}
+
+impl LValue {
+    fn as_expression(&self, span: Span) -> Expression {
+        let kind = match self {
+            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
+            LValue::MemberAccess { object, field_name } => {
+                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                    lhs: object.as_expression(span),
+                    rhs: field_name.clone(),
+                }))
+            }
+            LValue::Index { array, index } => ExpressionKind::Index(Box::new(IndexExpression {
+                collection: array.as_expression(span),
+                index: index.clone(),
+            })),
+        };
+        Expression::new(kind, span)
     }
 }
 

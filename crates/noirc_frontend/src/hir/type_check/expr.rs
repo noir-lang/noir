@@ -10,7 +10,7 @@ use crate::{
     Comptime, Shared, TypeBinding,
 };
 
-use super::errors::TypeCheckError;
+use super::{bind_pattern, errors::TypeCheckError};
 
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
@@ -23,23 +23,21 @@ pub(crate) fn type_check_expression(
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
             // We must instantiate identifiers at every callsite to replace this T with a new type
             // variable to handle generic functions.
-            let (typ, bindings) = interner.id_type(ident.id).instantiate(interner);
+            let t = interner.id_type(ident.id);
+            let (typ, bindings) = t.instantiate(interner);
             interner.store_instantiation_bindings(*expr_id, bindings);
             typ
         }
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    // Type check the contents of the array
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                    // Specify the type of the Array
-                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.len() as u64)),
+                        Box::new(Type::Constant(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -70,9 +68,10 @@ pub(crate) fn type_check_expression(
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
-                HirLiteral::Str(_) => unimplemented!(
-                    "[Coming Soon] : Currently string literal types have not been implemented"
-                ),
+                HirLiteral::Str(string) => {
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
+                }
             }
         }
         HirExpression::Infix(infix_expr) => {
@@ -80,41 +79,34 @@ pub(crate) fn type_check_expression(
             let lhs_type = type_check_expression(interner, &infix_expr.lhs, errors);
             let rhs_type = type_check_expression(interner, &infix_expr.rhs, errors);
 
-            match infix_operand_type_rules(&lhs_type, &infix_expr.operator, &rhs_type, errors) {
-                Ok(typ) => typ,
-                Err(msg) => {
-                    let lhs_span = interner.expr_span(&infix_expr.lhs);
-                    let rhs_span = interner.expr_span(&infix_expr.rhs);
-                    errors
-                        .push(TypeCheckError::Unstructured { msg, span: lhs_span.merge(rhs_span) });
-                    Type::Error
-                }
-            }
+            let lhs_span = interner.expr_span(&infix_expr.lhs);
+            let rhs_span = interner.expr_span(&infix_expr.rhs);
+            let span = lhs_span.merge(rhs_span);
+
+            infix_operand_type_rules(
+                &lhs_type,
+                &infix_expr.operator,
+                &rhs_type,
+                span,
+                interner,
+                errors,
+            )
+            .unwrap_or_else(|error| {
+                errors.push(error);
+                Type::Error
+            })
         }
         HirExpression::Index(index_expr) => {
             type_check_index_expression(interner, index_expr, errors)
         }
-        HirExpression::Call(mut call_expr) => {
-            if let Some(meta) = interner.try_function_meta(&call_expr.func_id) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !interner.foreign(&opcode) {
-                        if let Some(func_id2) = interner.get_alt(opcode) {
-                            call_expr.func_id = func_id2;
-                            interner.replace_expr(expr_id, HirExpression::Call(call_expr.clone()));
-                        }
-                    }
-                }
-            }
-
+        HirExpression::Call(call_expr) => {
+            let function = type_check_expression(interner, &call_expr.func, errors);
             let args = vecmap(&call_expr.arguments, |arg| {
                 let typ = type_check_expression(interner, arg, errors);
                 (typ, interner.expr_span(arg))
             });
-            type_check_function_call(interner, expr_id, &call_expr.func_id, args, errors)
+            let span = interner.expr_span(expr_id);
+            bind_function_type(function, args, span, interner, errors)
         }
         HirExpression::MethodCall(method_call) => {
             let object_type = type_check_expression(interner, &method_call.object, errors);
@@ -127,11 +119,23 @@ pub(crate) fn type_check_expression(
                         (typ, interner.expr_span(arg))
                     });
                     args.append(&mut arg_types);
-                    let ret = type_check_function_call(interner, expr_id, &method_id, args, errors);
 
                     // Desugar the method call into a normal, resolved function call
                     // so that the backend doesn't need to worry about methods
-                    let function_call = method_call.into_function_call(method_id);
+                    let location = method_call.location;
+                    let (function_id, function_call) =
+                        method_call.into_function_call(method_id, location, interner);
+
+                    let span = interner.expr_span(expr_id);
+                    let ret = type_check_method_call(
+                        interner,
+                        &function_id,
+                        &method_id,
+                        args,
+                        span,
+                        errors,
+                    );
+
                     interner.replace_expr(expr_id, function_call);
                     ret
                 }
@@ -220,6 +224,24 @@ pub(crate) fn type_check_expression(
         HirExpression::Error => Type::Error,
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
+        }
+        HirExpression::Lambda(lambda) => {
+            let params = vecmap(lambda.parameters, |(pattern, typ)| {
+                bind_pattern(interner, &pattern, typ.clone(), errors);
+                typ
+            });
+
+            let actual_return = type_check_expression(interner, &lambda.body, errors);
+
+            let span = interner.expr_span(&lambda.body);
+            actual_return.make_subtype_of(&lambda.return_type, span, errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: lambda.return_type.to_string(),
+                    expr_typ: actual_return.to_string(),
+                    expr_span: span,
+                }
+            });
+            Type::Function(params, Box::new(lambda.return_type))
         }
     };
 
@@ -362,11 +384,14 @@ fn lookup_method(
     }
 }
 
-fn type_check_function_call(
+// We need a special function to typecheck method calls since the method
+// is not a Expression::Ident it must be manually instantiated here
+fn type_check_method_call(
     interner: &mut NodeInterner,
-    expr_id: &ExprId,
+    function_ident_id: &ExprId,
     func_id: &FuncId,
     arguments: Vec<(Type, Span)>,
+    span: Span,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     if func_id == &FuncId::dummy_id() {
@@ -378,7 +403,6 @@ fn type_check_function_call(
         let param_len = func_meta.parameters.len();
         let arg_len = arguments.len();
 
-        let span = interner.expr_span(expr_id);
         if param_len != arg_len {
             errors.push(TypeCheckError::ArityMisMatch {
                 expected: param_len as u16,
@@ -388,8 +412,8 @@ fn type_check_function_call(
         }
 
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
-        interner.store_instantiation_bindings(*expr_id, instantiation_bindings);
-        interner.set_function_type(*expr_id, function_type.clone());
+        interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
+        interner.push_expr_type(function_ident_id, function_type.clone());
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -417,6 +441,23 @@ fn bind_function_type(
             ret
         }
         Type::Function(parameters, ret) => {
+            if parameters.len() != args.len() {
+                let empty_or_s = if parameters.len() == 1 { "" } else { "s" };
+                let was_or_were = if args.len() == 1 { "was" } else { "were" };
+
+                errors.push(TypeCheckError::Unstructured {
+                    msg: format!(
+                        "Function expects {} parameter{} but {} {} given",
+                        parameters.len(),
+                        empty_or_s,
+                        args.len(),
+                        was_or_were
+                    ),
+                    span,
+                });
+                return Type::Error;
+            }
+
             for (param, (arg, arg_span)) in parameters.iter().zip(args) {
                 arg.make_subtype_of(param, arg_span, errors, || TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -460,45 +501,67 @@ pub fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
     rhs_type: &Type,
+    span: Span,
+    interner: &mut NodeInterner,
     errors: &mut Vec<TypeCheckError>,
-) -> Result<Type, String> {
+) -> Result<Type, TypeCheckError> {
+    let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
+
     if op.kind.is_comparator() {
-        return comparator_operand_type_rules(lhs_type, rhs_type, op, errors);
+        return comparator_operand_type_rules(lhs_type, rhs_type, op, errors).map_err(make_error);
     }
 
     use Type::*;
     match (lhs_type, rhs_type)  {
         (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
-                return Err(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} "))
+                return Err(make_error(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} ")))
             }
             if bit_width_x != bit_width_y {
-                return Err(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} "))
+                return Err(make_error(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} ")))
             }
             let comptime = comptime_x.and(comptime_y, op.location.span);
             Ok(Integer(comptime, *sign_x, *bit_width_x))
         }
         (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
-            Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string())
+            Err(make_error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string()))
         }
         (PolymorphicInteger(comptime, int), other)
         | (other, PolymorphicInteger(comptime, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
-                return infix_operand_type_rules(binding, op, other, errors);
+                return infix_operand_type_rules(binding, op, other, span, interner, errors);
             }
+
+            if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
+                let other = other.follow_bindings();
+
+                // This will be an error if these types later resolve to a Field, or stay
+                // polymorphic as the bit size will be unknown. Delay this error until the function
+                // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
+                interner.push_delayed_type_check(Box::new(move || {
+                    if other.is_field() {
+                        Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first".into()))
+                    } else if other.is_bindable() {
+                        Err(make_error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified".into()))
+                    } else {
+                        Ok(())
+                    }
+                }));
+            }
+
             if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
-                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
             }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
-            Err(format!("Integer cannot be used with type {typ}"))
+            Err(make_error(format!("Integer cannot be used with type {typ}")))
         }
         // These types are not supported in binary operations
-        (Array(..), _) | (_, Array(..)) => Err("Arrays cannot be used in an infix operation".to_string()),
-        (Struct(..), _) | (_, Struct(..)) => Err("Structs cannot be used in an infix operation".to_string()),
-        (Tuple(_), _) | (_, Tuple(_)) => Err("Tuples cannot be used in an infix operation".to_string()),
+        (Array(..), _) | (_, Array(..)) => Err(make_error("Arrays cannot be used in an infix operation".to_string())),
+        (Struct(..), _) | (_, Struct(..)) => Err(make_error("Structs cannot be used in an infix operation".to_string())),
+        (Tuple(_), _) | (_, Tuple(_)) => Err(make_error("Tuples cannot be used in an infix operation".to_string())),
 
         // An error type on either side will always return an error
         (Error, _) | (_,Error) => Ok(Error),
@@ -506,13 +569,30 @@ pub fn infix_operand_type_rules(
 
         // The result of two Fields is always a witness
         (FieldElement(comptime_x), FieldElement(comptime_y)) => {
+            if op.is_bitwise() {
+                return Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.".into()));
+            }
             let comptime = comptime_x.and(comptime_y, op.location.span);
             Ok(FieldElement(comptime))
         }
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
-        (lhs, rhs) => Err(format!("Unsupported types for binary operation: {lhs} and {rhs}")),
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, span, interner, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
+            }
+        }
+
+        (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
     }
 }
 
@@ -699,9 +779,12 @@ pub fn comparator_operand_type_rules(
                 }
             });
 
-            if x_size != y_size {
-                return Err(format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "));
-            }
+            x_size.unify(y_size, op.location.span, errors, || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size}"),
+                    span: op.location.span,
+                }
+            });
 
             // We could check if all elements of all arrays are comptime but I am lazy
             Ok(Bool(Comptime::No(Some(op.location.span))))
@@ -711,6 +794,29 @@ pub fn comparator_operand_type_rules(
                 return Ok(Bool(Comptime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
+        }
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return comparator_operand_type_rules(binding, other, op, errors);
+            }
+
+            let comptime = Comptime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+            }
+        }
+        (String(x_size), String(y_size)) => {
+            x_size.unify(y_size, op.location.span, errors, || {
+                TypeCheckError::Unstructured {
+                    msg: format!("Can only compare strings of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                    span: op.location.span,
+                }
+            });
+
+            Ok(Bool(Comptime::No(Some(op.location.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
     }

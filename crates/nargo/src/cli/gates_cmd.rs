@@ -23,13 +23,17 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<(), CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let gates = compiled_program.circuit.gates.clone();
+    let num_opcodes = compiled_program.circuit.opcodes.len();
     let backend = crate::backends::ConcreteBackend;
 
-    println!("Total gates generated for language {:?}: {}\n", backend.np_language(), gates.len());
+    println!(
+        "Total ACIR opcodes generated for language {:?}: {}",
+        backend.np_language(),
+        num_opcodes
+    );
 
     let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
-    println!("\nBackend circuit size: {exact_circuit_size}\n");
+    println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())
 }

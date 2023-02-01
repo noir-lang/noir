@@ -1,6 +1,11 @@
-pub use build_cmd::build_from_path;
+pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
-use noirc_abi::input_parser::{Format, InputValue};
+use const_format::formatcp;
+use git_version::git_version;
+use noirc_abi::{
+    input_parser::{Format, InputValue},
+    Abi,
+};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
@@ -14,7 +19,7 @@ use tempdir::TempDir;
 
 use crate::errors::CliError;
 
-mod build_cmd;
+mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
 mod gates_cmd;
@@ -22,16 +27,8 @@ mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
 
-const CONTRACT_DIR: &str = "contract";
-const PROOFS_DIR: &str = "proofs";
-const PROVER_INPUT_FILE: &str = "Prover";
-const VERIFIER_INPUT_FILE: &str = "Verifier";
-const SRC_DIR: &str = "src";
-const PKG_FILE: &str = "Nargo.toml";
-const PROOF_EXT: &str = "proof";
-const BUILD_DIR: &str = "build";
-const ACIR_EXT: &str = "acir";
-const WITNESS_EXT: &str = "tr";
+const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
+const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
@@ -44,12 +41,17 @@ pub fn start_cli() {
 
     let matches = App::new("nargo")
         .about("Noir's package manager")
-        .version("0.1")
+        .version(VERSION_STRING)
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(
-            App::new("build").about("Builds the constraint system").arg(allow_warnings.clone()),
+            App::new("check")
+                .about("Checks the constraint system for errors")
+                .arg(allow_warnings.clone()),
         )
-        .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
+        .subcommand(
+            App::new("contract")
+                .about("Generates a Solidity verifier smart contract for the program"),
+        )
         .subcommand(
             App::new("new")
                 .about("Create a new binary project")
@@ -67,7 +69,7 @@ pub fn start_cli() {
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -95,7 +97,7 @@ pub fn start_cli() {
 
     let result = match matches.subcommand_name() {
         Some("new") => new_cmd::run(matches),
-        Some("build") => build_cmd::run(matches),
+        Some("check") => check_cmd::run(matches),
         Some("contract") => contract_cmd::run(matches),
         Some("prove") => prove_cmd::run(matches),
         Some("compile") => compile_cmd::run(matches),
@@ -117,19 +119,19 @@ fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
 }
 
 pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{}` directory", name))
+    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
     let mut file = match File::create(path) {
-        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Err(why) => panic!("couldn't create {display}: {why}"),
         Ok(file) => file,
     };
 
     match file.write_all(bytes) {
-        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Err(why) => panic!("couldn't write to {display}: {why}"),
         Ok(_) => display.to_string(),
     }
 }
@@ -138,6 +140,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
     format: Format,
+    abi: Abi,
 ) -> Result<BTreeMap<String, InputValue>, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
@@ -150,7 +153,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
-    Ok(format.parse(&input_string)?)
+    Ok(format.parse(&input_string, abi)?)
 }
 
 fn write_inputs_to_file<P: AsRef<Path>>(
@@ -176,7 +179,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
-        proof_name,
+        Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
         show_ssa,
@@ -189,7 +192,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {

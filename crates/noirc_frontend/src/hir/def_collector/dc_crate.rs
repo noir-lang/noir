@@ -12,9 +12,7 @@ use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
-use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Statement, Type,
-};
+use crate::{Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Type};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
@@ -224,6 +222,7 @@ fn collect_impls(
                 // .define_func_def(name, func_id);
                 for (_, method_id, method) in &unresolved.functions {
                     let result = scope.define_func_def(method.name_ident().clone(), *method_id);
+
                     if let Err((first_def, second_def)) = result {
                         let err =
                             DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -258,7 +257,7 @@ fn resolve_globals(
 
         let name = global.stmt_def.pattern.name_ident().clone();
 
-        let hir_stmt = resolver.resolve_stmt(Statement::Let(global.stmt_def), true);
+        let hir_stmt = resolver.resolve_global_let(global.stmt_def);
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
@@ -407,7 +406,7 @@ fn resolve_functions(
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
             resolver.set_self_type(self_type);
 
-            let (hir_func, func_meta, errs) = resolver.resolve_function(func);
+            let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
             interner.push_fn_meta(func_meta, func_id);
             interner.update_fn(func_id, hir_func);
             collected_errors.errors.extend(errs.into_iter().map(|err| err.into_diagnostic()));
