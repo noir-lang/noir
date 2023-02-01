@@ -64,7 +64,7 @@ pub fn start_cli() {
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -174,7 +174,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
-        proof_name,
+        Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
         show_ssa,
@@ -187,7 +187,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
