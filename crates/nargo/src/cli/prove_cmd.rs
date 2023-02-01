@@ -5,16 +5,17 @@ use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::Format;
-use noirc_abi::input_parser::InputValue;
+use noirc_abi::input_parser::{Format, InputValue};
 use std::{
     collections::{BTreeMap, HashSet},
     path::{Path, PathBuf},
 };
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
-use crate::constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use crate::errors::CliError;
+use crate::{
+    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
+    errors::CliError,
+};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
