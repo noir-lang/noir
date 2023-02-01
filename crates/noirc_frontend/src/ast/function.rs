@@ -77,6 +77,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(Attribute::Alternative(_)) => FunctionKind::Normal,
+            Some(Attribute::Test) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

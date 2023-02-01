@@ -3,7 +3,7 @@ use acvm::acir::circuit::Circuit;
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
-use noirc_errors::{DiagnosableError, Reporter};
+use noirc_errors::{DiagnosableError, ReportedError, Reporter};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
@@ -131,8 +131,8 @@ impl Driver {
     }
 
     /// Run the lexing, parsing, name resolution, and type checking passes,
-    /// returning Err(()) and printing any errors that were found.
-    pub fn check_crate(&mut self, allow_warnings: bool) -> Result<(), ()> {
+    /// returning Err(FrontendError) and printing any errors that were found.
+    pub fn check_crate(&mut self, allow_warnings: bool) -> Result<(), ReportedError> {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
@@ -164,9 +164,9 @@ impl Driver {
         np_language: acvm::Language,
         show_ssa: bool,
         allow_warnings: bool,
-    ) -> Result<CompiledProgram, ()> {
+    ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings)
+        self.compile_no_check(np_language, show_ssa, allow_warnings, None)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -176,7 +176,9 @@ impl Driver {
         np_language: acvm::Language,
         show_ssa: bool,
         allow_warnings: bool,
-    ) -> Result<CompiledProgram, ()> {
+        // Optional override to provide a different `main` function to start execution
+        main_function: Option<FuncId>,
+    ) -> Result<CompiledProgram, ReportedError> {
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
@@ -189,8 +191,9 @@ impl Driver {
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         // All Binaries should have a main function
-        let main_function =
-            local_crate.main_function().expect("cannot compile a program with no main function");
+        let main_function = main_function.unwrap_or_else(|| {
+            local_crate.main_function().expect("cannot compile a program with no main function")
+        });
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
@@ -210,7 +213,7 @@ impl Driver {
 
                 let error_count = Reporter::with_diagnostics(file_id, files, error, allow_warnings);
                 Reporter::finish(error_count)?;
-                Err(())
+                Err(ReportedError)
             }
         }
     }

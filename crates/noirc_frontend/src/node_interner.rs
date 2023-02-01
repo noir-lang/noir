@@ -18,6 +18,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::token::Attribute;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -569,15 +570,10 @@ impl NodeInterner {
         std::mem::take(&mut self.delayed_type_checks)
     }
 
-    pub fn get_all_test_functions<'a>(&'a self) -> impl Iterator<Item = FuncId> + 'a {
+    pub fn get_all_test_functions(&self) -> impl Iterator<Item = FuncId> + '_ {
         self.func_meta.iter().filter_map(|(id, meta)| {
-            let name = match dbg!(meta.attributes.as_ref()?) {
-                crate::token::Attribute::Foreign(name) => name,
-                crate::token::Attribute::Builtin(name) => name,
-                crate::token::Attribute::Alternative(name) => name,
-            };
-
-            (name == "test").then_some(*id)
+            let is_test = meta.attributes.as_ref()? == &Attribute::Test;
+            is_test.then_some(*id)
         })
     }
 }

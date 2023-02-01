@@ -1,4 +1,4 @@
-use crate::Span;
+use crate::{ReportedError, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
@@ -147,7 +147,7 @@ impl Reporter {
         error_count
     }
 
-    pub fn finish(error_count: usize) -> Result<(), ()> {
+    pub fn finish(error_count: usize) -> Result<(), ReportedError> {
         if error_count != 0 {
             let writer = StandardStream::stderr(ColorChoice::Always);
             let mut writer = writer.lock();
@@ -156,7 +156,7 @@ impl Reporter {
             writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
             writer.reset().ok(); // Ignore any IO errors, we're exiting at this point anyway
 
-            Err(())
+            Err(ReportedError)
         } else {
             Ok(())
         }

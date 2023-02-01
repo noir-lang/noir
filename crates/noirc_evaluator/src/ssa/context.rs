@@ -735,8 +735,8 @@ impl SsaContext {
         if enable_logging {
             Acir::print_circuit(&evaluator.opcodes);
             println!("DONE");
+            println!("ACIR opcodes generated : {}", evaluator.opcodes.len());
         }
-        println!("ACIR opcodes generated : {}", evaluator.opcodes.len());
         Ok(())
     }
 

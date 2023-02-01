@@ -171,7 +171,7 @@ impl<'interner> Monomorphiser<'interner> {
             main.body = ast::Expression::Constrain(Box::new(eq), location);
         }
 
-        main_meta.into_abi(&self.interner)
+        main_meta.into_abi(self.interner)
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {

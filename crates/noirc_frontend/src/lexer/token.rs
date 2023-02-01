@@ -319,6 +319,7 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Alternative(String),
+    Test,
 }
 
 impl fmt::Display for Attribute {
@@ -327,6 +328,7 @@ impl fmt::Display for Attribute {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Alternative(ref k) => write!(f, "#[alternative({k})]"),
+            Attribute::Test => write!(f, "#[test]"),
         }
     }
 }
@@ -341,7 +343,14 @@ impl Attribute {
             .collect();
 
         if word_segments.len() != 2 {
-            return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() });
+            if word_segments.len() == 1 && word_segments[0] == "test" {
+                return Ok(Token::Attribute(Attribute::Test));
+            } else {
+                return Err(LexerErrorKind::MalformedFuncAttribute {
+                    span,
+                    found: word.to_owned(),
+                });
+            }
         }
 
         let attribute_type = word_segments[0];
@@ -360,21 +369,22 @@ impl Attribute {
 
     pub fn builtin(self) -> Option<String> {
         match self {
-            Attribute::Foreign(_) | Attribute::Alternative(_) => None,
             Attribute::Builtin(name) => Some(name),
+            _ => None,
         }
     }
 
     pub fn foreign(self) -> Option<String> {
         match self {
             Attribute::Foreign(name) => Some(name),
-            Attribute::Builtin(_) | Attribute::Alternative(_) => None,
+            _ => None,
         }
     }
 
     pub fn is_foreign(&self) -> bool {
         matches!(self, Attribute::Foreign(_))
     }
+
     pub fn is_low_level(&self) -> bool {
         matches!(self, Attribute::Foreign(_) | Attribute::Builtin(_))
     }
@@ -386,6 +396,7 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Alternative(string) => string,
+            Attribute::Test => "",
         }
     }
 }
