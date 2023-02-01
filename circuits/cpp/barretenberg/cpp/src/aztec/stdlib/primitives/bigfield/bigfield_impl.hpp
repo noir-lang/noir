@@ -244,7 +244,7 @@ bigfield<C, T> bigfield<C, T>::create_from_u512_as_witness(C* ctx,
 
 template <typename C, typename T> bigfield<C, T>::bigfield(const byte_array<C>& bytes)
 {
-
+    ASSERT(bytes.size() == 32); // we treat input as a 256-bit big integer
     const auto split_byte_into_nibbles = [](C* ctx, const field_t<C>& split_byte) {
         const uint64_t byte_val = uint256_t(split_byte.get_value()).data[0];
         const uint64_t lo_nibble_val = byte_val & 15ULL;
@@ -285,6 +285,8 @@ template <typename C, typename T> bigfield<C, T>::bigfield(const byte_array<C>& 
 
     const auto res = bigfield(limb0, limb1, limb2, limb3, true);
 
+    const auto num_last_limb_bits = 256 - (NUM_LIMB_BITS * 3);
+    res.binary_basis_limbs[3].maximum_value = (uint64_t(1) << num_last_limb_bits);
     *this = res;
 }
 
