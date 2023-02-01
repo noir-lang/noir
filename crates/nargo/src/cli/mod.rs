@@ -96,6 +96,11 @@ pub fn start_cli() {
         .subcommand(
             App::new("execute")
                 .about("Executes a circuit to calculate its return value")
+                .arg(
+                    Arg::with_name("witness_name")
+                        .long("witness_name")
+                        .help("Write the execution witness to named file"),
+                )
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )

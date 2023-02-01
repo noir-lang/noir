@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
@@ -8,21 +9,32 @@ use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::MAIN_RETURN_NAME;
 use noirc_driver::CompiledProgram;
-use std::path::Path;
 
-use crate::{constants::PROVER_INPUT_FILE, errors::CliError};
+use crate::{
+    constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
+    errors::CliError,
+};
 
-use super::read_inputs_from_file;
+use super::{create_named_dir, read_inputs_from_file, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("execute").unwrap();
+    let witness_name = args.value_of("witness_name");
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
-    let (return_value, _) = execute(show_ssa, allow_warnings)?;
+    let (return_value, solved_witness) = execute(show_ssa, allow_warnings)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
+    }
+    if let Some(witness_name) = witness_name {
+        let mut witness_dir = std::env::current_dir().unwrap();
+        witness_dir.push(TARGET_DIR);
+
+        let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
+
+        println!("Witness saved to {}", witness_path.display());
     }
     Ok(())
 }
@@ -109,4 +121,20 @@ pub(crate) fn solve_witness(
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
 
     Ok(solved_witness)
+}
+
+pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
+    witness: BTreeMap<Witness, FieldElement>,
+    witness_name: &str,
+    witness_dir: P,
+) -> Result<PathBuf, CliError> {
+    let mut witness_path = create_named_dir(witness_dir.as_ref(), "witness");
+    witness_path.push(witness_name);
+    witness_path.set_extension(WITNESS_EXT);
+
+    let buf = Witness::to_bytes(&witness);
+
+    write_to_file(buf.as_slice(), &witness_path);
+
+    Ok(witness_path)
 }

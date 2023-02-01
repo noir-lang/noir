@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::Witness;
 use acvm::ProofSystemCompiler;
 
 use clap::ArgMatches;
@@ -8,7 +7,8 @@ use clap::ArgMatches;
 use std::path::Path;
 
 use crate::{
-    constants::{ACIR_EXT, TARGET_DIR, WITNESS_EXT},
+    cli::execute_cmd::save_witness_to_dir,
+    constants::{ACIR_EXT, TARGET_DIR},
     errors::CliError,
     resolver::Resolver,
 };
@@ -59,12 +59,9 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     if generate_witness {
         let (_, solved_witness) =
             super::execute_cmd::execute_program(program_dir, &compiled_program)?;
-        let buf = Witness::to_bytes(&solved_witness);
 
         circuit_path.pop();
-        circuit_path.push(circuit_name);
-        circuit_path.set_extension(WITNESS_EXT);
-        write_to_file(buf.as_slice(), &circuit_path);
+        save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;
     }
 
     Ok(circuit_path)
