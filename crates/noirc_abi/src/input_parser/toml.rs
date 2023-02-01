@@ -2,8 +2,7 @@ use super::InputValue;
 use crate::{errors::InputParserError, Abi, AbiType};
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
-use serde::Serialize;
-use serde_derive::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
