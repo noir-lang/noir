@@ -50,7 +50,7 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
         println!("All tests passed");
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        println!("{} test{} failed", failing, plural);
+        println!("{failing} test{plural} failed");
         std::process::exit(1);
     }
 
