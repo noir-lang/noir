@@ -1,4 +1,3 @@
-use acvm::acir::circuit::PublicInputs;
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
@@ -7,11 +6,12 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     path::{Path, PathBuf},
 };
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use crate::cli::dedup_public_input_indices;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -157,35 +157,4 @@ fn save_proof_to_dir<P: AsRef<Path>>(
     write_to_file(hex::encode(proof).as_bytes(), &proof_path);
 
     Ok(proof_path)
-}
-
-// Removes duplicates from the list of public input witnesses
-fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
-    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
-    PublicInputs(duplicates_removed.into_iter().collect())
-}
-
-// Removes duplicates from the list of public input witnesses and the
-// associated list of duplicate values.
-pub(crate) fn dedup_public_input_indices_values(
-    indices: PublicInputs,
-    values: Vec<FieldElement>,
-) -> (PublicInputs, Vec<FieldElement>) {
-    // Assume that the public input index lists and the values contain duplicates
-    assert_eq!(indices.0.len(), values.len());
-
-    let mut public_inputs_without_duplicates = Vec::new();
-    let mut already_seen_public_indices = HashSet::new();
-
-    for (index, value) in indices.0.iter().zip(values) {
-        if !already_seen_public_indices.contains(&index) {
-            already_seen_public_indices.insert(index);
-            public_inputs_without_duplicates.push(value)
-        }
-    }
-
-    (
-        PublicInputs(already_seen_public_indices.into_iter().cloned().collect()),
-        public_inputs_without_duplicates,
-    )
 }

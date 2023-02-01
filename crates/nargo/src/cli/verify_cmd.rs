@@ -1,6 +1,5 @@
 use super::{
-    compile_cmd::compile_circuit, prove_cmd::dedup_public_input_indices_values,
-    read_inputs_from_file,
+    compile_cmd::compile_circuit, dedup_public_input_indices_values, read_inputs_from_file,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},

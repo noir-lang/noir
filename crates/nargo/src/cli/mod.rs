@@ -1,3 +1,4 @@
+use acvm::{acir::circuit::PublicInputs, FieldElement};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
@@ -9,7 +10,7 @@ use noirc_abi::{
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -204,6 +205,37 @@ fn add_std_lib(driver: &mut Driver) {
 
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
+}
+
+// Removes duplicates from the list of public input witnesses
+fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
+    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
+    PublicInputs(duplicates_removed.into_iter().collect())
+}
+
+// Removes duplicates from the list of public input witnesses and the
+// associated list of duplicate values.
+pub(crate) fn dedup_public_input_indices_values(
+    indices: PublicInputs,
+    values: Vec<FieldElement>,
+) -> (PublicInputs, Vec<FieldElement>) {
+    // Assume that the public input index lists and the values contain duplicates
+    assert_eq!(indices.0.len(), values.len());
+
+    let mut public_inputs_without_duplicates = Vec::new();
+    let mut already_seen_public_indices = HashSet::new();
+
+    for (index, value) in indices.0.iter().zip(values) {
+        if !already_seen_public_indices.contains(&index) {
+            already_seen_public_indices.insert(index);
+            public_inputs_without_duplicates.push(value)
+        }
+    }
+
+    (
+        PublicInputs(already_seen_public_indices.into_iter().cloned().collect()),
+        public_inputs_without_duplicates,
+    )
 }
 
 // FIXME: I not sure that this is the right place for this tests.
