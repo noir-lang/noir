@@ -142,7 +142,7 @@ impl SsaContext {
         block
     }
 
-    //Display an object for debugging puposes
+    //Display an object for debugging purposes
     fn id_to_string(&self, id: NodeId) -> String {
         let mut result = String::new();
         if let Some(var) = self.try_get_node(id) {
