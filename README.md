@@ -44,7 +44,7 @@ The current focus is to gather as much feedback as possible while in the alpha p
 
 Concretely the following items are on the road map:
 
-- General code sanitisation and documentation (ongoing effort)
+- General code sanitization and documentation (ongoing effort)
 - Prover and Verifier Key logic. (Prover and Verifier preprocess per compile)
 - Fallback mechanism for backend unsupported opcodes
 - Visibility modifiers
