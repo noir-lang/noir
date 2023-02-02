@@ -79,15 +79,15 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     std::shared_ptr<verification_key> circuit_verification_key = std::make_shared<verification_key>(
         circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs, circuit_proving_key->composer_type);
 
-    circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_3", commitments[2] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_M", commitments[3] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_C", commitments[4] });
+    circuit_verification_key->commitments.insert({ "Q_1", commitments[0] });
+    circuit_verification_key->commitments.insert({ "Q_2", commitments[1] });
+    circuit_verification_key->commitments.insert({ "Q_3", commitments[2] });
+    circuit_verification_key->commitments.insert({ "Q_M", commitments[3] });
+    circuit_verification_key->commitments.insert({ "Q_C", commitments[4] });
 
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_1", commitments[5] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[6] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
+    circuit_verification_key->commitments.insert({ "SIGMA_1", commitments[5] });
+    circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
+    circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
     Verifier verifier(circuit_verification_key, create_manifest());
 

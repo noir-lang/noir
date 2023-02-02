@@ -123,12 +123,8 @@ template <typename Curve> struct verification_key {
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
 
-        for (const auto& [tag, value] : input_key->constraint_selectors) {
-            key->constraint_selectors.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
-        }
-
-        for (const auto& [tag, value] : input_key->permutation_selectors) {
-            key->permutation_selectors.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
+        for (const auto& [tag, value] : input_key->commitments) {
+            key->commitments.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
         }
 
         return key;
@@ -147,12 +143,10 @@ template <typename Curve> struct verification_key {
 
         key->reference_string = input_key->reference_string;
 
-        for (const auto& [tag, value] : input_key->constraint_selectors) {
-            key->constraint_selectors.insert({ tag, typename Curve::g1_ct(value) });
+        for (const auto& [tag, value] : input_key->commitments) {
+            key->commitments.insert({ tag, typename Curve::g1_ct(value) });
         }
-        for (const auto& [tag, value] : input_key->permutation_selectors) {
-            key->permutation_selectors.insert({ tag, typename Curve::g1_ct(value) });
-        }
+
         key->polynomial_manifest = input_key->polynomial_manifest;
 
         return key;
@@ -201,17 +195,7 @@ template <typename Curve> struct verification_key {
         std::vector<field_t<Composer>> key_witnesses;
         key_witnesses.push_back(compressed_domain);
         key_witnesses.push_back(num_public_inputs);
-        for (const auto& [tag, selector] : constraint_selectors) {
-            key_witnesses.push_back(selector.x.binary_basis_limbs[0].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[1].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[2].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[3].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[0].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[1].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[2].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[3].element);
-        }
-        for (const auto& [tag, selector] : permutation_selectors) {
+        for (const auto& [tag, selector] : commitments) {
             key_witnesses.push_back(selector.x.binary_basis_limbs[0].element);
             key_witnesses.push_back(selector.x.binary_basis_limbs[1].element);
             key_witnesses.push_back(selector.x.binary_basis_limbs[2].element);
@@ -248,21 +232,7 @@ template <typename Curve> struct verification_key {
         std::vector<barretenberg::fr> key_witnesses;
         key_witnesses.push_back(compressed_domain);
         key_witnesses.push_back(key->num_public_inputs);
-        for (const auto& [tag, selector] : key->constraint_selectors) {
-            const auto x_limbs = split_bigfield_limbs(selector.x);
-            const auto y_limbs = split_bigfield_limbs(selector.y);
-
-            key_witnesses.push_back(x_limbs[0]);
-            key_witnesses.push_back(x_limbs[1]);
-            key_witnesses.push_back(x_limbs[2]);
-            key_witnesses.push_back(x_limbs[3]);
-
-            key_witnesses.push_back(y_limbs[0]);
-            key_witnesses.push_back(y_limbs[1]);
-            key_witnesses.push_back(y_limbs[2]);
-            key_witnesses.push_back(y_limbs[3]);
-        }
-        for (const auto& [tag, selector] : key->permutation_selectors) {
+        for (const auto& [tag, selector] : key->commitments) {
             const auto x_limbs = split_bigfield_limbs(selector.x);
             const auto y_limbs = split_bigfield_limbs(selector.y);
 
@@ -293,8 +263,7 @@ template <typename Curve> struct verification_key {
 
     evaluation_domain<Composer> domain;
 
-    std::map<std::string, typename Curve::g1_ct> constraint_selectors;
-    std::map<std::string, typename Curve::g1_ct> permutation_selectors;
+    std::map<std::string, typename Curve::g1_ct> commitments;
 
     // Native data:
 

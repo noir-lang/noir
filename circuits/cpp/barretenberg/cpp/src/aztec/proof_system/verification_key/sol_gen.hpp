@@ -35,14 +35,14 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
     print_u256("0x20", key->num_public_inputs, "vk.num_inputs");
     print_u256("0x40", key->domain.root, "vk.work_root");
     print_u256("0x60", key->domain.domain_inverse, "vk.domain_inverse");
-    print_g1("0x80", "0xa0", key->constraint_selectors.at("Q_1"), "vk.Q1");
-    print_g1("0xc0", "0xe0", key->constraint_selectors.at("Q_2"), "vk.Q2");
-    print_g1("0x100", "0x120", key->constraint_selectors.at("Q_3"), "vk.Q3");
-    print_g1("0x140", "0x160", key->constraint_selectors.at("Q_M"), "vk.QM");
-    print_g1("0x180", "0x1a0", key->constraint_selectors.at("Q_C"), "vk.QC");
-    print_g1("0x1c0", "0x1e0", key->permutation_selectors.at("SIGMA_1"), "vk.SIGMA1");
-    print_g1("0x200", "0x220", key->permutation_selectors.at("SIGMA_2"), "vk.SIGMA2");
-    print_g1("0x240", "0x260", key->permutation_selectors.at("SIGMA_3"), "vk.SIGMA3");
+    print_g1("0x80", "0xa0", key->commitments.at("Q_1"), "vk.Q1");
+    print_g1("0xc0", "0xe0", key->commitments.at("Q_2"), "vk.Q2");
+    print_g1("0x100", "0x120", key->commitments.at("Q_3"), "vk.Q3");
+    print_g1("0x140", "0x160", key->commitments.at("Q_M"), "vk.QM");
+    print_g1("0x180", "0x1a0", key->commitments.at("Q_C"), "vk.QC");
+    print_g1("0x1c0", "0x1e0", key->commitments.at("SIGMA_1"), "vk.SIGMA1");
+    print_g1("0x200", "0x220", key->commitments.at("SIGMA_2"), "vk.SIGMA2");
+    print_g1("0x240", "0x260", key->commitments.at("SIGMA_3"), "vk.SIGMA3");
     os <<
         "            mstore(add(_vk, 0x280), " << (key->contains_recursive_proof ? "0x01" : "0x00") << ") // vk.contains_recursive_proof\n"
         "            mstore(add(_vk, 0x2a0), " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ") // vk.recursive_proof_public_input_indices\n"

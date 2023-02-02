@@ -72,7 +72,7 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
 
 /**
  * @brief Computes the verification key by computing the:
- * (1) commitments to the selector polynomials,
+ * (1) commitments to the selector, permutation, and lagrange (first/last) polynomials,
  * (2) sets the polynomial manifest using the data from proving key.
  */
 
@@ -87,37 +87,23 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
     auto commitment_key = pcs::kzg::CommitmentKey(proving_key->n, "../srs_db/ignition");
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
-        const auto& selector_poly_info = proving_key->polynomial_manifest[i];
+        const auto& poly_info = proving_key->polynomial_manifest[i];
 
-        const std::string selector_poly_label(selector_poly_info.polynomial_label);
-        const std::string selector_commitment_label(selector_poly_info.commitment_label);
+        const std::string poly_label(poly_info.polynomial_label);
+        const std::string selector_commitment_label(poly_info.commitment_label);
 
-        if (selector_poly_info.source == waffle::PolynomialSource::SELECTOR) {
-            // Fetch the constraint selector polynomial in its vector form.
+        if (poly_info.source == waffle::PolynomialSource::SELECTOR ||
+            poly_info.source == waffle::PolynomialSource::PERMUTATION ||
+            poly_info.source == waffle::PolynomialSource::OTHER) {
+            // Fetch the polynomial in its vector form.
 
-            fr* selector_poly_coefficients;
-            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
+            fr* poly_coefficients;
+            poly_coefficients = proving_key->polynomial_cache.get(poly_label).get_coefficients();
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
 
-            auto selector_poly_commitment = commitment_key.commit({ selector_poly_coefficients, proving_key->n });
-            circuit_verification_key->constraint_selectors.insert(
-                { selector_commitment_label, selector_poly_commitment });
-            // TODO(luke): Adding commitments to polys with label OTHER to 'permutation_selectors' for now. In the
-            // future the Verifier should have a single std::map called 'commitments' and this will store, um.. all the
-            // commitments.
-        } else if (selector_poly_info.source == waffle::PolynomialSource::PERMUTATION ||
-                   selector_poly_info.source == waffle::PolynomialSource::OTHER) {
-            // Fetch the permutation selector polynomial in its coefficient form.
-            fr* selector_poly_coefficients;
-            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
-
-            // Commit to the permutation selector polynomial insert the commitment in the verification key.
-
-            auto selector_poly_commitment = commitment_key.commit({ selector_poly_coefficients, proving_key->n });
-
-            circuit_verification_key->permutation_selectors.insert(
-                { selector_commitment_label, selector_poly_commitment });
+            auto poly_commitment = commitment_key.commit({ poly_coefficients, proving_key->n });
+            circuit_verification_key->commitments.insert({ selector_commitment_label, poly_commitment });
         }
     }
 

@@ -11,8 +11,7 @@ struct verification_key_data {
     uint32_t composer_type;
     uint32_t n;
     uint32_t num_public_inputs;
-    std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
-    std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
+    std::map<std::string, barretenberg::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
 };
@@ -23,8 +22,7 @@ template <typename B> inline void read(B& buf, verification_key_data& key)
     read(buf, key.composer_type);
     read(buf, key.n);
     read(buf, key.num_public_inputs);
-    read(buf, key.constraint_selectors);
-    read(buf, key.permutation_selectors);
+    read(buf, key.commitments);
     read(buf, key.contains_recursive_proof);
     read(buf, key.recursive_proof_public_input_indices);
 }
@@ -35,8 +33,7 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
     write(buf, key.composer_type);
     write(buf, key.n);
     write(buf, key.num_public_inputs);
-    write(buf, key.constraint_selectors);
-    write(buf, key.permutation_selectors);
+    write(buf, key.commitments);
     write(buf, key.contains_recursive_proof);
     write(buf, key.recursive_proof_public_input_indices);
 }
@@ -44,8 +41,7 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
 {
     return lhs.composer_type == rhs.composer_type && lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
-           lhs.constraint_selectors == rhs.constraint_selectors &&
-           lhs.permutation_selectors == rhs.permutation_selectors;
+           lhs.commitments == rhs.commitments;
 }
 
 struct verification_key {
@@ -71,9 +67,7 @@ struct verification_key {
 
     std::shared_ptr<VerifierReferenceString> reference_string;
 
-    std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
-
-    std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
+    std::map<std::string, barretenberg::g1::affine_element> commitments;
 
     PolynomialManifest polynomial_manifest;
 
@@ -92,8 +86,7 @@ template <typename B> inline void write(B& buf, verification_key const& key)
     write(buf, key.composer_type);
     write(buf, static_cast<uint32_t>(key.n));
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
-    write(buf, key.constraint_selectors);
-    write(buf, key.permutation_selectors);
+    write(buf, key.commitments);
     write(buf, key.contains_recursive_proof);
     write(buf, key.recursive_proof_public_input_indices);
 }

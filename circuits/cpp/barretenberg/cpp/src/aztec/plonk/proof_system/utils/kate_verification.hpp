@@ -77,13 +77,9 @@ void populate_kate_element_map(verification_key* key,
             kate_g1_elements.insert({ label, element });
             break;
         }
-        case PolynomialSource::SELECTOR: {
-            const auto element = key->constraint_selectors.at(label);
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
+        case PolynomialSource::SELECTOR:
         case PolynomialSource::PERMUTATION: {
-            const auto element = key->permutation_selectors.at(label);
+            const auto element = key->commitments.at(label);
             kate_g1_elements.insert({ label, element });
             break;
         }
@@ -140,21 +136,21 @@ inline void print_turbo_verification_key(verification_key* key)
     print_fr("work_root", key->domain.root);
     print_fr("domain_inverse", key->domain.domain_inverse);
     print_fr("work_root_inverse", key->domain.root_inverse);
-    print_g1("Q1", key->constraint_selectors.at("Q_1"));
-    print_g1("Q2", key->constraint_selectors.at("Q_2"));
-    print_g1("Q3", key->constraint_selectors.at("Q_3"));
-    print_g1("Q4", key->constraint_selectors.at("Q_4"));
-    print_g1("Q5", key->constraint_selectors.at("Q_5"));
-    print_g1("QM", key->constraint_selectors.at("Q_M"));
-    print_g1("QC", key->constraint_selectors.at("Q_C"));
-    print_g1("QARITH", key->constraint_selectors.at("Q_ARITHMETIC"));
-    print_g1("QFIXEDBASE", key->constraint_selectors.at("Q_FIXED_BASE"));
-    print_g1("QRANGE", key->constraint_selectors.at("Q_RANGE"));
-    print_g1("QLOGIC", key->constraint_selectors.at("Q_LOGIC"));
-    print_g1("sigma_commitments[0]", key->permutation_selectors.at("SIGMA_1"));
-    print_g1("sigma_commitments[1]", key->permutation_selectors.at("SIGMA_2"));
-    print_g1("sigma_commitments[2]", key->permutation_selectors.at("SIGMA_3"));
-    print_g1("sigma_commitments[3]", key->permutation_selectors.at("SIGMA_4"));
+    print_g1("Q1", key->commitments.at("Q_1"));
+    print_g1("Q2", key->commitments.at("Q_2"));
+    print_g1("Q3", key->commitments.at("Q_3"));
+    print_g1("Q4", key->commitments.at("Q_4"));
+    print_g1("Q5", key->commitments.at("Q_5"));
+    print_g1("QM", key->commitments.at("Q_M"));
+    print_g1("QC", key->commitments.at("Q_C"));
+    print_g1("QARITH", key->commitments.at("Q_ARITHMETIC"));
+    print_g1("QFIXEDBASE", key->commitments.at("Q_FIXED_BASE"));
+    print_g1("QRANGE", key->commitments.at("Q_RANGE"));
+    print_g1("QLOGIC", key->commitments.at("Q_LOGIC"));
+    print_g1("sigma_commitments[0]", key->commitments.at("SIGMA_1"));
+    print_g1("sigma_commitments[1]", key->commitments.at("SIGMA_2"));
+    print_g1("sigma_commitments[2]", key->commitments.at("SIGMA_3"));
+    print_g1("sigma_commitments[3]", key->commitments.at("SIGMA_4"));
     print_fr("permutation_non_residues[0]", 5);
     print_fr("permutation_non_residues[1]", 6);
     print_fr("permutation_non_residues[2]", 7);

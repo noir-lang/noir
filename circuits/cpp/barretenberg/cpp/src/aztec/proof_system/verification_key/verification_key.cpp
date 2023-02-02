@@ -24,8 +24,7 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
     , num_public_inputs(data.num_public_inputs)
     , domain(n)
     , reference_string(crs)
-    , constraint_selectors(std::move(data.constraint_selectors))
-    , permutation_selectors(std::move(data.permutation_selectors))
+    , commitments(std::move(data.commitments))
     , polynomial_manifest(data.composer_type)
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
@@ -38,8 +37,7 @@ verification_key::verification_key(const verification_key& other)
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
-    , constraint_selectors(other.constraint_selectors)
-    , permutation_selectors(other.permutation_selectors)
+    , commitments(other.commitments)
     , polynomial_manifest(other.polynomial_manifest)
     , contains_recursive_proof(other.contains_recursive_proof)
     , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
@@ -52,8 +50,7 @@ verification_key::verification_key(verification_key&& other)
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
-    , constraint_selectors(other.constraint_selectors)
-    , permutation_selectors(other.permutation_selectors)
+    , commitments(other.commitments)
     , polynomial_manifest(other.polynomial_manifest)
     , contains_recursive_proof(other.contains_recursive_proof)
     , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
@@ -66,8 +63,7 @@ verification_key& verification_key::operator=(verification_key&& other)
     log_n = numeric::get_msb(other.n);
     num_public_inputs = other.num_public_inputs;
     reference_string = std::move(other.reference_string);
-    constraint_selectors = std::move(other.constraint_selectors);
-    permutation_selectors = std::move(other.permutation_selectors);
+    commitments = std::move(other.commitments);
     polynomial_manifest = std::move(other.polynomial_manifest);
     domain = std::move(other.domain);
     contains_recursive_proof = (other.contains_recursive_proof);
@@ -80,11 +76,7 @@ sha256::hash verification_key::sha256_hash()
     std::vector<uint256_t> vk_data;
     vk_data.emplace_back(n);
     vk_data.emplace_back(num_public_inputs);
-    for (auto& commitment_entry : constraint_selectors) {
-        vk_data.emplace_back(commitment_entry.second.x);
-        vk_data.emplace_back(commitment_entry.second.y);
-    }
-    for (auto& commitment_entry : permutation_selectors) {
+    for (auto& commitment_entry : commitments) {
         vk_data.emplace_back(commitment_entry.second.x);
         vk_data.emplace_back(commitment_entry.second.y);
     }

@@ -11,10 +11,10 @@ TEST(verification_key, buffer_serialization)
     key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
     key.n = 1234;
     key.num_public_inputs = 10;
-    key.constraint_selectors["test1"] = g1::element::random_element();
-    key.constraint_selectors["test2"] = g1::element::random_element();
-    key.permutation_selectors["foo1"] = g1::element::random_element();
-    key.permutation_selectors["foo2"] = g1::element::random_element();
+    key.commitments["test1"] = g1::element::random_element();
+    key.commitments["test2"] = g1::element::random_element();
+    key.commitments["foo1"] = g1::element::random_element();
+    key.commitments["foo2"] = g1::element::random_element();
 
     auto buf = to_buffer(key);
     auto result = from_buffer<verification_key_data>(buf);
@@ -28,10 +28,10 @@ TEST(verification_key, stream_serialization)
     key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
     key.n = 1234;
     key.num_public_inputs = 10;
-    key.constraint_selectors["test1"] = g1::element::random_element();
-    key.constraint_selectors["test2"] = g1::element::random_element();
-    key.permutation_selectors["foo1"] = g1::element::random_element();
-    key.permutation_selectors["foo2"] = g1::element::random_element();
+    key.commitments["test1"] = g1::element::random_element();
+    key.commitments["test2"] = g1::element::random_element();
+    key.commitments["foo1"] = g1::element::random_element();
+    key.commitments["foo2"] = g1::element::random_element();
 
     std::stringstream s;
     write(s, key);

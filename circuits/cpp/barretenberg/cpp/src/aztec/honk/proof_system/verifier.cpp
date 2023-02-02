@@ -180,15 +180,10 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
             commitment = transcript.get_group_element(commitment_label);
             break;
         }
-        case waffle::SELECTOR: {
-            commitment = key->constraint_selectors[commitment_label];
-            break;
-        }
-        // Note(luke): polys with label PERMUTATION and OTHER are both stored in 'permutation_selectors'. See
-        // 'compute_verification_key_base'.
+        case waffle::SELECTOR:
         case waffle::PERMUTATION:
         case waffle::OTHER: {
-            commitment = key->permutation_selectors[commitment_label];
+            commitment = key->commitments[commitment_label];
             break;
         }
         }

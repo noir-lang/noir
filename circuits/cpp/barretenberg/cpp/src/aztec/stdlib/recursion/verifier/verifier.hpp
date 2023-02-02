@@ -74,30 +74,17 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
         }
-        case waffle::PolynomialSource::SELECTOR: {
-            const auto element = key->constraint_selectors.at(label);
-            // TODO: with user-defined circuits, we will need verify that the point
-            // lies on the curve with constraints
-            if (!element.get_value().on_curve()) {
-                std::cerr << label << " constraint selector not on curve!" << std::endl;
-            }
-            if (element.get_value().is_point_at_infinity()) {
-                std::cerr << label << " constraint selector is point at infinity! Error!" << std::endl;
-                ctx->failure("constraint selector " + label + " is point at infinity");
-            }
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
+        case waffle::PolynomialSource::SELECTOR:
         case waffle::PolynomialSource::PERMUTATION: {
-            const auto element = key->permutation_selectors.at(label);
+            const auto element = key->commitments.at(label);
             // TODO: with user-defined circuits, we will need verify that the point
             // lies on the curve with constraints
             if (!element.get_value().on_curve()) {
-                std::cerr << label << " permutation selector not on curve!" << std::endl;
+                std::cerr << label << " commitment not on curve!" << std::endl;
             }
             if (element.get_value().is_point_at_infinity()) {
-                std::cerr << label << " permutation selector is point at infinity! Error!" << std::endl;
-                ctx->failure("permutation selector " + label + " is point at infinity");
+                std::cerr << label << " commitment is point at infinity! Error!" << std::endl;
+                ctx->failure("commitment " + label + " is point at infinity");
             }
             kate_g1_elements.insert({ label, element });
             break;

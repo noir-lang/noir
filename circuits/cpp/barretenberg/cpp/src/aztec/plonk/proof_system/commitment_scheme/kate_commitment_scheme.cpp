@@ -284,23 +284,14 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
             kate_g1_elements.insert({ label, element });
             break;
         }
-        case PolynomialSource::SELECTOR: {
-            // add [qL]_1, [qR]_1, [qM]_1, [qC]_1, [qO]_1 to the group elements' vector
-            const auto element = input_key->constraint_selectors.at(label);
+        case PolynomialSource::SELECTOR:
+        case PolynomialSource::PERMUTATION: {
+            // add [qL]_1, [qR]_1, [qM]_1, [qC]_1, [qO]_1, [\sigma_1]_1, [\sigma_2]_1, [\sigma_3]_1 to the commitments
+            // map.
+            const auto element = input_key->commitments.at(label);
             // selectors can be all zeros so infinity point is valid
             if (!element.on_curve()) {
                 throw_or_abort("polynomial commitment to selector is not a valid point.");
-            }
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
-        case PolynomialSource::PERMUTATION: {
-
-            // add [\sigma_1]_1, [\sigma_2]_1, [\sigma_3]_1 to the group elements' vector
-            const auto element = input_key->permutation_selectors.at(label);
-            // selectors can be all zeros so infinity point is valid
-            if (!element.on_curve()) {
-                throw_or_abort("polynomial commitment to permutation selector is not a valid point.");
             }
             kate_g1_elements.insert({ label, element });
             break;

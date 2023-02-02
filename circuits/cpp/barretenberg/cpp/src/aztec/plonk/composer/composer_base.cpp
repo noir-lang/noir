@@ -305,7 +305,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const waffle
 
 /**
  * @brief Computes the verification key by computing the:
- * (1) commitments to the selector polynomials,
+ * (1) commitments to the selector and permutation polynomials,
  * (2) sets the polynomial manifest using the data from proving key.
  */
 std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
@@ -320,7 +320,8 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
         const std::string selector_poly_label(selector_poly_info.polynomial_label);
         const std::string selector_commitment_label(selector_poly_info.commitment_label);
 
-        if (selector_poly_info.source == PolynomialSource::SELECTOR) {
+        if (selector_poly_info.source == PolynomialSource::SELECTOR ||
+            selector_poly_info.source == PolynomialSource::PERMUTATION) {
             // Fetch the constraint selector polynomial in its coefficient form.
             fr* selector_poly_coefficients;
             selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
@@ -332,23 +333,7 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
                                                                     proving_key->n,
                                                                     proving_key->pippenger_runtime_state));
 
-            circuit_verification_key->constraint_selectors.insert(
-                { selector_commitment_label, selector_poly_commitment });
-
-        } else if (selector_poly_info.source == PolynomialSource::PERMUTATION) {
-            // Fetch the permutation selector polynomial in its coefficient form.
-            fr* selector_poly_coefficients;
-            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
-
-            // Commit to the permutation selector polynomial insert the commitment in the verification key.
-            auto selector_poly_commitment =
-                g1::affine_element(scalar_multiplication::pippenger(selector_poly_coefficients,
-                                                                    proving_key->reference_string->get_monomials(),
-                                                                    proving_key->n,
-                                                                    proving_key->pippenger_runtime_state));
-
-            circuit_verification_key->permutation_selectors.insert(
-                { selector_commitment_label, selector_poly_commitment });
+            circuit_verification_key->commitments.insert({ selector_commitment_label, selector_poly_commitment });
         }
     }
 
