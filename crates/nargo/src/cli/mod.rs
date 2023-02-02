@@ -169,7 +169,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
         dir_path
     };
 
-    let serialized_output = format.serialise(w_map)?;
+    let serialized_output = format.serialize(w_map)?;
     write_to_file(serialized_output.as_bytes(), &file_path);
 
     Ok(())

@@ -3,7 +3,6 @@
     "words": [
         // Spelling mistakes -- This includes using the english spelling
         // of words over the american spelling.
-        "serialise",
         "usefull",
         "perfom",
         "occurences",
@@ -105,7 +104,6 @@
         "elems",
         "bindgen",
         "gloo",
-        "deserialises",
         "plonkc",
         "virtualise",
         "tempfile",
