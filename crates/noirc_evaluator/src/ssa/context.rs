@@ -812,7 +812,7 @@ impl SsaContext {
     // For instance:
     // - if lhs and rhs are standard variables, we create a new ssa variable of lhs
     // - if lhs is an array element, we generate a store instruction
-    // - if lhs and rhs are arrays, we perfom a copy of rhs into lhs,
+    // - if lhs and rhs are arrays, we perform a copy of rhs into lhs,
     // - if lhs is an array and rhs is a call instruction, we indicate in the call that lhs is the returned array (so that no copy is needed because the inlining will use it)
     // ...
     pub fn handle_assign(
