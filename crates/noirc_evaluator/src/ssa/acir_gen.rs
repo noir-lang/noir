@@ -1079,7 +1079,7 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
 
     let mut output = Expression::from_field(a.q_c * b.q_c);
 
-    //TODO to optimise...
+    //TODO to optimize...
     for lc in &a.linear_combinations {
         let single = single_mul(lc.1, b);
         output = add(&output, lc.0, &single);

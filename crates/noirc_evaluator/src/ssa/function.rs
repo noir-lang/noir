@@ -64,7 +64,7 @@ impl SSAFunction {
     pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &igen.context);
         block::compute_sub_dom(&mut igen.context, &function_cfg);
-        //Optimisation
+        //Optimization
         //catch the error because the function may not be called
         super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
         //Unrolling

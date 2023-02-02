@@ -24,9 +24,9 @@ pub struct Evaluator {
     opcodes: Vec<AcirOpcode>,
 }
 
-/// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
+/// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 // XXX: We return the num_witnesses, but this is the max number of witnesses
-// Some of these could have been removed due to optimisations. We need this number because the
+// Some of these could have been removed due to optimizations. We need this number because the
 // Standard format requires the number of witnesses. The max number is also fine.
 // If we had a composer object, we would not need it
 pub fn create_circuit(
@@ -42,7 +42,7 @@ pub fn create_circuit(
 
     let witness_index = evaluator.current_witness_index();
 
-    let optimised_circuit = acvm::compiler::compile(
+    let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
@@ -53,7 +53,7 @@ pub fn create_circuit(
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
-    Ok(optimised_circuit)
+    Ok(optimized_circuit)
 }
 
 impl Evaluator {

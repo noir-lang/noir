@@ -261,7 +261,7 @@ fn block_overflow(
             get_value_from_map(id, &value_map)
         });
 
-        //we propagate optimised loads - todo check if it is needed because there is cse at the end
+        //we propagate optimized loads - todo check if it is needed because there is cse at the end
         //We retrieve get_current_value() in case a previous truncate has updated the value map
         let should_truncate_ins = ins.truncate_required(ctx);
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
@@ -284,14 +284,14 @@ fn block_overflow(
         match ins.operation {
             Operation::Load { array_id, index } => {
                 if let Some(val) = ctx.get_indexed_value(array_id, index) {
-                    //optimise static load
+                    //optimize static load
                     ins.mark = Mark::ReplaceWith(*val);
                 }
             }
             Operation::Store { array_id, index, value } => {
                 if let Some(idx) = Memory::to_u32(ctx, index) {
                     let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
-                    //optimise static store
+                    //optimize static store
                     memory_map.insert(absolute_adr, value);
                 }
             }

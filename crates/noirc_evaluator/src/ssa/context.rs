@@ -689,7 +689,7 @@ impl SsaContext {
         }
     }
 
-    //Optimise, flatten and truncate IR and then generates ACIR representation from it
+    //Optimize, flatten and truncate IR and then generates ACIR representation from it
     pub fn ir_to_acir(
         &mut self,
         evaluator: &mut Evaluator,
@@ -699,7 +699,7 @@ impl SsaContext {
         self.log(enable_logging, "SSA:", "\ninline functions");
         function::inline_all(self)?;
 
-        //Optimisation
+        //Optimization
         block::compute_dom(self);
         optim::full_cse(self, self.first_block, false)?;
 

@@ -338,7 +338,7 @@ impl DecisionTree {
         if_block_id: BlockId,
         exit_block_id: BlockId,
     ) -> Result<(), RuntimeError> {
-        //basic reduction as a first step (i.e no optimisation)
+        //basic reduction as a first step (i.e no optimization)
         let if_block = &ctx[if_block_id];
         let mut to_remove = Vec::new();
         let left = if_block.left.unwrap();
