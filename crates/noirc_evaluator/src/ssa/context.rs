@@ -844,7 +844,7 @@ impl SsaContext {
             }) = self.try_get_mut_instruction(func)
             {
                 returned_arrays.push((a, idx));
-                //Issue #579: we initialise the array, unless it is also in arguments in which case it is already initialised.
+                //Issue #579: we initialize the array, unless it is also in arguments in which case it is already initialized.
                 let mut init = false;
                 for i in arguments.clone() {
                     if let ObjectType::Pointer(b) = self.get_object_type(i) {

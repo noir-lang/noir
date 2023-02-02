@@ -213,7 +213,7 @@ impl Acir {
                     if self.memory_map.contains_key(&absolute_adr) {
                         InternalVar::from(self.memory_map[&absolute_adr].expression.clone())
                     } else {
-                        //if not found, then it must be a witness (else it is non-initialised memory)
+                        //if not found, then it must be a witness (else it is non-initialized memory)
                         let index = idx as usize;
                         if mem_array.values.len() > index {
                             mem_array.values[index].clone()
