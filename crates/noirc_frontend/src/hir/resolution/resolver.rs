@@ -878,7 +878,7 @@ impl<'a> Resolver<'a> {
         let id = self.resolve_path(path)?;
 
         if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported lowlevel opcode. If so, replace it with
+            // Check if this is an unsupported low level opcode. If so, replace it with
             // an alternative in the stdlib.
             if let Some(meta) = self.interner.try_function_meta(&function) {
                 if meta.kind == crate::FunctionKind::LowLevel {

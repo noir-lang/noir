@@ -248,7 +248,7 @@ impl IRGenerator {
                 }
                 Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
                     let opcode = builtin::Opcode::lookup(opcode).unwrap_or_else(|| {
-                        unreachable!("Unknown builtin/lowlevel opcode '{}'", opcode)
+                        unreachable!("Unknown builtin/low level opcode '{}'", opcode)
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Single(function_node_id))
