@@ -7,7 +7,7 @@ use noirc_frontend::node_interner::FuncId;
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, prove_cmd::parse_and_solve_witness};
+use super::add_std_lib;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
@@ -58,31 +58,16 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
     Ok(())
 }
 
-type Proof = Vec<u8>;
-
 fn prove(
     test_name: &str,
     main: FuncId,
     driver: &Driver,
     allow_warnings: bool,
-) -> Result<(CompiledProgram, Proof), CliError> {
+) -> Result<CompiledProgram, CliError> {
     let backend = crate::backends::ConcreteBackend;
     let language = backend.np_language();
-    let program_dir = std::env::current_dir().unwrap();
 
-    let program = driver
+    driver
         .compile_no_check(language, false, allow_warnings, Some(main))
-        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
-
-    let solved_witness = parse_and_solve_witness(program_dir, &program)?;
-
-    let proof = backend.prove_with_meta(program.circuit.clone(), solved_witness);
-    Ok((program, proof))
+        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))
 }
-
-// PR review question:
-// Do we really need to run verify_proof for tests? There are no inputs so all constraints
-// should be either always false or always true and caught during proving.
-// fn verify(compiled_program: CompiledProgram, proof: Proof) -> Result<bool, CliError> {
-//     verify_proof(compiled_program, BTreeMap::new(), proof)
-// }
