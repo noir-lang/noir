@@ -687,7 +687,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        if let Some(binding) = self.get_inner_typevariable() {
+        if let Some(binding) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var),
                 // Don't recursively bind the same id to itself
@@ -706,7 +706,7 @@ impl Type {
         }
     }
 
-    fn get_inner_typevariable(&self) -> Option<Shared<TypeBinding>> {
+    fn get_inner_type_variable(&self) -> Option<Shared<TypeBinding>> {
         match self {
             Type::PolymorphicInteger(_, var)
             | Type::TypeVariable(var)
