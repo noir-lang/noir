@@ -60,14 +60,13 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     const auto& new_commitments = private_call_public_inputs.new_commitments;
     const auto& new_nullifiers = private_call_public_inputs.new_nullifiers;
 
-    const auto& is_static_call = private_inputs.private_call.call_stack_item.public_inputs.call_context.is_static_call;
+    const auto& is_static_call = private_call_public_inputs.call_context.is_static_call;
 
     // No state changes are allowed for static calls:
     is_static_call.must_imply(is_array_empty<Composer>(new_commitments) == true);
     is_static_call.must_imply(is_array_empty<Composer>(new_nullifiers) == true);
 
-    const auto& storage_contract_address =
-        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+    const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
 
     { // commitments & nullifiers
         std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
@@ -91,32 +90,24 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
         push_array_to_array<Composer>(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
     }
 
-    {
-        // TODO: we need to pass in UNPACKED stack data. I.e. the preimages of the call_stack_item hashes, so that data
-        // in the stack can be validated as being correct. (e.g. call_contexts of calls made by the private_call
-        // currently being validated).
-
-        // So we'll need to ensure our test_apps return not only a PrivateCircuitPublicInputs object, but also an object
-        // containing a TONNE of preimage data. Stuff like:
-        // - Stack item preimages
-        // - Commitment and nullifier preimages
-        // - Hash paths and leaf indices
-        // - Any and all preimage data derived by the circuit or through oracle calls.
+    { // call stacks
+        auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
+        push_array_to_array<Composer>(this_private_call_stack, public_inputs.end.private_call_stack);
     }
 
-    const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
+    // const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
 
-    {
-        const auto& l1_msg_stack = private_call_public_inputs.l1_msg_stack;
-        std::array<CT::fr, L1_MSG_STACK_LENGTH> l1_call_stack;
+    // {
+    //     const auto& l1_msg_stack = private_call_public_inputs.l1_msg_stack;
+    //     std::array<CT::fr, L1_MSG_STACK_LENGTH> l1_call_stack;
 
-        for (size_t i = 0; i < l1_msg_stack.size(); ++i) {
-            l1_call_stack[i] = CT::fr::conditional_assign(
-                l1_msg_stack[i] == 0,
-                0,
-                CT::compress({ portal_contract_address, l1_msg_stack[i] }, GeneratorIndex::L1_CALL_STACK_ITEM));
-        }
-    }
+    //     for (size_t i = 0; i < l1_msg_stack.size(); ++i) {
+    //         l1_call_stack[i] = CT::fr::conditional_assign(
+    //             l1_msg_stack[i] == 0,
+    //             0,
+    //             CT::compress({ portal_contract_address, l1_msg_stack[i] }, GeneratorIndex::L1_MSG_STACK_ITEM));
+    //     }
+    // }
 }
 
 void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
@@ -222,7 +213,7 @@ void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _privat
 
     validate_this_private_call_stack(private_inputs);
 
-    // update_end_values(private_inputs, public_inputs);
+    update_end_values(private_inputs, public_inputs);
 
     auto aggregation_object = verify_proofs(composer,
                                             private_inputs,

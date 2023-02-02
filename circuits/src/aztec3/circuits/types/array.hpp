@@ -133,24 +133,45 @@ void push_array_to_array(std::array<typename CircuitTypes<Composer>::fr, size_1>
     typedef typename CT::fr fr;
     typedef typename CT::boolean boolean;
 
+    // TODO: inefficient to get length this way within this function. Probably best to inline the checks that we need
+    // into the below loops directly.
     fr target_length = array_length<Composer>(target);
-    // fr source_length = array_length<Composer>(source);
-
+    fr source_length = array_length<Composer>(source);
     fr target_capacity = fr(target.size());
+    const fr overflow_capacity = target_capacity + 1;
+
     // TODO: using safe_fr for an underflow check, do:
     // remaining_target_capacity = target_capacity.subtract(target_length + source_length);
 
-    fr t_i = 0;
-    fr next_index = target_length;
-    for (const auto& s : source) {
-        for (auto& t : target) {
-            next_index.assert_not_equal(target_capacity, "Target array capacity exceeded");
-            boolean at_index = t_i == next_index;
-            t = fr::conditional_assign(at_index, s, t);
-            next_index = fr::conditional_assign(at_index, next_index + 1, next_index);
-            ++t_i;
+    ASSERT(target_capacity.get_value() + 1 > target_length.get_value() + source_length.get_value());
+
+    info("source: ", source);
+    info("target before: ", target);
+
+    fr j_ct = 0; // circuit-type index for the inner loop
+    fr next_target_index = target_length;
+    for (size_t i = 0; i < source.size(); ++i) {
+        auto& s = source[i];
+
+        // Triangular loop:
+        for (size_t j = i; j < target.size() - source.size() + i + 1; ++j) {
+            auto& t = target[j];
+
+            boolean at_next_index = j_ct == next_target_index;
+
+            t = fr::conditional_assign(at_next_index, s, t);
+
+            j_ct++;
         }
+
+        next_target_index++;
+
+        next_target_index.assert_not_equal(overflow_capacity, "Target array capacity exceeded");
+
+        j_ct = i + 1;
     }
+
+    info("target after: ", target);
 }
 
 } // namespace aztec3::circuits::types

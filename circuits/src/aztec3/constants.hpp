@@ -46,8 +46,7 @@ enum GeneratorIndex {
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALL_STACK_ITEM_2, // see function where it's used for explanation
-    PARTIAL_L1_CALL_STACK_ITEM,
-    L1_CALL_STACK_ITEM,
+    L1_MSG_STACK_ITEM,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
 };
