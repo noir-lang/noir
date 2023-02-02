@@ -13,7 +13,7 @@ use std::convert::TryInto;
 pub struct Memory {
     arrays: Vec<MemArray>,
     pub last_adr: u32,                    //last address in 'memory'
-    pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
+    pub memory_map: HashMap<u32, NodeId>, //maps memory address to expression
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

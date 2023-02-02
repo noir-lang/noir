@@ -25,7 +25,7 @@ use num_bigint::BigUint;
 #[derive(Default)]
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
-    pub memory_map: HashMap<u32, InternalVar>, //maps memory adress to expression
+    pub memory_map: HashMap<u32, InternalVar>, //maps memory address to expression
 }
 
 #[derive(Default, Clone, Debug)]
