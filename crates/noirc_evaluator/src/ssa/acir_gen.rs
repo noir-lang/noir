@@ -483,7 +483,7 @@ impl Acir {
     }
 
     //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
-    //N.b. We assumes the lenghts of a and b are the same but it is not checked inside the function.
+    //N.b. We assumes the lengths of a and b are the same but it is not checked inside the function.
     fn zero_eq_array_sum(
         &mut self,
         a: &MemArray,
