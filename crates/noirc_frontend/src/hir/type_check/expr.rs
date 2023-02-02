@@ -31,16 +31,13 @@ pub(crate) fn type_check_expression(
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    // Type check the contents of the array
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                    // Specify the type of the Array
-                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.len() as u64)),
+                        Box::new(Type::Constant(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -72,7 +69,8 @@ pub(crate) fn type_check_expression(
                     )
                 }
                 HirLiteral::Str(string) => {
-                    Type::String(Box::new(Type::ArrayLength(string.len() as u64)))
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
                 }
             }
         }
@@ -783,7 +781,7 @@ pub fn comparator_operand_type_rules(
 
             x_size.unify(y_size, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
-                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size}"),
                     span: op.location.span,
                 }
             });

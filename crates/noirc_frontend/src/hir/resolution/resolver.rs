@@ -40,7 +40,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeVariable, UnresolvedType, ERROR_IDENT,
+    TypeBinding, TypeVariable, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -303,6 +303,7 @@ impl<'a> Resolver<'a> {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
+            UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
             UnresolvedType::Bool(comptime) => Type::Bool(comptime),
             UnresolvedType::String(size) => {
@@ -314,7 +315,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Error => Type::Error,
             UnresolvedType::Named(path, args) => {
                 // Check if the path is a type variable first. We currently disallow generics on type
-                // variables since this is what rust does.
+                // variables since we do not support higher-kinded types.
                 if args.is_empty() && path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
                     if let Some((name, (var, _))) = self.generics.get_key_value(name) {
@@ -343,10 +344,10 @@ impl<'a> Resolver<'a> {
 
     fn resolve_array_size(
         &mut self,
-        size: Option<Expression>,
+        length: Option<UnresolvedTypeExpression>,
         new_variables: &mut Generics,
     ) -> Type {
-        match &size {
+        match length {
             None => {
                 let id = self.interner.next_type_variable_id();
                 let typevar = Shared::new(TypeBinding::Unbound(id));
@@ -357,9 +358,47 @@ impl<'a> Resolver<'a> {
                 // require users to explicitly be generic over array lengths.
                 Type::NamedGeneric(typevar, Rc::new("".into()))
             }
-            Some(expr) => {
-                let len = self.eval_array_length(expr);
-                Type::ArrayLength(len)
+            Some(length) => self.convert_expression_type(length),
+        }
+    }
+
+    fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+        match length {
+            UnresolvedTypeExpression::Variable(path) => {
+                if path.segments.len() == 1 {
+                    let name = &path.last_segment().0.contents;
+                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                        return Type::NamedGeneric(var.clone(), name.clone());
+                    }
+                }
+
+                // If we cannot find a local generic of the same name, try to look up a global
+                if let Ok(ModuleDefId::GlobalId(id)) =
+                    self.path_resolver.resolve(self.def_maps, path.clone())
+                {
+                    Type::Constant(self.eval_global_as_array_length(id))
+                } else {
+                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                    Type::Constant(0)
+                }
+            }
+            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs);
+                let rhs = self.convert_expression_type(*rhs);
+
+                match (lhs, rhs) {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        Type::Constant(op.function()(lhs, rhs))
+                    }
+                    (lhs, _) => {
+                        let span =
+                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                        Type::Constant(0)
+                    }
+                }
             }
         }
     }
@@ -921,11 +960,32 @@ impl<'a> Resolver<'a> {
     }
 
     fn eval_array_length(&mut self, length: &Expression) -> u64 {
-        match self.try_eval_array_length(length).map(|length| length.try_into()) {
-            Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span: length.span })
+        let result = self.try_eval_array_length(length);
+        self.unwrap_array_length_eval_result(result, length.span)
+    }
+
+    fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
+        let stmt = match self.interner.statement(&global) {
+            HirStatement::Let(let_expr) => let_expr,
+            other => {
+                unreachable!("Expected global while evaluating array length, found {:?}", other)
             }
+        };
+
+        let length = stmt.expression;
+        let span = self.interner.expr_span(&length);
+        let result = self.try_eval_array_length_id(length, span);
+        self.unwrap_array_length_eval_result(result, span)
+    }
+
+    fn unwrap_array_length_eval_result(
+        &mut self,
+        result: Result<u128, Option<ResolverError>>,
+        span: Span,
+    ) -> u64 {
+        match result.map(|length| length.try_into()) {
+            Ok(Ok(length_value)) => return length_value,
+            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
         }
