@@ -379,7 +379,7 @@ impl Comptime {
             (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             // This is the other differing case between this and Comptime::unify.
-            // If this is polymorphically comptime, dont force it to be non-comptime because it is
+            // If this is polymorphically comptime, don't force it to be non-comptime because it is
             // passed as an argument to a function expecting a non-comptime parameter.
             (Comptime::Maybe(_, binding), Comptime::No(_)) if binding.borrow().is_none() => Ok(()),
 
