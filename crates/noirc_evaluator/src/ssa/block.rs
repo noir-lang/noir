@@ -226,7 +226,7 @@ pub fn link_with_target(
     if let Some(target_block) = ctx.try_get_block_mut(target) {
         target_block.right = right;
         target_block.left = left;
-        //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
+        //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODO should we do it here??
         if let Some(right_uw) = right {
             ctx[right_uw].dominator = Some(target);
         }
