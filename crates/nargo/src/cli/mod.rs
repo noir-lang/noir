@@ -230,7 +230,7 @@ pub(crate) fn dedup_public_input_indices_values(
             Some(expected_value) => {
                 // The index has already been added
                 // so lets check that the values already inserted is equal to the value, we wish to insert
-                assert_eq!(*expected_value, value, "witness index {:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.", index)
+                assert_eq!(*expected_value, value, "witness index {index:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.")
             }
             None => {
                 already_seen_public_indices.insert(*index, value);
