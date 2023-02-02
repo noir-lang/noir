@@ -588,7 +588,7 @@ impl SsaContext {
         None
     }
 
-    // Retrieve the object conresponding to the const value given in argument
+    // Retrieve the object corresponding to the const value given in argument
     // If such object does not exist, we create one
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_be_bytes());
