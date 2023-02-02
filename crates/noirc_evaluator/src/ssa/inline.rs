@@ -21,7 +21,7 @@ use super::{
 
 // Number of allowed times for inlining function calls inside a code block.
 // If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
-// In case of recursive calls, this iterative inlining does not end so we arbitraty limit it. 100 nested calls should already support very complex programs.
+// In case of recursive calls, this iterative inlining does not end so we arbitrarily limit it. 100 nested calls should already support very complex programs.
 const MAX_INLINE_TRIES: u32 = 100;
 
 //inline main
