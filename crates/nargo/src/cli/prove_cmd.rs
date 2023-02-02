@@ -48,15 +48,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let (mut compiled_program, solved_witness) =
+    let (compiled_program, solved_witness) =
         compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
-
-    // Since the public outputs are added into the public inputs list
-    // There can be duplicates. We keep the duplicates for when one is
-    // encoding the return values into the Verifier.toml
-    // However, for creating a proof, we remove these duplicates.
-    compiled_program.circuit.public_inputs =
-        dedup_public_input_indices(compiled_program.circuit.public_inputs);
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
@@ -78,12 +71,20 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     show_ssa: bool,
     allow_unused_variables: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = super::compile_cmd::compile_circuit(
+    let mut compiled_program = super::compile_cmd::compile_circuit(
         program_dir.as_ref(),
         show_ssa,
         allow_unused_variables,
     )?;
     let solved_witness = parse_and_solve_witness(program_dir, &compiled_program)?;
+
+    // Since the public outputs are added into the public inputs list
+    // There can be duplicates. We keep the duplicates for when one is
+    // encoding the return values into the Verifier.toml
+    // However, for creating a proof, we remove these duplicates.
+    compiled_program.circuit.public_inputs =
+        dedup_public_input_indices(compiled_program.circuit.public_inputs);
+
     Ok((compiled_program, solved_witness))
 }
 
