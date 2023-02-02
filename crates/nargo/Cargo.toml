@@ -29,6 +29,7 @@ termcolor.workspace = true
 hex.workspace = true
 tempdir.workspace = true
 thiserror.workspace = true
+codespan-reporting.workspace = true
 
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }

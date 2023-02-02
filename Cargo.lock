@@ -1692,6 +1692,7 @@ dependencies = [
  "barretenberg_wasm",
  "cfg-if 1.0.0",
  "clap 2.34.0",
+ "codespan-reporting",
  "dirs 4.0.0",
  "fm",
  "hex",

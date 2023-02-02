@@ -4,6 +4,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_driver::{CompiledProgram, Driver};
 use noirc_frontend::node_interner::FuncId;
+use termcolor::{StandardStream, ColorChoice, ColorSpec, WriteColor, Color};
 
 use crate::{errors::CliError, resolver::Resolver};
 
@@ -31,30 +32,42 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
     println!("Running {} test functions...", test_functions.len());
     let mut failing = 0;
 
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let mut writer = writer.lock();
+
     for test_function in test_functions {
         let test_name = driver.function_name(test_function);
-        print!("Testing {test_name}... ");
-        std::io::stdout().flush().ok();
+        write!(writer, "Testing {test_name}... ").expect("Failed to write to stdout");
+        writer.flush().ok();
 
         match prove(test_name, test_function, &driver, allow_warnings) {
-            Ok(_) => println!("ok"),
+            Ok(_) => {
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
+                writeln!(writer, "ok").ok();
+            }
             Err(_) => {
                 // An error likely was printed in the meantime, so this is the start of a newline.
                 // Add an extra newline as well to help separate failing tests.
-                println!("{test_name} failed\n");
+                write!(writer, "{test_name} ").ok();
+                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
+                println!("failed\n");
                 failing += 1;
             }
         }
+        writer.reset().ok();
     }
 
     if failing == 0 {
-        println!("All tests passed");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).unwrap();
+        writeln!(writer, "All tests passed").ok();
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        println!("{failing} test{plural} failed");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
+        writeln!(writer, "{failing} test{plural} failed").ok();
         std::process::exit(1);
     }
 
+    writer.reset().ok();
     Ok(())
 }
 
