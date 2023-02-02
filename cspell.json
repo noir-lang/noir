@@ -30,7 +30,6 @@
         "rtype",
         "optim",
         "optype",
-        "bitsize",
         "curr",
         "coef",
         "lowlevel",

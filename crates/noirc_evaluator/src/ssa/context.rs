@@ -196,7 +196,7 @@ impl SsaContext {
             Operation::Cast(value) => format!("cast {}", self.id_to_string(*value)),
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 format!(
-                    "truncate {}, bitsize = {bit_size}, max bitsize = {max_bit_size}",
+                    "truncate {}, bit size = {bit_size}, max bit size = {max_bit_size}",
                     self.id_to_string(*value),
                 )
             }
