@@ -113,7 +113,7 @@ void UltraComposer::create_add_gate(const add_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -145,7 +145,7 @@ void UltraComposer::create_big_add_gate(const add_quad& in, const bool include_n
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -238,7 +238,7 @@ void UltraComposer::create_big_mul_gate(const mul_quad& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 // Creates a width-4 addition gate, where the fourth witness must be a boolean.
@@ -264,7 +264,7 @@ void UltraComposer::create_balanced_add_gate(const add_quad& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
     // Why 3? TODO: return to this
     create_new_range_constraint(in.d, 3);
 }
@@ -296,7 +296,7 @@ void UltraComposer::create_mul_gate(const mul_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 /**
  * @brief Generate an arithmetic gate equivalent to x^2 - x = 0, which forces x to be 0 or 1
@@ -325,7 +325,7 @@ void UltraComposer::create_bool_gate(const uint32_t variable_index)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -355,7 +355,7 @@ void UltraComposer::create_poly_gate(const poly_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 // adds a grumpkin point, from a 2-bit lookup table, into an accumulator point
@@ -382,7 +382,7 @@ void UltraComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
     q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 // adds a grumpkin point into an accumulator, while also initializing the accumulator
@@ -413,7 +413,7 @@ void UltraComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
     q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
 
-    ++n;
+    ++num_gates;
 }
 
 void UltraComposer::create_fixed_group_add_gate_final(const add_quad& in)
@@ -445,19 +445,19 @@ void UltraComposer::create_ecc_add_gate(const ecc_add_gate& in)
     assert_valid_variables({ in.x1, in.x2, in.x3, in.y1, in.y2, in.y3 });
 
     bool can_fuse_into_previous_gate = true;
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[n - 1] == in.x1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[n - 1] == in.y1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[n - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[n - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_1[n - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[num_gates - 1] == in.x1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[num_gates - 1] == in.y1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_1[num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[num_gates - 1] == 0);
 
     if (can_fuse_into_previous_gate) {
 
-        q_3[n - 1] = in.endomorphism_coefficient;
-        q_4[n - 1] = in.endomorphism_coefficient.sqr();
-        q_1[n - 1] = in.sign_coefficient;
-        q_elliptic[n - 1] = 1;
+        q_3[num_gates - 1] = in.endomorphism_coefficient;
+        q_4[num_gates - 1] = in.endomorphism_coefficient.sqr();
+        q_1[num_gates - 1] = in.sign_coefficient;
+        q_elliptic[num_gates - 1] = 1;
     } else {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(in.x1);
@@ -476,7 +476,7 @@ void UltraComposer::create_ecc_add_gate(const ecc_add_gate& in)
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(1);
         q_aux.emplace_back(0);
-        ++n;
+        ++num_gates;
     }
 
     w_l.emplace_back(in.x2);
@@ -495,7 +495,7 @@ void UltraComposer::create_ecc_add_gate(const ecc_add_gate& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -525,7 +525,7 @@ void UltraComposer::fix_witness(const uint32_t witness_index, const barretenberg
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++n;
+    ++num_gates;
 }
 
 uint32_t UltraComposer::put_constant_variable(const barretenberg::fr& variable)
@@ -548,7 +548,7 @@ void UltraComposer::add_table_column_selector_poly_to_proving_key(polynomial& se
     selector_poly_lagrange_form.ifft(circuit_proving_key->small_domain);
     auto& selector_poly_coeff_form = selector_poly_lagrange_form;
 
-    polynomial selector_poly_coset_form(selector_poly_coeff_form, circuit_proving_key->n * 4);
+    polynomial selector_poly_coset_form(selector_poly_coeff_form, circuit_proving_key->circuit_size * 4);
     selector_poly_coset_form.coset_fft(circuit_proving_key->large_domain);
 
     circuit_proving_key->polynomial_cache.put(tag, std::move(selector_poly_coeff_form));
@@ -572,10 +572,10 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
      *  1. ComposerBase::n => refers to the size of the witness of a given program,
      *  2. proving_key::n => the next power of two ≥ total witness size.
      *
-     * In this case, we have composer.n = n_computation before we execute the following two functions.
+     * In this case, we have composer.num_gates = n_computation before we execute the following two functions.
      * After these functions are executed, the composer's `n` is incremented to include the ROM
      * and range list gates. Therefore we have:
-     * composer.n = n_computation + n_rom + n_range.
+     * composer.num_gates = n_computation + n_rom + n_range.
      *
      * Its necessary to include the (n_rom + n_range) gates at this point because if we already have a
      * proving key, and we just return it without including these ROM and range list gates, the overall
@@ -594,18 +594,18 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
         return circuit_proving_key;
     }
 
-    ASSERT(n == q_m.size());
-    ASSERT(n == q_c.size());
-    ASSERT(n == q_1.size());
-    ASSERT(n == q_2.size());
-    ASSERT(n == q_3.size());
-    ASSERT(n == q_4.size());
-    ASSERT(n == q_arith.size());
-    ASSERT(n == q_fixed_base.size());
-    ASSERT(n == q_elliptic.size());
-    ASSERT(n == q_sort.size());
-    ASSERT(n == q_lookup_type.size());
-    ASSERT(n == q_aux.size());
+    ASSERT(num_gates == q_m.size());
+    ASSERT(num_gates == q_c.size());
+    ASSERT(num_gates == q_1.size());
+    ASSERT(num_gates == q_2.size());
+    ASSERT(num_gates == q_3.size());
+    ASSERT(num_gates == q_4.size());
+    ASSERT(num_gates == q_arith.size());
+    ASSERT(num_gates == q_fixed_base.size());
+    ASSERT(num_gates == q_elliptic.size());
+    ASSERT(num_gates == q_sort.size());
+    ASSERT(num_gates == q_lookup_type.size());
+    ASSERT(num_gates == q_aux.size());
 
     size_t tables_size = 0;
     size_t lookups_size = 0;
@@ -617,7 +617,7 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
     // Compute selector polynomials and appropriate fft versions and put them in the proving key
     ComposerBase::compute_proving_key_base(type, tables_size + lookups_size, NUM_RESERVED_GATES);
 
-    const size_t subgroup_size = circuit_proving_key->n;
+    const size_t subgroup_size = circuit_proving_key->circuit_size;
 
     polynomial poly_q_table_column_1(subgroup_size);
     polynomial poly_q_table_column_2(subgroup_size);
@@ -749,7 +749,7 @@ void UltraComposer::compute_witness()
         lookups_size += table.lookup_gates.size();
     }
 
-    const size_t filled_gates = n + public_inputs.size();
+    const size_t filled_gates = num_gates + public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
@@ -1107,7 +1107,7 @@ plookup::ReadData<uint32_t> UltraComposer::create_gates_from_plookup_accumulator
         q_sort.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_aux.emplace_back(0);
-        ++n;
+        ++num_gates;
     }
     return read_data;
 }
@@ -1330,7 +1330,7 @@ void UltraComposer::create_sort_constraint(const std::vector<uint32_t>& variable
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
         w_4.emplace_back(variable_index[i + 3]);
-        ++n;
+        ++num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -1349,7 +1349,7 @@ void UltraComposer::create_sort_constraint(const std::vector<uint32_t>& variable
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
-    ++n;
+    ++num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
@@ -1383,7 +1383,7 @@ void UltraComposer::create_dummy_constraints(const std::vector<uint32_t>& variab
         w_r.emplace_back(padded_list[i + 1]);
         w_o.emplace_back(padded_list[i + 2]);
         w_4.emplace_back(padded_list[i + 3]);
-        ++n;
+        ++num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -1415,7 +1415,7 @@ void UltraComposer::create_sort_constraint_with_edges(const std::vector<uint32_t
     w_r.emplace_back(variable_index[1]);
     w_o.emplace_back(variable_index[2]);
     w_4.emplace_back(variable_index[3]);
-    ++n;
+    ++num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(1);
     q_2.emplace_back(0);
@@ -1435,7 +1435,7 @@ void UltraComposer::create_sort_constraint_with_edges(const std::vector<uint32_t
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
         w_4.emplace_back(variable_index[i + 3]);
-        ++n;
+        ++num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -1455,7 +1455,7 @@ void UltraComposer::create_sort_constraint_with_edges(const std::vector<uint32_t
         w_r.emplace_back(variable_index[variable_index.size() - 3]);
         w_o.emplace_back(variable_index[variable_index.size() - 2]);
         w_4.emplace_back(variable_index[variable_index.size() - 1]);
-        ++n;
+        ++num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -1476,7 +1476,7 @@ void UltraComposer::create_sort_constraint_with_edges(const std::vector<uint32_t
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
-    ++n;
+    ++num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(1);
     q_2.emplace_back(0);
@@ -1750,7 +1750,7 @@ void UltraComposer::range_constrain_two_limbs(const uint32_t lo_idx,
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_1);
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_2);
     apply_aux_selectors(AUX_SELECTORS::NONE);
-    n += 3;
+    num_gates += 3;
 
     for (size_t i = 0; i < 5; i++) {
         if (lo_masks[i] != 0) {
@@ -1905,25 +1905,25 @@ std::array<uint32_t, 2> UltraComposer::evaluate_non_native_field_multiplication(
     w_o.emplace_back(input.r[0]);
     w_4.emplace_back(lo_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[0]);
     w_r.emplace_back(input.b[0]);
     w_o.emplace_back(input.a[3]);
     w_4.emplace_back(input.b[3]);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[2]);
     w_r.emplace_back(input.b[2]);
     w_o.emplace_back(input.r[3]);
     w_4.emplace_back(hi_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[1]);
     w_r.emplace_back(input.b[1]);
     w_o.emplace_back(input.r[2]);
     w_4.emplace_back(hi_1_idx);
     apply_aux_selectors(AUX_SELECTORS::NONE);
-    ++n;
+    ++num_gates;
 
     /**
      * product gate 6
@@ -2005,25 +2005,25 @@ std::array<uint32_t, 2> UltraComposer::evaluate_partial_non_native_field_multipl
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(lo_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[0]);
     w_r.emplace_back(input.b[0]);
     w_o.emplace_back(input.a[3]);
     w_4.emplace_back(input.b[3]);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[2]);
     w_r.emplace_back(input.b[2]);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(hi_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
-    ++n;
+    ++num_gates;
     w_l.emplace_back(input.a[1]);
     w_r.emplace_back(input.b[1]);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(hi_1_idx);
     apply_aux_selectors(AUX_SELECTORS::NONE);
-    ++n;
+    ++num_gates;
     return std::array<uint32_t, 2>{ lo_0_idx, hi_1_idx };
 }
 
@@ -2154,7 +2154,7 @@ std::array<uint32_t, 5> UltraComposer::evaluate_non_native_field_addition(
         q_aux.emplace_back(0);
     }
 
-    n += 4;
+    num_gates += 4;
     return std::array<uint32_t, 5>{
         z_0, z_1, z_2, z_3, z_p,
     };
@@ -2281,7 +2281,7 @@ std::array<uint32_t, 5> UltraComposer::evaluate_non_native_field_subtraction(
         q_aux.emplace_back(0);
     }
 
-    n += 4;
+    num_gates += 4;
     return std::array<uint32_t, 5>{
         z_0, z_1, z_2, z_3, z_p,
     };
@@ -2296,8 +2296,8 @@ void UltraComposer::create_memory_gate(MemoryRecord& record)
     w_r.emplace_back(record.timestamp_witness);
     w_o.emplace_back(record.value_witness);
     w_4.emplace_back(record.record_witness);
-    record.gate_index = n;
-    ++n;
+    record.gate_index = num_gates;
+    ++num_gates;
 }
 
 void UltraComposer::create_sorted_memory_gate(MemoryRecord& record, const bool is_ram_transition_or_rom)
@@ -2310,8 +2310,8 @@ void UltraComposer::create_sorted_memory_gate(MemoryRecord& record, const bool i
     w_o.emplace_back(record.value_witness);
     w_4.emplace_back(record.record_witness);
 
-    record.gate_index = n;
-    ++n;
+    record.gate_index = num_gates;
+    ++num_gates;
 }
 
 /**

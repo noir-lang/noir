@@ -175,8 +175,8 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Note: the opening poly W_\frak{z} is always size (n + 1) due to blinding
     // of the quotient polynomial
-    polynomial opening_poly(input_key->n + 1, input_key->n + 1);
-    polynomial shifted_opening_poly(input_key->n, input_key->n);
+    polynomial opening_poly(input_key->circuit_size + 1, input_key->circuit_size + 1);
+    polynomial shifted_opening_poly(input_key->circuit_size, input_key->circuit_size);
 
     const polynomial& linear_poly = input_key->polynomial_cache.get("linear_poly");
 
@@ -206,27 +206,28 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Adjust the (n + 1)th coefficient of t_{0,1,2}(X) or r(X) (Note: t_4 (Turbo/Ultra) has only n coefficients)
     if (!settings::use_linearisation) {
-        opening_poly[input_key->n] = 0;
-        const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->n));
+        opening_poly[input_key->circuit_size] = 0;
+        const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->circuit_size));
 
         const size_t num_deg_n_poly =
             settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
         fr scalar_mult = 1;
         for (size_t i = 0; i < num_deg_n_poly; i++) {
-            opening_poly[input_key->n] += input_key->quotient_polynomial_parts[i][input_key->n] * scalar_mult;
+            opening_poly[input_key->circuit_size] +=
+                input_key->quotient_polynomial_parts[i][input_key->circuit_size] * scalar_mult;
             scalar_mult *= zeta_pow_n;
         }
     } else {
-        opening_poly[input_key->n] = linear_poly[input_key->n];
+        opening_poly[input_key->circuit_size] = linear_poly[input_key->circuit_size];
     }
 
     // compute the shifted evaluation point \frak{z}*omega
     const auto zeta_omega = zeta * input_key->small_domain.root;
 
     // Compute the W_{\zeta}(X) and W_{\zeta \omega}(X) polynomials
-    KateCommitmentScheme::compute_opening_polynomial(&opening_poly[0], &opening_poly[0], zeta, input_key->n);
+    KateCommitmentScheme::compute_opening_polynomial(&opening_poly[0], &opening_poly[0], zeta, input_key->circuit_size);
     KateCommitmentScheme::compute_opening_polynomial(
-        &shifted_opening_poly[0], &shifted_opening_poly[0], zeta_omega, input_key->n);
+        &shifted_opening_poly[0], &shifted_opening_poly[0], zeta_omega, input_key->circuit_size);
 
     input_key->polynomial_cache.put("opening_poly", std::move(opening_poly));
     input_key->polynomial_cache.put("shifted_opening_poly", std::move(shifted_opening_poly));
@@ -346,7 +347,7 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
         barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, input_key->domain);
 
     // append the commitments to the parts of quotient polynomial and their scalar multiplicands
-    fr z_pow_n = zeta.pow(input_key->n);
+    fr z_pow_n = zeta.pow(input_key->circuit_size);
     fr z_power = settings::use_linearisation ? -lagrange_evals.vanishing_poly : 1;
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);

@@ -9,7 +9,7 @@ namespace waffle {
 
 struct verification_key_data {
     uint32_t composer_type;
-    uint32_t n;
+    uint32_t circuit_size;
     uint32_t num_public_inputs;
     std::map<std::string, barretenberg::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
@@ -20,7 +20,7 @@ template <typename B> inline void read(B& buf, verification_key_data& key)
 {
     using serialize::read;
     read(buf, key.composer_type);
-    read(buf, key.n);
+    read(buf, key.circuit_size);
     read(buf, key.num_public_inputs);
     read(buf, key.commitments);
     read(buf, key.contains_recursive_proof);
@@ -31,7 +31,7 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
 {
     using serialize::write;
     write(buf, key.composer_type);
-    write(buf, key.n);
+    write(buf, key.circuit_size);
     write(buf, key.num_public_inputs);
     write(buf, key.commitments);
     write(buf, key.contains_recursive_proof);
@@ -40,8 +40,8 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
 
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
 {
-    return lhs.composer_type == rhs.composer_type && lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
-           lhs.commitments == rhs.commitments;
+    return lhs.composer_type == rhs.composer_type && lhs.circuit_size == rhs.circuit_size &&
+           lhs.num_public_inputs == rhs.num_public_inputs && lhs.commitments == rhs.commitments;
 }
 
 struct verification_key {
@@ -59,8 +59,8 @@ struct verification_key {
     sha256::hash sha256_hash();
 
     uint32_t composer_type;
-    size_t n;
-    size_t log_n;
+    size_t circuit_size;
+    size_t log_circuit_size;
     size_t num_public_inputs;
 
     barretenberg::evaluation_domain domain;
@@ -84,7 +84,7 @@ template <typename B> inline void write(B& buf, verification_key const& key)
 {
     using serialize::write;
     write(buf, key.composer_type);
-    write(buf, static_cast<uint32_t>(key.n));
+    write(buf, static_cast<uint32_t>(key.circuit_size));
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
     write(buf, key.commitments);
     write(buf, key.contains_recursive_proof);

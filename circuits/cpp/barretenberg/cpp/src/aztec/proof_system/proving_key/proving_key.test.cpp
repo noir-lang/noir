@@ -28,7 +28,8 @@ TEST(proving_key, proving_key_from_serialized_key)
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
     auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
-    auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n + 1));
+    auto proving_key =
+        std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
@@ -47,7 +48,7 @@ TEST(proving_key, proving_key_from_serialized_key)
 
     // Check equality of other proving_key_data data
     EXPECT_EQ(p_key.composer_type, proving_key->composer_type);
-    EXPECT_EQ(p_key.n, proving_key->n);
+    EXPECT_EQ(p_key.circuit_size, proving_key->circuit_size);
     EXPECT_EQ(p_key.num_public_inputs, proving_key->num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, proving_key->contains_recursive_proof);
 }
@@ -113,7 +114,7 @@ TEST(proving_key, proving_key_from_mmaped_key)
 
     // Check equality of other proving_key_data data
     EXPECT_EQ(p_key.composer_type, pk_data.composer_type);
-    EXPECT_EQ(p_key.n, pk_data.n);
+    EXPECT_EQ(p_key.circuit_size, pk_data.circuit_size);
     EXPECT_EQ(p_key.num_public_inputs, pk_data.num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, pk_data.contains_recursive_proof);
 }

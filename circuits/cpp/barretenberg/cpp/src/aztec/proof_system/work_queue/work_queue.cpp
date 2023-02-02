@@ -50,7 +50,7 @@ size_t work_queue::get_scalar_multiplication_size(const size_t work_item_number)
     for (const auto& item : work_item_queue) {
         if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
             if (count == work_item_number) {
-                return item.constant == MSMSize::N ? key->n : key->n + 1;
+                return item.constant == MSMSize::N ? key->circuit_size : key->circuit_size + 1;
             }
             ++count;
         }
@@ -79,8 +79,8 @@ void work_queue::put_ifft_data(barretenberg::fr* result, const size_t work_item_
     for (const auto& item : work_item_queue) {
         if (item.work_type == WorkType::IFFT) {
             if (count == work_item_number) {
-                barretenberg::polynomial wire(key->n);
-                memcpy((void*)wire.get_coefficients(), result, key->n * sizeof(barretenberg::fr));
+                barretenberg::polynomial wire(key->circuit_size);
+                memcpy((void*)wire.get_coefficients(), result, key->circuit_size * sizeof(barretenberg::fr));
                 key->polynomial_cache.put(item.tag, std::move(wire));
                 return;
             }
@@ -110,7 +110,7 @@ void work_queue::put_fft_data(barretenberg::fr* result, const size_t work_item_n
     for (const auto& item : work_item_queue) {
         if (item.work_type == WorkType::SMALL_FFT) {
             if (count == work_item_number) {
-                const size_t n = key->n;
+                const size_t n = key->circuit_size;
                 barretenberg::polynomial& wire_fft = key->polynomial_cache.get(item.tag + "_fft", 4 * n + 4);
 
                 for (size_t i = 0; i < n; ++i) {
@@ -231,7 +231,7 @@ void work_queue::process_queue()
         // due to the need to copy memory between web workers
         case WorkType::SMALL_FFT: {
             using namespace barretenberg;
-            const size_t n = key->n;
+            const size_t n = key->circuit_size;
             polynomial& wire = key->polynomial_cache.get(item.tag);
             polynomial& wire_fft = key->polynomial_cache.get(item.tag + "_fft", 4 * n + 4);
 
@@ -248,9 +248,10 @@ void work_queue::process_queue()
         case WorkType::FFT: {
             using namespace barretenberg;
             polynomial& wire = key->polynomial_cache.get(item.tag);
-            polynomial wire_fft(4 * key->n + 4, 4 * key->n + 4);
+            polynomial wire_fft(4 * key->circuit_size + 4, 4 * key->circuit_size + 4);
 
-            polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], key->n, 4 * key->n + 4);
+            polynomial_arithmetic::copy_polynomial(
+                &wire[0], &wire_fft[0], key->circuit_size, 4 * key->circuit_size + 4);
 
             wire_fft.coset_fft(key->large_domain);
             wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
@@ -269,7 +270,7 @@ void work_queue::process_queue()
             polynomial& wire_lagrange = key->polynomial_cache.get(item.tag + "_lagrange");
 
             // Compute wire monomial form via ifft on lagrange form then add it to the store
-            polynomial wire_monomial(key->n);
+            polynomial wire_monomial(key->circuit_size);
             polynomial_arithmetic::ifft(&wire_lagrange[0], &wire_monomial[0], key->small_domain);
             key->polynomial_cache.put(item.tag, std::move(wire_monomial));
 

@@ -211,7 +211,7 @@ void init_verification_key(std::shared_ptr<waffle::ReferenceStringFactory> const
         throw_or_abort("Compute proving key first.");
     } else {
         // Patch the 'nothing' reference string fed to init_proving_key.
-        proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n + 1);
+        proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size + 1);
     }
 
     verification_key =

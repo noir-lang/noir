@@ -38,20 +38,23 @@ template <class FF> class VerifierTests : public testing::Test {
         poly_coefficients[7] = circuit_proving_key->polynomial_cache.get("sigma_3_lagrange").get_coefficients();
 
         std::vector<barretenberg::g1::affine_element> commitments;
-        scalar_multiplication::pippenger_runtime_state prover(circuit_proving_key->n);
+        scalar_multiplication::pippenger_runtime_state prover(circuit_proving_key->circuit_size);
         commitments.resize(8);
 
         for (size_t i = 0; i < 8; ++i) {
             commitments[i] = g1::affine_element(
                 scalar_multiplication::pippenger(poly_coefficients[i],
                                                  circuit_proving_key->reference_string->get_monomials(),
-                                                 circuit_proving_key->n,
+                                                 circuit_proving_key->circuit_size,
                                                  prover));
         }
 
         auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");
-        auto circuit_verification_key = std::make_shared<waffle::verification_key>(
-            circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs, circuit_proving_key->composer_type);
+        auto circuit_verification_key =
+            std::make_shared<waffle::verification_key>(circuit_proving_key->circuit_size,
+                                                       circuit_proving_key->num_public_inputs,
+                                                       crs,
+                                                       circuit_proving_key->composer_type);
 
         circuit_verification_key->commitments.insert({ "Q_1", commitments[0] });
         circuit_verification_key->commitments.insert({ "Q_2", commitments[1] });
@@ -63,7 +66,7 @@ template <class FF> class VerifierTests : public testing::Test {
         circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
         circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
-        StandardVerifier verifier(circuit_verification_key, create_manifest(0, circuit_proving_key->log_n));
+        StandardVerifier verifier(circuit_verification_key, create_manifest(0, circuit_proving_key->log_circuit_size));
 
         // TODO(luke): set verifier PCS ala the following:
         // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
@@ -166,9 +169,9 @@ template <class FF> class VerifierTests : public testing::Test {
             sigma_3_mapping[n - 1 - j] = (uint32_t)n - 1 - j + (1U << 31U);
         }
 
-        polynomial sigma_1(proving_key->n);
-        polynomial sigma_2(proving_key->n);
-        polynomial sigma_3(proving_key->n);
+        polynomial sigma_1(proving_key->circuit_size);
+        polynomial sigma_2(proving_key->circuit_size);
+        polynomial sigma_3(proving_key->circuit_size);
 
         // TODO(luke): This is part of the permutation functionality that needs to be updated for honk
         // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping,
@@ -177,9 +180,9 @@ template <class FF> class VerifierTests : public testing::Test {
         // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping,
         // proving_key->small_domain);
 
-        polynomial sigma_1_lagrange_base(sigma_1, proving_key->n);
-        polynomial sigma_2_lagrange_base(sigma_2, proving_key->n);
-        polynomial sigma_3_lagrange_base(sigma_3, proving_key->n);
+        polynomial sigma_1_lagrange_base(sigma_1, proving_key->circuit_size);
+        polynomial sigma_2_lagrange_base(sigma_2, proving_key->circuit_size);
+        polynomial sigma_3_lagrange_base(sigma_3, proving_key->circuit_size);
 
         proving_key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
         proving_key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
@@ -199,10 +202,11 @@ template <class FF> class VerifierTests : public testing::Test {
         proving_key->polynomial_cache.put("q_c_lagrange", std::move(q_c));
 
         // TODO(Cody): This should be more generic
-        StandardUnrolledProver prover = StandardUnrolledProver(proving_key, create_manifest(0, proving_key->log_n));
+        StandardUnrolledProver prover =
+            StandardUnrolledProver(proving_key, create_manifest(0, proving_key->log_circuit_size));
 
         std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
-            std::make_unique<pcs::kzg::CommitmentKey>(proving_key->n, "../srs_db/ignition");
+            std::make_unique<pcs::kzg::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
 
         prover.commitment_key = std::move(kate_commitment_key);
 

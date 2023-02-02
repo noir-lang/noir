@@ -82,9 +82,9 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
     std::shared_ptr<waffle::VerifierReferenceString> const& vrs)
 {
     auto circuit_verification_key = std::make_shared<waffle::verification_key>(
-        proving_key->n, proving_key->num_public_inputs, vrs, proving_key->composer_type);
+        proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
     // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
-    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->n, "../srs_db/ignition");
+    auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
         const auto& poly_info = proving_key->polynomial_manifest[i];
@@ -102,7 +102,7 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
 
-            auto poly_commitment = commitment_key.commit({ poly_coefficients, proving_key->n });
+            auto poly_commitment = commitment_key.commit({ poly_coefficients, proving_key->circuit_size });
             circuit_verification_key->commitments.insert({ selector_commitment_label, poly_commitment });
         }
     }
@@ -262,7 +262,7 @@ StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_ver
     StandardUnrolledVerifier output_state(
         circuit_verification_key,
         honk::StandardHonk::create_unrolled_manifest(circuit_constructor.public_inputs.size(),
-                                                     numeric::get_msb(circuit_verification_key->n)));
+                                                     numeric::get_msb(circuit_verification_key->circuit_size)));
 
     // TODO(Cody): This should be more generic
     auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
@@ -281,13 +281,13 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
-    size_t num_sumcheck_rounds(circuit_proving_key->log_n);
+    size_t num_sumcheck_rounds(circuit_proving_key->log_circuit_size);
     auto manifest = Flavor::create_unrolled_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
     StandardUnrolledProver output_state(circuit_proving_key, manifest);
 
     // TODO(Cody): This should be more generic
     std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
-        std::make_unique<pcs::kzg::CommitmentKey>(circuit_proving_key->n, "../srs_db/ignition");
+        std::make_unique<pcs::kzg::CommitmentKey>(circuit_proving_key->circuit_size, "../srs_db/ignition");
 
     output_state.commitment_key = std::move(kate_commitment_key);
 

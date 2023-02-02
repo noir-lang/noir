@@ -112,7 +112,7 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
 {
     // Compute wire copy cycles for public and private variables
     std::vector<CyclicPermutation> copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
-    const size_t n = key->n;
+    const size_t n = key->circuit_size;
 
     // Initialize sigma[0], sigma[1], ..., as the identity permutation
     // at the end of the loop, sigma[j][i] = j*n + i
@@ -185,12 +185,12 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
 template <size_t program_width>
 void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_ptr<proving_key>
 {
-    const size_t n = key->n;
+    const size_t n = key->circuit_size;
     // Fill id polynomials with default values
     for (size_t j = 0; j < program_width; ++j) {
         // Construct permutation polynomials in lagrange base
         barretenberg::polynomial id_j(n, n);
-        for (size_t i = 0; i < key->n; ++i) {
+        for (size_t i = 0; i < key->circuit_size; ++i) {
             id_j[i] = (j * n + i);
         }
         std::string index = std::to_string(j + 1);
@@ -205,7 +205,7 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_pt
  */
 inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key* and share_ptr<proving_key>
 {
-    const size_t n = key->n;
+    const size_t n = key->circuit_size;
     // info("Computing Lagrange basis polys, the  value of n is: ",/s n);
     barretenberg::polynomial lagrange_polynomial_0(n, n);
     barretenberg::polynomial lagrange_polynomial_n_min_1(n, n);

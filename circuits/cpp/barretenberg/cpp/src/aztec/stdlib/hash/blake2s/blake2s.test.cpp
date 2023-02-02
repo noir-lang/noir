@@ -51,7 +51,7 @@ TEST(stdlib_blake2s, test_single_block_plookup)
     EXPECT_EQ(output.get_value(), expected);
 
     auto prover = composer.create_prover();
-    std::cout << "prover gates = " << prover.n << std::endl;
+    std::cout << "prover gates = " << prover.circuit_size << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
@@ -99,7 +99,7 @@ TEST(stdlib_blake2s, test_double_block_plookup)
     EXPECT_EQ(output.get_value(), expected);
 
     auto prover = composer.create_prover();
-    std::cout << "prover gates = " << prover.n << std::endl;
+    std::cout << "prover gates = " << prover.circuit_size << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 

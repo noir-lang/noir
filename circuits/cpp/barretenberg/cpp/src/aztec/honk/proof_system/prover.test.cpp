@@ -60,9 +60,9 @@ template <class Fscalar> class ProverTests : public testing::Test {
         std::vector<polynomial> wires;
         std::vector<polynomial> sigmas;
         for (size_t i = 0; i < program_width; ++i) {
-            polynomial wire_poly(proving_key->n, proving_key->n);
-            polynomial sigma_poly(proving_key->n, proving_key->n);
-            for (size_t j = 0; j < proving_key->n; ++j) {
+            polynomial wire_poly(proving_key->circuit_size, proving_key->circuit_size);
+            polynomial sigma_poly(proving_key->circuit_size, proving_key->circuit_size);
+            for (size_t j = 0; j < proving_key->circuit_size; ++j) {
                 wire_poly[j] = Fscalar::random_element();
                 sigma_poly[j] = Fscalar::random_element();
             }
@@ -118,9 +118,9 @@ template <class Fscalar> class ProverTests : public testing::Test {
         std::array<std::array<Fscalar, num_gates>, program_width> denominator_accum;
 
         // Step (1)
-        for (size_t i = 0; i < proving_key->n; ++i) {
+        for (size_t i = 0; i < proving_key->circuit_size; ++i) {
             for (size_t k = 0; k < program_width; ++k) {
-                Fscalar idx = k * proving_key->n + i;                                  // id_k[i]
+                Fscalar idx = k * proving_key->circuit_size + i;                       // id_k[i]
                 numererator_accum[k][i] = wires[k][i] + (idx * beta) + gamma;          // w_k(i) + β.(k*n+i) + γ
                 denominator_accum[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
             }
@@ -128,14 +128,14 @@ template <class Fscalar> class ProverTests : public testing::Test {
 
         // Step (2)
         for (size_t k = 0; k < program_width; ++k) {
-            for (size_t i = 0; i < proving_key->n - 1; ++i) {
+            for (size_t i = 0; i < proving_key->circuit_size - 1; ++i) {
                 numererator_accum[k][i + 1] *= numererator_accum[k][i];
                 denominator_accum[k][i + 1] *= denominator_accum[k][i];
             }
         }
 
         // Step (3)
-        for (size_t i = 0; i < proving_key->n; ++i) {
+        for (size_t i = 0; i < proving_key->circuit_size; ++i) {
             for (size_t k = 1; k < program_width; ++k) {
                 numererator_accum[0][i] *= numererator_accum[k][i];
                 denominator_accum[0][i] *= denominator_accum[k][i];
@@ -143,10 +143,10 @@ template <class Fscalar> class ProverTests : public testing::Test {
         }
 
         // Step (4)
-        polynomial z_perm(proving_key->n, proving_key->n);
+        polynomial z_perm(proving_key->circuit_size, proving_key->circuit_size);
         z_perm[0] = Fscalar::zero(); // Z_0 = 1
         // Note: in practice, we replace this expensive element-wise division with Montgomery batch inversion
-        for (size_t i = 0; i < proving_key->n - 1; ++i) {
+        for (size_t i = 0; i < proving_key->circuit_size - 1; ++i) {
             z_perm[i + 1] = numererator_accum[0][i] / denominator_accum[0][i];
         }
 

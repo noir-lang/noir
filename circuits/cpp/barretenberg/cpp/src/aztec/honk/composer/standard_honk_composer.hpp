@@ -34,7 +34,7 @@ class StandardHonkComposer {
 
     StandardHonkComposer(const size_t size_hint = 0)
         : circuit_constructor(size_hint)
-        , n(circuit_constructor.num_gates)
+        , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables){};
 
     StandardHonkComposer(std::string const& crs_path, const size_t size_hint = 0)
@@ -45,14 +45,14 @@ class StandardHonkComposer {
     StandardHonkComposer(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
-        , n(circuit_constructor.num_gates)
+        , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
 
     {}
     StandardHonkComposer(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(std::move(crs_factory))
-        , n(circuit_constructor.num_gates)
+        , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
 
     {}
@@ -62,7 +62,7 @@ class StandardHonkComposer {
                          size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
-        , n(circuit_constructor.num_gates)
+        , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
     {}
 
@@ -216,7 +216,7 @@ class StandardHonkComposer {
         return composer_helper.create_unrolled_prover<honk::StandardHonk>(circuit_constructor);
     };
 
-    size_t& n; /* n = Enemy */
+    size_t& num_gates;
     std::vector<barretenberg::fr>& variables;
     bool failed() const { return circuit_constructor.failed(); };
     const std::string& err() const { return circuit_constructor.err(); };

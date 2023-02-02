@@ -38,7 +38,7 @@ void StandardComposer::create_add_gate(const add_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -91,7 +91,7 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    ++n;
+    ++num_gates;
 
     w_l.emplace_back(temp_idx);
     w_r.emplace_back(in.c);
@@ -102,7 +102,7 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(in.d_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    ++n;
+    ++num_gates;
 
     // in.d must be between 0 and 3
     // i.e. in.d * (in.d - 1) * (in.d - 2) = 0
@@ -117,7 +117,7 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    ++n;
+    ++num_gates;
 
     constexpr fr neg_two = -fr(2);
     w_l.emplace_back(temp_2_idx);
@@ -129,7 +129,7 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(fr::zero());
 
-    ++n;
+    ++num_gates;
 }
 
 void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
@@ -207,7 +207,7 @@ void StandardComposer::create_mul_gate(const mul_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -231,7 +231,7 @@ void StandardComposer::create_bool_gate(const uint32_t variable_index)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -253,7 +253,7 @@ void StandardComposer::create_poly_gate(const poly_triple& in)
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
 
-    ++n;
+    ++num_gates;
 }
 
 void StandardComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
@@ -693,7 +693,7 @@ void StandardComposer::fix_witness(const uint32_t witness_index, const barretenb
     q_2.emplace_back(fr::zero());
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(-witness_value);
-    ++n;
+    ++num_gates;
 }
 
 uint32_t StandardComposer::put_constant_variable(const barretenberg::fr& variable)
@@ -885,7 +885,7 @@ bool StandardComposer::check_circuit()
 
     fr gate_sum;
     fr left, right, output;
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < num_gates; i++) {
         gate_sum = fr::zero();
         left = get_variable(w_l[i]);
         right = get_variable(w_r[i]);

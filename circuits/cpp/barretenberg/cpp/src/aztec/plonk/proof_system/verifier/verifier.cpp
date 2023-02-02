@@ -56,10 +56,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     // From the verification key, also add n & l (the circuit size and the number of public inputs) to the transcript.
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(key->n >> 24),
-                             static_cast<uint8_t>(key->n >> 16),
-                             static_cast<uint8_t>(key->n >> 8),
-                             static_cast<uint8_t>(key->n) });
+                           { static_cast<uint8_t>(key->circuit_size >> 24),
+                             static_cast<uint8_t>(key->circuit_size >> 16),
+                             static_cast<uint8_t>(key->circuit_size >> 8),
+                             static_cast<uint8_t>(key->circuit_size) });
 
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),

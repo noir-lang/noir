@@ -250,7 +250,7 @@ class CheckGetter {
         size_t actual_index = index;
         if constexpr (EvaluationType::SHIFTED == value_type) {
             actual_index += 1;
-            if (actual_index >= composer.n) {
+            if (actual_index >= composer.num_gates) {
                 return zero;
             }
         }

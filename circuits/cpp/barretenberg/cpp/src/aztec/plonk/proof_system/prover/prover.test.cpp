@@ -192,17 +192,17 @@ waffle::Prover generate_test_data(const size_t n)
     sigma_2_mapping[n - 1] = (uint32_t)n - 1 + (1U << 30U);
     sigma_3_mapping[n - 1] = (uint32_t)n - 1 + (1U << 31U);
 
-    polynomial sigma_1(key->n);
-    polynomial sigma_2(key->n);
-    polynomial sigma_3(key->n);
+    polynomial sigma_1(key->circuit_size);
+    polynomial sigma_2(key->circuit_size);
+    polynomial sigma_3(key->circuit_size);
 
     waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping, key->small_domain);
     waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2, sigma_2_mapping, key->small_domain);
     waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping, key->small_domain);
 
-    polynomial sigma_1_lagrange_base(sigma_1, key->n);
-    polynomial sigma_2_lagrange_base(sigma_2, key->n);
-    polynomial sigma_3_lagrange_base(sigma_3, key->n);
+    polynomial sigma_1_lagrange_base(sigma_1, key->circuit_size);
+    polynomial sigma_2_lagrange_base(sigma_2, key->circuit_size);
+    polynomial sigma_3_lagrange_base(sigma_3, key->circuit_size);
 
     key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
     key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
@@ -212,9 +212,9 @@ waffle::Prover generate_test_data(const size_t n)
     sigma_2.ifft(key->small_domain);
     sigma_3.ifft(key->small_domain);
     constexpr size_t width = 4;
-    polynomial sigma_1_fft(sigma_1, key->n * width);
-    polynomial sigma_2_fft(sigma_2, key->n * width);
-    polynomial sigma_3_fft(sigma_3, key->n * width);
+    polynomial sigma_1_fft(sigma_1, key->circuit_size * width);
+    polynomial sigma_2_fft(sigma_2, key->circuit_size * width);
+    polynomial sigma_3_fft(sigma_3, key->circuit_size * width);
 
     sigma_1_fft.coset_fft(key->large_domain);
     sigma_2_fft.coset_fft(key->large_domain);

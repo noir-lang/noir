@@ -15,7 +15,7 @@ namespace waffle {
 
 struct proving_key_data {
     uint32_t composer_type;
-    uint32_t n;
+    uint32_t circuit_size;
     uint32_t num_public_inputs;
     bool contains_recursive_proof;
     std::vector<uint32_t> recursive_proof_public_input_indices;
@@ -43,8 +43,8 @@ struct proving_key {
     void init();
 
     uint32_t composer_type;
-    size_t n;
-    size_t log_n;
+    size_t circuit_size;
+    size_t log_circuit_size;
     size_t num_public_inputs;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;

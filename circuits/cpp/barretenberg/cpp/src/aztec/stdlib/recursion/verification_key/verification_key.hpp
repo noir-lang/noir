@@ -119,7 +119,7 @@ template <typename Curve> struct verification_key {
         key->polynomial_manifest = input_key->polynomial_manifest;
 
         // Circuit types:
-        key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->n));
+        key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->circuit_size));
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
 
@@ -136,7 +136,7 @@ template <typename Curve> struct verification_key {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
         key->base_key = input_key;
-        key->n = field_t<Composer>(ctx, input_key->n);
+        key->n = field_t<Composer>(ctx, input_key->circuit_size);
         key->num_public_inputs = field_t<Composer>(ctx, input_key->num_public_inputs);
 
         key->domain = evaluation_domain<Composer>::from_constants(ctx, input_key->domain);

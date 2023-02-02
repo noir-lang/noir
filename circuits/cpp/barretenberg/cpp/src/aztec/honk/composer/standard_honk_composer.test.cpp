@@ -29,7 +29,7 @@ TEST(standard_honk_composer, test_sigma_and_id_correctness)
 {
     auto test_permutation = [](StandardHonkComposer& composer) {
         auto proving_key = composer.compute_proving_key();
-        const auto n = proving_key->n;
+        const auto n = proving_key->circuit_size;
 
         auto public_inputs = composer.circuit_constructor.get_public_inputs();
         auto num_public_inputs = public_inputs.size();
@@ -76,7 +76,7 @@ TEST(standard_honk_composer, test_sigma_and_id_correctness)
             const auto& id_polynomial = proving_key->polynomial_cache.get("id_" + index + "_lagrange");
             // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
             // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
-            for (size_t i = 0; i < proving_key->n; ++i) {
+            for (size_t i = 0; i < proving_key->circuit_size; ++i) {
                 const auto current_witness = witness_polynomial[i];
                 left *= current_witness + beta * id_polynomial[i] + gamma;
                 right *= current_witness + beta * permutation_polynomial[i] + gamma;
@@ -154,14 +154,15 @@ TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
     // Generate proving key
     auto proving_key = composer.compute_proving_key();
     // Generate a random polynomial
-    barretenberg::polynomial random_polynomial = barretenberg::polynomial(proving_key->n, proving_key->n);
-    for (size_t i = 0; i < proving_key->n; i++) {
+    barretenberg::polynomial random_polynomial =
+        barretenberg::polynomial(proving_key->circuit_size, proving_key->circuit_size);
+    for (size_t i = 0; i < proving_key->circuit_size; i++) {
         random_polynomial[i] = barretenberg::fr::random_element();
     }
     // Compute inner product of random polynomial and the first lagrange polynomial
     barretenberg::polynomial first_lagrange_polynomial = proving_key->polynomial_cache.get("L_first_lagrange");
     barretenberg::fr first_product(0);
-    for (size_t i = 0; i < proving_key->n; i++) {
+    for (size_t i = 0; i < proving_key->circuit_size; i++) {
         first_product += random_polynomial[i] * first_lagrange_polynomial[i];
     }
     EXPECT_EQ(first_product, random_polynomial[0]);
@@ -169,10 +170,10 @@ TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
     // Compute inner product of random polynomial and the last lagrange polynomial
     barretenberg::polynomial last_lagrange_polynomial = proving_key->polynomial_cache.get("L_last_lagrange");
     barretenberg::fr last_product(0);
-    for (size_t i = 0; i < proving_key->n; i++) {
+    for (size_t i = 0; i < proving_key->circuit_size; i++) {
         last_product += random_polynomial[i] * last_lagrange_polynomial[i];
     }
-    EXPECT_EQ(last_product, random_polynomial[proving_key->n - 1]);
+    EXPECT_EQ(last_product, random_polynomial[proving_key->circuit_size - 1]);
 }
 
 /**
@@ -210,7 +211,7 @@ TEST(standard_honk_composer, test_assert_equal)
     auto get_maximum_cycle = [](auto& composer) {
         // Compute the proving key for sigma polynomials
         auto proving_key = composer.compute_proving_key();
-        auto permutation_length = composer.program_width * proving_key->n;
+        auto permutation_length = composer.program_width * proving_key->circuit_size;
         std::vector<polynomial> sigma_polynomials;
 
         // Put the sigma polynomials into a vector for easy access
@@ -236,7 +237,8 @@ TEST(standard_honk_composer, test_assert_equal)
                 break;
             }
             auto starting_element = i;
-            auto next_element_big = static_cast<uint256_t>(sigma_polynomials[i / proving_key->n][i % proving_key->n]);
+            auto next_element_big =
+                static_cast<uint256_t>(sigma_polynomials[i / proving_key->circuit_size][i % proving_key->circuit_size]);
             EXPECT_LE(next_element_big, uint256_t(UINT32_MAX));
             auto next_element = static_cast<size_t>(next_element_big.data[0]);
             size_t cycle_length = 1;
@@ -248,8 +250,8 @@ TEST(standard_honk_composer, test_assert_equal)
                 cycle_length++;
                 visited_indices[next_element] = true;
                 // Get next index
-                next_element_big = static_cast<uint256_t>(
-                    sigma_polynomials[next_element / proving_key->n][next_element % proving_key->n]);
+                next_element_big = static_cast<uint256_t>(sigma_polynomials[next_element / proving_key->circuit_size]
+                                                                           [next_element % proving_key->circuit_size]);
                 EXPECT_LE(next_element_big, uint256_t(UINT32_MAX));
                 next_element = static_cast<size_t>(next_element_big.data[0]);
             }
@@ -343,7 +345,7 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
 
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
-    auto public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->n);
+    auto public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
 
     // Retrieve polynomials from proving key
     polynomial z_perm = prover.key->polynomial_cache.get("z_perm_lagrange");
@@ -394,7 +396,7 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
 
     // Transpose the polynomials so that each entry of the vector contains an array of polynomial entries at that
     // index
-    for (size_t i = 0; i < prover.key->n; i++) {
+    for (size_t i = 0; i < prover.key->circuit_size; i++) {
         // We only fill in the first element of each univariate with the value of an entry from the original poynomial
         StandardUnivariate w_1_univariate(0);
         w_1_univariate.value_at(0) = w_1[i];
@@ -405,7 +407,7 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
         StandardUnivariate z_perm_univariate(0);
         z_perm_univariate.value_at(0) = z_perm[i];
         StandardUnivariate z_perm_shift_univariate(0);
-        z_perm_shift_univariate.value_at(0) = (i < (prover.key->n - 1)) ? z_perm[i + 1] : 0;
+        z_perm_shift_univariate.value_at(0) = (i < (prover.key->circuit_size - 1)) ? z_perm[i + 1] : 0;
         StandardUnivariate q_m_univariate(0);
         q_m_univariate.value_at(0) = q_m[i];
         StandardUnivariate q_1_univariate(0);
@@ -454,7 +456,7 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
         });
     }
     // Check all relations at all indices
-    for (size_t i = 0; i < prover.key->n; i++) {
+    for (size_t i = 0; i < prover.key->circuit_size; i++) {
         round.accumulate_relation_univariates_testing(
             sumcheck_typed_polynomial_vector[i], results, { beta, gamma, public_input_delta });
         EXPECT_EQ(std::get<0>(results), ArithmeticUnivariate(0));

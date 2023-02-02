@@ -40,7 +40,7 @@ template <typename settings> class ProverBase {
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
-    size_t get_circuit_size() const { return n; }
+    size_t get_circuit_size() const { return circuit_size; }
 
     void flush_queued_work_items() { queue.flush_queue(); }
 
@@ -83,7 +83,7 @@ template <typename settings> class ProverBase {
 
     void reset();
 
-    size_t n;
+    size_t circuit_size;
 
     std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;
     std::vector<std::unique_ptr<widget::TransitionWidgetBase<barretenberg::fr>>> transition_widgets;

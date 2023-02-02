@@ -65,7 +65,7 @@ TEST(stdlib_bool, test_basic_operations)
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(1));
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
     // }
-    EXPECT_EQ(prover.n, 16UL);
+    EXPECT_EQ(prover.circuit_size, 16UL);
 }
 
 TEST(stdlib_bool, xor)

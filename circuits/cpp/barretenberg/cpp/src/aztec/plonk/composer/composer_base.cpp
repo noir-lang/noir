@@ -65,7 +65,7 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
     const uint32_t num_public_inputs = static_cast<uint32_t>(public_inputs.size());
 
     // Go through all witnesses and add them to the wire_copy_cycles
-    for (size_t i = 0; i < n; ++i) {
+    for (size_t i = 0; i < num_gates; ++i) {
         const auto w_1_index = real_variable_index[w_l[i]];
         const auto w_2_index = real_variable_index[w_r[i]];
         const auto w_3_index = real_variable_index[w_o[i]];
@@ -109,12 +109,12 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
     // Instantiate the sigma and id mappings by reserving enough space and pushing 'default' permutation subgroup
     // elements that point to themselves.
     for (size_t i = 0; i < program_width; ++i) {
-        sigma_mappings[i].reserve(key->n);
+        sigma_mappings[i].reserve(key->circuit_size);
         if (with_tags)
-            id_mappings[i].reserve(key->n);
+            id_mappings[i].reserve(key->circuit_size);
     }
     for (size_t i = 0; i < program_width; ++i) {
-        for (size_t j = 0; j < key->n; ++j) {
+        for (size_t j = 0; j < key->circuit_size; ++j) {
             sigma_mappings[i].emplace_back(permutation_subgroup_element{
                 .subgroup_index = (uint32_t)j, .column_index = (uint8_t)i, .is_public_input = false, .is_tag = false });
             if (with_tags)
@@ -177,12 +177,12 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
 
         // Construct permutation polynomials in lagrange base
         std::string index = std::to_string(i + 1);
-        barretenberg::polynomial sigma_polynomial_lagrange(key->n);
+        barretenberg::polynomial sigma_polynomial_lagrange(key->circuit_size);
         compute_permutation_lagrange_base_single<standard_settings>(
             sigma_polynomial_lagrange, sigma_mappings[i], key->small_domain);
 
         // Compute permutation polynomial monomial form
-        barretenberg::polynomial sigma_polynomial(key->n);
+        barretenberg::polynomial sigma_polynomial(key->circuit_size);
         barretenberg::polynomial_arithmetic::ifft(
             &sigma_polynomial_lagrange[0], &sigma_polynomial[0], key->small_domain);
 
@@ -196,12 +196,12 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
 
         if (with_tags) {
             // Construct id polynomials in lagrange base
-            barretenberg::polynomial id_polynomial_lagrange(key->n);
+            barretenberg::polynomial id_polynomial_lagrange(key->circuit_size);
             compute_permutation_lagrange_base_single<standard_settings>(
                 id_polynomial_lagrange, id_mappings[i], key->small_domain);
 
             // Compute id polynomial monomial form
-            barretenberg::polynomial id_polynomial(key->n);
+            barretenberg::polynomial id_polynomial(key->circuit_size);
             barretenberg::polynomial_arithmetic::ifft(&id_polynomial_lagrange[0], &id_polynomial[0], key->small_domain);
 
             // Compute id polynomial coset FFT form
@@ -233,7 +233,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const waffle
                                                                     const size_t minimum_circuit_size,
                                                                     const size_t num_reserved_gates)
 {
-    const size_t num_filled_gates = n + public_inputs.size();
+    const size_t num_filled_gates = num_gates + public_inputs.size();
     const size_t total_num_gates = std::max(minimum_circuit_size, num_filled_gates);
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + num_reserved_gates); // next power of 2
 
@@ -254,7 +254,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const waffle
     for (size_t i = 0; i < num_selectors; ++i) {
         std::vector<barretenberg::fr>& selector_values = selectors[i];
         const auto& properties = selector_properties[i];
-        ASSERT(n == selector_values.size());
+        ASSERT(num_gates == selector_values.size());
 
         // Fill unfilled gates' selector values with zeroes (stopping 1 short; the last value will be nonzero).
         for (size_t j = num_filled_gates; j < subgroup_size - 1; ++j) {
@@ -312,7 +312,7 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
     std::shared_ptr<proving_key> const& proving_key, std::shared_ptr<VerifierReferenceString> const& vrs)
 {
     auto circuit_verification_key = std::make_shared<verification_key>(
-        proving_key->n, proving_key->num_public_inputs, vrs, proving_key->composer_type);
+        proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
 
     for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
         const auto& selector_poly_info = proving_key->polynomial_manifest[i];
@@ -330,7 +330,7 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
             auto selector_poly_commitment =
                 g1::affine_element(scalar_multiplication::pippenger(selector_poly_coefficients,
                                                                     proving_key->reference_string->get_monomials(),
-                                                                    proving_key->n,
+                                                                    proving_key->circuit_size,
                                                                     proving_key->pippenger_runtime_state));
 
             circuit_verification_key->commitments.insert({ selector_commitment_label, selector_poly_commitment });
@@ -358,7 +358,7 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
         return;
     }
 
-    const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
+    const size_t total_num_gates = std::max(minimum_circuit_size, num_gates + public_inputs.size());
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
     // Note: randomness is added to 3 of the last 4 positions in plonk/proof_system/prover/prover.cpp

@@ -9,7 +9,7 @@ TEST(verification_key, buffer_serialization)
 {
     verification_key_data key;
     key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
-    key.n = 1234;
+    key.circuit_size = 1234;
     key.num_public_inputs = 10;
     key.commitments["test1"] = g1::element::random_element();
     key.commitments["test2"] = g1::element::random_element();
@@ -26,7 +26,7 @@ TEST(verification_key, stream_serialization)
 {
     verification_key_data key;
     key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
-    key.n = 1234;
+    key.circuit_size = 1234;
     key.num_public_inputs = 10;
     key.commitments["test1"] = g1::element::random_element();
     key.commitments["test2"] = g1::element::random_element();

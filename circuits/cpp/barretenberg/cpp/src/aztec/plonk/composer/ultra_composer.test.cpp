@@ -755,7 +755,7 @@ TEST(ultra_composer, rom)
     });
 
     auto prover = composer.create_prover();
-    std::cout << "prover n = " << composer.n << std::endl;
+    info("composer.num_gates after constructing prover: ", composer.num_gates);
 
     auto verifier = composer.create_verifier();
 

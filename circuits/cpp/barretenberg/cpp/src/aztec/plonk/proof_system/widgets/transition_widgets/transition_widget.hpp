@@ -355,7 +355,8 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         Field sum_of_linear_terms = FFTKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
 
         // populate split quotient components
-        Field& quotient_term = key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)];
+        Field& quotient_term =
+            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->circuit_size - 1)];
         quotient_term += sum_of_linear_terms;
         FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient_term, i);
         ITERATE_OVER_DOMAIN_END;

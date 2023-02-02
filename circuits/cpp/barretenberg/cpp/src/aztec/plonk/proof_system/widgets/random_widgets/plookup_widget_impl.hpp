@@ -58,8 +58,8 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
     const fr* s_3 = key->polynomial_cache.get("s_3_lagrange").get_coefficients();
     const fr* s_4 = key->polynomial_cache.get("s_4_lagrange").get_coefficients();
 
-    barretenberg::polynomial s_accum(key->n, key->n);
-    barretenberg::polynomial_arithmetic::copy_polynomial(&s_1[0], &s_accum[0], key->n, key->n);
+    barretenberg::polynomial s_accum(key->circuit_size, key->circuit_size);
+    barretenberg::polynomial_arithmetic::copy_polynomial(&s_1[0], &s_accum[0], key->circuit_size, key->circuit_size);
 
     // Get challenge η
     const auto eta = fr::serialize_from_buffer(transcript.get_challenge("eta", 0).begin());
@@ -92,7 +92,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
     const size_t s_randomness = 3;
     ASSERT(s_randomness < num_roots_cut_out_of_vanishing_polynomial);
     for (size_t k = 0; k < s_randomness; ++k) {
-        s_accum[((key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
+        s_accum[((key->circuit_size - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
     }
 
     // Save the lagrange base representation of s
@@ -124,11 +124,11 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_grand_product_polynomial(
     transcript::StandardTranscript& transcript)
 {
-    const size_t n = key->n;
+    const size_t n = key->circuit_size;
 
     // Note: z_lookup ultimately is only only size 'n' but we allow 'n+1' for convenience
     // essentially as scratch space in the calculation to follow
-    polynomial z_lookup(key->n + 1, key->n + 1);
+    polynomial z_lookup(key->circuit_size + 1, key->circuit_size + 1);
 
     // Allocate 4 length n 'accumulators'. accumulators[0] points to the 1th index of
     // z_lookup and will be used to construct z_lookup (lagrange base) in place. The
@@ -559,7 +559,8 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
             //      - z_lookup(Xω)*(s + βs(Xω) + γ(1 + β)) + [z_lookup(Xω) - [γ(1 + β)]^{n-k}]*α²L_{n-k}(X)
             T0 = numerator - denominator;
             // key->quotient_large[i] += T0 * alpha_base; // CODY: Luke did this while documenting
-            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)] += T0 * alpha_base;
+            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->circuit_size - 1)] +=
+                T0 * alpha_base;
         }
     }
     return alpha_base * alpha.sqr() * alpha;
@@ -627,7 +628,7 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
     fr beta = transcript.get_challenge_field_element("beta", 0);
     fr gamma = transcript.get_challenge_field_element("beta", 1);
     fr eta = transcript.get_challenge_field_element("eta", 0);
-    fr l_numerator = z.pow(key->n) - fr(1);
+    fr l_numerator = z.pow(key->circuit_size) - fr(1);
 
     // Compute evaluation L_1(z)
     l_numerator *= key->small_domain.domain_inverse;

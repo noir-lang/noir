@@ -95,7 +95,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     key->program_width = program_settings::program_width;
 
-    size_t log_n(numeric::get_msb(key->n));
+    size_t log_n(numeric::get_msb(key->circuit_size));
 
     // Add the proof data to the transcript, according to the manifest. Also initialise the transcript's hash type
     // and challenge bytes.
@@ -104,10 +104,10 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     // Add the circuit size and the number of public inputs) to the transcript.
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(key->n >> 24),
-                             static_cast<uint8_t>(key->n >> 16),
-                             static_cast<uint8_t>(key->n >> 8),
-                             static_cast<uint8_t>(key->n) });
+                           { static_cast<uint8_t>(key->circuit_size >> 24),
+                             static_cast<uint8_t>(key->circuit_size >> 16),
+                             static_cast<uint8_t>(key->circuit_size >> 8),
+                             static_cast<uint8_t>(key->circuit_size) });
 
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),
@@ -151,8 +151,8 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     // Construct MLE opening point
     // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
-    for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
-        std::string label = "u_" + std::to_string(key->log_n - round_idx);
+    for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
+        std::string label = "u_" + std::to_string(key->log_circuit_size - round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
@@ -200,12 +200,12 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     // Reconstruct the Gemini Proof from the transcript
     GeminiProof gemini_proof;
 
-    for (size_t i = 1; i < key->log_n; i++) {
+    for (size_t i = 1; i < key->log_circuit_size; i++) {
         std::string label = "FOLD_" + std::to_string(i);
         gemini_proof.commitments.emplace_back(transcript.get_group_element(label));
     };
 
-    for (size_t i = 0; i < key->log_n; i++) {
+    for (size_t i = 0; i < key->log_circuit_size; i++) {
         std::string label = "a_" + std::to_string(i);
         gemini_proof.evals.emplace_back(transcript.get_field_element(label));
     };

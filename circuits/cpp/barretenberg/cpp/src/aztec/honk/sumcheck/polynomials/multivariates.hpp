@@ -85,8 +85,8 @@ template <class FF_, size_t num_polys> class Multivariates {
     };
 
     explicit Multivariates(const std::shared_ptr<waffle::proving_key>& proving_key)
-        : multivariate_n(proving_key->n)
-        , multivariate_d(proving_key->log_n)
+        : multivariate_n(proving_key->circuit_size)
+        , multivariate_d(proving_key->log_circuit_size)
     {
         // Iterate through polynomial manifest to populate full_polynomials from polynomial cache
         size_t poly_idx = 0;

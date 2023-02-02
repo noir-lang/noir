@@ -33,10 +33,10 @@ template <typename settings> class Prover {
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
-    size_t get_circuit_size() const { return n; }
+    size_t get_circuit_size() const { return circuit_size; }
 
     // TODO(luke): Eventually get rid of this but leave it for convenience for now
-    const size_t n;
+    const size_t circuit_size;
 
     // No more widgets. The new 'relations' may be owned by Sumcheck rather than Prover...
     // std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;

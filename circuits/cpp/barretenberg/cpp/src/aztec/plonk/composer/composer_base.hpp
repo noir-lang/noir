@@ -63,7 +63,7 @@ class ComposerBase {
                  size_t num_selectors = 0,
                  size_t size_hint = 0,
                  std::vector<SelectorProperties> selector_properties = {})
-        : n(0)
+        : num_gates(0)
         , crs_factory_(crs_factory)
         , num_selectors(num_selectors)
         , selectors(num_selectors)
@@ -78,7 +78,7 @@ class ComposerBase {
     ComposerBase(size_t num_selectors = 0,
                  size_t size_hint = 0,
                  std::vector<SelectorProperties> selector_properties = {})
-        : n(0)
+        : num_gates(0)
         , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db/ignition"))
         , num_selectors(num_selectors)
         , selectors(num_selectors)
@@ -95,7 +95,7 @@ class ComposerBase {
                  size_t num_selectors = 0,
                  size_t size_hint = 0,
                  std::vector<SelectorProperties> selector_properties = {})
-        : n(0)
+        : num_gates(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
         , num_selectors(num_selectors)
@@ -112,8 +112,8 @@ class ComposerBase {
     ComposerBase& operator=(ComposerBase&& other) = default;
     virtual ~ComposerBase(){};
 
-    virtual size_t get_num_gates() const { return n; }
-    virtual void print_num_gates() const { std::cout << n << std::endl; }
+    virtual size_t get_num_gates() const { return num_gates; }
+    virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }
     virtual std::shared_ptr<proving_key> compute_proving_key_base(const waffle::ComposerType type = waffle::STANDARD,
                                                                   const size_t minimum_ciricut_size = 0,
@@ -297,7 +297,7 @@ class ComposerBase {
     std::string _err;
 
   public:
-    size_t n; /* n = Enemy */
+    size_t num_gates;
     std::vector<uint32_t> w_l;
     std::vector<uint32_t> w_r;
     std::vector<uint32_t> w_o;

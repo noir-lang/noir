@@ -71,7 +71,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     fr* accumulators[num_accumulators];
     // Allocate the required number of length n scratch space arrays
     for (size_t k = 0; k < num_accumulators; ++k) {
-        accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * key->n));
+        accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * key->circuit_size));
     }
 
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
@@ -267,9 +267,10 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
 
     // Construct permutation polynomial 'z' in lagrange form as:
     // z = [1 accumulators[0][0] accumulators[0][1] ... accumulators[0][n-2]]
-    polynomial z_perm(key->n, key->n);
+    polynomial z_perm(key->circuit_size, key->circuit_size);
     z_perm[0] = fr::one();
-    barretenberg::polynomial_arithmetic::copy_polynomial(accumulators[0], &z_perm[1], key->n - 1, key->n - 1);
+    barretenberg::polynomial_arithmetic::copy_polynomial(
+        accumulators[0], &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);
 
     /*
     Adding zero knowledge to the permutation polynomial.
@@ -315,7 +316,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     const size_t z_randomness = 3;
     ASSERT(z_randomness < num_roots_cut_out_of_vanishing_polynomial);
     for (size_t k = 0; k < z_randomness; ++k) {
-        z_perm[(key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k] = fr::random_element();
+        z_perm[(key->circuit_size - num_roots_cut_out_of_vanishing_polynomial) + 1 + k] = fr::random_element();
     }
 
     z_perm.ifft(key->small_domain);
@@ -358,9 +359,9 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
     // Initialise the (n + 1)th coefficients of quotient parts so that reuse of proving
     // keys does not use some residual data from another proof.
-    key->quotient_polynomial_parts[0][key->n] = 0;
-    key->quotient_polynomial_parts[1][key->n] = 0;
-    key->quotient_polynomial_parts[2][key->n] = 0;
+    key->quotient_polynomial_parts[0][key->circuit_size] = 0;
+    key->quotient_polynomial_parts[1][key->circuit_size] = 0;
+    key->quotient_polynomial_parts[2][key->circuit_size] = 0;
 
     // Our permutation check boils down to two 'grand product' arguments, that we represent with a single polynomial
     // z(X). We want to test that z(X) has been constructed correctly. When evaluated at elements of ω ∈ H, the
@@ -527,7 +528,8 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
             // Combine into quotient polynomial
             T0 = numerator - denominator;
-            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->n - 1)] = T0 * alpha_base;
+            key->quotient_polynomial_parts[i >> key->small_domain.log2_size][i & (key->circuit_size - 1)] =
+                T0 * alpha_base;
 
             // Update our working root of unity
             cur_root_times_beta *= key->large_domain.root;

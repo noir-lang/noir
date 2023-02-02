@@ -13,7 +13,7 @@ template <typename B> inline void read(B& any, proving_key_data& key)
     using std::read;
 
     read(any, key.composer_type);
-    read(any, (uint32_t&)key.n);
+    read(any, (uint32_t&)key.circuit_size);
     read(any, (uint32_t&)key.num_public_inputs);
 
     uint32_t amount = 0;
@@ -39,7 +39,7 @@ template <typename B> inline void write(B& buf, proving_key const& key)
 {
     using serialize::write;
     write(buf, key.composer_type);
-    write(buf, (uint32_t)key.n);
+    write(buf, (uint32_t)key.circuit_size);
     write(buf, (uint32_t)key.num_public_inputs);
 
     // Write only the pre-computed polys from the store
@@ -65,7 +65,7 @@ template <typename B> inline void read_mmap(B& is, std::string const& path, prov
 
     size_t file_num = 0;
     read(is, key.composer_type);
-    read(is, key.n);
+    read(is, key.circuit_size);
     read(is, key.num_public_inputs);
 
     uint32_t size;
@@ -86,7 +86,7 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
 
     size_t file_num = 0;
     write(os, key.composer_type);
-    write(os, static_cast<uint32_t>(key.n));
+    write(os, static_cast<uint32_t>(key.circuit_size));
     write(os, static_cast<uint32_t>(key.num_public_inputs));
 
     // Write only the pre-computed polys from the store

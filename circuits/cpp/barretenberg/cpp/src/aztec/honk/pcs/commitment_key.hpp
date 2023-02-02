@@ -45,9 +45,9 @@ class CommitmentKey {
      *
      * @todo change path to string_view
      */
-    CommitmentKey(const size_t n, std::string_view path)
-        : pippenger_runtime_state(n)
-        , srs(n, std::string(path))
+    CommitmentKey(const size_t num_points, std::string_view path)
+        : pippenger_runtime_state(num_points)
+        , srs(num_points, std::string(path))
     {}
 
     /**

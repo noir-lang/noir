@@ -181,7 +181,7 @@ class UltraComposer : public ComposerBase {
      */
     virtual size_t get_num_gates() const override
     {
-        size_t count = n;
+        size_t count = num_gates;
         size_t rangecount = 0;
         size_t romcount = 0;
         for (size_t i = 0; i < rom_arrays.size(); ++i) {
@@ -209,7 +209,7 @@ class UltraComposer : public ComposerBase {
 
     virtual void print_num_gates() const override
     {
-        size_t count = n;
+        size_t count = num_gates;
         size_t rangecount = 0;
         size_t romcount = 0;
         for (size_t i = 0; i < rom_arrays.size(); ++i) {

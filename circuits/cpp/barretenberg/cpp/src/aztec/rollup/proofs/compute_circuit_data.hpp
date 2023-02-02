@@ -104,9 +104,9 @@ circuit_data get_circuit_data(std::string const& name,
             auto pk_stream = std::ifstream(pk_path);
             waffle::proving_key_data pk_data;
             read_mmap(pk_stream, pk_dir, pk_data);
-            data.proving_key =
-                std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n + 1));
-            data.num_gates = pk_data.n;
+            data.proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data),
+                                                                     srs->get_prover_crs(pk_data.circuit_size + 1));
+            data.num_gates = pk_data.circuit_size;
             info(name, ": Circuit size 2^n: ", data.num_gates);
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                        "Core",
@@ -120,22 +120,22 @@ circuit_data get_circuit_data(std::string const& name,
             if (!mock) {
                 data.num_gates = composer.get_num_gates();
                 data.proving_key = composer.compute_proving_key();
-                info(name, ": Circuit size 2^n: ", data.proving_key->n);
+                info(name, ": Circuit size 2^n: ", data.proving_key->circuit_size);
 
                 benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                            "Core",
                                                            name + name_suffix_for_benchmarks,
                                                            "Gates 2^n",
-                                                           data.proving_key->n);
+                                                           data.proving_key->circuit_size);
             } else {
                 data.num_gates = mock_proof_composer.get_num_gates();
                 data.proving_key = mock_proof_composer.compute_proving_key();
-                info(name, ": Mock circuit size 2^n: ", data.proving_key->n);
+                info(name, ": Mock circuit size 2^n: ", data.proving_key->circuit_size);
                 benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                            "Core",
                                                            name + name_suffix_for_benchmarks,
                                                            "Mock Gates 2^n",
-                                                           data.proving_key->n);
+                                                           data.proving_key->circuit_size);
             }
 
             info(name, ": Proving key computed in ", timer.toString(), "s");

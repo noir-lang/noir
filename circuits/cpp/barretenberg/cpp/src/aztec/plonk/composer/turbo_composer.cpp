@@ -117,7 +117,7 @@ void TurboComposer::create_add_gate(const add_triple& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -149,7 +149,7 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -188,7 +188,7 @@ void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 void TurboComposer::create_big_mul_gate(const mul_quad& in)
@@ -211,7 +211,7 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -251,7 +251,7 @@ void TurboComposer::create_balanced_add_gate(const add_quad& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -283,7 +283,7 @@ void TurboComposer::create_mul_gate(const mul_triple& in)
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -314,7 +314,7 @@ void TurboComposer::create_bool_gate(const uint32_t variable_index)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -347,7 +347,7 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
     q_4.emplace_back(fr::zero());
     q_5.emplace_back(fr::zero());
     q_fixed_base.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -377,7 +377,7 @@ void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_fixed_base.emplace_back(in.q_y_2);
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -409,7 +409,7 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_fixed_base.emplace_back(in.q_y_2);
-    ++n;
+    ++num_gates;
 }
 
 void TurboComposer::create_fixed_group_add_gate_final(const add_quad& in)
@@ -443,7 +443,7 @@ void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg
     q_fixed_base.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-    ++n;
+    ++num_gates;
 }
 
 /**
@@ -616,7 +616,7 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
 
     accumulators[accumulators.size() - 1] = witness_index;
 
-    n += used_gates;
+    num_gates += used_gates;
 
     // constrain top bit of top quad to zero in case num_bits is odd
     if ((num_bits & 1ULL) == 1ULL) {
@@ -817,7 +817,7 @@ accumulator_triple TurboComposer::create_logic_constraint(const uint32_t a,
 
     accumulators.right[accumulators.right.size() - 1] = b;
 
-    n += (num_quads + 1);
+    num_gates += (num_quads + 1);
 
     return accumulators;
 }

@@ -121,7 +121,7 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
     EXPECT_EQ(proof_result_one, true);
     auto proving_key = prover.key;
     auto verification_key = verifier.key;
-    auto circuit_size = prover.n;
+    auto circuit_size = prover.circuit_size;
 
     // Test a second time with same keys and different input.
     waffle::StandardComposer second_composer = waffle::StandardComposer(proving_key, verification_key, circuit_size);

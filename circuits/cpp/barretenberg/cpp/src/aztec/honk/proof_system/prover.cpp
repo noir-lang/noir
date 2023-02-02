@@ -36,11 +36,11 @@ using Polynomial = barretenberg::Polynomial<Fr>;
  * */
 template <typename settings>
 Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const transcript::Manifest& input_manifest)
-    : n(input_key == nullptr ? 0 : input_key->n)
+    : circuit_size(input_key == nullptr ? 0 : input_key->circuit_size)
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
     , commitment_key(std::make_unique<pcs::kzg::CommitmentKey>(
-          input_key->n,
+          input_key->circuit_size,
           "../srs_db/ignition")) // TODO(Cody): Need better constructors for prover.
 // , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed
 {}
@@ -104,8 +104,8 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     std::array<Fr*, program_width> numerator_accumulator;
     std::array<Fr*, program_width> denominator_accumulator;
     for (size_t i = 0; i < program_width; ++i) {
-        numerator_accumulator[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->n));
-        denominator_accumulator[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->n));
+        numerator_accumulator[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->circuit_size));
+        denominator_accumulator[i] = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * key->circuit_size));
     }
 
     // Populate wire and permutation polynomials
@@ -120,10 +120,10 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Step (1)
     // TODO(kesha): Change the order to engage automatic prefetching and get rid of redundant computation
-    for (size_t i = 0; i < key->n; ++i) {
+    for (size_t i = 0; i < key->circuit_size; ++i) {
         for (size_t k = 0; k < program_width; ++k) {
             // TODO(luke): maybe this idx is replaced by proper ID polys in the future
-            Fr idx = k * key->n + i;
+            Fr idx = k * key->circuit_size + i;
             numerator_accumulator[k][i] = wires[k][i] + (idx * beta) + gamma;            // w_k(i) + β.(k*n+i) + γ
             denominator_accumulator[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
         }
@@ -131,14 +131,14 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Step (2)
     for (size_t k = 0; k < program_width; ++k) {
-        for (size_t i = 0; i < key->n - 1; ++i) {
+        for (size_t i = 0; i < key->circuit_size - 1; ++i) {
             numerator_accumulator[k][i + 1] *= numerator_accumulator[k][i];
             denominator_accumulator[k][i + 1] *= denominator_accumulator[k][i];
         }
     }
 
     // Step (3)
-    for (size_t i = 0; i < key->n; ++i) {
+    for (size_t i = 0; i < key->circuit_size; ++i) {
         for (size_t k = 1; k < program_width; ++k) {
             numerator_accumulator[0][i] *= numerator_accumulator[k][i];
             denominator_accumulator[0][i] *= denominator_accumulator[k][i];
@@ -151,12 +151,12 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     // denominator_accumulator[0] is stored in numerator_accumulator[0].
     Fr* inversion_coefficients = &denominator_accumulator[1][0]; // arbitrary scratch space
     Fr inversion_accumulator = Fr::one();
-    for (size_t i = 0; i < key->n; ++i) {
+    for (size_t i = 0; i < key->circuit_size; ++i) {
         inversion_coefficients[i] = numerator_accumulator[0][i] * inversion_accumulator;
         inversion_accumulator *= denominator_accumulator[0][i];
     }
     inversion_accumulator = inversion_accumulator.invert(); // perform single inversion per thread
-    for (size_t i = key->n - 1; i != std::numeric_limits<size_t>::max(); --i) {
+    for (size_t i = key->circuit_size - 1; i != std::numeric_limits<size_t>::max(); --i) {
         // TODO(luke): What needs to be done Re the comment below:
         // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
         numerator_accumulator[0][i] = inversion_accumulator * inversion_coefficients[i];
@@ -165,10 +165,10 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Construct permutation polynomial 'z_perm' in lagrange form as:
     // z_perm = [0 numerator_accumulator[0][0] numerator_accumulator[0][1] ... numerator_accumulator[0][n-2] 0]
-    Polynomial z_perm(key->n, key->n);
+    Polynomial z_perm(key->circuit_size, key->circuit_size);
     // We'll need to shift this polynomial to the left by dividing it by X in gemini, so the the 0-th coefficient should
     // stay zero
-    copy_polynomial(numerator_accumulator[0], &z_perm[1], key->n - 1, key->n - 1);
+    copy_polynomial(numerator_accumulator[0], &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);
 
     // free memory allocated for scratch space
     for (size_t k = 0; k < program_width; ++k) {
@@ -198,10 +198,10 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(n >> 24),
-                             static_cast<uint8_t>(n >> 16),
-                             static_cast<uint8_t>(n >> 8),
-                             static_cast<uint8_t>(n) });
+                           { static_cast<uint8_t>(circuit_size >> 24),
+                             static_cast<uint8_t>(circuit_size >> 16),
+                             static_cast<uint8_t>(circuit_size >> 8),
+                             static_cast<uint8_t>(circuit_size) });
 
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),
@@ -304,7 +304,7 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 
     // TODO(Cody): This is just temporary of course. Very inefficient, e.g., no commitment needed.
     Fr zeta_challenge = transcript.get_challenge_field_element("zeta");
-    barretenberg::polynomial pow_zeta = power_polynomial::generate_vector(zeta_challenge, key->n);
+    barretenberg::polynomial pow_zeta = power_polynomial::generate_vector(zeta_challenge, key->circuit_size);
     auto commitment = commitment_key->commit(pow_zeta);
     transcript.add_element("POW_ZETA", commitment.to_buffer());
     key->polynomial_cache.put("pow_zeta", std::move(pow_zeta));
@@ -344,8 +344,8 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
 
     // Construct MLE opening point
     // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
-    for (size_t round_idx = 0; round_idx < key->log_n; round_idx++) {
-        std::string label = "u_" + std::to_string(key->log_n - round_idx);
+    for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
+        std::string label = "u_" + std::to_string(key->log_circuit_size - round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 

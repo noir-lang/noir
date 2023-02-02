@@ -198,7 +198,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[18], fr(expected));
         }
 
-        EXPECT_EQ(prover.n, 32UL);
+        EXPECT_EQ(prover.circuit_size, 32UL);
         auto verifier = composer.create_verifier();
         waffle::plonk_proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
@@ -255,7 +255,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
             EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[17], fr(4181));
         }
 
-        EXPECT_EQ(prover.n, 32UL);
+        EXPECT_EQ(prover.circuit_size, 32UL);
         auto verifier = composer.create_verifier();
 
         waffle::plonk_proof proof = prover.construct_proof();
@@ -306,7 +306,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.n, 16UL);
+        EXPECT_EQ(prover.circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         waffle::plonk_proof proof = prover.construct_proof();
@@ -330,7 +330,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(0));
 
-        EXPECT_EQ(prover.n, 16UL);
+        EXPECT_EQ(prover.circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         waffle::plonk_proof proof = prover.construct_proof();
@@ -355,7 +355,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.n, 16UL);
+        EXPECT_EQ(prover.circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         waffle::plonk_proof proof = prover.construct_proof();
@@ -831,7 +831,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
     {
         Composer composer = Composer();
 
-        const size_t num_gates_start = composer.n;
+        const size_t num_gates_start = composer.num_gates;
 
         barretenberg::fr base_val(engine.get_random_uint256());
         uint32_t exponent_val = engine.get_random_uint32();
@@ -843,7 +843,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         EXPECT_EQ(result.get_value(), expected);
 
-        const size_t num_gates_end = composer.n;
+        const size_t num_gates_end = composer.num_gates;
         EXPECT_EQ(num_gates_start, num_gates_end);
     }
 

@@ -102,7 +102,7 @@ void populate_kate_element_map(verification_key* key,
     const auto zeta = transcript.get_challenge_field_element("z", 0);
     const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
 
-    Field z_pow_n = zeta.pow(key->n);
+    Field z_pow_n = zeta.pow(key->circuit_size);
     Field z_power = 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
