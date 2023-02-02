@@ -421,9 +421,13 @@ impl IRGenerator {
         let definition = Definition::Local(id);
         match value {
             Value::Single(node_id) => {
-                let otype = self.context.get_object_type(node_id);
-                let value =
-                    self.bind_variable(name.to_owned(), Some(definition.clone()), otype, node_id)?;
+                let object_type = self.context.get_object_type(node_id);
+                let value = self.bind_variable(
+                    name.to_owned(),
+                    Some(definition.clone()),
+                    object_type,
+                    node_id,
+                )?;
                 self.variable_values.insert(definition, value);
             }
             value @ Value::Tuple(_) => {
@@ -441,8 +445,8 @@ impl IRGenerator {
     fn bind_fresh_pattern(&mut self, basename: &str, value: Value) -> Result<Value, RuntimeError> {
         match value {
             Value::Single(node_id) => {
-                let otype = self.context.get_object_type(node_id);
-                self.bind_variable(basename.to_owned(), None, otype, node_id)
+                let object_type = self.context.get_object_type(node_id);
+                self.bind_variable(basename.to_owned(), None, object_type, node_id)
             }
             Value::Tuple(field_values) => {
                 let values = field_values
