@@ -8,7 +8,7 @@ use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
-use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::monomorphization::ast::*;
 use std::collections::BTreeMap;
 
 use ssa::{code_gen::IRGenerator, node};

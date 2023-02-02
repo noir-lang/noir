@@ -15,7 +15,7 @@ use crate::ssa::node::{Mark, Node};
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
+use noirc_frontend::monomorphization::ast::{Definition, FuncId};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -1113,8 +1113,8 @@ impl SsaContext {
         }
     }
 
-    pub fn convert_type(&mut self, t: &noirc_frontend::monomorphisation::ast::Type) -> ObjectType {
-        use noirc_frontend::monomorphisation::ast::Type;
+    pub fn convert_type(&mut self, t: &noirc_frontend::monomorphization::ast::Type) -> ObjectType {
+        use noirc_frontend::monomorphization::ast::Type;
         use noirc_frontend::Signedness;
         match t {
             Type::Bool => ObjectType::Boolean,

@@ -6,7 +6,7 @@ use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
+use noirc_frontend::monomorphization::ast::{Definition, FuncId};
 use noirc_frontend::BinaryOpKind;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};

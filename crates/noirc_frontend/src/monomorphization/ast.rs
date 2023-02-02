@@ -160,7 +160,7 @@ pub struct Function {
     pub return_type: Type,
 }
 
-/// A monomorphised Type has all type variables removed
+/// A monomorphized Type has all type variables removed
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Field,

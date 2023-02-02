@@ -3,8 +3,6 @@
     "words": [
         // Spelling mistakes -- This includes using the english spelling
         // of words over the american spelling.
-        "monomorphise",
-        "monomorphisation",
         "optimisations",
         "serialise",
         "usefull",
@@ -46,9 +44,6 @@
         "grammer",
         "messsages",
         "Chidren",
-        "monomorphised",
-        "Monomorphiser",
-        "monomorphiser",
         "aeiou",
         "Opportunties",
         "sanitisation",
@@ -166,6 +161,10 @@
         "struct",
         "stdlib",
         "preprocess",
-        "noirup"
+        "noirup",
+        "monomorphization",
+        "monomorphized",
+        "monomorphize",
+        "monomorphizer"
     ]
 }

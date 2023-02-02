@@ -211,7 +211,7 @@ pub enum Type {
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
-    /// never be bound over during type checking, but during monomorphisation it
+    /// never be bound over during type checking, but during monomorphization it
     /// will be and thus needs the full TypeVariable link.
     Forall(Generics, Box<Type>),
 
@@ -462,7 +462,7 @@ impl Type {
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
-    /// they shouldn't be bound over until monomorphisation.
+    /// they shouldn't be bound over until monomorphization.
     pub fn is_bindable(&self) -> bool {
         match self {
             Type::PolymorphicInteger(_, binding) | Type::TypeVariable(binding) => {

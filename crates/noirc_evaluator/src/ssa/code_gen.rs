@@ -12,7 +12,7 @@ use crate::errors;
 use crate::ssa::block::BlockType;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::monomorphization::ast::*;
 use noirc_frontend::{BinaryOpKind, UnaryOp};
 use num_bigint::BigUint;
 use num_traits::Zero;

@@ -152,7 +152,7 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
-    /// filled out during type checking from instantiated variables. Used during monomorphisation
+    /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map callsite types back onto function parameter types, and undo this binding as needed.
     instantiation_bindings: HashMap<ExprId, TypeBindings>,
 

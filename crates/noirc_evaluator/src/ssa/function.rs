@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use crate::errors::RuntimeError;
 use crate::ssa::node::Opcode;
 use iter_extended::try_vecmap;
-use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
+use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
 
 use super::builtin;
 use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
