@@ -65,7 +65,7 @@ fn get_instruction_max_operand(
             get_max_value(ins, max_map)
         }
         // Operation::Constrain(_) => {
-        //ContrainOp::Eq :
+        //ConstrainOp::Eq :
         //TODO... we should update the max_map AFTER the truncate is processed (else it breaks it)
         // let min = BigUint::min(left_max.clone(), right_max.clone());
         // max_map.insert(ins.lhs, min.clone());

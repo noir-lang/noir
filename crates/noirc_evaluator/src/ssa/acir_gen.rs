@@ -1247,7 +1247,7 @@ pub fn boolean_expr(expr: &Expression, evaluator: &mut Evaluator) -> Expression 
     subtract(&mul_with_witness(evaluator, expr, expr), FieldElement::one(), expr)
 }
 
-//contrain witness a to be num_bits-size integer, i.e between 0 and 2^num_bits-1
+//constrain witness a to be num_bits-size integer, i.e between 0 and 2^num_bits-1
 pub fn range_constraint(
     witness: Witness,
     num_bits: u32,
