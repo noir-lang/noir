@@ -6,7 +6,8 @@
         "conditionalise",
         "conditionalize",
         "conditionalized",
-        "Secp",
+        // Refers to parameters for a specific elliptic curve
+        "secp256k1",
         "dunmmy",
         "erce",
         "utilise",
