@@ -378,14 +378,14 @@ pub fn inline_in_block(
         }
     }
 
-    // we conditionalise the stack frame into a new stack frame (to avoid ownership issues)
+    // we conditionalize the stack frame into a new stack frame (to avoid ownership issues)
     let mut stack2 = StackFrame::new(stack_frame.block);
     stack2.return_arrays = stack_frame.return_arrays.clone();
     if short_circuit {
         super::block::short_circuit_inline(ctx, stack_frame.block);
     } else {
-        decision.conditionalise_inline(ctx, &stack_frame.stack, &mut stack2, predicate)?;
-        // we add the conditionalised instructions to the target_block, at proper location (really need a linked list!)
+        decision.conditionalize_inline(ctx, &stack_frame.stack, &mut stack2, predicate)?;
+        // we add the conditionalized instructions to the target_block, at proper location (really need a linked list!)
         stack2.apply(ctx, stack_frame.block, call_id, false);
     }
 

@@ -405,14 +405,14 @@ impl DecisionTree {
     ) -> Result<(), RuntimeError> {
         let assumption_id = ctx[block].assumption;
         let instructions = ctx[block].instructions.clone();
-        self.conditionalise_inline(ctx, &instructions, stack, assumption_id)?;
+        self.conditionalize_inline(ctx, &instructions, stack, assumption_id)?;
         ctx[block].instructions.clear();
         ctx[block].instructions.append(&mut stack.stack);
         assert!(stack.stack.is_empty());
         Ok(())
     }
 
-    pub fn conditionalise_inline(
+    pub fn conditionalize_inline(
         &self,
         ctx: &mut SsaContext,
         instructions: &[NodeId],
@@ -422,7 +422,7 @@ impl DecisionTree {
         if predicate == AssumptionId::dummy() || self[predicate].value != Some(ctx.zero()) {
             let mut short_circuit = false;
             for i in instructions {
-                if !self.conditionalise_into(ctx, result, *i, predicate, short_circuit)? {
+                if !self.conditionalize_into(ctx, result, *i, predicate, short_circuit)? {
                     short_circuit = true;
                 }
             }
@@ -477,7 +477,7 @@ impl DecisionTree {
         }
     }
 
-    pub fn conditionalise_into(
+    pub fn conditionalize_into(
         &self,
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -667,7 +667,7 @@ impl DecisionTree {
                                     ObjectType::Pointer(array_dup),
                                     &mut memcpy_stack,
                                 );
-                                self.conditionalise_inline(
+                                self.conditionalize_inline(
                                     ctx,
                                     &memcpy_stack.stack,
                                     stack,

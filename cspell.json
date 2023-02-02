@@ -1,7 +1,11 @@
 {
     "version": "0.2",
     "words": [
+        // TODO: Perhaps we should use the term `make_conditional` 
+        // instead of conditionalize. This can be done in a separate PR
         "conditionalise",
+        "conditionalize",
+        "conditionalized",
         "arbitraty",
         "flatened",
         "charac",
@@ -12,8 +16,6 @@
         "normalisation",
         "dont",
         "Secp",
-        "conditionalize",
-        "conditionalised",
         "dunmmy",
         "erce",
         "utilise",
