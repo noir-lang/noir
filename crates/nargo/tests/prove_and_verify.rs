@@ -51,7 +51,7 @@ mod tests {
                     let r = match verified {
                         Ok(result) => result,
                         Err(_) => {
-                            panic!("\n\n\nPanic occured while running test {:?} (ignore the following panic)", c.file_name());
+                            panic!("\n\n\nPanic occurred while running test {:?} (ignore the following panic)", c.file_name());
                         }
                     };
 
