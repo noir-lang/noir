@@ -75,7 +75,7 @@ pub fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
     }
 }
 
-//look-up recursiverly into predecessors
+//look-up recursively into predecessors
 pub fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) -> NodeId {
     let result = if !ctx.sealed_blocks.contains(&block_id) {
         //incomplete CFG
