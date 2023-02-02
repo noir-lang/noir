@@ -153,7 +153,7 @@ pub struct NodeInterner {
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
-    /// to map callsite types back onto function parameter types, and undo this binding as needed.
+    /// to map call site types back onto function parameter types, and undo this binding as needed.
     instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
     /// Remembers the field index a given HirMemberAccess expression was resolved to during type

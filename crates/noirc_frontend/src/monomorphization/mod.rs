@@ -576,8 +576,8 @@ impl Monomorphizer {
     }
 
     /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
-    /// at their callsite.
-    /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
+    /// at their call site.
+    /// NOTE: Evaluating at the call site means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
     ///       To fix this we need to evaluate on the identifier instead, which
     ///       requires us to evaluate to a Lambda value which isn't in noir yet.

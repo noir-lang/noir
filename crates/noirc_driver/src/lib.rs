@@ -199,7 +199,7 @@ impl Driver {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the callsite without a stacktrace
+                // Errors will be shown at the call site without a stacktrace
                 let file_id = err.location.map(|loc| loc.file);
                 let error_count = Reporter::with_diagnostics(
                     file_id,

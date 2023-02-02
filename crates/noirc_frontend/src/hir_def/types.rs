@@ -578,7 +578,7 @@ impl std::fmt::Display for Comptime {
 
 impl Type {
     /// Mutate the span for Comptime to track where comptime is required for better
-    /// error messages that show both the erroring callsite and the callsite before
+    /// error messages that show both the erroring call site and the call site before
     /// which required the variable to be comptime or non-comptime.
     pub fn set_comptime_span(&mut self, new_span: Span) {
         match self {

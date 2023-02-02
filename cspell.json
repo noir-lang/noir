@@ -18,7 +18,6 @@
         // This is a computer science idiom. Its a data structure that stores only
         // one distinct copy of an value. Google `String Interner` for a concrete example
         "interner",
-        "callsite",
         "blackbox",
         "canonicalize",
         "codegen",

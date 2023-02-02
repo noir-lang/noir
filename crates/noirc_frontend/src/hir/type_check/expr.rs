@@ -21,7 +21,7 @@ pub(crate) fn type_check_expression(
         HirExpression::Ident(ident) => {
             // An identifiers type may be forall-quantified in the case of generic functions.
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-            // We must instantiate identifiers at every callsite to replace this T with a new type
+            // We must instantiate identifiers at every call site to replace this T with a new type
             // variable to handle generic functions.
             let t = interner.id_type(ident.id);
             let (typ, bindings) = t.instantiate(interner);
