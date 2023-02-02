@@ -10,7 +10,7 @@ use noirc_abi::{
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -223,17 +223,24 @@ pub(crate) fn dedup_public_input_indices_values(
     assert_eq!(indices.0.len(), values.len());
 
     let mut public_inputs_without_duplicates = Vec::new();
-    let mut already_seen_public_indices = HashSet::new();
+    let mut already_seen_public_indices = HashMap::new();
 
     for (index, value) in indices.0.iter().zip(values) {
-        if !already_seen_public_indices.contains(&index) {
-            already_seen_public_indices.insert(index);
-            public_inputs_without_duplicates.push(value)
+        match already_seen_public_indices.get(index) {
+            Some(expected_value) => {
+                // The index has already been added
+                // so lets check that the values already inserted is equal to the value, we wish to insert
+                assert_eq!(*expected_value, value, "witness index {:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.", index)
+            }
+            None => {
+                already_seen_public_indices.insert(*index, value);
+                public_inputs_without_duplicates.push(value)
+            }
         }
     }
 
     (
-        PublicInputs(already_seen_public_indices.into_iter().cloned().collect()),
+        PublicInputs(already_seen_public_indices.keys().copied().collect()),
         public_inputs_without_duplicates,
     )
 }
