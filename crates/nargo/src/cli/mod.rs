@@ -26,6 +26,7 @@ mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
+mod preprocess_cmd;
 
 const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
 const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
@@ -92,6 +93,10 @@ pub fn start_cli() {
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
+        .subcommand(
+            App::new("preprocess")
+            .about("Generate the prover and verifier keys for a circuit")
+        )
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
@@ -103,6 +108,7 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
+        Some("preprocess") => preprocess_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
     };

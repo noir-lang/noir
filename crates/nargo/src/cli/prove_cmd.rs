@@ -50,7 +50,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
         compile_circuit_and_witness(program_dir, show_ssa, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+    // let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+    let proof = backend.prove_with_pk(compiled_program.circuit, solved_witness);
 
     println!("Proof successfully created");
     if let Some(proof_name) = proof_name {

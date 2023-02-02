@@ -72,7 +72,8 @@ fn verify_proof(
     })?;
 
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+    // let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+    let valid_proof = backend.verify_with_vk(&proof, public_inputs, compiled_program.circuit);
 
     Ok(valid_proof)
 }
