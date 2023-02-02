@@ -260,7 +260,7 @@ fn type_check_declaration(
     // If so, then we give it the same type as the expression
     if annotated_type != Type::Error {
         // Now check if LHS is the same type as the RHS
-        // Importantly, we do not co-erce any types implicitly
+        // Importantly, we do not coerce any types implicitly
         let expr_span = interner.expr_span(&rhs_expr);
         expr_type.make_subtype_of(&annotated_type, expr_span, errors, || {
             TypeCheckError::TypeMismatch {
