@@ -127,12 +127,12 @@ impl Driver {
     }
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
-    /// Statically analyses the local crate
+    /// Statically analyzes the local crate
     pub fn check(&mut self, allow_warnings: bool) {
-        self.analyse_crate(allow_warnings)
+        self.analyze_crate(allow_warnings)
     }
 
-    fn analyse_crate(&mut self, allow_warnings: bool) {
+    fn analyze_crate(&mut self, allow_warnings: bool) {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;

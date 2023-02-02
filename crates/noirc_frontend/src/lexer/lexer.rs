@@ -236,7 +236,7 @@ impl<'a> Lexer<'a> {
         // Keep checking that we are not at the EOF
         while let Some(peek_char) = self.peek_char() {
             // Then check for the predicate, if predicate matches append char and increment the cursor
-            // If not, return word. The next character will be analysed on the next iteration of next_token,
+            // If not, return word. The next character will be analyzed on the next iteration of next_token,
             // Which will increment the cursor
             if !predicate(peek_char) {
                 return (word, start, self.position);
