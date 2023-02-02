@@ -724,8 +724,8 @@ impl IRGenerator {
         let phi = self.context.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
-        let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(notequal, ObjectType::Boolean)?;
+        let not_equal = Operation::binary(BinaryOp::Ne, phi, end_idx);
+        let cond = self.context.new_instruction(not_equal, ObjectType::Boolean)?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 

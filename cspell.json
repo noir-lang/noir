@@ -32,7 +32,6 @@
         "curr",
         "coeff",
         "ltype",
-        "notequal",
         "udiv",
         "sdiv",
         "urem",
