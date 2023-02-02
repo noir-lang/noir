@@ -336,7 +336,7 @@ fn find_join_helper(
 }
 
 // Find the LCA of x and y
-// n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flatenning
+// n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flattening
 pub fn lca(ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
     if x == y {
         return x;
