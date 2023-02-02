@@ -4,7 +4,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_driver::{CompiledProgram, Driver};
 use noirc_frontend::node_interner::FuncId;
-use termcolor::{StandardStream, ColorChoice, ColorSpec, WriteColor, Color};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
