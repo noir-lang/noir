@@ -483,7 +483,7 @@ impl DecisionTree {
         stack: &mut StackFrame,
         ins_id: NodeId,
         predicate: AssumptionId,
-        short_circtuit: bool,
+        short_circuit: bool,
     ) -> Result<bool, RuntimeError> {
         let ass_cond;
         let ass_value;
@@ -515,7 +515,7 @@ impl DecisionTree {
         }
 
         let ins = ins1.clone();
-        if short_circtuit {
+        if short_circuit {
             stack.set_zero(ctx, ins.res_type);
             let ins2 = ctx.get_mut_instruction(ins_id);
             if ins2.res_type == ObjectType::NotAnObject {
