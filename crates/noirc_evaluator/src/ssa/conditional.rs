@@ -378,7 +378,7 @@ impl DecisionTree {
         } else {
             let left_ins = ctx[left].instructions.clone();
             let right_ins = ctx[right].instructions.clone();
-            merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
+            merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
         super::optim::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
@@ -738,7 +738,7 @@ impl DecisionTree {
         }
     }
 
-    fn synchronise(
+    fn synchronize(
         &self,
         ctx: &mut SsaContext,
         left: &[NodeId],
