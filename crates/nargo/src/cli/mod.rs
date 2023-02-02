@@ -88,7 +88,7 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("gates")
-                .about("Counts the occurences of different gates in circuit")
+                .about("Counts the occurrences of different gates in circuit")
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
