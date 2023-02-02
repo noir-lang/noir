@@ -1145,9 +1145,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
         match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
             Ordering::Greater => {
-                let coef = b.linear_combinations[i2].0 * k;
-                if coef != FieldElement::zero() {
-                    output.linear_combinations.push((coef, b.linear_combinations[i2].1));
+                let coeff = b.linear_combinations[i2].0 * k;
+                if coeff != FieldElement::zero() {
+                    output.linear_combinations.push((coeff, b.linear_combinations[i2].1));
                 }
                 i2 += 1;
             }
@@ -1156,9 +1156,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
                 i1 += 1;
             }
             Ordering::Equal => {
-                let coef = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
-                if coef != FieldElement::zero() {
-                    output.linear_combinations.push((coef, a.linear_combinations[i1].1));
+                let coeff = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
+                if coeff != FieldElement::zero() {
+                    output.linear_combinations.push((coeff, a.linear_combinations[i1].1));
                 }
                 i2 += 1;
                 i1 += 1;
@@ -1170,9 +1170,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
         i1 += 1;
     }
     while i2 < b.linear_combinations.len() {
-        let coef = b.linear_combinations[i2].0 * k;
-        if coef != FieldElement::zero() {
-            output.linear_combinations.push((coef, b.linear_combinations[i2].1));
+        let coeff = b.linear_combinations[i2].0 * k;
+        if coeff != FieldElement::zero() {
+            output.linear_combinations.push((coeff, b.linear_combinations[i2].1));
         }
         i2 += 1;
     }
@@ -1185,9 +1185,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     while i1 < a.mul_terms.len() && i2 < b.mul_terms.len() {
         match (a.mul_terms[i1].1, a.mul_terms[i1].2).cmp(&(b.mul_terms[i2].1, b.mul_terms[i2].2)) {
             Ordering::Greater => {
-                let coef = b.mul_terms[i2].0 * k;
-                if coef != FieldElement::zero() {
-                    output.mul_terms.push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+                let coeff = b.mul_terms[i2].0 * k;
+                if coeff != FieldElement::zero() {
+                    output.mul_terms.push((coeff, b.mul_terms[i2].1, b.mul_terms[i2].2));
                 }
                 i2 += 1;
             }
@@ -1196,9 +1196,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
                 i1 += 1;
             }
             Ordering::Equal => {
-                let coef = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
-                if coef != FieldElement::zero() {
-                    output.mul_terms.push((coef, a.mul_terms[i1].1, a.mul_terms[i1].2));
+                let coeff = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
+                if coeff != FieldElement::zero() {
+                    output.mul_terms.push((coeff, a.mul_terms[i1].1, a.mul_terms[i1].2));
                 }
                 i2 += 1;
                 i1 += 1;
@@ -1211,9 +1211,9 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     }
 
     while i2 < b.mul_terms.len() {
-        let coef = b.mul_terms[i2].0 * k;
-        if coef != FieldElement::zero() {
-            output.mul_terms.push((coef, b.mul_terms[i2].1, b.mul_terms[i2].2));
+        let coeff = b.mul_terms[i2].0 * k;
+        if coeff != FieldElement::zero() {
+            output.mul_terms.push((coeff, b.mul_terms[i2].1, b.mul_terms[i2].2));
         }
         i2 += 1;
     }
