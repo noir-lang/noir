@@ -129,7 +129,7 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
-    // An invalid character is one that is not in noir's language or grammer.
+    // An invalid character is one that is not in noir's language or grammar.
     // Delaying reporting these as errors until parsing improves error messsages
     Invalid(char),
 }
