@@ -1089,24 +1089,26 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
     let mut i1 = 0; //a
     let mut i2 = 0; //b
     while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
-        let coef_a = b.q_c * a.linear_combinations[i1].0;
-        let coef_b = a.q_c * b.linear_combinations[i2].0;
+        let coeff_a = b.q_c * a.linear_combinations[i1].0;
+        let coeff_b = a.q_c * b.linear_combinations[i2].0;
         match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
             Ordering::Greater => {
-                if coef_b != FieldElement::zero() {
-                    output.linear_combinations.push((coef_b, b.linear_combinations[i2].1));
+                if coeff_b != FieldElement::zero() {
+                    output.linear_combinations.push((coeff_b, b.linear_combinations[i2].1));
                 }
                 i2 += 1;
             }
             Ordering::Less => {
-                if coef_a != FieldElement::zero() {
-                    output.linear_combinations.push((coef_a, a.linear_combinations[i1].1));
+                if coeff_a != FieldElement::zero() {
+                    output.linear_combinations.push((coeff_a, a.linear_combinations[i1].1));
                 }
                 i1 += 1;
             }
             Ordering::Equal => {
-                if coef_a + coef_b != FieldElement::zero() {
-                    output.linear_combinations.push((coef_a + coef_b, a.linear_combinations[i1].1));
+                if coeff_a + coeff_b != FieldElement::zero() {
+                    output
+                        .linear_combinations
+                        .push((coeff_a + coeff_b, a.linear_combinations[i1].1));
                 }
 
                 i1 += 1;
@@ -1115,13 +1117,13 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
         }
     }
     while i1 < a.linear_combinations.len() {
-        let coef_a = b.q_c * a.linear_combinations[i1].0;
-        output.linear_combinations.push((coef_a, a.linear_combinations[i1].1));
+        let coeff_a = b.q_c * a.linear_combinations[i1].0;
+        output.linear_combinations.push((coeff_a, a.linear_combinations[i1].1));
         i1 += 1;
     }
     while i2 < b.linear_combinations.len() {
-        let coef_b = a.q_c * b.linear_combinations[i2].0;
-        output.linear_combinations.push((coef_b, b.linear_combinations[i2].1));
+        let coeff_b = a.q_c * b.linear_combinations[i2].0;
+        output.linear_combinations.push((coeff_b, b.linear_combinations[i2].1));
         i2 += 1;
     }
 
