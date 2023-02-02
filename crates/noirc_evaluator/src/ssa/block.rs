@@ -550,7 +550,7 @@ pub fn merge_path(
             }
         }
 
-        //we assign the concatened list of instructions to the start block, using a CSE pass
+        //we assign the concatenated list of instructions to the start block, using a CSE pass
         let mut modified = false;
         super::optim::cse_block(ctx, start, &mut instructions, &mut modified)?;
         //Wires start to end
