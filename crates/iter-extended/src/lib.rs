@@ -27,3 +27,13 @@ where
 {
     iterable.into_iter().map(f).collect()
 }
+
+/// Equivalent to .into_iter().map(f).collect::<Result<BTreeMap<_, _>,_>>()
+pub fn try_btree_map<T, K, V, E, F>(iterable: T, f: F) -> Result<BTreeMap<K, V>, E>
+where
+    T: IntoIterator,
+    K: std::cmp::Ord,
+    F: FnMut(T::Item) -> Result<(K, V), E>,
+{
+    iterable.into_iter().map(f).collect()
+}

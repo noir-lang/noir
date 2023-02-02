@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use crate::errors::{RuntimeError, RuntimeErrorKind};
+
 use super::{
     context::SsaContext,
     mem::ArrayId,
@@ -89,8 +91,8 @@ impl Anchor {
         None
     }
 
-    fn get_mem_map(&self, a: ArrayId) -> &Vec<VecDeque<(usize, NodeId)>> {
-        &self.mem_map[&a]
+    fn get_mem_map(&self, a: &ArrayId) -> &Vec<VecDeque<(usize, NodeId)>> {
+        &self.mem_map[a]
     }
 
     pub fn get_mem_all(&self, a: ArrayId) -> &VecDeque<MemItem> {
@@ -105,7 +107,11 @@ impl Anchor {
         }
     }
 
-    pub fn push_mem_instruction(&mut self, ctx: &SsaContext, id: NodeId) {
+    pub fn push_mem_instruction(
+        &mut self,
+        ctx: &SsaContext,
+        id: NodeId,
+    ) -> Result<(), RuntimeError> {
         let ins = ctx.get_instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
@@ -134,10 +140,12 @@ impl Anchor {
                     len
                 }
             };
-            self.mem_map.get_mut(&array_id).unwrap()[mem_idx].push_front((item_pos, id));
+            let anchor_list = self.get_anchor_list_mut(&array_id, mem_idx)?;
+            anchor_list.push_front((item_pos, id));
         } else {
             prev_list.push_front(MemItem::NonConst(id));
         }
+        Ok(())
     }
 
     pub fn find_similar_mem_instruction(
@@ -145,14 +153,14 @@ impl Anchor {
         ctx: &SsaContext,
         op: &Operation,
         prev_ins: &VecDeque<MemItem>,
-    ) -> CseAction {
+    ) -> Result<CseAction, RuntimeErrorKind> {
         for iter in prev_ins.iter() {
-            if let Some(action) = self.match_mem_item(ctx, iter, op) {
-                return action;
+            if let Some(action) = self.match_mem_item(ctx, iter, op)? {
+                return Ok(action);
             }
         }
 
-        CseAction::Keep
+        Ok(CseAction::Keep)
     }
 
     fn get_mem_op(op: &Operation) -> (ArrayId, NodeId, bool) {
@@ -168,39 +176,66 @@ impl Anchor {
         ctx: &SsaContext,
         item: &MemItem,
         op: &Operation,
-    ) -> Option<CseAction> {
+    ) -> Result<Option<CseAction>, RuntimeErrorKind> {
         let (array_id, index, is_load) = Anchor::get_mem_op(op);
         if let Some(b_value) = ctx.get_as_constant(index) {
             match item {
                 MemItem::Const(p) | MemItem::ConstLoad(p) => {
-                    let a = self.get_mem_map(array_id);
                     let b_idx = b_value.to_u128() as usize;
-                    for (pos, id) in &a[b_idx] {
+                    let anchor_list = self.get_anchor_list(&array_id, b_idx)?;
+                    for (pos, id) in anchor_list {
                         if pos == p {
                             let action = Anchor::match_mem_id(ctx, *id, index, is_load);
                             if action.is_some() {
-                                return action;
+                                return Ok(action);
                             }
                         }
                     }
 
-                    None
+                    Ok(None)
                 }
-                MemItem::NonConst(id) => Anchor::match_mem_id(ctx, *id, index, is_load),
+                MemItem::NonConst(id) => Ok(Anchor::match_mem_id(ctx, *id, index, is_load)),
             }
         } else {
             match item {
-                MemItem::Const(_) => Some(CseAction::Keep),
+                MemItem::Const(_) => Ok(Some(CseAction::Keep)),
                 MemItem::ConstLoad(_) => {
                     if is_load {
-                        None
+                        Ok(None)
                     } else {
-                        Some(CseAction::Keep)
+                        Ok(Some(CseAction::Keep))
                     }
                 }
-                MemItem::NonConst(id) => Anchor::match_mem_id(ctx, *id, index, is_load),
+                MemItem::NonConst(id) => Ok(Anchor::match_mem_id(ctx, *id, index, is_load)),
             }
         }
+    }
+
+    //Returns the anchor list of memory instructions for the array_id at the provided index
+    // It issues an out-of-bound error when the list does not exist at this index.
+    fn get_anchor_list(
+        &self,
+        array_id: &ArrayId,
+        index: usize,
+    ) -> Result<&VecDeque<(usize, NodeId)>, RuntimeErrorKind> {
+        let memory_map = self.get_mem_map(array_id);
+        memory_map.get(index).ok_or(RuntimeErrorKind::ArrayOutOfBounds {
+            index: index as u128,
+            bound: memory_map.len() as u128,
+        })
+    }
+
+    //Same as get_anchor_list() but returns a mutable anchor
+    fn get_anchor_list_mut(
+        &mut self,
+        array_id: &ArrayId,
+        index: usize,
+    ) -> Result<&mut VecDeque<(usize, NodeId)>, RuntimeErrorKind> {
+        let memory_map = self.mem_map.get_mut(array_id).unwrap();
+        let len = memory_map.len() as u128;
+        memory_map
+            .get_mut(index)
+            .ok_or(RuntimeErrorKind::ArrayOutOfBounds { index: index as u128, bound: len })
     }
 
     fn match_mem_id(

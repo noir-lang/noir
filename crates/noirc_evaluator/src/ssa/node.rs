@@ -148,12 +148,8 @@ pub struct Variable {
     pub id: NodeId,
     pub obj_type: ObjectType,
     pub name: String,
-    //pub cur_value: arena::Index, //for generating the SSA form, current value of the object during parsing of the AST
     pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<Definition>, //TODO redundant with root - should it be an option?
-    //TODO clarify where cur_value and root is stored, and also this:
-    //  pub max_bits: u32,                  //max possible bit size of the expression
-    //  pub max_value: Option<BigUInt>,     //maximum possible value of the expression, if less than max_bits
+    pub def: Option<Definition>, //AST definition of the variable
     pub witness: Option<Witness>,
     pub parent_block: BlockId,
 }
@@ -367,8 +363,8 @@ impl Instruction {
             | Operation::Cond { .. } => false,
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
-            Operation::Intrinsic(_, _) => true, //TODO to check
-            Operation::Call { .. } => false, //return values are in the return statment, should we truncate function arguments? probably but not lhs and rhs anyways.
+            Operation::Intrinsic(_, _) => true,
+            Operation::Call { .. } => true, //return values are in the return statment
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -796,9 +792,7 @@ impl Binary {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding - TODO
-                else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs / rhs, res_type));
                 }
             }
@@ -807,21 +801,33 @@ impl Binary {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
-                }
-                //constant folding...TODO
-                else if lhs.is_some() && rhs.is_some() {
-                    todo!("Constant folding for division");
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let a = field_to_signed(lhs, res_type.bits());
+                    let b = field_to_signed(rhs, res_type.bits());
+                    return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits())?, res_type));
                 }
             }
-            BinaryOp::Urem | BinaryOp::Srem => {
+            BinaryOp::Urem => {
                 if r_is_zero {
                     return zero_div_error;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
                 }
-                //constant folding - TODO
-                else if lhs.is_some() && rhs.is_some() {
-                    todo!("divide lhs/rhs but take sign into account");
+            }
+            BinaryOp::Srem => {
+                if r_is_zero {
+                    return zero_div_error;
+                } else if l_is_zero {
+                    return Ok(l_eval); //TODO what is the correct result?
+                } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                    let a = field_to_signed(lhs, res_type.bits());
+                    let b = field_to_signed(rhs, res_type.bits());
+                    return Ok(NodeEval::Const(
+                        signed_to_field(a - b + (a / b), res_type.bits())?,
+                        res_type,
+                    ));
                 }
             }
             BinaryOp::Ult => {
@@ -894,8 +900,15 @@ impl Binary {
                     return Ok(r_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitand, field_op_not_allowed));
+                } else {
+                    let n = res_type.bits();
+                    let max = FieldElement::from(2_u128.pow(n) - 1);
+                    if lhs == Some(max) {
+                        return Ok(r_eval);
+                    } else if rhs == Some(max) {
+                        return Ok(l_eval);
+                    }
                 }
-                //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Or => {
                 //Bitwise OR
@@ -905,8 +918,13 @@ impl Binary {
                     return Ok(l_eval);
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitor, field_op_not_allowed));
+                } else {
+                    let n = res_type.bits();
+                    let max = FieldElement::from(2_u128.pow(n) - 1);
+                    if lhs == Some(max) || rhs == Some(max) {
+                        return Ok(NodeEval::Const(max, res_type));
+                    }
                 }
-                //TODO if boolean and not zero, also checks this is correct for field elements
             }
             BinaryOp::Xor => {
                 if self.lhs == self.rhs {
@@ -918,7 +936,6 @@ impl Binary {
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(wrapping(lhs, rhs, res_type, u128::bitxor, field_op_not_allowed));
                 }
-                //TODO handle case when lhs is one (or rhs is one) by generating 'not rhs' instruction (or 'not lhs' instruction)
             }
             BinaryOp::Shl => {
                 if l_is_zero {
@@ -1226,5 +1243,30 @@ impl BinaryOp {
                 | BinaryOp::Or
                 | BinaryOp::Xor
         )
+    }
+}
+
+fn field_to_signed(f: FieldElement, n: u32) -> i128 {
+    assert!(n < 127);
+    let a = f.to_u128();
+    let pow_2 = 2_u128.pow(n);
+    if a < pow_2 {
+        a as i128
+    } else {
+        (a - 2 * pow_2) as i128
+    }
+}
+
+fn signed_to_field(a: i128, n: u32) -> Result<FieldElement, RuntimeError> {
+    if n >= 126 {
+        return Err(RuntimeErrorKind::UnstructuredError {
+            message: "ICE: cannot convert signed {n} bit size into field".to_string(),
+        })?;
+    }
+    if a >= 0 {
+        Ok(FieldElement::from(a))
+    } else {
+        let b = (a + 2_i128.pow(n + 1)) as u128;
+        Ok(FieldElement::from(b))
     }
 }

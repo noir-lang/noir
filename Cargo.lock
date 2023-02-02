@@ -634,6 +634,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f6b64db6932c7e49332728e3a6bd82c6b7e16016607d20923b537c3bc4c0d5f"
 
 [[package]]
+name = "const_format"
+version = "0.2.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7309d9b4d3d2c0641e018d449232f2e28f1b22933c137f157d3dbc14228b8c0e"
+dependencies = [
+ "const_format_proc_macros",
+]
+
+[[package]]
+name = "const_format_proc_macros"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d897f47bf7270cf70d370f8f98c1abb6d2d4cf60a6845d30e05bfb90c6568650"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-xid",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1257,6 +1277,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 
 [[package]]
+name = "git-version"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6b0decc02f4636b9ccad390dcbe77b722a77efedfa393caf8379a51d5c61899"
+dependencies = [
+ "git-version-macro",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "git-version-macro"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe69f1cbdb6e28af2bac214e943b99ce8a0a06b447d15d3e61161b0423139f3f"
+dependencies = [
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1692,8 +1734,10 @@ dependencies = [
  "barretenberg_wasm",
  "cfg-if 1.0.0",
  "clap 2.34.0",
+ "const_format",
  "dirs 4.0.0",
  "fm",
+ "git-version",
  "hex",
  "iter-extended",
  "marlin_arkworks_backend",
@@ -1702,7 +1746,6 @@ dependencies = [
  "noirc_frontend",
  "rustc_version 0.4.0",
  "serde",
- "serde_derive",
  "tempdir",
  "termcolor",
  "thiserror",
@@ -1747,9 +1790,8 @@ name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
  "acvm",
- "blake2",
+ "iter-extended",
  "serde",
- "serde_derive",
  "serde_json",
  "thiserror",
  "toml",
@@ -1766,7 +1808,6 @@ dependencies = [
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
- "pathdiff",
  "serde",
 ]
 
@@ -1788,7 +1829,6 @@ dependencies = [
  "arena",
  "fm",
  "iter-extended",
- "lazy_static",
  "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
@@ -1808,7 +1848,6 @@ dependencies = [
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
- "pathdiff",
  "rustc-hash",
  "smol_str",
  "thiserror",
@@ -1995,12 +2034,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d01a5bd0424d00070b0098dd17ebca6f961a959dead1dbcbbbc1d1cd8d3deeba"
 
 [[package]]
-name = "pathdiff"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
-
-[[package]]
 name = "peeking_take_while"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2078,6 +2111,12 @@ dependencies = [
  "quote",
  "version_check",
 ]
+
+[[package]]
+name = "proc-macro-hack"
+version = "0.5.20+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro2"

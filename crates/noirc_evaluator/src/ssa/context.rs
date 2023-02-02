@@ -8,6 +8,7 @@ use super::{block, builtin, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
+use crate::errors::RuntimeErrorKind;
 use crate::ssa::acir_gen::Acir;
 use crate::ssa::function;
 use crate::ssa::node::{Mark, Node};
@@ -404,7 +405,7 @@ impl SsaContext {
         self[id].get_type()
     }
 
-    //Returns the object value if it is a constant, None if not. TODO: handle types
+    //Returns the object value if it is a constant, None if not.
     pub fn get_as_constant(&self, id: NodeId) -> Option<FieldElement> {
         if let Some(node::NodeObj::Const(c)) = self.try_get_node(id) {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
@@ -434,25 +435,30 @@ impl SsaContext {
         None
     }
 
-    pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, &str> {
-        //TODO proper error handling
+    pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
                 node::NodeObj::Obj(o) => Ok(o),
-                _ => Err("Not an object"),
+                _ => Err(RuntimeErrorKind::UnstructuredError {
+                    message: "Not an object".to_string(),
+                }),
             },
-            _ => Err("Invalid id"),
+            _ => Err(RuntimeErrorKind::UnstructuredError { message: "Invalid id".to_string() }),
         }
     }
 
-    pub fn get_mut_variable(&mut self, id: NodeId) -> Result<&mut node::Variable, &str> {
-        //TODO proper error handling
+    pub fn get_mut_variable(
+        &mut self,
+        id: NodeId,
+    ) -> Result<&mut node::Variable, RuntimeErrorKind> {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
                 node::NodeObj::Obj(o) => Ok(o),
-                _ => Err("Not an object"),
+                _ => Err(RuntimeErrorKind::UnstructuredError {
+                    message: "Not an object".to_string(),
+                }),
             },
-            _ => Err("Invalid id"),
+            _ => Err(RuntimeErrorKind::UnstructuredError { message: "Invalid id".to_string() }),
         }
     }
 
@@ -585,7 +591,7 @@ impl SsaContext {
     // Retrieve the object conresponding to the const value given in argument
     // If such object does not exist, we create one
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
-        let value = BigUint::from_bytes_be(&x.to_be_bytes()); //TODO a const should be a field element
+        let value = BigUint::from_bytes_be(&x.to_be_bytes());
         if let Some(prev_const) = self.find_const_with_type(&value, t) {
             return prev_const;
         }
