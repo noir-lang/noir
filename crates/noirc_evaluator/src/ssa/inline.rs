@@ -48,7 +48,7 @@ pub fn inline_cfg(
     to_inline: Option<FuncId>,
 ) -> Result<bool, RuntimeError> {
     let mut result = true;
-    let func = ctx.get_ssafunc(func_id).unwrap();
+    let func = ctx.get_ssa_func(func_id).unwrap();
     let func_cfg = block::bfs(func.entry_block, None, ctx);
     let decision = func.decision.clone();
     for block_id in func_cfg {
@@ -87,7 +87,7 @@ fn inline_block(
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
         if let Some(func_id) = ctx.try_get_func_id(f) {
-            let f_copy = ctx.get_ssafunc(func_id).unwrap().clone();
+            let f_copy = ctx.get_ssa_func(func_id).unwrap().clone();
             if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
                 result = false;
             }

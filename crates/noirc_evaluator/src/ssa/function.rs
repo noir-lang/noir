@@ -254,7 +254,7 @@ impl IRGenerator {
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
         if let Some(id) = self.context.try_get_func_id(func) {
-            let callee = self.context.get_ssafunc(id).unwrap().idx;
+            let callee = self.context.get_ssa_func(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
             }
@@ -274,7 +274,7 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
-            let ssa_func = self.context.get_ssafunc(func_id).unwrap();
+            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
             let func_arguments = ssa_func.arguments.clone();
             for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
                 let mut is_array_result = false;

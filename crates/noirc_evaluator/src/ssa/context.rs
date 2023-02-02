@@ -374,7 +374,7 @@ impl SsaContext {
         id
     }
 
-    pub fn get_ssafunc(&self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn get_ssa_func(&self, func_id: FuncId) -> Option<&SSAFunction> {
         self.functions.get(&func_id)
     }
 
@@ -385,8 +385,8 @@ impl SsaContext {
         }
     }
 
-    pub fn try_get_ssafunc(&self, id: NodeId) -> Option<&SSAFunction> {
-        self.try_get_func_id(id).and_then(|id| self.get_ssafunc(id))
+    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SSAFunction> {
+        self.try_get_func_id(id).and_then(|id| self.get_ssa_func(id))
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -1091,7 +1091,7 @@ impl SsaContext {
     }
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
-        self.get_ssafunc(func_id).is_some()
+        self.get_ssa_func(func_id).is_some()
     }
 
     pub fn get_or_create_opcode_node_id(&mut self, opcode: builtin::Opcode) -> NodeId {

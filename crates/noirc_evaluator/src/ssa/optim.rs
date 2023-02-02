@@ -290,7 +290,7 @@ fn cse_block_with_anchor(
                         let id = ctx.get_dummy_store(a.0);
                         anchor.push_mem_instruction(ctx, id)?;
                     }
-                    if let Some(f) = ctx.try_get_ssafunc(*func) {
+                    if let Some(f) = ctx.try_get_ssa_func(*func) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
