@@ -26,6 +26,8 @@
         "forall",
         "signedness",
         "rtype",
+        // TODO: we should just name this more descriptively
+        // TODO: ie is it optimisations or optimiser?
         "optim",
         "curr",
         "coeff",
