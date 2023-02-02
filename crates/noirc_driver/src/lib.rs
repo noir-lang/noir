@@ -17,7 +17,7 @@ pub struct Driver {
     context: Context,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,

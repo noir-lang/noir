@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use acvm::ProofSystemCompiler;
 
 use clap::ArgMatches;
+use noirc_abi::input_parser::Format;
 
 use std::path::Path;
 
 use crate::{
-    cli::execute_cmd::save_witness_to_dir,
-    constants::{ACIR_EXT, TARGET_DIR},
+    cli::{execute_cmd::save_witness_to_dir, read_inputs_from_file},
+    constants::{ACIR_EXT, PROVER_INPUT_FILE, TARGET_DIR},
     errors::CliError,
     resolver::Resolver,
 };
@@ -54,8 +55,16 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     println!("{:?}", std::fs::canonicalize(&circuit_path));
 
     if generate_witness {
+        // Parse the initial witness values from Prover.toml
+        let inputs_map = read_inputs_from_file(
+            program_dir,
+            PROVER_INPUT_FILE,
+            Format::Toml,
+            compiled_program.abi.as_ref().unwrap().clone(),
+        )?;
+
         let (_, solved_witness) =
-            super::execute_cmd::execute_program(program_dir, &compiled_program)?;
+            super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
 
         circuit_path.pop();
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;

@@ -51,23 +51,23 @@ fn execute(
     let compiled_program =
         super::compile_cmd::compile_circuit(&current_dir, show_ssa, allow_warnings)?;
 
-    execute_program(current_dir, &compiled_program)
-}
-
-pub(crate) fn execute_program<P: AsRef<Path>>(
-    inputs_dir: P,
-    compiled_program: &CompiledProgram,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(
-        inputs_dir,
+    let inputs_map = read_inputs_from_file(
+        current_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
         compiled_program.abi.as_ref().unwrap().clone(),
     )?;
 
+    execute_program(&compiled_program, &inputs_map)
+}
+
+pub(crate) fn execute_program(
+    compiled_program: &CompiledProgram,
+    inputs_map: &InputMap,
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Solve the remaining witnesses
-    let solved_witness = solve_witness(compiled_program, &witness_map)?;
+    let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
     let public_inputs = extract_public_inputs(compiled_program, &solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
