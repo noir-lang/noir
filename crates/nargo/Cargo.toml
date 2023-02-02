@@ -31,8 +31,8 @@ tempdir.workspace = true
 thiserror.workspace = true
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "c673a14be33e445d98b35969716ac59c682036d6" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "c673a14be33e445d98b35969716ac59c682036d6" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 
 [features]

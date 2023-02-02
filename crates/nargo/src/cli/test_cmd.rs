@@ -39,8 +39,9 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
         match prove(test_name, test_function, &driver, allow_warnings) {
             Ok(_) => println!("ok"),
             Err(_) => {
-                // An error likely was printed in the meantime, so this is the start of a newline
-                println!("{test_name} failed");
+                // An error likely was printed in the meantime, so this is the start of a newline.
+                // Add an extra newline as well to help separate failing tests.
+                println!("{test_name} failed\n");
                 failing += 1;
             }
         }
@@ -69,11 +70,9 @@ fn prove(
     let language = backend.np_language();
     let program_dir = std::env::current_dir().unwrap();
 
-    let program =
-        driver.compile_no_check(language, false, allow_warnings, Some(main)).map_err(|_| {
-            // TODO: Add test name
-            CliError::Generic(format!("Test '{test_name}' failed to compile"))
-        })?;
+    let program = driver
+        .compile_no_check(language, false, allow_warnings, Some(main))
+        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let solved_witness = parse_and_solve_witness(program_dir, &program)?;
 
