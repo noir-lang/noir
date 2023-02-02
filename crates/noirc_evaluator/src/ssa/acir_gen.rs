@@ -869,8 +869,8 @@ fn evaluate_bitwise(
     let mut b_witness = rhs.generate_witness(evaluator);
 
     let result = evaluator.add_witness_to_cs();
-    let bsize = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
-    assert!(bsize < FieldElement::max_num_bits() - 1);
+    let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
+    assert!(bit_size < FieldElement::max_num_bits() - 1);
     let max = FieldElement::from((1_u128 << bit_size) - 1);
     let bit_gate = match opcode {
         BinaryOp::And => acvm::acir::BlackBoxFunc::AND,
@@ -894,8 +894,8 @@ fn evaluate_bitwise(
     let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
         name: bit_gate,
         inputs: vec![
-            FunctionInput { witness: a_witness, num_bits: bsize },
-            FunctionInput { witness: b_witness, num_bits: bsize },
+            FunctionInput { witness: a_witness, num_bits: bit_size },
+            FunctionInput { witness: b_witness, num_bits: bit_size },
         ],
         outputs: vec![result],
     });

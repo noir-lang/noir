@@ -37,7 +37,6 @@
         "urem",
         "srem",
         "nvar",
-        "bsize",
         "eucl",
         "igen",
         "nodeobj",
