@@ -286,7 +286,6 @@ impl Evaluator {
         // Since this is not in the main functions parameters.
         //
         // TODO(See Issue633) regarding adding a `return_type` field to the ABI struct
-        // TODO(See Issue631) regarding making the return keyword reserved
         let abi_params: Vec<_> = abi_params
             .into_iter()
             .filter(|param| param.name != noirc_abi::MAIN_RETURN_NAME)
