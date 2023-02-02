@@ -364,7 +364,7 @@ impl Instruction {
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true,
-            Operation::Call { .. } => true, //return values are in the return statment
+            Operation::Call { .. } => true, //return values are in the return statement
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
