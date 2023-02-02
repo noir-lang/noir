@@ -703,7 +703,7 @@ impl SsaContext {
         block::compute_dom(self);
         optim::full_cse(self, self.first_block, false)?;
 
-        //Flattenning
+        //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
         flatten::unroll_tree(self, self.first_block)?;
