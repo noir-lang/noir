@@ -761,7 +761,7 @@ impl SsaContext {
     }
 
     pub fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
-        //Ensure there is not already a phi for the variable (n.b. probably not usefull)
+        //Ensure there is not already a phi for the variable (n.b. probably not useful)
         for i in &self[target_block].instructions {
             match self.try_get_instruction(*i) {
                 Some(Instruction { operation: Operation::Phi { root, .. }, .. })

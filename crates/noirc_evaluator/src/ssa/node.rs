@@ -532,7 +532,7 @@ pub enum Operation {
         value: NodeId,
     },
 
-    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
