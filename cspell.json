@@ -27,7 +27,7 @@
         "signedness",
         "rtype",
         // TODO: we should just name this more descriptively
-        // TODO: ie is it optimisations or optimiser?
+        // TODO: ie is it optimizations or optimizer?
         "optim",
         "curr",
         "coeff",
@@ -37,7 +37,6 @@
         "urem",
         "srem",
         "nvar",
-        "constrain",
         "bsize",
         "eucl",
         "igen",
