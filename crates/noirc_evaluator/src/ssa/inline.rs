@@ -230,7 +230,7 @@ pub fn inline(
     }
 
     let mut result = true;
-    //3. inline in the block: we assume the function cfg is already flatened.
+    //3. inline in the block: we assume the function cfg is already flattened.
     let mut next_block = Some(ssa_func.entry_block);
     while let Some(next_b) = next_block {
         let mut nested_call = false;
