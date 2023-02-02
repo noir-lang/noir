@@ -40,7 +40,7 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
         write!(writer, "Testing {test_name}... ").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match prove(test_name, test_function, &driver, allow_warnings) {
+        match compile_test(test_name, test_function, &driver, allow_warnings) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -71,7 +71,7 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
     Ok(())
 }
 
-fn prove(
+fn compile_test(
     test_name: &str,
     main: FuncId,
     driver: &Driver,
