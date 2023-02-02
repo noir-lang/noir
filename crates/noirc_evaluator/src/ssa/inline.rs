@@ -71,7 +71,7 @@ fn inline_block(
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
                 if let Operation::Call { func, arguments, returned_arrays, .. } = &ins.operation {
-                    if to_inline.is_none() || to_inline == ctx.try_get_funcid(*func) {
+                    if to_inline.is_none() || to_inline == ctx.try_get_func_id(*func) {
                         call_ins.push((
                             ins.id,
                             *func,
@@ -86,7 +86,7 @@ fn inline_block(
     }
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
-        if let Some(func_id) = ctx.try_get_funcid(f) {
+        if let Some(func_id) = ctx.try_get_func_id(f) {
             let f_copy = ctx.get_ssafunc(func_id).unwrap().clone();
             if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
                 result = false;

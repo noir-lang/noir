@@ -23,7 +23,6 @@
         "codegen",
         "lvalue",
         "vecmap",
-        "funcid",
         "ssafunc",
         "forall",
         "signedness",

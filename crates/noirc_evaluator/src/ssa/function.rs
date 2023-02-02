@@ -253,7 +253,7 @@ impl IRGenerator {
         let call_instruction =
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
-        if let Some(id) = self.context.try_get_funcid(func) {
+        if let Some(id) = self.context.try_get_func_id(func) {
             let callee = self.context.get_ssafunc(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
@@ -265,7 +265,7 @@ impl IRGenerator {
         // return an array of size 0.
         // we should check issue #628 again when this block is removed
         // we should also see if the lca check in StackFrame.is_new_array() can be removed (cf. issue #661)
-        if let Some(func_id) = self.context.try_get_funcid(func) {
+        if let Some(func_id) = self.context.try_get_func_id(func) {
             let rtt = self.context.functions[&func_id].result_types.clone();
             let mut result = Vec::new();
             for i in rtt.iter().enumerate() {

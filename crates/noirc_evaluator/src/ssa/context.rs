@@ -234,7 +234,7 @@ impl SsaContext {
             Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
             Operation::Nop => "nop".into(),
             Operation::Call { func, arguments, returned_arrays, .. } => {
-                let name = self.try_get_funcid(*func).map(|id| self.functions[&id].name.clone());
+                let name = self.try_get_func_id(*func).map(|id| self.functions[&id].name.clone());
                 let name = name.unwrap_or_else(|| self.id_to_string(*func));
                 format!("call {name}({}) _ {returned_arrays:?}", join(arguments))
             }
@@ -378,7 +378,7 @@ impl SsaContext {
         self.functions.get(&func_id)
     }
 
-    pub fn try_get_funcid(&self, id: NodeId) -> Option<FuncId> {
+    pub fn try_get_func_id(&self, id: NodeId) -> Option<FuncId> {
         match &self[id] {
             NodeObj::Function(FunctionKind::Normal(id), ..) => Some(*id),
             _ => None,
@@ -386,7 +386,7 @@ impl SsaContext {
     }
 
     pub fn try_get_ssafunc(&self, id: NodeId) -> Option<&SSAFunction> {
-        self.try_get_funcid(id).and_then(|id| self.get_ssafunc(id))
+        self.try_get_func_id(id).and_then(|id| self.get_ssafunc(id))
     }
 
     pub fn dummy_id() -> arena::Index {
