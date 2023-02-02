@@ -311,7 +311,7 @@ fn cse_block_with_anchor(
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
                 Operation::Intrinsic(_, args) => {
-                    //Add dunmmy load for function arguments and enable CSE only if no array in argument
+                    //Add dummy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
