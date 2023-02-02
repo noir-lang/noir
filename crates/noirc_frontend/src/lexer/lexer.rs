@@ -293,7 +293,7 @@ impl<'a> Lexer<'a> {
         Ok(attribute.into_span(start - 1, end + 1))
     }
 
-    //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
+    //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
         let (word, start, end) = self.eat_while(Some(initial_char), |ch| {
