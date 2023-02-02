@@ -130,7 +130,7 @@ pub enum Token {
     EOF,
 
     // An invalid character is one that is not in noir's language or grammar.
-    // Delaying reporting these as errors until parsing improves error messsages
+    // Delaying reporting these as errors until parsing improves error messages
     Invalid(char),
 }
 
