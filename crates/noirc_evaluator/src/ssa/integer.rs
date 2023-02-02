@@ -229,7 +229,7 @@ fn block_overflow(
 ) -> Result<(), RuntimeError> {
     //for each instruction, we compute the resulting max possible value (in term of the field representation of the operation)
     //when it is over the field characteristic, or if the instruction requires it, then we insert truncate instructions
-    // The instructions are insterted in a duplicate list( because of rust ownership..), which we use for
+    // The instructions are inserted in a duplicate list( because of rust ownership..), which we use for
     // processing another cse round for the block because the truncates may be duplicated.
     let mut new_list = Vec::new();
 
