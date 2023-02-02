@@ -29,7 +29,6 @@
         "signedness",
         "rtype",
         "optim",
-        "optype",
         "curr",
         "coef",
         "lowlevel",

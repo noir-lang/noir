@@ -557,10 +557,10 @@ impl SsaContext {
     pub fn new_instruction(
         &mut self,
         opcode: Operation,
-        optype: ObjectType,
+        op_type: ObjectType,
     ) -> Result<NodeId, RuntimeError> {
         //Add a new instruction to the nodes arena
-        let mut i = Instruction::new(opcode, optype, Some(self.current_block));
+        let mut i = Instruction::new(opcode, op_type, Some(self.current_block));
 
         //Basic simplification - we ignore RunTimeErrors when creating an instruction
         //because they must be managed after handling conditionals. For instance if false { b } should not fail whatever b is doing.
@@ -922,10 +922,10 @@ impl SsaContext {
     fn new_instruction_inline(
         &mut self,
         operation: node::Operation,
-        optype: node::ObjectType,
+        op_type: node::ObjectType,
         stack_frame: &mut StackFrame,
     ) -> NodeId {
-        let i = node::Instruction::new(operation, optype, Some(stack_frame.block));
+        let i = node::Instruction::new(operation, op_type, Some(stack_frame.block));
         let ins_id = self.add_instruction(i);
         stack_frame.push(ins_id);
         ins_id
