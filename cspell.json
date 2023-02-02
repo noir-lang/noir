@@ -9,7 +9,6 @@
         // Refers to parameters for a specific elliptic curve
         "secp256k1",
         "aeiou",
-        "Opportunties",
         "sanitisation",
         "ellide",
         //
