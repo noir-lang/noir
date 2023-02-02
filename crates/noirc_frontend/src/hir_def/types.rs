@@ -1068,7 +1068,7 @@ impl Type {
     pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
         let fields: Vec<_> = match self {
             // Unfortunately the .borrow() here forces us to collect into a Vec
-            // only to have to call .into_iter again afterward. Trying to ellide
+            // only to have to call .into_iter again afterward. Trying to elide
             // collecting to a Vec leads to us dropping the temporary Ref before
             // the iterator is returned
             Type::Struct(def, args) => vecmap(&def.borrow().fields, |(name, _)| {
