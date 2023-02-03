@@ -97,9 +97,6 @@ pub(crate) fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
-    // Note that this currently accepts an input for the return value witness.
-    // This doesn't really match with the expected usage of `nargo execute` as it's intended to calculate this.
-    // See: https://github.com/noir-lang/noir/issues/624
     let abi = compiled_program.abi.as_ref().unwrap();
     let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
         AbiError::UndefinedInput(_) => {
