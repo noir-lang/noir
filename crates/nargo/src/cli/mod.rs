@@ -43,7 +43,7 @@ pub fn start_cli() {
     let matches = App::new("nargo")
         .about("Noir's package manager")
         .version(VERSION_STRING)
-        .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
+        .author("The Noir Team <kevtheappdev@gmail.com>")
         .subcommand(
             App::new("check")
                 .about("Checks the constraint system for errors")

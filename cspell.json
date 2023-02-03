@@ -30,8 +30,6 @@
         "comptime",
         "desugared",
         "plonkc",
-        "kevaundray",
-        "wedderburn",
         "arity",
         "hasher",
         "injective",
