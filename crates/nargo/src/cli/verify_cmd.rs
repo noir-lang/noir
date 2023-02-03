@@ -1,4 +1,4 @@
-use super::{compile_cmd::compile_circuit, prove_cmd::AbiMap, read_inputs_from_file};
+use super::{compile_cmd::compile_circuit, read_inputs_from_file, AbiMap};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,

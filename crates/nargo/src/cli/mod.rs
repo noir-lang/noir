@@ -1,3 +1,4 @@
+use acvm::{acir::native_types::Witness, FieldElement};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use noirc_abi::{
@@ -24,6 +25,12 @@ mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
+
+/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
+pub type AbiMap = BTreeMap<String, InputValue>;
+
+/// A map from the witnesses in a constraint system to the field element values
+pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")

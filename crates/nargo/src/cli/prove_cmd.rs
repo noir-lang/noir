@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
@@ -6,11 +6,11 @@ use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::input_parser::Format;
 use noirc_abi::Abi;
-use std::path::Path;
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use super::{AbiMap, WitnessMap};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -27,14 +27,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
-
-// A map from the fields in an TOML/JSON file
-// which correspond to some ABI to their values
-pub type AbiMap = BTreeMap<String, InputValue>;
-
-// A map from the witnesses in a constraint system to
-// the field element values
-pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 fn prove(proof_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
