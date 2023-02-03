@@ -60,7 +60,6 @@
         "bindgen",
         "gloo",
         "plonkc",
-        "virtualise",
         "tempfile",
         "rustc",
         "arkworks",
