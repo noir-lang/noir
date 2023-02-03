@@ -132,7 +132,7 @@ feat(syntax): Implement first-class functions (#123)
 * clippy
 ```
 
-The person merging would remove extranous messaging and keep only the revelant Conventional Commits:
+The person merging would remove extraneous messaging and keep only the relevant Conventional Commits:
 
 ```
 feat(syntax): Implement String data type (#123)
