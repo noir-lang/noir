@@ -56,7 +56,6 @@
         "comptime",
         "failable",
         "subexpr",
-        "myfunc",
         "desugared",
         "elems",
         "bindgen",

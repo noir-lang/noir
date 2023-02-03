@@ -656,7 +656,7 @@ where
         MemberAccess((Ident, Option<Vec<Expression>>)),
     }
 
-    // `(arg1, ..., argN)` in `myfunc(arg1, ..., argN)`
+    // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
     let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
