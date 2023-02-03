@@ -332,7 +332,7 @@ impl IRGenerator {
         })
     }
 
-    //Lowlevel functions with no more than 2 arguments
+    //Low-level functions with no more than 2 arguments
     pub fn call_low_level(
         &mut self,
         op: builtin::Opcode,
