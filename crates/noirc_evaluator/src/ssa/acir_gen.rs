@@ -104,7 +104,7 @@ impl From<FieldElement> for InternalVar {
 impl Acir {
     //This function stores the substitution with the arithmetic expression in the cache
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
-    //Substitute a nodeobj as an arithmetic expression
+    //Substitute a node object as an arithmetic expression
     fn substitute(
         &mut self,
         id: NodeId,

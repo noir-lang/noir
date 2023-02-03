@@ -387,7 +387,7 @@ fn block_overflow(
             ..
         }) = &mut ins.operation
         {
-            //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each nodeobj)
+            //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each node object)
             //sub operations require the max value to ensure it does not underflow
             *max_rhs_value = max_map[rhs].clone();
             //we may do that in future when the max_map becomes more used elsewhere (for other optim)
