@@ -124,7 +124,13 @@ fn solve_witness(
     abi_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap().clone();
-    let mut solved_witness = input_map_to_witness_map(abi, abi_map)?;
+    let mut solved_witness =
+        input_map_to_witness_map(abi, abi_map).map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
+            }
+            _ => CliError::from(error),
+        })?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone());
