@@ -84,7 +84,6 @@
         "milner",
         "peekable",
         "hexdigit",
-        "arraylen",
         "struct",
         "stdlib",
         "noirup",

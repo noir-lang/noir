@@ -575,7 +575,7 @@ impl Monomorphizer {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
+    /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
     /// at their call site.
     /// NOTE: Evaluating at the call site means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
@@ -588,7 +588,7 @@ impl Monomorphizer {
     ) -> Option<ast::Expression> {
         match func {
             ast::Expression::Ident(ident) => match &ident.definition {
-                Definition::Builtin(opcode) if opcode == "arraylen" => {
+                Definition::Builtin(opcode) if opcode == "array_len" => {
                     let typ = self.interner.id_type(arguments[0]);
                     let len = typ.evaluate_to_u64().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
