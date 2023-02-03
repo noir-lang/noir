@@ -72,7 +72,6 @@
         "pedersen",
         "schnorr",
         "merkle",
-        "vmap",
         "arithmetization",
         "bitand",
         "subexpression",

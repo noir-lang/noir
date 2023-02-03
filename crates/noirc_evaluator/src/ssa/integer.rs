@@ -27,7 +27,7 @@ fn get_instruction_max(
     ctx: &SsaContext,
     ins: &Instruction,
     max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
+    value_map: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     assert_ne!(
         ins.operation.opcode(),
@@ -35,9 +35,9 @@ fn get_instruction_max(
         "Phi instructions must have been simplified"
     );
     ins.operation.for_each_id(|id| {
-        get_obj_max_value(ctx, id, max_map, vmap);
+        get_obj_max_value(ctx, id, max_map, value_map);
     });
-    get_instruction_max_operand(ctx, ins, max_map, vmap)
+    get_instruction_max_operand(ctx, ins, max_map, value_map)
 }
 
 //Gets the maximum value of the instruction result using the provided operand maximum
@@ -45,10 +45,12 @@ fn get_instruction_max_operand(
     ctx: &SsaContext,
     ins: &Instruction,
     max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
+    value_map: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
-        Operation::Load { array_id, index } => get_load_max(ctx, *index, max_map, vmap, *array_id),
+        Operation::Load { array_id, index } => {
+            get_load_max(ctx, *index, max_map, value_map, *array_id)
+        }
         Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
@@ -82,9 +84,9 @@ fn get_obj_max_value(
     ctx: &SsaContext,
     id: NodeId,
     max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
+    value_map: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
-    let id = get_value_from_map(id, vmap);
+    let id = get_value_from_map(id, value_map);
     if max_map.contains_key(&id) {
         return max_map[&id].clone();
     }
@@ -96,7 +98,7 @@ fn get_obj_max_value(
 
     let result = match obj {
         NodeObject::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
-        NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
+        NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, value_map),
         NodeObject::Const(c) => c.value.clone(), //TODO panic for string constants
         NodeObject::Function(..) => BigUint::zero(),
     };
@@ -151,11 +153,11 @@ fn fix_truncate(
     id: NodeId,
     prev_id: NodeId,
     block_idx: BlockId,
-    vmap: &mut HashMap<NodeId, NodeId>,
+    value_map: &mut HashMap<NodeId, NodeId>,
 ) {
     if let Some(ins) = eval.try_get_mut_instruction(id) {
         ins.parent_block = block_idx;
-        vmap.insert(prev_id, id);
+        value_map.insert(prev_id, id);
     }
 }
 
@@ -187,12 +189,12 @@ fn process_to_truncate(
     to_truncate: &mut BTreeMap<NodeId, u32>,
     max_map: &mut HashMap<NodeId, BigUint>,
     block_idx: BlockId,
-    vmap: &mut HashMap<NodeId, NodeId>,
+    value_map: &mut HashMap<NodeId, NodeId>,
 ) {
     for (id, bit_size) in to_truncate.iter() {
         if let Some(truncate_idx) = truncate(ctx, *id, *bit_size, max_map) {
             //TODO properly handle signed arithmetic...
-            fix_truncate(ctx, truncate_idx, *id, block_idx, vmap);
+            fix_truncate(ctx, truncate_idx, *id, block_idx, value_map);
             new_list.push(truncate_idx);
         }
     }
@@ -405,16 +407,20 @@ fn block_overflow(
     Ok(())
 }
 
-fn update_value_array(ctx: &mut SsaContext, block_id: BlockId, vmap: &HashMap<NodeId, NodeId>) {
+fn update_value_array(
+    ctx: &mut SsaContext,
+    block_id: BlockId,
+    value_map: &HashMap<NodeId, NodeId>,
+) {
     let block = &mut ctx[block_id];
-    for (old, new) in vmap {
+    for (old, new) in value_map {
         block.value_map.insert(*old, *new); //TODO we must merge rather than update
     }
 }
 
-//Get current value using the provided vmap
-pub fn get_value_from_map(id: NodeId, vmap: &HashMap<NodeId, NodeId>) -> NodeId {
-    *vmap.get(&id).unwrap_or(&id)
+//Get current value using the provided value map
+pub fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
+    *value_map.get(&id).unwrap_or(&id)
 }
 
 fn get_size_in_bits(obj: Option<&NodeObject>) -> u32 {
@@ -437,12 +443,12 @@ fn get_load_max(
     ctx: &SsaContext,
     address: NodeId,
     max_map: &mut HashMap<NodeId, BigUint>,
-    vmap: &HashMap<NodeId, NodeId>,
+    value_map: &HashMap<NodeId, NodeId>,
     array: ArrayId,
     // obj_type: ObjectType,
 ) -> BigUint {
     if let Some(&value) = ctx.get_indexed_value(array, address) {
-        return get_obj_max_value(ctx, value, max_map, vmap);
+        return get_obj_max_value(ctx, value, max_map, value_map);
     };
     ctx.mem[array].max.clone() //return array max
 }
