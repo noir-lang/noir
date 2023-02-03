@@ -2,6 +2,7 @@
     "version": "0.2",
     "words": [
         // In code
+        //
         "aeiou",
         "arithmetization",
         "arity",
@@ -18,8 +19,6 @@
         "idents",
         "impls",
         "injective",
-        // This is a computer science idiom. Its a data structure that stores only
-        // one distinct copy of an value. Google `String Interner` for a concrete example
         "interner",
         "krate",
         "lvalue",
@@ -44,6 +43,7 @@
         "urem",
         "vecmap",
         // Dependencies
+        //
         "acir",
         "acvm",
         "arkworks",
@@ -64,7 +64,6 @@
         "plonkc",
         "rustc",
         "rustup",
-        // Refers to parameters for a specific elliptic curve
         "secp256k1",
         "smol",
         "tempdir",
