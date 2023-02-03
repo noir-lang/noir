@@ -53,6 +53,7 @@
         "monomorphized",
         "monomorphize",
         "monomorphizer",
+        "higher-kinded",
         // Dependencies
         "smol",
         "clippy",
