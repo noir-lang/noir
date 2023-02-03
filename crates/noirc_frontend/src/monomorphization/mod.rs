@@ -129,49 +129,12 @@ impl Monomorphizer {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    /// The main function is special, we need to check for a return type and if present,
-    /// insert an extra constrain on the return value.
     fn compile_main(&mut self, main_id: node_interner::FuncId) -> Abi {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        let main = self.finished_functions.get_mut(&new_main_id).unwrap();
-
-        // If the main function has a return type we manually desugar it here
-        // to add a `constrain ret == expected_ret` where `ret` is the body of main
-        // and `expected_ret` is a new parameter added to the public inputs.
-        if main.return_type != ast::Type::Unit {
-            let id = self.next_local_id();
-
-            let main = self.finished_functions.get_mut(&new_main_id).unwrap();
-            main.parameters.push((id, false, "return".into(), main.return_type.clone()));
-            main.return_type = ast::Type::Unit;
-
-            let name = "_".into();
-            let typ = Self::convert_type(main_meta.return_type());
-            let lhs = Box::new(ast::Expression::Ident(ast::Ident {
-                definition: Definition::Local(id),
-                mutable: false,
-                location: None,
-                name,
-                typ,
-            }));
-
-            // Need to temporarily swap out main.body here because we cannot
-            // move out of it directly.
-            let tmp_body = ast::Expression::Literal(ast::Literal::Unit);
-            let main_body = std::mem::replace(&mut main.body, tmp_body);
-
-            let rhs = Box::new(main_body);
-            let operator = ast::BinaryOp::Equal;
-            let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
-
-            let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), location);
-        }
-
         main_meta.into_abi(&self.interner)
     }
 
