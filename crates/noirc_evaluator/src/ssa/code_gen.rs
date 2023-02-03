@@ -126,7 +126,12 @@ impl IRGenerator {
 
     pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        self.codegen_expression(&main_body)?;
+        let value = self.codegen_expression(&main_body)?;
+        let node_ids = value.to_node_ids();
+
+        if self.program.main().return_type != Type::Unit {
+            self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
+        }
         Ok(())
     }
 

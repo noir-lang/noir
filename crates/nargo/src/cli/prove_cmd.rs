@@ -1,5 +1,3 @@
-use std::{collections::BTreeMap, path::PathBuf};
-
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
@@ -7,9 +5,13 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
-use std::path::Path;
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use crate::cli::dedup_public_input_indices;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -69,12 +71,20 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     show_ssa: bool,
     allow_unused_variables: bool,
 ) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
-    let compiled_program = super::compile_cmd::compile_circuit(
+    let mut compiled_program = super::compile_cmd::compile_circuit(
         program_dir.as_ref(),
         show_ssa,
         allow_unused_variables,
     )?;
     let solved_witness = parse_and_solve_witness(program_dir, &compiled_program)?;
+
+    // Since the public outputs are added into the public inputs list
+    // There can be duplicates. We keep the duplicates for when one is
+    // encoding the return values into the Verifier.toml
+    // However, for creating a proof, we remove these duplicates.
+    compiled_program.circuit.public_inputs =
+        dedup_public_input_indices(compiled_program.circuit.public_inputs);
+
     Ok((compiled_program, solved_witness))
 }
 

@@ -20,6 +20,9 @@ pub struct Evaluator {
     // so it is safer to use a u32, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
+    // This is the number of witnesses indices used when
+    // creating the private/public inputs of the ABI.
+    num_witnesses_abi_len: usize,
     public_inputs: Vec<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
@@ -60,6 +63,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             public_inputs: Vec::new(),
+            num_witnesses_abi_len: 0,
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
             // This means that every constraint system at the moment, will either need
@@ -71,6 +75,22 @@ impl Evaluator {
             current_witness_index: 0,
             opcodes: Vec::new(),
         }
+    }
+
+    // Returns true if the `witness_index`
+    // was created in the ABI as a private input.
+    //
+    // Note: This method is used so that we don't convert private
+    // ABI inputs into public outputs.
+    fn is_private_abi_input(&self, witness_index: Witness) -> bool {
+        // If the `witness_index` is more than the `num_witnesses_abi_len`
+        // then it was created after the ABI was processed and is therefore
+        // an intermediate variable.
+        let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
+
+        let is_public_input = self.public_inputs.contains(&witness_index);
+
+        !is_intermediate_variable && !is_public_input
     }
 
     // Creates a new Witness index
@@ -261,6 +281,16 @@ impl Evaluator {
         let main = igen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut igen.program.abi.parameters);
+
+        // Remove the return type from the parameters
+        // Since this is not in the main functions parameters.
+        //
+        // TODO(See Issue633) regarding adding a `return_type` field to the ABI struct
+        let abi_params: Vec<_> = abi_params
+            .into_iter()
+            .filter(|param| param.name != noirc_abi::MAIN_RETURN_NAME)
+            .collect();
+
         assert_eq!(main_params.len(), abi_params.len());
 
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
@@ -269,5 +299,9 @@ impl Evaluator {
             self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
                 .unwrap();
         }
+
+        // Store the number of witnesses used to represent the types
+        // in the ABI
+        self.num_witnesses_abi_len = self.current_witness_index as usize;
     }
 }
