@@ -1,6 +1,9 @@
+use acvm::{acir::circuit::PublicInputs, FieldElement};
 use acvm::{acir::native_types::Witness, FieldElement};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
+use const_format::formatcp;
+use git_version::git_version;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi,
@@ -8,7 +11,7 @@ use noirc_abi::{
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -25,6 +28,9 @@ mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod verify_cmd;
+
+const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
+const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -43,7 +49,7 @@ pub fn start_cli() {
 
     let matches = App::new("nargo")
         .about("Noir's package manager")
-        .version("0.1")
+        .version(VERSION_STRING)
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(
             App::new("check")
@@ -71,7 +77,7 @@ pub fn start_cli() {
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -181,7 +187,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
-        proof_name,
+        Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
         show_ssa,
@@ -194,7 +200,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
@@ -206,6 +212,44 @@ fn add_std_lib(driver: &mut Driver) {
 
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
+}
+
+// Removes duplicates from the list of public input witnesses
+fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
+    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
+    PublicInputs(duplicates_removed.into_iter().collect())
+}
+
+// Removes duplicates from the list of public input witnesses and the
+// associated list of duplicate values.
+pub(crate) fn dedup_public_input_indices_values(
+    indices: PublicInputs,
+    values: Vec<FieldElement>,
+) -> (PublicInputs, Vec<FieldElement>) {
+    // Assume that the public input index lists and the values contain duplicates
+    assert_eq!(indices.0.len(), values.len());
+
+    let mut public_inputs_without_duplicates = Vec::new();
+    let mut already_seen_public_indices = HashMap::new();
+
+    for (index, value) in indices.0.iter().zip(values) {
+        match already_seen_public_indices.get(index) {
+            Some(expected_value) => {
+                // The index has already been added
+                // so lets check that the values already inserted is equal to the value, we wish to insert
+                assert_eq!(*expected_value, value, "witness index {index:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.")
+            }
+            None => {
+                already_seen_public_indices.insert(*index, value);
+                public_inputs_without_duplicates.push(value)
+            }
+        }
+    }
+
+    (
+        PublicInputs(already_seen_public_indices.keys().copied().collect()),
+        public_inputs_without_duplicates,
+    )
 }
 
 // FIXME: I not sure that this is the right place for this tests.

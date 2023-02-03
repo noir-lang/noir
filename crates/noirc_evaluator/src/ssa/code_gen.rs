@@ -126,7 +126,12 @@ impl IRGenerator {
 
     pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        self.codegen_expression(&main_body)?;
+        let value = self.codegen_expression(&main_body)?;
+        let node_ids = value.to_node_ids();
+
+        if self.program.main().return_type != Type::Unit {
+            self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
+        }
         Ok(())
     }
 
@@ -694,7 +699,6 @@ impl IRGenerator {
         let end_idx = self.codegen_expression(&for_expr.end_range).unwrap().unwrap_id();
 
         //We support only const range for now
-        //TODO how should we handle scope (cf. start/end_for_loop)?
         let iter_def = Definition::Local(for_expr.index_variable);
         let iter_type = self.context.convert_type(&for_expr.index_type);
         let index_name = for_expr.index_name.clone();
@@ -762,7 +766,7 @@ impl IRGenerator {
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx, join_idx);
 
-        Ok(Value::Single(exit_first)) //TODO what should we return???
+        Ok(Value::Single(exit_first))
     }
 
     //Parse a block of AST statements into ssa form

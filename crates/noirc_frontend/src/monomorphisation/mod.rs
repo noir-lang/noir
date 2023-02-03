@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::Abi;
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -128,49 +129,12 @@ impl Monomorphiser {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    /// The main function is special, we need to check for a return type and if present,
-    /// insert an extra constrain on the return value.
     fn compile_main(&mut self, main_id: node_interner::FuncId) -> Abi {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        let main = self.finished_functions.get_mut(&new_main_id).unwrap();
-
-        // If the main function has a return type we manually desugar it here
-        // to add a `constrain ret == expected_ret` where `ret` is the body of main
-        // and `expected_ret` is a new parameter added to the public inputs.
-        if main.return_type != ast::Type::Unit {
-            let id = self.next_local_id();
-
-            let main = self.finished_functions.get_mut(&new_main_id).unwrap();
-            main.parameters.push((id, false, "return".into(), main.return_type.clone()));
-            main.return_type = ast::Type::Unit;
-
-            let name = "_".into();
-            let typ = Self::convert_type(main_meta.return_type());
-            let lhs = Box::new(ast::Expression::Ident(ast::Ident {
-                definition: Definition::Local(id),
-                mutable: false,
-                location: None,
-                name,
-                typ,
-            }));
-
-            // Need to temporarily swap out main.body here because we cannot
-            // move out of it directly.
-            let tmp_body = ast::Expression::Literal(ast::Literal::Unit);
-            let main_body = std::mem::replace(&mut main.body, tmp_body);
-
-            let rhs = Box::new(main_body);
-            let operator = ast::BinaryOp::Equal;
-            let eq = ast::Expression::Binary(ast::Binary { operator, lhs, rhs });
-
-            let location = self.interner.function_meta(&main_id).location;
-            main.body = ast::Expression::Constrain(Box::new(eq), location);
-        }
-
         main_meta.into_abi(&self.interner)
     }
 
@@ -504,14 +468,11 @@ impl Monomorphiser {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
-            HirType::String(size) => {
-                let size = size.array_length().unwrap_or(0);
-                ast::Type::String(size)
-            }
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(size, element) => {
-                let size = size.array_length().unwrap_or(0);
+                let size = size.evaluate_to_u64().unwrap_or(0);
                 let element = Self::convert_type(element.as_ref());
                 ast::Type::Array(size, Box::new(element))
             }
@@ -552,7 +513,7 @@ impl Monomorphiser {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Forall(_, _) | HirType::ArrayLength(_) | HirType::Error => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
@@ -577,7 +538,7 @@ impl Monomorphiser {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen')
+    /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
     /// at their callsite.
     /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
@@ -592,16 +553,56 @@ impl Monomorphiser {
             ast::Expression::Ident(ident) => match &ident.definition {
                 Definition::Builtin(opcode) if opcode == "arraylen" => {
                     let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.array_length().unwrap();
+                    let len = typ.evaluate_to_u64().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
                         (len as u128).into(),
                         ast::Type::Field,
                     )))
                 }
+                Definition::Builtin(opcode) if opcode == "modulus_num_bits" => {
+                    Some(ast::Expression::Literal(ast::Literal::Integer(
+                        (FieldElement::max_num_bits() as u128).into(),
+                        ast::Type::Field,
+                    )))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_le_bits" => {
+                    let modulus = FieldElement::modulus();
+                    let bits = modulus.to_radix_le(2);
+                    Some(self.modulus_array_literal(bits, 1))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_be_bits" => {
+                    let modulus = FieldElement::modulus();
+                    let bits = modulus.to_radix_be(2);
+                    Some(self.modulus_array_literal(bits, 1))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_be_bytes" => {
+                    let modulus = FieldElement::modulus();
+                    let bytes = modulus.to_bytes_be();
+                    Some(self.modulus_array_literal(bytes, 8))
+                }
+                Definition::Builtin(opcode) if opcode == "modulus_le_bytes" => {
+                    let modulus = FieldElement::modulus();
+                    let bytes = modulus.to_bytes_le();
+                    Some(self.modulus_array_literal(bytes, 8))
+                }
                 _ => None,
             },
             _ => None,
         }
+    }
+
+    fn modulus_array_literal(&self, bytes: Vec<u8>, arr_elem_bits: u32) -> ast::Expression {
+        let bytes_as_expr = vecmap(bytes, |byte| {
+            ast::Expression::Literal(ast::Literal::Integer(
+                (byte as u128).into(),
+                ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
+            ))
+        });
+        let arr_literal = ast::ArrayLiteral {
+            contents: bytes_as_expr,
+            element_type: ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
+        };
+        ast::Expression::Literal(ast::Literal::Array(arr_literal))
     }
 
     fn queue_function(

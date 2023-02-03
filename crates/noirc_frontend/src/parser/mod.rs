@@ -292,6 +292,7 @@ impl Precedence {
         Some(precedence)
     }
 
+    /// Return the next higher precedence. E.g. `Sum.next() == Product`
     fn next(self) -> Self {
         use Precedence::*;
         match self {
@@ -307,7 +308,7 @@ impl Precedence {
         }
     }
 
-    /// Type expressions only contain basic arithmetic operators and
+    /// TypeExpressions only contain basic arithmetic operators and
     /// notably exclude `>` due to parsing conflicts with generic type brackets.
     fn next_type_precedence(self) -> Self {
         use Precedence::*;

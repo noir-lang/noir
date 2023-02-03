@@ -15,4 +15,3 @@ acvm.workspace = true
 fm.workspace = true
 serde.workspace = true
 dirs.workspace = true
-pathdiff.workspace = true

@@ -314,7 +314,6 @@ pub fn inline_in_block(
                 }
                 Operation::Load { array_id, index } => {
                     //Compute the new address:
-                    //TODO use relative addressing, but that requires a few changes, mainly in acir_gen.rs and integer.rs
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
                         Operation::Load { array_id: b, index: *index },
@@ -385,7 +384,12 @@ pub fn inline_in_block(
     if short_circuit {
         super::block::short_circuit_inline(ctx, stack_frame.block);
     } else {
-        decision.conditionalise_inline(ctx, &stack_frame.stack, &mut stack2, predicate)?;
+        decision.apply_condition_to_instructions(
+            ctx,
+            &stack_frame.stack,
+            &mut stack2,
+            predicate,
+        )?;
         // we add the conditionalised instructions to the target_block, at proper location (really need a linked list!)
         stack2.apply(ctx, stack_frame.block, call_id, false);
     }

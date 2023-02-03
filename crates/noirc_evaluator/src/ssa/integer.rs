@@ -246,10 +246,7 @@ fn block_overflow(
     for mut ins in instructions {
         if matches!(
             ins.operation,
-            Operation::Nop
-                | Operation::Call { .. }
-                | Operation::Result { .. }
-                | Operation::Return(_)
+            Operation::Nop | Operation::Call { .. } | Operation::Result { .. }
         ) {
             //For now we skip completely functions from overflow; that means arguments are NOT truncated.
             //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
@@ -283,8 +280,6 @@ fn block_overflow(
 
         match ins.operation {
             Operation::Load { array_id, index } => {
-                //TODO we use a local memory map for now but it should be used in arguments
-                //for instance, the join block of a IF should merge the two memorymaps using the condition value
                 if let Some(val) = ctx.get_indexed_value(array_id, index) {
                     //optimise static load
                     ins.mark = Mark::ReplaceWith(*val);
@@ -316,19 +311,22 @@ fn block_overflow(
                 }
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
                     let r_type = ctx[rhs].get_type();
-                    let rhs =
-                        ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
-                    //todo checks that 2^rhs does not overflow
-                    ins.operation = Operation::Binary(node::Binary {
-                        lhs,
-                        rhs,
-                        operator: BinaryOp::Udiv,
-                        predicate: None,
-                    });
+                    if r_const.to_u128() > r_type.bits() as u128 {
+                        ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type))
+                    } else {
+                        let rhs = ctx
+                            .get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
+                        ins.operation = Operation::Binary(node::Binary {
+                            lhs,
+                            rhs,
+                            operator: BinaryOp::Udiv,
+                            predicate: None,
+                        });
+                    }
                 }
             }
             Operation::Cast(value_id) => {
-                // TODO for now the types we support here are only all integer types (field, signed, unsigned, bool)
+                // For now the types we support here are only all integer types (field, signed, unsigned, bool)
                 // so a cast would normally translate to a truncate.
                 // if res_type and lhs have the same bit size (in a large sense, which includes field elements)
                 // then either they have the same type and should have been simplified
@@ -462,7 +460,9 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
             max_map[value].clone(),
             BigUint::from(2_u32).pow(*max_bit_size) - BigUint::from(1_u32),
         ),
-        Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(_) => todo!(),
+        Operation::Nop | Operation::Jne(..) | Operation::Jeq(..) | Operation::Jmp(_) => {
+            unreachable!()
+        }
         Operation::Phi { root, block_args } => {
             let mut max = max_map[root].clone();
             for (id, _block) in block_args {
@@ -478,7 +478,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call { .. } => ins.res_type.max_size(), //n.b. functions should have been inlined
-        Operation::Return(_) => todo!(),
+        Operation::Return(_) => ins.res_type.max_size(),
         Operation::Result { .. } => {
             unreachable!("Functions must have been inlined before checking for overflows")
         }
