@@ -27,7 +27,7 @@ mod prove_cmd;
 mod verify_cmd;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
-pub type AbiMap = BTreeMap<String, InputValue>;
+pub type InputMap = BTreeMap<String, InputValue>;
 
 /// A map from the witnesses in a constraint system to the field element values
 pub type WitnessMap = BTreeMap<Witness, FieldElement>;

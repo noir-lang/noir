@@ -10,7 +10,7 @@ use noirc_abi::input_parser::Format;
 use noirc_abi::Abi;
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
-use super::{AbiMap, WitnessMap};
+use super::{InputMap, WitnessMap};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -86,10 +86,10 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
-    abi_map: &AbiMap,
+    abi_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
-    let mut solved_witness = abi_map_to_witness_map(abi, abi_map)?;
+    let mut solved_witness = input_map_to_witness_map(abi, abi_map)?;
 
     let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone());
@@ -99,11 +99,11 @@ fn solve_witness(
     Ok(solved_witness)
 }
 
-// Given an AbiMap and an Abi, produce a WitnessMap
+// Given an InputMap and an Abi, produce a WitnessMap
 //
 // In particular, this method shows one how to associate values in a Toml/JSON
 // file with witness indices
-fn abi_map_to_witness_map(abi: &Abi, abi_map: &AbiMap) -> Result<WitnessMap, AbiError> {
+fn input_map_to_witness_map(abi: &Abi, abi_map: &InputMap) -> Result<WitnessMap, AbiError> {
     // The ABI map is first encoded as a vector of field elements
     let encoded_inputs = abi.clone().encode(abi_map, true)?;
 

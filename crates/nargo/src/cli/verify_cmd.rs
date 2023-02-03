@@ -1,4 +1,4 @@
-use super::{compile_cmd::compile_circuit, read_inputs_from_file, AbiMap};
+use super::{compile_cmd::compile_circuit, read_inputs_from_file, InputMap};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -42,7 +42,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let mut public_abi_map: AbiMap = BTreeMap::new();
+    let mut public_abi_map: InputMap = BTreeMap::new();
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
@@ -60,7 +60,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
 
 fn verify_proof(
     compiled_program: CompiledProgram,
-    public_abi_map: AbiMap,
+    public_abi_map: InputMap,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
