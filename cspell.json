@@ -86,7 +86,6 @@
         "bitcount",
         "subexpression",
         "binded",
-        "typenames",
         "smol",
         "krate",
         "Comptimes",

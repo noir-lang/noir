@@ -16,7 +16,7 @@ use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, Comptime};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
-/// require name resolution to resolve any typenames used
+/// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
