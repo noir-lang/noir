@@ -76,7 +76,7 @@ pub(crate) fn execute_program<P: AsRef<Path>>(
 }
 
 pub(crate) fn extract_public_inputs(
-    compiled_program: &noirc_driver::CompiledProgram,
+    compiled_program: &CompiledProgram,
     solved_witness: &WitnessMap,
 ) -> Result<InputMap, AbiError> {
     let encoded_public_inputs: Vec<FieldElement> = compiled_program
@@ -93,7 +93,7 @@ pub(crate) fn extract_public_inputs(
 }
 
 pub(crate) fn solve_witness(
-    compiled_program: &noirc_driver::CompiledProgram,
+    compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap().clone();
