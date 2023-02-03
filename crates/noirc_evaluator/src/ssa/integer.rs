@@ -120,7 +120,7 @@ fn truncate(
 
     if *v_max >= BigUint::one() << bit_size {
         //TODO is max_bit_size leaking some info????
-        //Create a new truncate instruction '(idx): obj trunc bit_size'
+        //Create a new truncate instruction '(idx): obj truncate bit_size'
         //set current value of obj to idx
         let max_bit_size = v_max.bits() as u32;
 
@@ -347,15 +347,15 @@ fn block_overflow(
                     ins.mark = Mark::ReplaceWith(value_id);
                 } else {
                     let max = get_obj_max_value(ctx, value_id, max_map, &value_map);
-                    let maxbits = max.bits() as u32;
+                    let max_bits = max.bits() as u32;
 
-                    if ins.res_type.bits() < get_size_in_bits(obj) && maxbits > ins.res_type.bits()
+                    if ins.res_type.bits() < get_size_in_bits(obj) && max_bits > ins.res_type.bits()
                     {
                         //we need to truncate
                         ins.operation = Operation::Truncate {
                             value: value_id,
                             bit_size: ins.res_type.bits(),
-                            max_bit_size: maxbits,
+                            max_bit_size: max_bits,
                         };
                     }
                 }
