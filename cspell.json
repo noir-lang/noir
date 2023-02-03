@@ -3,30 +3,22 @@
     "words": [
         // TODO: Perhaps we should use the term `make_conditional` 
         // instead of conditionalize. This can be done in a separate PR
-        "conditionalise",
         "conditionalize",
         "conditionalized",
-        // Refers to parameters for a specific elliptic curve
-        "secp256k1",
         "aeiou",
-        //
-        "acvm",
-        "acir",
-        "nargo",
-        "tempdir",
-        "noirc",
         // This is a computer science idiom. Its a data structure that stores only
         // one distinct copy of an value. Google `String Interner` for a concrete example
         "interner",
         "blackbox",
         "canonicalize",
         "codegen",
+        // TODO: Issue -- add documentation
         "lvalue",
         "vecmap",
         "forall",
         "signedness",
         // TODO: we should just name this more descriptively
-        // TODO: ie is it optimizations or optimizer?
+        // TODO: it is optimizations
         "optim",
         "coeff",
         "udiv",
@@ -35,24 +27,13 @@
         "srem",
         "barretenberg",
         "uninstantiated",
-        "clippy",
-        "rustup",
-        "chumsky",
         "idents",
-        // TODO: ask Jake if we can expand on "l"
-        "foldl",
         "comptime",
         "desugared",
         "elems",
-        "bindgen",
-        "gloo",
         "plonkc",
-        "tempfile",
-        "rustc",
-        "arkworks",
         "kevaundray",
         "wedderburn",
-        "termcolor",
         "arity",
         "hasher",
         "injective",
@@ -64,7 +45,6 @@
         "arithmetization",
         "bitand",
         "subexpression",
-        "smol",
         "krate",
         "typevars",
         "foralls",
@@ -75,13 +55,33 @@
         "milner",
         "peekable",
         "hexdigit",
-        "struct",
-        "stdlib",
         "noirup",
         "formatcp",
+        // In code
+        "struct",
+        "stdlib",
         "monomorphization",
         "monomorphized",
         "monomorphize",
-        "monomorphizer"
+        "monomorphizer",
+        // Dependencies
+        "smol",
+        "clippy",
+        "rustup",
+        "chumsky",
+        "bindgen",
+        "gloo",
+        "termcolor",
+        "tempfile",
+        "rustc",
+        "arkworks",
+        "acvm",
+        "acir",
+        "nargo",
+        "tempdir",
+        "noirc",
+        // Refers to parameters for a specific elliptic curve
+        "secp256k1",
+        "foldl",
     ]
 }
