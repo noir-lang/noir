@@ -567,8 +567,8 @@ fn expression() -> impl ExprParser {
         .labelled("expression")
 }
 
-// An expression is a single term followed by 0 or more (OP subexpr)*
-// where OP is an operator at the given precedence level and subexpr
+// An expression is a single term followed by 0 or more (OP subexpression)*
+// where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
 fn expression_with_precedence<'a, P>(
     precedence: Precedence,

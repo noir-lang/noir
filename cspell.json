@@ -55,7 +55,6 @@
         "foldl",
         "comptime",
         "failable",
-        "subexpr",
         "desugared",
         "elems",
         "bindgen",
