@@ -1,8 +1,8 @@
-use std::io::Write;
+use std::{collections::BTreeMap, io::Write};
 
-use acvm::ProofSystemCompiler;
+use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use clap::ArgMatches;
-use noirc_driver::{CompiledProgram, Driver};
+use noirc_driver::Driver;
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -45,14 +45,8 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
             }
-            Err(_) => {
-                // An error likely was printed in the meantime, so this is the start of a newline.
-                // Add an extra newline as well to help separate failing tests.
-                write!(writer, "{test_name} ").ok();
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
-                println!("failed\n");
-                failing += 1;
-            }
+            // Assume an error was already printed to stdout
+            Err(_) => failing += 1,
         }
         writer.reset().ok();
     }
@@ -76,11 +70,25 @@ fn compile_test(
     main: FuncId,
     driver: &Driver,
     allow_warnings: bool,
-) -> Result<CompiledProgram, CliError> {
+) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
     let language = backend.np_language();
 
-    driver
+    let program = driver
         .compile_no_check(language, false, allow_warnings, Some(main))
-        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))
+        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
+
+    let mut solved_witness = BTreeMap::new();
+
+    // Run the backend to ensure the PWG evaluates functions like std::hash::pederses,
+    // otherwise constraints involving these expressions will not error.
+    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes) {
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let mut writer = writer.lock();
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
+        writeln!(writer, "failed").ok();
+        writer.reset().ok();
+        return Err(error.into());
+    }
+    Ok(())
 }
