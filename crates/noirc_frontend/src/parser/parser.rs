@@ -470,7 +470,7 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     })
 }
 
-fn maybe_comptime() -> impl NoirParser<CompTime> {
+fn maybe_comp_time() -> impl NoirParser<CompTime> {
     keyword(Keyword::CompTime).or_not().map(|opt| match opt {
         Some(_) => CompTime::Yes(None),
         None => CompTime::No(None),
@@ -478,11 +478,11 @@ fn maybe_comptime() -> impl NoirParser<CompTime> {
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -494,7 +494,7 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime()
+    maybe_comp_time()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {

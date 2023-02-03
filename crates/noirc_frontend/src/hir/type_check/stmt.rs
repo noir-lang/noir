@@ -183,7 +183,7 @@ fn type_check_lvalue(
             let index_type = type_check_expression(interner, &index, errors);
             let expr_span = interner.expr_span(&index);
 
-            index_type.unify(&Type::comptime(Some(expr_span)), expr_span, errors, || {
+            index_type.unify(&Type::comp_time(Some(expr_span)), expr_span, errors, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: "comptime Field".to_owned(),
                     expr_typ: index_type.to_string(),
@@ -221,7 +221,7 @@ fn type_check_let_stmt(
     let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
 
-    resolved_type.set_comptime_span(interner.expr_span(&let_stmt.expression));
+    resolved_type.set_comp_time_span(interner.expr_span(&let_stmt.expression));
 
     // Set the type of the pattern to be equal to the annotated type
     bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);

@@ -296,15 +296,15 @@ impl<'a> Resolver<'a> {
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
-            UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
+            UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
-            UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
-            UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
+            UnresolvedType::Bool(comp_time) => Type::Bool(comp_time),
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))

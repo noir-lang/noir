@@ -153,7 +153,7 @@ pub(crate) fn type_check_expression(
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
             let span = interner.expr_span(&for_expr.start_range);
-            start_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
+            start_range_type.unify(&Type::comp_time(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: start_range_type.clone(),
                     place: "for loop",
@@ -163,7 +163,7 @@ pub(crate) fn type_check_expression(
             });
 
             let span = interner.expr_span(&for_expr.end_range);
-            end_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
+            end_range_type.unify(&Type::comp_time(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: end_range_type.clone(),
                     place: "for loop",
@@ -257,7 +257,7 @@ fn type_check_index_expression(
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.expr_span(&index_expr.index);
 
-    index_type.unify(&Type::comptime(Some(span)), span, errors, || {
+    index_type.unify(&Type::comp_time(Some(span)), span, errors, || {
         // Specialize the error in the case the user has a Field, just not a comptime one.
         if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
@@ -292,14 +292,14 @@ fn type_check_index_expression(
 }
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
-    let is_comptime = match from {
-        Type::Integer(is_comptime, ..) => is_comptime,
-        Type::FieldElement(is_comptime) => is_comptime,
-        Type::PolymorphicInteger(is_comptime, binding) => match &*binding.borrow() {
+    let is_comp_time = match from {
+        Type::Integer(is_comp_time, ..) => is_comp_time,
+        Type::FieldElement(is_comp_time) => is_comp_time,
+        Type::PolymorphicInteger(is_comp_time, binding) => match &*binding.borrow() {
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-            TypeBinding::Unbound(_) => is_comptime,
+            TypeBinding::Unbound(_) => is_comp_time,
         },
-        Type::Bool(is_comptime) => is_comptime,
+        Type::Bool(is_comp_time) => is_comp_time,
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -313,28 +313,28 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     let error_message =
         "Cannot cast to a comptime type, argument to cast is not known at compile-time";
     match to {
-        Type::Integer(dest_comptime, sign, bits) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::Integer(dest_comp_time, sign, bits) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::Integer(is_comptime, sign, bits)
+            Type::Integer(is_comp_time, sign, bits)
         }
-        Type::FieldElement(dest_comptime) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::FieldElement(dest_comp_time) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::FieldElement(is_comptime)
+            Type::FieldElement(is_comp_time)
         }
-        Type::Bool(dest_comptime) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::Bool(dest_comp_time) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
-            Type::Bool(dest_comptime)
+            Type::Bool(dest_comp_time)
         }
         Type::Error => Type::Error,
         _ => {
