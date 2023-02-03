@@ -166,14 +166,14 @@ impl DecisionTree {
         if let Some(value) = assumption.value {
             return value;
         }
-        let pvalue = self[assumption.parent].value.unwrap();
+        let parent_value = self[assumption.parent].value.unwrap();
         let condition = self[assumption.parent].condition;
         let ins = if self.is_true_branch(block.assumption) {
             DecisionTree::new_instruction_after_phi(
                 ctx,
                 block_id,
                 BinaryOp::Mul,
-                pvalue,
+                parent_value,
                 condition,
                 ObjectType::Boolean,
             )
@@ -190,7 +190,7 @@ impl DecisionTree {
                 ctx,
                 block_id,
                 BinaryOp::Mul,
-                pvalue,
+                parent_value,
                 not_condition,
                 ObjectType::Boolean,
                 not_condition,

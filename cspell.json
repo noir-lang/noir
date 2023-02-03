@@ -73,7 +73,6 @@
         "pedersen",
         "schnorr",
         "merkle",
-        "pvalue",
         "binop",
         "vmap",
         "arithmetization",
