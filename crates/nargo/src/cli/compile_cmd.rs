@@ -46,7 +46,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     generate_witness: bool,
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
-    let mut compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
     let serialized = compiled_program.circuit.to_bytes();
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
@@ -58,7 +58,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 
     if generate_witness {
         let (_, solved_witness) =
-            super::execute_cmd::execute_program(program_dir, &mut compiled_program)?;
+            super::execute_cmd::execute_program(program_dir, &compiled_program)?;
 
         circuit_path.pop();
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;

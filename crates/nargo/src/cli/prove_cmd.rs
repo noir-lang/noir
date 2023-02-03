@@ -42,7 +42,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError> {
     let mut compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, solved_witness) = execute_program(&program_dir, &mut compiled_program)?;
+    let (_, solved_witness) = execute_program(&program_dir, &compiled_program)?;
 
     // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
     // `witness_map`. We must then decode these from the circuit's witness values.
@@ -56,7 +56,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     // encoding the return values into the Verifier.toml
     // However, for creating a proof, we remove these duplicates.
     compiled_program.circuit.public_inputs =
-        dedup_public_input_indices(compiled_program.circuit.public_inputs.clone());
+        dedup_public_input_indices(compiled_program.circuit.public_inputs);
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
