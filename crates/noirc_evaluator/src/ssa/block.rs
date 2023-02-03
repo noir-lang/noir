@@ -244,10 +244,10 @@ pub fn compute_dom(ctx: &mut SsaContext) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    for (master, svec) in dominator_link {
+    for (master, slave_vec) in dominator_link {
         if let Some(dom_b) = ctx.try_get_block_mut(master) {
             dom_b.dominated.clear();
-            for slave in svec {
+            for slave in slave_vec {
                 dom_b.dominated.push(slave);
             }
         }
@@ -263,9 +263,9 @@ pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    for (master, svec) in dominator_link {
+    for (master, slave_vec) in dominator_link {
         let dom_b = &mut ctx[master];
-        for slave in svec {
+        for slave in slave_vec {
             dom_b.dominated.push(slave);
         }
     }

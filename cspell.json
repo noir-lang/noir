@@ -69,7 +69,6 @@
         "injective",
         "thiserror",
         "Deque",
-        "svec",
         "pedersen",
         "schnorr",
         "merkle",
