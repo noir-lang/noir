@@ -23,6 +23,7 @@ use crate::hir_def::expr::{
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
     HirMethodCallExpression, HirPrefixExpression,
 };
+use crate::token::Attribute;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
@@ -528,6 +529,12 @@ impl<'a> Resolver<'a> {
             && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
+        }
+
+        if attributes == Some(Attribute::Test) && !parameters.is_empty() {
+            self.push_err(ResolverError::TestFunctionHasParameters {
+                span: func.name_ident().span(),
+            })
         }
 
         let mut typ = Type::Function(parameter_types, return_type);

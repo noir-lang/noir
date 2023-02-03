@@ -18,7 +18,7 @@ use self::ast::{Definition, FuncId, Function, LocalId, Program};
 pub mod ast;
 pub mod printer;
 
-struct Monomorphizer {
+struct Monomorphizer<'interner> {
     // Store monomorphized globals and locals separately,
     // only locals are cleared on each function call and only globals are monomorphized.
     // Nested HashMaps in globals lets us avoid cloning HirTypes when calling .get()
@@ -30,7 +30,7 @@ struct Monomorphizer {
 
     finished_functions: BTreeMap<FuncId, Function>,
 
-    interner: NodeInterner,
+    interner: &'interner NodeInterner,
 
     next_local_id: u32,
     next_function_id: u32,
@@ -38,7 +38,7 @@ struct Monomorphizer {
 
 type HirType = crate::Type;
 
-pub fn monomorphize(main: node_interner::FuncId, interner: NodeInterner) -> Program {
+pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
     let mut monomorphizer = Monomorphizer::new(interner);
     let abi = monomorphizer.compile_main(main);
 
@@ -55,8 +55,8 @@ pub fn monomorphize(main: node_interner::FuncId, interner: NodeInterner) -> Prog
     Program::new(functions, abi)
 }
 
-impl Monomorphizer {
-    fn new(interner: NodeInterner) -> Monomorphizer {
+impl<'interner> Monomorphizer<'interner> {
+    fn new(interner: &'interner NodeInterner) -> Self {
         Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
@@ -135,7 +135,7 @@ impl Monomorphizer {
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_abi(&self.interner)
+        main_meta.into_abi(self.interner)
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
