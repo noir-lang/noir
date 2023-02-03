@@ -135,7 +135,7 @@ impl<'interner> Monomorphiser<'interner> {
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_abi(&self.interner)
+        main_meta.into_abi(self.interner)
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
