@@ -54,7 +54,6 @@
         "idents",
         "foldl",
         "comptime",
-        "shortfield",
         "longfield",
         "failable",
         "subexpr",

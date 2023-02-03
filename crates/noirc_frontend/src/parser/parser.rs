@@ -378,11 +378,11 @@ fn pattern() -> impl NoirParser<Pattern> {
             .ignore_then(pattern.clone())
             .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
 
-        let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
+        let short_field = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
         let longfield = ident().then_ignore(just(Token::Colon)).then(pattern.clone());
 
         let struct_pattern_fields = longfield
-            .or(shortfield)
+            .or(short_field)
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
