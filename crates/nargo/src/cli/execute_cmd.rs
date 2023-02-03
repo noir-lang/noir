@@ -49,15 +49,15 @@ fn execute(
 ) -> Result<(Option<InputValue>, BTreeMap<Witness, FieldElement>), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
 
-    let compiled_program =
+    let mut compiled_program =
         super::compile_cmd::compile_circuit(&curr_dir, show_ssa, allow_warnings)?;
 
-    execute_program(curr_dir, &compiled_program)
+    execute_program(curr_dir, &mut compiled_program)
 }
 
 pub(crate) fn execute_program<P: AsRef<Path>>(
     inputs_dir: P,
-    compiled_program: &CompiledProgram,
+    compiled_program: &mut CompiledProgram,
 ) -> Result<(Option<InputValue>, BTreeMap<Witness, FieldElement>), CliError> {
     // Parse the initial witness values from Prover.toml
     let witness_map = read_inputs_from_file(
@@ -94,7 +94,7 @@ pub(crate) fn extract_public_inputs(
 }
 
 pub(crate) fn solve_witness(
-    compiled_program: &noirc_driver::CompiledProgram,
+    compiled_program: &mut noirc_driver::CompiledProgram,
     witness_map: &BTreeMap<String, InputValue>,
 ) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     // Note that this currently accepts an input for the return value witness.

@@ -7,6 +7,7 @@ use std::path::Path;
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
 use super::{create_named_dir, write_inputs_to_file, write_to_file};
+use crate::cli::dedup_public_input_indices;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -39,9 +40,9 @@ pub fn prove_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let compiled_program =
+    let mut compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, solved_witness) = execute_program(&program_dir, &compiled_program)?;
+    let (_, solved_witness) = execute_program(&program_dir, &mut compiled_program)?;
 
     // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
     // `witness_map`. We must then decode these from the circuit's witness values.
@@ -49,6 +50,13 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     // Write public inputs into Verifier.toml
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+
+    // Since the public outputs are added into the public inputs list
+    // There can be duplicates. We keep the duplicates for when one is
+    // encoding the return values into the Verifier.toml
+    // However, for creating a proof, we remove these duplicates.
+    compiled_program.circuit.public_inputs =
+        dedup_public_input_indices(compiled_program.circuit.public_inputs.clone());
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
