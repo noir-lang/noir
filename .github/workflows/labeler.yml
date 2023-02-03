@@ -1,7 +1,15 @@
 name: "Labeler"
 on:
-  pull_request:
-    types: [opened, edited]
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   triage:
