@@ -123,7 +123,7 @@ fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
     abi_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap();
+    let abi = compiled_program.abi.as_ref().unwrap().clone();
     let mut solved_witness = input_map_to_witness_map(abi, abi_map)?;
 
     let backend = crate::backends::ConcreteBackend;
@@ -138,9 +138,9 @@ fn solve_witness(
 //
 // In particular, this method shows one how to associate values in a Toml/JSON
 // file with witness indices
-fn input_map_to_witness_map(abi: &Abi, abi_map: &InputMap) -> Result<WitnessMap, AbiError> {
+fn input_map_to_witness_map(abi: Abi, abi_map: &InputMap) -> Result<WitnessMap, AbiError> {
     // The ABI map is first encoded as a vector of field elements
-    let encoded_inputs = abi.clone().encode(abi_map, true)?;
+    let encoded_inputs = abi.encode(abi_map, true)?;
 
     Ok(encoded_inputs
         .into_iter()
