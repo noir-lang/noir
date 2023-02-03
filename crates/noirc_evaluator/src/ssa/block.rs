@@ -552,7 +552,7 @@ pub fn merge_path(
 
         //we assign the concatenated list of instructions to the start block, using a CSE pass
         let mut modified = false;
-        super::optim::cse_block(ctx, start, &mut instructions, &mut modified)?;
+        super::optimizations::cse_block(ctx, start, &mut instructions, &mut modified)?;
         //Wires start to end
         if !end.is_dummy() {
             rewire_block_left(ctx, start, end);

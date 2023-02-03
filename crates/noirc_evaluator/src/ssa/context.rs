@@ -4,7 +4,7 @@ use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
 use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObject, ObjectType, Operation};
-use super::{block, builtin, flatten, inline, integer, node, optim};
+use super::{block, builtin, flatten, inline, integer, node, optimizations};
 use std::collections::{HashMap, HashSet};
 
 use super::super::errors::RuntimeError;
@@ -564,7 +564,7 @@ impl SsaContext {
 
         //Basic simplification - we ignore RunTimeErrors when creating an instruction
         //because they must be managed after handling conditionals. For instance if false { b } should not fail whatever b is doing.
-        optim::simplify(self, &mut i).ok();
+        optimizations::simplify(self, &mut i).ok();
 
         if let Mark::ReplaceWith(replacement) = i.mark {
             return Ok(replacement);
@@ -701,7 +701,7 @@ impl SsaContext {
 
         //Optimization
         block::compute_dom(self);
-        optim::full_cse(self, self.first_block, false)?;
+        optimizations::full_cse(self, self.first_block, false)?;
 
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
@@ -731,7 +731,7 @@ impl SsaContext {
         let first_block = self.first_block;
         self[first_block].dominated.clear();
 
-        optim::cse(self, first_block, true)?;
+        optimizations::cse(self, first_block, true)?;
 
         //Truncation
         integer::overflow_strategy(self)?;
@@ -1164,7 +1164,7 @@ impl SsaContext {
                             ObjectType::Boolean,
                             Some(stack.block),
                         ));
-                        optim::simplify_id(self, cond).unwrap();
+                        optimizations::simplify_id(self, cond).unwrap();
                         stack.push(cond);
                         cond
                     }

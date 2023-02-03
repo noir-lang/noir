@@ -12,9 +12,6 @@
         "vecmap",
         "forall",
         "signedness",
-        // TODO: we should just name this more descriptively
-        // TODO: it is optimizations
-        "optim",
         "coeff",
         "udiv",
         "sdiv",

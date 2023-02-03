@@ -6,7 +6,7 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         node::{Node, Operation},
-        optim,
+        optimizations,
     },
 };
 
@@ -95,7 +95,7 @@ fn inline_block(
     }
 
     if to_inline.is_none() {
-        optim::simple_cse(ctx, block_id)?;
+        optimizations::simple_cse(ctx, block_id)?;
     }
     Ok(result)
 }
@@ -343,7 +343,7 @@ pub fn inline_in_block(
                         new_ins.res_type = node::ObjectType::Pointer(new_id);
                     }
 
-                    let err = optim::simplify(ctx, &mut new_ins);
+                    let err = optimizations::simplify(ctx, &mut new_ins);
                     if err.is_err() {
                         //add predicate if under condition, else short-circuit the target block.
                         let ass_value = decision.get_assumption_value(predicate);

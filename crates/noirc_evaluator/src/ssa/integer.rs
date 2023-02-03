@@ -6,7 +6,7 @@ use super::{
     context::SsaContext,
     mem::{ArrayId, Memory},
     node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation},
-    optim,
+    optimizations,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -256,7 +256,7 @@ fn block_overflow(
         }
 
         ins.operation.map_id_mut(|id| {
-            let id = optim::propagate(ctx, id, &mut modified);
+            let id = optimizations::propagate(ctx, id, &mut modified);
             get_value_from_map(id, &value_map)
         });
 
@@ -389,7 +389,7 @@ fn block_overflow(
             //for now we pass the max value to the instruction, we could also keep the max_map e.g in the block (or max in each node object)
             //sub operations require the max value to ensure it does not underflow
             *max_rhs_value = max_map[rhs].clone();
-            //we may do that in future when the max_map becomes more used elsewhere (for other optim)
+            //we may do that in future when the max_map becomes more used elsewhere (for other optimizations)
         }
 
         let old_ins = ctx.try_get_mut_instruction(ins.id).unwrap();
@@ -400,7 +400,7 @@ fn block_overflow(
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut modified = false;
-    optim::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
+    optimizations::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
     Ok(())
 }
 

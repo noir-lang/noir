@@ -5,7 +5,7 @@ use crate::{
     errors::{self, RuntimeError},
     ssa::{
         node::{Mark, ObjectType},
-        optim,
+        optimizations,
     },
 };
 
@@ -123,7 +123,7 @@ impl DecisionTree {
     ) -> Instruction {
         let operation = Operation::binary(operator, lhs, rhs);
         let mut i = Instruction::new(operation, typ, Some(block_id));
-        super::optim::simplify(ctx, &mut i).unwrap();
+        super::optimizations::simplify(ctx, &mut i).unwrap();
         i
     }
 
@@ -381,7 +381,7 @@ impl DecisionTree {
             merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
+        super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -548,7 +548,7 @@ impl DecisionTree {
                             val_true: block_args[0].0,
                             val_false: block_args[1].0,
                         };
-                        optim::simplify_id(ctx, ins_id).unwrap();
+                        optimizations::simplify_id(ctx, ins_id).unwrap();
                     }
                     stack.push(ins_id);
                 }
@@ -585,7 +585,7 @@ impl DecisionTree {
                                 ObjectType::Boolean,
                                 Some(stack.block),
                             ));
-                            optim::simplify_id(ctx, cond).unwrap();
+                            optimizations::simplify_id(ctx, cond).unwrap();
                             stack.push(cond);
                         }
                     }

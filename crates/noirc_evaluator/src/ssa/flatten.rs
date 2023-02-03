@@ -4,7 +4,7 @@ use super::{
     block::{self, BlockId},
     context::SsaContext,
     node::{self, BinaryOp, Mark, Node, NodeEval, NodeId, NodeObject, Operation},
-    optim,
+    optimizations,
 };
 use acvm::FieldElement;
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
             let ins_id = ins.id;
             // We ignore RunTimeErrors at this stage because unrolling is done before conditionals
             // While failures must be managed after handling conditionals: For instance if false { b } should not fail whatever b is doing.
-            optim::simplify_id(ctx, ins_id).ok();
+            optimizations::simplify_id(ctx, ins_id).ok();
         }
     }
 }
@@ -127,7 +127,7 @@ pub fn unroll_std_block(
                     Operation::Jmp(block) => assert_eq!(block, next),
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(ctx, &mut new_ins).ok(); //ignore RuntimeErrors until conditionals are processed
+                        optimizations::simplify(ctx, &mut new_ins).ok(); //ignore RuntimeErrors until conditionals are processed
                         match new_ins.mark {
                             Mark::None => {
                                 let id = ctx.push_instruction(new_ins);
@@ -136,7 +136,7 @@ pub fn unroll_std_block(
                             Mark::Deleted => (),
                             Mark::ReplaceWith(replacement) => {
                                 // TODO: Should we insert into unrolled_instructions as well?
-                                // If optim::simplify replaces with a constant then we should not,
+                                // If optimizations::simplify replaces with a constant then we should not,
                                 // otherwise it may make sense if it is not already inserted.
                                 unroll_ctx
                                     .eval_map
@@ -313,7 +313,7 @@ fn evaluate_one(
 
             match &ctx[obj_id] {
                 NodeObject::Instr(i) => {
-                    let new_id = optim::propagate(ctx, obj_id, &mut modified);
+                    let new_id = optimizations::propagate(ctx, obj_id, &mut modified);
                     if new_id != obj_id {
                         return evaluate_one(NodeEval::VarOrInstruction(new_id), value_array, ctx);
                     }
