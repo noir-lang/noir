@@ -12,7 +12,7 @@ env:
 jobs:
   check_n_test:
 
-    runs-on: Large-runner
+    runs-on: ubuntu-large-runner
     strategy:
       fail-fast: false
       matrix:
