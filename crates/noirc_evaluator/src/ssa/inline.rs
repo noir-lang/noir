@@ -384,7 +384,12 @@ pub fn inline_in_block(
     if short_circuit {
         super::block::short_circuit_inline(ctx, stack_frame.block);
     } else {
-        decision.conditionalize_inline(ctx, &stack_frame.stack, &mut stack2, predicate)?;
+        decision.apply_condition_to_instructions(
+            ctx,
+            &stack_frame.stack,
+            &mut stack2,
+            predicate,
+        )?;
         // we add the conditionalized instructions to the target_block, at proper location (really need a linked list!)
         stack2.apply(ctx, stack_frame.block, call_id, false);
     }
