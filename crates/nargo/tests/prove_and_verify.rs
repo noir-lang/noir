@@ -43,7 +43,7 @@ mod tests {
         for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
             if let Ok(test_name) = c.file_name().into_string() {
                 println!("Running test {test_name:?}");
-                if c.path().is_dir() && !conf_data["exclude"].contains(&test_name) {
+                if c.path().is_dir() && !config_data["exclude"].contains(&test_name) {
                     let verified = std::panic::catch_unwind(|| {
                         nargo::cli::prove_and_verify("pp", &c.path(), false)
                     });
