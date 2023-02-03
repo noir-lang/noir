@@ -25,17 +25,14 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let mut circuit_path = PathBuf::new();
     circuit_path.push(TARGET_DIR);
 
-    let result = generate_circuit_and_witness_to_disk(
+    generate_circuit_and_witness_to_disk(
         circuit_name,
         current_dir,
         circuit_path,
         witness,
         allow_warnings,
-    );
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
+    )
+    .map(|_| ())
 }
 
 #[allow(deprecated)]
@@ -75,8 +72,8 @@ pub fn compile_circuit<P: AsRef<Path>>(
     let backend = crate::backends::ConcreteBackend;
     let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
-    let compiled_program =
-        driver.into_compiled_program(backend.np_language(), show_ssa, allow_warnings);
 
-    Ok(compiled_program)
+    driver
+        .into_compiled_program(backend.np_language(), show_ssa, allow_warnings)
+        .map_err(|_| std::process::exit(1))
 }
