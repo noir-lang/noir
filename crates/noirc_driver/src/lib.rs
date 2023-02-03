@@ -8,7 +8,7 @@ use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
-use noirc_frontend::monomorphisation::monomorphise;
+use noirc_frontend::monomorphization::monomorphize;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -127,12 +127,12 @@ impl Driver {
     }
 
     // NOTE: Maybe build could be skipped given that now it is a pass through method.
-    /// Statically analyses the local crate
+    /// Statically analyzes the local crate
     pub fn check(&mut self, allow_warnings: bool) {
-        self.analyse_crate(allow_warnings)
+        self.analyze_crate(allow_warnings)
     }
 
-    fn analyse_crate(&mut self, allow_warnings: bool) {
+    fn analyze_crate(&mut self, allow_warnings: bool) {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let mut error_count = 0;
@@ -187,7 +187,7 @@ impl Driver {
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.into_abi(&self.context.def_interner);
 
-        let program = monomorphise(main_function, self.context.def_interner);
+        let program = monomorphize(main_function, self.context.def_interner);
 
         // Compile Program
         let circuit = match create_circuit(
@@ -199,7 +199,7 @@ impl Driver {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the callsite without a stacktrace
+                // Errors will be shown at the call site without a stacktrace
                 let file_id = err.location.map(|loc| loc.file);
                 let error_count = Reporter::with_diagnostics(
                     file_id,

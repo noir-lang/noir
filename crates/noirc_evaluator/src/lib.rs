@@ -8,7 +8,7 @@ use acvm::Language;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
-use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::monomorphization::ast::*;
 use std::collections::BTreeMap;
 
 use ssa::{code_gen::IRGenerator, node};
@@ -27,9 +27,9 @@ pub struct Evaluator {
     opcodes: Vec<AcirOpcode>,
 }
 
-/// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
+/// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
 // XXX: We return the num_witnesses, but this is the max number of witnesses
-// Some of these could have been removed due to optimisations. We need this number because the
+// Some of these could have been removed due to optimizations. We need this number because the
 // Standard format requires the number of witnesses. The max number is also fine.
 // If we had a composer object, we would not need it
 pub fn create_circuit(
@@ -45,7 +45,7 @@ pub fn create_circuit(
 
     let witness_index = evaluator.current_witness_index();
 
-    let optimised_circuit = acvm::compiler::compile(
+    let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
@@ -56,7 +56,7 @@ pub fn create_circuit(
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
-    Ok(optimised_circuit)
+    Ok(optimized_circuit)
 }
 
 impl Evaluator {
@@ -109,14 +109,14 @@ impl Evaluator {
         program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
-        let mut igen = IRGenerator::new(program);
-        self.parse_abi_alt(&mut igen);
+        let mut ir_gen = IRGenerator::new(program);
+        self.parse_abi_alt(&mut ir_gen);
 
         // Now call the main function
-        igen.codegen_main()?;
+        ir_gen.codegen_main()?;
 
         //Generates ACIR representation:
-        igen.context.ir_to_acir(self, enable_logging)?;
+        ir_gen.context.ir_to_acir(self, enable_logging)?;
         Ok(())
     }
 
@@ -139,7 +139,7 @@ impl Evaluator {
         def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
-        igen: &mut IRGenerator,
+        ir_gen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {
         match param_type {
             AbiType::Field => {
@@ -147,7 +147,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                igen.create_new_variable(
+                ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
                     node::ObjectType::NativeField,
@@ -159,7 +159,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.extend(witnesses.clone());
                 }
-                igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
+                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
             AbiType::Integer { sign: _, width } => {
                 let witness = self.add_witness_to_cs();
@@ -167,8 +167,8 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
-                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+                let obj_type = ir_gen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
+                ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Boolean => {
                 let witness = self.add_witness_to_cs();
@@ -177,7 +177,7 @@ impl Evaluator {
                     self.public_inputs.push(witness);
                 }
                 let obj_type = node::ObjectType::Boolean;
-                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+                ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Struct { fields } => {
                 let new_fields = btree_map(fields, |(inner_name, value)| {
@@ -192,7 +192,7 @@ impl Evaluator {
                         struct_witnesses.values().flatten().cloned().collect();
                     self.public_inputs.extend(witnesses);
                 }
-                igen.abi_struct(name, Some(def), fields, struct_witnesses);
+                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses);
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
@@ -200,7 +200,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.extend(witnesses.clone());
                 }
-                igen.abi_array(name, Some(def), &typ, *length, witnesses);
+                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses);
             }
         }
         Ok(())
@@ -273,14 +273,14 @@ impl Evaluator {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi_alt(&mut self, igen: &mut IRGenerator) {
+    fn parse_abi_alt(&mut self, ir_gen: &mut IRGenerator) {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-        let main = igen.program.main();
+        let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
-        let abi_params = std::mem::take(&mut igen.program.abi.parameters);
+        let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
 
         // Remove the return type from the parameters
         // Since this is not in the main functions parameters.
@@ -296,7 +296,7 @@ impl Evaluator {
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
             assert_eq!(param_name, &abi_param.name);
             let def = Definition::Local(*param_id);
-            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, ir_gen)
                 .unwrap();
         }
 

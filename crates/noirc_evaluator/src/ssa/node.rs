@@ -6,7 +6,7 @@ use acvm::FieldElement;
 use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphisation::ast::{Definition, FuncId};
+use noirc_frontend::monomorphization::ast::{Definition, FuncId};
 use noirc_frontend::BinaryOpKind;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
@@ -30,15 +30,15 @@ impl std::fmt::Display for Variable {
     }
 }
 
-impl std::fmt::Display for NodeObj {
+impl std::fmt::Display for NodeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use FunctionKind::*;
         match self {
-            NodeObj::Obj(o) => write!(f, "{o}"),
-            NodeObj::Instr(i) => write!(f, "{i}"),
-            NodeObj::Const(c) => write!(f, "{c}"),
-            NodeObj::Function(Normal(id), ..) => write!(f, "f{}", id.0),
-            NodeObj::Function(Builtin(opcode), ..) => write!(f, "{opcode}"),
+            NodeObject::Obj(o) => write!(f, "{o}"),
+            NodeObject::Instr(i) => write!(f, "{i}"),
+            NodeObject::Const(c) => write!(f, "{c}"),
+            NodeObject::Function(Normal(id), ..) => write!(f, "f{}", id.0),
+            NodeObject::Function(Builtin(opcode), ..) => write!(f, "{opcode}"),
         }
     }
 }
@@ -63,31 +63,31 @@ impl Node for Variable {
     }
 }
 
-impl Node for NodeObj {
+impl Node for NodeObject {
     fn get_type(&self) -> ObjectType {
         match self {
-            NodeObj::Obj(o) => o.get_type(),
-            NodeObj::Instr(i) => i.res_type,
-            NodeObj::Const(o) => o.value_type,
-            NodeObj::Function(..) => ObjectType::Function,
+            NodeObject::Obj(o) => o.get_type(),
+            NodeObject::Instr(i) => i.res_type,
+            NodeObject::Const(o) => o.value_type,
+            NodeObject::Function(..) => ObjectType::Function,
         }
     }
 
     fn size_in_bits(&self) -> u32 {
         match self {
-            NodeObj::Obj(o) => o.size_in_bits(),
-            NodeObj::Instr(i) => i.res_type.bits(),
-            NodeObj::Const(c) => c.size_in_bits(),
-            NodeObj::Function(..) => 0,
+            NodeObject::Obj(o) => o.size_in_bits(),
+            NodeObject::Instr(i) => i.res_type.bits(),
+            NodeObject::Const(c) => c.size_in_bits(),
+            NodeObject::Function(..) => 0,
         }
     }
 
     fn get_id(&self) -> NodeId {
         match self {
-            NodeObj::Obj(o) => o.get_id(),
-            NodeObj::Instr(i) => i.id,
-            NodeObj::Const(c) => c.get_id(),
-            NodeObj::Function(_, id, _) => *id,
+            NodeObject::Obj(o) => o.get_id(),
+            NodeObject::Instr(i) => i.id,
+            NodeObject::Const(c) => c.get_id(),
+            NodeObject::Function(_, id, _) => *id,
         }
     }
 }
@@ -116,7 +116,7 @@ impl NodeId {
 }
 
 #[derive(Debug)]
-pub enum NodeObj {
+pub enum NodeObject {
     Obj(Variable),
     Instr(Instruction),
     Const(Constant),
@@ -299,8 +299,8 @@ impl NodeEval {
         }
     }
 
-    //returns the NodeObj index of a NodeEval object
-    //if NodeEval is a constant, it may creates a new NodeObj corresponding to the constant value
+    //returns the NodeObject index of a NodeEval object
+    //if NodeEval is a constant, it may creates a new NodeObject corresponding to the constant value
     pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
@@ -311,12 +311,12 @@ impl NodeEval {
 
     pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
-            NodeObj::Const(c) => {
+            NodeObject::Const(c) => {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 NodeEval::Const(value, c.get_type())
             }
-            NodeObj::Function(f, id, _name) => NodeEval::Function(*f, *id),
-            NodeObj::Obj(_) | NodeObj::Instr(_) => NodeEval::VarOrInstruction(id),
+            NodeObject::Function(f, id, _name) => NodeEval::Function(*f, *id),
+            NodeObject::Obj(_) | NodeObject::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
 
@@ -364,7 +364,7 @@ impl Instruction {
             Operation::Load { .. } => false,
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true,
-            Operation::Call { .. } => true, //return values are in the return statment
+            Operation::Call { .. } => true, //return values are in the return statement
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -532,7 +532,7 @@ pub enum Operation {
         value: NodeId,
     },
 
-    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of usefull primitives which are more performant with Aztec backend
+    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
 
     Nop, // no op
 }
@@ -1025,7 +1025,7 @@ impl Binary {
     }
 }
 
-/// Perform the given numeric operation and modulo the result by the max value for the given bitcount
+/// Perform the given numeric operation and modulo the result by the max value for the given bit count
 /// if the res_type is not a NativeField.
 fn wrapping(
     lhs: FieldElement,
