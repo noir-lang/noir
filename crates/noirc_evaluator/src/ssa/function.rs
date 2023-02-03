@@ -132,7 +132,7 @@ impl SSAFunction {
         }
 
         let node_obj_opt = ctx.try_get_node(*node_id);
-        if let Some(node::NodeObj::Const(c)) = node_obj_opt {
+        if let Some(node::NodeObject::Const(c)) = node_obj_opt {
             ctx.get_or_create_const(c.get_value_field(), c.value_type)
         } else if let Some(id) = inline_map.get(node_id) {
             *id

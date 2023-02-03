@@ -5,7 +5,7 @@ use super::{
     //block,
     context::SsaContext,
     mem::{ArrayId, Memory},
-    node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObj, ObjectType, Operation},
+    node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation},
     optim,
 };
 use acvm::FieldElement;
@@ -95,10 +95,10 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObj::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
-        NodeObj::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
-        NodeObj::Const(c) => c.value.clone(), //TODO panic for string constants
-        NodeObj::Function(..) => BigUint::zero(),
+        NodeObject::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
+        NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, vmap),
+        NodeObject::Const(c) => c.value.clone(), //TODO panic for string constants
+        NodeObject::Function(..) => BigUint::zero(),
     };
     max_map.insert(id, result.clone());
     result
@@ -169,7 +169,7 @@ fn add_to_truncate(
 ) {
     let v_max = &max_map[&obj_id];
     if *v_max >= BigUint::one() << bit_size {
-        if let Some(NodeObj::Const(_)) = &ctx.try_get_node(obj_id) {
+        if let Some(NodeObject::Const(_)) = &ctx.try_get_node(obj_id) {
             return; //a constant cannot be truncated, so we exit the function gracefully
         }
         let truncate_bits = match to_truncate.get(&obj_id) {
@@ -417,7 +417,7 @@ pub fn get_value_from_map(id: NodeId, vmap: &HashMap<NodeId, NodeId>) -> NodeId 
     *vmap.get(&id).unwrap_or(&id)
 }
 
-fn get_size_in_bits(obj: Option<&NodeObj>) -> u32 {
+fn get_size_in_bits(obj: Option<&NodeObject>) -> u32 {
     if let Some(v) = obj {
         v.size_in_bits()
     } else {
@@ -425,7 +425,7 @@ fn get_size_in_bits(obj: Option<&NodeObj>) -> u32 {
     }
 }
 
-fn get_type(obj: Option<&NodeObj>) -> ObjectType {
+fn get_type(obj: Option<&NodeObject>) -> ObjectType {
     if let Some(v) = obj {
         v.get_type()
     } else {

@@ -115,12 +115,12 @@ impl Acir {
             return self.arith_cache[&id].clone();
         }
         let var = match ctx.try_get_node(id) {
-            Some(node::NodeObj::Const(c)) => {
+            Some(node::NodeObject::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 let expr = Expression::from_field(f_value);
                 InternalVar::new(expr, None, id)
             }
-            Some(node::NodeObj::Obj(v)) => match v.get_type() {
+            Some(node::NodeObject::Obj(v)) => match v.get_type() {
                 node::ObjectType::Pointer(_) => InternalVar::default(),
                 _ => {
                     let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
@@ -532,7 +532,7 @@ impl Acir {
         for a in args {
             let l_obj = cfg.try_get_node(*a).unwrap();
             match l_obj {
-                node::NodeObj::Obj(v) => match l_obj.get_type() {
+                node::NodeObject::Obj(v) => match l_obj.get_type() {
                     node::ObjectType::Pointer(a) => {
                         let array = &cfg.mem[a];
                         let num_bits = array.element_type.bits();

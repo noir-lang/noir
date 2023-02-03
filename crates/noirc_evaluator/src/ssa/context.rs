@@ -3,7 +3,7 @@ use super::conditional::{DecisionTree, TreeBuilder};
 use super::function::{FuncIndex, SSAFunction};
 use super::inline::StackFrame;
 use super::mem::{ArrayId, Memory};
-use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObj, ObjectType, Operation};
+use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObject, ObjectType, Operation};
 use super::{block, builtin, flatten, inline, integer, node, optim};
 use std::collections::{HashMap, HashSet};
 
@@ -27,7 +27,7 @@ pub struct SsaContext {
     pub first_block: BlockId,
     pub current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
-    pub nodes: arena::Arena<node::NodeObj>,
+    pub nodes: arena::Arena<node::NodeObject>,
     value_names: HashMap<NodeId, u32>,
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
@@ -267,7 +267,7 @@ impl SsaContext {
 
     pub fn node_to_string(&self, id: NodeId) -> String {
         match self.try_get_node(id) {
-            Some(NodeObj::Instr(ins)) => {
+            Some(NodeObject::Instr(ins)) => {
                 let mut str_res = if ins.res_name.is_empty() {
                     format!("{:?}", id.0.into_raw_parts().0)
                 } else {
@@ -305,10 +305,10 @@ impl SsaContext {
     /// This function does NOT push the instruction to the current block.
     /// See push_instruction for that.
     pub fn add_instruction(&mut self, instruction: node::Instruction) -> NodeId {
-        let obj = NodeObj::Instr(instruction);
+        let obj = NodeObject::Instr(instruction);
         let id = NodeId(self.nodes.insert(obj));
         match &mut self[id] {
-            NodeObj::Instr(i) => i.id = id,
+            NodeObject::Instr(i) => i.id = id,
             _ => unreachable!(),
         }
 
@@ -318,7 +318,7 @@ impl SsaContext {
     /// Adds the instruction to self.nodes and pushes it to the current block
     pub fn push_instruction(&mut self, instruction: node::Instruction) -> NodeId {
         let id = self.add_instruction(instruction);
-        if let NodeObj::Instr(_) = &self[id] {
+        if let NodeObject::Instr(_) = &self[id] {
             self.get_current_block_mut().instructions.push(id);
         }
         id
@@ -364,10 +364,10 @@ impl SsaContext {
     }
 
     pub fn add_const(&mut self, constant: node::Constant) -> NodeId {
-        let obj = NodeObj::Const(constant);
+        let obj = NodeObject::Const(constant);
         let id = NodeId(self.nodes.insert(obj));
         match &mut self[id] {
-            NodeObj::Const(c) => c.id = id,
+            NodeObject::Const(c) => c.id = id,
             _ => unreachable!(),
         }
 
@@ -380,7 +380,7 @@ impl SsaContext {
 
     pub fn try_get_func_id(&self, id: NodeId) -> Option<FuncId> {
         match &self[id] {
-            NodeObj::Function(FunctionKind::Normal(id), ..) => Some(*id),
+            NodeObject::Function(FunctionKind::Normal(id), ..) => Some(*id),
             _ => None,
         }
     }
@@ -393,11 +393,11 @@ impl SsaContext {
         arena::Index::from_raw_parts(std::usize::MAX, 0)
     }
 
-    pub fn try_get_node(&self, id: NodeId) -> Option<&node::NodeObj> {
+    pub fn try_get_node(&self, id: NodeId) -> Option<&node::NodeObject> {
         self.nodes.get(id.0)
     }
 
-    pub fn try_get_node_mut(&mut self, id: NodeId) -> Option<&mut node::NodeObj> {
+    pub fn try_get_node_mut(&mut self, id: NodeId) -> Option<&mut node::NodeObject> {
         self.nodes.get_mut(id.0)
     }
 
@@ -407,7 +407,7 @@ impl SsaContext {
 
     //Returns the object value if it is a constant, None if not.
     pub fn get_as_constant(&self, id: NodeId) -> Option<FieldElement> {
-        if let Some(node::NodeObj::Const(c)) = self.try_get_node(id) {
+        if let Some(node::NodeObject::Const(c)) = self.try_get_node(id) {
             return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
         }
         None
@@ -422,14 +422,14 @@ impl SsaContext {
     }
 
     pub fn try_get_instruction(&self, id: NodeId) -> Option<&node::Instruction> {
-        if let Some(NodeObj::Instr(i)) = self.try_get_node(id) {
+        if let Some(NodeObject::Instr(i)) = self.try_get_node(id) {
             return Some(i);
         }
         None
     }
 
     pub fn try_get_mut_instruction(&mut self, id: NodeId) -> Option<&mut node::Instruction> {
-        if let Some(NodeObj::Instr(i)) = self.try_get_node_mut(id) {
+        if let Some(NodeObject::Instr(i)) = self.try_get_node_mut(id) {
             return Some(i);
         }
         None
@@ -438,7 +438,7 @@ impl SsaContext {
     pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
-                node::NodeObj::Obj(o) => Ok(o),
+                node::NodeObject::Obj(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -453,7 +453,7 @@ impl SsaContext {
     ) -> Result<&mut node::Variable, RuntimeErrorKind> {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
-                node::NodeObj::Obj(o) => Ok(o),
+                node::NodeObject::Obj(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -469,7 +469,7 @@ impl SsaContext {
         index: u32,
     ) -> Option<&mut Instruction> {
         for id in &self.blocks[target.0].instructions {
-            if let Some(NodeObj::Instr(i)) = self.nodes.get(id.0) {
+            if let Some(NodeObject::Instr(i)) = self.nodes.get(id.0) {
                 if i.operation == (Operation::Result { call_instruction, index }) {
                     let id = *id;
                     return self.try_get_mut_instruction(id);
@@ -484,9 +484,9 @@ impl SsaContext {
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
-        let id = NodeId(self.nodes.insert(NodeObj::Obj(obj)));
+        let id = NodeId(self.nodes.insert(NodeObject::Obj(obj)));
         match &mut self[id] {
-            node::NodeObj::Obj(v) => {
+            node::NodeObject::Obj(v) => {
                 v.id = id;
                 v.root = root;
             }
@@ -579,7 +579,7 @@ impl SsaContext {
     ) -> Option<NodeId> {
         //TODO We should map constant values to id
         for (idx, o) in &self.nodes {
-            if let node::NodeObj::Const(c) = o {
+            if let node::NodeObject::Const(c) = o {
                 if c.value == *value && c.get_type() == e_type {
                     return Some(NodeId(idx));
                 }
@@ -1076,7 +1076,7 @@ impl SsaContext {
     pub fn push_function_id(&mut self, func_id: FuncId, name: &str) -> NodeId {
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
-            NodeObj::Function(FunctionKind::Normal(func_id), node_id, name.to_owned())
+            NodeObject::Function(FunctionKind::Normal(func_id), node_id, name.to_owned())
         });
 
         NodeId(index)
@@ -1100,7 +1100,7 @@ impl SsaContext {
         }
 
         let index = self.nodes.insert_with(|index| {
-            NodeObj::Function(FunctionKind::Builtin(opcode), NodeId(index), opcode.to_string())
+            NodeObject::Function(FunctionKind::Builtin(opcode), NodeId(index), opcode.to_string())
         });
         self.opcode_ids.insert(opcode, NodeId(index));
         NodeId(index)
@@ -1108,7 +1108,7 @@ impl SsaContext {
 
     pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
         match &self[node_id] {
-            NodeObj::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
+            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,
         }
     }
@@ -1204,7 +1204,7 @@ impl std::ops::IndexMut<BlockId> for SsaContext {
 }
 
 impl std::ops::Index<NodeId> for SsaContext {
-    type Output = NodeObj;
+    type Output = NodeObject;
 
     fn index(&self, index: NodeId) -> &Self::Output {
         &self.nodes[index.0]

@@ -13,7 +13,7 @@ use super::{
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.get_instruction(ins_id).clone();
     simplify(ctx, &mut ins)?;
-    ctx[ins_id] = super::node::NodeObj::Instr(ins);
+    ctx[ins_id] = super::node::NodeObject::Instr(ins);
     Ok(())
 }
 
