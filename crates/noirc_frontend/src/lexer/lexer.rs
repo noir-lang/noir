@@ -204,8 +204,8 @@ impl<'a> Lexer<'a> {
                 if peeked_char.is_ascii_alphabetic() {
                     // Okay to unwrap here because we already peeked to
                     // see that we have a character
-                    let curr_char = self.next_char().unwrap();
-                    return self.eat_word(curr_char);
+                    let current_char = self.next_char().unwrap();
+                    return self.eat_word(current_char);
                 }
 
                 Ok(spanned_prev_token)

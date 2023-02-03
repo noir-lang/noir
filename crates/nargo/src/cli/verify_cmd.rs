@@ -27,12 +27,12 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
-    let curr_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new(); //or cur_dir?
     proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&curr_dir, &proof_path, false, allow_warnings)
+    verify_with_path(&current_dir, &proof_path, false, allow_warnings)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(
@@ -48,9 +48,9 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
-        let curr_dir = program_dir;
+        let current_dir = program_dir;
         public_inputs =
-            read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
+            read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;

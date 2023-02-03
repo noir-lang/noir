@@ -29,7 +29,6 @@
         // TODO: we should just name this more descriptively
         // TODO: ie is it optimizations or optimizer?
         "optim",
-        "curr",
         "coeff",
         "udiv",
         "sdiv",
