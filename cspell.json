@@ -86,7 +86,6 @@
         "subtyping",
         "Foralls",
         "impls",
-        "nondeterministically",
         "typevar",
         "arity",
         "hindley",
