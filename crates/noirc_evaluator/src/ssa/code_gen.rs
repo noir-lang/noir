@@ -280,10 +280,10 @@ impl IRGenerator {
         rhs: NodeId,
         op: BinaryOpKind,
     ) -> Result<NodeId, RuntimeError> {
-        let ltype = self.context.get_object_type(lhs);
+        let lhs_type = self.context.get_object_type(lhs);
         // Get the opcode from the infix operator
-        let opcode = Operation::Binary(Binary::from_ast(op, ltype, lhs, rhs));
-        let op_type = self.context.get_result_type(&opcode, ltype);
+        let opcode = Operation::Binary(Binary::from_ast(op, lhs_type, lhs, rhs));
+        let op_type = self.context.get_result_type(&opcode, lhs_type);
         self.context.new_instruction(opcode, op_type)
     }
 

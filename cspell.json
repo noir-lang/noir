@@ -31,7 +31,6 @@
         "optim",
         "curr",
         "coeff",
-        "ltype",
         "udiv",
         "sdiv",
         "urem",
