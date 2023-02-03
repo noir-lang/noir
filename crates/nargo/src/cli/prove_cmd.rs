@@ -1,16 +1,16 @@
+use std::path::{Path, PathBuf};
+
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::{Format, InputValue};
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use noirc_abi::input_parser::Format;
+use noirc_abi::Abi;
 
 use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
+use super::{InputMap, WitnessMap};
 use crate::cli::dedup_public_input_indices;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
@@ -70,7 +70,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
     allow_unused_variables: bool,
-) -> Result<(noirc_driver::CompiledProgram, BTreeMap<Witness, FieldElement>), CliError> {
+) -> Result<(noirc_driver::CompiledProgram, WitnessMap), CliError> {
     let mut compiled_program = super::compile_cmd::compile_circuit(
         program_dir.as_ref(),
         show_ssa,
@@ -91,7 +91,7 @@ pub fn compile_circuit_and_witness<P: AsRef<Path>>(
 pub fn parse_and_solve_witness<P: AsRef<Path>>(
     program_dir: P,
     compiled_program: &noirc_driver::CompiledProgram,
-) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
+) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().expect("compiled program is missing an abi object");
     // Parse the initial witness values from Prover.toml
     let witness_map =
@@ -121,29 +121,39 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
-    witness_map: &BTreeMap<String, InputValue>,
-) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap();
-    let encoded_inputs = abi.clone().encode(witness_map, true).map_err(|error| match error {
-        AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-        }
-        _ => CliError::from(error),
-    })?;
+    input_map: &InputMap,
+) -> Result<WitnessMap, CliError> {
+    let abi = compiled_program.abi.as_ref().unwrap().clone();
+    let mut solved_witness =
+        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
+            }
+            _ => CliError::from(error),
+        })?;
 
-    let mut solved_witness: BTreeMap<Witness, FieldElement> = encoded_inputs
+    let backend = crate::backends::ConcreteBackend;
+    backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
+
+    Ok(solved_witness)
+}
+
+/// Given an InputMap and an Abi, produce a WitnessMap
+///
+/// In particular, this method shows one how to associate values in a Toml/JSON
+/// file with witness indices
+fn input_map_to_witness_map(abi: Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
+    // The ABI map is first encoded as a vector of field elements
+    let encoded_inputs = abi.encode(input_map, true)?;
+
+    Ok(encoded_inputs
         .into_iter()
         .enumerate()
         .map(|(index, witness_value)| {
             let witness = Witness::new(WITNESS_OFFSET + (index as u32));
             (witness, witness_value)
         })
-        .collect();
-
-    let backend = crate::backends::ConcreteBackend;
-    backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
-
-    Ok(solved_witness)
+        .collect())
 }
 
 fn save_proof_to_dir<P: AsRef<Path>>(

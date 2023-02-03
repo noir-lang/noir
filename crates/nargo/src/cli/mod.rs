@@ -1,4 +1,7 @@
-use acvm::{acir::circuit::PublicInputs, FieldElement};
+use acvm::{
+    acir::{circuit::PublicInputs, native_types::Witness},
+    FieldElement,
+};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
@@ -31,6 +34,12 @@ mod verify_cmd;
 
 const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
 const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+
+/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
+pub type InputMap = BTreeMap<String, InputValue>;
+
+/// A map from the witnesses in a constraint system to the field element values
+pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")

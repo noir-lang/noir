@@ -1,5 +1,6 @@
 use super::{
     compile_cmd::compile_circuit, dedup_public_input_indices_values, read_inputs_from_file,
+    InputMap,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
@@ -8,7 +9,7 @@ use crate::{
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
@@ -44,34 +45,35 @@ pub fn verify_with_path<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let mut public_inputs = BTreeMap::new();
+    let mut public_inputs_map: InputMap = BTreeMap::new();
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let current_dir = program_dir;
-        public_inputs =
+        public_inputs_map =
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
-    let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;
+    let valid_proof = verify_proof(compiled_program, public_inputs_map, load_proof(proof_path)?)?;
 
     Ok(valid_proof)
 }
 
 fn verify_proof(
     mut compiled_program: CompiledProgram,
-    public_inputs: BTreeMap<String, InputValue>,
+    public_inputs_map: InputMap,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
-    let public_inputs = public_abi.encode(&public_inputs, false).map_err(|error| match error {
-        AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
-        }
-        _ => CliError::from(error),
-    })?;
+    let public_inputs =
+        public_abi.encode(&public_inputs_map, false).map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
+            }
+            _ => CliError::from(error),
+        })?;
 
     // Similarly to when proving -- we must remove the duplicate public witnesses which
     // can be present because a public input can also be added as a public output.
