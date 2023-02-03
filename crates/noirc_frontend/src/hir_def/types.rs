@@ -612,7 +612,7 @@ impl Type {
 
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If use_subtype is true, the CompTime fields
-    /// of each will be checked via subtyping rather than unification.
+    /// of each will be checked via sub-typing rather than unification.
     pub fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
@@ -732,7 +732,7 @@ impl Type {
 
     /// Try to unify this type with another, setting any type variables found
     /// equal to the other type in the process. Unification is more strict
-    /// than subtyping but less strict than Eq. Returns true if the unification
+    /// than sub-typing but less strict than Eq. Returns true if the unification
     /// succeeded. Note that any bindings performed in a failed unification are
     /// not undone. This may cause further type errors later on.
     pub fn unify(
@@ -872,7 +872,7 @@ impl Type {
         }
     }
 
-    /// The `subtype` term here is somewhat loose, the only subtyping relations remaining
+    /// The `subtype` term here is somewhat loose, the only sub-typing relations remaining
     /// have to do with CompTime tracking.
     pub fn make_subtype_of(
         &self,

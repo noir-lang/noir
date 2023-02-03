@@ -83,7 +83,6 @@
         "smol",
         "krate",
         "typevars",
-        "subtyping",
         "Foralls",
         "impls",
         "typevar",
