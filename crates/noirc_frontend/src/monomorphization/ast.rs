@@ -253,7 +253,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),
-            Type::Array(len, elems) => write!(f, "[{elems}; {len}]"),
+            Type::Array(len, elements) => write!(f, "[{elements}; {len}]"),
             Type::Integer(sign, bits) => match sign {
                 Signedness::Unsigned => write!(f, "u{bits}"),
                 Signedness::Signed => write!(f, "i{bits}"),
@@ -261,9 +261,9 @@ impl std::fmt::Display for Type {
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str[{len}]"),
             Type::Unit => write!(f, "()"),
-            Type::Tuple(elems) => {
-                let elems = vecmap(elems, ToString::to_string);
-                write!(f, "({})", elems.join(", "))
+            Type::Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
             }
             Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);

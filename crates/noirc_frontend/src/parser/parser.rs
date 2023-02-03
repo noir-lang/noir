@@ -763,14 +763,14 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|elems, span, emit| {
-            if elems.is_empty() {
+        .validate(|elements, span, emit| {
+            if elements.is_empty() {
                 emit(ParserError::with_reason(
                     "Arrays must have at least one element".to_owned(),
                     span,
                 ))
             }
-            ExpressionKind::array(elems)
+            ExpressionKind::array(elements)
         })
 }
 
@@ -1046,7 +1046,7 @@ mod test {
 
         for expr in parse_all(array_expr(expression()), valid) {
             match expr_to_array(expr) {
-                ArrayLiteral::Standard(elems) => assert_eq!(elems.len(), 5),
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
                     assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
                 }

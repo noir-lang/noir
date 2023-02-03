@@ -613,8 +613,8 @@ impl<'a> Resolver<'a> {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elems)) => {
-                    HirLiteral::Array(vecmap(elems, |elem| self.resolve_expression(elem)))
+                Literal::Array(ArrayLiteral::Standard(elements)) => {
+                    HirLiteral::Array(vecmap(elements, |elem| self.resolve_expression(elem)))
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let len = self.eval_array_length(&length);

@@ -258,7 +258,7 @@ fn type_check_index_expression(
     let span = interner.expr_span(&index_expr.index);
 
     index_type.unify(&Type::comp_time(Some(span)), span, errors, || {
-        // Specialize the error in the case the user has a Field, just not a comptime one.
+        // Specialize the error in the case the user has a Field, just not a `comptime` one.
         if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
                 msg: format!("Array index must be known at compile-time, but here a non-comptime {index_type} was used instead"),

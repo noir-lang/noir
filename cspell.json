@@ -12,7 +12,6 @@
         "blackbox",
         "canonicalize",
         "codegen",
-        // TODO: Issue -- add documentation
         "lvalue",
         "vecmap",
         "forall",
@@ -30,7 +29,6 @@
         "idents",
         "comptime",
         "desugared",
-        "elems",
         "plonkc",
         "kevaundray",
         "wedderburn",
@@ -82,6 +80,6 @@
         "noirc",
         // Refers to parameters for a specific elliptic curve
         "secp256k1",
-        "foldl",
+        "foldl"
     ]
 }
