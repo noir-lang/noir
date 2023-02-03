@@ -26,7 +26,7 @@ pub(crate) fn type_check(
         // 5; or x; or x+a;
         //
         // In these cases, you cannot even get the expr_id because
-        // it is not binded to anything. We could therefore.
+        // it is not bound to anything. We could therefore.
         //
         // However since TypeChecking checks the return type of the last statement
         // the type checker could in the future incorrectly return the type.

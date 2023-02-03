@@ -6,7 +6,7 @@ use super::{FunctionDefinition, UnresolvedType};
 
 // A NoirFunction can be either a foreign low level function or a function definition
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
-// The name for function literal will be the variable it is binded to, and the name for a function definition will
+// The name for function literal will be the variable it is bound to, and the name for a function definition will
 // be the function name itself.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirFunction {

@@ -83,7 +83,6 @@
         "bitand",
         "bitcount",
         "subexpression",
-        "binded",
         "smol",
         "krate",
         "typevars",
