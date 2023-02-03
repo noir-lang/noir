@@ -14,7 +14,7 @@ When committing, it's often useful to use the `git add -p` workflow to decide on
 
 ### Conventional Commits
 
-As of the [1234567](https://github.com/noir-lang/noir/commit/1234567) commit, Noir follows the [Conventional Commits (v1.0.0)](https://www.conventionalcommits.org/en/v1.0.0/) specification. Following this convention allows us to provide an automated release process that also generates a detailed Changelog.
+As of the [126ca26](https://github.com/noir-lang/noir/commit/126ca26aaa955bbb002db90308223916a998179f) commit, Noir follows the [Conventional Commits (v1.0.0)](https://www.conventionalcommits.org/en/v1.0.0/) specification. Following this convention allows us to provide an automated release process that also generates a detailed Changelog.
 
 As described by the specification, our commit messages should be written as:
 
