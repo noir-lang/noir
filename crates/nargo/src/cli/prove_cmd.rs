@@ -134,10 +134,10 @@ fn solve_witness(
     Ok(solved_witness)
 }
 
-// Given an InputMap and an Abi, produce a WitnessMap
-//
-// In particular, this method shows one how to associate values in a Toml/JSON
-// file with witness indices
+/// Given an InputMap and an Abi, produce a WitnessMap
+///
+/// In particular, this method shows one how to associate values in a Toml/JSON
+/// file with witness indices
 fn input_map_to_witness_map(abi: Abi, abi_map: &InputMap) -> Result<WitnessMap, AbiError> {
     // The ABI map is first encoded as a vector of field elements
     let encoded_inputs = abi.encode(abi_map, true)?;
