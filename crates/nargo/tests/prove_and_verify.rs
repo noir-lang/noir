@@ -28,19 +28,19 @@ mod tests {
 
     #[test]
     fn noir_integration() {
-        let mut cdir = std::env::current_dir().unwrap();
-        cdir.push(TEST_DIR);
-        cdir.push(TEST_DATA_DIR);
+        let mut current_dir = std::env::current_dir().unwrap();
+        current_dir.push(TEST_DIR);
+        current_dir.push(TEST_DATA_DIR);
 
         //load config.tml file from test_data directory
-        cdir.push(CONFIG_FILE);
-        let config_path = std::fs::read_to_string(cdir).unwrap();
-        let conf_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
-        let mut cdir = std::env::current_dir().unwrap();
-        cdir.push(TEST_DIR);
-        cdir.push(TEST_DATA_DIR);
+        current_dir.push(CONFIG_FILE);
+        let config_path = std::fs::read_to_string(current_dir).unwrap();
+        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
+        let mut current_dir = std::env::current_dir().unwrap();
+        current_dir.push(TEST_DIR);
+        current_dir.push(TEST_DATA_DIR);
 
-        for c in fs::read_dir(cdir.as_path()).unwrap().flatten() {
+        for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
             if let Ok(test_name) = c.file_name().into_string() {
                 println!("Running test {test_name:?}");
                 if c.path().is_dir() && !conf_data["exclude"].contains(&test_name) {
@@ -55,7 +55,7 @@ mod tests {
                         }
                     };
 
-                    if conf_data["fail"].contains(&test_name) {
+                    if config_data["fail"].contains(&test_name) {
                         assert!(!r, "{:?} should not succeed", c.file_name());
                     } else {
                         assert!(r, "verification fail for {:?}", c.file_name());
