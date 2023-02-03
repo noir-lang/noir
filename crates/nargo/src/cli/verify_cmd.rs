@@ -64,7 +64,7 @@ pub(crate) fn verify_proof(
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
     let public_inputs =
-        public_abi.encode(&public_inputs_map, false).map_err(|error| match error {
+        public_abi.encode_to_array(&public_inputs_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
             }

@@ -1,16 +1,14 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
-use acvm::{FieldElement, PartialWitnessGenerator};
+use acvm::PartialWitnessGenerator;
 use clap::ArgMatches;
-use iter_extended::{try_btree_map, vecmap};
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{decode_value, encode_value, Abi, AbiParameter, MAIN_RETURN_NAME};
+use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
-use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
+use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
@@ -68,7 +66,7 @@ pub(crate) fn execute_program(
     let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
     let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-    let public_inputs = extract_public_inputs(&public_abi, &solved_witness)?;
+    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 
     Ok((return_value, solved_witness))
@@ -80,66 +78,17 @@ pub(crate) fn solve_witness(
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap();
 
-    let mut solved_witness =
-        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
-            AbiError::UndefinedInput(_) => {
-                CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-            }
-            _ => CliError::from(error),
-        })?;
+    let mut solved_witness = abi.encode_to_witness(input_map).map_err(|error| match error {
+        AbiError::UndefinedInput(_) => {
+            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
+        }
+        _ => CliError::from(error),
+    })?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
 
     Ok(solved_witness)
-}
-
-/// Given an InputMap and an Abi, produce a WitnessMap
-///
-/// In particular, this method shows one how to associate values in a Toml/JSON
-/// file with witness indices
-fn input_map_to_witness_map(abi: &Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
-    // First encode each input separately
-    let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
-        try_btree_map(input_map, |(key, value)| {
-            encode_value(value.clone(), key).map(|v| (key.clone(), v))
-        })?;
-
-    // Write input field elements into witness indices specified in `abi_witness_map`.
-    let witness_map = encoded_input_map
-        .iter()
-        .flat_map(|(param_name, encoded_param_fields)| {
-            let param_witness_indices = &abi.param_witnesses[param_name];
-            param_witness_indices
-                .iter()
-                .zip(encoded_param_fields.iter())
-                .map(|(&witness, &field_element)| (witness, field_element))
-        })
-        .collect();
-
-    Ok(witness_map)
-}
-
-pub(crate) fn extract_public_inputs(
-    public_abi: &Abi,
-    solved_witness: &WitnessMap,
-) -> Result<InputMap, AbiError> {
-    let public_inputs_map = public_abi
-        .parameters
-        .iter()
-        .map(|AbiParameter { name, typ, .. }| {
-            let param_witness_values =
-                vecmap(public_abi.param_witnesses[name].clone(), |witness_index| {
-                    solved_witness[&witness_index]
-                });
-
-            decode_value(&mut param_witness_values.into_iter(), typ)
-                .map(|input_value| (name.clone(), input_value))
-                .unwrap()
-        })
-        .collect();
-
-    Ok(public_inputs_map)
 }
 
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(

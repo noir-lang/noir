@@ -1,19 +1,13 @@
-use acvm::{
-    acir::{circuit::PublicInputs, native_types::Witness},
-    FieldElement,
-};
+use acvm::{acir::circuit::PublicInputs, FieldElement};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
 use git_version::git_version;
-use noirc_abi::{
-    input_parser::{Format, InputValue},
-    Abi,
-};
+use noirc_abi::{input_parser::Format, Abi, InputMap};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -35,12 +29,6 @@ mod verify_cmd;
 
 const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
 const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
-
-/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
-pub type InputMap = BTreeMap<String, InputValue>;
-
-/// A map from the witnesses in a constraint system to the field element values
-pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
