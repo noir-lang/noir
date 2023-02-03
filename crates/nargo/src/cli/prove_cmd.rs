@@ -121,11 +121,11 @@ pub fn parse_and_solve_witness<P: AsRef<Path>>(
 
 fn solve_witness(
     compiled_program: &noirc_driver::CompiledProgram,
-    abi_map: &InputMap,
+    input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let abi = compiled_program.abi.as_ref().unwrap().clone();
     let mut solved_witness =
-        input_map_to_witness_map(abi, abi_map).map_err(|error| match error {
+        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
             }
@@ -144,9 +144,9 @@ fn solve_witness(
 ///
 /// In particular, this method shows one how to associate values in a Toml/JSON
 /// file with witness indices
-fn input_map_to_witness_map(abi: Abi, abi_map: &InputMap) -> Result<WitnessMap, AbiError> {
+fn input_map_to_witness_map(abi: Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
     // The ABI map is first encoded as a vector of field elements
-    let encoded_inputs = abi.encode(abi_map, true)?;
+    let encoded_inputs = abi.encode(input_map, true)?;
 
     Ok(encoded_inputs
         .into_iter()
