@@ -447,7 +447,7 @@ fn test_int_type() {
 }
 
 #[test]
-fn test_arithematic_sugar() {
+fn test_arithmetic_sugar() {
     let input = "+= -= *= /= %=";
 
     let expected = vec![
