@@ -47,7 +47,6 @@
         "nixpkgs",
         "rustup",
         "chumsky",
-        "tokenkind",
         "idents",
         // TODO: ask Jake if we can expand on "l"
         "foldl",

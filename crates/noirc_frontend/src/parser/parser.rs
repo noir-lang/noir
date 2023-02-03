@@ -164,7 +164,7 @@ fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
-    tokenkind(TokenKind::Attribute).map(|token| match token {
+    token_kind(TokenKind::Attribute).map(|token| match token {
         Token::Attribute(attribute) => attribute,
         _ => unreachable!(),
     })
@@ -311,12 +311,12 @@ fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
     just(Token::Keyword(keyword))
 }
 
-fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
+fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
     filter_map(move |span, found: Token| {
-        if found.kind() == tokenkind {
+        if found.kind() == token_kind {
             Ok(found)
         } else {
-            Err(ParserError::expected_label(tokenkind.to_string(), found, span))
+            Err(ParserError::expected_label(token_kind.to_string(), found, span))
         }
     })
 }
@@ -336,7 +336,7 @@ fn path() -> impl NoirParser<Path> {
 }
 
 fn ident() -> impl NoirParser<Ident> {
-    tokenkind(TokenKind::Ident).map_with_span(Ident::from_token)
+    token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
 fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -851,7 +851,7 @@ where
 }
 
 fn field_name() -> impl NoirParser<Ident> {
-    ident().or(tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
+    ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
             let reason = format!("Unexpected '{other}', expected a field name");
@@ -888,7 +888,7 @@ fn variable() -> impl NoirParser<ExpressionKind> {
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
-    tokenkind(TokenKind::Literal).map(|token| match token {
+    token_kind(TokenKind::Literal).map(|token| match token {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
