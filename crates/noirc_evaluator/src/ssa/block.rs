@@ -116,7 +116,7 @@ impl BasicBlock {
                         for a in returned_arrays {
                             result.insert(a.0);
                         }
-                        if let Some(f) = ctx.try_get_ssafunc(*func) {
+                        if let Some(f) = ctx.try_get_ssa_func(*func) {
                             for typ in &f.result_types {
                                 if let node::ObjectType::Pointer(a) = typ {
                                     result.insert(*a);
@@ -226,7 +226,7 @@ pub fn link_with_target(
     if let Some(target_block) = ctx.try_get_block_mut(target) {
         target_block.right = right;
         target_block.left = left;
-        //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODOshoud we do it here??
+        //TODO should also update the last instruction rhs to the first instruction of the current block  -- TODO should we do it here??
         if let Some(right_uw) = right {
             ctx[right_uw].dominator = Some(target);
         }
@@ -244,10 +244,10 @@ pub fn compute_dom(ctx: &mut SsaContext) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    for (master, svec) in dominator_link {
+    for (master, slave_vec) in dominator_link {
         if let Some(dom_b) = ctx.try_get_block_mut(master) {
             dom_b.dominated.clear();
-            for slave in svec {
+            for slave in slave_vec {
                 dom_b.dominated.push(slave);
             }
         }
@@ -263,9 +263,9 @@ pub fn compute_sub_dom(ctx: &mut SsaContext, blocks: &[BlockId]) {
             dominator_link.entry(dom).or_insert_with(Vec::new).push(block.id);
         }
     }
-    for (master, svec) in dominator_link {
+    for (master, slave_vec) in dominator_link {
         let dom_b = &mut ctx[master];
-        for slave in svec {
+        for slave in slave_vec {
             dom_b.dominated.push(slave);
         }
     }
@@ -336,7 +336,7 @@ fn find_join_helper(
 }
 
 // Find the LCA of x and y
-// n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flatenning
+// n.b. this is a naive implementation which assumes there is no cycle in the graph, so it should be used after loop flattening
 pub fn lca(ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
     if x == y {
         return x;
@@ -550,9 +550,9 @@ pub fn merge_path(
             }
         }
 
-        //we assign the concatened list of instructions to the start block, using a CSE pass
+        //we assign the concatenated list of instructions to the start block, using a CSE pass
         let mut modified = false;
-        super::optim::cse_block(ctx, start, &mut instructions, &mut modified)?;
+        super::optimizations::cse_block(ctx, start, &mut instructions, &mut modified)?;
         //Wires start to end
         if !end.is_dummy() {
             rewire_block_left(ctx, start, end);

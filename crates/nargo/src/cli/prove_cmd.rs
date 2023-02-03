@@ -23,12 +23,12 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
-    let curr_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().unwrap();
 
     let mut proof_dir = PathBuf::new();
     proof_dir.push(PROOFS_DIR);
 
-    prove_with_path(proof_name, curr_dir, proof_dir, show_ssa, allow_warnings)?;
+    prove_with_path(proof_name, current_dir, proof_dir, show_ssa, allow_warnings)?;
 
     Ok(())
 }

@@ -8,7 +8,7 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement, FunctionDefinition,
+    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
     NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
@@ -164,7 +164,7 @@ fn function_return_type() -> impl NoirParser<(AbiVisibility, UnresolvedType)> {
 }
 
 fn attribute() -> impl NoirParser<Attribute> {
-    tokenkind(TokenKind::Attribute).map(|token| match token {
+    token_kind(TokenKind::Attribute).map(|token| match token {
         Token::Attribute(attribute) => attribute,
         _ => unreachable!(),
     })
@@ -277,10 +277,10 @@ fn check_statements_require_semicolon(
 fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type())
         .map(|r#type| match r#type {
-            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
-            UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
+            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(CompTime::Yes(None)),
+            UnresolvedType::Bool(_) => UnresolvedType::Bool(CompTime::Yes(None)),
             UnresolvedType::Integer(_, sign, size) => {
-                UnresolvedType::Integer(Comptime::Yes(None), sign, size)
+                UnresolvedType::Integer(CompTime::Yes(None), sign, size)
             }
             other => other,
         })
@@ -311,12 +311,12 @@ fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
     just(Token::Keyword(keyword))
 }
 
-fn tokenkind(tokenkind: TokenKind) -> impl NoirParser<Token> {
+fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
     filter_map(move |span, found: Token| {
-        if found.kind() == tokenkind {
+        if found.kind() == token_kind {
             Ok(found)
         } else {
-            Err(ParserError::expected_label(tokenkind.to_string(), found, span))
+            Err(ParserError::expected_label(token_kind.to_string(), found, span))
         }
     })
 }
@@ -336,7 +336,7 @@ fn path() -> impl NoirParser<Path> {
 }
 
 fn ident() -> impl NoirParser<Ident> {
-    tokenkind(TokenKind::Ident).map_with_span(Ident::from_token)
+    token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
 fn statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -378,11 +378,11 @@ fn pattern() -> impl NoirParser<Pattern> {
             .ignore_then(pattern.clone())
             .map_with_span(|inner, span| Pattern::Mutable(Box::new(inner), span));
 
-        let shortfield = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
-        let longfield = ident().then_ignore(just(Token::Colon)).then(pattern.clone());
+        let short_field = ident().map(|name| (name.clone(), Pattern::Identifier(name)));
+        let long_field = ident().then_ignore(just(Token::Colon)).then(pattern.clone());
 
-        let struct_pattern_fields = longfield
-            .or(shortfield)
+        let struct_pattern_fields = long_field
+            .or(short_field)
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
@@ -404,9 +404,9 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
+    let fallible = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
 
-    then_commit(failable, expr_parser).map_with_span(
+    then_commit(fallible, expr_parser).map_with_span(
         |((identifier, operator), expression), span| {
             Statement::assign(identifier, operator, expression, span)
         },
@@ -470,19 +470,19 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     })
 }
 
-fn maybe_comptime() -> impl NoirParser<Comptime> {
-    keyword(Keyword::Comptime).or_not().map(|opt| match opt {
-        Some(_) => Comptime::Yes(None),
-        None => Comptime::No(None),
+fn maybe_comp_time() -> impl NoirParser<CompTime> {
+    keyword(Keyword::CompTime).or_not().map(|opt| match opt {
+        Some(_) => CompTime::Yes(None),
+        None => CompTime::No(None),
     })
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -494,7 +494,7 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comptime()
+    maybe_comp_time()
         .then(filter_map(|span, token: Token| match token {
             Token::IntType(int_type) => Ok(int_type),
             unexpected => {
@@ -567,8 +567,8 @@ fn expression() -> impl ExprParser {
         .labelled("expression")
 }
 
-// An expression is a single term followed by 0 or more (OP subexpr)*
-// where OP is an operator at the given precedence level and subexpr
+// An expression is a single term followed by 0 or more (OP subexpression)*
+// where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
 fn expression_with_precedence<'a, P>(
     precedence: Precedence,
@@ -613,7 +613,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     filter_map(move |span, token: Token| {
         if Precedence::token_precedence(&token) == Some(precedence) {
-            Ok(token.try_into_binop(span).unwrap())
+            Ok(token.try_into_binary_op(span).unwrap())
         } else {
             Err(ParserError::expected_label("binary operator".to_string(), token, span))
         }
@@ -656,7 +656,7 @@ where
         MemberAccess((Ident, Option<Vec<Expression>>)),
     }
 
-    // `(arg1, ..., argN)` in `myfunc(arg1, ..., argN)`
+    // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
     let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
@@ -763,14 +763,14 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|elems, span, emit| {
-            if elems.is_empty() {
+        .validate(|elements, span, emit| {
+            if elements.is_empty() {
                 emit(ParserError::with_reason(
                     "Arrays must have at least one element".to_owned(),
                     span,
                 ))
             }
-            ExpressionKind::array(elems)
+            ExpressionKind::array(elements)
         })
 }
 
@@ -851,7 +851,7 @@ where
 }
 
 fn field_name() -> impl NoirParser<Ident> {
-    ident().or(tokenkind(TokenKind::Literal).validate(|token, span, emit| match token {
+    ident().or(token_kind(TokenKind::Literal).validate(|token, span, emit| match token {
         Token::Int(_) => Ident::from(Spanned::from(span, token.to_string())),
         other => {
             let reason = format!("Unexpected '{other}', expected a field name");
@@ -888,7 +888,7 @@ fn variable() -> impl NoirParser<ExpressionKind> {
 }
 
 fn literal() -> impl NoirParser<ExpressionKind> {
-    tokenkind(TokenKind::Literal).map(|token| match token {
+    token_kind(TokenKind::Literal).map(|token| match token {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
@@ -1046,7 +1046,7 @@ mod test {
 
         for expr in parse_all(array_expr(expression()), valid) {
             match expr_to_array(expr) {
-                ArrayLiteral::Standard(elems) => assert_eq!(elems.len(), 5),
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
                     assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
                 }

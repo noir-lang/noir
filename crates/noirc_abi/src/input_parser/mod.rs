@@ -97,12 +97,12 @@ impl Format {
         }
     }
 
-    pub fn serialise(
+    pub fn serialize(
         &self,
         w_map: &BTreeMap<String, InputValue>,
     ) -> Result<String, InputParserError> {
         match self {
-            Format::Toml => toml::serialise_to_toml(w_map),
+            Format::Toml => toml::serialize_to_toml(w_map),
         }
     }
 }
