@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod graph;
 pub mod lexer;
-pub mod monomorphisation;
+pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
 

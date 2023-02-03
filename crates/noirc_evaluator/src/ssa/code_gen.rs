@@ -12,7 +12,7 @@ use crate::errors;
 use crate::ssa::block::BlockType;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphisation::ast::*;
+use noirc_frontend::monomorphization::ast::*;
 use noirc_frontend::{BinaryOpKind, UnaryOp};
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -126,7 +126,12 @@ impl IRGenerator {
 
     pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        self.codegen_expression(&main_body)?;
+        let value = self.codegen_expression(&main_body)?;
+        let node_ids = value.to_node_ids();
+
+        if self.program.main().return_type != Type::Unit {
+            self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
+        }
         Ok(())
     }
 
@@ -248,7 +253,7 @@ impl IRGenerator {
                 }
                 Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
                     let opcode = builtin::Opcode::lookup(opcode).unwrap_or_else(|| {
-                        unreachable!("Unknown builtin/lowlevel opcode '{}'", opcode)
+                        unreachable!("Unknown builtin/low level opcode '{}'", opcode)
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Single(function_node_id))
@@ -262,15 +267,15 @@ impl IRGenerator {
         rhs: NodeId,
         op: UnaryOp,
     ) -> Result<NodeId, RuntimeError> {
-        let rtype = self.context.get_object_type(rhs);
+        let rhs_type = self.context.get_object_type(rhs);
         match op {
             UnaryOp::Minus => {
-                let lhs = self.context.zero_with_type(rtype);
+                let lhs = self.context.zero_with_type(rhs_type);
                 let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
                 let op = Operation::Binary(node::Binary { operator, lhs, rhs, predicate: None });
-                self.context.new_instruction(op, rtype)
+                self.context.new_instruction(op, rhs_type)
             }
-            UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rtype),
+            UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rhs_type),
         }
     }
 
@@ -280,11 +285,11 @@ impl IRGenerator {
         rhs: NodeId,
         op: BinaryOpKind,
     ) -> Result<NodeId, RuntimeError> {
-        let ltype = self.context.get_object_type(lhs);
+        let lhs_type = self.context.get_object_type(lhs);
         // Get the opcode from the infix operator
-        let opcode = Operation::Binary(Binary::from_ast(op, ltype, lhs, rhs));
-        let optype = self.context.get_result_type(&opcode, ltype);
-        self.context.new_instruction(opcode, optype)
+        let opcode = Operation::Binary(Binary::from_ast(op, lhs_type, lhs, rhs));
+        let op_type = self.context.get_result_type(&opcode, lhs_type);
+        self.context.new_instruction(opcode, op_type)
     }
 
     fn codegen_indexed_value(
@@ -421,9 +426,13 @@ impl IRGenerator {
         let definition = Definition::Local(id);
         match value {
             Value::Single(node_id) => {
-                let otype = self.context.get_object_type(node_id);
-                let value =
-                    self.bind_variable(name.to_owned(), Some(definition.clone()), otype, node_id)?;
+                let object_type = self.context.get_object_type(node_id);
+                let value = self.bind_variable(
+                    name.to_owned(),
+                    Some(definition.clone()),
+                    object_type,
+                    node_id,
+                )?;
                 self.variable_values.insert(definition, value);
             }
             value @ Value::Tuple(_) => {
@@ -441,8 +450,8 @@ impl IRGenerator {
     fn bind_fresh_pattern(&mut self, basename: &str, value: Value) -> Result<Value, RuntimeError> {
         match value {
             Value::Single(node_id) => {
-                let otype = self.context.get_object_type(node_id);
-                self.bind_variable(basename.to_owned(), None, otype, node_id)
+                let object_type = self.context.get_object_type(node_id);
+                self.bind_variable(basename.to_owned(), None, object_type, node_id)
             }
             Value::Tuple(field_values) => {
                 let values = field_values
@@ -603,9 +612,9 @@ impl IRGenerator {
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(&cast_expr.lhs)?.unwrap_id();
-                let rtype = self.context.convert_type(&cast_expr.r#type);
+                let object_type = self.context.convert_type(&cast_expr.r#type);
 
-                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
+                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), object_type)?))
             }
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
@@ -720,8 +729,8 @@ impl IRGenerator {
         let phi = self.context.generate_empty_phi(join_idx, iter_id);
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
-        let notequal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(notequal, ObjectType::Boolean)?;
+        let not_equal = Operation::binary(BinaryOp::Ne, phi, end_idx);
+        let cond = self.context.new_instruction(not_equal, ObjectType::Boolean)?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 

@@ -112,7 +112,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeTree<K, V> {
     }
 }
 
-// XXX: This trait is needed because when we pop off a forscope in the resolver
+// XXX: This trait is needed because when we pop off a for-scope in the resolver
 // We want to check it for unused variables and return. Currently,
 // we only have an API for this with ScopeTree in the resolver.
 impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {

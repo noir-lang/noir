@@ -1,4 +1,6 @@
-use super::{compile_cmd::compile_circuit, read_inputs_from_file};
+use super::{
+    compile_cmd::compile_circuit, dedup_public_input_indices_values, read_inputs_from_file,
+};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -27,12 +29,12 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
-    let curr_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new(); //or cur_dir?
     proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&curr_dir, &proof_path, false, allow_warnings)
+    verify_with_path(&current_dir, &proof_path, false, allow_warnings)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(
@@ -48,9 +50,9 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
-        let curr_dir = program_dir;
+        let current_dir = program_dir;
         public_inputs =
-            read_inputs_from_file(curr_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
+            read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs, load_proof(proof_path)?)?;
@@ -59,7 +61,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
 }
 
 fn verify_proof(
-    compiled_program: CompiledProgram,
+    mut compiled_program: CompiledProgram,
     public_inputs: BTreeMap<String, InputValue>,
     proof: Vec<u8>,
 ) -> Result<bool, CliError> {
@@ -71,8 +73,14 @@ fn verify_proof(
         _ => CliError::from(error),
     })?;
 
+    // Similarly to when proving -- we must remove the duplicate public witnesses which
+    // can be present because a public input can also be added as a public output.
+    let (dedup_public_indices, dedup_public_values) =
+        dedup_public_input_indices_values(compiled_program.circuit.public_inputs, public_inputs);
+    compiled_program.circuit.public_inputs = dedup_public_indices;
+
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+    let valid_proof = backend.verify_from_cs(&proof, dedup_public_values, compiled_program.circuit);
 
     Ok(valid_proof)
 }

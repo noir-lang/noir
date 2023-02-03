@@ -296,15 +296,15 @@ impl<'a> Resolver<'a> {
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
-            UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
+            UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
-            UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
-            UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
+            UnresolvedType::Bool(comp_time) => Type::Bool(comp_time),
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
@@ -613,8 +613,8 @@ impl<'a> Resolver<'a> {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elems)) => {
-                    HirLiteral::Array(vecmap(elems, |elem| self.resolve_expression(elem)))
+                Literal::Array(ArrayLiteral::Standard(elements)) => {
+                    HirLiteral::Array(vecmap(elements, |elem| self.resolve_expression(elem)))
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let len = self.eval_array_length(&length);
@@ -878,7 +878,7 @@ impl<'a> Resolver<'a> {
         let id = self.resolve_path(path)?;
 
         if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported lowlevel opcode. If so, replace it with
+            // Check if this is an unsupported low level opcode. If so, replace it with
             // an alternative in the stdlib.
             if let Some(meta) = self.interner.try_function_meta(&function) {
                 if meta.kind == crate::FunctionKind::LowLevel {

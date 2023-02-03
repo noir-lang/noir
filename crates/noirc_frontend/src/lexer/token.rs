@@ -129,8 +129,8 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
-    // An invalid character is one that is not in noir's language or grammer.
-    // Delaying reporting these as errors until parsing improves error messsages
+    // An invalid character is one that is not in noir's language or grammar.
+    // Delaying reporting these as errors until parsing improves error messages
     Invalid(char),
 }
 
@@ -235,9 +235,9 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binop(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
         use crate::BinaryOpKind::*;
-        let binop = match self {
+        let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,
             Token::Caret => Xor,
@@ -256,7 +256,7 @@ impl Token {
             Token::Percent => Modulo,
             _ => return None,
         };
-        Some(Spanned::from(span, binop))
+        Some(Spanned::from(span, binary_op))
     }
 }
 
@@ -396,7 +396,7 @@ pub enum Keyword {
     As,
     Bool,
     Char,
-    Comptime,
+    CompTime,
     Constrain,
     Crate,
     Dep,
@@ -425,7 +425,7 @@ impl fmt::Display for Keyword {
             Keyword::As => write!(f, "as"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
-            Keyword::Comptime => write!(f, "comptime"),
+            Keyword::CompTime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
@@ -459,7 +459,7 @@ impl Keyword {
             "as" => Keyword::As,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
-            "comptime" => Keyword::Comptime,
+            "comptime" => Keyword::CompTime,
             "constrain" => Keyword::Constrain,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
