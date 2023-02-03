@@ -89,14 +89,14 @@ impl Evaluator {
         program: Program,
         enable_logging: bool,
     ) -> Result<(), RuntimeError> {
-        let mut igen = IRGenerator::new(program);
-        self.parse_abi_alt(&mut igen);
+        let mut ir_gen = IRGenerator::new(program);
+        self.parse_abi_alt(&mut ir_gen);
 
         // Now call the main function
-        igen.codegen_main()?;
+        ir_gen.codegen_main()?;
 
         //Generates ACIR representation:
-        igen.context.ir_to_acir(self, enable_logging)?;
+        ir_gen.context.ir_to_acir(self, enable_logging)?;
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl Evaluator {
         def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
-        igen: &mut IRGenerator,
+        ir_gen: &mut IRGenerator,
     ) -> Result<(), RuntimeErrorKind> {
         match param_type {
             AbiType::Field => {
@@ -127,7 +127,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                igen.create_new_variable(
+                ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
                     node::ObjectType::NativeField,
@@ -139,7 +139,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.extend(witnesses.clone());
                 }
-                igen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
+                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
             }
             AbiType::Integer { sign: _, width } => {
                 let witness = self.add_witness_to_cs();
@@ -147,8 +147,8 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                let obj_type = igen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
-                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+                let obj_type = ir_gen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
+                ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Boolean => {
                 let witness = self.add_witness_to_cs();
@@ -157,7 +157,7 @@ impl Evaluator {
                     self.public_inputs.push(witness);
                 }
                 let obj_type = node::ObjectType::Boolean;
-                igen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+                ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Struct { fields } => {
                 let new_fields = btree_map(fields, |(inner_name, value)| {
@@ -172,7 +172,7 @@ impl Evaluator {
                         struct_witnesses.values().flatten().cloned().collect();
                     self.public_inputs.extend(witnesses);
                 }
-                igen.abi_struct(name, Some(def), fields, struct_witnesses);
+                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses);
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
@@ -180,7 +180,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.extend(witnesses.clone());
                 }
-                igen.abi_array(name, Some(def), &typ, *length, witnesses);
+                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses);
             }
         }
         Ok(())
@@ -253,20 +253,20 @@ impl Evaluator {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi_alt(&mut self, igen: &mut IRGenerator) {
+    fn parse_abi_alt(&mut self, ir_gen: &mut IRGenerator) {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-        let main = igen.program.main();
+        let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
-        let abi_params = std::mem::take(&mut igen.program.abi.parameters);
+        let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
         assert_eq!(main_params.len(), abi_params.len());
 
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
             assert_eq!(param_name, &abi_param.name);
             let def = Definition::Local(*param_id);
-            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, igen)
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, ir_gen)
                 .unwrap();
         }
     }

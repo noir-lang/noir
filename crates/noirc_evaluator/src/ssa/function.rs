@@ -61,59 +61,60 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
-        let function_cfg = block::bfs(self.entry_block, None, &igen.context);
-        block::compute_sub_dom(&mut igen.context, &function_cfg);
+    pub fn compile(&self, ir_gen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+        let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
+        block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
         //catch the error because the function may not be called
-        super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
+        super::optim::full_cse(&mut ir_gen.context, self.entry_block, false)?;
         //Unrolling
-        super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
+        super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 
         //reduce conditionals
-        let mut decision = DecisionTree::new(&igen.context);
+        let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = igen.context.get_object_type(*arg) {
+            if let ObjectType::Pointer(a) = ir_gen.context.get_object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
 
         let mut to_remove: VecDeque<BlockId> = VecDeque::new();
 
-        let result = decision.make_decision_tree(&mut igen.context, builder);
+        let result = decision.make_decision_tree(&mut ir_gen.context, builder);
         if result.is_err() {
             // we take the last block to ensure we have the return instruction
-            let exit = block::exit(&igen.context, self.entry_block);
+            let exit = block::exit(&ir_gen.context, self.entry_block);
             //short-circuit for function: false constraint and return 0
-            let instructions = &igen.context[exit].instructions.clone();
+            let instructions = &ir_gen.context[exit].instructions.clone();
             let stack = block::short_circuit_instructions(
-                &mut igen.context,
+                &mut ir_gen.context,
                 self.entry_block,
                 instructions,
             );
             if self.entry_block != exit {
                 for i in &stack {
-                    igen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                    ir_gen.context.get_mut_instruction(*i).parent_block = self.entry_block;
                 }
             }
 
-            let function_block = &mut igen.context[self.entry_block];
+            let function_block = &mut ir_gen.context[self.entry_block];
             function_block.instructions.clear();
             function_block.instructions = stack;
             function_block.left = None;
             to_remove.extend(function_cfg.iter()); //let's remove all the other blocks
         } else {
-            decision.reduce(&mut igen.context, decision.root)?;
+            decision.reduce(&mut ir_gen.context, decision.root)?;
         }
 
         //merge blocks
-        to_remove = block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None)?;
+        to_remove =
+            block::merge_path(&mut ir_gen.context, self.entry_block, BlockId::dummy(), None)?;
 
-        igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
+        ir_gen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
             if i != self.entry_block {
-                igen.context.remove_block(i);
+                ir_gen.context.remove_block(i);
             }
         }
         Ok(decision)

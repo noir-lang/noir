@@ -122,28 +122,34 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 
 //common subexpression elimination, starting from the root
 pub fn cse(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     first_block: BlockId,
     stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut anchor = Anchor::default();
     let mut modified = false;
-    cse_tree(igen, first_block, &mut anchor, &mut modified, stop_on_error)
+    cse_tree(ir_gen, first_block, &mut anchor, &mut modified, stop_on_error)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
 fn cse_tree(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut Anchor,
     modified: &mut bool,
     stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut instructions = Vec::new();
-    let mut res =
-        cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified, stop_on_error)?;
-    for b in igen[block_id].dominated.clone() {
-        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified, stop_on_error)?;
+    let mut res = cse_block_with_anchor(
+        ir_gen,
+        block_id,
+        &mut instructions,
+        anchor,
+        modified,
+        stop_on_error,
+    )?;
+    for b in ir_gen[block_id].dominated.clone() {
+        let sub_res = cse_tree(ir_gen, b, &mut anchor.clone(), modified, stop_on_error)?;
         if sub_res.is_some() {
             res = sub_res;
         }
@@ -153,7 +159,7 @@ fn cse_tree(
 
 //perform common subexpression elimination until there is no more change
 pub fn full_cse(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     first_block: BlockId,
     report_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
@@ -162,7 +168,7 @@ pub fn full_cse(
     while modified {
         modified = false;
         let mut anchor = Anchor::default();
-        result = cse_tree(igen, first_block, &mut anchor, &mut modified, report_error)?;
+        result = cse_tree(ir_gen, first_block, &mut anchor, &mut modified, report_error)?;
     }
     Ok(result)
 }
