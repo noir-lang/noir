@@ -1,9 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
-use std::path::Path;
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
 use super::{create_named_dir, write_inputs_to_file, write_to_file};
