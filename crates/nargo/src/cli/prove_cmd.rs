@@ -48,10 +48,9 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
-    // Since the public outputs are added into the public inputs list
-    // There can be duplicates. We keep the duplicates for when one is
-    // encoding the return values into the Verifier.toml
-    // However, for creating a proof, we remove these duplicates.
+    // Since the public outputs are added onto the public inputs list, there can be duplicates.
+    // We keep the duplicates for when one is encoding the return values into the Verifier.toml,
+    // however we must remove these duplicates when creating a proof.
     compiled_program.circuit.public_inputs =
         dedup_public_input_indices(compiled_program.circuit.public_inputs);
 
