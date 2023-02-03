@@ -1,5 +1,7 @@
-use acvm::{acir::circuit::PublicInputs, FieldElement};
-use acvm::{acir::native_types::Witness, FieldElement};
+use acvm::{
+    acir::{circuit::PublicInputs, native_types::Witness},
+    FieldElement,
+};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
