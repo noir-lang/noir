@@ -613,7 +613,7 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     filter_map(move |span, token: Token| {
         if Precedence::token_precedence(&token) == Some(precedence) {
-            Ok(token.try_into_binop(span).unwrap())
+            Ok(token.try_into_binary_op(span).unwrap())
         } else {
             Err(ParserError::expected_label("binary operator".to_string(), token, span))
         }

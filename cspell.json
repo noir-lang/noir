@@ -72,7 +72,6 @@
         "pedersen",
         "schnorr",
         "merkle",
-        "binop",
         "vmap",
         "arithmetization",
         "bitand",

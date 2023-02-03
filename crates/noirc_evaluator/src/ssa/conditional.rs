@@ -553,9 +553,9 @@ impl DecisionTree {
                     }
                     stack.push(ins_id);
                 }
-                Operation::Binary(binop) => {
+                Operation::Binary(binary_op) => {
                     let mut cond = ass_value;
-                    if let Some(pred) = binop.predicate {
+                    if let Some(pred) = binary_op.predicate {
                         assert_ne!(pred, NodeId::dummy());
                         if ass_value == NodeId::dummy() {
                             cond = pred;
@@ -576,13 +576,13 @@ impl DecisionTree {
                         }
                     }
                     stack.push(ins_id);
-                    match binop.operator {
+                    match binary_op.operator {
                         BinaryOp::Udiv
                         | BinaryOp::Sdiv
                         | BinaryOp::Urem
                         | BinaryOp::Srem
                         | BinaryOp::Div => {
-                            if ctx.is_zero(binop.rhs) {
+                            if ctx.is_zero(binary_op.rhs) {
                                 DecisionTree::short_circuit(
                                     ctx,
                                     stack,
@@ -594,9 +594,9 @@ impl DecisionTree {
                             if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
                                 ins2.operation = Operation::Binary(crate::node::Binary {
-                                    lhs: binop.lhs,
-                                    rhs: binop.rhs,
-                                    operator: binop.operator.clone(),
+                                    lhs: binary_op.lhs,
+                                    rhs: binary_op.rhs,
+                                    operator: binary_op.operator.clone(),
                                     predicate: Some(cond),
                                 });
                             }
