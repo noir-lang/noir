@@ -5,7 +5,7 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
-use crate::Comptime;
+use crate::CompTime;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
@@ -26,7 +26,7 @@ pub(crate) fn type_check(
         // 5; or x; or x+a;
         //
         // In these cases, you cannot even get the expr_id because
-        // it is not binded to anything. We could therefore.
+        // it is not bound to anything. We could therefore.
         //
         // However since TypeChecking checks the return type of the last statement
         // the type checker could in the future incorrectly return the type.
@@ -183,7 +183,7 @@ fn type_check_lvalue(
             let index_type = type_check_expression(interner, &index, errors);
             let expr_span = interner.expr_span(&index);
 
-            index_type.unify(&Type::comptime(Some(expr_span)), expr_span, errors, || {
+            index_type.unify(&Type::comp_time(Some(expr_span)), expr_span, errors, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: "comptime Field".to_owned(),
                     expr_typ: index_type.to_string(),
@@ -221,7 +221,7 @@ fn type_check_let_stmt(
     let mut resolved_type =
         type_check_declaration(interner, let_stmt.expression, let_stmt.r#type, errors);
 
-    resolved_type.set_comptime_span(interner.expr_span(&let_stmt.expression));
+    resolved_type.set_comp_time_span(interner.expr_span(&let_stmt.expression));
 
     // Set the type of the pattern to be equal to the annotated type
     bind_pattern(interner, &let_stmt.pattern, resolved_type, errors);
@@ -235,10 +235,10 @@ fn type_check_constrain_stmt(
     let expr_type = type_check_expression(interner, &stmt.0, errors);
     let expr_span = interner.expr_span(&stmt.0);
 
-    expr_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
+    expr_type.unify(&Type::Bool(CompTime::new(interner)), expr_span, errors, || {
         TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
+            expected_typ: Type::Bool(CompTime::No(None)).to_string(),
             expr_span,
         }
     });
@@ -260,7 +260,7 @@ fn type_check_declaration(
     // If so, then we give it the same type as the expression
     if annotated_type != Type::Error {
         // Now check if LHS is the same type as the RHS
-        // Importantly, we do not co-erce any types implicitly
+        // Importantly, we do not coerce any types implicitly
         let expr_span = interner.expr_span(&rhs_expr);
         expr_type.make_subtype_of(&annotated_type, expr_span, errors, || {
             TypeCheckError::TypeMismatch {

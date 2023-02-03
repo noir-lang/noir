@@ -10,7 +10,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
-    Comptime, FunctionKind, TypeBinding, TypeBindings,
+    CompTime, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -18,14 +18,14 @@ use self::ast::{Definition, FuncId, Function, LocalId, Program};
 pub mod ast;
 pub mod printer;
 
-struct Monomorphiser {
-    // Store monomorphised globals and locals separately,
-    // only locals are cleared on each function call and only globals are monomorphised.
+struct Monomorphizer {
+    // Store monomorphized globals and locals separately,
+    // only locals are cleared on each function call and only globals are monomorphized.
     // Nested HashMaps in globals lets us avoid cloning HirTypes when calling .get()
     globals: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// Queue of functions to monomorphise next
+    /// Queue of functions to monomorphize next
     queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings)>,
 
     finished_functions: BTreeMap<FuncId, Function>,
@@ -38,26 +38,26 @@ struct Monomorphiser {
 
 type HirType = crate::Type;
 
-pub fn monomorphise(main: node_interner::FuncId, interner: NodeInterner) -> Program {
-    let mut monomorphiser = Monomorphiser::new(interner);
-    let abi = monomorphiser.compile_main(main);
+pub fn monomorphize(main: node_interner::FuncId, interner: NodeInterner) -> Program {
+    let mut monomorphizer = Monomorphizer::new(interner);
+    let abi = monomorphizer.compile_main(main);
 
-    while !monomorphiser.queue.is_empty() {
-        let (next_fn_id, new_id, bindings) = monomorphiser.queue.pop_front().unwrap();
-        monomorphiser.locals.clear();
+    while !monomorphizer.queue.is_empty() {
+        let (next_fn_id, new_id, bindings) = monomorphizer.queue.pop_front().unwrap();
+        monomorphizer.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        monomorphiser.function(next_fn_id, new_id);
+        monomorphizer.function(next_fn_id, new_id);
         undo_instantiation_bindings(bindings);
     }
 
-    let functions = vecmap(monomorphiser.finished_functions, |(_, f)| f);
+    let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
     Program::new(functions, abi)
 }
 
-impl Monomorphiser {
-    fn new(interner: NodeInterner) -> Monomorphiser {
-        Monomorphiser {
+impl Monomorphizer {
+    fn new(interner: NodeInterner) -> Monomorphizer {
+        Monomorphizer {
             globals: HashMap::new(),
             locals: HashMap::new(),
             queue: VecDeque::new(),
@@ -94,7 +94,7 @@ impl Monomorphiser {
         match self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
             Some(id) => Definition::Function(*id),
             None => {
-                // Function has not been monomorphised yet
+                // Function has not been monomorphized yet
                 let meta = self.interner.function_meta(&id);
                 match meta.kind {
                     FunctionKind::LowLevel => {
@@ -155,7 +155,7 @@ impl Monomorphiser {
         assert!(existing.is_none());
     }
 
-    /// Monomorphise each parameter, expanding tuple/struct patterns into multiple parameters
+    /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
     fn parameters(&mut self, params: Parameters) -> Vec<(ast::LocalId, bool, String, ast::Type)> {
         let mut new_params = Vec::with_capacity(params.len());
@@ -272,7 +272,7 @@ impl Monomorphiser {
             }
 
             HirExpression::If(if_expr) => {
-                let cond = self.expr(if_expr.condition, &HirType::Bool(Comptime::No(None)));
+                let cond = self.expr(if_expr.condition, &HirType::Bool(CompTime::No(None)));
                 let then = self.expr(if_expr.consequence, typ);
                 let else_ = if_expr.alternative.map(|alt| Box::new(self.expr(alt, typ)));
                 ast::Expression::If(ast::If {
@@ -299,7 +299,7 @@ impl Monomorphiser {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0, &HirType::Bool(Comptime::No(None)));
+                let expr = self.expr(constrain.0, &HirType::Bool(CompTime::No(None)));
                 let location = self.interner.expr_location(&constrain.0);
                 ast::Expression::Constrain(Box::new(expr), location)
             }
@@ -462,7 +462,7 @@ impl Monomorphiser {
         }
     }
 
-    /// Convert a non-tuple/struct type to a monomorphised type
+    /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
@@ -492,7 +492,7 @@ impl Monomorphiser {
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
                 *binding.borrow_mut() =
-                    TypeBinding::Bound(HirType::FieldElement(Comptime::No(None)));
+                    TypeBinding::Bound(HirType::FieldElement(CompTime::No(None)));
                 ast::Type::Field
             }
 
@@ -538,9 +538,9 @@ impl Monomorphiser {
         }))
     }
 
-    /// Try to evaluate certain builtin functions (currently only 'arraylen' and field modulus methods)
-    /// at their callsite.
-    /// NOTE: Evaluating at the callsite means we cannot track aliased functions.
+    /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
+    /// at their call site.
+    /// NOTE: Evaluating at the call site means we cannot track aliased functions.
     ///       E.g. `let f = std::array::len; f(arr)` will fail to evaluate.
     ///       To fix this we need to evaluate on the identifier instead, which
     ///       requires us to evaluate to a Lambda value which isn't in noir yet.
@@ -551,7 +551,7 @@ impl Monomorphiser {
     ) -> Option<ast::Expression> {
         match func {
             ast::Expression::Ident(ident) => match &ident.definition {
-                Definition::Builtin(opcode) if opcode == "arraylen" => {
+                Definition::Builtin(opcode) if opcode == "array_len" => {
                     let typ = self.interner.id_type(arguments[0]);
                     let len = typ.evaluate_to_u64().unwrap();
                     Some(ast::Expression::Literal(ast::Literal::Integer(
@@ -623,9 +623,9 @@ impl Monomorphiser {
 
     /// Follow any type variable links within the given TypeBindings to produce
     /// a new TypeBindings that won't be changed when bindings are pushed or popped
-    /// during {perform,undo}_monomorphisation_bindings.
+    /// during {perform,undo}_monomorphization_bindings.
     ///
-    /// Without this, a monomorphised type may fail to propagate passed more than 2
+    /// Without this, a monomorphized type may fail to propagate passed more than 2
     /// function calls deep since it is possible for a previous link in the chain to
     /// unbind a type variable that was previously bound.
     fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {

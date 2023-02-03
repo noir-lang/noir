@@ -13,7 +13,7 @@ pub fn compile(src: String) -> JsValue {
     let compiled_program = noirc_driver::Driver::compile_file(path, language);
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
-// Deserialises bytes into ACIR structure
+// Deserializes bytes into ACIR structure
 #[wasm_bindgen]
 pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
     console_error_panic_hook::set_once();
