@@ -884,11 +884,11 @@ impl SsaContext {
         } else if matches!(lhs_type, ObjectType::Pointer(_)) {
             if let Some(Instruction {
                 operation: Operation::Intrinsic(_, _),
-                res_type: rtype,
+                res_type: result_type,
                 ..
             }) = self.try_get_mut_instruction(rhs)
             {
-                *rtype = lhs_type;
+                *result_type = lhs_type;
                 return Ok(lhs);
             } else {
                 self.memcpy(lhs_type, rhs_type)?;

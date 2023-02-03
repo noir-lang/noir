@@ -262,15 +262,15 @@ impl IRGenerator {
         rhs: NodeId,
         op: UnaryOp,
     ) -> Result<NodeId, RuntimeError> {
-        let rtype = self.context.get_object_type(rhs);
+        let rhs_type = self.context.get_object_type(rhs);
         match op {
             UnaryOp::Minus => {
-                let lhs = self.context.zero_with_type(rtype);
+                let lhs = self.context.zero_with_type(rhs_type);
                 let operator = BinaryOp::Sub { max_rhs_value: BigUint::zero() };
                 let op = Operation::Binary(node::Binary { operator, lhs, rhs, predicate: None });
-                self.context.new_instruction(op, rtype)
+                self.context.new_instruction(op, rhs_type)
             }
-            UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rtype),
+            UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rhs_type),
         }
     }
 
@@ -607,9 +607,9 @@ impl IRGenerator {
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.codegen_expression(&cast_expr.lhs)?.unwrap_id();
-                let rtype = self.context.convert_type(&cast_expr.r#type);
+                let object_type = self.context.convert_type(&cast_expr.r#type);
 
-                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), rtype)?))
+                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), object_type)?))
             }
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
