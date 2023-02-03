@@ -62,7 +62,6 @@
         "wedderburn",
         "termcolor",
         "arity",
-        "ncrate",
         "Hasher",
         "injective",
         "thiserror",
