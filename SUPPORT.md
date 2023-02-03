@@ -23,7 +23,7 @@ When submitting an issue, please include as much detail as possible about the er
 
 Noir is still very new and there are many cryptographic primitives that we have yet to build that will be useful for the community. If you have other ideas, please reach out on the [Aztec Discord](https://discord.gg/aztec) to discuss. You can find the current list of requested primitives in the [issues section](https://github.com/noir-lang/noir/labels/noir-stdlib) marked with the label `noir-stdlib`.
 
-## Funding Opportunties
+## Funding Opportunities
 
 Aztec is offering grants to people and teams that want to use, test or build Noir. You can find more information about the grants program [here](https://aztec.network/grants).
 

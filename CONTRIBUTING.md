@@ -127,12 +127,12 @@ feat(syntax): Implement first-class functions (#123)
 
 * review comment changes
 
-* Accepted suggestion from @phated
+* Accepted suggestion from @john
 
 * clippy
 ```
 
-The person merging would remove extrenous messaging and keep only the relavent Conventional Commits:
+The person merging would remove extranous messaging and keep only the revelant Conventional Commits:
 
 ```
 feat(syntax): Implement String data type (#123)
@@ -146,7 +146,7 @@ Additional Conventional Commits can be added before squashing if they improve th
 feat(syntax): Implement String data type (#123)
 
 chore(ci): Use correct rust version
-chore(clippy): Update all println calls to use single argument syntax
+chore(clippy): Update all print calls to use single argument syntax
 ```
 
 ### Merge Checklist
