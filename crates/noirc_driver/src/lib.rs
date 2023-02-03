@@ -8,7 +8,7 @@ use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
-use noirc_frontend::monomorphisation::monomorphise;
+use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -199,14 +199,14 @@ impl Driver {
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.into_abi(&self.context.def_interner);
 
-        let program = monomorphise(main_function, &self.context.def_interner);
+        let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_blackbox_supported(np_language.clone());
         match create_circuit(program, np_language, blackbox_supported, show_ssa) {
             Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the callsite without a stacktrace
+                // Errors will be shown at the call site without a stacktrace
                 let file_id = err.location.map(|loc| loc.file);
                 let error = &[err.to_diagnostic()];
                 let files = &self.context.file_manager;

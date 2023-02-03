@@ -251,7 +251,7 @@ pub enum UnaryOp {
 
 impl UnaryOp {
     /// Converts a token to a unary operator
-    /// If you want the parser to recognise another Token as being a prefix operator, it is defined here
+    /// If you want the parser to recognize another Token as being a prefix operator, it is defined here
     pub fn from(token: &Token) -> Option<UnaryOp> {
         match token {
             Token::Minus => Some(UnaryOp::Minus),

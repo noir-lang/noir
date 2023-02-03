@@ -5,7 +5,7 @@ use crate::{
     errors::{self, RuntimeError},
     ssa::{
         node::{Mark, ObjectType},
-        optim,
+        optimizations,
     },
 };
 
@@ -123,7 +123,7 @@ impl DecisionTree {
     ) -> Instruction {
         let operation = Operation::binary(operator, lhs, rhs);
         let mut i = Instruction::new(operation, typ, Some(block_id));
-        super::optim::simplify(ctx, &mut i).unwrap();
+        super::optimizations::simplify(ctx, &mut i).unwrap();
         i
     }
 
@@ -166,14 +166,14 @@ impl DecisionTree {
         if let Some(value) = assumption.value {
             return value;
         }
-        let pvalue = self[assumption.parent].value.unwrap();
+        let parent_value = self[assumption.parent].value.unwrap();
         let condition = self[assumption.parent].condition;
         let ins = if self.is_true_branch(block.assumption) {
             DecisionTree::new_instruction_after_phi(
                 ctx,
                 block_id,
                 BinaryOp::Mul,
-                pvalue,
+                parent_value,
                 condition,
                 ObjectType::Boolean,
             )
@@ -190,7 +190,7 @@ impl DecisionTree {
                 ctx,
                 block_id,
                 BinaryOp::Mul,
-                pvalue,
+                parent_value,
                 not_condition,
                 ObjectType::Boolean,
                 not_condition,
@@ -235,7 +235,7 @@ impl DecisionTree {
         }
         // is it an IF block?
         if let Some(ins) = ctx.get_if_condition(current_block) {
-            //add a new assuption for the IF
+            //add a new assumption for the IF
             if assumption.parent == AssumptionId::dummy() {
                 //Root assumption
                 parent = block_assumption;
@@ -338,7 +338,7 @@ impl DecisionTree {
         if_block_id: BlockId,
         exit_block_id: BlockId,
     ) -> Result<(), RuntimeError> {
-        //basic reduction as a first step (i.e no optimisation)
+        //basic reduction as a first step (i.e no optimization)
         let if_block = &ctx[if_block_id];
         let mut to_remove = Vec::new();
         let left = if_block.left.unwrap();
@@ -378,10 +378,10 @@ impl DecisionTree {
         } else {
             let left_ins = ctx[left].instructions.clone();
             let right_ins = ctx[right].instructions.clone();
-            merged_ins = self.synchronise(ctx, &left_ins, &right_ins, left);
+            merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
-        super::optim::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
+        super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
 
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
@@ -497,7 +497,7 @@ impl DecisionTree {
         stack: &mut StackFrame,
         ins_id: NodeId,
         predicate: AssumptionId,
-        short_circtuit: bool,
+        short_circuit: bool,
     ) -> Result<bool, RuntimeError> {
         let ass_cond;
         let ass_value;
@@ -529,7 +529,7 @@ impl DecisionTree {
         }
 
         let ins = ins1.clone();
-        if short_circtuit {
+        if short_circuit {
             stack.set_zero(ctx, ins.res_type);
             let ins2 = ctx.get_mut_instruction(ins_id);
             if ins2.res_type == ObjectType::NotAnObject {
@@ -548,7 +548,7 @@ impl DecisionTree {
                             val_true: block_args[0].0,
                             val_false: block_args[1].0,
                         };
-                        optim::simplify_id(ctx, ins_id).unwrap();
+                        optimizations::simplify_id(ctx, ins_id).unwrap();
                     }
                     stack.push(ins_id);
                 }
@@ -567,9 +567,9 @@ impl DecisionTree {
                     }
                     stack.push(ins_id);
                 }
-                Operation::Binary(binop) => {
+                Operation::Binary(binary_op) => {
                     let mut cond = ass_value;
-                    if let Some(pred) = binop.predicate {
+                    if let Some(pred) = binary_op.predicate {
                         assert_ne!(pred, NodeId::dummy());
                         if ass_value == NodeId::dummy() {
                             cond = pred;
@@ -585,18 +585,18 @@ impl DecisionTree {
                                 ObjectType::Boolean,
                                 Some(stack.block),
                             ));
-                            optim::simplify_id(ctx, cond).unwrap();
+                            optimizations::simplify_id(ctx, cond).unwrap();
                             stack.push(cond);
                         }
                     }
                     stack.push(ins_id);
-                    match binop.operator {
+                    match binary_op.operator {
                         BinaryOp::Udiv
                         | BinaryOp::Sdiv
                         | BinaryOp::Urem
                         | BinaryOp::Srem
                         | BinaryOp::Div => {
-                            if ctx.is_zero(binop.rhs) {
+                            if ctx.is_zero(binary_op.rhs) {
                                 DecisionTree::short_circuit(
                                     ctx,
                                     stack,
@@ -608,9 +608,9 @@ impl DecisionTree {
                             if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
                                 ins2.operation = Operation::Binary(crate::node::Binary {
-                                    lhs: binop.lhs,
-                                    rhs: binop.rhs,
-                                    operator: binop.operator.clone(),
+                                    lhs: binary_op.lhs,
+                                    rhs: binary_op.rhs,
+                                    operator: binary_op.operator.clone(),
                                     predicate: Some(cond),
                                 });
                             }
@@ -752,7 +752,7 @@ impl DecisionTree {
         }
     }
 
-    fn synchronise(
+    fn synchronize(
         &self,
         ctx: &mut SsaContext,
         left: &[NodeId],

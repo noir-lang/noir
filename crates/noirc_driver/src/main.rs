@@ -11,12 +11,12 @@ fn main() {
     driver.create_local_crate(ROOT_DIR_MAIN, CrateType::Binary);
 
     // Add libraries into Driver
-    let ncrate_id1 = driver.create_non_local_crate(EXTERNAL_DIR2, CrateType::Library);
-    let ncrate_id2 = driver.create_non_local_crate(EXTERNAL_DIR, CrateType::Library);
+    let crate_id1 = driver.create_non_local_crate(EXTERNAL_DIR2, CrateType::Library);
+    let crate_id2 = driver.create_non_local_crate(EXTERNAL_DIR, CrateType::Library);
 
     // Add dependencies as package
-    driver.add_dep(LOCAL_CRATE, ncrate_id1, "coo4");
-    driver.add_dep(LOCAL_CRATE, ncrate_id2, "coo3");
+    driver.add_dep(LOCAL_CRATE, crate_id1, "coo4");
+    driver.add_dep(LOCAL_CRATE, crate_id2, "coo3");
 
     driver.into_compiled_program(acvm::Language::R1CS, false, false).ok();
 }

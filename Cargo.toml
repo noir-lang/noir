@@ -16,7 +16,7 @@ default-members = ["crates/nargo"]
 
 [workspace.package]
 version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+authors = ["The Noir Team <kevtheappdev@gmail.com>"]
 edition = "2021"
 rust-version = "1.64"
 

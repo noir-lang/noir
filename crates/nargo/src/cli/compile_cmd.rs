@@ -21,13 +21,13 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let witness = args.is_present("witness");
     let allow_warnings = args.is_present("allow-warnings");
 
-    let curr_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().unwrap();
     let mut circuit_path = PathBuf::new();
     circuit_path.push(TARGET_DIR);
 
     generate_circuit_and_witness_to_disk(
         circuit_name,
-        curr_dir,
+        current_dir,
         circuit_path,
         witness,
         allow_warnings,

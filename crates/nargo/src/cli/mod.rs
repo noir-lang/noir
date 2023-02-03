@@ -44,7 +44,7 @@ pub fn start_cli() {
     let matches = App::new("nargo")
         .about("Noir's package manager")
         .version(VERSION_STRING)
-        .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
+        .author("The Noir Team <kevtheappdev@gmail.com>")
         .subcommand(
             App::new("check")
                 .about("Checks the constraint system for errors")
@@ -99,7 +99,7 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("gates")
-                .about("Counts the occurences of different gates in circuit")
+                .about("Counts the occurrences of different gates in circuit")
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
@@ -181,7 +181,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
         dir_path
     };
 
-    let serialized_output = format.serialise(w_map)?;
+    let serialized_output = format.serialize(w_map)?;
     write_to_file(serialized_output.as_bytes(), &file_path);
 
     Ok(())
