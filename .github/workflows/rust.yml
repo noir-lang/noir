@@ -104,4 +104,5 @@ jobs:
         with:
           files: |
             **/*.{md,rs}
-          incremental_files_only : false
+          incremental_files_only : true # Run this action on files which have changed in PR
+          strict: false # Do not fail, if a spelling mistake is found (This can be annoying for contributors)
