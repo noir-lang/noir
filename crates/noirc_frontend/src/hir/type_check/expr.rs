@@ -7,7 +7,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    Comptime, Shared, TypeBinding,
+    CompTime, Shared, TypeBinding,
 };
 
 use super::{bind_pattern, errors::TypeCheckError};
@@ -60,11 +60,11 @@ pub(crate) fn type_check_expression(
 
                     arr_type
                 }
-                HirLiteral::Bool(_) => Type::Bool(Comptime::new(interner)),
+                HirLiteral::Bool(_) => Type::Bool(CompTime::new(interner)),
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
-                        Comptime::new(interner),
+                        CompTime::new(interner),
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
@@ -584,7 +584,7 @@ pub fn infix_operand_type_rules(
                 return infix_operand_type_rules(binding, op, other, span, interner, errors);
             }
 
-            let comptime = Comptime::No(None);
+            let comptime = CompTime::No(None);
             if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
@@ -606,9 +606,9 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
+    cond_type.unify(&Type::Bool(CompTime::new(interner)), expr_span, errors, || {
         TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
+            expected_typ: Type::Bool(CompTime::No(None)).to_string(),
             expr_typ: cond_type.to_string(),
             expr_span,
         }
@@ -768,7 +768,7 @@ pub fn comparator_operand_type_rules(
         }
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool(Comptime::Yes(None))),
+        (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -787,11 +787,11 @@ pub fn comparator_operand_type_rules(
             });
 
             // We could check if all elements of all arrays are comptime but I am lazy
-            Ok(Bool(Comptime::No(Some(op.location.span))))
+            Ok(Bool(CompTime::No(Some(op.location.span))))
         }
         (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
             if binding_a == binding_b {
-                return Ok(Bool(Comptime::No(Some(op.location.span))));
+                return Ok(Bool(CompTime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
         }
@@ -801,7 +801,7 @@ pub fn comparator_operand_type_rules(
                 return comparator_operand_type_rules(binding, other, op, errors);
             }
 
-            let comptime = Comptime::No(None);
+            let comptime = CompTime::No(None);
             if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
                 Ok(other.clone())
             } else {
@@ -816,7 +816,7 @@ pub fn comparator_operand_type_rules(
                 }
             });
 
-            Ok(Bool(Comptime::No(Some(op.location.span))))
+            Ok(Bool(CompTime::No(Some(op.location.span))))
         }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
     }

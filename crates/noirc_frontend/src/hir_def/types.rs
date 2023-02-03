@@ -190,11 +190,11 @@ impl std::fmt::Display for StructType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
-    FieldElement(Comptime),
+    FieldElement(CompTime),
     Array(Box<Type>, Box<Type>),        // Array(4, Field) = [Field; 4]
-    Integer(Comptime, Signedness, u32), // u32 = Integer(unsigned, 32)
-    PolymorphicInteger(Comptime, TypeVariable),
-    Bool(Comptime),
+    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
+    PolymorphicInteger(CompTime, TypeVariable),
+    Bool(CompTime),
     String(Box<Type>),
     Unit,
     Struct(Shared<StructType>, Vec<Type>),
@@ -251,19 +251,19 @@ impl TypeBinding {
 pub struct TypeVariableId(pub usize);
 
 #[derive(Debug, Clone, Eq)]
-pub enum Comptime {
+pub enum CompTime {
     // Yes and No variants have optional spans representing the location in the source code
-    // which caused them to be comptime.
+    // which caused them to be compile time.
     Yes(Option<Span>),
     No(Option<Span>),
-    Maybe(TypeVariableId, Rc<RefCell<Option<Comptime>>>),
+    Maybe(TypeVariableId, Rc<RefCell<Option<CompTime>>>),
 }
 
-impl std::hash::Hash for Comptime {
+impl std::hash::Hash for CompTime {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
 
-        if let Comptime::Maybe(id, binding) = self {
+        if let CompTime::Maybe(id, binding) = self {
             if let Some(is_comptime) = &*binding.borrow() {
                 is_comptime.hash(state);
             } else {
@@ -273,10 +273,10 @@ impl std::hash::Hash for Comptime {
     }
 }
 
-impl PartialEq for Comptime {
+impl PartialEq for CompTime {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Comptime::Maybe(id1, binding1), Comptime::Maybe(id2, binding2)) => {
+            (CompTime::Maybe(id1, binding1), CompTime::Maybe(id2, binding2)) => {
                 if let Some(new_self) = &*binding1.borrow() {
                     return new_self == other;
                 }
@@ -285,7 +285,7 @@ impl PartialEq for Comptime {
                 }
                 id1 == id2
             }
-            (Comptime::Yes(_), Comptime::Yes(_)) | (Comptime::No(_), Comptime::No(_)) => true,
+            (CompTime::Yes(_), CompTime::Yes(_)) | (CompTime::No(_), CompTime::No(_)) => true,
             _ => false,
         }
     }
@@ -295,12 +295,12 @@ impl PartialEq for Comptime {
 /// to provide better error messages
 #[derive(Debug)]
 pub enum SpanKind {
-    Comptime(Span),
+    CompTime(Span),
     NotComptime(Span),
     None,
 }
 
-impl Comptime {
+impl CompTime {
     pub fn new(interner: &mut NodeInterner) -> Self {
         let id = interner.next_type_variable_id();
         Self::Maybe(id, Rc::new(RefCell::new(None)))
@@ -308,8 +308,8 @@ impl Comptime {
 
     fn set_span(&mut self, new_span: Span) {
         match self {
-            Comptime::Yes(span) | Comptime::No(span) => *span = Some(new_span),
-            Comptime::Maybe(_, binding) => {
+            CompTime::Yes(span) | CompTime::No(span) => *span = Some(new_span),
+            CompTime::Maybe(_, binding) => {
                 if let Some(binding) = &mut *binding.borrow_mut() {
                     binding.set_span(new_span);
                 }
@@ -317,30 +317,30 @@ impl Comptime {
         }
     }
 
-    /// Try to unify these two Comptime constraints.
+    /// Try to unify these two CompTime constraints.
     pub fn unify(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (Comptime::Yes(_), Comptime::Yes(_)) | (Comptime::No(_), Comptime::No(_)) => Ok(()),
+            (CompTime::Yes(_), CompTime::Yes(_)) | (CompTime::No(_), CompTime::No(_)) => Ok(()),
 
-            (Comptime::Yes(y), Comptime::No(n)) | (Comptime::No(n), Comptime::Yes(y)) => {
+            (CompTime::Yes(y), CompTime::No(n)) | (CompTime::No(n), CompTime::Yes(y)) => {
                 Err(match (y, n) {
                     (_, Some(span)) => SpanKind::NotComptime(*span),
-                    (Some(span), _) => SpanKind::Comptime(*span),
+                    (Some(span), _) => SpanKind::CompTime(*span),
                     _ => SpanKind::None,
                 })
             }
 
-            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding))
+            (CompTime::Maybe(_, binding), other) | (other, CompTime::Maybe(_, binding))
                 if binding.borrow().is_some() =>
             {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().unify(other, span)
             }
 
-            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => Ok(()),
+            (CompTime::Maybe(id1, _), CompTime::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
             // Both are unbound and do not refer to each other, arbitrarily set one equal to the other
-            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding)) => {
+            (CompTime::Maybe(_, binding), other) | (other, CompTime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -349,47 +349,47 @@ impl Comptime {
         }
     }
 
-    /// Try to unify these two Comptime constraints.
+    /// Try to unify these two CompTime constraints.
     pub fn is_subtype_of(&self, other: &Self, span: Span) -> Result<(), SpanKind> {
         match (self, other) {
-            (Comptime::Yes(_), Comptime::Yes(_))
-            | (Comptime::No(_), Comptime::No(_))
+            (CompTime::Yes(_), CompTime::Yes(_))
+            | (CompTime::No(_), CompTime::No(_))
 
-            // This is one of the only 2 differing cases between this and Comptime::unify
-            | (Comptime::Yes(_), Comptime::No(_)) => Ok(()),
+            // This is one of the only 2 differing cases between this and CompTime::unify
+            | (CompTime::Yes(_), CompTime::No(_)) => Ok(()),
 
-            (Comptime::No(n), Comptime::Yes(y)) => {
+            (CompTime::No(n), CompTime::Yes(y)) => {
                 Err(match (y, n) {
                     (_, Some(span)) => SpanKind::NotComptime(*span),
-                    (Some(span), _) => SpanKind::Comptime(*span),
+                    (Some(span), _) => SpanKind::CompTime(*span),
                     _ => SpanKind::None,
                 })
             }
 
-            (Comptime::Maybe(_, binding), other) if binding.borrow().is_some() => {
+            (CompTime::Maybe(_, binding), other) if binding.borrow().is_some() => {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().is_subtype_of(other, span)
             }
 
-            (other, Comptime::Maybe(_, binding)) if binding.borrow().is_some() => {
+            (other, CompTime::Maybe(_, binding)) if binding.borrow().is_some() => {
                 let binding = &*binding.borrow();
                 other.is_subtype_of(binding.as_ref().unwrap(), span)
             }
 
-            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => Ok(()),
+            (CompTime::Maybe(id1, _), CompTime::Maybe(id2, _)) if id1 == id2 => Ok(()),
 
-            // This is the other differing case between this and Comptime::unify.
+            // This is the other differing case between this and CompTime::unify.
             // If this is polymorphically comptime, don't force it to be non-comptime because it is
             // passed as an argument to a function expecting a non-comptime parameter.
-            (Comptime::Maybe(_, binding), Comptime::No(_)) if binding.borrow().is_none() => Ok(()),
+            (CompTime::Maybe(_, binding), CompTime::No(_)) if binding.borrow().is_none() => Ok(()),
 
-            (Comptime::Maybe(_, binding), other) => {
+            (CompTime::Maybe(_, binding), other) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
                 Ok(())
             }
-            (other, Comptime::Maybe(_, binding)) => {
+            (other, CompTime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -398,28 +398,28 @@ impl Comptime {
         }
     }
 
-    /// Combine these two Comptimes together, returning
-    /// - Comptime::Yes if both are Yes,
-    /// - Comptime::No if either are No,
+    /// Combine these two CompTimes together, returning
+    /// - CompTime::Yes if both are Yes,
+    /// - CompTime::No if either are No,
     /// - or if both are Maybe, unify them both and return the lhs.
     pub fn and(&self, other: &Self, span: Span) -> Self {
         match (self, other) {
-            (Comptime::Yes(_), Comptime::Yes(_)) => Comptime::Yes(Some(span)),
+            (CompTime::Yes(_), CompTime::Yes(_)) => CompTime::Yes(Some(span)),
 
-            (Comptime::No(_), Comptime::No(_))
-            | (Comptime::Yes(_), Comptime::No(_))
-            | (Comptime::No(_), Comptime::Yes(_)) => Comptime::No(Some(span)),
+            (CompTime::No(_), CompTime::No(_))
+            | (CompTime::Yes(_), CompTime::No(_))
+            | (CompTime::No(_), CompTime::Yes(_)) => CompTime::No(Some(span)),
 
-            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding))
+            (CompTime::Maybe(_, binding), other) | (other, CompTime::Maybe(_, binding))
                 if binding.borrow().is_some() =>
             {
                 let binding = &*binding.borrow();
                 binding.as_ref().unwrap().and(other, span)
             }
 
-            (Comptime::Maybe(id1, _), Comptime::Maybe(id2, _)) if id1 == id2 => self.clone(),
+            (CompTime::Maybe(id1, _), CompTime::Maybe(id2, _)) if id1 == id2 => self.clone(),
 
-            (Comptime::Maybe(_, binding), other) | (other, Comptime::Maybe(_, binding)) => {
+            (CompTime::Maybe(_, binding), other) | (other, CompTime::Maybe(_, binding)) => {
                 let mut clone = other.clone();
                 clone.set_span(span);
                 *binding.borrow_mut() = Some(clone);
@@ -430,9 +430,9 @@ impl Comptime {
 
     pub fn is_comptime(&self) -> bool {
         match self {
-            Comptime::Yes(_) => true,
-            Comptime::No(_) => false,
-            Comptime::Maybe(_, binding) => {
+            CompTime::Yes(_) => true,
+            CompTime::No(_) => false,
+            CompTime::Maybe(_, binding) => {
                 if let Some(binding) = &*binding.borrow() {
                     return binding.is_comptime();
                 }
@@ -444,11 +444,11 @@ impl Comptime {
 
 impl Type {
     pub fn field(span: Option<Span>) -> Type {
-        Type::FieldElement(Comptime::No(span))
+        Type::FieldElement(CompTime::No(span))
     }
 
     pub fn comptime(span: Option<Span>) -> Type {
-        Type::FieldElement(Comptime::Yes(span))
+        Type::FieldElement(CompTime::Yes(span))
     }
 
     pub fn default_int_type(span: Option<Span>) -> Type {
@@ -563,12 +563,12 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
-impl std::fmt::Display for Comptime {
+impl std::fmt::Display for CompTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Comptime::Yes(_) => write!(f, "comptime "),
-            Comptime::No(_) => Ok(()),
-            Comptime::Maybe(_, binding) => match &*binding.borrow() {
+            CompTime::Yes(_) => write!(f, "comptime "),
+            CompTime::No(_) => Ok(()),
+            CompTime::Maybe(_, binding) => match &*binding.borrow() {
                 Some(binding) => binding.fmt(f),
                 None => write!(f, "comptime "),
             },
@@ -577,7 +577,7 @@ impl std::fmt::Display for Comptime {
 }
 
 impl Type {
-    /// Mutate the span for Comptime to track where comptime is required for better
+    /// Mutate the span for CompTime to track where comptime is required for better
     /// error messages that show both the erroring call site and the call site before
     /// which required the variable to be comptime or non-comptime.
     pub fn set_comptime_span(&mut self, new_span: Span) {
@@ -595,7 +595,7 @@ impl Type {
         }
     }
 
-    pub fn set_comptime(&mut self, new_comptime: Comptime) {
+    pub fn set_comptime(&mut self, new_comptime: CompTime) {
         match self {
             Type::FieldElement(comptime) | Type::Integer(comptime, _, _) => {
                 *comptime = new_comptime;
@@ -611,12 +611,12 @@ impl Type {
     }
 
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
-    /// other PolymorphicInt type, or type variable. If use_subtype is true, the Comptime fields
+    /// other PolymorphicInt type, or type variable. If use_subtype is true, the CompTime fields
     /// of each will be checked via subtyping rather than unification.
     pub fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
-        var_comptime: &Comptime,
+        var_comptime: &CompTime,
         use_subtype: bool,
         span: Span,
     ) -> Result<(), SpanKind> {
@@ -625,7 +625,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        let bind = |int_comptime: &Comptime| {
+        let bind = |int_comptime: &CompTime| {
             let mut clone = self.clone();
             let mut new_comptime = var_comptime.clone();
             new_comptime.set_span(span);
@@ -759,7 +759,7 @@ impl Type {
                 let msg = "The value is non-comptime because of this expression, which uses another non-comptime value".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
-            (false, SpanKind::Comptime(span)) => {
+            (false, SpanKind::CompTime(span)) => {
                 let msg = "The value is comptime because of this expression, which forces the value to be comptime".into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
@@ -872,7 +872,7 @@ impl Type {
     }
 
     /// The `subtype` term here is somewhat loose, the only subtyping relations remaining
-    /// have to do with Comptime tracking.
+    /// have to do with CompTime tracking.
     pub fn make_subtype_of(
         &self,
         expected: &Type,

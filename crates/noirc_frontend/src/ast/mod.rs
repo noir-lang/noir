@@ -12,7 +12,7 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, Comptime};
+use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, CompTime};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
@@ -20,10 +20,10 @@ use iter_extended::vecmap;
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UnresolvedType {
-    FieldElement(Comptime),
+    FieldElement(CompTime),
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(Comptime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
-    Bool(Comptime),
+    Integer(CompTime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
+    Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
     Unit,
@@ -116,7 +116,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn from_int_token(token: (Comptime, IntType)) -> UnresolvedType {
+    pub fn from_int_token(token: (CompTime, IntType)) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
         match token.1 {
             Signed(num_bits) => Integer(token.0, Signedness::Signed, num_bits),

@@ -8,7 +8,7 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, Comptime, ConstrainStatement, FunctionDefinition,
+    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
     NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
@@ -277,10 +277,10 @@ fn check_statements_require_semicolon(
 fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type())
         .map(|r#type| match r#type {
-            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(Comptime::Yes(None)),
-            UnresolvedType::Bool(_) => UnresolvedType::Bool(Comptime::Yes(None)),
+            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(CompTime::Yes(None)),
+            UnresolvedType::Bool(_) => UnresolvedType::Bool(CompTime::Yes(None)),
             UnresolvedType::Integer(_, sign, size) => {
-                UnresolvedType::Integer(Comptime::Yes(None), sign, size)
+                UnresolvedType::Integer(CompTime::Yes(None), sign, size)
             }
             other => other,
         })
@@ -470,10 +470,10 @@ fn optional_visibility() -> impl NoirParser<AbiVisibility> {
     })
 }
 
-fn maybe_comptime() -> impl NoirParser<Comptime> {
-    keyword(Keyword::Comptime).or_not().map(|opt| match opt {
-        Some(_) => Comptime::Yes(None),
-        None => Comptime::No(None),
+fn maybe_comptime() -> impl NoirParser<CompTime> {
+    keyword(Keyword::CompTime).or_not().map(|opt| match opt {
+        Some(_) => CompTime::Yes(None),
+        None => CompTime::No(None),
     })
 }
 
