@@ -75,7 +75,6 @@
         "vmap",
         "arithmetization",
         "bitand",
-        "bitcount",
         "subexpression",
         "smol",
         "krate",

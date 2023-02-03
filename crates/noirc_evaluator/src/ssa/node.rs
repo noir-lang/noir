@@ -1025,7 +1025,7 @@ impl Binary {
     }
 }
 
-/// Perform the given numeric operation and modulo the result by the max value for the given bitcount
+/// Perform the given numeric operation and modulo the result by the max value for the given bit count
 /// if the res_type is not a NativeField.
 fn wrapping(
     lhs: FieldElement,
