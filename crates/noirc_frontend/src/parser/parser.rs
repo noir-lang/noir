@@ -404,9 +404,9 @@ fn assignment<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    let failable = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
+    let fallible = lvalue(expr_parser.clone()).then(assign_operator()).labelled("statement");
 
-    then_commit(failable, expr_parser).map_with_span(
+    then_commit(fallible, expr_parser).map_with_span(
         |((identifier, operator), expression), span| {
             Statement::assign(identifier, operator, expression, span)
         },

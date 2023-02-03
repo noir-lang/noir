@@ -52,7 +52,6 @@
         // TODO: ask Jake if we can expand on "l"
         "foldl",
         "comptime",
-        "failable",
         "desugared",
         "elems",
         "bindgen",
