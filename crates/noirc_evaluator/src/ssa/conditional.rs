@@ -283,7 +283,7 @@ impl DecisionTree {
 
         ctx[current].assumption = block_assumption;
         self.compute_assumption(ctx, current);
-        self.conditionalize_block(ctx, current, &mut data.stack)?;
+        self.apply_condition_to_block(ctx, current, &mut data.stack)?;
         Ok(result)
     }
 
@@ -397,7 +397,9 @@ impl DecisionTree {
         Ok(())
     }
 
-    pub fn conditionalize_block(
+    /// Apply the condition of the block to each instruction
+    /// in the block.
+    pub fn apply_condition_to_block(
         &self,
         ctx: &mut SsaContext,
         block: BlockId,
@@ -405,14 +407,16 @@ impl DecisionTree {
     ) -> Result<(), RuntimeError> {
         let assumption_id = ctx[block].assumption;
         let instructions = ctx[block].instructions.clone();
-        self.conditionalise_inline(ctx, &instructions, stack, assumption_id)?;
+        self.apply_condition_to_instructions(ctx, &instructions, stack, assumption_id)?;
         ctx[block].instructions.clear();
         ctx[block].instructions.append(&mut stack.stack);
         assert!(stack.stack.is_empty());
         Ok(())
     }
 
-    pub fn conditionalise_inline(
+    /// Applies a condition to each instruction
+    /// and places into the stack frame.
+    pub fn apply_condition_to_instructions(
         &self,
         ctx: &mut SsaContext,
         instructions: &[NodeId],
@@ -422,7 +426,13 @@ impl DecisionTree {
         if predicate == AssumptionId::dummy() || self[predicate].value != Some(ctx.zero()) {
             let mut short_circuit = false;
             for i in instructions {
-                if !self.conditionalise_into(ctx, result, *i, predicate, short_circuit)? {
+                if !self.apply_condition_to_instruction(
+                    ctx,
+                    result,
+                    *i,
+                    predicate,
+                    short_circuit,
+                )? {
                     short_circuit = true;
                 }
             }
@@ -477,7 +487,11 @@ impl DecisionTree {
         }
     }
 
-    pub fn conditionalise_into(
+    /// Applies a condition to the instruction
+    /// For most instructions, this does nothing
+    /// but for instructions with side-effects
+    /// this will alter the behavior.
+    pub fn apply_condition_to_instruction(
         &self,
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -667,7 +681,7 @@ impl DecisionTree {
                                     ObjectType::Pointer(array_dup),
                                     &mut memcpy_stack,
                                 );
-                                self.conditionalise_inline(
+                                self.apply_condition_to_instructions(
                                     ctx,
                                     &memcpy_stack.stack,
                                     stack,
