@@ -378,7 +378,7 @@ pub fn inline_in_block(
         }
     }
 
-    // we conditionalize the stack frame into a new stack frame (to avoid ownership issues)
+    // we apply the `condition` to stack frame and place it into a new stack frame (to avoid ownership issues)
     let mut stack2 = StackFrame::new(stack_frame.block);
     stack2.return_arrays = stack_frame.return_arrays.clone();
     if short_circuit {
@@ -390,7 +390,7 @@ pub fn inline_in_block(
             &mut stack2,
             predicate,
         )?;
-        // we add the conditionalized instructions to the target_block, at proper location (really need a linked list!)
+        // we add the instructions which we have applied the conditions to, to the target_block, at proper location (really need a linked list!)
         stack2.apply(ctx, stack_frame.block, call_id, false);
     }
 

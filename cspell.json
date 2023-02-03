@@ -1,10 +1,6 @@
 {
     "version": "0.2",
     "words": [
-        // TODO: Perhaps we should use the term `make_conditional` 
-        // instead of conditionalize. This can be done in a separate PR
-        "conditionalize",
-        "conditionalized",
         "aeiou",
         // This is a computer science idiom. Its a data structure that stores only
         // one distinct copy of an value. Google `String Interner` for a concrete example
