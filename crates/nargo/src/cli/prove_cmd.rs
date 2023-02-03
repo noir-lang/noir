@@ -44,11 +44,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
     let (_, solved_witness) = execute_program(&program_dir, &compiled_program)?;
 
-    // We allow the user to optionally not provide a value for the circuit's return value, so this may be missing from
-    // `witness_map`. We must then decode these from the circuit's witness values.
-    let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
-
     // Write public inputs into Verifier.toml
+    let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
     // Since the public outputs are added into the public inputs list
