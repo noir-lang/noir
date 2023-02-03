@@ -511,8 +511,8 @@ impl SsaContext {
         *v_name += 1;
         let variable_id = *v_name;
 
-        if let Ok(nvar) = self.get_mut_variable(new_var) {
-            nvar.name = format!("{root_name}{variable_id}");
+        if let Ok(new_var) = self.get_mut_variable(new_var) {
+            new_var.name = format!("{root_name}{variable_id}");
         }
     }
 

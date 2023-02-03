@@ -33,7 +33,6 @@
         "sdiv",
         "urem",
         "srem",
-        "nvar",
         "igen",
         "Barretenberg",
         "uninstantiated",
