@@ -97,7 +97,6 @@
         "typevar",
         "forscope",
         "arity",
-        "typecheck",
         "hindley",
         "milner",
         "peekable",

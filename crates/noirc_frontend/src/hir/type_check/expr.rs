@@ -384,7 +384,7 @@ fn lookup_method(
     }
 }
 
-// We need a special function to typecheck method calls since the method
+// We need a special function to type check method calls since the method
 // is not a Expression::Ident it must be manually instantiated here
 fn type_check_method_call(
     interner: &mut NodeInterner,
@@ -426,7 +426,7 @@ fn bind_function_type(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     // Could do a single unification for the entire function type, but matching beforehand
-    // lets us issue a more precise error on the individual argument that fails to typecheck.
+    // lets us issue a more precise error on the individual argument that fails to type check.
     match function {
         Type::TypeVariable(binding) => {
             if let TypeBinding::Bound(typ) = &*binding.borrow() {
