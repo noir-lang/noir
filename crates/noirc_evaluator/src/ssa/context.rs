@@ -739,7 +739,7 @@ impl SsaContext {
         //ACIR
         self.acir(evaluator)?;
         if enable_logging {
-            Acir::print_circuit(&evaluator.opcodes);
+            print_acir_circuit(&evaluator.opcodes);
             println!("DONE");
             println!("ACIR opcodes generated : {}", evaluator.opcodes.len());
         }
@@ -1214,5 +1214,13 @@ impl std::ops::Index<NodeId> for SsaContext {
 impl std::ops::IndexMut<NodeId> for SsaContext {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
+    }
+}
+
+// Prints a list of ACIR opcodes.
+// This is only used for logging.
+fn print_acir_circuit(opcodes: &[acvm::acir::circuit::Opcode]) {
+    for opcode in opcodes {
+        println!("{opcode:?}");
     }
 }

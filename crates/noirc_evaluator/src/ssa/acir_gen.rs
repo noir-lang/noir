@@ -532,12 +532,6 @@ impl Acir {
         }
     }
 
-    pub fn print_circuit(opcodes: &[AcirOpcode]) {
-        for opcode in opcodes {
-            println!("{opcode:?}");
-        }
-    }
-
     //Load array values into InternalVars
     //If create_witness is true, we create witnesses for values that do not have witness
     fn load_array(
