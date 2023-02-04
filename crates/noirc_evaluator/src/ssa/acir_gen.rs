@@ -97,11 +97,7 @@ impl Acir {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
                 let l_c = self.substitute(*value, evaluator, ctx);
                 constraints::subtract(
-                    &Expression {
-                        mul_terms: Vec::new(),
-                        linear_combinations: Vec::new(),
-                        q_c: FieldElement::from(a),
-                    },
+                    &Expression::from(&FieldElement::from(a)),
                     FieldElement::one(),
                     l_c.expression(),
                 )
