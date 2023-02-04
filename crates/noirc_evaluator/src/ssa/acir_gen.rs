@@ -1605,9 +1605,5 @@ fn expression_is_deg_one_univariate(expression: &Expression) -> bool {
 //
 // TODO move to ACVM repo
 fn expression_from_witness(witness: Witness) -> Expression {
-    Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![(FieldElement::one(), witness)],
-        q_c: FieldElement::zero(),
-    }
+    Expression::from(&witness)
 }
