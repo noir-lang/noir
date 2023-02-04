@@ -1614,3 +1614,39 @@ fn expression_is_deg_one_univariate(expression: &Expression) -> bool {
 fn expression_from_witness(witness: Witness) -> Expression {
     Expression::from(&witness)
 }
+
+#[test]
+fn internal_var_const_expression() {
+    let mut evaluator = Evaluator::new();
+
+    let expected_constant = FieldElement::from(123456789u128);
+
+    // Initialize an InternalVar with a FieldElement
+    let mut internal_var = InternalVar::from_constant(expected_constant);
+
+    // We currently do not create witness when the InternalVar was created using a constant
+    let witness = internal_var.witness(&mut evaluator);
+    assert!(witness.is_none());
+
+    match internal_var.to_const() {
+        Some(got_constant) => assert_eq!(got_constant, expected_constant),
+        None => {
+            panic!("`InternalVar` was initialized with a constant, so a field element was expected")
+        }
+    }
+}
+#[test]
+fn internal_var_from_witness() {
+    let mut evaluator = Evaluator::new();
+
+    let expected_witness = Witness(1234);
+    // Initialize an InternalVar with a `Witness`
+    let mut internal_var = InternalVar::from_witness(expected_witness);
+
+    // We should get back the same `Witness`
+    let got_witness = internal_var.witness(&mut evaluator);
+    match got_witness {
+        Some(got_witness) => assert_eq!(got_witness, expected_witness),
+        None => panic!("expected a `Witness` value"),
+    }
+}
