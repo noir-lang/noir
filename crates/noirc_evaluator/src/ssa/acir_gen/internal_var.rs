@@ -1,4 +1,3 @@
-use super::expression_from_witness;
 use crate::{ssa::node::NodeId, Evaluator};
 use acvm::{
     acir::native_types::{Expression, Witness},
@@ -98,7 +97,7 @@ impl InternalVar {
     /// Expression, this method is infallible.
     fn from_witness(witness: Witness) -> InternalVar {
         InternalVar {
-            expression: expression_from_witness(witness),
+            expression: Expression::from(&witness),
             cached_witness: Some(witness),
             id: None,
         }
