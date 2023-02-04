@@ -22,188 +22,13 @@ use std::{
     ops::{Mul, Neg},
 };
 
+mod internal_var;
+pub(crate) use internal_var::InternalVar;
+
 #[derive(Default)]
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
     pub memory_map: HashMap<u32, InternalVar>, //maps memory address to expression
-}
-
-#[derive(Default, Clone, Debug, Eq)]
-pub struct InternalVar {
-    // A multi-variate degree-2 polynomial
-    expression: Expression,
-    // A witness associated to `expression`.
-    // semantically `cached_witness` and `expression`
-    // should be the equal.
-    //
-    // Example: `z = x + y`
-    // `z` can be seen as the same to `x + y`
-    // ie if `z = 10` , then `x+y` must be equal to
-    // 10.
-    // There are places where we can use `cached_witness`
-    // in place of `expression` for performance reasons
-    // due to the fact that `cached_witness` is a single variable
-    // whereas `expression` is a multi-variate polynomial which can
-    // contain many degree-2 terms.
-    //
-    // TODO: What if the cached_witness becomes `dirty`
-    // TODO ie the expression is updated, but the cached_witness
-    // TODO refers to an old version of it. Can we add tests for this?
-    // TODO: We can guarantee this, if an InternalVar is immutable after
-    // TODO creation.
-    cached_witness: Option<Witness>,
-    id: Option<NodeId>,
-}
-
-impl InternalVar {
-    fn new(expression: Expression, cached_witness: Option<Witness>, id: NodeId) -> InternalVar {
-        InternalVar { expression, cached_witness, id: Some(id) }
-    }
-
-    /// If the InternalVar holds a constant expression
-    /// Return that constant.Otherwise, return None.
-    // TODO: we should have a method in ACVM
-    // TODO which returns the constant term if its a constant
-    // TODO expression. ie `self.expression.to_const()`
-    fn to_const(&self) -> Option<FieldElement> {
-        if self.is_const_expression() {
-            return Some(self.expression.q_c);
-        }
-
-        None
-    }
-
-    /// The expression term is degree-2 multi-variate polynomial, so
-    /// in order to check if if represents a constant,
-    /// we need to check that the degree-2 terms `mul_terms`
-    /// and the degree-1 terms `linear_combinations` do not exist.
-    ///
-    /// Example: f(x,y) = xy + 5
-    /// `f` is not a constant expression because there
-    /// is a bi-variate term `xy`.
-    /// Example: f(x,y) = x + y + 5
-    /// `f` is not a constant expression because there are
-    /// two uni-variate terms `x` and `y`
-    /// Example: f(x,y) = 10
-    /// `f` is a constant expression because there are no
-    /// bi-variate or uni-variate terms, just a constant.
-    fn is_const_expression(&self) -> bool {
-        self.expression.is_const()
-    }
-
-    /// Creates an `InternalVar` from an `Expression`.
-    /// If `Expression` represents a degree-1 polynomial
-    /// then we also assign it to the `cached_witness`
-    fn from_expression(expression: Expression) -> InternalVar {
-        let witness = witness_from_expression(&expression);
-        InternalVar { expression, cached_witness: witness, id: None }
-    }
-
-    /// Creates an `InternalVar` from a `Witness`.
-    /// Since a `Witness` can alway be coerced into an
-    /// Expression, this method is infallible.
-    fn from_witness(witness: Witness) -> InternalVar {
-        InternalVar {
-            expression: expression_from_witness(witness),
-            cached_witness: Some(witness),
-            id: None,
-        }
-    }
-
-    /// Creates an `InternalVar` from a `FieldElement`.
-    fn from_constant(constant: FieldElement) -> InternalVar {
-        InternalVar { expression: Expression::from_field(constant), cached_witness: None, id: None }
-    }
-
-    /// Generates a `Witness` that is equal to the `expression`.
-    /// - If a `Witness` has previously been generated
-    /// we return that.
-    /// - If the Expression represents a constant, we return None.
-    fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
-        // Check if we've already generated a `Witness` which is equal to
-        // the stored `Expression`
-        if let Some(witness) = self.cached_witness {
-            return Some(witness);
-        }
-
-        // If we have a constant expression, we do not
-        // create a witness equal to it and instead
-        // panic (TODO change)
-        // TODO: why don't we create a witness for the constant expression here?
-        if self.is_const_expression() {
-            return None;
-        }
-
-        self.cached_witness =
-            Some(InternalVar::expression_to_witness(self.expression.clone(), evaluator));
-
-        self.cached_witness
-    }
-
-    /// Converts an `Expression` into a `Witness`
-    /// - If the `Expression` is a degree-1 univariate polynomial
-    /// then this conversion is a simple coercion.
-    /// - Otherwise, we create a new `Witness` and set it to be equal to the
-    /// `Expression`.
-    fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
-        match witness_from_expression(&expr) {
-            Some(witness) => witness,
-            None => evaluator.create_intermediate_variable(expr),
-        }
-    }
-}
-
-impl PartialEq for InternalVar {
-    fn eq(&self, other: &Self) -> bool {
-        // An InternalVar is Equal to another InternalVar if _any_ of the fields
-        // in the InternalVar are equal.
-
-        let expressions_are_same = self.expression == other.expression;
-
-        // Check if `cached_witnesses` are the same
-        //
-        // This may happen if the expressions are the same
-        // but one is simplified and the other is not.
-        //
-        // The caller whom created both `InternalVar` objects
-        // may have known this and set their cached_witnesses to
-        // be the same.
-        // Example:
-        // z = 2*x + y
-        // t = x + x + y
-        // After simplification, it is clear that both RHS are the same
-        // However, since when we check for equality, we do not check for
-        // simplification, or in particular, we may eagerly assume
-        // the two expressions of the RHS are different.
-        //
-        // The caller can notice this and thus do:
-        // InternalVar::new(expr: 2*x + y, witness: z)
-        // InternalVar::new(expr: x + x + y, witness: z)
-        let cached_witnesses_same =
-            self.cached_witness.is_some() && self.cached_witness == other.cached_witness;
-
-        let node_ids_same = self.id.is_some() && self.id == other.id;
-
-        expressions_are_same || cached_witnesses_same || node_ids_same
-    }
-}
-
-impl From<Expression> for InternalVar {
-    fn from(expression: Expression) -> InternalVar {
-        InternalVar::from_expression(expression)
-    }
-}
-
-impl From<Witness> for InternalVar {
-    fn from(witness: Witness) -> InternalVar {
-        InternalVar::from_witness(witness)
-    }
-}
-
-impl From<FieldElement> for InternalVar {
-    fn from(constant: FieldElement) -> InternalVar {
-        InternalVar::from_constant(constant)
-    }
 }
 
 impl Acir {
@@ -223,20 +48,20 @@ impl Acir {
             Some(node::NodeObject::Const(c)) => {
                 let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 let expr = Expression::from_field(f_value);
-                InternalVar::new(expr, None, id)
+                InternalVar::new(expr, None, Some(id))
             }
             Some(node::NodeObject::Obj(v)) => match v.get_type() {
                 node::ObjectType::Pointer(_) => InternalVar::default(),
                 _ => {
                     let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                     let expr = Expression::from(&w);
-                    InternalVar::new(expr, Some(w), id)
+                    InternalVar::new(expr, Some(w), Some(id))
                 }
             },
             _ => {
                 let w = evaluator.add_witness_to_cs();
                 let expr = Expression::from(&w);
-                InternalVar::new(expr, Some(w), id)
+                InternalVar::new(expr, Some(w), Some(id))
             }
         };
 
@@ -258,7 +83,8 @@ impl Acir {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Constrain(value, ..) => {
                 let value = self.substitute(*value, evaluator, ctx);
-                let subtract = subtract(&Expression::one(), FieldElement::one(), &value.expression);
+                let subtract =
+                    subtract(&Expression::one(), FieldElement::one(), value.expression());
                 evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
                 value
             }
@@ -272,7 +98,7 @@ impl Acir {
                         q_c: FieldElement::from(a),
                     },
                     FieldElement::one(),
-                    &l_c.expression,
+                    l_c.expression(),
                 )
                 .into()
             }
@@ -314,8 +140,8 @@ impl Acir {
                     };
 
                     for mut object in objects {
-                        let witness = if object.expression.is_const() {
-                            evaluator.create_intermediate_variable(object.expression)
+                        let witness = if object.expression().is_const() {
+                            evaluator.create_intermediate_variable(object.expression().clone())
                         } else {
                             object.witness(evaluator).expect("unexpected constant expression")
                         };
@@ -337,11 +163,11 @@ impl Acir {
                 let cond = self.substitute(*condition, evaluator, ctx);
                 let l_c = self.substitute(*lhs, evaluator, ctx);
                 let r_c = self.substitute(*rhs, evaluator, ctx);
-                let sub = subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                let sub = subtract(l_c.expression(), FieldElement::one(), r_c.expression());
                 let result = add(
-                    &mul_with_witness(evaluator, &cond.expression, &sub),
+                    &mul_with_witness(evaluator, cond.expression(), &sub),
                     FieldElement::one(),
-                    &r_c.expression,
+                    r_c.expression(),
                 );
                 result.into()
             }
@@ -355,7 +181,7 @@ impl Acir {
                     let mem_array = &ctx.mem[*array_id];
                     let absolute_adr = mem_array.absolute_adr(idx);
                     if self.memory_map.contains_key(&absolute_adr) {
-                        InternalVar::from(self.memory_map[&absolute_adr].expression.clone())
+                        InternalVar::from(self.memory_map[&absolute_adr].expression().clone())
                     } else {
                         //if not found, then it must be a witness (else it is non-initialized memory)
                         let index = idx as usize;
@@ -386,7 +212,7 @@ impl Acir {
                 }
             }
         };
-        output.id = Some(ins.id);
+        *output.id_mut() = Some(ins.id);
         self.arith_cache.insert(ins.id, output);
         Ok(())
     }
@@ -419,14 +245,14 @@ impl Acir {
 
         match &binary.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
-                InternalVar::from(add(&l_c.expression, FieldElement::one(), &r_c.expression))
+                InternalVar::from(add(l_c.expression(), FieldElement::one(), r_c.expression()))
             }
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
                 if res_type == node::ObjectType::NativeField {
                     InternalVar::from(subtract(
-                        &l_c.expression,
+                        l_c.expression(),
                         FieldElement::one(),
-                        &r_c.expression,
+                        r_c.expression(),
                     ))
                 } else {
                     //we need the type of rhs and its max value, then:
@@ -440,16 +266,16 @@ impl Acir {
                     k = &k * r_big;
                     let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
                     let mut sub_expr =
-                        subtract(&l_c.expression, FieldElement::one(), &r_c.expression);
+                        subtract(l_c.expression(), FieldElement::one(), r_c.expression());
                     sub_expr.q_c += f;
                     let mut sub_var = sub_expr.into();
                     //TODO: uses interval analysis for more precise check
                     if let Some(lhs_const) = l_c.to_const() {
                         if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_be_bytes()) {
                             sub_var = InternalVar::from(subtract(
-                                &l_c.expression,
+                                l_c.expression(),
                                 FieldElement::one(),
-                                &r_c.expression,
+                                r_c.expression(),
                             ));
                         }
                     }
@@ -457,7 +283,7 @@ impl Acir {
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
-                InternalVar::from(mul_with_witness(evaluator, &l_c.expression, &r_c.expression))
+                InternalVar::from(mul_with_witness(evaluator, l_c.expression(), r_c.expression()))
             }
             BinaryOp::Udiv => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
@@ -474,7 +300,7 @@ impl Acir {
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let inverse = expression_from_witness(evaluate_inverse(r_c, &predicate, evaluator));
-                InternalVar::from(mul_with_witness(evaluator, &l_c.expression, &inverse))
+                InternalVar::from(mul_with_witness(evaluator, l_c.expression(), &inverse))
             }
             BinaryOp::Eq => InternalVar::from(
                 self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
@@ -544,9 +370,9 @@ impl Acir {
             .map(|i| {
                 let address = array.adr + i;
                 if let Some(memory) = self.memory_map.get_mut(&address) {
-                    if create_witness && memory.cached_witness.is_none() {
-                        let w = evaluator.create_intermediate_variable(memory.expression.clone());
-                        self.memory_map.get_mut(&address).unwrap().cached_witness = Some(w);
+                    if create_witness && memory.cached_witness().is_none() {
+                        let w = evaluator.create_intermediate_variable(memory.expression().clone());
+                        *self.memory_map.get_mut(&address).unwrap().cached_witness_mut() = Some(w);
                     }
                     self.memory_map[&address].clone()
                 } else {
@@ -600,8 +426,11 @@ impl Acir {
                     return Expression::one();
                 }
             }
-            let mut x =
-                InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
+            let mut x = InternalVar::from(subtract(
+                l_c.expression(),
+                FieldElement::one(),
+                r_c.expression(),
+            ));
             x.witness(evaluator);
             expression_from_witness(evaluate_zero_equality(&x, evaluator))
         }
@@ -634,15 +463,16 @@ impl Acir {
         let b_values = self.load_array(b, false, evaluator);
 
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
-            let diff_expr = subtract(&a_iter.expression, FieldElement::one(), &b_iter.expression);
+            let diff_expr = subtract(a_iter.expression(), FieldElement::one(), b_iter.expression());
 
             let diff_witness = evaluator.add_witness_to_cs();
-            let diff_var = InternalVar {
+
+            let diff_var = InternalVar::new(
                 //in cache??
-                expression: diff_expr.clone(),
-                cached_witness: Some(diff_witness),
-                id: None,
-            };
+                diff_expr.clone(),
+                Some(diff_witness),
+                None,
+            );
             evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
                 &diff_expr,
                 FieldElement::one(),
@@ -677,15 +507,15 @@ impl Acir {
                         for i in 0..array.len {
                             let address = array.adr + i;
                             if self.memory_map.contains_key(&address) {
-                                if let Some(wit) = self.memory_map[&address].cached_witness {
-                                    inputs.push(FunctionInput { witness: wit, num_bits });
+                                if let Some(wit) = self.memory_map[&address].cached_witness() {
+                                    inputs.push(FunctionInput { witness: *wit, num_bits });
                                 } else {
                                     let mut var = self.memory_map[&address].clone();
-                                    if var.expression.is_const() {
+                                    if var.expression().is_const() {
                                         let w = evaluator.create_intermediate_variable(
-                                            self.memory_map[&address].expression.clone(),
+                                            self.memory_map[&address].expression().clone(),
                                         );
-                                        var.cached_witness = Some(w);
+                                        *var.cached_witness_mut() = Some(w);
                                     }
                                     let w = var
                                         .witness(evaluator)
@@ -696,7 +526,7 @@ impl Acir {
                                 }
                             } else {
                                 inputs.push(FunctionInput {
-                                    witness: array.values[i as usize].cached_witness.unwrap(),
+                                    witness: array.values[i as usize].cached_witness().unwrap(),
                                     num_bits,
                                 });
                             }
@@ -713,7 +543,7 @@ impl Acir {
                 _ => {
                     if self.arith_cache.contains_key(a) {
                         let mut var = self.arith_cache[a].clone();
-                        let witness = var.cached_witness.unwrap_or_else(|| {
+                        let witness = var.cached_witness().unwrap_or_else(|| {
                             var.witness(evaluator).expect("unexpected constant expression")
                         });
                         inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
@@ -816,15 +646,15 @@ fn evaluate_cmp(
 ) -> Expression {
     if signed {
         //TODO use range_constraints instead of bit decomposition, like in the unsigned case
-        let mut sub_expr = subtract(&lhs.expression, FieldElement::one(), &rhs.expression);
+        let mut sub_expr = subtract(lhs.expression(), FieldElement::one(), rhs.expression());
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
         let bits = to_radix_base(&sub_expr.into(), 2, bit_size + 2, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
         let is_greater = expression_from_witness(bound_check(
-            &lhs.expression,
-            &rhs.expression,
+            lhs.expression(),
+            rhs.expression(),
             bit_size,
             evaluator,
         ));
@@ -890,13 +720,13 @@ fn to_radix_base(
 
     let (result, bytes) = to_radix(radix, limb_size, evaluator);
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
-        a: lhs.expression.clone(),
+        a: lhs.expression().clone(),
         b: result.clone(),
         radix,
     }));
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
-        &lhs.expression,
+        lhs.expression(),
         FieldElement::one(),
         &bytes,
     )));
@@ -951,7 +781,7 @@ fn simplify_bitwise(
                     InternalVar::from(subtract(
                         &Expression::from_field(field),
                         FieldElement::one(),
-                        &var.expression,
+                        var.expression(),
                     ))
                 }
             }
@@ -977,19 +807,21 @@ fn evaluate_bitwise(
     opcode: BinaryOp,
 ) -> Expression {
     if let Some(var) = simplify_bitwise(&lhs, &rhs, bit_size, &opcode) {
-        return var.expression;
+        return var.expression().clone();
     }
     if bit_size == 1 {
         match opcode {
-            BinaryOp::And => return mul_with_witness(evaluator, &lhs.expression, &rhs.expression),
+            BinaryOp::And => {
+                return mul_with_witness(evaluator, lhs.expression(), rhs.expression())
+            }
             BinaryOp::Xor => {
-                let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-                let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
+                let sum = add(lhs.expression(), FieldElement::one(), rhs.expression());
+                let mul = mul_with_witness(evaluator, lhs.expression(), rhs.expression());
                 return subtract(&sum, FieldElement::from(2_i128), &mul);
             }
             BinaryOp::Or => {
-                let sum = add(&lhs.expression, FieldElement::one(), &rhs.expression);
-                let mul = mul_with_witness(evaluator, &lhs.expression, &rhs.expression);
+                let sum = add(lhs.expression(), FieldElement::one(), rhs.expression());
+                let mul = mul_with_witness(evaluator, lhs.expression(), rhs.expression());
                 return subtract(&sum, FieldElement::one(), &mul);
             }
             _ => unreachable!(),
@@ -998,12 +830,14 @@ fn evaluate_bitwise(
     //We generate witness from const values in order to use the ACIR bitwise gates
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
-    if rhs.to_const().is_some() && rhs.cached_witness.is_none() {
-        rhs.cached_witness = Some(evaluator.create_intermediate_variable(rhs.expression.clone()));
+    if rhs.to_const().is_some() && rhs.cached_witness().is_none() {
+        *rhs.cached_witness_mut() =
+            Some(evaluator.create_intermediate_variable(rhs.expression().clone()));
         assert!(lhs.to_const().is_none());
-    } else if lhs.to_const().is_some() && lhs.cached_witness.is_none() {
+    } else if lhs.to_const().is_some() && lhs.cached_witness().is_none() {
         assert!(rhs.to_const().is_none());
-        lhs.cached_witness = Some(evaluator.create_intermediate_variable(lhs.expression.clone()));
+        *lhs.cached_witness_mut() =
+            Some(evaluator.create_intermediate_variable(lhs.expression().clone()));
     }
 
     let mut a_witness = lhs.witness(evaluator).expect("unexpected constant expression");
@@ -1020,12 +854,12 @@ fn evaluate_bitwise(
             a_witness = evaluator.create_intermediate_variable(subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
-                &lhs.expression,
+                lhs.expression(),
             ));
             b_witness = evaluator.create_intermediate_variable(subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
-                &rhs.expression,
+                rhs.expression(),
             ));
             acvm::acir::BlackBoxFunc::AND
         }
@@ -1082,9 +916,9 @@ fn evaluate_truncate(
     let b_arith = expression_from_witness(b_witness);
     let c_arith = expression_from_witness(c_witness);
     let res = add(&b_arith, f, &c_arith); //b+2^Nc
-    let my_constraint = add(&res, -FieldElement::one(), &lhs.expression);
+    let my_constraint = add(&res, -FieldElement::one(), lhs.expression());
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
-        a: lhs.expression,
+        a: lhs.expression().clone(),
         b: b_witness,
         c: c_witness,
         bit_size: rhs,
@@ -1102,13 +936,13 @@ fn evaluate_udiv(
 ) -> (Witness, Witness) {
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
-    let pa = mul_with_witness(evaluator, &lhs.expression, &predicate.expression);
+    let pa = mul_with_witness(evaluator, lhs.expression(), predicate.expression());
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Quotient {
-        a: lhs.expression.clone(),
-        b: rhs.expression.clone(),
+        a: lhs.expression().clone(),
+        b: rhs.expression().clone(),
         q: q_witness,
         r: r_witness,
-        predicate: Some(predicate.expression.clone()),
+        predicate: Some(predicate.expression().clone()),
     }));
 
     //r<b
@@ -1116,17 +950,17 @@ fn evaluate_udiv(
     try_range_constraint(r_witness, bit_size, evaluator);
     bound_constraint_with_offset(
         &r_expr,
-        &rhs.expression,
-        &predicate.expression,
+        rhs.expression(),
+        predicate.expression(),
         bit_size,
         evaluator,
     );
     //range check q<=a
     try_range_constraint(q_witness, bit_size, evaluator);
     // a-b*q-r = 0
-    let mut d = mul_with_witness(evaluator, &rhs.expression, &Expression::from(&q_witness));
+    let mut d = mul_with_witness(evaluator, rhs.expression(), &Expression::from(&q_witness));
     d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
-    d = mul_with_witness(evaluator, &d, &predicate.expression);
+    d = mul_with_witness(evaluator, &d, predicate.expression());
     let div_euclidean = subtract(&pa, FieldElement::one(), &d);
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(div_euclidean));
@@ -1135,7 +969,7 @@ fn evaluate_udiv(
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
 fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
-    let x_witness = x.cached_witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
+    let x_witness = x.cached_witness().unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
@@ -1176,11 +1010,11 @@ fn evaluate_inverse(
     //x*inverse = 1
     Expression::default();
     let one = mul(&expression_from_witness(x_witness), &inverse_expr);
-    let lhs = mul_with_witness(evaluator, &one, &predicate.expression);
+    let lhs = mul_with_witness(evaluator, &one, predicate.expression());
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
         &lhs,
         FieldElement::one(),
-        &predicate.expression,
+        predicate.expression(),
     )));
     inverse_witness
 }
@@ -1630,40 +1464,4 @@ fn expression_is_deg_one_univariate(expression: &Expression) -> bool {
 // TODO further refactor.
 fn expression_from_witness(witness: Witness) -> Expression {
     Expression::from(&witness)
-}
-
-#[test]
-fn internal_var_const_expression() {
-    let mut evaluator = Evaluator::new();
-
-    let expected_constant = FieldElement::from(123456789u128);
-
-    // Initialize an InternalVar with a FieldElement
-    let mut internal_var = InternalVar::from_constant(expected_constant);
-
-    // We currently do not create witness when the InternalVar was created using a constant
-    let witness = internal_var.witness(&mut evaluator);
-    assert!(witness.is_none());
-
-    match internal_var.to_const() {
-        Some(got_constant) => assert_eq!(got_constant, expected_constant),
-        None => {
-            panic!("`InternalVar` was initialized with a constant, so a field element was expected")
-        }
-    }
-}
-#[test]
-fn internal_var_from_witness() {
-    let mut evaluator = Evaluator::new();
-
-    let expected_witness = Witness(1234);
-    // Initialize an InternalVar with a `Witness`
-    let mut internal_var = InternalVar::from_witness(expected_witness);
-
-    // We should get back the same `Witness`
-    let got_witness = internal_var.witness(&mut evaluator);
-    match got_witness {
-        Some(got_witness) => assert_eq!(got_witness, expected_witness),
-        None => panic!("expected a `Witness` value"),
-    }
 }
