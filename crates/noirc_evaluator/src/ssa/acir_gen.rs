@@ -42,6 +42,9 @@ impl InternalVar {
 
     /// If the InternalVar holds a constant expression
     /// Return that constant.Otherwise, return None.
+    // TODO: we should have a method in ACVM
+    // TODO which returns the constant term if its a constant
+    // TODO expression. ie `self.expression.to_const()`
     pub fn to_const(&self) -> Option<FieldElement> {
         if self.is_const_expression() {
             return Some(self.expression.q_c);
@@ -63,9 +66,8 @@ impl InternalVar {
     /// Example: f(x,y) = 10
     /// `f` is a constant expression because there are no
     /// bi-variate or uni-variate terms, just a constant.
-    //
     fn is_const_expression(&self) -> bool {
-        self.expression.mul_terms.is_empty() && self.expression.linear_combinations.is_empty()
+        self.expression.is_const()
     }
 
     pub fn generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
