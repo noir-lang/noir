@@ -46,8 +46,8 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> InternalVar {
-        if self.arith_cache.contains_key(&id) {
-            return self.arith_cache[&id].clone();
+        if let Some(internal_var) = self.arith_cache.get(&id) {
+            return internal_var.clone();
         }
         let var = match ctx.try_get_node(id) {
             Some(node::NodeObject::Const(c)) => {
@@ -191,15 +191,19 @@ impl Acir {
                         let idx = mem::Memory::as_u32(index);
                         let mem_array = &ctx.mem[*array_id];
                         let absolute_adr = mem_array.absolute_adr(idx);
-                        if self.memory_map.contains_key(&absolute_adr) {
-                            InternalVar::from(self.memory_map[&absolute_adr].expression().clone())
-                        } else {
-                            //if not found, then it must be a witness (else it is non-initialized memory)
-                            let index = idx as usize;
-                            if mem_array.values.len() > index {
-                                mem_array.values[index].clone()
-                            } else {
-                                unreachable!("Could not find value at index {}", index);
+
+                        match self.memory_map.get(&absolute_adr) {
+                            Some(internal_var) => {
+                                InternalVar::from(internal_var.expression().clone())
+                            }
+                            None => {
+                                //if not found, then it must be a witness (else it is non-initialized memory)
+                                let index = idx as usize;
+                                if mem_array.values.len() > index {
+                                    mem_array.values[index].clone()
+                                } else {
+                                    unreachable!("Could not find value at index {}", index);
+                                }
                             }
                         }
                     }
