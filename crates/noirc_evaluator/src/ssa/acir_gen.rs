@@ -1501,7 +1501,8 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
     }
 }
 
-// Checks if the expression can be represented as a degree-1 polynomial
+// Returns a `Witness` if the `Expression` can be represented as a degree-1 polynomial
+// Otherwise, Return None
 //
 // TODO: move to ACVM repo
 fn witness_from_expression(arith: &Expression) -> Option<Witness> {
