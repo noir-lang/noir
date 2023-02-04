@@ -93,7 +93,7 @@ impl InternalVar {
     /// If the Expression is a degree-1 polynomial
     /// then we also assign it to the `cached_witness`
     fn from_expression(expression: Expression) -> InternalVar {
-        let witness = is_unit(&expression);
+        let witness = witness_from_expression(&expression);
         InternalVar { expression, cached_witness: witness, id: None }
     }
 
@@ -1504,7 +1504,7 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
 // Checks if the expression can be represented as a degree-1 polynomial
 //
 // TODO: move to ACVM repo
-fn is_unit(arith: &Expression) -> Option<Witness> {
+fn witness_from_expression(arith: &Expression) -> Option<Witness> {
     if arith.mul_terms.is_empty() && arith.linear_combinations.len() == 1 {
         if arith.linear_combinations[0].0.is_one() && arith.q_c.is_zero() {
             return Some(arith.linear_combinations[0].1);
