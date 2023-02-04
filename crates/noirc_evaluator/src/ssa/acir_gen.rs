@@ -101,13 +101,18 @@ impl InternalVar {
 
     /// Creates an `InternalVar` from a `Witness`.
     /// Since a `Witness` can alway be coerced into an
-    /// Expression, we
+    /// Expression, this method is infallible.
     fn from_witness(witness: Witness) -> InternalVar {
         InternalVar {
             expression: expression_from_witness(witness),
             cached_witness: Some(witness),
             id: None,
         }
+    }
+
+    /// Creates an `InternalVar` from a `FieldElement`.
+    fn from_constant(constant: FieldElement) -> InternalVar {
+        InternalVar { expression: Expression::from_field(constant), cached_witness: None, id: None }
     }
 
     /// Generates a `Witness` that is equal to the `expression`.
@@ -169,8 +174,8 @@ impl From<Witness> for InternalVar {
 }
 
 impl From<FieldElement> for InternalVar {
-    fn from(f: FieldElement) -> InternalVar {
-        InternalVar { expression: Expression::from_field(f), cached_witness: None, id: None }
+    fn from(constant: FieldElement) -> InternalVar {
+        InternalVar::from_constant(constant)
     }
 }
 
