@@ -31,7 +31,6 @@ pub struct Acir {
 #[derive(Default, Clone, Debug)]
 pub struct InternalVar {
     expression: Expression,
-    //value: FieldElement,     //not used for now
     witness: Option<Witness>,
     id: Option<NodeId>,
 }
@@ -41,11 +40,32 @@ impl InternalVar {
         InternalVar { expression, witness, id: Some(id) }
     }
 
+    /// If the InternalVar holds a constant expression
+    /// Return that constant.Otherwise, return None.
     pub fn to_const(&self) -> Option<FieldElement> {
-        if self.expression.mul_terms.is_empty() && self.expression.linear_combinations.is_empty() {
+        if self.is_const_expression() {
             return Some(self.expression.q_c);
         }
+
         None
+    }
+    /// The expression term is bi-variate polynomial, so
+    /// in order to check if if represents a constant,
+    /// we need to check that the bi-variate terms `mul_terms`
+    /// and the univariate terms `linear_combinations` are empty.
+    ///
+    /// Example: f(x,y) = xy + 5
+    /// `f` is not a constant expression because there
+    /// is a bi-variate term `xy`.
+    /// Example: f(x,y) = x + y + 5
+    /// `f` is not a constant expression because there are
+    /// two uni-variate terms `x` and `y`
+    /// Example: f(x,y) = 10
+    /// `f` is a constant expression because there are no
+    /// bi-variate or uni-variate terms, just a constant.
+    //
+    fn is_const_expression(&self) -> bool {
+        self.expression.mul_terms.is_empty() && self.expression.linear_combinations.is_empty()
     }
 
     pub fn generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
@@ -53,7 +73,7 @@ impl InternalVar {
             return witness;
         }
 
-        if self.expression.is_const() {
+        if self.is_const_expression() {
             todo!("Panic");
         }
         let witness = InternalVar::expression_to_witness(self.expression.clone(), evaluator);
