@@ -28,7 +28,7 @@ pub struct Acir {
     pub memory_map: HashMap<u32, InternalVar>, //maps memory address to expression
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Eq)]
 pub struct InternalVar {
     // A multi-variate degree-2 polynomial
     expression: Expression,
@@ -117,7 +117,6 @@ impl PartialEq for InternalVar {
             || (self.id.is_some() && self.id == other.id)
     }
 }
-impl Eq for InternalVar {}
 
 impl From<Expression> for InternalVar {
     fn from(arith: Expression) -> InternalVar {
