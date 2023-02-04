@@ -1603,7 +1603,9 @@ fn expression_is_deg_one_univariate(expression: &Expression) -> bool {
 // a multi-variate polynomial and a Witness
 // can be seen as a univariate polynomial
 //
-// TODO move to ACVM repo
+// TODO: Possibly remove this small shim.
+// TODO: Lets first see how the rest of the code looks after
+// TODO further refactor.
 fn expression_from_witness(witness: Witness) -> Expression {
     Expression::from(&witness)
 }
