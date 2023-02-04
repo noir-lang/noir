@@ -16,10 +16,7 @@ use acvm::{
 };
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::{
-    collections::HashMap,
-    ops::{Mul, Neg},
-};
+use std::{collections::HashMap, ops::Mul};
 
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
@@ -32,8 +29,8 @@ mod intrinsics;
 
 #[derive(Default)]
 pub struct Acir {
-    pub arith_cache: HashMap<NodeId, InternalVar>,
-    pub memory_map: HashMap<u32, InternalVar>, //maps memory address to expression
+    arith_cache: HashMap<NodeId, InternalVar>,
+    memory_map: HashMap<u32, InternalVar>, //maps memory address to expression
 }
 
 impl Acir {
@@ -210,7 +207,6 @@ impl Acir {
                     None => unimplemented!("dynamic arrays are not implemented yet"),
                 }
             }
-
             Operation::Store { array_id, index, value } => {
                 //maps the address to the rhs if address is known at compile time
                 let index = self.substitute(*index, evaluator, ctx);
