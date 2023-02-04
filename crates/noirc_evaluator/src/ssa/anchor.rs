@@ -1,12 +1,10 @@
-use std::collections::{HashMap, VecDeque};
-
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-
-use super::{
+use crate::ssa::{
     context::SsaContext,
     mem::ArrayId,
     node::{NodeId, ObjectType, Opcode, Operation},
 };
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug)]
 pub enum MemItem {

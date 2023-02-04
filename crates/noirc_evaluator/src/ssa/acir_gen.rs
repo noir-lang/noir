@@ -1,26 +1,26 @@
-use super::builtin::{self, Opcode};
-use super::mem::{ArrayId, MemArray, Memory};
-use super::node::{BinaryOp, Instruction, ObjectType, Operation};
-use acvm::FieldElement;
-
-use super::node::NodeId;
-
-use num_traits::{One, Zero};
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::ops::{Mul, Neg};
-//use crate::acir::native_types::{Arithmetic, Witness};
-use crate::ssa::context::SsaContext;
-use crate::ssa::node::Node;
-use crate::ssa::{mem, node};
-use crate::Evaluator;
-use crate::RuntimeErrorKind;
-use acvm::acir::circuit::directives::Directive;
-use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
-
-use acvm::acir::circuit::Opcode as AcirOpcode;
-use acvm::acir::native_types::{Expression, Linear, Witness};
+use crate::ssa::{
+    builtin::Opcode,
+    context::SsaContext,
+    mem::{ArrayId, MemArray, Memory},
+    node::{BinaryOp, Instruction, Node, NodeId, ObjectType, Operation},
+    {builtin, mem, node},
+};
+use crate::{Evaluator, RuntimeErrorKind};
+use acvm::{
+    acir::circuit::{
+        directives::Directive,
+        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    },
+    acir::native_types::{Expression, Linear, Witness},
+    FieldElement,
+};
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    ops::{Mul, Neg},
+};
 
 #[derive(Default)]
 pub struct Acir {

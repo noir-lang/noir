@@ -1,23 +1,14 @@
-use std::collections::{hash_map::Entry, HashMap};
-
-use noirc_frontend::monomorphization::ast::FuncId;
-
-use crate::{
-    errors::RuntimeError,
-    ssa::{
-        node::{Node, Operation},
-        optimizations,
-    },
-};
-
-use super::{
-    block::{self, BlockId},
+use crate::errors::RuntimeError;
+use crate::ssa::{
+    block::BlockId,
     conditional::DecisionTree,
     context::SsaContext,
-    function,
     mem::{ArrayId, Memory},
-    node::{self, Instruction, Mark, NodeId, ObjectType},
+    node::{Instruction, Mark, Node, NodeId, ObjectType, Operation},
+    {block, function, node, optimizations},
 };
+use noirc_frontend::monomorphization::ast::FuncId;
+use std::collections::{hash_map::Entry, HashMap};
 
 // Number of allowed times for inlining function calls inside a code block.
 // If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.

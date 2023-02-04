@@ -1,22 +1,16 @@
-use std::collections::{HashMap, VecDeque};
-
 use crate::errors::RuntimeError;
-use crate::ssa::node::Opcode;
-use iter_extended::try_vecmap;
-use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
-
-use super::builtin;
-use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::mem::ArrayId;
-use super::node::{Node, Operation};
-use super::{
-    block,
+use crate::ssa::{
     block::BlockId,
     code_gen::IRGenerator,
+    conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
-    node::{self, NodeId, ObjectType},
-    ssa_form,
+    mem::ArrayId,
+    node::{Node, NodeId, ObjectType, Opcode, Operation},
+    {block, builtin, node, ssa_form},
 };
+use iter_extended::try_vecmap;
+use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct FuncIndex(pub usize);

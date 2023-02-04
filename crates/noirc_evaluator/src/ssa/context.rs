@@ -1,23 +1,23 @@
-use super::block::{BasicBlock, BlockId};
-use super::conditional::{DecisionTree, TreeBuilder};
-use super::function::{FuncIndex, SSAFunction};
-use super::inline::StackFrame;
-use super::mem::{ArrayId, Memory};
-use super::node::{BinaryOp, FunctionKind, Instruction, NodeId, NodeObject, ObjectType, Operation};
-use super::{block, builtin, flatten, inline, integer, node, optimizations};
-use std::collections::{HashMap, HashSet};
-
-use super::super::errors::RuntimeError;
-use crate::errors::RuntimeErrorKind;
-use crate::ssa::acir_gen::Acir;
-use crate::ssa::function;
-use crate::ssa::node::{Mark, Node};
+use crate::errors::{RuntimeError, RuntimeErrorKind};
+use crate::ssa::{
+    acir_gen::Acir,
+    block::{BasicBlock, BlockId},
+    conditional::{DecisionTree, TreeBuilder},
+    function::{FuncIndex, SSAFunction},
+    inline::StackFrame,
+    mem::{ArrayId, Memory},
+    node::{
+        BinaryOp, FunctionKind, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation,
+    },
+    {block, builtin, flatten, function, inline, integer, node, optimizations},
+};
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::{Definition, FuncId};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
+use std::collections::{HashMap, HashSet};
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena

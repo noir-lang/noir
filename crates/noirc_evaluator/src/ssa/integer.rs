@@ -1,19 +1,19 @@
 use crate::errors::RuntimeError;
-
-use super::{
+use crate::ssa::{
     block::BlockId,
-    //block,
     context::SsaContext,
     mem::{ArrayId, Memory},
-    node::{self, BinaryOp, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation},
-    optimizations,
+    node::{BinaryOp, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation},
+    {node, optimizations},
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::collections::BTreeMap;
-use std::{collections::HashMap, ops::Neg};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::Neg,
+};
 
 //Returns the maximum bit size of short integers
 pub fn short_integer_max_bit_size() -> u32 {

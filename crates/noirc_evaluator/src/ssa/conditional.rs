@@ -1,21 +1,14 @@
+use crate::ssa::{
+    block::{BlockId, BlockType},
+    context::SsaContext,
+    flatten::UnrollContext,
+    inline::StackFrame,
+    node::{BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
+    {block, flatten, node, optimizations},
+};
+use crate::{errors, errors::RuntimeError};
 use num_bigint::BigUint;
 use num_traits::One;
-
-use crate::{
-    errors::{self, RuntimeError},
-    ssa::{
-        node::{Mark, ObjectType},
-        optimizations,
-    },
-};
-
-use super::{
-    block::{self, BlockId, BlockType},
-    context::SsaContext,
-    flatten::{self, UnrollContext},
-    inline::StackFrame,
-    node::{self, BinaryOp, Instruction, NodeId, Opcode, Operation},
-};
 
 // Functions that modify arrays work on a fresh array, which is copied to the original one,
 // so that the writing to the array is made explicit and handled like all the other ones with store instructions
