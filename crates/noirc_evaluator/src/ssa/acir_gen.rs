@@ -100,24 +100,25 @@ impl InternalVar {
     /// Generates a Witness that is equal to the `expression`.
     /// If a `cached_witness` has already been generated
     /// we return that.
-    pub fn witness(&mut self, evaluator: &mut Evaluator) -> Witness {
+    pub fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
         if let Some(witness) = self.cached_witness {
-            return witness;
+            return Some(witness);
         }
 
         // If we have a constant expression, we do not
         // create a witness equal to it and instead
         // panic (TODO change)
-        // TODO: why don't we create a witness for it here?
+        // TODO: why don't we create a witness for the constant expression here?
         if self.is_const_expression() {
-            todo!("Panic");
+            return None;
         }
 
-        let witness = InternalVar::expression_to_witness(self.expression.clone(), evaluator);
-        self.cached_witness = Some(witness);
-        witness
+        self.cached_witness =
+            Some(InternalVar::expression_to_witness(self.expression.clone(), evaluator));
+
+        self.cached_witness
     }
 
     pub fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
@@ -273,7 +274,7 @@ impl Acir {
                         let witness = if object.expression.is_const() {
                             evaluator.create_intermediate_variable(object.expression)
                         } else {
-                            object.witness(evaluator)
+                            object.witness(evaluator).expect("unexpected constant expression")
                         };
 
                         // Before pushing to the public inputs, we need to check that
@@ -649,7 +650,9 @@ impl Acir {
                                         );
                                         var.cached_witness = Some(w);
                                     }
-                                    let w = var.witness(evaluator);
+                                    let w = var
+                                        .witness(evaluator)
+                                        .expect("unexpected constant expression");
                                     self.memory_map.insert(address, var);
 
                                     inputs.push(FunctionInput { witness: w, num_bits });
@@ -673,7 +676,9 @@ impl Acir {
                 _ => {
                     if self.arith_cache.contains_key(a) {
                         let mut var = self.arith_cache[a].clone();
-                        let witness = var.cached_witness.unwrap_or_else(|| var.witness(evaluator));
+                        let witness = var.cached_witness.unwrap_or_else(|| {
+                            var.witness(evaluator).expect("unexpected constant expression")
+                        });
                         inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         unreachable!("invalid input: {:?}", l_obj)
@@ -968,8 +973,8 @@ fn evaluate_bitwise(
         lhs.cached_witness = Some(evaluator.create_intermediate_variable(lhs.expression.clone()));
     }
 
-    let mut a_witness = lhs.witness(evaluator);
-    let mut b_witness = rhs.witness(evaluator);
+    let mut a_witness = lhs.witness(evaluator).expect("unexpected constant expression");
+    let mut b_witness = rhs.witness(evaluator).expect("unexpected constant expression");
 
     let result = evaluator.add_witness_to_cs();
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
@@ -1130,7 +1135,7 @@ fn evaluate_inverse(
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = expression_from_witness(inverse_witness);
-    let x_witness = x.witness(evaluator); //TODO avoid creating witnesses here.
+    let x_witness = x.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
     evaluator
         .opcodes
         .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
