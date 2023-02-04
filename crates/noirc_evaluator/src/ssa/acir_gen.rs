@@ -540,7 +540,7 @@ impl Acir {
 
     //Load array values into InternalVars
     //If create_witness is true, we create witnesses for values that do not have witness
-    pub fn load_array(
+    fn load_array(
         &mut self,
         array: &MemArray,
         create_witness: bool,
@@ -577,7 +577,7 @@ impl Acir {
         }
     }
 
-    pub fn evaluate_neq(
+    fn evaluate_neq(
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
@@ -613,7 +613,7 @@ impl Acir {
         }
     }
 
-    pub fn evaluate_eq(
+    fn evaluate_eq(
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
@@ -665,7 +665,7 @@ impl Acir {
     }
 
     //Transform the arguments of intrinsic functions into witnesses
-    pub fn prepare_inputs(
+    fn prepare_inputs(
         &mut self,
         args: &[NodeId],
         cfg: &SsaContext,
@@ -732,7 +732,7 @@ impl Acir {
         inputs
     }
 
-    pub fn evaluate_opcode(
+    fn evaluate_opcode(
         &mut self,
         instruction_id: NodeId,
         opcode: builtin::Opcode,
@@ -782,7 +782,7 @@ impl Acir {
         }
     }
 
-    pub fn prepare_outputs(
+    fn prepare_outputs(
         &mut self,
         pointer: NodeId,
         output_nb: u32,
@@ -804,7 +804,7 @@ impl Acir {
     }
 }
 
-pub fn evaluate_sdiv(
+fn evaluate_sdiv(
     _lhs: &InternalVar,
     _rhs: &InternalVar,
     _evaluator: &mut Evaluator,
@@ -813,7 +813,7 @@ pub fn evaluate_sdiv(
 }
 
 //Returns 1 if lhs < rhs
-pub fn evaluate_cmp(
+fn evaluate_cmp(
     lhs: &InternalVar,
     rhs: &InternalVar,
     bit_size: u32,
@@ -841,11 +841,11 @@ pub fn evaluate_cmp(
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
-pub fn bit_size_u32(a: u32) -> u32 where {
+fn bit_size_u32(a: u32) -> u32 where {
     num_bits::<u32>() as u32 - a.leading_zeros()
 }
 
-pub fn bit_size_u128(a: u128) -> u32 where {
+fn bit_size_u128(a: u128) -> u32 where {
     num_bits::<u128>() as u32 - a.leading_zeros()
 }
 
@@ -853,11 +853,7 @@ pub fn bit_size_u128(a: u128) -> u32 where {
 // radix: the base, (it is a constant, not a witness)
 // num_limbs: the number of elements in the decomposition
 // output: (the elements of the decomposition as witness, the sum expression)
-pub fn to_radix(
-    radix: u32,
-    num_limbs: u32,
-    evaluator: &mut Evaluator,
-) -> (Vec<Witness>, Expression) {
+fn to_radix(radix: u32, num_limbs: u32, evaluator: &mut Evaluator) -> (Vec<Witness>, Expression) {
     let mut digits = Expression::default();
     let mut radix_pow = FieldElement::one();
 
@@ -887,7 +883,7 @@ pub fn to_radix(
 }
 
 //decompose lhs onto radix-base with limb_size limbs
-pub fn to_radix_base(
+fn to_radix_base(
     lhs: &InternalVar,
     radix: u32,
     limb_size: u32,
@@ -1064,7 +1060,7 @@ fn evaluate_bitwise(
 }
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
-pub fn evaluate_truncate(
+fn evaluate_truncate(
     lhs: InternalVar,
     rhs: u32,
     max_bits: u32,
@@ -1103,7 +1099,7 @@ pub fn evaluate_truncate(
     InternalVar::from(b_witness)
 }
 
-pub fn evaluate_udiv(
+fn evaluate_udiv(
     lhs: &InternalVar,
     rhs: &InternalVar,
     bit_size: u32,
@@ -1144,7 +1140,7 @@ pub fn evaluate_udiv(
 }
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
-pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
+fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
     let x_witness = x.cached_witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
@@ -1195,7 +1191,7 @@ fn evaluate_inverse(
     inverse_witness
 }
 
-pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
+fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
     let a_arith;
     let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
         let a_witness = evaluator.add_witness_to_cs();
@@ -1222,7 +1218,7 @@ pub fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expressio
 }
 
 //a*b
-pub fn mul(a: &Expression, b: &Expression) -> Expression {
+fn mul(a: &Expression, b: &Expression) -> Expression {
     let zero = Expression::zero();
     if a.is_const() {
         return add(&zero, a.q_c, b);
@@ -1286,12 +1282,12 @@ pub fn mul(a: &Expression, b: &Expression) -> Expression {
 }
 
 // returns a - k*b
-pub fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
+fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     add(a, k.neg(), b)
 }
 
 // returns a + k*b
-pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
+fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     let mut output = Expression::default();
 
     //linear combinations
@@ -1378,7 +1374,7 @@ pub fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
 }
 
 // returns w*b.linear_combinations
-pub fn single_mul(w: Witness, b: &Expression) -> Expression {
+fn single_mul(w: Witness, b: &Expression) -> Expression {
     let mut output = Expression::default();
     let mut i1 = 0;
     while i1 < b.linear_combinations.len() {
@@ -1392,7 +1388,7 @@ pub fn single_mul(w: Witness, b: &Expression) -> Expression {
     output
 }
 
-pub fn boolean(witness: Witness) -> Expression {
+fn boolean(witness: Witness) -> Expression {
     Expression {
         mul_terms: vec![(FieldElement::one(), witness, witness)],
         linear_combinations: vec![(-FieldElement::one(), witness)],
@@ -1400,7 +1396,7 @@ pub fn boolean(witness: Witness) -> Expression {
     }
 }
 
-pub fn boolean_expr(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
+fn boolean_expr(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
     subtract(&mul_with_witness(evaluator, expr, expr), FieldElement::one(), expr)
 }
 
