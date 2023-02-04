@@ -45,6 +45,10 @@ pub struct InternalVar {
     // due to the fact that `cached_witness` is a single variable
     // whereas `expression` is a multi-variate polynomial which can
     // contain many degree-2 terms.
+    //
+    // TODO: What if the cached_witness becomes `dirty`
+    // TODO ie the expression is updated, but the cached_witness
+    // TODO refers to an old version of it. Can we add tests for this?
     cached_witness: Option<Witness>,
     id: Option<NodeId>,
 }
@@ -85,6 +89,14 @@ impl InternalVar {
         self.expression.is_const()
     }
 
+    /// Creates an InternalVar from an expression.
+    /// If the Expression is a degree-1 polynomial
+    /// then we also assign it to the `cached_witness`
+    fn from_expression(expression: Expression) -> InternalVar {
+        let witness = is_unit(&expression);
+        InternalVar { expression, cached_witness: witness, id: None }
+    }
+
     pub fn generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
         if let Some(witness) = self.cached_witness {
             return witness;
@@ -119,9 +131,8 @@ impl PartialEq for InternalVar {
 }
 
 impl From<Expression> for InternalVar {
-    fn from(arith: Expression) -> InternalVar {
-        let witness = is_unit(&arith);
-        InternalVar { expression: arith, cached_witness: witness, id: None }
+    fn from(expression: Expression) -> InternalVar {
+        InternalVar::from_expression(expression)
     }
 }
 
@@ -1478,7 +1489,10 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
     }
 }
 
-pub fn is_unit(arith: &Expression) -> Option<Witness> {
+// Checks if the expression can be represented as a degree-1 polynomial
+//
+// TODO: move to ACVM repo
+fn is_unit(arith: &Expression) -> Option<Witness> {
     if arith.mul_terms.is_empty() && arith.linear_combinations.len() == 1 {
         if arith.linear_combinations[0].0.is_one() && arith.q_c.is_zero() {
             return Some(arith.linear_combinations[0].1);
@@ -1489,7 +1503,13 @@ pub fn is_unit(arith: &Expression) -> Option<Witness> {
 
     None
 }
-pub fn from_witness(witness: Witness) -> Expression {
+
+// Creates an Expression from a Witness.
+//
+// This is infallible since an expression is
+// a multi-variate polynomial and a Witness
+// can be seen as a univariate polynomial
+fn from_witness(witness: Witness) -> Expression {
     Expression {
         mul_terms: Vec::new(),
         linear_combinations: vec![(FieldElement::one(), witness)],
