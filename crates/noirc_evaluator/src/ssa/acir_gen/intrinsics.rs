@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-
-use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
-
 use crate::{
     ssa::{
         context::SsaContext,
@@ -9,6 +5,8 @@ use crate::{
     },
     Evaluator,
 };
+use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
+use std::collections::HashMap;
 
 use super::{map_array, InternalVar};
 
