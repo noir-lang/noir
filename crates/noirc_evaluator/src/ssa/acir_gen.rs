@@ -176,23 +176,25 @@ impl Acir {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 let index = self.substitute(*index, evaluator, ctx);
-                if let Some(index) = index.to_const() {
-                    let idx = mem::Memory::as_u32(index);
-                    let mem_array = &ctx.mem[*array_id];
-                    let absolute_adr = mem_array.absolute_adr(idx);
-                    if self.memory_map.contains_key(&absolute_adr) {
-                        InternalVar::from(self.memory_map[&absolute_adr].expression().clone())
-                    } else {
-                        //if not found, then it must be a witness (else it is non-initialized memory)
-                        let index = idx as usize;
-                        if mem_array.values.len() > index {
-                            mem_array.values[index].clone()
+
+                match index.to_const() {
+                    Some(index) => {
+                        let idx = mem::Memory::as_u32(index);
+                        let mem_array = &ctx.mem[*array_id];
+                        let absolute_adr = mem_array.absolute_adr(idx);
+                        if self.memory_map.contains_key(&absolute_adr) {
+                            InternalVar::from(self.memory_map[&absolute_adr].expression().clone())
                         } else {
-                            unreachable!("Could not find value at index {}", index);
+                            //if not found, then it must be a witness (else it is non-initialized memory)
+                            let index = idx as usize;
+                            if mem_array.values.len() > index {
+                                mem_array.values[index].clone()
+                            } else {
+                                unreachable!("Could not find value at index {}", index);
+                            }
                         }
                     }
-                } else {
-                    unimplemented!("dynamic arrays are not implemented yet");
+                    None => unimplemented!("dynamic arrays are not implemented yet"),
                 }
             }
 
@@ -201,14 +203,15 @@ impl Acir {
                 let index = self.substitute(*index, evaluator, ctx);
                 let value = self.substitute(*value, evaluator, ctx);
 
-                if let Some(index) = index.to_const() {
-                    let idx = mem::Memory::as_u32(index);
-                    let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
-                    self.memory_map.insert(absolute_adr, value);
-                    //we do not generate constraint, so no output.
-                    InternalVar::default()
-                } else {
-                    todo!("dynamic arrays are not implemented yet");
+                match index.to_const() {
+                    Some(index) => {
+                        let idx = mem::Memory::as_u32(index);
+                        let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
+                        self.memory_map.insert(absolute_adr, value);
+                        //we do not generate constraint, so no output.
+                        InternalVar::default()
+                    }
+                    None => todo!("dynamic arrays are not implemented yet"),
                 }
             }
         };
@@ -223,10 +226,9 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> InternalVar {
-        if let Some(pred) = binary.predicate {
-            self.substitute(pred, evaluator, ctx)
-        } else {
-            InternalVar::from(Expression::one())
+        match binary.predicate {
+            Some(pred) => self.substitute(pred, evaluator, ctx),
+            None => InternalVar::from(Expression::one()),
         }
     }
 
@@ -369,14 +371,17 @@ impl Acir {
         (0..array.len)
             .map(|i| {
                 let address = array.adr + i;
-                if let Some(memory) = self.memory_map.get_mut(&address) {
-                    if create_witness && memory.cached_witness().is_none() {
-                        let w = evaluator.create_intermediate_variable(memory.expression().clone());
-                        *self.memory_map.get_mut(&address).unwrap().cached_witness_mut() = Some(w);
+                match self.memory_map.get_mut(&address) {
+                    Some(memory) => {
+                        if create_witness && memory.cached_witness().is_none() {
+                            let w =
+                                evaluator.create_intermediate_variable(memory.expression().clone());
+                            *self.memory_map.get_mut(&address).unwrap().cached_witness_mut() =
+                                Some(w);
+                        }
+                        self.memory_map[&address].clone()
                     }
-                    self.memory_map[&address].clone()
-                } else {
-                    array.values[i as usize].clone()
+                    None => array.values[i as usize].clone(),
                 }
             })
             .collect()
@@ -532,13 +537,12 @@ impl Acir {
                             }
                         }
                     }
-                    _ => {
-                        if let Some(w) = v.witness {
+                    _ => match v.witness {
+                        Some(w) => {
                             inputs.push(FunctionInput { witness: w, num_bits: v.size_in_bits() });
-                        } else {
-                            todo!("generate a witness");
                         }
-                    }
+                        None => todo!("generate a witness"),
+                    },
                 },
                 _ => {
                     if self.arith_cache.contains_key(a) {
