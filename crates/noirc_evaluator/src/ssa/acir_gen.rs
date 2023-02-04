@@ -138,7 +138,11 @@ impl From<Expression> for InternalVar {
 
 impl From<Witness> for InternalVar {
     fn from(witness: Witness) -> InternalVar {
-        InternalVar { expression: from_witness(witness), cached_witness: Some(witness), id: None }
+        InternalVar {
+            expression: expression_from_witness(witness),
+            cached_witness: Some(witness),
+            id: None,
+        }
     }
 }
 
@@ -415,7 +419,7 @@ impl Acir {
             BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
-                let inverse = from_witness(evaluate_inverse(r_c, &predicate, evaluator));
+                let inverse = expression_from_witness(evaluate_inverse(r_c, &predicate, evaluator));
                 InternalVar::from(mul_with_witness(evaluator, &l_c.expression, &inverse))
             }
             BinaryOp::Eq => InternalVar::from(
@@ -535,7 +539,7 @@ impl Acir {
             if array_a.len == array_b.len {
                 let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
                 x.generate_witness(evaluator);
-                from_witness(evaluate_zero_equality(&x, evaluator))
+                expression_from_witness(evaluate_zero_equality(&x, evaluator))
             } else {
                 //If length are different, then the arrays are different
                 Expression::one()
@@ -551,7 +555,7 @@ impl Acir {
             let mut x =
                 InternalVar::from(subtract(&l_c.expression, FieldElement::one(), &r_c.expression));
             x.generate_witness(evaluator);
-            from_witness(evaluate_zero_equality(&x, evaluator))
+            expression_from_witness(evaluate_zero_equality(&x, evaluator))
         }
     }
 
@@ -594,13 +598,13 @@ impl Acir {
             evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
                 &diff_expr,
                 FieldElement::one(),
-                &from_witness(diff_witness),
+                &expression_from_witness(diff_witness),
             )));
             //TODO: avoid creating witnesses for diff
             sum = add(
                 &sum,
                 FieldElement::one(),
-                &from_witness(evaluate_zero_equality(&diff_var, evaluator)),
+                &expression_from_witness(evaluate_zero_equality(&diff_var, evaluator)),
             );
         }
         sum
@@ -714,7 +718,7 @@ impl Acir {
         }
 
         if outputs.len() == 1 {
-            from_witness(outputs[0])
+            expression_from_witness(outputs[0])
         } else {
             //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
             Expression::default()
@@ -765,10 +769,14 @@ pub fn evaluate_cmp(
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
         let bits = to_radix_base(&sub_expr.into(), 2, bit_size + 2, evaluator);
-        from_witness(bits[(bit_size - 1) as usize])
+        expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
-        let is_greater =
-            from_witness(bound_check(&lhs.expression, &rhs.expression, bit_size, evaluator));
+        let is_greater = expression_from_witness(bound_check(
+            &lhs.expression,
+            &rhs.expression,
+            bit_size,
+            evaluator,
+        ));
         subtract(&Expression::one(), FieldElement::one(), &is_greater)
     }
 }
@@ -802,7 +810,7 @@ pub fn to_radix(
     for _ in 0..num_limbs {
         let limb_witness = evaluator.add_witness_to_cs();
         result.push(limb_witness);
-        let limb_expr = from_witness(limb_witness);
+        let limb_expr = expression_from_witness(limb_witness);
         digits = add(&digits, radix_pow, &limb_expr);
         radix_pow = radix_pow.mul(shift);
 
@@ -810,7 +818,7 @@ pub fn to_radix(
             try_range_constraint(limb_witness, bit_size, evaluator);
         }
         bound_constraint_with_offset(
-            &from_witness(limb_witness),
+            &expression_from_witness(limb_witness),
             &Expression::from_field(shift),
             &Expression::one(),
             bit_size,
@@ -988,9 +996,13 @@ fn evaluate_bitwise(
     evaluator.opcodes.push(gate);
 
     if opcode == BinaryOp::Or {
-        subtract(&Expression::from_field(max), FieldElement::one(), &from_witness(result))
+        subtract(
+            &Expression::from_field(max),
+            FieldElement::one(),
+            &expression_from_witness(result),
+        )
     } else {
-        from_witness(result)
+        expression_from_witness(result)
     }
 }
 
@@ -1020,8 +1032,8 @@ pub fn evaluate_truncate(
     //2. Add the constraint a = b+2^Nc
     let mut f = FieldElement::from(2_i128);
     f = f.pow(&FieldElement::from(rhs as i128));
-    let b_arith = from_witness(b_witness);
-    let c_arith = from_witness(c_witness);
+    let b_arith = expression_from_witness(b_witness);
+    let c_arith = expression_from_witness(c_witness);
     let res = add(&b_arith, f, &c_arith); //b+2^Nc
     let my_constraint = add(&res, -FieldElement::one(), &lhs.expression);
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
@@ -1090,12 +1102,12 @@ pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Wit
     }));
 
     //x=y*x
-    let y_expr = from_witness(y_witness);
-    let xy = mul(&from_witness(x_witness), &y_expr);
+    let y_expr = expression_from_witness(y_witness);
+    let xy = mul(&expression_from_witness(x_witness), &y_expr);
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
         &xy,
         FieldElement::one(),
-        &from_witness(x_witness),
+        &expression_from_witness(x_witness),
     )));
     y_witness
 }
@@ -1108,7 +1120,7 @@ fn evaluate_inverse(
 ) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
-    let inverse_expr = from_witness(inverse_witness);
+    let inverse_expr = expression_from_witness(inverse_witness);
     let x_witness = x.generate_witness(evaluator); //TODO avoid creating witnesses here.
     evaluator
         .opcodes
@@ -1116,7 +1128,7 @@ fn evaluate_inverse(
 
     //x*inverse = 1
     Expression::default();
-    let one = mul(&from_witness(x_witness), &inverse_expr);
+    let one = mul(&expression_from_witness(x_witness), &inverse_expr);
     let lhs = mul_with_witness(evaluator, &one, &predicate.expression);
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
         &lhs,
@@ -1370,8 +1382,8 @@ pub fn range_constraint(
         //Add the constraint a = r + 2^N*b
         let mut f = FieldElement::from(2_i128);
         f = f.pow(&FieldElement::from((num_bits - 1) as i128));
-        let res = add(&from_witness(r_witness), f, &from_witness(b_witness));
-        let my_constraint = add(&res, -FieldElement::one(), &from_witness(witness));
+        let res = add(&expression_from_witness(r_witness), f, &expression_from_witness(b_witness));
+        let my_constraint = add(&res, -FieldElement::one(), &expression_from_witness(witness));
         evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
     } else {
         let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
@@ -1400,7 +1412,7 @@ fn bound_check(
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
     //2^s+a-b=q*2^s +r
-    let expr = add(&from_witness(r_witness), two_s, &from_witness(q_witness));
+    let expr = add(&expression_from_witness(r_witness), two_s, &expression_from_witness(q_witness));
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
         a: sub,
@@ -1459,7 +1471,7 @@ fn bound_constraint_with_offset(
                         evaluator,
                     );
                     let two = FieldElement::from(2_i128);
-                    let y_expr = from_witness(y);
+                    let y_expr = expression_from_witness(y);
                     let eee = subtract(&mul_with_witness(evaluator, &aof, &y_expr), two, &y_expr);
                     evaluator.opcodes.push(AcirOpcode::Arithmetic(eee));
                 }
@@ -1509,7 +1521,7 @@ fn is_unit(arith: &Expression) -> Option<Witness> {
 // This is infallible since an expression is
 // a multi-variate polynomial and a Witness
 // can be seen as a univariate polynomial
-fn from_witness(witness: Witness) -> Expression {
+fn expression_from_witness(witness: Witness) -> Expression {
     Expression {
         mul_terms: Vec::new(),
         linear_combinations: vec![(FieldElement::one(), witness)],
