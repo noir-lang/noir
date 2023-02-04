@@ -25,6 +25,8 @@ use std::{
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
 
+mod intrinsics;
+
 #[derive(Default)]
 pub struct Acir {
     pub arith_cache: HashMap<NodeId, InternalVar>,
@@ -134,7 +136,7 @@ impl Acir {
                     let objects = match Memory::deref(ctx, *node_id) {
                         Some(a) => {
                             let array = &ctx.mem[a];
-                            self.load_array(array, false, evaluator)
+                            load_array(&mut self.memory_map, array, false, evaluator)
                         }
                         None => vec![self.substitute(*node_id, evaluator, ctx)],
                     };
@@ -360,48 +362,6 @@ impl Acir {
         }
     }
 
-    //Load array values into InternalVars
-    //If create_witness is true, we create witnesses for values that do not have witness
-    fn load_array(
-        &mut self,
-        array: &MemArray,
-        create_witness: bool,
-        evaluator: &mut Evaluator,
-    ) -> Vec<InternalVar> {
-        (0..array.len)
-            .map(|i| {
-                let address = array.adr + i;
-                match self.memory_map.get_mut(&address) {
-                    Some(memory) => {
-                        if create_witness && memory.cached_witness().is_none() {
-                            let w =
-                                evaluator.create_intermediate_variable(memory.expression().clone());
-                            *self.memory_map.get_mut(&address).unwrap().cached_witness_mut() =
-                                Some(w);
-                        }
-                        self.memory_map[&address].clone()
-                    }
-                    None => array.values[i as usize].clone(),
-                }
-            })
-            .collect()
-    }
-
-    //Map the outputs into the array
-    fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
-        let array = &ctx.mem[a];
-        let adr = array.adr;
-        for i in 0..array.len {
-            if i < outputs.len() as u32 {
-                let var = InternalVar::from(outputs[i as usize]);
-                self.memory_map.insert(adr + i, var);
-            } else {
-                let var = InternalVar::from(Expression::zero());
-                self.memory_map.insert(adr + i, var);
-            }
-        }
-    }
-
     fn evaluate_neq(
         &mut self,
         lhs: NodeId,
@@ -464,8 +424,8 @@ impl Acir {
     ) -> Expression {
         let mut sum = Expression::default();
 
-        let a_values = self.load_array(a, false, evaluator);
-        let b_values = self.load_array(b, false, evaluator);
+        let a_values = load_array(&mut self.memory_map, a, false, evaluator);
+        let b_values = load_array(&mut self.memory_map, b, false, evaluator);
 
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
             let diff_expr = subtract(a_iter.expression(), FieldElement::one(), b_iter.expression());
@@ -493,73 +453,6 @@ impl Acir {
         sum
     }
 
-    //Transform the arguments of intrinsic functions into witnesses
-    fn prepare_inputs(
-        &mut self,
-        args: &[NodeId],
-        cfg: &SsaContext,
-        evaluator: &mut Evaluator,
-    ) -> Vec<FunctionInput> {
-        let mut inputs: Vec<FunctionInput> = Vec::new();
-
-        for a in args {
-            let l_obj = cfg.try_get_node(*a).unwrap();
-            match l_obj {
-                node::NodeObject::Obj(v) => match l_obj.get_type() {
-                    node::ObjectType::Pointer(a) => {
-                        let array = &cfg.mem[a];
-                        let num_bits = array.element_type.bits();
-                        for i in 0..array.len {
-                            let address = array.adr + i;
-                            if self.memory_map.contains_key(&address) {
-                                if let Some(wit) = self.memory_map[&address].cached_witness() {
-                                    inputs.push(FunctionInput { witness: *wit, num_bits });
-                                } else {
-                                    let mut var = self.memory_map[&address].clone();
-                                    if var.expression().is_const() {
-                                        let w = evaluator.create_intermediate_variable(
-                                            self.memory_map[&address].expression().clone(),
-                                        );
-                                        *var.cached_witness_mut() = Some(w);
-                                    }
-                                    let w = var
-                                        .witness(evaluator)
-                                        .expect("unexpected constant expression");
-                                    self.memory_map.insert(address, var);
-
-                                    inputs.push(FunctionInput { witness: w, num_bits });
-                                }
-                            } else {
-                                inputs.push(FunctionInput {
-                                    witness: array.values[i as usize].cached_witness().unwrap(),
-                                    num_bits,
-                                });
-                            }
-                        }
-                    }
-                    _ => match v.witness {
-                        Some(w) => {
-                            inputs.push(FunctionInput { witness: w, num_bits: v.size_in_bits() });
-                        }
-                        None => todo!("generate a witness"),
-                    },
-                },
-                _ => {
-                    if self.arith_cache.contains_key(a) {
-                        let mut var = self.arith_cache[a].clone();
-                        let witness = var.cached_witness().unwrap_or_else(|| {
-                            var.witness(evaluator).expect("unexpected constant expression")
-                        });
-                        inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
-                    } else {
-                        unreachable!("invalid input: {:?}", l_obj)
-                    }
-                }
-            }
-        }
-        inputs
-    }
-
     fn evaluate_opcode(
         &mut self,
         instruction_id: NodeId,
@@ -576,7 +469,7 @@ impl Acir {
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(&l_c, 2, bit_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
-                    self.map_array(a, &outputs, ctx);
+                    map_array(&mut self.memory_map, a, &outputs, ctx);
                 }
             }
             Opcode::ToRadix => {
@@ -585,13 +478,25 @@ impl Acir {
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(&l_c, radix, limb_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
-                    self.map_array(a, &outputs, ctx);
+                    map_array(&mut self.memory_map, a, &outputs, ctx);
                 }
             }
             Opcode::LowLevel(op) => {
-                let inputs = self.prepare_inputs(args, ctx, evaluator);
+                let inputs = intrinsics::prepare_inputs(
+                    &mut self.arith_cache,
+                    &mut self.memory_map,
+                    args,
+                    ctx,
+                    evaluator,
+                );
                 let output_count = op.definition().output_size.0 as u32;
-                outputs = self.prepare_outputs(instruction_id, output_count, ctx, evaluator);
+                outputs = intrinsics::prepare_outputs(
+                    &mut self.memory_map,
+                    instruction_id,
+                    output_count,
+                    ctx,
+                    evaluator,
+                );
 
                 let call_gate = BlackBoxFuncCall {
                     name: op,
@@ -609,27 +514,51 @@ impl Acir {
             Expression::default()
         }
     }
+}
 
-    fn prepare_outputs(
-        &mut self,
-        pointer: NodeId,
-        output_nb: u32,
-        ctx: &SsaContext,
-        evaluator: &mut Evaluator,
-    ) -> Vec<Witness> {
-        // Create fresh variables that will link to the output
-        let mut outputs = Vec::with_capacity(output_nb as usize);
-        for _ in 0..output_nb {
-            let witness = evaluator.add_witness_to_cs();
-            outputs.push(witness);
+//Map the outputs into the array
+fn map_array(
+    memory_map: &mut HashMap<u32, InternalVar>,
+    a: ArrayId,
+    outputs: &[Witness],
+    ctx: &SsaContext,
+) {
+    let array = &ctx.mem[a];
+    let adr = array.adr;
+    for i in 0..array.len {
+        if i < outputs.len() as u32 {
+            let var = InternalVar::from(outputs[i as usize]);
+            memory_map.insert(adr + i, var);
+        } else {
+            let var = InternalVar::from(Expression::zero());
+            memory_map.insert(adr + i, var);
         }
-
-        let l_obj = ctx.try_get_node(pointer).unwrap();
-        if let node::ObjectType::Pointer(a) = l_obj.get_type() {
-            self.map_array(a, &outputs, ctx);
-        }
-        outputs
     }
+}
+
+//Load array values into InternalVars
+//If create_witness is true, we create witnesses for values that do not have witness
+fn load_array(
+    memory_map: &mut HashMap<u32, InternalVar>,
+    array: &MemArray,
+    create_witness: bool,
+    evaluator: &mut Evaluator,
+) -> Vec<InternalVar> {
+    (0..array.len)
+        .map(|i| {
+            let address = array.adr + i;
+            match memory_map.get_mut(&address) {
+                Some(memory) => {
+                    if create_witness && memory.cached_witness().is_none() {
+                        let w = evaluator.create_intermediate_variable(memory.expression().clone());
+                        *memory_map.get_mut(&address).unwrap().cached_witness_mut() = Some(w);
+                    }
+                    memory_map[&address].clone()
+                }
+                None => array.values[i as usize].clone(),
+            }
+        })
+        .collect()
 }
 
 fn evaluate_sdiv(
