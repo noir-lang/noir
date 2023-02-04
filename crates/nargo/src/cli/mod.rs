@@ -26,6 +26,7 @@ use crate::errors::CliError;
 mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
+mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
@@ -109,6 +110,17 @@ pub fn start_cli() {
         .subcommand(
             App::new("gates")
                 .about("Counts the occurrences of different gates in circuit")
+                .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
+            App::new("execute")
+                .about("Executes a circuit to calculate its return value")
+                .arg(
+                    Arg::with_name("witness_name")
+                        .long("witness_name")
+                        .help("Write the execution witness to named file"),
+                )
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
@@ -123,6 +135,7 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
+        Some("execute") => execute_cmd::run(matches),
         Some("test") => test_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
@@ -162,7 +175,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
     abi: Abi,
-) -> Result<BTreeMap<String, InputValue>, CliError> {
+) -> Result<InputMap, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
         dir_path.push(file_name);
@@ -178,7 +191,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
 }
 
 fn write_inputs_to_file<P: AsRef<Path>>(
-    w_map: &BTreeMap<String, InputValue>,
+    w_map: &InputMap,
     path: P,
     file_name: &str,
     format: Format,
