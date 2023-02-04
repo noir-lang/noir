@@ -49,6 +49,8 @@ pub struct InternalVar {
     // TODO: What if the cached_witness becomes `dirty`
     // TODO ie the expression is updated, but the cached_witness
     // TODO refers to an old version of it. Can we add tests for this?
+    // TODO: We can guarantee this, if an InternalVar is immutable after
+    // TODO creation.
     cached_witness: Option<Witness>,
     id: Option<NodeId>,
 }
@@ -63,7 +65,7 @@ impl InternalVar {
     // TODO: we should have a method in ACVM
     // TODO which returns the constant term if its a constant
     // TODO expression. ie `self.expression.to_const()`
-    pub fn to_const(&self) -> Option<FieldElement> {
+    fn to_const(&self) -> Option<FieldElement> {
         if self.is_const_expression() {
             return Some(self.expression.q_c);
         }
@@ -89,19 +91,30 @@ impl InternalVar {
         self.expression.is_const()
     }
 
-    /// Creates an InternalVar from an expression.
-    /// If the Expression is a degree-1 polynomial
+    /// Creates an `InternalVar` from an `Expression`.
+    /// If `Expression` represents a degree-1 polynomial
     /// then we also assign it to the `cached_witness`
     fn from_expression(expression: Expression) -> InternalVar {
         let witness = witness_from_expression(&expression);
         InternalVar { expression, cached_witness: witness, id: None }
     }
 
+    /// Creates an `InternalVar` from a `Witness`.
+    /// Since a `Witness` can alway be coerced into an
+    /// Expression, we
+    fn from_witness(witness: Witness) -> InternalVar {
+        InternalVar {
+            expression: expression_from_witness(witness),
+            cached_witness: Some(witness),
+            id: None,
+        }
+    }
+
     /// Generates a `Witness` that is equal to the `expression`.
     /// - If a `Witness` has previously been generated
     /// we return that.
     /// - If the Expression represents a constant, we return None.
-    pub fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
+    fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
         if let Some(witness) = self.cached_witness {
@@ -122,7 +135,12 @@ impl InternalVar {
         self.cached_witness
     }
 
-    pub fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
+    /// Converts an `Expression` into a `Witness`
+    /// - If the `Expression` is a degree-1 univariate polynomial
+    /// then this conversion is a simple coercion.
+    /// - Otherwise, we create a new `Witness` and set it to be equal to the
+    /// `Expression`.
+    fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
         match witness_from_expression(&expr) {
             Some(witness) => witness,
             None => evaluator.create_intermediate_variable(expr),
@@ -146,11 +164,7 @@ impl From<Expression> for InternalVar {
 
 impl From<Witness> for InternalVar {
     fn from(witness: Witness) -> InternalVar {
-        InternalVar {
-            expression: expression_from_witness(witness),
-            cached_witness: Some(witness),
-            id: None,
-        }
+        InternalVar::from_witness(witness)
     }
 }
 
