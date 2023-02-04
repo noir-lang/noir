@@ -97,9 +97,10 @@ impl InternalVar {
         InternalVar { expression, cached_witness: witness, id: None }
     }
 
-    /// Generates a Witness that is equal to the `expression`.
-    /// If a `cached_witness` has already been generated
+    /// Generates a `Witness` that is equal to the `expression`.
+    /// - If a `Witness` has previously been generated
     /// we return that.
+    /// - If the Expression represents a constant, we return None.
     pub fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
@@ -122,14 +123,10 @@ impl InternalVar {
     }
 
     pub fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
-        if expr.mul_terms.is_empty()
-            && expr.linear_combinations.len() == 1
-            && expr.q_c == FieldElement::zero()
-            && expr.linear_combinations[0].0 == FieldElement::one()
-        {
-            return expr.linear_combinations[0].1;
+        match witness_from_expression(&expr) {
+            Some(witness) => witness,
+            None => evaluator.create_intermediate_variable(expr),
         }
-        evaluator.create_intermediate_variable(expr)
     }
 }
 
