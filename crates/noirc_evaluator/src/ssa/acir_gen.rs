@@ -155,9 +155,36 @@ impl InternalVar {
 
 impl PartialEq for InternalVar {
     fn eq(&self, other: &Self) -> bool {
-        self.expression == other.expression
-            || (self.cached_witness.is_some() && self.cached_witness == other.cached_witness)
-            || (self.id.is_some() && self.id == other.id)
+        // An InternalVar is Equal to another InternalVar if _any_ of the fields
+        // in the InternalVar are equal.
+
+        let expressions_are_same = self.expression == other.expression;
+
+        // Check if `cached_witnesses` are the same
+        //
+        // This may happen if the expressions are the same
+        // but one is simplified and the other is not.
+        //
+        // The caller whom created both `InternalVar` objects
+        // may have known this and set their cached_witnesses to
+        // be the same.
+        // Example:
+        // z = 2*x + y
+        // t = x + x + y
+        // After simplification, it is clear that both RHS are the same
+        // However, since when we check for equality, we do not check for
+        // simplification, or in particular, we may eagerly assume
+        // the two expressions of the RHS are different.
+        //
+        // The caller can notice this and thus do:
+        // InternalVar::new(expr: 2*x + y, witness: z)
+        // InternalVar::new(expr: x + x + y, witness: z)
+        let cached_witnesses_same =
+            self.cached_witness.is_some() && self.cached_witness == other.cached_witness;
+
+        let node_ids_same = self.id.is_some() && self.id == other.id;
+
+        expressions_are_same || cached_witnesses_same || node_ids_same
     }
 }
 
