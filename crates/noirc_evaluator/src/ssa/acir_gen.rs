@@ -930,7 +930,7 @@ fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness
     let y_witness = evaluator.add_witness_to_cs();
     evaluator.opcodes.push(AcirOpcode::Arithmetic(Expression {
         mul_terms: vec![(FieldElement::one(), x_witness, m)],
-        linear_combinations: vec![(FieldElement::one().neg(), y_witness)],
+        linear_combinations: vec![(-FieldElement::one(), y_witness)],
         q_c: FieldElement::zero(),
     }));
 
