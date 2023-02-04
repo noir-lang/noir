@@ -17,7 +17,6 @@ use acvm::{
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     ops::{Mul, Neg},
 };
@@ -25,6 +24,10 @@ use std::{
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
 
+mod constraints;
+// Expose this to the crate as we need to apply range constraints when
+// converting the ABI(main parameters) to Noir types
+pub(crate) use constraints::range_constraint;
 mod intrinsics;
 
 #[derive(Default)]
@@ -85,15 +88,18 @@ impl Acir {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Constrain(value, ..) => {
                 let value = self.substitute(*value, evaluator, ctx);
-                let subtract =
-                    subtract(&Expression::one(), FieldElement::one(), value.expression());
+                let subtract = constraints::subtract(
+                    &Expression::one(),
+                    FieldElement::one(),
+                    value.expression(),
+                );
                 evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
                 value
             }
             Operation::Not(value) => {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
                 let l_c = self.substitute(*value, evaluator, ctx);
-                subtract(
+                constraints::subtract(
                     &Expression {
                         mul_terms: Vec::new(),
                         linear_combinations: Vec::new(),
@@ -165,9 +171,10 @@ impl Acir {
                 let cond = self.substitute(*condition, evaluator, ctx);
                 let l_c = self.substitute(*lhs, evaluator, ctx);
                 let r_c = self.substitute(*rhs, evaluator, ctx);
-                let sub = subtract(l_c.expression(), FieldElement::one(), r_c.expression());
-                let result = add(
-                    &mul_with_witness(evaluator, cond.expression(), &sub),
+                let sub =
+                    constraints::subtract(l_c.expression(), FieldElement::one(), r_c.expression());
+                let result = constraints::add(
+                    &constraints::mul_with_witness(evaluator, cond.expression(), &sub),
                     FieldElement::one(),
                     r_c.expression(),
                 );
@@ -248,12 +255,14 @@ impl Acir {
         let max_size = u32::max(r_size, l_size);
 
         match &binary.operator {
-            BinaryOp::Add | BinaryOp::SafeAdd => {
-                InternalVar::from(add(l_c.expression(), FieldElement::one(), r_c.expression()))
-            }
+            BinaryOp::Add | BinaryOp::SafeAdd => InternalVar::from(constraints::add(
+                l_c.expression(),
+                FieldElement::one(),
+                r_c.expression(),
+            )),
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
                 if res_type == node::ObjectType::NativeField {
-                    InternalVar::from(subtract(
+                    InternalVar::from(constraints::subtract(
                         l_c.expression(),
                         FieldElement::one(),
                         r_c.expression(),
@@ -269,14 +278,17 @@ impl Acir {
                     }
                     k = &k * r_big;
                     let f = FieldElement::from_be_bytes_reduce(&k.to_bytes_be());
-                    let mut sub_expr =
-                        subtract(l_c.expression(), FieldElement::one(), r_c.expression());
+                    let mut sub_expr = constraints::subtract(
+                        l_c.expression(),
+                        FieldElement::one(),
+                        r_c.expression(),
+                    );
                     sub_expr.q_c += f;
                     let mut sub_var = sub_expr.into();
                     //TODO: uses interval analysis for more precise check
                     if let Some(lhs_const) = l_c.to_const() {
                         if max_rhs_value <= &BigUint::from_bytes_be(&lhs_const.to_be_bytes()) {
-                            sub_var = InternalVar::from(subtract(
+                            sub_var = InternalVar::from(constraints::subtract(
                                 l_c.expression(),
                                 FieldElement::one(),
                                 r_c.expression(),
@@ -286,9 +298,11 @@ impl Acir {
                     sub_var
                 }
             }
-            BinaryOp::Mul | BinaryOp::SafeMul => {
-                InternalVar::from(mul_with_witness(evaluator, l_c.expression(), r_c.expression()))
-            }
+            BinaryOp::Mul | BinaryOp::SafeMul => InternalVar::from(constraints::mul_with_witness(
+                evaluator,
+                l_c.expression(),
+                r_c.expression(),
+            )),
             BinaryOp::Udiv => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let (q_wit, _) = evaluate_udiv(&l_c, &r_c, max_size, &predicate, evaluator);
@@ -304,7 +318,11 @@ impl Acir {
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let inverse = expression_from_witness(evaluate_inverse(r_c, &predicate, evaluator));
-                InternalVar::from(mul_with_witness(evaluator, l_c.expression(), &inverse))
+                InternalVar::from(constraints::mul_with_witness(
+                    evaluator,
+                    l_c.expression(),
+                    &inverse,
+                ))
             }
             BinaryOp::Eq => InternalVar::from(
                 self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
@@ -319,7 +337,7 @@ impl Acir {
             BinaryOp::Ule => {
                 let size = ctx[binary.lhs].get_type().bits();
                 let e = evaluate_cmp(&r_c, &l_c, size, false, evaluator);
-                subtract(&Expression::one(), FieldElement::one(), &e).into()
+                constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
                 let s = ctx[binary.lhs].get_type().bits();
@@ -328,7 +346,7 @@ impl Acir {
             BinaryOp::Sle => {
                 let s = ctx[binary.lhs].get_type().bits();
                 let e = evaluate_cmp(&r_c, &l_c, s, true, evaluator);
-                subtract(&Expression::one(), FieldElement::one(), &e).into()
+                constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Lt => unimplemented!(
                 "Field comparison is not implemented yet, try to cast arguments to integer type"
@@ -391,7 +409,7 @@ impl Acir {
                     return Expression::one();
                 }
             }
-            let mut x = InternalVar::from(subtract(
+            let mut x = InternalVar::from(constraints::subtract(
                 l_c.expression(),
                 FieldElement::one(),
                 r_c.expression(),
@@ -411,7 +429,7 @@ impl Acir {
         evaluator: &mut Evaluator,
     ) -> Expression {
         let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
-        subtract(&Expression::one(), FieldElement::one(), &neq)
+        constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
     }
 
     //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
@@ -428,7 +446,11 @@ impl Acir {
         let b_values = load_array(&mut self.memory_map, b, false, evaluator);
 
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
-            let diff_expr = subtract(a_iter.expression(), FieldElement::one(), b_iter.expression());
+            let diff_expr = constraints::subtract(
+                a_iter.expression(),
+                FieldElement::one(),
+                b_iter.expression(),
+            );
 
             let diff_witness = evaluator.add_witness_to_cs();
 
@@ -438,13 +460,13 @@ impl Acir {
                 Some(diff_witness),
                 None,
             );
-            evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+            evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
                 &diff_expr,
                 FieldElement::one(),
                 &expression_from_witness(diff_witness),
             )));
             //TODO: avoid creating witnesses for diff
-            sum = add(
+            sum = constraints::add(
                 &sum,
                 FieldElement::one(),
                 &expression_from_witness(evaluate_zero_equality(&diff_var, evaluator)),
@@ -579,31 +601,21 @@ fn evaluate_cmp(
 ) -> Expression {
     if signed {
         //TODO use range_constraints instead of bit decomposition, like in the unsigned case
-        let mut sub_expr = subtract(lhs.expression(), FieldElement::one(), rhs.expression());
+        let mut sub_expr =
+            constraints::subtract(lhs.expression(), FieldElement::one(), rhs.expression());
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
         let bits = to_radix_base(&sub_expr.into(), 2, bit_size + 2, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
-        let is_greater = expression_from_witness(bound_check(
+        let is_greater = expression_from_witness(constraints::bound_check(
             lhs.expression(),
             rhs.expression(),
             bit_size,
             evaluator,
         ));
-        subtract(&Expression::one(), FieldElement::one(), &is_greater)
+        constraints::subtract(&Expression::one(), FieldElement::one(), &is_greater)
     }
-}
-
-const fn num_bits<T>() -> usize {
-    std::mem::size_of::<T>() * 8
-}
-fn bit_size_u32(a: u32) -> u32 where {
-    num_bits::<u32>() as u32 - a.leading_zeros()
-}
-
-fn bit_size_u128(a: u128) -> u32 where {
-    num_bits::<u128>() as u32 - a.leading_zeros()
 }
 
 //Decomposition into b-base: \sum ai b^i, where 0<=ai<b
@@ -621,13 +633,13 @@ fn to_radix(radix: u32, num_limbs: u32, evaluator: &mut Evaluator) -> (Vec<Witne
         let limb_witness = evaluator.add_witness_to_cs();
         result.push(limb_witness);
         let limb_expr = expression_from_witness(limb_witness);
-        digits = add(&digits, radix_pow, &limb_expr);
+        digits = constraints::add(&digits, radix_pow, &limb_expr);
         radix_pow = radix_pow.mul(shift);
 
         if 1_u128 << (bit_size - 1) != radix as u128 {
-            try_range_constraint(limb_witness, bit_size, evaluator);
+            constraints::try_range_constraint(limb_witness, bit_size, evaluator);
         }
-        bound_constraint_with_offset(
+        constraints::bound_constraint_with_offset(
             &expression_from_witness(limb_witness),
             &Expression::from_field(shift),
             &Expression::one(),
@@ -658,7 +670,7 @@ fn to_radix_base(
         radix,
     }));
 
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
         lhs.expression(),
         FieldElement::one(),
         &bytes,
@@ -711,7 +723,7 @@ fn simplify_bitwise(
                 if field.is_zero() {
                     var.clone()
                 } else {
-                    InternalVar::from(subtract(
+                    InternalVar::from(constraints::subtract(
                         &Expression::from_field(field),
                         FieldElement::one(),
                         var.expression(),
@@ -745,17 +757,19 @@ fn evaluate_bitwise(
     if bit_size == 1 {
         match opcode {
             BinaryOp::And => {
-                return mul_with_witness(evaluator, lhs.expression(), rhs.expression())
+                return constraints::mul_with_witness(evaluator, lhs.expression(), rhs.expression())
             }
             BinaryOp::Xor => {
-                let sum = add(lhs.expression(), FieldElement::one(), rhs.expression());
-                let mul = mul_with_witness(evaluator, lhs.expression(), rhs.expression());
-                return subtract(&sum, FieldElement::from(2_i128), &mul);
+                let sum = constraints::add(lhs.expression(), FieldElement::one(), rhs.expression());
+                let mul =
+                    constraints::mul_with_witness(evaluator, lhs.expression(), rhs.expression());
+                return constraints::subtract(&sum, FieldElement::from(2_i128), &mul);
             }
             BinaryOp::Or => {
-                let sum = add(lhs.expression(), FieldElement::one(), rhs.expression());
-                let mul = mul_with_witness(evaluator, lhs.expression(), rhs.expression());
-                return subtract(&sum, FieldElement::one(), &mul);
+                let sum = constraints::add(lhs.expression(), FieldElement::one(), rhs.expression());
+                let mul =
+                    constraints::mul_with_witness(evaluator, lhs.expression(), rhs.expression());
+                return constraints::subtract(&sum, FieldElement::one(), &mul);
             }
             _ => unreachable!(),
         }
@@ -784,12 +798,12 @@ fn evaluate_bitwise(
         BinaryOp::And => acvm::acir::BlackBoxFunc::AND,
         BinaryOp::Xor => acvm::acir::BlackBoxFunc::XOR,
         BinaryOp::Or => {
-            a_witness = evaluator.create_intermediate_variable(subtract(
+            a_witness = evaluator.create_intermediate_variable(constraints::subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
                 lhs.expression(),
             ));
-            b_witness = evaluator.create_intermediate_variable(subtract(
+            b_witness = evaluator.create_intermediate_variable(constraints::subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
                 rhs.expression(),
@@ -810,7 +824,7 @@ fn evaluate_bitwise(
     evaluator.opcodes.push(gate);
 
     if opcode == BinaryOp::Or {
-        subtract(
+        constraints::subtract(
             &Expression::from_field(max),
             FieldElement::one(),
             &expression_from_witness(result),
@@ -840,16 +854,16 @@ fn evaluate_truncate(
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
 
-    try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
-    try_range_constraint(c_witness, max_bits - rhs, evaluator);
+    constraints::try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
+    constraints::try_range_constraint(c_witness, max_bits - rhs, evaluator);
 
     //2. Add the constraint a = b+2^Nc
     let mut f = FieldElement::from(2_i128);
     f = f.pow(&FieldElement::from(rhs as i128));
     let b_arith = expression_from_witness(b_witness);
     let c_arith = expression_from_witness(c_witness);
-    let res = add(&b_arith, f, &c_arith); //b+2^Nc
-    let my_constraint = add(&res, -FieldElement::one(), lhs.expression());
+    let res = constraints::add(&b_arith, f, &c_arith); //b+2^Nc
+    let my_constraint = constraints::add(&res, -FieldElement::one(), lhs.expression());
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
         a: lhs.expression().clone(),
         b: b_witness,
@@ -869,7 +883,7 @@ fn evaluate_udiv(
 ) -> (Witness, Witness) {
     let q_witness = evaluator.add_witness_to_cs();
     let r_witness = evaluator.add_witness_to_cs();
-    let pa = mul_with_witness(evaluator, lhs.expression(), predicate.expression());
+    let pa = constraints::mul_with_witness(evaluator, lhs.expression(), predicate.expression());
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Quotient {
         a: lhs.expression().clone(),
         b: rhs.expression().clone(),
@@ -880,8 +894,8 @@ fn evaluate_udiv(
 
     //r<b
     let r_expr = Expression::from(Linear::from_witness(r_witness));
-    try_range_constraint(r_witness, bit_size, evaluator);
-    bound_constraint_with_offset(
+    constraints::try_range_constraint(r_witness, bit_size, evaluator);
+    constraints::bound_constraint_with_offset(
         &r_expr,
         rhs.expression(),
         predicate.expression(),
@@ -889,12 +903,13 @@ fn evaluate_udiv(
         evaluator,
     );
     //range check q<=a
-    try_range_constraint(q_witness, bit_size, evaluator);
+    constraints::try_range_constraint(q_witness, bit_size, evaluator);
     // a-b*q-r = 0
-    let mut d = mul_with_witness(evaluator, rhs.expression(), &Expression::from(&q_witness));
-    d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
-    d = mul_with_witness(evaluator, &d, predicate.expression());
-    let div_euclidean = subtract(&pa, FieldElement::one(), &d);
+    let mut d =
+        constraints::mul_with_witness(evaluator, rhs.expression(), &Expression::from(&q_witness));
+    d = constraints::add(&d, FieldElement::one(), &Expression::from(&r_witness));
+    d = constraints::mul_with_witness(evaluator, &d, predicate.expression());
+    let div_euclidean = constraints::subtract(&pa, FieldElement::one(), &d);
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(div_euclidean));
     (q_witness, r_witness)
@@ -917,8 +932,8 @@ fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness
 
     //x=y*x
     let y_expr = expression_from_witness(y_witness);
-    let xy = mul(&expression_from_witness(x_witness), &y_expr);
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+    let xy = constraints::mul(&expression_from_witness(x_witness), &y_expr);
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
         &xy,
         FieldElement::one(),
         &expression_from_witness(x_witness),
@@ -942,377 +957,14 @@ fn evaluate_inverse(
 
     //x*inverse = 1
     Expression::default();
-    let one = mul(&expression_from_witness(x_witness), &inverse_expr);
-    let lhs = mul_with_witness(evaluator, &one, predicate.expression());
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+    let one = constraints::mul(&expression_from_witness(x_witness), &inverse_expr);
+    let lhs = constraints::mul_with_witness(evaluator, &one, predicate.expression());
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
         &lhs,
         FieldElement::one(),
         predicate.expression(),
     )));
     inverse_witness
-}
-
-fn mul_with_witness(evaluator: &mut Evaluator, a: &Expression, b: &Expression) -> Expression {
-    let a_arith;
-    let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
-        let a_witness = evaluator.add_witness_to_cs();
-        a_arith = Expression::from(&a_witness);
-        evaluator.opcodes.push(AcirOpcode::Arithmetic(a - &a_arith));
-        &a_arith
-    } else {
-        a
-    };
-    let b_arith;
-    let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
-        if a == b {
-            a_arith
-        } else {
-            let b_witness = evaluator.add_witness_to_cs();
-            b_arith = Expression::from(&b_witness);
-            evaluator.opcodes.push(AcirOpcode::Arithmetic(b - &b_arith));
-            &b_arith
-        }
-    } else {
-        b
-    };
-    mul(a_arith, b_arith)
-}
-
-//a*b
-fn mul(a: &Expression, b: &Expression) -> Expression {
-    let zero = Expression::zero();
-    if a.is_const() {
-        return add(&zero, a.q_c, b);
-    } else if b.is_const() {
-        return add(&zero, b.q_c, a);
-    } else if !(a.is_linear() && b.is_linear()) {
-        unreachable!("Can only multiply linear terms");
-    }
-
-    let mut output = Expression::from_field(a.q_c * b.q_c);
-
-    //TODO to optimize...
-    for lc in &a.linear_combinations {
-        let single = single_mul(lc.1, b);
-        output = add(&output, lc.0, &single);
-    }
-
-    //linear terms
-    let mut i1 = 0; //a
-    let mut i2 = 0; //b
-    while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
-        let coeff_a = b.q_c * a.linear_combinations[i1].0;
-        let coeff_b = a.q_c * b.linear_combinations[i2].0;
-        match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
-            Ordering::Greater => {
-                if coeff_b != FieldElement::zero() {
-                    output.linear_combinations.push((coeff_b, b.linear_combinations[i2].1));
-                }
-                i2 += 1;
-            }
-            Ordering::Less => {
-                if coeff_a != FieldElement::zero() {
-                    output.linear_combinations.push((coeff_a, a.linear_combinations[i1].1));
-                }
-                i1 += 1;
-            }
-            Ordering::Equal => {
-                if coeff_a + coeff_b != FieldElement::zero() {
-                    output
-                        .linear_combinations
-                        .push((coeff_a + coeff_b, a.linear_combinations[i1].1));
-                }
-
-                i1 += 1;
-                i2 += 1;
-            }
-        }
-    }
-    while i1 < a.linear_combinations.len() {
-        let coeff_a = b.q_c * a.linear_combinations[i1].0;
-        output.linear_combinations.push((coeff_a, a.linear_combinations[i1].1));
-        i1 += 1;
-    }
-    while i2 < b.linear_combinations.len() {
-        let coeff_b = a.q_c * b.linear_combinations[i2].0;
-        output.linear_combinations.push((coeff_b, b.linear_combinations[i2].1));
-        i2 += 1;
-    }
-
-    output
-}
-
-// returns a - k*b
-fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
-    add(a, k.neg(), b)
-}
-
-// returns a + k*b
-fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
-    let mut output = Expression::default();
-
-    //linear combinations
-    let mut i1 = 0; //a
-    let mut i2 = 0; //b
-    while i1 < a.linear_combinations.len() && i2 < b.linear_combinations.len() {
-        match a.linear_combinations[i1].1.cmp(&b.linear_combinations[i2].1) {
-            Ordering::Greater => {
-                let coeff = b.linear_combinations[i2].0 * k;
-                if coeff != FieldElement::zero() {
-                    output.linear_combinations.push((coeff, b.linear_combinations[i2].1));
-                }
-                i2 += 1;
-            }
-            Ordering::Less => {
-                output.linear_combinations.push(a.linear_combinations[i1]);
-                i1 += 1;
-            }
-            Ordering::Equal => {
-                let coeff = a.linear_combinations[i1].0 + b.linear_combinations[i2].0 * k;
-                if coeff != FieldElement::zero() {
-                    output.linear_combinations.push((coeff, a.linear_combinations[i1].1));
-                }
-                i2 += 1;
-                i1 += 1;
-            }
-        }
-    }
-    while i1 < a.linear_combinations.len() {
-        output.linear_combinations.push(a.linear_combinations[i1]);
-        i1 += 1;
-    }
-    while i2 < b.linear_combinations.len() {
-        let coeff = b.linear_combinations[i2].0 * k;
-        if coeff != FieldElement::zero() {
-            output.linear_combinations.push((coeff, b.linear_combinations[i2].1));
-        }
-        i2 += 1;
-    }
-
-    //mul terms
-
-    i1 = 0; //a
-    i2 = 0; //b
-
-    while i1 < a.mul_terms.len() && i2 < b.mul_terms.len() {
-        match (a.mul_terms[i1].1, a.mul_terms[i1].2).cmp(&(b.mul_terms[i2].1, b.mul_terms[i2].2)) {
-            Ordering::Greater => {
-                let coeff = b.mul_terms[i2].0 * k;
-                if coeff != FieldElement::zero() {
-                    output.mul_terms.push((coeff, b.mul_terms[i2].1, b.mul_terms[i2].2));
-                }
-                i2 += 1;
-            }
-            Ordering::Less => {
-                output.mul_terms.push(a.mul_terms[i1]);
-                i1 += 1;
-            }
-            Ordering::Equal => {
-                let coeff = a.mul_terms[i1].0 + b.mul_terms[i2].0 * k;
-                if coeff != FieldElement::zero() {
-                    output.mul_terms.push((coeff, a.mul_terms[i1].1, a.mul_terms[i1].2));
-                }
-                i2 += 1;
-                i1 += 1;
-            }
-        }
-    }
-    while i1 < a.mul_terms.len() {
-        output.mul_terms.push(a.mul_terms[i1]);
-        i1 += 1;
-    }
-
-    while i2 < b.mul_terms.len() {
-        let coeff = b.mul_terms[i2].0 * k;
-        if coeff != FieldElement::zero() {
-            output.mul_terms.push((coeff, b.mul_terms[i2].1, b.mul_terms[i2].2));
-        }
-        i2 += 1;
-    }
-
-    output.q_c = a.q_c + k * b.q_c;
-    output
-}
-
-// returns w*b.linear_combinations
-fn single_mul(w: Witness, b: &Expression) -> Expression {
-    let mut output = Expression::default();
-    let mut i1 = 0;
-    while i1 < b.linear_combinations.len() {
-        if (w, b.linear_combinations[i1].1) < (b.linear_combinations[i1].1, w) {
-            output.mul_terms.push((b.linear_combinations[i1].0, w, b.linear_combinations[i1].1));
-        } else {
-            output.mul_terms.push((b.linear_combinations[i1].0, b.linear_combinations[i1].1, w));
-        }
-        i1 += 1;
-    }
-    output
-}
-
-fn boolean(witness: Witness) -> Expression {
-    Expression {
-        mul_terms: vec![(FieldElement::one(), witness, witness)],
-        linear_combinations: vec![(-FieldElement::one(), witness)],
-        q_c: FieldElement::zero(),
-    }
-}
-
-fn boolean_expr(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
-    subtract(&mul_with_witness(evaluator, expr, expr), FieldElement::one(), expr)
-}
-
-//constrain witness a to be num_bits-size integer, i.e between 0 and 2^num_bits-1
-pub fn range_constraint(
-    witness: Witness,
-    num_bits: u32,
-    evaluator: &mut Evaluator,
-) -> Result<(), RuntimeErrorKind> {
-    if num_bits == 1 {
-        // Add a bool gate
-        let bool_constraint = boolean(witness);
-        evaluator.opcodes.push(AcirOpcode::Arithmetic(bool_constraint));
-    } else if num_bits == FieldElement::max_num_bits() {
-        // Don't apply any constraints if the range is for the maximum number of bits
-        let message = format!(
-            "All Witnesses are by default u{}. Applying this type does not apply any constraints.",
-            FieldElement::max_num_bits()
-        );
-        return Err(RuntimeErrorKind::UnstructuredError { message });
-    } else if num_bits % 2 == 1 {
-        // Note if the number of bits is odd, then Barretenberg will panic
-        // new witnesses; r is constrained to num_bits-1 and b is 1 bit
-        let r_witness = evaluator.add_witness_to_cs();
-        let b_witness = evaluator.add_witness_to_cs();
-        evaluator.opcodes.push(AcirOpcode::Directive(Directive::OddRange {
-            a: witness,
-            b: b_witness,
-            r: r_witness,
-            bit_size: num_bits,
-        }));
-
-        try_range_constraint(r_witness, num_bits - 1, evaluator);
-        try_range_constraint(b_witness, 1, evaluator);
-
-        //Add the constraint a = r + 2^N*b
-        let mut f = FieldElement::from(2_i128);
-        f = f.pow(&FieldElement::from((num_bits - 1) as i128));
-        let res = add(&expression_from_witness(r_witness), f, &expression_from_witness(b_witness));
-        let my_constraint = add(&res, -FieldElement::one(), &expression_from_witness(witness));
-        evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
-    } else {
-        let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: acvm::acir::BlackBoxFunc::RANGE,
-            inputs: vec![FunctionInput { witness, num_bits }],
-            outputs: vec![],
-        });
-        evaluator.opcodes.push(gate);
-    }
-
-    Ok(())
-}
-
-// returns a witness of a>=b
-fn bound_check(
-    a: &Expression,
-    b: &Expression,
-    max_bits: u32,
-    evaluator: &mut Evaluator,
-) -> Witness {
-    assert!(max_bits + 1 < FieldElement::max_num_bits()); //n.b what we really need is 2^{max_bits+1}<p
-    let mut sub = subtract(a, FieldElement::one(), b);
-    let two = FieldElement::from(2_i128);
-    let two_s = two.pow(&FieldElement::from(max_bits as i128));
-    sub.q_c += two_s;
-    let q_witness = evaluator.add_witness_to_cs();
-    let r_witness = evaluator.add_witness_to_cs();
-    //2^s+a-b=q*2^s +r
-    let expr = add(&expression_from_witness(r_witness), two_s, &expression_from_witness(q_witness));
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(&sub, FieldElement::one(), &expr)));
-    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
-        a: sub,
-        b: r_witness,
-        c: q_witness,
-        bit_size: max_bits,
-    }));
-    try_range_constraint(r_witness, max_bits, evaluator);
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(boolean(q_witness)));
-    q_witness
-}
-
-// Generate constraints that are satisfied iff
-// a < b , when offset is 1, or
-// a <= b, when offset is 0
-// bits is the bit size of a and b (or an upper bound of the bit size)
-///////////////
-// a<=b is done by constraining b-a to a bit size of 'bits':
-// if a<=b, 0 <= b-a <= b < 2^bits
-// if a>b, b-a = p+b-a > p-2^bits >= 2^bits  (if log(p) >= bits + 1)
-// n.b: we do NOT check here that a and b are indeed 'bits' size
-// a < b <=> a+1<=b
-fn bound_constraint_with_offset(
-    a: &Expression,
-    b: &Expression,
-    offset: &Expression,
-    bits: u32,
-    evaluator: &mut Evaluator,
-) {
-    assert!(
-        bits < FieldElement::max_num_bits(),
-        "range check with bit size of the prime field is not implemented yet"
-    );
-
-    let mut aof = add(a, FieldElement::one(), offset);
-
-    if b.is_const() && b.q_c.fits_in_u128() {
-        let f = if *offset == Expression::one() {
-            aof = a.clone();
-            assert!(b.q_c.to_u128() >= 1);
-            b.q_c.to_u128() - 1
-        } else {
-            b.q_c.to_u128()
-        };
-
-        if f < 3 {
-            match f {
-                0 => evaluator.opcodes.push(AcirOpcode::Arithmetic(aof)),
-                1 => {
-                    let expr = boolean_expr(&aof, evaluator);
-                    evaluator.opcodes.push(AcirOpcode::Arithmetic(expr))
-                }
-                2 => {
-                    let y = InternalVar::expression_to_witness(
-                        boolean_expr(&aof, evaluator),
-                        evaluator,
-                    );
-                    let two = FieldElement::from(2_i128);
-                    let y_expr = expression_from_witness(y);
-                    let eee = subtract(&mul_with_witness(evaluator, &aof, &y_expr), two, &y_expr);
-                    evaluator.opcodes.push(AcirOpcode::Arithmetic(eee));
-                }
-                _ => unreachable!(),
-            }
-            return;
-        }
-        let bit_size = bit_size_u128(f);
-        if bit_size < 128 {
-            let r = (1_u128 << bit_size) - f - 1;
-            assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
-            let aor = add(&aof, FieldElement::from(r), &Expression::one());
-            let witness = InternalVar::expression_to_witness(aor, evaluator);
-            try_range_constraint(witness, bit_size, evaluator);
-            return;
-        }
-    }
-
-    let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
-    let w = InternalVar::expression_to_witness(sub_expression, evaluator);
-    try_range_constraint(w, bits, evaluator);
-}
-
-fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
-    if let Err(err) = range_constraint(w, bits, evaluator) {
-        eprintln!("{err}");
-    }
 }
 
 // Creates an Expression from a Witness.
@@ -1326,4 +978,15 @@ fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evaluator) {
 // TODO further refactor.
 fn expression_from_witness(witness: Witness) -> Expression {
     Expression::from(&witness)
+}
+
+const fn num_bits<T>() -> usize {
+    std::mem::size_of::<T>() * 8
+}
+fn bit_size_u32(a: u32) -> u32 where {
+    num_bits::<u32>() as u32 - a.leading_zeros()
+}
+
+fn bit_size_u128(a: u128) -> u32 where {
+    num_bits::<u128>() as u32 - a.leading_zeros()
 }
