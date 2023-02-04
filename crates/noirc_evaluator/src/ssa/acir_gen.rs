@@ -30,14 +30,28 @@ pub struct Acir {
 
 #[derive(Default, Clone, Debug)]
 pub struct InternalVar {
+    // A multi-variate degree-2 polynomial
     expression: Expression,
-    witness: Option<Witness>,
+    // A witness associated to `expression`.
+    // semantically `cached_witness` and `expression`
+    // should be the equal.
+    //
+    // Example: `z = x + y`
+    // `z` can be seen as the same to `x + y`
+    // ie if `z = 10` , then `x+y` must be equal to
+    // 10.
+    // There are places where we can use `cached_witness`
+    // in place of `expression` for performance reasons
+    // due to the fact that `cached_witness` is a single variable
+    // whereas `expression` is a multi-variate polynomial which can
+    // contain many degree-2 terms.
+    cached_witness: Option<Witness>,
     id: Option<NodeId>,
 }
 
 impl InternalVar {
-    fn new(expression: Expression, witness: Option<Witness>, id: NodeId) -> InternalVar {
-        InternalVar { expression, witness, id: Some(id) }
+    fn new(expression: Expression, cached_witness: Option<Witness>, id: NodeId) -> InternalVar {
+        InternalVar { expression, cached_witness, id: Some(id) }
     }
 
     /// If the InternalVar holds a constant expression
@@ -52,10 +66,11 @@ impl InternalVar {
 
         None
     }
-    /// The expression term is bi-variate polynomial, so
+
+    /// The expression term is degree-2 multi-variate polynomial, so
     /// in order to check if if represents a constant,
-    /// we need to check that the bi-variate terms `mul_terms`
-    /// and the univariate terms `linear_combinations` are empty.
+    /// we need to check that the degree-2 terms `mul_terms`
+    /// and the degree-1 terms `linear_combinations` do not exist.
     ///
     /// Example: f(x,y) = xy + 5
     /// `f` is not a constant expression because there
@@ -71,7 +86,7 @@ impl InternalVar {
     }
 
     pub fn generate_witness(&mut self, evaluator: &mut Evaluator) -> Witness {
-        if let Some(witness) = self.witness {
+        if let Some(witness) = self.cached_witness {
             return witness;
         }
 
@@ -79,7 +94,7 @@ impl InternalVar {
             todo!("Panic");
         }
         let witness = InternalVar::expression_to_witness(self.expression.clone(), evaluator);
-        self.witness = Some(witness);
+        self.cached_witness = Some(witness);
         witness
     }
 
@@ -98,7 +113,7 @@ impl InternalVar {
 impl PartialEq for InternalVar {
     fn eq(&self, other: &Self) -> bool {
         self.expression == other.expression
-            || (self.witness.is_some() && self.witness == other.witness)
+            || (self.cached_witness.is_some() && self.cached_witness == other.cached_witness)
             || (self.id.is_some() && self.id == other.id)
     }
 }
@@ -106,20 +121,20 @@ impl Eq for InternalVar {}
 
 impl From<Expression> for InternalVar {
     fn from(arith: Expression) -> InternalVar {
-        let w = is_unit(&arith);
-        InternalVar { expression: arith, witness: w, id: None }
+        let witness = is_unit(&arith);
+        InternalVar { expression: arith, cached_witness: witness, id: None }
     }
 }
 
 impl From<Witness> for InternalVar {
-    fn from(w: Witness) -> InternalVar {
-        InternalVar { expression: from_witness(w), witness: Some(w), id: None }
+    fn from(witness: Witness) -> InternalVar {
+        InternalVar { expression: from_witness(witness), cached_witness: Some(witness), id: None }
     }
 }
 
 impl From<FieldElement> for InternalVar {
     fn from(f: FieldElement) -> InternalVar {
-        InternalVar { expression: Expression::from_field(f), witness: None, id: None }
+        InternalVar { expression: Expression::from_field(f), cached_witness: None, id: None }
     }
 }
 
@@ -467,9 +482,9 @@ impl Acir {
             .map(|i| {
                 let address = array.adr + i;
                 if let Some(memory) = self.memory_map.get_mut(&address) {
-                    if create_witness && memory.witness.is_none() {
+                    if create_witness && memory.cached_witness.is_none() {
                         let w = evaluator.create_intermediate_variable(memory.expression.clone());
-                        self.memory_map.get_mut(&address).unwrap().witness = Some(w);
+                        self.memory_map.get_mut(&address).unwrap().cached_witness = Some(w);
                     }
                     self.memory_map[&address].clone()
                 } else {
@@ -563,7 +578,7 @@ impl Acir {
             let diff_var = InternalVar {
                 //in cache??
                 expression: diff_expr.clone(),
-                witness: Some(diff_witness),
+                cached_witness: Some(diff_witness),
                 id: None,
             };
             evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
@@ -600,7 +615,7 @@ impl Acir {
                         for i in 0..array.len {
                             let address = array.adr + i;
                             if self.memory_map.contains_key(&address) {
-                                if let Some(wit) = self.memory_map[&address].witness {
+                                if let Some(wit) = self.memory_map[&address].cached_witness {
                                     inputs.push(FunctionInput { witness: wit, num_bits });
                                 } else {
                                     let mut var = self.memory_map[&address].clone();
@@ -608,7 +623,7 @@ impl Acir {
                                         let w = evaluator.create_intermediate_variable(
                                             self.memory_map[&address].expression.clone(),
                                         );
-                                        var.witness = Some(w);
+                                        var.cached_witness = Some(w);
                                     }
                                     let w = var.generate_witness(evaluator);
                                     self.memory_map.insert(address, var);
@@ -617,7 +632,7 @@ impl Acir {
                                 }
                             } else {
                                 inputs.push(FunctionInput {
-                                    witness: array.values[i as usize].witness.unwrap(),
+                                    witness: array.values[i as usize].cached_witness.unwrap(),
                                     num_bits,
                                 });
                             }
@@ -635,7 +650,7 @@ impl Acir {
                     if self.arith_cache.contains_key(a) {
                         let mut var = self.arith_cache[a].clone();
                         let witness =
-                            var.witness.unwrap_or_else(|| var.generate_witness(evaluator));
+                            var.cached_witness.unwrap_or_else(|| var.generate_witness(evaluator));
                         inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
                     } else {
                         unreachable!("invalid input: {:?}", l_obj)
@@ -918,12 +933,12 @@ fn evaluate_bitwise(
     //We generate witness from const values in order to use the ACIR bitwise gates
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
-    if rhs.to_const().is_some() && rhs.witness.is_none() {
-        rhs.witness = Some(evaluator.create_intermediate_variable(rhs.expression.clone()));
+    if rhs.to_const().is_some() && rhs.cached_witness.is_none() {
+        rhs.cached_witness = Some(evaluator.create_intermediate_variable(rhs.expression.clone()));
         assert!(lhs.to_const().is_none());
-    } else if lhs.to_const().is_some() && lhs.witness.is_none() {
+    } else if lhs.to_const().is_some() && lhs.cached_witness.is_none() {
         assert!(rhs.to_const().is_none());
-        lhs.witness = Some(evaluator.create_intermediate_variable(lhs.expression.clone()));
+        lhs.cached_witness = Some(evaluator.create_intermediate_variable(lhs.expression.clone()));
     }
 
     let mut a_witness = lhs.generate_witness(evaluator);
@@ -1051,7 +1066,7 @@ pub fn evaluate_udiv(
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
 pub fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
-    let x_witness = x.witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
+    let x_witness = x.cached_witness.unwrap(); //todo we need a witness because of the directive, but we should use an expression
 
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
