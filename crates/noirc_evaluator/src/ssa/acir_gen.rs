@@ -2,7 +2,7 @@ use crate::ssa::{
     builtin::Opcode,
     context::SsaContext,
     mem::{MemArray, Memory},
-    node::{BinaryOp, Instruction, Node, NodeId, ObjectType, Operation},
+    node::{BinaryOp, Instruction, Node, NodeId, NodeObject, ObjectType, Operation},
     {builtin, mem, node},
 };
 use crate::{Evaluator, RuntimeErrorKind};
@@ -48,13 +48,13 @@ impl Acir {
             return internal_var.clone();
         }
         let var = match ctx.try_get_node(id) {
-            Some(node::NodeObject::Const(c)) => {
+            Some(NodeObject::Const(c)) => {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 let expr = Expression::from_field(field_value);
                 InternalVar::new(expr, None, Some(id))
             }
-            Some(node::NodeObject::Obj(variable)) => match variable.get_type() {
-                node::ObjectType::Pointer(_) => InternalVar::default(),
+            Some(NodeObject::Obj(variable)) => match variable.get_type() {
+                ObjectType::Pointer(_) => InternalVar::default(),
                 _ => {
                     let witness = variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                     let expr = Expression::from(&witness);
@@ -263,7 +263,7 @@ impl Acir {
                 r_c.expression(),
             )),
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
-                if res_type == node::ObjectType::NativeField {
+                if res_type == ObjectType::NativeField {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
                         FieldElement::one(),
@@ -538,7 +538,7 @@ impl Acir {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
-                if let node::ObjectType::Pointer(a) = res_type {
+                if let ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
                 }
             }
@@ -547,7 +547,7 @@ impl Acir {
                 let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
-                if let node::ObjectType::Pointer(a) = res_type {
+                if let ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
                 }
             }
