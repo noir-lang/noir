@@ -591,6 +591,40 @@ pub(crate) fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluat
     y_witness
 }
 
+// Given two lists, `A` and `B` of `Expression`s
+// We generate constraints that A and B are equal
+// An `Expression` is returned that indicates whether this
+// was true.
+//
+// This method does not check the arrays length.
+// We assume this has been checked by the caller.
+pub(crate) fn arrays_eq_predicate(
+    a_values: &[Expression],
+    b_values: &[Expression],
+    evaluator: &mut Evaluator,
+) -> Expression {
+    let mut sum = Expression::default();
+
+    for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
+        let diff_expr = subtract(a_iter, FieldElement::one(), b_iter);
+
+        let diff_witness = evaluator.add_witness_to_cs();
+
+        evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+            &diff_expr,
+            FieldElement::one(),
+            &expression_from_witness(diff_witness),
+        )));
+        //TODO: avoid creating witnesses for diff
+        sum = add(
+            &sum,
+            FieldElement::one(),
+            &expression_from_witness(evaluate_zero_equality(diff_witness, evaluator)),
+        );
+    }
+    sum
+}
+
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
