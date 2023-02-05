@@ -497,12 +497,6 @@ impl Acir {
 
             let diff_witness = evaluator.add_witness_to_cs();
 
-            let diff_var = InternalVar::new(
-                //in cache??
-                diff_expr.clone(),
-                Some(diff_witness),
-                None,
-            );
             evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
                 &diff_expr,
                 FieldElement::one(),
