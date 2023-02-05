@@ -1,7 +1,6 @@
 use crate::{
     ssa::acir_gen::{const_from_expression, constraints::ACIRState},
     ssa::node::NodeId,
-    Evaluator,
 };
 use acvm::{
     acir::native_types::{Expression, Witness},
@@ -109,7 +108,7 @@ impl InternalVar {
     /// - If a `Witness` has previously been generated
     /// we return that.
     /// - If the Expression represents a constant, we return None.
-    pub(crate) fn witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
+    pub(crate) fn witness<A: ACIRState>(&mut self, evaluator: &mut A) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
         if let Some(witness) = self.cached_witness {
