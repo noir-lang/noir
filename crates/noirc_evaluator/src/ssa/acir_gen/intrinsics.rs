@@ -92,7 +92,11 @@ fn resolve_array(
             Some(var) => var,
             None => {
                 inputs.push(FunctionInput {
-                    witness: array.values[i as usize].cached_witness().unwrap(),
+                    // TODO: this .expect implies that you cannot pass arrays
+                    // TODO with constants to ACIR low level functions
+                    witness: array.values[i as usize]
+                        .cached_witness()
+                        .expect("unexpected constant expression."),
                     num_bits,
                 });
                 continue;
