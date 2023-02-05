@@ -332,20 +332,40 @@ impl Acir {
             ),
             BinaryOp::Ult => {
                 let size = ctx[binary.lhs].get_type().bits();
-                evaluate_cmp(l_c.expression(), r_c.expression(), size, false, evaluator).into()
+                constraints::evaluate_cmp(
+                    l_c.expression(),
+                    r_c.expression(),
+                    size,
+                    false,
+                    evaluator,
+                )
+                .into()
             }
             BinaryOp::Ule => {
                 let size = ctx[binary.lhs].get_type().bits();
-                let e = evaluate_cmp(r_c.expression(), l_c.expression(), size, false, evaluator);
+                let e = constraints::evaluate_cmp(
+                    r_c.expression(),
+                    l_c.expression(),
+                    size,
+                    false,
+                    evaluator,
+                );
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
                 let s = ctx[binary.lhs].get_type().bits();
-                evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator).into()
+                constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)
+                    .into()
             }
             BinaryOp::Sle => {
                 let s = ctx[binary.lhs].get_type().bits();
-                let e = evaluate_cmp(r_c.expression(), l_c.expression(), s, true, evaluator);
+                let e = constraints::evaluate_cmp(
+                    r_c.expression(),
+                    l_c.expression(),
+                    s,
+                    true,
+                    evaluator,
+                );
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Lt => unimplemented!(
@@ -544,28 +564,6 @@ fn evaluate_sdiv(
     _evaluator: &mut Evaluator,
 ) -> (Expression, Expression) {
     todo!();
-}
-
-//Returns 1 if lhs < rhs
-fn evaluate_cmp(
-    lhs: &Expression,
-    rhs: &Expression,
-    bit_size: u32,
-    signed: bool,
-    evaluator: &mut Evaluator,
-) -> Expression {
-    if signed {
-        //TODO use range_constraints instead of bit decomposition, like in the unsigned case
-        let mut sub_expr = constraints::subtract(lhs, FieldElement::one(), rhs);
-        let two_pow = BigUint::one() << (bit_size + 1);
-        sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, evaluator);
-        expression_from_witness(bits[(bit_size - 1) as usize])
-    } else {
-        let is_greater =
-            expression_from_witness(constraints::bound_check(lhs, rhs, bit_size, evaluator));
-        constraints::subtract(&Expression::one(), FieldElement::one(), &is_greater)
-    }
 }
 
 fn simplify_bitwise(

@@ -451,6 +451,27 @@ pub(crate) fn to_radix(
     (result, digits)
 }
 
+//Returns 1 if lhs < rhs
+pub(crate) fn evaluate_cmp(
+    lhs: &Expression,
+    rhs: &Expression,
+    bit_size: u32,
+    signed: bool,
+    evaluator: &mut Evaluator,
+) -> Expression {
+    if signed {
+        //TODO use range_constraints instead of bit decomposition, like in the unsigned case
+        let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
+        let two_pow = BigUint::one() << (bit_size + 1);
+        sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, evaluator);
+        expression_from_witness(bits[(bit_size - 1) as usize])
+    } else {
+        let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));
+        subtract(&Expression::one(), FieldElement::one(), &is_greater)
+    }
+}
+
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
