@@ -28,14 +28,30 @@ pub(crate) fn prepare_inputs(
                     let num_bits = array.element_type.bits();
                     for i in 0..array.len {
                         let address = array.adr + i;
-                        if memory_map.contains_key(&address) {
-                            if let Some(wit) = memory_map[&address].cached_witness() {
-                                inputs.push(FunctionInput { witness: *wit, num_bits });
-                            } else {
-                                let mut var = memory_map[&address].clone();
+
+                        let internal_var = match memory_map.internal_var(&address) {
+                            Some(var) => var,
+                            None => {
+                                inputs.push(FunctionInput {
+                                    witness: array.values[i as usize].cached_witness().unwrap(),
+                                    num_bits,
+                                });
+                                continue;
+                            }
+                        };
+
+                        let func_input = match internal_var.cached_witness() {
+                            Some(cached_witness) => {
+                                FunctionInput { witness: *cached_witness, num_bits }
+                            }
+                            None => {
+                                let mut var = internal_var.clone();
                                 if var.expression().is_const() {
+                                    // TODO: Why is it acceptable that we create an
+                                    // TODO intermediate variable here for the constant
+                                    // TODO expression, but not in general?
                                     let w = evaluator.create_intermediate_variable(
-                                        memory_map[&address].expression().clone(),
+                                        internal_var.expression().clone(),
                                     );
                                     *var.cached_witness_mut() = Some(w);
                                 }
@@ -43,14 +59,10 @@ pub(crate) fn prepare_inputs(
                                     var.witness(evaluator).expect("unexpected constant expression");
                                 memory_map.insert(address, var);
 
-                                inputs.push(FunctionInput { witness: w, num_bits });
+                                FunctionInput { witness: w, num_bits }
                             }
-                        } else {
-                            inputs.push(FunctionInput {
-                                witness: array.values[i as usize].cached_witness().unwrap(),
-                                num_bits,
-                            });
-                        }
+                        };
+                        inputs.push(func_input)
                     }
                 }
                 _ => match v.witness {
