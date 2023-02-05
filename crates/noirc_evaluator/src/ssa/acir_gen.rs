@@ -49,22 +49,22 @@ impl Acir {
         }
         let var = match ctx.try_get_node(id) {
             Some(node::NodeObject::Const(c)) => {
-                let f_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                let expr = Expression::from_field(f_value);
+                let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
+                let expr = Expression::from_field(field_value);
                 InternalVar::new(expr, None, Some(id))
             }
-            Some(node::NodeObject::Obj(v)) => match v.get_type() {
+            Some(node::NodeObject::Obj(variable)) => match variable.get_type() {
                 node::ObjectType::Pointer(_) => InternalVar::default(),
                 _ => {
-                    let w = v.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
-                    let expr = Expression::from(&w);
-                    InternalVar::new(expr, Some(w), Some(id))
+                    let witness = variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
+                    let expr = Expression::from(&witness);
+                    InternalVar::new(expr, Some(witness), Some(id))
                 }
             },
             _ => {
-                let w = evaluator.add_witness_to_cs();
-                let expr = Expression::from(&w);
-                InternalVar::new(expr, Some(w), Some(id))
+                let witness = evaluator.add_witness_to_cs();
+                let expr = Expression::from(&witness);
+                InternalVar::new(expr, Some(witness), Some(id))
             }
         };
 
