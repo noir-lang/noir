@@ -406,6 +406,7 @@ impl Acir {
                 };
                 InternalVar::from(bitwise_result)
             }
+            // TODO: document why this is unreachable
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -432,7 +433,7 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
-        // Check whether the lhs and rhs are Arrays
+        // Check whether the `lhs` and `rhs` are Arrays
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
             let array_a = &ctx.mem[a];
             let array_b = &ctx.mem[b];
