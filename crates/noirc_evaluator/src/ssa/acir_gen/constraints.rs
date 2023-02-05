@@ -561,7 +561,6 @@ pub(crate) fn evaluate_inverse(
         .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
 
     //x*inverse = 1
-    Expression::default();
     let one = mul(&expression_from_witness(x_witness), &inverse_expr);
     let lhs = mul_with_witness(evaluator, &one, predicate);
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(&lhs, FieldElement::one(), predicate)));
