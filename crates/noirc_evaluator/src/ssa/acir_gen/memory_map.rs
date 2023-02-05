@@ -64,11 +64,3 @@ impl MemoryMap {
         self.inner.insert(key, value)
     }
 }
-
-impl std::ops::Index<&u32> for MemoryMap {
-    type Output = InternalVar;
-
-    fn index(&self, index: &u32) -> &Self::Output {
-        &self.inner[index]
-    }
-}
