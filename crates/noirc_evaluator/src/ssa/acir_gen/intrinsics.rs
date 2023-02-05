@@ -85,6 +85,8 @@ fn resolve_array(
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
         let address = array.adr + i;
+        // TODO why can't this method iterate the `Array` values only
+        // TODO instead of checking in the memory_map first?
 
         let internal_var = match memory_map.internal_var(&address) {
             Some(var) => var,
