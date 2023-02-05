@@ -254,7 +254,7 @@ impl Acir {
         ctx: &SsaContext,
     ) -> InternalVar {
         let l_c = self.substitute(binary.lhs, evaluator, ctx);
-        let r_c = self.substitute(binary.rhs, evaluator, ctx);
+        let mut r_c = self.substitute(binary.rhs, evaluator, ctx);
         let r_size = ctx[binary.rhs].size_in_bits();
         let l_size = ctx[binary.lhs].size_in_bits();
         let max_size = u32::max(r_size, l_size);
@@ -333,8 +333,11 @@ impl Acir {
             }
             BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
             BinaryOp::Div => {
-                let predicate = self.get_predicate(binary, evaluator, ctx);
-                let inverse = expression_from_witness(evaluate_inverse(r_c, &predicate, evaluator));
+                let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
+                let x_witness = r_c.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
+
+                let inverse =
+                    expression_from_witness(evaluate_inverse(x_witness, &predicate, evaluator));
                 InternalVar::from(constraints::mul_with_witness(
                     evaluator,
                     l_c.expression(),
@@ -766,14 +769,13 @@ fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness
 
 /// Creates a new witness and constrains it to be the inverse of x
 fn evaluate_inverse(
-    mut x: InternalVar,
-    predicate: &InternalVar,
+    x_witness: Witness,
+    predicate: &Expression,
     evaluator: &mut Evaluator,
 ) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
     let inverse_expr = expression_from_witness(inverse_witness);
-    let x_witness = x.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
     evaluator
         .opcodes
         .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
@@ -781,11 +783,11 @@ fn evaluate_inverse(
     //x*inverse = 1
     Expression::default();
     let one = constraints::mul(&expression_from_witness(x_witness), &inverse_expr);
-    let lhs = constraints::mul_with_witness(evaluator, &one, predicate.expression());
+    let lhs = constraints::mul_with_witness(evaluator, &one, predicate);
     evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
         &lhs,
         FieldElement::one(),
-        predicate.expression(),
+        predicate,
     )));
     inverse_witness
 }
