@@ -316,7 +316,9 @@ impl Acir {
                 );
                 InternalVar::from(q_wit)
             }
-            BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
+            BinaryOp::Sdiv => InternalVar::from(
+                constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).0,
+            ),
             BinaryOp::Urem => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let (_, r_wit) = constraints::evaluate_udiv(
@@ -328,7 +330,9 @@ impl Acir {
                 );
                 InternalVar::from(r_wit)
             }
-            BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
+            BinaryOp::Srem => InternalVar::from(
+                constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
+            ),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
                 let x_witness = r_c.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
@@ -559,14 +563,6 @@ impl Acir {
             Expression::default()
         }
     }
-}
-
-fn evaluate_sdiv(
-    _lhs: &InternalVar,
-    _rhs: &InternalVar,
-    _evaluator: &mut Evaluator,
-) -> (Expression, Expression) {
-    todo!();
 }
 
 fn simplify_bitwise(

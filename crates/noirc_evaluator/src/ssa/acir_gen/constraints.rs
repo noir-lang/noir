@@ -625,6 +625,15 @@ pub(crate) fn arrays_eq_predicate(
     sum
 }
 
+// TODO: An issue should be created for this
+pub(crate) fn evaluate_sdiv(
+    _lhs: &Expression,
+    _rhs: &Expression,
+    _evaluator: &mut Evaluator,
+) -> (Expression, Expression) {
+    todo!();
+}
+
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
