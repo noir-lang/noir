@@ -72,6 +72,18 @@ impl Acir {
         var
     }
 
+    fn get_predicate(
+        &mut self,
+        binary: &node::Binary,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+    ) -> InternalVar {
+        match binary.predicate {
+            Some(pred) => self.substitute(pred, evaluator, ctx),
+            None => InternalVar::from(Expression::one()),
+        }
+    }
+
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
@@ -231,18 +243,6 @@ impl Acir {
         Ok(())
     }
 
-    fn get_predicate(
-        &mut self,
-        binary: &node::Binary,
-        evaluator: &mut Evaluator,
-        ctx: &SsaContext,
-    ) -> InternalVar {
-        match binary.predicate {
-            Some(pred) => self.substitute(pred, evaluator, ctx),
-            None => InternalVar::from(Expression::one()),
-        }
-    }
-
     fn evaluate_binary(
         &mut self,
         binary: &node::Binary,
@@ -390,12 +390,14 @@ impl Acir {
                 );
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
-            BinaryOp::Lt => unimplemented!(
+            BinaryOp::Lt | BinaryOp::Lte => {
+                // TODO Create an issue to change this function to return a RuntimeErrorKind
+                // TODO then replace `unimplemented` with an error
+                // TODO (This is a breaking change)
+                unimplemented!(
                 "Field comparison is not implemented yet, try to cast arguments to integer type"
-            ),
-            BinaryOp::Lte => unimplemented!(
-                "Field comparison is not implemented yet, try to cast arguments to integer type"
-            ),
+            )
+            }
             BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
                 let bit_size = res_type.bits();
                 let opcode = binary.operator.clone();
