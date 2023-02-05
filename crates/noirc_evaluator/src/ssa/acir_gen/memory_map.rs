@@ -83,6 +83,7 @@ impl MemoryMap {
     // Loads the associated `InternalVar` for the element
     // in the `array` at the given `offset`.
     // Returns `None` if `offset` is out of bounds.
+    #[allow(dead_code)]
     pub(crate) fn load_array_element_constant_index(
         &mut self,
         array: &MemArray,
