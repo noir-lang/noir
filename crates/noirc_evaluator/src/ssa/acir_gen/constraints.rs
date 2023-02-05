@@ -605,7 +605,7 @@ pub(crate) fn arrays_eq_predicate(
 ) -> Expression {
     let mut sum = Expression::default();
 
-    for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
+    for (a_iter, b_iter) in a_values.iter().zip(b_values) {
         let diff_expr = subtract(a_iter, FieldElement::one(), b_iter);
 
         let diff_witness = evaluator.add_witness_to_cs();
