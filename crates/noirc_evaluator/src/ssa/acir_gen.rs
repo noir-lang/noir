@@ -592,13 +592,18 @@ fn simplify_bitwise(
     bit_size: u32,
     opcode: &BinaryOp,
 ) -> Option<InternalVar> {
+    // Simplifies Bitwise operations of the form `a OP a`
+    // where `a` is an integer
+    //
+    // a XOR a == 0
+    // a AND a == a
+    // a OR  a == a
     if lhs == rhs {
-        //simplify bitwise operation of the form: a OP a
         return Some(match opcode {
             BinaryOp::And => lhs.clone(),
             BinaryOp::Or => lhs.clone(),
             BinaryOp::Xor => InternalVar::from(FieldElement::zero()),
-            _ => unreachable!(),
+            _ => unreachable!("This method should only be called on bitwise binary operators"),
         });
     }
 
