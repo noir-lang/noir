@@ -74,14 +74,14 @@ fn resolve_node_id(
 }
 
 fn resolve_array(
-    a: ArrayId,
+    array_id: ArrayId,
     memory_map: &mut MemoryMap,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
     let mut inputs = Vec::new();
 
-    let array = &cfg.mem[a];
+    let array = &cfg.mem[array_id];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
         let address = array.adr + i;
