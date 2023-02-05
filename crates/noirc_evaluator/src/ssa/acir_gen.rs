@@ -7,10 +7,7 @@ use crate::ssa::{
 };
 use crate::{Evaluator, RuntimeErrorKind};
 use acvm::{
-    acir::circuit::{
-        directives::Directive,
-        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-    },
+    acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     acir::native_types::{Expression, Witness},
     FieldElement,
 };
@@ -438,7 +435,7 @@ impl Acir {
                 let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
                 //todo we need a witness because of the directive, but we should use an expression
                 let x_witness = x.witness(evaluator).expect("unexpected constant expression");
-                expression_from_witness(evaluate_zero_equality(x_witness, evaluator))
+                expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
             } else {
                 //If length are different, then the arrays are different
                 Expression::one()
@@ -458,7 +455,7 @@ impl Acir {
             ));
             //todo we need a witness because of the directive, but we should use an expression
             let x_witness = x.witness(evaluator).expect("unexpected constant expression");
-            expression_from_witness(evaluate_zero_equality(x_witness, evaluator))
+            expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
         }
     }
 
@@ -506,7 +503,10 @@ impl Acir {
             sum = constraints::add(
                 &sum,
                 FieldElement::one(),
-                &expression_from_witness(evaluate_zero_equality(diff_witness, evaluator)),
+                &expression_from_witness(constraints::evaluate_zero_equality(
+                    diff_witness,
+                    evaluator,
+                )),
             );
         }
         sum
@@ -736,30 +736,6 @@ fn evaluate_bitwise(
     } else {
         expression_from_witness(result)
     }
-}
-
-//Zero Equality gate: returns 1 if x is not null and 0 else
-fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluator) -> Witness {
-    let m = evaluator.add_witness_to_cs(); //'inverse' of x
-    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
-
-    //y=x*m         y is 1 if x is not null, and 0 else
-    let y_witness = evaluator.add_witness_to_cs();
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(Expression {
-        mul_terms: vec![(FieldElement::one(), x_witness, m)],
-        linear_combinations: vec![(-FieldElement::one(), y_witness)],
-        q_c: FieldElement::zero(),
-    }));
-
-    //x=y*x
-    let y_expr = expression_from_witness(y_witness);
-    let xy = constraints::mul(&expression_from_witness(x_witness), &y_expr);
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
-        &xy,
-        FieldElement::one(),
-        &expression_from_witness(x_witness),
-    )));
-    y_witness
 }
 
 // Creates an Expression from a Witness.

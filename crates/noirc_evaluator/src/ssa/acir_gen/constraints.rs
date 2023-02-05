@@ -567,6 +567,30 @@ pub(crate) fn evaluate_inverse(
     inverse_witness
 }
 
+//Zero Equality gate: returns 1 if x is not null and 0 else
+pub(crate) fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluator) -> Witness {
+    let m = evaluator.add_witness_to_cs(); //'inverse' of x
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
+
+    //y=x*m         y is 1 if x is not null, and 0 else
+    let y_witness = evaluator.add_witness_to_cs();
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(Expression {
+        mul_terms: vec![(FieldElement::one(), x_witness, m)],
+        linear_combinations: vec![(-FieldElement::one(), y_witness)],
+        q_c: FieldElement::zero(),
+    }));
+
+    //x=y*x
+    let y_expr = expression_from_witness(y_witness);
+    let xy = mul(&expression_from_witness(x_witness), &y_expr);
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
+        &xy,
+        FieldElement::one(),
+        &expression_from_witness(x_witness),
+    )));
+    y_witness
+}
+
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
