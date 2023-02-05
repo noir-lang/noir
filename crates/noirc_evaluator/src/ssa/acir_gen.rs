@@ -487,7 +487,7 @@ impl Acir {
             Opcode::ToBits => {
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
-                outputs = to_radix_base(&l_c, 2, bit_size, evaluator);
+                outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
                 }
@@ -496,7 +496,7 @@ impl Acir {
                 let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
-                outputs = to_radix_base(&l_c, radix, limb_size, evaluator);
+                outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
                 if let node::ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
                 }
@@ -606,7 +606,7 @@ fn to_radix(radix: u32, num_limbs: u32, evaluator: &mut Evaluator) -> (Vec<Witne
 
 //decompose lhs onto radix-base with limb_size limbs
 fn to_radix_base(
-    lhs: &InternalVar,
+    lhs: &Expression,
     radix: u32,
     limb_size: u32,
     evaluator: &mut Evaluator,
@@ -618,13 +618,13 @@ fn to_radix_base(
 
     let (result, bytes) = to_radix(radix, limb_size, evaluator);
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
-        a: lhs.expression().clone(),
+        a: lhs.clone(),
         b: result.clone(),
         radix,
     }));
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
-        lhs.expression(),
+        lhs,
         FieldElement::one(),
         &bytes,
     )));
