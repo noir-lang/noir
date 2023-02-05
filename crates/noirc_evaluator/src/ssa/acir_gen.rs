@@ -212,6 +212,10 @@ impl Acir {
                                 if mem_array.values.len() > index {
                                     mem_array.values[index].clone()
                                 } else {
+                                    // TODO Why is this unreachable and not a RuntimeError?
+                                    // TODO if the user supplies an index which is more
+                                    // TODO than the array length. Does it get picked up in another place?
+                                    // TODO semantically, this is what `unreachable` implies
                                     unreachable!("Could not find value at index {}", index);
                                 }
                             }
