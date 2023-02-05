@@ -1,6 +1,6 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{bit_size_u128, expression_from_witness, InternalVar},
+    ssa::acir_gen::{expression_from_witness, InternalVar},
     Evaluator,
 };
 use acvm::{
@@ -13,7 +13,12 @@ use acvm::{
     },
     FieldElement,
 };
-use std::{cmp::Ordering, ops::Neg};
+use num_bigint::BigUint;
+use num_traits::One;
+use std::{
+    cmp::Ordering,
+    ops::{Mul, Neg},
+};
 
 // Code in this file, will generate constraints without
 // using only the Evaluator and ACIR Expression types
@@ -383,4 +388,77 @@ pub(crate) fn try_range_constraint(w: Witness, bits: u32, evaluator: &mut Evalua
     if let Err(err) = range_constraint(w, bits, evaluator) {
         eprintln!("{err}");
     }
+}
+
+//decompose lhs onto radix-base with limb_size limbs
+pub(crate) fn to_radix_base(
+    lhs: &Expression,
+    radix: u32,
+    limb_size: u32,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // ensure there is no overflow
+    let mut max = BigUint::from(radix);
+    max = max.pow(limb_size) - BigUint::one();
+    assert!(max < FieldElement::modulus());
+
+    let (result, bytes) = to_radix(radix, limb_size, evaluator);
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
+        a: lhs.clone(),
+        b: result.clone(),
+        radix,
+    }));
+
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
+
+    result
+}
+
+//Decomposition into b-base: \sum ai b^i, where 0<=ai<b
+// radix: the base, (it is a constant, not a witness)
+// num_limbs: the number of elements in the decomposition
+// output: (the elements of the decomposition as witness, the sum expression)
+pub(crate) fn to_radix(
+    radix: u32,
+    num_limbs: u32,
+    evaluator: &mut Evaluator,
+) -> (Vec<Witness>, Expression) {
+    let mut digits = Expression::default();
+    let mut radix_pow = FieldElement::one();
+
+    let shift = FieldElement::from(radix as i128);
+    let mut result = Vec::new();
+    let bit_size = bit_size_u32(radix);
+    for _ in 0..num_limbs {
+        let limb_witness = evaluator.add_witness_to_cs();
+        result.push(limb_witness);
+        let limb_expr = expression_from_witness(limb_witness);
+        digits = add(&digits, radix_pow, &limb_expr);
+        radix_pow = radix_pow.mul(shift);
+
+        if 1_u128 << (bit_size - 1) != radix as u128 {
+            try_range_constraint(limb_witness, bit_size, evaluator);
+        }
+        bound_constraint_with_offset(
+            &expression_from_witness(limb_witness),
+            &Expression::from_field(shift),
+            &Expression::one(),
+            bit_size,
+            evaluator,
+        );
+    }
+
+    (result, digits)
+}
+
+const fn num_bits<T>() -> usize {
+    std::mem::size_of::<T>() * 8
+}
+
+fn bit_size_u128(a: u128) -> u32 where {
+    num_bits::<u128>() as u32 - a.leading_zeros()
+}
+
+fn bit_size_u32(a: u32) -> u32 where {
+    num_bits::<u32>() as u32 - a.leading_zeros()
 }
