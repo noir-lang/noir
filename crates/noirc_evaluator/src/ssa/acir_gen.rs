@@ -396,26 +396,12 @@ impl Acir {
             BinaryOp::Lte => unimplemented!(
                 "Field comparison is not implemented yet, try to cast arguments to integer type"
             ),
-            BinaryOp::And => InternalVar::from(evaluate_bitwise(
+            BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => InternalVar::from(evaluate_bitwise(
                 l_c,
                 r_c,
                 res_type.bits(),
                 evaluator,
-                BinaryOp::And,
-            )),
-            BinaryOp::Or => InternalVar::from(evaluate_bitwise(
-                l_c,
-                r_c,
-                res_type.bits(),
-                evaluator,
-                BinaryOp::Or,
-            )),
-            BinaryOp::Xor => InternalVar::from(evaluate_bitwise(
-                l_c,
-                r_c,
-                res_type.bits(),
-                evaluator,
-                BinaryOp::Xor,
+                binary.operator.clone(),
             )),
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
