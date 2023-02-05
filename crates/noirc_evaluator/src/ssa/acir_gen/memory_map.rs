@@ -40,13 +40,10 @@ impl MemoryMap {
     ) -> Vec<InternalVar> {
         let mut array_as_internal_var = Vec::with_capacity(array.len as usize);
 
-        // Get the pointer to the start of the array
-        let array_pointer = array.adr;
-
         for offset in 0..array.len {
             // Get the address of the `i'th` element.
             // Elements in Array are assumed to be contiguous
-            let address_of_element = array_pointer + offset;
+            let address_of_element = array.absolute_adr(offset);
 
             let element = match self.inner.get_mut(&address_of_element) {
                 Some(memory) => {
@@ -83,6 +80,36 @@ impl MemoryMap {
         array_as_internal_var
     }
 
+    // Loads the associated `InternalVar` for the element
+    // in the `array` at the given `offset`.
+    // Returns `None` if `offset` is out of bounds.
+    pub(crate) fn load_array_element_constant_index(
+        &mut self,
+        array: &MemArray,
+        offset: u32,
+    ) -> Option<InternalVar> {
+        let address_of_element = array.absolute_adr(offset);
+
+        // First check the memory_map to see if the element is there
+        if let Some(internal_var) = self.inner.get(&address_of_element) {
+            return Some(internal_var.clone());
+        };
+
+        // Now check to see if the index has gone out of bounds
+        // TODO: should we check this first?
+        let array_length = array.len;
+        if offset >= array_length {
+            return None; // IndexOutOfBoundsError
+        }
+        Some(array.values[offset as usize].clone())
+    }
+
+    // TODO check if we can replace usage of this method with
+    // TODO `load_array_element_constant_index`.
+    // TODO this is blocked by intrinsics::resolve_array
+    // TODO because that method distinguishes on the case
+    // TODO where the witness came from `array.values` or
+    // TODO the `memory_map`
     pub(crate) fn internal_var(&self, key: &u32) -> Option<&InternalVar> {
         self.inner.get(key)
     }
