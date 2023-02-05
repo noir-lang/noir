@@ -396,13 +396,15 @@ impl Acir {
             BinaryOp::Lte => unimplemented!(
                 "Field comparison is not implemented yet, try to cast arguments to integer type"
             ),
-            BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => InternalVar::from(evaluate_bitwise(
-                l_c,
-                r_c,
-                res_type.bits(),
-                evaluator,
-                binary.operator.clone(),
-            )),
+            BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
+                let bit_size = res_type.bits();
+                let opcode = binary.operator.clone();
+                let bitwise_result = match simplify_bitwise(&l_c, &r_c, bit_size, &opcode) {
+                    Some(simplified_internal_var) => simplified_internal_var.expression().clone(),
+                    None => evaluate_bitwise(l_c, r_c, bit_size, evaluator, opcode),
+                };
+                InternalVar::from(bitwise_result)
+            }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -623,9 +625,6 @@ fn evaluate_bitwise(
     evaluator: &mut Evaluator,
     opcode: BinaryOp,
 ) -> Expression {
-    if let Some(var) = simplify_bitwise(&lhs, &rhs, bit_size, &opcode) {
-        return var.expression().clone();
-    }
     if bit_size == 1 {
         match opcode {
             BinaryOp::And => {
