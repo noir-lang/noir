@@ -518,6 +518,11 @@ impl Acir {
         constraints::arrays_eq_predicate(&a_values, &b_values, evaluator)
     }
 
+    // Generate constraints for two types of functions:
+    // - Builtin functions: These are functions that
+    // are implemented by the compiler.
+    // - ACIR black box functions. These are referred
+    // to as `LowLevel`
     fn evaluate_opcode(
         &mut self,
         instruction_id: NodeId,
