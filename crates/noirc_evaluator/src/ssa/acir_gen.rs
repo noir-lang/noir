@@ -424,35 +424,43 @@ impl Acir {
             let array_a = &ctx.mem[a];
             let array_b = &ctx.mem[b];
 
+            // TODO What happens if we call `l_c.expression()` on InternalVar
+            // TODO when we know that they should correspond to Arrays
+
             if array_a.len == array_b.len {
                 let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
                 //todo we need a witness because of the directive, but we should use an expression
                 let x_witness = x.witness(evaluator).expect("unexpected constant expression");
-                expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
+                return expression_from_witness(constraints::evaluate_zero_equality(
+                    x_witness, evaluator,
+                ));
             } else {
                 //If length are different, then the arrays are different
                 // TODO this should not be possible as the frontend
                 // TODO should not compile for in this case
                 // TODO change to a ICE
-                Expression::one()
+                return Expression::one();
             }
-        } else {
-            if let (Some(l), Some(r)) = (l_c.to_const(), r_c.to_const()) {
-                if l == r {
-                    return Expression::default();
-                } else {
-                    return Expression::one();
-                }
-            }
-            let mut x = InternalVar::from(constraints::subtract(
-                l_c.expression(),
-                FieldElement::one(),
-                r_c.expression(),
-            ));
-            //todo we need a witness because of the directive, but we should use an expression
-            let x_witness = x.witness(evaluator).expect("unexpected constant expression");
-            expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
         }
+        // Arriving here means that `lhs` and `rhs` are not Arrays
+        //
+        // Check if `lhs` and `rhs` are constants. If so, we can evaluate whether
+        // they are equal at compile time.
+        if let (Some(l), Some(r)) = (l_c.to_const(), r_c.to_const()) {
+            if l == r {
+                return Expression::default();
+            } else {
+                return Expression::one();
+            }
+        }
+        let mut x = InternalVar::from(constraints::subtract(
+            l_c.expression(),
+            FieldElement::one(),
+            r_c.expression(),
+        ));
+        //todo we need a witness because of the directive, but we should use an expression
+        let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+        expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 
     fn evaluate_eq(
