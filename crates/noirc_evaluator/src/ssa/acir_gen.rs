@@ -429,7 +429,9 @@ impl Acir {
 
             if array_a.len == array_b.len {
                 let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
-                //todo we need a witness because of the directive, but we should use an expression
+                // TODO we need a witness because of the directive, but we should use an expression
+                // TODO if we change the Invert directive to take an `Expression`, then we
+                // TODO can get rid of this extra gate.
                 let x_witness = x.witness(evaluator).expect("unexpected constant expression");
                 return expression_from_witness(constraints::evaluate_zero_equality(
                     x_witness, evaluator,
