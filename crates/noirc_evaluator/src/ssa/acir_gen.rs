@@ -409,7 +409,19 @@ impl Acir {
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
     }
-
+    // Given two `NodeId`s, generate constraints to check whether
+    // they are Equal.
+    //
+    // This method returns an `Expression` representing `0` or `1`
+    // If the two `NodeId`s are not equal, then the `Expression`
+    // returned will represent `1`, otherwise `0` is returned.
+    //
+    // A `NodeId` can represent a primitive data type
+    // like a `Field` or it could represent a composite type like an
+    // `Array`. Depending on the type, the constraints that will be generated
+    // will differ.
+    //
+    // TODO: Add note on Neq for structs
     fn evaluate_neq(
         &mut self,
         lhs: NodeId,
@@ -478,8 +490,10 @@ impl Acir {
         constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
     }
 
-    //Generates gates for the expression: \sum_i(zero_eq(A[i]-B[i]))
-    //N.b. We assumes the lengths of a and b are the same but it is not checked inside the function.
+    // Given two `MemArray`s, generate constraints that check whether
+    // these two arrays are equal. An `Expression` is returned which indicates
+    // whether this was the case.
+    // N.B. We assumes the lengths of a and b are the same but it is not checked inside the function.
     fn zero_eq_array_sum(
         &mut self,
         a: &MemArray,
