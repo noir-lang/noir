@@ -56,9 +56,7 @@ impl MemoryMap {
             })
             .collect()
     }
-    pub(crate) fn contains_key(&self, key: &u32) -> bool {
-        self.inner.contains_key(key)
-    }
+
     pub(crate) fn internal_var(&self, key: &u32) -> Option<&InternalVar> {
         self.inner.get(key)
     }

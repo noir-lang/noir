@@ -37,7 +37,7 @@ impl InternalVar {
         cached_witness: Option<Witness>,
         id: Option<NodeId>,
     ) -> InternalVar {
-        InternalVar { expression, cached_witness, id: id }
+        InternalVar { expression, cached_witness, id }
     }
 
     pub(crate) fn expression(&self) -> &Expression {
