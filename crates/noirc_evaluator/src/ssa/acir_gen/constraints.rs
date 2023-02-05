@@ -1,6 +1,6 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{const_from_expression, expression_from_witness, InternalVar},
+    ssa::acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
     Evaluator,
 };
 use acvm::{
@@ -382,10 +382,7 @@ pub(crate) fn bound_constraint_with_offset<A: ACIRState>(
                     evaluator.add_opcode(AcirOpcode::Arithmetic(expr))
                 }
                 2 => {
-                    let y = InternalVar::expression_to_witness(
-                        boolean_expr(&aof, evaluator),
-                        evaluator,
-                    );
+                    let y = expression_to_witness(boolean_expr(&aof, evaluator), evaluator);
                     let two = FieldElement::from(2_i128);
                     let y_expr = expression_from_witness(y);
                     let eee = subtract(&mul_with_witness(evaluator, &aof, &y_expr), two, &y_expr);
@@ -400,14 +397,14 @@ pub(crate) fn bound_constraint_with_offset<A: ACIRState>(
             let r = (1_u128 << bit_size) - f - 1;
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure a+r does not overflow
             let aor = add(&aof, FieldElement::from(r), &Expression::one());
-            let witness = InternalVar::expression_to_witness(aor, evaluator);
+            let witness = expression_to_witness(aor, evaluator);
             try_range_constraint(witness, bit_size, evaluator);
             return;
         }
     }
 
     let sub_expression = subtract(b, FieldElement::one(), &aof); //b-(a+offset)
-    let w = InternalVar::expression_to_witness(sub_expression, evaluator);
+    let w = expression_to_witness(sub_expression, evaluator);
     try_range_constraint(w, bits, evaluator);
 }
 
