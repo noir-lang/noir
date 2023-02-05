@@ -1,4 +1,4 @@
-use crate::{ssa::node::NodeId, Evaluator};
+use crate::{ssa::acir_gen::const_from_expression, ssa::node::NodeId, Evaluator};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -55,15 +55,8 @@ impl InternalVar {
 
     /// If the InternalVar holds a constant expression
     /// Return that constant.Otherwise, return None.
-    // TODO: we should have a method in ACVM
-    // TODO which returns the constant term if its a constant
-    // TODO expression. ie `self.expression.to_const()`
     pub(super) fn to_const(&self) -> Option<FieldElement> {
-        if self.is_const_expression() {
-            return Some(self.expression.q_c);
-        }
-
-        None
+        const_from_expression(&self.expression)
     }
 
     /// The expression term is degree-2 multi-variate polynomial, so
@@ -87,7 +80,7 @@ impl InternalVar {
     /// Creates an `InternalVar` from an `Expression`.
     /// If `Expression` represents a degree-1 polynomial
     /// then we also assign it to the `cached_witness`
-    fn from_expression(expression: Expression) -> InternalVar {
+    pub(crate) fn from_expression(expression: Expression) -> InternalVar {
         let witness = witness_from_expression(&expression);
         InternalVar { expression, cached_witness: witness, id: None }
     }

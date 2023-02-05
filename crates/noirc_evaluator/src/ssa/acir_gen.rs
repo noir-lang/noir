@@ -117,7 +117,12 @@ impl Acir {
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 let value = self.substitute(*value, evaluator, ctx);
-                evaluate_truncate(value, *bit_size, *max_bit_size, evaluator)
+                InternalVar::from_expression(evaluate_truncate(
+                    value.expression(),
+                    *bit_size,
+                    *max_bit_size,
+                    evaluator,
+                ))
             }
             Operation::Intrinsic(opcode, args) => {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
@@ -723,20 +728,21 @@ fn evaluate_bitwise(
 
 //truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
 fn evaluate_truncate(
-    lhs: InternalVar,
+    lhs: &Expression,
     rhs: u32,
     max_bits: u32,
     evaluator: &mut Evaluator,
-) -> InternalVar {
+) -> Expression {
     assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
 
     //0. Check for constant expression. This can happen through arithmetic simplifications
-    if let Some(a_c) = lhs.to_const() {
+    if let Some(a_c) = const_from_expression(lhs) {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         let two = BigUint::from(2_u32);
         a_big %= two.pow(rhs);
-        return InternalVar::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
-    }
+        return Expression::from(&FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+    };
+
     //1. Generate witnesses a,b,c
     let b_witness = evaluator.add_witness_to_cs();
     let c_witness = evaluator.add_witness_to_cs();
@@ -750,15 +756,15 @@ fn evaluate_truncate(
     let b_arith = expression_from_witness(b_witness);
     let c_arith = expression_from_witness(c_witness);
     let res = constraints::add(&b_arith, f, &c_arith); //b+2^Nc
-    let my_constraint = constraints::add(&res, -FieldElement::one(), lhs.expression());
+    let my_constraint = constraints::add(&res, -FieldElement::one(), lhs);
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
-        a: lhs.expression().clone(),
+        a: lhs.clone(),
         b: b_witness,
         c: c_witness,
         bit_size: rhs,
     }));
     evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
-    InternalVar::from(b_witness)
+    Expression::from(&b_witness)
 }
 
 fn evaluate_udiv(
@@ -865,4 +871,18 @@ fn evaluate_inverse(
 // TODO further refactor.
 fn expression_from_witness(witness: Witness) -> Expression {
     Expression::from(&witness)
+}
+
+/// Returns a `FieldElement` if the expression represents
+/// a constant polynomial
+///
+// TODO we should have a method in ACVM
+// TODO which returns the constant term if its a constant
+// TODO expression. ie `self.expression.to_const()`
+fn const_from_expression(expression: &Expression) -> Option<FieldElement> {
+    if expression.is_const() {
+        return Some(expression.q_c);
+    }
+
+    None
 }
