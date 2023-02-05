@@ -825,8 +825,8 @@ pub(crate) fn expression_to_witness<A: constraints::ACIRState>(
 // Hence, it is sufficient to check that there are no `mul_terms`
 //
 // Examples:
-// -  f(x, y) = x + y would return true
-// -  f(x, y) = xy would return false, the degree here is 2
+// -  f(x,y) = x + y would return true
+// -  f(x,y) = xy would return false, the degree here is 2
 // -  f(x,y) = 0 would return true, the degree is 0
 //
 // TODO: move to ACVM repo
