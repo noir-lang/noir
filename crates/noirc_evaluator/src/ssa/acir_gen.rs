@@ -419,6 +419,7 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
+        // Check whether the lhs and rhs are Arrays
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
             let array_a = &ctx.mem[a];
             let array_b = &ctx.mem[b];
@@ -430,6 +431,9 @@ impl Acir {
                 expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
             } else {
                 //If length are different, then the arrays are different
+                // TODO this should not be possible as the frontend
+                // TODO should not compile for in this case
+                // TODO change to a ICE
                 Expression::one()
             }
         } else {
@@ -648,6 +652,10 @@ fn evaluate_bitwise(
     //We generate witness from const values in order to use the ACIR bitwise gates
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
+    //
+    // TODO: this needs further explanation. Why does one need to check
+    // TODO that the cached_witness is none when const is some?
+    // TODO shouldn't one imply the other?
     if rhs.to_const().is_some() && rhs.cached_witness().is_none() {
         *rhs.cached_witness_mut() =
             Some(evaluator.create_intermediate_variable(rhs.expression().clone()));
