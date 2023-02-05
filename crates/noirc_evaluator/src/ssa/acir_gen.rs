@@ -767,9 +767,5 @@ fn expression_from_witness(witness: Witness) -> Expression {
 // TODO which returns the constant term if its a constant
 // TODO expression. ie `self.expression.to_const()`
 fn const_from_expression(expression: &Expression) -> Option<FieldElement> {
-    if expression.is_const() {
-        return Some(expression.q_c);
-    }
-
-    None
+    expression.is_const().then(|| expression.q_c)
 }
