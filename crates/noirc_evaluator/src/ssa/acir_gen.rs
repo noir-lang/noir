@@ -534,6 +534,7 @@ impl Acir {
         let outputs;
         match opcode {
             Opcode::ToBits => {
+                // TODO: document where `0` and `1` are coming from, for args[0], args[1]
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
                 outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
@@ -542,6 +543,7 @@ impl Acir {
                 }
             }
             Opcode::ToRadix => {
+                // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
                 let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
                 let l_c = self.substitute(args[0], evaluator, ctx);
@@ -567,15 +569,16 @@ impl Acir {
                     evaluator,
                 );
 
-                let call_gate = BlackBoxFuncCall {
+                let func_call = BlackBoxFuncCall {
                     name: op,
                     inputs,                   //witness + bit size
                     outputs: outputs.clone(), //witness
                 };
-                evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(call_gate));
+                evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
             }
         }
-
+        // TODO: document why we only return something when outputs.len()==1
+        // TODO what about outputs.len() > 1
         if outputs.len() == 1 {
             expression_from_witness(outputs[0])
         } else {
