@@ -480,17 +480,40 @@ impl Acir {
         b: &MemArray,
         evaluator: &mut Evaluator,
     ) -> Expression {
+        // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
+        // We then convert these to `Expressions`
+        let a_values: Vec<_> = self
+            .memory_map
+            .load_array(a, false, evaluator)
+            .into_iter()
+            .map(|internal_var| internal_var.expression().clone())
+            .collect();
+        let b_values: Vec<_> = self
+            .memory_map
+            .load_array(b, false, evaluator)
+            .into_iter()
+            .map(|internal_var| internal_var.expression().clone())
+            .collect();
+
+        self.arrays_eq_predicate(&a_values, &b_values, evaluator)
+    }
+    // Given two lists, `A` and `B` of `Expression`s
+    // We generate constraints that A and B are equal
+    // An `Expression` is returned that indicates whether this
+    // was true.
+    //
+    // This method does not check the arrays length.
+    // We assume this has been checked by the caller.
+    fn arrays_eq_predicate(
+        &mut self,
+        a_values: &[Expression],
+        b_values: &[Expression],
+        evaluator: &mut Evaluator,
+    ) -> Expression {
         let mut sum = Expression::default();
 
-        let a_values = self.memory_map.load_array(a, false, evaluator);
-        let b_values = self.memory_map.load_array(b, false, evaluator);
-
         for (a_iter, b_iter) in a_values.into_iter().zip(b_values) {
-            let diff_expr = constraints::subtract(
-                a_iter.expression(),
-                FieldElement::one(),
-                b_iter.expression(),
-            );
+            let diff_expr = constraints::subtract(a_iter, FieldElement::one(), b_iter);
 
             let diff_witness = evaluator.add_witness_to_cs();
 
