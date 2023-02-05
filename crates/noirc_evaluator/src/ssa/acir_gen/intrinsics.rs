@@ -1,5 +1,6 @@
 use crate::{
     ssa::{
+        acir_gen::{InternalVar, MemoryMap},
         context::SsaContext,
         node::{self, Node, NodeId},
     },
@@ -8,12 +9,10 @@ use crate::{
 use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
 use std::collections::HashMap;
 
-use super::{map_array, InternalVar};
-
 //Transform the arguments of intrinsic functions into witnesses
 pub(crate) fn prepare_inputs(
     arith_cache: &mut HashMap<NodeId, InternalVar>,
-    memory_map: &mut HashMap<u32, InternalVar>,
+    memory_map: &mut MemoryMap,
     args: &[NodeId],
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -78,7 +77,7 @@ pub(crate) fn prepare_inputs(
 }
 
 pub(crate) fn prepare_outputs(
-    memory_map: &mut HashMap<u32, InternalVar>,
+    memory_map: &mut MemoryMap,
     pointer: NodeId,
     output_nb: u32,
     ctx: &SsaContext,
@@ -93,7 +92,7 @@ pub(crate) fn prepare_outputs(
 
     let l_obj = ctx.try_get_node(pointer).unwrap();
     if let node::ObjectType::Pointer(a) = l_obj.get_type() {
-        map_array(memory_map, a, &outputs, ctx);
+        memory_map.map_array(a, &outputs, ctx);
     }
     outputs
 }
