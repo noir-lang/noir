@@ -33,27 +33,43 @@ fn resolve_node_id(
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
-    let l_obj = cfg.try_get_node(*node_id).unwrap();
-    match l_obj {
-        node::NodeObject::Obj(v) => match l_obj.get_type() {
-            node::ObjectType::Pointer(a) => resolve_array(a, memory_map, cfg, evaluator),
-            _ => match v.witness {
-                Some(w) => {
-                    vec![FunctionInput { witness: w, num_bits: v.size_in_bits() }]
-                }
-                None => todo!("generate a witness"),
-            },
-        },
-        _ => match arith_cache.get(node_id) {
-            Some(_var) => {
-                let mut var = _var.clone();
-                let witness = var.cached_witness().unwrap_or_else(|| {
-                    var.witness(evaluator).expect("unexpected constant expression")
-                });
-                vec![FunctionInput { witness, num_bits: l_obj.size_in_bits() }]
+    let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
+    // TODO `node::NodeObject::Obj` is not intuitive.
+    // TODO should this be changed to `node::NodeObject::Variable` ?
+    match node_object {
+        node::NodeObject::Obj(v) => {
+            let node_obj_type = node_object.get_type();
+            match node_obj_type {
+                // If the `Variable` represents a Pointer
+                // Then we know that it is an `Array`
+                // TODO: should change Pointer to `ArrayPointer`
+                node::ObjectType::Pointer(a) => resolve_array(a, memory_map, cfg, evaluator),
+                // If it is not a pointer, we attempt to fetch the witness associated with it
+                // TODO Open an issue regarding the below todo panic
+                _ => match v.witness {
+                    Some(w) => {
+                        vec![FunctionInput { witness: w, num_bits: v.size_in_bits() }]
+                    }
+                    None => todo!("generate a witness"),
+                },
             }
-            None => unreachable!("invalid input: {:?}", l_obj),
-        },
+        }
+        _ => {
+            // Upon the case that the `NodeObject` is not a `Variable`,
+            // we attempt to fetch an associated `InternalVar`.
+            // Otherwise, this is a internal compiler error.
+            let internal_var = arith_cache.get(node_id);
+            match internal_var {
+                Some(_var) => {
+                    let mut var = _var.clone();
+                    let witness = var.cached_witness().unwrap_or_else(|| {
+                        var.witness(evaluator).expect("unexpected constant expression")
+                    });
+                    vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
+                }
+                None => unreachable!("invalid input: {:?}", node_object),
+            }
+        }
     }
 }
 
@@ -64,6 +80,7 @@ fn resolve_array(
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
     let mut inputs = Vec::new();
+
     let array = &cfg.mem[a];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
