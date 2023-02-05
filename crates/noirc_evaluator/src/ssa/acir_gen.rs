@@ -1,5 +1,4 @@
 use crate::ssa::{
-    builtin::Opcode,
     context::SsaContext,
     mem::{MemArray, Memory},
     node::{BinaryOp, Instruction, Node, NodeId, NodeObject, ObjectType, Operation},
@@ -530,6 +529,8 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
+        use builtin::Opcode;
+
         let outputs;
         match opcode {
             Opcode::ToBits => {
