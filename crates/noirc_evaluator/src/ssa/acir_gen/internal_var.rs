@@ -1,4 +1,8 @@
-use crate::{ssa::acir_gen::const_from_expression, ssa::node::NodeId, Evaluator};
+use crate::{
+    ssa::acir_gen::{const_from_expression, constraints::ACIRState},
+    ssa::node::NodeId,
+    Evaluator,
+};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -131,7 +135,10 @@ impl InternalVar {
     /// then this conversion is a simple coercion.
     /// - Otherwise, we create a new `Witness` and set it to be equal to the
     /// `Expression`.
-    pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
+    pub(crate) fn expression_to_witness<A: ACIRState>(
+        expr: Expression,
+        evaluator: &mut A,
+    ) -> Witness {
         match witness_from_expression(&expr) {
             Some(witness) => witness,
             None => evaluator.create_intermediate_variable(expr),
