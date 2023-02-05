@@ -47,7 +47,7 @@ pub(crate) fn prepare_inputs(
                             None => {
                                 let mut var = internal_var.clone();
                                 if var.expression().is_const() {
-                                    // TODO: Why is it acceptable that we create an
+                                    // TODO Why is it acceptable that we create an
                                     // TODO intermediate variable here for the constant
                                     // TODO expression, but not in general?
                                     let w = evaluator.create_intermediate_variable(
@@ -72,17 +72,16 @@ pub(crate) fn prepare_inputs(
                     None => todo!("generate a witness"),
                 },
             },
-            _ => {
-                if arith_cache.contains_key(a) {
-                    let mut var = arith_cache[a].clone();
+            _ => match arith_cache.get(a) {
+                Some(_var) => {
+                    let mut var = _var.clone();
                     let witness = var.cached_witness().unwrap_or_else(|| {
                         var.witness(evaluator).expect("unexpected constant expression")
                     });
                     inputs.push(FunctionInput { witness, num_bits: l_obj.size_in_bits() });
-                } else {
-                    unreachable!("invalid input: {:?}", l_obj)
                 }
-            }
+                None => unreachable!("invalid input: {:?}", l_obj),
+            },
         }
     }
     inputs
