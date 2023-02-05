@@ -436,8 +436,9 @@ impl Acir {
 
             if array_a.len == array_b.len {
                 let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
-                x.witness(evaluator);
-                expression_from_witness(evaluate_zero_equality(&x, evaluator))
+                //todo we need a witness because of the directive, but we should use an expression
+                let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+                expression_from_witness(evaluate_zero_equality(x_witness, evaluator))
             } else {
                 //If length are different, then the arrays are different
                 Expression::one()
@@ -455,8 +456,9 @@ impl Acir {
                 FieldElement::one(),
                 r_c.expression(),
             ));
-            x.witness(evaluator);
-            expression_from_witness(evaluate_zero_equality(&x, evaluator))
+            //todo we need a witness because of the directive, but we should use an expression
+            let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+            expression_from_witness(evaluate_zero_equality(x_witness, evaluator))
         }
     }
 
@@ -510,7 +512,7 @@ impl Acir {
             sum = constraints::add(
                 &sum,
                 FieldElement::one(),
-                &expression_from_witness(evaluate_zero_equality(&diff_var, evaluator)),
+                &expression_from_witness(evaluate_zero_equality(diff_witness, evaluator)),
             );
         }
         sum
@@ -743,9 +745,7 @@ fn evaluate_bitwise(
 }
 
 //Zero Equality gate: returns 1 if x is not null and 0 else
-fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness {
-    let x_witness = x.cached_witness().unwrap(); //todo we need a witness because of the directive, but we should use an expression
-
+fn evaluate_zero_equality(x_witness: Witness, evaluator: &mut Evaluator) -> Witness {
     let m = evaluator.add_witness_to_cs(); //'inverse' of x
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: m }));
 
