@@ -19,15 +19,14 @@ impl MemoryMap {
     //Map the outputs into the array
     pub(crate) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
         let array = &ctx.mem[a];
-        let adr = array.adr;
+        let address = array.adr;
         for i in 0..array.len {
-            if i < outputs.len() as u32 {
-                let var = InternalVar::from(outputs[i as usize]);
-                self.inner.insert(adr + i, var);
+            let var = if i < outputs.len() as u32 {
+                InternalVar::from(outputs[i as usize])
             } else {
-                let var = InternalVar::from(Expression::zero());
-                self.inner.insert(adr + i, var);
-            }
+                InternalVar::from(Expression::zero())
+            };
+            self.inner.insert(address + i, var);
         }
     }
 
