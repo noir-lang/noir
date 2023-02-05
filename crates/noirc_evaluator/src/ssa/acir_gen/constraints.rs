@@ -1,6 +1,6 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{expression_from_witness, InternalVar},
+    ssa::acir_gen::{const_from_expression, expression_from_witness, InternalVar},
     Evaluator,
 };
 use acvm::{
@@ -470,6 +470,47 @@ pub(crate) fn evaluate_cmp(
         let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));
         subtract(&Expression::one(), FieldElement::one(), &is_greater)
     }
+}
+
+//truncate lhs (a number whose value requires max_bits) into a rhs-bits number: i.e it returns b such that lhs mod 2^rhs is b
+pub(crate) fn evaluate_truncate(
+    lhs: &Expression,
+    rhs: u32,
+    max_bits: u32,
+    evaluator: &mut Evaluator,
+) -> Expression {
+    assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
+
+    //0. Check for constant expression. This can happen through arithmetic simplifications
+    if let Some(a_c) = const_from_expression(lhs) {
+        let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
+        let two = BigUint::from(2_u32);
+        a_big %= two.pow(rhs);
+        return Expression::from(&FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be()));
+    };
+
+    //1. Generate witnesses a,b,c
+    let b_witness = evaluator.add_witness_to_cs();
+    let c_witness = evaluator.add_witness_to_cs();
+
+    try_range_constraint(b_witness, rhs, evaluator); //TODO propagate the error using ?
+    try_range_constraint(c_witness, max_bits - rhs, evaluator);
+
+    //2. Add the constraint a = b+2^Nc
+    let mut f = FieldElement::from(2_i128);
+    f = f.pow(&FieldElement::from(rhs as i128));
+    let b_arith = expression_from_witness(b_witness);
+    let c_arith = expression_from_witness(c_witness);
+    let res = add(&b_arith, f, &c_arith); //b+2^Nc
+    let my_constraint = add(&res, -FieldElement::one(), lhs);
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Truncate {
+        a: lhs.clone(),
+        b: b_witness,
+        c: c_witness,
+        bit_size: rhs,
+    }));
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
+    Expression::from(&b_witness)
 }
 
 const fn num_bits<T>() -> usize {
