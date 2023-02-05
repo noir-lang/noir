@@ -719,6 +719,7 @@ fn evaluate_bitwise(
                 FieldElement::one(),
                 rhs.expression(),
             ));
+            // TODO seems like a bug
             acvm::acir::BlackBoxFunc::AND
         }
         _ => unreachable!(),
