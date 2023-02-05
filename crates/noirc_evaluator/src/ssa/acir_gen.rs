@@ -440,7 +440,7 @@ impl Acir {
             // TODO when we know that they should correspond to Arrays
 
             if array_a.len == array_b.len {
-                let mut x = InternalVar::from(self.zero_eq_array_sum(array_a, array_b, evaluator));
+                let mut x = InternalVar::from(self.array_eq(array_a, array_b, evaluator));
                 // TODO we need a witness because of the directive, but we should use an expression
                 // TODO if we change the Invert directive to take an `Expression`, then we
                 // TODO can get rid of this extra gate.
@@ -491,15 +491,11 @@ impl Acir {
     }
 
     // Given two `MemArray`s, generate constraints that check whether
-    // these two arrays are equal. An `Expression` is returned which indicates
-    // whether this was the case.
+    // these two arrays are equal. An `Expression` is returned representing
+    // `0` if the arrays were equal and `1` otherwise.
+    //
     // N.B. We assumes the lengths of a and b are the same but it is not checked inside the function.
-    fn zero_eq_array_sum(
-        &mut self,
-        a: &MemArray,
-        b: &MemArray,
-        evaluator: &mut Evaluator,
-    ) -> Expression {
+    fn array_eq(&mut self, a: &MemArray, b: &MemArray, evaluator: &mut Evaluator) -> Expression {
         // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
         // We then convert these to `Expressions`
         let a_values: Vec<_> = self
