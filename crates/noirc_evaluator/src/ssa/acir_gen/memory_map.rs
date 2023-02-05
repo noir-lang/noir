@@ -44,6 +44,13 @@ impl MemoryMap {
                 let address = array.adr + i;
                 match self.inner.get_mut(&address) {
                     Some(memory) => {
+                        // TODO this is creating a `Witness` for a constant expression
+                        // TODO Since that function only returns `None` when
+                        // TODO the expression is a constant.
+                        //
+                        // TODO If this is not a bug, then we should pass a flag to
+                        // TODO `cached_witness` to tell it when we want to create a witness
+                        // TODO for a constant expression
                         if create_witness && memory.cached_witness().is_none() {
                             let w =
                                 evaluator.create_intermediate_variable(memory.expression().clone());
