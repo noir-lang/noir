@@ -336,8 +336,9 @@ impl Acir {
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
                 let x_witness = r_c.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
 
-                let inverse =
-                    expression_from_witness(evaluate_inverse(x_witness, &predicate, evaluator));
+                let inverse = expression_from_witness(constraints::evaluate_inverse(
+                    x_witness, &predicate, evaluator,
+                ));
                 InternalVar::from(constraints::mul_with_witness(
                     evaluator,
                     l_c.expression(),
@@ -765,31 +766,6 @@ fn evaluate_zero_equality(x: &InternalVar, evaluator: &mut Evaluator) -> Witness
         &expression_from_witness(x_witness),
     )));
     y_witness
-}
-
-/// Creates a new witness and constrains it to be the inverse of x
-fn evaluate_inverse(
-    x_witness: Witness,
-    predicate: &Expression,
-    evaluator: &mut Evaluator,
-) -> Witness {
-    // Create a fresh witness - n.b we could check if x is constant or not
-    let inverse_witness = evaluator.add_witness_to_cs();
-    let inverse_expr = expression_from_witness(inverse_witness);
-    evaluator
-        .opcodes
-        .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
-
-    //x*inverse = 1
-    Expression::default();
-    let one = constraints::mul(&expression_from_witness(x_witness), &inverse_expr);
-    let lhs = constraints::mul_with_witness(evaluator, &one, predicate);
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(constraints::subtract(
-        &lhs,
-        FieldElement::one(),
-        predicate,
-    )));
-    inverse_witness
 }
 
 // Creates an Expression from a Witness.

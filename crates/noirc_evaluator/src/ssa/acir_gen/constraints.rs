@@ -547,6 +547,27 @@ pub(crate) fn evaluate_udiv(
     (q_witness, r_witness)
 }
 
+/// Creates a new witness and constrains it to be the inverse of x
+pub(crate) fn evaluate_inverse(
+    x_witness: Witness,
+    predicate: &Expression,
+    evaluator: &mut Evaluator,
+) -> Witness {
+    // Create a fresh witness - n.b we could check if x is constant or not
+    let inverse_witness = evaluator.add_witness_to_cs();
+    let inverse_expr = expression_from_witness(inverse_witness);
+    evaluator
+        .opcodes
+        .push(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
+
+    //x*inverse = 1
+    Expression::default();
+    let one = mul(&expression_from_witness(x_witness), &inverse_expr);
+    let lhs = mul_with_witness(evaluator, &one, predicate);
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(&lhs, FieldElement::one(), predicate)));
+    inverse_witness
+}
+
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
