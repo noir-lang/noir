@@ -11,7 +11,7 @@ use acvm::{
         directives::Directive,
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
-    acir::native_types::{Expression, Linear, Witness},
+    acir::native_types::{Expression, Witness},
     FieldElement,
 };
 use num_bigint::BigUint;
@@ -310,13 +310,25 @@ impl Acir {
             )),
             BinaryOp::Udiv => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
-                let (q_wit, _) = evaluate_udiv(&l_c, &r_c, max_size, &predicate, evaluator);
+                let (q_wit, _) = constraints::evaluate_udiv(
+                    l_c.expression(),
+                    r_c.expression(),
+                    max_size,
+                    predicate.expression(),
+                    evaluator,
+                );
                 InternalVar::from(q_wit)
             }
             BinaryOp::Sdiv => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).0),
             BinaryOp::Urem => {
                 let predicate = self.get_predicate(binary, evaluator, ctx);
-                let (_, r_wit) = evaluate_udiv(&l_c, &r_c, max_size, &predicate, evaluator);
+                let (_, r_wit) = constraints::evaluate_udiv(
+                    l_c.expression(),
+                    r_c.expression(),
+                    max_size,
+                    predicate.expression(),
+                    evaluator,
+                );
                 InternalVar::from(r_wit)
             }
             BinaryOp::Srem => InternalVar::from(evaluate_sdiv(&l_c, &r_c, evaluator).1),
@@ -724,47 +736,6 @@ fn evaluate_bitwise(
     } else {
         expression_from_witness(result)
     }
-}
-
-fn evaluate_udiv(
-    lhs: &InternalVar,
-    rhs: &InternalVar,
-    bit_size: u32,
-    predicate: &InternalVar,
-    evaluator: &mut Evaluator,
-) -> (Witness, Witness) {
-    let q_witness = evaluator.add_witness_to_cs();
-    let r_witness = evaluator.add_witness_to_cs();
-    let pa = constraints::mul_with_witness(evaluator, lhs.expression(), predicate.expression());
-    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Quotient {
-        a: lhs.expression().clone(),
-        b: rhs.expression().clone(),
-        q: q_witness,
-        r: r_witness,
-        predicate: Some(predicate.expression().clone()),
-    }));
-
-    //r<b
-    let r_expr = Expression::from(Linear::from_witness(r_witness));
-    constraints::try_range_constraint(r_witness, bit_size, evaluator);
-    constraints::bound_constraint_with_offset(
-        &r_expr,
-        rhs.expression(),
-        predicate.expression(),
-        bit_size,
-        evaluator,
-    );
-    //range check q<=a
-    constraints::try_range_constraint(q_witness, bit_size, evaluator);
-    // a-b*q-r = 0
-    let mut d =
-        constraints::mul_with_witness(evaluator, rhs.expression(), &Expression::from(&q_witness));
-    d = constraints::add(&d, FieldElement::one(), &Expression::from(&r_witness));
-    d = constraints::mul_with_witness(evaluator, &d, predicate.expression());
-    let div_euclidean = constraints::subtract(&pa, FieldElement::one(), &d);
-
-    evaluator.opcodes.push(AcirOpcode::Arithmetic(div_euclidean));
-    (q_witness, r_witness)
 }
 
 //Zero Equality gate: returns 1 if x is not null and 0 else

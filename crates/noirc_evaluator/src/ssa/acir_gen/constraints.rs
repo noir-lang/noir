@@ -9,7 +9,7 @@ use acvm::{
             directives::Directive,
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
-        native_types::{Expression, Witness},
+        native_types::{Expression, Linear, Witness},
     },
     FieldElement,
 };
@@ -511,6 +511,40 @@ pub(crate) fn evaluate_truncate(
     }));
     evaluator.opcodes.push(AcirOpcode::Arithmetic(my_constraint));
     Expression::from(&b_witness)
+}
+
+pub(crate) fn evaluate_udiv(
+    lhs: &Expression,
+    rhs: &Expression,
+    bit_size: u32,
+    predicate: &Expression,
+    evaluator: &mut Evaluator,
+) -> (Witness, Witness) {
+    let q_witness = evaluator.add_witness_to_cs();
+    let r_witness = evaluator.add_witness_to_cs();
+    let pa = mul_with_witness(evaluator, lhs, predicate);
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::Quotient {
+        a: lhs.clone(),
+        b: rhs.clone(),
+        q: q_witness,
+        r: r_witness,
+        predicate: Some(predicate.clone()),
+    }));
+
+    //r<b
+    let r_expr = Expression::from(Linear::from_witness(r_witness));
+    try_range_constraint(r_witness, bit_size, evaluator);
+    bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size, evaluator);
+    //range check q<=a
+    try_range_constraint(q_witness, bit_size, evaluator);
+    // a-b*q-r = 0
+    let mut d = mul_with_witness(evaluator, rhs, &Expression::from(&q_witness));
+    d = add(&d, FieldElement::one(), &Expression::from(&r_witness));
+    d = mul_with_witness(evaluator, &d, predicate);
+    let div_euclidean = subtract(&pa, FieldElement::one(), &d);
+
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(div_euclidean));
+    (q_witness, r_witness)
 }
 
 const fn num_bits<T>() -> usize {
