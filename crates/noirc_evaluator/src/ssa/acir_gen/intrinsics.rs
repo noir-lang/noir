@@ -87,7 +87,7 @@ fn resolve_array(
         let address = array.adr + i;
         // TODO why can't this method iterate the `Array` values only
         // TODO instead of checking in the memory_map first?
-
+        // TODO because `memory_map` is the most recent view of the values
         let internal_var = match memory_map.internal_var(&address) {
             Some(var) => var,
             None => {
@@ -107,18 +107,9 @@ fn resolve_array(
             Some(cached_witness) => FunctionInput { witness: *cached_witness, num_bits },
             None => {
                 let mut var = internal_var.clone();
-                if var.expression().is_const() {
-                    // TODO Why is it acceptable that we create an
-                    // TODO intermediate variable here for the constant
-                    // TODO expression, but not in general?
-                    let w =
-                        evaluator.create_intermediate_variable(internal_var.expression().clone());
-                    *var.cached_witness_mut() = Some(w);
-                }
-                let w = var.witness(evaluator, false).expect("unexpected constant expression");
+                let witness = var.witness(evaluator, true).expect("infallible: `None` can only be returned when we disallow constant Expressions.");
                 memory_map.insert(address, var);
-
-                FunctionInput { witness: w, num_bits }
+                FunctionInput { witness, num_bits }
             }
         };
         inputs.push(func_input)

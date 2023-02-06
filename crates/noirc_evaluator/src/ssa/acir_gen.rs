@@ -157,14 +157,9 @@ impl Acir {
                     };
 
                     for mut object in objects {
-                        let witness = if object.expression().is_const() {
-                            evaluator.create_intermediate_variable(object.expression().clone())
-                        } else {
-                            object
-                                .witness(evaluator, false)
-                                .expect("unexpected constant expression")
-                        };
-
+                        let witness = object
+                            .witness(evaluator, true)
+                            .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
                         // Before pushing to the public inputs, we need to check that
                         // it was not a private ABI input
                         if evaluator.is_private_abi_input(witness) {
