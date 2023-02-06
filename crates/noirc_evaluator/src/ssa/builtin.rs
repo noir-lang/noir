@@ -1,8 +1,7 @@
+use crate::ssa::node::ObjectType;
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-
-use super::node::ObjectType;
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum Opcode {

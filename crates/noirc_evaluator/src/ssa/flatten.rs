@@ -1,10 +1,9 @@
 use crate::errors::RuntimeError;
-
-use super::{
-    block::{self, BlockId},
+use crate::ssa::{
+    block::BlockId,
     context::SsaContext,
-    node::{self, BinaryOp, Mark, Node, NodeEval, NodeId, NodeObject, Operation},
-    optimizations,
+    node::{BinaryOp, Mark, Node, NodeEval, NodeId, NodeObject, Operation},
+    {block, node, optimizations},
 };
 use acvm::FieldElement;
 use std::collections::HashMap;

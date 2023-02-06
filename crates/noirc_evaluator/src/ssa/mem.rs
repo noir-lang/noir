@@ -1,13 +1,14 @@
-use super::acir_gen::InternalVar;
-use super::context::SsaContext;
-use super::node::{self, Node, NodeId};
+use crate::ssa::{
+    acir_gen::InternalVar,
+    context::SsaContext,
+    node,
+    node::{Node, NodeId},
+};
 use acvm::FieldElement;
 use noirc_frontend::monomorphization::ast::{Definition, LocalId};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
-
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Memory {

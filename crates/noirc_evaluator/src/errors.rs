@@ -1,6 +1,4 @@
-use noirc_errors::CustomDiagnostic as Diagnostic;
-use noirc_errors::DiagnosableError;
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic as Diagnostic, DiagnosableError, Location};
 use thiserror::Error;
 
 #[derive(Debug)]
