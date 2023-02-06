@@ -54,7 +54,7 @@ impl Acir {
                 // TODO We should return None instead of default here
                 // TODO so that when one calls `InternalVar` in other
                 // TODO functions, they must explicitly unwrap this
-                ObjectType::Pointer(_) => InternalVar::default(),
+                ObjectType::Pointer(_) => InternalVar::zero_expr(),
                 _ => {
                     let witness = variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                     InternalVar::from_witness(witness)
@@ -79,7 +79,7 @@ impl Acir {
     ) -> InternalVar {
         match binary.predicate {
             Some(pred) => self.substitute(pred, evaluator, ctx),
-            None => InternalVar::from(Expression::one()),
+            None => InternalVar::one_expr(),
         }
     }
 
@@ -172,7 +172,7 @@ impl Acir {
                     }
                 }
 
-                InternalVar::default()
+                InternalVar::zero_expr()
             }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self.substitute(*condition, evaluator, ctx);
@@ -187,7 +187,7 @@ impl Acir {
                 );
                 result.into()
             }
-            Operation::Nop => InternalVar::default(),
+            Operation::Nop => InternalVar::zero_expr(),
             Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
@@ -216,7 +216,7 @@ impl Acir {
                         let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
                         self.memory_map.insert(absolute_adr, value);
                         //we do not generate constraint, so no output.
-                        InternalVar::default()
+                        InternalVar::zero_expr()
                     }
                     None => todo!("dynamic arrays are not implemented yet"),
                 }
@@ -317,6 +317,7 @@ impl Acir {
                 InternalVar::from(r_wit)
             }
             BinaryOp::Srem => InternalVar::from(
+                // TODO: we should use variable naming here instead of .1
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
             ),
             BinaryOp::Div => {
@@ -599,7 +600,7 @@ fn simplify_bitwise(
         return Some(match opcode {
             BinaryOp::And => lhs.clone(),
             BinaryOp::Or => lhs.clone(),
-            BinaryOp::Xor => InternalVar::from(FieldElement::zero()),
+            BinaryOp::Xor => InternalVar::zero_const(),
             _ => unreachable!("This method should only be called on bitwise binary operators"),
         });
     }

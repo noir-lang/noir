@@ -10,7 +10,7 @@ use acvm::{
     FieldElement,
 };
 
-#[derive(Default, Clone, Debug, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub struct InternalVar {
     // A multi-variate degree-2 polynomial
     expression: Expression,
@@ -79,6 +79,19 @@ impl InternalVar {
     pub(crate) fn from_expression(expression: Expression) -> InternalVar {
         let witness = optional_expression_to_witness(&expression);
         InternalVar { expression, cached_witness: witness, id: None }
+    }
+    // TODO: Analyze where we use this and see if we can replace it with
+    // TODO Option<InternalVar>
+    pub(crate) fn zero_expr() -> InternalVar {
+        InternalVar::from_expression(Expression::zero())
+    }
+    // TODO: Analyze usecase of this
+    pub(crate) fn one_expr() -> InternalVar {
+        InternalVar::from_expression(Expression::one())
+    }
+    // TODO: Analyze usecase of this
+    pub(crate) fn zero_const() -> InternalVar {
+        InternalVar::from_constant(FieldElement::zero())
     }
 
     /// Creates an `InternalVar` from a `Witness`.

@@ -3,7 +3,7 @@ use crate::ssa::{
     context::SsaContext,
     mem::{ArrayId, MemArray},
 };
-use acvm::acir::native_types::{Expression, Witness};
+use acvm::acir::native_types::Witness;
 use std::collections::HashMap;
 
 // maps memory address to expression
@@ -21,7 +21,7 @@ impl MemoryMap {
             let var = if i < outputs.len() as u32 {
                 InternalVar::from(outputs[i as usize])
             } else {
-                InternalVar::from(Expression::zero())
+                InternalVar::zero_expr()
             };
             self.inner.insert(address + i, var);
         }
