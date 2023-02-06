@@ -179,19 +179,19 @@ impl Driver {
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
     ) -> Result<CompiledProgram, ReportedError> {
-        // Check the crate type
-        // We don't panic here to allow users to `evaluate` libraries
-        // which will do nothing
-        if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-            std::process::exit(1);
-        };
-
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
-        // All Binaries should have a main function
+        // If no override for the `main` function has not been provided, attempt to find it.
         let main_function = main_function.unwrap_or_else(|| {
+            // Check the crate type
+            // We don't panic here to allow users to `evaluate` libraries which will do nothing
+            if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
+                println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
+                std::process::exit(1);
+            };
+
+            // All Binaries should have a main function
             local_crate.main_function().expect("cannot compile a program with no main function")
         });
 
