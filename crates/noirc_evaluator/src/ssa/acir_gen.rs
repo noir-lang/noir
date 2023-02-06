@@ -158,7 +158,7 @@ impl Acir {
 
                     for mut object in objects {
                         let witness = object
-                            .witness(evaluator, true)
+                            .get_or_compute_witness(evaluator, true)
                             .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
                         // Before pushing to the public inputs, we need to check that
                         // it was not a private ABI input
@@ -318,7 +318,7 @@ impl Acir {
             ),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
-                let x_witness = r_c.witness(evaluator, false).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
+                let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
 
                 let inverse = expression_from_witness(constraints::evaluate_inverse(
                     x_witness, &predicate, evaluator,
@@ -439,7 +439,8 @@ impl Acir {
             // TODO we need a witness because of the directive, but we should use an expression
             // TODO if we change the Invert directive to take an `Expression`, then we
             // TODO can get rid of this extra gate.
-            let x_witness = x.witness(evaluator, false).expect("unexpected constant expression");
+            let x_witness =
+                x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
 
             return expression_from_witness(constraints::evaluate_zero_equality(
                 x_witness, evaluator,
@@ -462,7 +463,8 @@ impl Acir {
             r_c.expression(),
         ));
         //todo we need a witness because of the directive, but we should use an expression
-        let x_witness = x.witness(evaluator, false).expect("unexpected constant expression");
+        let x_witness =
+            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
         expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 
@@ -684,10 +686,10 @@ fn evaluate_bitwise(
     //
 
     let mut a_witness = lhs
-        .witness(evaluator, true)
+        .get_or_compute_witness(evaluator, true)
         .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
     let mut b_witness = rhs
-        .witness(evaluator, true)
+        .get_or_compute_witness(evaluator, true)
         .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
 
     let result = evaluator.add_witness_to_cs();

@@ -104,7 +104,7 @@ impl InternalVar {
     /// - If a `Witness` has previously been generated
     /// we return that.
     /// - If the Expression represents a constant, we return None.
-    pub(crate) fn witness<A: ACIRState>(
+    pub(crate) fn get_or_compute_witness<A: ACIRState>(
         &mut self,
         evaluator: &mut A,
         create_witness_for_const: bool,

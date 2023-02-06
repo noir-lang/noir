@@ -63,7 +63,8 @@ fn resolve_node_id(
                 Some(_var) => {
                     let mut var = _var.clone();
                     let witness = var.cached_witness().unwrap_or_else(|| {
-                        var.witness(evaluator, false).expect("unexpected constant expression")
+                        var.get_or_compute_witness(evaluator, false)
+                            .expect("unexpected constant expression")
                     });
                     vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
                 }
@@ -107,7 +108,7 @@ fn resolve_array(
             Some(cached_witness) => FunctionInput { witness: *cached_witness, num_bits },
             None => {
                 let mut var = internal_var.clone();
-                let witness = var.witness(evaluator, true).expect("infallible: `None` can only be returned when we disallow constant Expressions.");
+                let witness = var.get_or_compute_witness(evaluator, true).expect("infallible: `None` can only be returned when we disallow constant Expressions.");
                 memory_map.insert(address, var);
                 FunctionInput { witness, num_bits }
             }
