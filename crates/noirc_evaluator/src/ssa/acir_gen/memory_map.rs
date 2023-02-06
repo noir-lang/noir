@@ -36,24 +36,9 @@ impl MemoryMap {
         let mut array_as_internal_var = Vec::with_capacity(array.len as usize);
 
         for offset in 0..array.len {
-            // Get the address of the `i'th` element.
-            // Elements in Array are assumed to be contiguous
-            let address_of_element = array.absolute_adr(offset);
-
-            let element = match self.inner.get_mut(&address_of_element) {
-                Some(memory) => &self.inner[&address_of_element],
-                // If one cannot find the associated `InternalVar` for
-                // the array in the `memory_map`. Then one returns the
-                // `InternalVar` in `array.values`
-                // TODO this has been done in `intrinsics::resolve_array`
-                // TODO also.
-                // TODO - Why does one not use the `array.values` initially?
-                // TODO - Can there be a discrepancy/difference between array.values and `memory_map`
-                // TODO - Should we have a convenience function that does this?
-                //
-                None => &array.values[offset as usize],
-            };
-
+            let element = self
+                .load_array_element_constant_index(array, offset)
+                .expect("infallible: array out of bounds error");
             array_as_internal_var.push(element.clone())
         }
 
