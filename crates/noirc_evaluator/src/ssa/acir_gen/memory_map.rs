@@ -118,15 +118,6 @@ impl MemoryMap {
         Some(array_element)
     }
 
-    // TODO check if we can replace usage of this method with
-    // TODO `load_array_element_constant_index`.
-    // TODO this is blocked by intrinsics::resolve_array
-    // TODO because that method distinguishes on the case
-    // TODO where the witness came from `array.values` or
-    // TODO the `memory_map`
-    pub(crate) fn internal_var(&self, key: &u32) -> Option<&InternalVar> {
-        self.inner.get(key)
-    }
     pub(crate) fn insert(&mut self, key: u32, value: InternalVar) -> Option<InternalVar> {
         self.inner.insert(key, value)
     }
