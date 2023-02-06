@@ -10,18 +10,18 @@ use crate::{
 use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
 use std::collections::HashMap;
 
-//Transform the arguments of intrinsic functions into witnesses
+// Transform the arguments of intrinsic functions into witnesses
 pub(crate) fn prepare_inputs(
     arith_cache: &mut HashMap<NodeId, InternalVar>,
     memory_map: &mut MemoryMap,
-    args: &[NodeId],
+    arguments: &[NodeId],
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
     let mut inputs: Vec<FunctionInput> = Vec::new();
 
-    for a in args {
-        inputs.extend(resolve_node_id(a, arith_cache, memory_map, cfg, evaluator))
+    for argument in arguments {
+        inputs.extend(resolve_node_id(argument, arith_cache, memory_map, cfg, evaluator))
     }
     inputs
 }
