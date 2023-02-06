@@ -645,7 +645,7 @@ fn simplify_bitwise(
 
     None
 }
-
+// Precondition: `lhs` and `rhs` do not represent constant expressions
 fn evaluate_bitwise(
     mut lhs: InternalVar,
     mut rhs: InternalVar,
@@ -653,6 +653,11 @@ fn evaluate_bitwise(
     evaluator: &mut Evaluator,
     opcode: BinaryOp,
 ) -> Expression {
+    // Check precondition
+    if let (Some(_), Some(_)) = (lhs.to_const(), rhs.to_const()) {
+        unreachable!("ICE: `lhs` and `rhs` are expected to be simplified. Therefore it should not be possible for both to be constants.");
+    }
+
     if bit_size == 1 {
         match opcode {
             BinaryOp::And => {
@@ -677,27 +682,13 @@ fn evaluate_bitwise(
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
     //
-    // TODO: this needs further explanation. Why does one need to check
-    // TODO that the cached_witness is none when const is some?
-    // TODO shouldn't one imply the other?
-    if rhs.to_const().is_some() && rhs.cached_witness().is_none() {
-        *rhs.cached_witness_mut() =
-            Some(evaluator.create_intermediate_variable(rhs.expression().clone()));
-        assert!(
-            lhs.to_const().is_none(),
-            "ICE: unexpected panic, this should have been caught by simplify_bitwise"
-        );
-    } else if lhs.to_const().is_some() && lhs.cached_witness().is_none() {
-        assert!(
-            rhs.to_const().is_none(),
-            "ICE: unexpected panic, this should have been caught by simplify_bitwise"
-        );
-        *lhs.cached_witness_mut() =
-            Some(evaluator.create_intermediate_variable(lhs.expression().clone()));
-    }
 
-    let mut a_witness = lhs.witness(evaluator, false).expect("unexpected constant expression");
-    let mut b_witness = rhs.witness(evaluator, false).expect("unexpected constant expression");
+    let mut a_witness = lhs
+        .witness(evaluator, true)
+        .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
+    let mut b_witness = rhs
+        .witness(evaluator, true)
+        .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
 
     let result = evaluator.add_witness_to_cs();
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
