@@ -489,7 +489,7 @@ impl Acir {
         rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        ctx: &SsaContext,
+        ctx: &SsaContext, // TODO: SsaContext should be named SSAContext
         evaluator: &mut Evaluator,
     ) -> Expression {
         let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
