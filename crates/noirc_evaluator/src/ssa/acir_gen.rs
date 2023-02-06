@@ -151,7 +151,7 @@ impl Acir {
                     let objects = match Memory::deref(ctx, *node_id) {
                         Some(a) => {
                             let array = &ctx.mem[a];
-                            self.memory_map.load_array(array, false, evaluator)
+                            self.memory_map.load_array(array)
                         }
                         None => vec![self.substitute(*node_id, evaluator, ctx)],
                     };
@@ -491,13 +491,13 @@ impl Acir {
         // We then convert these to `Expressions`
         let a_values: Vec<_> = self
             .memory_map
-            .load_array(a, false, evaluator)
+            .load_array(a)
             .into_iter()
             .map(|internal_var| internal_var.expression().clone())
             .collect();
         let b_values: Vec<_> = self
             .memory_map
-            .load_array(b, false, evaluator)
+            .load_array(b)
             .into_iter()
             .map(|internal_var| internal_var.expression().clone())
             .collect();

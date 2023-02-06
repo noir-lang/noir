@@ -32,12 +32,7 @@ impl MemoryMap {
 
     //Load array values into InternalVars
     //If create_witness is true, we create witnesses for values that do not have witness
-    pub(crate) fn load_array(
-        &mut self,
-        array: &MemArray,
-        create_witness: bool, // TODO: Should we remove this, since it's always false
-        evaluator: &mut Evaluator,
-    ) -> Vec<InternalVar> {
+    pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
         let mut array_as_internal_var = Vec::with_capacity(array.len as usize);
 
         for offset in 0..array.len {
@@ -46,22 +41,7 @@ impl MemoryMap {
             let address_of_element = array.absolute_adr(offset);
 
             let element = match self.inner.get_mut(&address_of_element) {
-                Some(memory) => {
-                    // TODO this is creating a `Witness` for a constant expression
-                    // TODO Since that function only returns `None` when
-                    // TODO the expression is a constant.
-                    //
-                    // TODO If this is not a bug, then we should pass a flag to
-                    // TODO `cached_witness` to tell it when we want to create a witness
-                    // TODO for a constant expression
-                    if create_witness && memory.cached_witness().is_none() {
-                        let witness =
-                            evaluator.create_intermediate_variable(memory.expression().clone());
-                        *self.inner.get_mut(&address_of_element).unwrap().cached_witness_mut() =
-                            Some(witness);
-                    }
-                    &self.inner[&address_of_element]
-                }
+                Some(memory) => &self.inner[&address_of_element],
                 // If one cannot find the associated `InternalVar` for
                 // the array in the `memory_map`. Then one returns the
                 // `InternalVar` in `array.values`
