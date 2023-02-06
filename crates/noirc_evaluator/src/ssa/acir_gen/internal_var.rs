@@ -28,12 +28,11 @@ pub struct InternalVar {
     // whereas `expression` is a multi-variate polynomial which can
     // contain many degree-2 terms.
     //
-    // TODO: What if the cached_witness becomes `dirty`
-    // TODO ie the expression is updated, but the cached_witness
-    // TODO refers to an old version of it. Can we add tests for this?
-    // TODO: We can guarantee this, if an InternalVar is immutable after
-    // TODO creation.
-    // TODO: one should check usage of `cached_witness_mut`
+    // Note that we also protect against the case that `expression`
+    // changes and `cached_witness` becomes "dirty" or outdated.
+    // This is because one is not allowed to modify the `expression`
+    // once set. Additionally, there are no methods that allow one
+    // to modify the `cached_witness`
     cached_witness: Option<Witness>,
     id: Option<NodeId>,
 }
