@@ -192,7 +192,7 @@ mod tests {
         let mut internal_var = InternalVar::from_constant(expected_constant);
 
         // We currently do not create witness when the InternalVar was created using a constant
-        let witness = internal_var.witness(&mut evaluator, false);
+        let witness = internal_var.get_or_compute_witness(&mut evaluator, false);
         assert!(witness.is_none());
 
         match internal_var.to_const() {
@@ -211,7 +211,7 @@ mod tests {
         let mut internal_var = InternalVar::from_witness(expected_witness);
 
         // We should get back the same `Witness`
-        let got_witness = internal_var.witness(&mut evaluator, false);
+        let got_witness = internal_var.get_or_compute_witness(&mut evaluator, false);
         match got_witness {
             Some(got_witness) => assert_eq!(got_witness, expected_witness),
             None => panic!("expected a `Witness` value"),
