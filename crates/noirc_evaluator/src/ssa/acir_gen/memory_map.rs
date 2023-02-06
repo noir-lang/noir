@@ -1,10 +1,7 @@
-use crate::{
-    ssa::{
-        acir_gen::InternalVar,
-        context::SsaContext,
-        mem::{ArrayId, MemArray},
-    },
-    Evaluator,
+use crate::ssa::{
+    acir_gen::InternalVar,
+    context::SsaContext,
+    mem::{ArrayId, MemArray},
 };
 use acvm::acir::native_types::{Expression, Witness};
 use std::collections::HashMap;

@@ -48,9 +48,6 @@ impl InternalVar {
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness
     }
-    pub(crate) fn cached_witness_mut(&mut self) -> &mut Option<Witness> {
-        &mut self.cached_witness
-    }
 
     /// If the InternalVar holds a constant expression
     /// Return that constant.Otherwise, return None.
