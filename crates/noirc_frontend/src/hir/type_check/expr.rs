@@ -775,6 +775,16 @@ pub fn comparator_operand_type_rules(
 
             Ok(Bool(Comptime::No(Some(op.location.span))))
         }
+        (TypeVariable(l_binding), TypeVariable(r_binding)) => {
+            if let TypeBinding::Bound(l_link) = &*l_binding.borrow() {
+                if let TypeBinding::Bound(r_link) = &*r_binding.borrow() {
+                    return comparator_operand_type_rules(l_link, r_link, op, errors);
+                }
+            }
+            let l_typ = TypeVariable(l_binding.clone());
+            let r_typ = TypeVariable(r_binding.clone());
+            Err(format!("Unsupported types for comparison: {l_typ} and {r_typ}"))
+        }
         (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
     }
 }

@@ -20,4 +20,12 @@ fn main(len3: [u8; 3], len4: [Field; 4]) {
 
     // std::array::len returns a comptime value
     constrain len4[std::array::len(len3)] == 4;
+    
+    // test for std::array::sort
+    let mut unsorted = len3;
+    unsorted[0] = len3[1];
+    unsorted[1] = len3[0];
+    constrain unsorted[0] > unsorted[1];
+    let sorted = std::array::sort(unsorted);
+    constrain sorted[0] < sorted[1];
 }

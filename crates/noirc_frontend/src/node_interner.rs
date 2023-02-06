@@ -553,7 +553,7 @@ impl NodeInterner {
 
     #[allow(deprecated)]
     pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_blackbox_supported(self.language.clone());
+        let is_supported = acvm::default_is_black_box_supported(self.language.clone());
         let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
             Some(black_box_func) => black_box_func,
             None => return false,

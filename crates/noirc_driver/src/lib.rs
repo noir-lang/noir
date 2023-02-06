@@ -193,7 +193,7 @@ impl Driver {
         let circuit = match create_circuit(
             program,
             np_language.clone(),
-            acvm::default_is_blackbox_supported(np_language),
+            acvm::default_is_black_box_supported(np_language),
             show_ssa,
         ) {
             Ok(circuit) => circuit,

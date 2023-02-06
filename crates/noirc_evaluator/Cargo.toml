@@ -18,3 +18,7 @@ lazy_static.workspace = true
 thiserror.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true
+
+
+[dev-dependencies]
+rand="0.8.5"
