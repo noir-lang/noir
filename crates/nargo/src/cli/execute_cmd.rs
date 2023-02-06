@@ -1,16 +1,14 @@
+use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
-use acvm::FieldElement;
-use acvm::PartialWitnessGenerator;
-use clap::ArgMatches;
+use acvm::{FieldElement, PartialWitnessGenerator};
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
-use super::{create_named_dir, read_inputs_from_file, write_to_file};
-use super::{InputMap, WitnessMap};
+use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
 use crate::{
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
     errors::CliError,

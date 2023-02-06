@@ -1,20 +1,16 @@
-use std::path::PathBuf;
+use clap::ArgMatches;
+use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
-
-use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 
-use std::path::Path;
-
+use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
-    cli::{execute_cmd::save_witness_to_dir, read_inputs_from_file},
+    cli::execute_cmd::save_witness_to_dir,
     constants::{ACIR_EXT, PROVER_INPUT_FILE, TARGET_DIR},
     errors::CliError,
     resolver::Resolver,
 };
-
-use super::{add_std_lib, create_named_dir, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();

@@ -4,14 +4,15 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 
-use super::{create_named_dir, read_inputs_from_file, write_inputs_to_file, write_to_file};
-
-use crate::cli::{
-    dedup_public_input_indices,
-    execute_cmd::{execute_program, extract_public_inputs},
-    verify_cmd::verify_proof,
+use super::{
+    create_named_dir, dedup_public_input_indices, read_inputs_from_file, write_inputs_to_file,
+    write_to_file,
 };
 use crate::{
+    cli::{
+        execute_cmd::{execute_program, extract_public_inputs},
+        verify_cmd::verify_proof,
+    },
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
