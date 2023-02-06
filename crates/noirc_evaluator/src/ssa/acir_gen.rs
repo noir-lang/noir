@@ -321,7 +321,8 @@ impl Acir {
             ),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
-                let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
+                //TODO avoid creating witnesses here.
+                let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
 
                 let inverse = expression_from_witness(constraints::evaluate_inverse(
                     x_witness, &predicate, evaluator,
@@ -478,7 +479,7 @@ impl Acir {
         rhs: NodeId,
         l_c: &InternalVar,
         r_c: &InternalVar,
-        ctx: &SsaContext, // TODO: SsaContext should be named SSAContext
+        ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
         let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
