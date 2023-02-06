@@ -13,8 +13,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 pub fn count_gates(show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
-    let curr_dir = std::env::current_dir().unwrap();
-    count_gates_with_path(curr_dir, show_ssa, allow_warnings)
+    let current_dir = std::env::current_dir().unwrap();
+    count_gates_with_path(current_dir, show_ssa, allow_warnings)
 }
 
 pub fn count_gates_with_path<P: AsRef<Path>>(
@@ -27,13 +27,13 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
     let backend = crate::backends::ConcreteBackend;
 
     println!(
-        "Total ACIR opcodes generated for language {:?}: {}\n",
+        "Total ACIR opcodes generated for language {:?}: {}",
         backend.np_language(),
         num_opcodes
     );
 
     let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
-    println!("\nBackend circuit size: {exact_circuit_size}\n");
+    println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())
 }

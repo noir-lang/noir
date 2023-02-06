@@ -1,4 +1,4 @@
-#[builtin(arraylen)]
+#[builtin(array_len)]
 fn len<T>(_input : [T]) -> comptime Field {}
 
 #[builtin(arraysort)]

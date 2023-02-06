@@ -20,9 +20,10 @@ struct ResolverMeta {
 use crate::hir_def::expr::{
     HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
-    HirIndexExpression, HirInfixExpression, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-    HirPrefixExpression,
+    HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
+    HirMethodCallExpression, HirPrefixExpression,
 };
+use crate::token::Attribute;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
 
@@ -39,7 +40,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeVariable, UnresolvedType, ERROR_IDENT,
+    TypeBinding, TypeVariable, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -73,6 +74,13 @@ pub struct Resolver<'a> {
     /// Contains a mapping of the current struct's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     generics: HashMap<Rc<String>, (TypeVariable, Span)>,
+
+    /// Lambdas share the function scope of the function they're defined in,
+    /// so to identify whether they use any variables from the parent function
+    /// we keep track of the scope index a variable is declared in. When a lambda
+    /// is declared we push a scope and set this lambda_index to the scope index.
+    /// Any variable from a scope less than that must be from the parent function.
+    lambda_index: usize,
 }
 
 impl<'a> Resolver<'a> {
@@ -90,6 +98,7 @@ impl<'a> Resolver<'a> {
             self_type: None,
             generics: HashMap::new(),
             errors: Vec::new(),
+            lambda_index: 0,
             file,
         }
     }
@@ -100,6 +109,10 @@ impl<'a> Resolver<'a> {
 
     fn push_err(&mut self, err: ResolverError) {
         self.errors.push(err)
+    }
+
+    fn current_lambda_index(&self) -> usize {
+        self.scopes.current_scope_index()
     }
 
     /// Resolving a function involves interning the metadata
@@ -253,7 +266,7 @@ impl<'a> Resolver<'a> {
         let variable = scope_tree.find(&name.0.contents);
 
         let location = Location::new(name.span(), self.file);
-        if let Some(variable_found) = variable {
+        if let Some((variable_found, _)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
             Ok(HirIdent { location, id })
@@ -284,14 +297,15 @@ impl<'a> Resolver<'a> {
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
-            UnresolvedType::FieldElement(comptime) => Type::FieldElement(comptime),
+            UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 Type::Array(Box::new(resolved_size), elem)
             }
-            UnresolvedType::Integer(comptime, sign, bits) => Type::Integer(comptime, sign, bits),
-            UnresolvedType::Bool(comptime) => Type::Bool(comptime),
+            UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
+            UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
+            UnresolvedType::Bool(comp_time) => Type::Bool(comp_time),
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
@@ -301,7 +315,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Error => Type::Error,
             UnresolvedType::Named(path, args) => {
                 // Check if the path is a type variable first. We currently disallow generics on type
-                // variables since this is what rust does.
+                // variables since we do not support higher-kinded types.
                 if args.is_empty() && path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
                     if let Some((name, (var, _))) = self.generics.get_key_value(name) {
@@ -330,10 +344,10 @@ impl<'a> Resolver<'a> {
 
     fn resolve_array_size(
         &mut self,
-        size: Option<Expression>,
+        length: Option<UnresolvedTypeExpression>,
         new_variables: &mut Generics,
     ) -> Type {
-        match &size {
+        match length {
             None => {
                 let id = self.interner.next_type_variable_id();
                 let typevar = Shared::new(TypeBinding::Unbound(id));
@@ -344,9 +358,47 @@ impl<'a> Resolver<'a> {
                 // require users to explicitly be generic over array lengths.
                 Type::NamedGeneric(typevar, Rc::new("".into()))
             }
-            Some(expr) => {
-                let len = self.eval_array_length(expr);
-                Type::ArrayLength(len)
+            Some(length) => self.convert_expression_type(length),
+        }
+    }
+
+    fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+        match length {
+            UnresolvedTypeExpression::Variable(path) => {
+                if path.segments.len() == 1 {
+                    let name = &path.last_segment().0.contents;
+                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                        return Type::NamedGeneric(var.clone(), name.clone());
+                    }
+                }
+
+                // If we cannot find a local generic of the same name, try to look up a global
+                if let Ok(ModuleDefId::GlobalId(id)) =
+                    self.path_resolver.resolve(self.def_maps, path.clone())
+                {
+                    Type::Constant(self.eval_global_as_array_length(id))
+                } else {
+                    self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                    Type::Constant(0)
+                }
+            }
+            UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
+                let lhs = self.convert_expression_type(*lhs);
+                let rhs = self.convert_expression_type(*rhs);
+
+                match (lhs, rhs) {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        Type::Constant(op.function()(lhs, rhs))
+                    }
+                    (lhs, _) => {
+                        let span =
+                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                        Type::Constant(0)
+                    }
+                }
             }
         }
     }
@@ -374,6 +426,15 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    /// Translates a (possibly Unspecified) UnresolvedType to a Type.
+    /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
+    fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
+        match typ {
+            UnresolvedType::Unspecified => self.interner.next_type_variable(),
+            other => self.resolve_type_inner(other, &mut vec![]),
+        }
     }
 
     fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
@@ -470,6 +531,12 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
         }
 
+        if attributes == Some(Attribute::Test) && !parameters.is_empty() {
+            self.push_err(ResolverError::TestFunctionHasParameters {
+                span: func.name_ident().span(),
+            })
+        }
+
         let mut typ = Type::Function(parameter_types, return_type);
 
         if !generics.is_empty() {
@@ -553,8 +620,8 @@ impl<'a> Resolver<'a> {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elems)) => {
-                    HirLiteral::Array(vecmap(elems, |elem| self.resolve_expression(elem)))
+                Literal::Array(ArrayLiteral::Standard(elements)) => {
+                    HirLiteral::Array(vecmap(elements, |elem| self.resolve_expression(elem)))
                 }
                 Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                     let len = self.eval_array_length(&length);
@@ -610,10 +677,9 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    (
-                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None)),
-                        this.resolve_expression(block),
-                    )
+                    let decl =
+                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None));
+                    (decl, this.resolve_expression(block))
                 });
 
                 HirExpression::For(HirForExpression {
@@ -674,6 +740,23 @@ impl<'a> Resolver<'a> {
                 let elements = vecmap(elements, |elem| self.resolve_expression(elem));
                 HirExpression::Tuple(elements)
             }
+            // We must stay in the same function scope as the parent function to allow for closures
+            // to capture variables. This is currently limited to immutable variables.
+            ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
+                let new_index = this.current_lambda_index();
+                let old_index = std::mem::replace(&mut this.lambda_index, new_index);
+
+                let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
+                    let parameter = DefinitionKind::Local(None);
+                    (this.resolve_pattern(pattern, parameter), this.resolve_inferred_type(typ))
+                });
+
+                let return_type = this.resolve_inferred_type(lambda.return_type);
+                let body = this.resolve_expression(lambda.body);
+
+                this.lambda_index = old_index;
+                HirExpression::Lambda(HirLambda { parameters, return_type, body })
+            }),
         };
 
         let expr_id = self.interner.push_expr(hir_expr);
@@ -802,7 +885,7 @@ impl<'a> Resolver<'a> {
         let id = self.resolve_path(path)?;
 
         if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported lowlevel opcode. If so, replace it with
+            // Check if this is an unsupported low level opcode. If so, replace it with
             // an alternative in the stdlib.
             if let Some(meta) = self.interner.try_function_meta(&function) {
                 if meta.kind == crate::FunctionKind::LowLevel {
@@ -877,11 +960,32 @@ impl<'a> Resolver<'a> {
     }
 
     fn eval_array_length(&mut self, length: &Expression) -> u64 {
-        match self.try_eval_array_length(length).map(|length| length.try_into()) {
-            Ok(Ok(length_value)) => return length_value,
-            Ok(Err(_cast_err)) => {
-                self.push_err(ResolverError::IntegerTooLarge { span: length.span })
+        let result = self.try_eval_array_length(length);
+        self.unwrap_array_length_eval_result(result, length.span)
+    }
+
+    fn eval_global_as_array_length(&mut self, global: StmtId) -> u64 {
+        let stmt = match self.interner.statement(&global) {
+            HirStatement::Let(let_expr) => let_expr,
+            other => {
+                unreachable!("Expected global while evaluating array length, found {:?}", other)
             }
+        };
+
+        let length = stmt.expression;
+        let span = self.interner.expr_span(&length);
+        let result = self.try_eval_array_length_id(length, span);
+        self.unwrap_array_length_eval_result(result, span)
+    }
+
+    fn unwrap_array_length_eval_result(
+        &mut self,
+        result: Result<u128, Option<ResolverError>>,
+        span: Span,
+    ) -> u64 {
+        match result.map(|length| length.try_into()) {
+            Ok(Ok(length_value)) => return length_value,
+            Ok(Err(_cast_err)) => self.push_err(ResolverError::IntegerTooLarge { span }),
             Err(Some(error)) => self.push_err(error),
             Err(None) => (),
         }
@@ -949,6 +1053,7 @@ impl<'a> Resolver<'a> {
             | ExpressionKind::Cast(_)
             | ExpressionKind::For(_)
             | ExpressionKind::If(_)
+            | ExpressionKind::Lambda(_)
             | ExpressionKind::Tuple(_) => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
 
             ExpressionKind::Error => Err(None),

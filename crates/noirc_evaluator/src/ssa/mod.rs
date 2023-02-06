@@ -11,5 +11,5 @@ pub mod inline;
 pub mod integer;
 pub mod mem;
 pub mod node;
-pub mod optim;
+pub mod optimizations;
 pub mod ssa_form;

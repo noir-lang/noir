@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{add_std_lib, write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use super::{add_std_lib, write_to_file};
+use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("check").unwrap();
@@ -25,7 +26,11 @@ pub fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(),
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
-    driver.check(allow_warnings);
+
+    if driver.check_crate(allow_warnings).is_err() {
+        std::process::exit(1);
+    }
+
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(abi) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml

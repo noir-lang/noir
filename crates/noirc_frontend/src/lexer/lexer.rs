@@ -89,15 +89,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn pipe(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('|') {
-            let span = Span::new(self.position..self.position + 1);
-            Err(LexerErrorKind::LogicalOr { span })
-        } else {
-            self.single_char_token(Token::Pipe)
-        }
-    }
-
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
@@ -113,7 +104,7 @@ impl<'a> Lexer<'a> {
             Some('!') => self.glue(Token::Bang),
             Some('-') => self.glue(Token::Minus),
             Some('&') => self.ampersand(),
-            Some('|') => self.pipe(),
+            Some('|') => self.single_char_token(Token::Pipe),
             Some('%') => self.single_char_token(Token::Percent),
             Some('^') => self.single_char_token(Token::Caret),
             Some(';') => self.single_char_token(Token::Semicolon),
@@ -213,8 +204,8 @@ impl<'a> Lexer<'a> {
                 if peeked_char.is_ascii_alphabetic() {
                     // Okay to unwrap here because we already peeked to
                     // see that we have a character
-                    let curr_char = self.next_char().unwrap();
-                    return self.eat_word(curr_char);
+                    let current_char = self.next_char().unwrap();
+                    return self.eat_word(current_char);
                 }
 
                 Ok(spanned_prev_token)
@@ -245,7 +236,7 @@ impl<'a> Lexer<'a> {
         // Keep checking that we are not at the EOF
         while let Some(peek_char) = self.peek_char() {
             // Then check for the predicate, if predicate matches append char and increment the cursor
-            // If not, return word. The next character will be analysed on the next iteration of next_token,
+            // If not, return word. The next character will be analyzed on the next iteration of next_token,
             // Which will increment the cursor
             if !predicate(peek_char) {
                 return (word, start, self.position);
@@ -302,7 +293,7 @@ impl<'a> Lexer<'a> {
         Ok(attribute.into_span(start - 1, end + 1))
     }
 
-    //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
+    //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
         let (word, start, end) = self.eat_while(Some(initial_char), |ch| {
@@ -456,7 +447,7 @@ fn test_int_type() {
 }
 
 #[test]
-fn test_arithematic_sugar() {
+fn test_arithmetic_sugar() {
     let input = "+= -= *= /= %=";
 
     let expected = vec![

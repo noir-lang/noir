@@ -1,12 +1,10 @@
-use std::collections::HashSet;
-
-use crate::ssa::node::{Mark, Operation};
-
-use super::{
-    block::{self, BlockId},
+use crate::ssa::{
+    block::BlockId,
     context::SsaContext,
-    node::{self, NodeId},
+    node::{Mark, NodeId, Operation},
+    {block, node},
 };
+use std::collections::HashSet;
 
 // create phi arguments from the predecessors of the block (containing phi)
 pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, phi: NodeId) {
@@ -75,7 +73,7 @@ pub fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
     }
 }
 
-//look-up recursiverly into predecessors
+//look-up recursively into predecessors
 pub fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) -> NodeId {
     let result = if !ctx.sealed_blocks.contains(&block_id) {
         //incomplete CFG

@@ -9,7 +9,9 @@ edition.workspace = true
 [dependencies]
 codespan-reporting.workspace = true
 cfg-if.workspace = true
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = { version = "*", features = ["serde-serialize"] }
+wasm-bindgen.workspace = true
+
 [dev-dependencies]
-tempfile.workspace = true
+tempfile = "3.2.0"

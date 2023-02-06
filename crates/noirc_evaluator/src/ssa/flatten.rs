@@ -1,10 +1,9 @@
 use crate::errors::RuntimeError;
-
-use super::{
-    block::{self, BlockId},
+use crate::ssa::{
+    block::BlockId,
     context::SsaContext,
-    node::{self, BinaryOp, Mark, Node, NodeEval, NodeId, NodeObj, Operation},
-    optim,
+    node::{BinaryOp, Mark, Node, NodeEval, NodeId, NodeObject, Operation},
+    {block, node, optimizations},
 };
 use acvm::FieldElement;
 use std::collections::HashMap;
@@ -43,7 +42,7 @@ fn eval_block(block_id: BlockId, eval_map: &HashMap<NodeId, NodeEval>, ctx: &mut
             let ins_id = ins.id;
             // We ignore RunTimeErrors at this stage because unrolling is done before conditionals
             // While failures must be managed after handling conditionals: For instance if false { b } should not fail whatever b is doing.
-            optim::simplify_id(ctx, ins_id).ok();
+            optimizations::simplify_id(ctx, ins_id).ok();
         }
     }
 }
@@ -112,7 +111,7 @@ pub fn unroll_std_block(
 
     for i_id in &b_instructions {
         match &ctx[*i_id] {
-            node::NodeObj::Instr(i) => {
+            node::NodeObject::Instr(i) => {
                 let new_op = i.operation.map_id(|id| {
                     get_current_value(id, &unroll_ctx.eval_map).into_node_id().unwrap()
                 });
@@ -127,7 +126,7 @@ pub fn unroll_std_block(
                     Operation::Jmp(block) => assert_eq!(block, next),
                     Operation::Nop => (),
                     _ => {
-                        optim::simplify(ctx, &mut new_ins).ok(); //ignore RuntimeErrors until conditionals are processed
+                        optimizations::simplify(ctx, &mut new_ins).ok(); //ignore RuntimeErrors until conditionals are processed
                         match new_ins.mark {
                             Mark::None => {
                                 let id = ctx.push_instruction(new_ins);
@@ -136,7 +135,7 @@ pub fn unroll_std_block(
                             Mark::Deleted => (),
                             Mark::ReplaceWith(replacement) => {
                                 // TODO: Should we insert into unrolled_instructions as well?
-                                // If optim::simplify replaces with a constant then we should not,
+                                // If optimizations::simplify replaces with a constant then we should not,
                                 // otherwise it may make sense if it is not already inserted.
                                 unroll_ctx
                                     .eval_map
@@ -266,7 +265,7 @@ fn evaluate_conditional_jump(
         Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
         Operation::Jmp(_) => return Ok(true),
-        _ => panic!("loop without conditional statement!"), //TODO shouldn't we return false instead?
+        _ => panic!("loop without conditional statement!"),
     };
 
     let cond = get_current_value(cond_id, value_array);
@@ -286,7 +285,7 @@ fn get_current_value(id: NodeId, value_array: &HashMap<NodeId, NodeEval>) -> Nod
     *value_array.get(&id).unwrap_or(&NodeEval::VarOrInstruction(id))
 }
 
-//Same as get_current_value but for a NodeEval object instead of a NodeObj
+//Same as get_current_value but for a NodeEval object instead of a NodeObject
 fn get_current_value_for_node_eval(
     obj: NodeEval,
     value_array: &HashMap<NodeId, NodeEval>,
@@ -312,8 +311,8 @@ fn evaluate_one(
             }
 
             match &ctx[obj_id] {
-                NodeObj::Instr(i) => {
-                    let new_id = optim::propagate(ctx, obj_id, &mut modified);
+                NodeObject::Instr(i) => {
+                    let new_id = optimizations::propagate(ctx, obj_id, &mut modified);
                     if new_id != obj_id {
                         return evaluate_one(NodeEval::VarOrInstruction(new_id), value_array, ctx);
                     }
@@ -332,12 +331,12 @@ fn evaluate_one(
                     }
                     Ok(result)
                 }
-                NodeObj::Const(c) => {
+                NodeObject::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
+                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }
@@ -357,7 +356,7 @@ fn evaluate_object(
             }
 
             match &ctx[obj_id] {
-                NodeObj::Instr(i) => {
+                NodeObject::Instr(i) => {
                     if let Operation::Phi { .. } = i.operation {
                         return Ok(NodeEval::VarOrInstruction(i.id));
                     }
@@ -374,12 +373,12 @@ fn evaluate_object(
                     }
                     Ok(result)
                 }
-                NodeObj::Const(c) => {
+                NodeObject::Const(c) => {
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObj::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
-                NodeObj::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
+                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
     }

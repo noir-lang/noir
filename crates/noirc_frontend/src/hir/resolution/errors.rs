@@ -38,6 +38,12 @@ pub enum ResolverError {
     InvalidArrayLengthExpr { span: Span },
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
+    #[error("No global or generic type parameter found with the given name")]
+    NoSuchNumericTypeVariable { path: crate::Path },
+    #[error("Closures cannot capture mutable variables")]
+    CapturedMutableVariable { span: Span },
+    #[error("Test functions are not allowed to have any parameters")]
+    TestFunctionHasParameters { span: Span },
 }
 
 impl ResolverError {
@@ -185,6 +191,21 @@ impl ResolverError {
             ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
+                span,
+            ),
+            ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
+                format!("Cannot find a global or generic type parameter named `{path}`"),
+                "Only globals or generic type parameters are allowed to be used as an array type's length".to_string(),
+                path.span(),
+            ),
+            ResolverError::CapturedMutableVariable { span } => Diagnostic::simple_error(
+                "Closures cannot capture mutable variables".into(),
+                "Mutable variable".into(),
+                span,
+            ),
+            ResolverError::TestFunctionHasParameters { span } => Diagnostic::simple_error(
+                "Test functions cannot have any parameters".into(),
+                "Try removing the parameters or moving the test into a wrapper function".into(),
                 span,
             ),
         }

@@ -7,10 +7,10 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
-    Comptime, Shared, TypeBinding,
+    CompTime, Shared, TypeBinding,
 };
 
-use super::errors::TypeCheckError;
+use super::{bind_pattern, errors::TypeCheckError};
 
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
@@ -21,7 +21,7 @@ pub(crate) fn type_check_expression(
         HirExpression::Ident(ident) => {
             // An identifiers type may be forall-quantified in the case of generic functions.
             // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-            // We must instantiate identifiers at every callsite to replace this T with a new type
+            // We must instantiate identifiers at every call site to replace this T with a new type
             // variable to handle generic functions.
             let t = interner.id_type(ident.id);
             let (typ, bindings) = t.instantiate(interner);
@@ -31,16 +31,13 @@ pub(crate) fn type_check_expression(
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    // Type check the contents of the array
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
                     let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
 
-                    // Specify the type of the Array
-                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
-                        Box::new(Type::ArrayLength(arr.len() as u64)),
+                        Box::new(Type::Constant(arr.len() as u64)),
                         Box::new(first_elem_type.clone()),
                     );
 
@@ -63,16 +60,17 @@ pub(crate) fn type_check_expression(
 
                     arr_type
                 }
-                HirLiteral::Bool(_) => Type::Bool(Comptime::new(interner)),
+                HirLiteral::Bool(_) => Type::Bool(CompTime::new(interner)),
                 HirLiteral::Integer(_) => {
                     let id = interner.next_type_variable_id();
                     Type::PolymorphicInteger(
-                        Comptime::new(interner),
+                        CompTime::new(interner),
                         Shared::new(TypeBinding::Unbound(id)),
                     )
                 }
                 HirLiteral::Str(string) => {
-                    Type::String(Box::new(Type::ArrayLength(string.len() as u64)))
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
                 }
             }
         }
@@ -155,7 +153,7 @@ pub(crate) fn type_check_expression(
             let end_range_type = type_check_expression(interner, &for_expr.end_range, errors);
 
             let span = interner.expr_span(&for_expr.start_range);
-            start_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
+            start_range_type.unify(&Type::comp_time(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: start_range_type.clone(),
                     place: "for loop",
@@ -165,7 +163,7 @@ pub(crate) fn type_check_expression(
             });
 
             let span = interner.expr_span(&for_expr.end_range);
-            end_range_type.unify(&Type::comptime(Some(span)), span, errors, || {
+            end_range_type.unify(&Type::comp_time(Some(span)), span, errors, || {
                 TypeCheckError::TypeCannotBeUsed {
                     typ: end_range_type.clone(),
                     place: "for loop",
@@ -227,6 +225,24 @@ pub(crate) fn type_check_expression(
         HirExpression::Tuple(elements) => {
             Type::Tuple(vecmap(&elements, |elem| type_check_expression(interner, elem, errors)))
         }
+        HirExpression::Lambda(lambda) => {
+            let params = vecmap(lambda.parameters, |(pattern, typ)| {
+                bind_pattern(interner, &pattern, typ.clone(), errors);
+                typ
+            });
+
+            let actual_return = type_check_expression(interner, &lambda.body, errors);
+
+            let span = interner.expr_span(&lambda.body);
+            actual_return.make_subtype_of(&lambda.return_type, span, errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: lambda.return_type.to_string(),
+                    expr_typ: actual_return.to_string(),
+                    expr_span: span,
+                }
+            });
+            Type::Function(params, Box::new(lambda.return_type))
+        }
     };
 
     interner.push_expr_type(expr_id, typ.clone());
@@ -241,8 +257,8 @@ fn type_check_index_expression(
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.expr_span(&index_expr.index);
 
-    index_type.unify(&Type::comptime(Some(span)), span, errors, || {
-        // Specialize the error in the case the user has a Field, just not a comptime one.
+    index_type.unify(&Type::comp_time(Some(span)), span, errors, || {
+        // Specialize the error in the case the user has a Field, just not a `comptime` one.
         if matches!(index_type, Type::FieldElement(..)) {
             TypeCheckError::Unstructured {
                 msg: format!("Array index must be known at compile-time, but here a non-comptime {index_type} was used instead"),
@@ -276,14 +292,14 @@ fn type_check_index_expression(
 }
 
 fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>) -> Type {
-    let is_comptime = match from {
-        Type::Integer(is_comptime, ..) => is_comptime,
-        Type::FieldElement(is_comptime) => is_comptime,
-        Type::PolymorphicInteger(is_comptime, binding) => match &*binding.borrow() {
+    let is_comp_time = match from {
+        Type::Integer(is_comp_time, ..) => is_comp_time,
+        Type::FieldElement(is_comp_time) => is_comp_time,
+        Type::PolymorphicInteger(is_comp_time, binding) => match &*binding.borrow() {
             TypeBinding::Bound(from) => return check_cast(from.clone(), to, span, errors),
-            TypeBinding::Unbound(_) => is_comptime,
+            TypeBinding::Unbound(_) => is_comp_time,
         },
-        Type::Bool(is_comptime) => is_comptime,
+        Type::Bool(is_comp_time) => is_comp_time,
         Type::Error => return Type::Error,
         from => {
             let msg = format!(
@@ -297,28 +313,28 @@ fn check_cast(from: Type, to: Type, span: Span, errors: &mut Vec<TypeCheckError>
     let error_message =
         "Cannot cast to a comptime type, argument to cast is not known at compile-time";
     match to {
-        Type::Integer(dest_comptime, sign, bits) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::Integer(dest_comp_time, sign, bits) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::Integer(is_comptime, sign, bits)
+            Type::Integer(is_comp_time, sign, bits)
         }
-        Type::FieldElement(dest_comptime) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::FieldElement(dest_comp_time) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
 
-            Type::FieldElement(is_comptime)
+            Type::FieldElement(is_comp_time)
         }
-        Type::Bool(dest_comptime) => {
-            if dest_comptime.is_comptime() && is_comptime.unify(&dest_comptime, span).is_err() {
+        Type::Bool(dest_comp_time) => {
+            if dest_comp_time.is_comp_time() && is_comp_time.unify(&dest_comp_time, span).is_err() {
                 let msg = error_message.into();
                 errors.push(TypeCheckError::Unstructured { msg, span });
             }
-            Type::Bool(dest_comptime)
+            Type::Bool(dest_comp_time)
         }
         Type::Error => Type::Error,
         _ => {
@@ -368,7 +384,7 @@ fn lookup_method(
     }
 }
 
-// We need a special function to typecheck method calls since the method
+// We need a special function to type check method calls since the method
 // is not a Expression::Ident it must be manually instantiated here
 fn type_check_method_call(
     interner: &mut NodeInterner,
@@ -410,7 +426,7 @@ fn bind_function_type(
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
     // Could do a single unification for the entire function type, but matching beforehand
-    // lets us issue a more precise error on the individual argument that fails to typecheck.
+    // lets us issue a more precise error on the individual argument that fails to type check.
     match function {
         Type::TypeVariable(binding) => {
             if let TypeBinding::Bound(typ) = &*binding.borrow() {
@@ -562,6 +578,20 @@ pub fn infix_operand_type_rules(
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
 
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, span, interner, errors);
+            }
+
+            let comptime = CompTime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
+            }
+        }
+
         (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
     }
 }
@@ -576,9 +606,9 @@ fn check_if_expr(
     let then_type = type_check_expression(interner, &if_expr.consequence, errors);
 
     let expr_span = interner.expr_span(&if_expr.condition);
-    cond_type.unify(&Type::Bool(Comptime::new(interner)), expr_span, errors, || {
+    cond_type.unify(&Type::Bool(CompTime::new(interner)), expr_span, errors, || {
         TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool(Comptime::No(None)).to_string(),
+            expected_typ: Type::Bool(CompTime::No(None)).to_string(),
             expr_typ: cond_type.to_string(),
             expr_span,
         }
@@ -738,7 +768,7 @@ pub fn comparator_operand_type_rules(
         }
 
         // Avoid reporting errors multiple times
-        (Error, _) | (_,Error) => Ok(Bool(Comptime::Yes(None))),
+        (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
 
         // Special-case == and != for arrays
         (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -751,19 +781,32 @@ pub fn comparator_operand_type_rules(
 
             x_size.unify(y_size, op.location.span, errors, || {
                 TypeCheckError::Unstructured {
-                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                    msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size}"),
                     span: op.location.span,
                 }
             });
 
             // We could check if all elements of all arrays are comptime but I am lazy
-            Ok(Bool(Comptime::No(Some(op.location.span))))
+            Ok(Bool(CompTime::No(Some(op.location.span))))
         }
         (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
             if binding_a == binding_b {
-                return Ok(Bool(Comptime::No(Some(op.location.span))));
+                return Ok(Bool(CompTime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
+        }
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return comparator_operand_type_rules(binding, other, op, errors);
+            }
+
+            let comptime = CompTime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+            }
         }
         (String(x_size), String(y_size)) => {
             x_size.unify(y_size, op.location.span, errors, || {
@@ -773,7 +816,7 @@ pub fn comparator_operand_type_rules(
                 }
             });
 
-            Ok(Bool(Comptime::No(Some(op.location.span))))
+            Ok(Bool(CompTime::No(Some(op.location.span))))
         }
         (TypeVariable(l_binding), TypeVariable(r_binding)) => {
             if let TypeBinding::Bound(l_link) = &*l_binding.borrow() {

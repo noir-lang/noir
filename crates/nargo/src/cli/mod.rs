@@ -1,5 +1,11 @@
+use acvm::{
+    acir::{circuit::PublicInputs, native_types::Witness},
+    FieldElement,
+};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
+use const_format::formatcp;
+use git_version::git_version;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi,
@@ -7,7 +13,7 @@ use noirc_abi::{
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -20,21 +26,21 @@ use crate::errors::CliError;
 mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
+mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
 mod prove_cmd;
+mod test_cmd;
 mod verify_cmd;
 
-const CONTRACT_DIR: &str = "contract";
-const PROOFS_DIR: &str = "proofs";
-const PROVER_INPUT_FILE: &str = "Prover";
-const VERIFIER_INPUT_FILE: &str = "Verifier";
-const SRC_DIR: &str = "src";
-const PKG_FILE: &str = "Nargo.toml";
-const PROOF_EXT: &str = "proof";
-const TARGET_DIR: &str = "target";
-const ACIR_EXT: &str = "acir";
-const WITNESS_EXT: &str = "tr";
+const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
+const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+
+/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
+pub type InputMap = BTreeMap<String, InputValue>;
+
+/// A map from the witnesses in a constraint system to the field element values
+pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
@@ -47,14 +53,17 @@ pub fn start_cli() {
 
     let matches = App::new("nargo")
         .about("Noir's package manager")
-        .version("0.1")
-        .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
+        .version(VERSION_STRING)
+        .author("The Noir Team <kevtheappdev@gmail.com>")
         .subcommand(
             App::new("check")
                 .about("Checks the constraint system for errors")
                 .arg(allow_warnings.clone()),
         )
-        .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
+        .subcommand(
+            App::new("contract")
+                .about("Generates a Solidity verifier smart contract for the program"),
+        )
         .subcommand(
             App::new("new")
                 .about("Create a new binary project")
@@ -72,8 +81,17 @@ pub fn start_cli() {
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
+            App::new("test")
+                .about("Run the tests for this program")
+                .arg(
+                    Arg::with_name("test_name")
+                        .help("If given, only tests with names containing this string will be run"),
+                )
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
@@ -91,7 +109,18 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("gates")
-                .about("Counts the occurences of different gates in circuit")
+                .about("Counts the occurrences of different gates in circuit")
+                .arg(show_ssa.clone())
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
+            App::new("execute")
+                .about("Executes a circuit to calculate its return value")
+                .arg(
+                    Arg::with_name("witness_name")
+                        .long("witness_name")
+                        .help("Write the execution witness to named file"),
+                )
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
@@ -106,6 +135,8 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
+        Some("execute") => execute_cmd::run(matches),
+        Some("test") => test_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
         _ => unreachable!(),
     };
@@ -144,7 +175,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
     abi: Abi,
-) -> Result<BTreeMap<String, InputValue>, CliError> {
+) -> Result<InputMap, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
         dir_path.push(file_name);
@@ -160,7 +191,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
 }
 
 fn write_inputs_to_file<P: AsRef<Path>>(
-    w_map: &BTreeMap<String, InputValue>,
+    w_map: &InputMap,
     path: P,
     file_name: &str,
     format: Format,
@@ -172,7 +203,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
         dir_path
     };
 
-    let serialized_output = format.serialise(w_map)?;
+    let serialized_output = format.serialize(w_map)?;
     write_to_file(serialized_output.as_bytes(), &file_path);
 
     Ok(())
@@ -182,7 +213,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
-        proof_name,
+        Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
         show_ssa,
@@ -195,7 +226,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path, show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
@@ -207,6 +238,44 @@ fn add_std_lib(driver: &mut Driver) {
 
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
+}
+
+// Removes duplicates from the list of public input witnesses
+fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
+    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
+    PublicInputs(duplicates_removed.into_iter().collect())
+}
+
+// Removes duplicates from the list of public input witnesses and the
+// associated list of duplicate values.
+pub(crate) fn dedup_public_input_indices_values(
+    indices: PublicInputs,
+    values: Vec<FieldElement>,
+) -> (PublicInputs, Vec<FieldElement>) {
+    // Assume that the public input index lists and the values contain duplicates
+    assert_eq!(indices.0.len(), values.len());
+
+    let mut public_inputs_without_duplicates = Vec::new();
+    let mut already_seen_public_indices = HashMap::new();
+
+    for (index, value) in indices.0.iter().zip(values) {
+        match already_seen_public_indices.get(index) {
+            Some(expected_value) => {
+                // The index has already been added
+                // so lets check that the values already inserted is equal to the value, we wish to insert
+                assert_eq!(*expected_value, value, "witness index {index:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.")
+            }
+            None => {
+                already_seen_public_indices.insert(*index, value);
+                public_inputs_without_duplicates.push(value)
+            }
+        }
+    }
+
+    (
+        PublicInputs(already_seen_public_indices.keys().copied().collect()),
+        public_inputs_without_duplicates,
+    )
 }
 
 // FIXME: I not sure that this is the right place for this tests.

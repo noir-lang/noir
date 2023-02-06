@@ -1,19 +1,17 @@
-use acvm::FieldElement;
-
 use crate::errors::RuntimeError;
-
-use super::{
+use crate::ssa::{
     anchor::{Anchor, CseAction},
     block::BlockId,
     builtin,
     context::SsaContext,
     node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
 };
+use acvm::FieldElement;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.get_instruction(ins_id).clone();
     simplify(ctx, &mut ins)?;
-    ctx[ins_id] = super::node::NodeObj::Instr(ins);
+    ctx[ins_id] = super::node::NodeObject::Instr(ins);
     Ok(())
 }
 
@@ -53,6 +51,16 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
             if binary.operator == BinaryOp::Div && !r_const.is_zero() {
                 binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 binary.operator = BinaryOp::Mul;
+            }
+        }
+    }
+    if let Operation::Binary(binary) = &ins.operation {
+        if binary.operator == BinaryOp::Xor {
+            let max = FieldElement::from(2_u128.pow(ins.res_type.bits()) - 1);
+            if NodeEval::from_id(ctx, binary.rhs).into_const_value() == Some(max) {
+                ins.operation = Operation::Not(binary.lhs);
+            } else if NodeEval::from_id(ctx, binary.lhs).into_const_value() == Some(max) {
+                ins.operation = Operation::Not(binary.rhs);
             }
         }
     }
@@ -112,28 +120,34 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 
 //common subexpression elimination, starting from the root
 pub fn cse(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     first_block: BlockId,
     stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut anchor = Anchor::default();
     let mut modified = false;
-    cse_tree(igen, first_block, &mut anchor, &mut modified, stop_on_error)
+    cse_tree(ir_gen, first_block, &mut anchor, &mut modified, stop_on_error)
 }
 
 //Perform CSE for the provided block and then process its children following the dominator tree, passing around the anchor list.
 fn cse_tree(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     block_id: BlockId,
     anchor: &mut Anchor,
     modified: &mut bool,
     stop_on_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
     let mut instructions = Vec::new();
-    let mut res =
-        cse_block_with_anchor(igen, block_id, &mut instructions, anchor, modified, stop_on_error)?;
-    for b in igen[block_id].dominated.clone() {
-        let sub_res = cse_tree(igen, b, &mut anchor.clone(), modified, stop_on_error)?;
+    let mut res = cse_block_with_anchor(
+        ir_gen,
+        block_id,
+        &mut instructions,
+        anchor,
+        modified,
+        stop_on_error,
+    )?;
+    for b in ir_gen[block_id].dominated.clone() {
+        let sub_res = cse_tree(ir_gen, b, &mut anchor.clone(), modified, stop_on_error)?;
         if sub_res.is_some() {
             res = sub_res;
         }
@@ -143,7 +157,7 @@ fn cse_tree(
 
 //perform common subexpression elimination until there is no more change
 pub fn full_cse(
-    igen: &mut SsaContext,
+    ir_gen: &mut SsaContext,
     first_block: BlockId,
     report_error: bool,
 ) -> Result<Option<NodeId>, RuntimeError> {
@@ -152,7 +166,7 @@ pub fn full_cse(
     while modified {
         modified = false;
         let mut anchor = Anchor::default();
-        result = cse_tree(igen, first_block, &mut anchor, &mut modified, report_error)?;
+        result = cse_tree(ir_gen, first_block, &mut anchor, &mut modified, report_error)?;
     }
     Ok(result)
 }
@@ -204,11 +218,11 @@ fn cse_block_with_anchor(
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
                         let id = ctx.get_dummy_load(a);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
 
                         if let ObjectType::Pointer(a) = ctx.get_object_type(binary.rhs) {
                             let id = ctx.get_dummy_load(a);
-                            anchor.push_mem_instruction(ctx, id);
+                            anchor.push_mem_instruction(ctx, id)?;
                         }
 
                         new_list.push(*ins_id);
@@ -230,9 +244,9 @@ fn cse_block_with_anchor(
                     }
                     anchor.use_array(*x, ctx.mem[*x].len as usize);
                     let prev_ins = anchor.get_mem_all(*x);
-                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins) {
+                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins)? {
                         CseAction::Keep => {
-                            anchor.push_mem_instruction(ctx, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id)?;
                             new_list.push(*ins_id)
                         }
                         CseAction::ReplaceWith(new_id) => {
@@ -240,7 +254,7 @@ fn cse_block_with_anchor(
                             new_mark = Mark::ReplaceWith(new_id);
                         }
                         CseAction::Remove(id_to_remove) => {
-                            anchor.push_mem_instruction(ctx, *ins_id);
+                            anchor.push_mem_instruction(ctx, *ins_id)?;
                             new_list.push(*ins_id);
                             // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                             if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
@@ -278,13 +292,13 @@ fn cse_block_with_anchor(
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {
                         let id = ctx.get_dummy_store(a.0);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
                     }
-                    if let Some(f) = ctx.try_get_ssafunc(*func) {
+                    if let Some(f) = ctx.try_get_ssa_func(*func) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
                     }
@@ -293,7 +307,7 @@ fn cse_block_with_anchor(
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
                     }
@@ -301,20 +315,20 @@ fn cse_block_with_anchor(
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
                 Operation::Intrinsic(_, args) => {
-                    //Add dunmmy load for function arguments and enable CSE only if no array in argument
+                    //Add dummy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
-                                anchor.push_mem_instruction(ctx, id);
+                                anchor.push_mem_instruction(ctx, id)?;
                                 activate_cse = false;
                             }
                         }
                     }
                     if let ObjectType::Pointer(a) = ins.res_type {
                         let id = ctx.get_dummy_store(a);
-                        anchor.push_mem_instruction(ctx, id);
+                        anchor.push_mem_instruction(ctx, id)?;
                         activate_cse = false;
                     }
 
@@ -352,7 +366,7 @@ fn cse_block_with_anchor(
                 result?;
             }
 
-            //cannot simplify to_bits() in the previous call because it get replaced with multiple instructions
+            //cannot simplify to_le_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 let args = args.iter().map(|arg| {
                     NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())

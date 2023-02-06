@@ -18,6 +18,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::token::Attribute;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -152,8 +153,8 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
-    /// filled out during type checking from instantiated variables. Used during monomorphisation
-    /// to map callsite types back onto function parameter types, and undo this binding as needed.
+    /// filled out during type checking from instantiated variables. Used during monomorphization
+    /// to map call site types back onto function parameter types, and undo this binding as needed.
     instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
     /// Remembers the field index a given HirMemberAccess expression was resolved to during type
@@ -567,5 +568,12 @@ impl NodeInterner {
 
     pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
         std::mem::take(&mut self.delayed_type_checks)
+    }
+
+    pub fn get_all_test_functions(&self) -> impl Iterator<Item = FuncId> + '_ {
+        self.func_meta.iter().filter_map(|(id, meta)| {
+            let is_test = meta.attributes.as_ref()? == &Attribute::Test;
+            is_test.then_some(*id)
+        })
     }
 }

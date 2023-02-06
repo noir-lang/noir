@@ -14,11 +14,9 @@ acvm.workspace = true
 arena.workspace = true
 fm.workspace = true
 iter-extended.workspace = true
-lazy_static.workspace = true
 thiserror.workspace = true
-num-bigint.workspace = true
-num-traits.workspace = true
-
+num-bigint = "0.4"
+num-traits = "0.2.8"
 
 [dev-dependencies]
 rand="0.8.5"

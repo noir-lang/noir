@@ -1,11 +1,7 @@
+use crate::ssa::{node::{NodeId, ObjectType}, context::SsaContext};
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-
-use super::{
-    context::SsaContext,
-    node::{NodeId, ObjectType},
-};
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -24,7 +20,7 @@ impl std::fmt::Display for Opcode {
 impl Opcode {
     pub fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_bits" => Some(Opcode::ToBits),
+            "to_le_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
             "arraysort" => Some(Opcode::Sort),
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
@@ -34,7 +30,7 @@ impl Opcode {
     pub fn name(&self) -> &str {
         match self {
             Opcode::LowLevel(op) => op.name(),
-            Opcode::ToBits => "to_bits",
+            Opcode::ToBits => "to_le_bits",
             Opcode::ToRadix => "to_radix",
             Opcode::Sort => "arraysort",
         }

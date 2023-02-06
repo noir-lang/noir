@@ -214,7 +214,7 @@ impl Statement {
 
             let infix = crate::InfixExpression {
                 lhs: lvalue_expr,
-                operator: operator.try_into_binop(span).expect(error_msg),
+                operator: operator.try_into_binary_op(span).expect(error_msg),
                 rhs: expression,
             };
             expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
