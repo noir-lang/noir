@@ -429,23 +429,24 @@ impl Acir {
             // TODO when we know that they should correspond to Arrays
             // TODO(Guillaume): We can add an Option<Expression>  because
             // TODO when the object is composite, it will return One
-
-            if array_a.len == array_b.len {
-                let mut x = InternalVar::from(self.array_eq(array_a, array_b, evaluator));
-                // TODO we need a witness because of the directive, but we should use an expression
-                // TODO if we change the Invert directive to take an `Expression`, then we
-                // TODO can get rid of this extra gate.
-                let x_witness = x.witness(evaluator).expect("unexpected constant expression");
-                return expression_from_witness(constraints::evaluate_zero_equality(
-                    x_witness, evaluator,
-                ));
-            } else {
-                //If length are different, then the arrays are different
-                // TODO this should not be possible as the frontend
-                // TODO should not compile for in this case
-                // TODO change to a ICE
-                return Expression::one();
+            if array_a.len != array_b.len {
+                unreachable!(
+                    "ICE: arrays have differing lengths {} and {}. 
+                We cannot compare two different types in Noir, 
+                so this should have been caught by the type checker",
+                    array_a.len, array_b.len
+                )
             }
+
+            let mut x = InternalVar::from(self.array_eq(array_a, array_b, evaluator));
+            // TODO we need a witness because of the directive, but we should use an expression
+            // TODO if we change the Invert directive to take an `Expression`, then we
+            // TODO can get rid of this extra gate.
+            let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+
+            return expression_from_witness(constraints::evaluate_zero_equality(
+                x_witness, evaluator,
+            ));
         }
         // Arriving here means that `lhs` and `rhs` are not Arrays
         //
