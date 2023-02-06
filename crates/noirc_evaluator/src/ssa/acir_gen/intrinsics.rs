@@ -85,34 +85,18 @@ fn resolve_array(
     let array = &cfg.mem[array_id];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
-        let address = array.adr + i;
-        // TODO why can't this method iterate the `Array` values only
-        // TODO instead of checking in the memory_map first?
-        // TODO because `memory_map` is the most recent view of the values
-        let internal_var = match memory_map.internal_var(&address) {
-            Some(var) => var,
-            None => {
-                inputs.push(FunctionInput {
-                    // TODO: this .expect implies that you cannot pass arrays
-                    // TODO with constants to ACIR low level functions
-                    witness: array.values[i as usize]
-                        .cached_witness()
-                        .expect("unexpected constant expression."),
-                    num_bits,
-                });
-                continue;
-            }
-        };
+        let mut arr_element = memory_map
+            .load_array_element_constant_index(array, i)
+            .expect("array index out of bounds");
 
-        let func_input = match internal_var.cached_witness() {
-            Some(cached_witness) => FunctionInput { witness: *cached_witness, num_bits },
-            None => {
-                let mut var = internal_var.clone();
-                let witness = var.get_or_compute_witness(evaluator, true).expect("infallible: `None` can only be returned when we disallow constant Expressions.");
-                memory_map.insert(address, var);
-                FunctionInput { witness, num_bits }
-            }
-        };
+        let witness = arr_element.get_or_compute_witness(evaluator, true).expect(
+            "infallible: `None` can only be returned when we disallow constant Expressions.",
+        );
+        let func_input = FunctionInput { witness, num_bits };
+
+        let address = array.adr + i;
+        memory_map.insert(address, arr_element);
+
         inputs.push(func_input)
     }
 

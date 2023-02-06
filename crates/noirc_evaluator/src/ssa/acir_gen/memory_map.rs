@@ -83,7 +83,6 @@ impl MemoryMap {
     // Loads the associated `InternalVar` for the element
     // in the `array` at the given `offset`.
     // Returns `None` if `offset` is out of bounds.
-    #[allow(dead_code)]
     pub(crate) fn load_array_element_constant_index(
         &mut self,
         array: &MemArray,
@@ -102,7 +101,21 @@ impl MemoryMap {
         if offset >= array_length {
             return None; // IndexOutOfBoundsError
         }
-        Some(array.values[offset as usize].clone())
+
+        // TODO (Guillaume) we could put the values into the memory_map when
+        // TODO we process the ABI, then we only need to check the memory_map
+        // TODO since this is the only case where the values will be in the
+        // TODO array, but not in the `memory_map`
+        let array_element = array.values[offset as usize].clone();
+
+        // Compiler sanity check
+        //
+        // Since the only time we take the array values
+        // from the array is when it has been defined in the
+        // ABI. We know that it must have been initialized with a `Witness`
+        array_element.cached_witness().expect("ICE: since the value is not in the memory_map it must have came from the ABI, so it is a Witness");
+
+        Some(array_element)
     }
 
     // TODO check if we can replace usage of this method with
