@@ -44,6 +44,15 @@ impl MemoryMap {
 
     // Loads the associated `InternalVar` for the element
     // in the `array` at the given `offset`.
+    //
+    // First we check if the address of the array element
+    // is in the memory_map. If not, then we check the `array`
+    //
+    // We do not check the `MemArray` initially because the
+    // `MemoryMap` holds the most updated InternalVar
+    // associated to the array element.
+    // TODO: specify what could change between the two?
+    //
     // Returns `None` if `offset` is out of bounds.
     pub(crate) fn load_array_element_constant_index(
         &mut self,
