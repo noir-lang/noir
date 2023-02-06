@@ -33,6 +33,7 @@ pub struct InternalVar {
     // TODO refers to an old version of it. Can we add tests for this?
     // TODO: We can guarantee this, if an InternalVar is immutable after
     // TODO creation.
+    // TODO: one should check usage of `cached_witness_mut`
     cached_witness: Option<Witness>,
     id: Option<NodeId>,
 }
@@ -103,18 +104,20 @@ impl InternalVar {
     /// - If a `Witness` has previously been generated
     /// we return that.
     /// - If the Expression represents a constant, we return None.
-    pub(crate) fn witness<A: ACIRState>(&mut self, evaluator: &mut A) -> Option<Witness> {
+    pub(crate) fn witness<A: ACIRState>(
+        &mut self,
+        evaluator: &mut A,
+        create_witness_for_const: bool,
+    ) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
         if let Some(witness) = self.cached_witness {
             return Some(witness);
         }
 
-        // If we have a constant expression, we do not
-        // create a witness equal to it and instead
-        // panic (TODO change)
-        // TODO: why don't we create a witness for the constant expression here?
-        if self.is_const_expression() {
+        // There are cases where we need to convert a constant expression
+        // into a witness.
+        if !create_witness_for_const && self.is_const_expression() {
             return None;
         }
 
@@ -192,7 +195,7 @@ mod tests {
         let mut internal_var = InternalVar::from_constant(expected_constant);
 
         // We currently do not create witness when the InternalVar was created using a constant
-        let witness = internal_var.witness(&mut evaluator);
+        let witness = internal_var.witness(&mut evaluator, false);
         assert!(witness.is_none());
 
         match internal_var.to_const() {
@@ -211,7 +214,7 @@ mod tests {
         let mut internal_var = InternalVar::from_witness(expected_witness);
 
         // We should get back the same `Witness`
-        let got_witness = internal_var.witness(&mut evaluator);
+        let got_witness = internal_var.witness(&mut evaluator, false);
         match got_witness {
             Some(got_witness) => assert_eq!(got_witness, expected_witness),
             None => panic!("expected a `Witness` value"),
