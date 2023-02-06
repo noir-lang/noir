@@ -393,7 +393,6 @@ impl Acir {
                 };
                 InternalVar::from(bitwise_result)
             }
-            // TODO: document why this is unreachable
             BinaryOp::Shl | BinaryOp::Shr => unreachable!("ICE: ShiftLeft and ShiftRight are replaced by multiplications and divisions in optimization pass."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
@@ -410,7 +409,9 @@ impl Acir {
     // `Array`. Depending on the type, the constraints that will be generated
     // will differ.
     //
-    // TODO: Add note on Neq for structs
+    // TODO(check this): Types like structs are decomposed before getting to SSA
+    // so in reality, the NEQ instruction will be done on the fields
+    // of the struct
     fn evaluate_neq(
         &mut self,
         lhs: NodeId,
