@@ -42,8 +42,9 @@ impl InternalVar {
     pub(crate) fn expression(&self) -> &Expression {
         &self.expression
     }
-    pub(crate) fn id_mut(&mut self) -> &mut Option<NodeId> {
-        &mut self.id
+    pub(crate) fn set_id(&mut self, id: NodeId) {
+        assert!(self.id.is_none(), "ICE: node id has already been set for this `InternalVar`");
+        self.id = Some(id)
     }
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness

@@ -65,7 +65,8 @@ impl Acir {
                 InternalVar::from_witness(witness)
             }
         };
-        *var.id_mut() = Some(id);
+
+        var.set_id(id);
         self.arith_cache.insert(id, var.clone());
         var
     }
@@ -221,8 +222,10 @@ impl Acir {
                 }
             }
         };
-        *output.id_mut() = Some(ins.id);
+
+        output.set_id(ins.id);
         self.arith_cache.insert(ins.id, output);
+
         Ok(())
     }
 
