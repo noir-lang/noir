@@ -42,7 +42,6 @@ fn resolve_node_id(
                 // Then we know that it is an `Array`
                 node::ObjectType::Pointer(a) => resolve_array(a, memory_map, cfg, evaluator),
                 // If it is not a pointer, we attempt to fetch the witness associated with it
-                // TODO Open an issue regarding the below todo panic
                 _ => match v.witness {
                     Some(w) => {
                         vec![FunctionInput { witness: w, num_bits: v.size_in_bits() }]
