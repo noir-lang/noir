@@ -80,9 +80,9 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     println!("Proof successfully created");
     if check_proof {
-        let result = verify_proof(compiled_program, public_inputs, &proof)?;
-        println!("Proof verified : {result}");
-        if !result {
+        let valid_proof = verify_proof(compiled_program, public_inputs, &proof)?;
+        println!("Proof verified : {valid_proof}");
+        if !valid_proof {
             return Err(CliError::Generic("Could not verify generated proof".to_owned()));
         }
     }
