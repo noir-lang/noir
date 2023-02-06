@@ -16,16 +16,14 @@ use std::collections::HashMap;
 
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
-
 mod constraints;
+use constraints::to_radix_base;
 // Expose this to the crate as we need to apply range constraints when
 // converting the ABI(main parameters) to Noir types
 pub(crate) use constraints::range_constraint;
 mod intrinsics;
 mod memory_map;
 use memory_map::MemoryMap;
-
-use self::constraints::to_radix_base;
 
 #[derive(Default)]
 pub struct Acir {
