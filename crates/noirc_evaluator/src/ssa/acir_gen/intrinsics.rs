@@ -40,7 +40,6 @@ fn resolve_node_id(
             match node_obj_type {
                 // If the `Variable` represents a Pointer
                 // Then we know that it is an `Array`
-                // TODO: should change Pointer to `ArrayPointer`
                 node::ObjectType::Pointer(a) => resolve_array(a, memory_map, cfg, evaluator),
                 // If it is not a pointer, we attempt to fetch the witness associated with it
                 // TODO Open an issue regarding the below todo panic
