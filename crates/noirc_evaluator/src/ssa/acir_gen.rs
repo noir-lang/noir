@@ -44,6 +44,7 @@ impl Acir {
         if let Some(internal_var) = self.arith_cache.get(&id) {
             return internal_var.clone();
         }
+
         let var = match ctx.try_get_node(id) {
             Some(NodeObject::Const(c)) => {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
@@ -198,26 +199,10 @@ impl Acir {
                     Some(index) => {
                         let idx = mem::Memory::as_u32(index);
                         let mem_array = &ctx.mem[*array_id];
-                        let absolute_adr = mem_array.absolute_adr(idx);
 
-                        match self.memory_map.internal_var(&absolute_adr) {
-                            Some(internal_var) => {
-                                InternalVar::from(internal_var.expression().clone())
-                            }
-                            None => {
-                                //if not found, then it must be a witness (else it is non-initialized memory)
-                                let index = idx as usize;
-                                if mem_array.values.len() > index {
-                                    mem_array.values[index].clone()
-                                } else {
-                                    // TODO Why is this unreachable and not a RuntimeError?
-                                    // TODO if the user supplies an index which is more
-                                    // TODO than the array length. Does it get picked up in another place?
-                                    // TODO semantically, this is what `unreachable` implies
-                                    unreachable!("Could not find value at index {}", index);
-                                }
-                            }
-                        }
+                        self.memory_map.load_array_element_constant_index(mem_array, idx).expect(
+                            "ICE: index {idx} was out of bounds for array of length {mem_array.len}",
+                        )
                     }
                     None => unimplemented!("dynamic arrays are not implemented yet"),
                 }
@@ -409,7 +394,7 @@ impl Acir {
                 InternalVar::from(bitwise_result)
             }
             // TODO: document why this is unreachable
-            BinaryOp::Shl | BinaryOp::Shr => unreachable!(),
+            BinaryOp::Shl | BinaryOp::Shr => unreachable!("ICE: ShiftLeft and ShiftRight are replaced by multiplications and divisions in optimization pass."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
         }
     }
@@ -442,6 +427,8 @@ impl Acir {
 
             // TODO What happens if we call `l_c.expression()` on InternalVar
             // TODO when we know that they should correspond to Arrays
+            // TODO(Guillaume): We can add an Option<Expression>  because
+            // TODO when the object is composite, it will return One
 
             if array_a.len == array_b.len {
                 let mut x = InternalVar::from(self.array_eq(array_a, array_b, evaluator));
@@ -698,9 +685,15 @@ fn evaluate_bitwise(
     if rhs.to_const().is_some() && rhs.cached_witness().is_none() {
         *rhs.cached_witness_mut() =
             Some(evaluator.create_intermediate_variable(rhs.expression().clone()));
-        assert!(lhs.to_const().is_none());
+        assert!(
+            lhs.to_const().is_none(),
+            "ICE: unexpected panic, this should have been caught by simplify_bitwise"
+        );
     } else if lhs.to_const().is_some() && lhs.cached_witness().is_none() {
-        assert!(rhs.to_const().is_none());
+        assert!(
+            rhs.to_const().is_none(),
+            "ICE: unexpected panic, this should have been caught by simplify_bitwise"
+        );
         *lhs.cached_witness_mut() =
             Some(evaluator.create_intermediate_variable(lhs.expression().clone()));
     }
@@ -726,7 +719,7 @@ fn evaluate_bitwise(
                 FieldElement::one(),
                 rhs.expression(),
             ));
-            // TODO seems like a bug
+            // We do not have an OR gate yet, so we use the AND gate
             acvm::acir::BlackBoxFunc::AND
         }
         _ => unreachable!(),
