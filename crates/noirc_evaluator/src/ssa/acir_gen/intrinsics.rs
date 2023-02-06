@@ -34,8 +34,6 @@ fn resolve_node_id(
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
-    // TODO `node::NodeObject::Obj` is not intuitive.
-    // TODO should this be changed to `node::NodeObject::Variable` ?
     match node_object {
         node::NodeObject::Obj(v) => {
             let node_obj_type = node_object.get_type();
