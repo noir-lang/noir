@@ -183,7 +183,7 @@ impl Driver {
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
         if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build command");
+            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
             std::process::exit(1);
         };
 
