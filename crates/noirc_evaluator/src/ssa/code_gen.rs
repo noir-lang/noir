@@ -1,21 +1,24 @@
-use super::context::SsaContext;
-use super::function::FuncIndex;
-use super::mem::ArrayId;
-use super::node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable};
-use super::{block, builtin, node, ssa_form};
-use std::collections::{BTreeMap, HashMap};
-use std::convert::TryInto;
-
-use super::super::errors::RuntimeError;
-
-use crate::errors;
-use crate::ssa::block::BlockType;
+use crate::ssa::{
+    block::BlockType,
+    context::SsaContext,
+    function::FuncIndex,
+    mem::ArrayId,
+    node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable},
+    {block, builtin, node, ssa_form},
+};
+use crate::{errors, errors::RuntimeError};
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::*;
-use noirc_frontend::{BinaryOpKind, UnaryOp};
+use noirc_frontend::{
+    monomorphization::ast::{
+        ArrayLiteral, Definition, Expression, For, Ident, If, LValue, Let, Literal, LocalId,
+        Program, Type,
+    },
+    BinaryOpKind, UnaryOp,
+};
 use num_bigint::BigUint;
 use num_traits::Zero;
+use std::collections::{BTreeMap, HashMap};
 
 pub struct IRGenerator {
     pub context: SsaContext,

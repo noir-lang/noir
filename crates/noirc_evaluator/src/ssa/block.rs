@@ -1,10 +1,10 @@
 use crate::errors::RuntimeError;
-
-use super::{
+use crate::ssa::{
     conditional::AssumptionId,
     context::SsaContext,
     mem::ArrayId,
-    node::{self, Instruction, Mark, NodeId, Opcode},
+    node,
+    node::{Instruction, Mark, NodeId, Opcode},
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 

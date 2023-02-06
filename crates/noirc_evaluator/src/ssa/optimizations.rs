@@ -1,14 +1,12 @@
-use acvm::FieldElement;
-
 use crate::errors::RuntimeError;
-
-use super::{
+use crate::ssa::{
     anchor::{Anchor, CseAction},
     block::BlockId,
     builtin,
     context::SsaContext,
     node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
 };
+use acvm::FieldElement;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.get_instruction(ins_id).clone();

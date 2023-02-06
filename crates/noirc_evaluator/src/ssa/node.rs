@@ -1,22 +1,16 @@
-use std::convert::TryInto;
-
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-use acvm::acir::native_types::Witness;
-use acvm::FieldElement;
+use crate::ssa::{block::BlockId, builtin, conditional, context::SsaContext, mem::ArrayId};
+use acvm::{acir::native_types::Witness, FieldElement};
 use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{Definition, FuncId};
-use noirc_frontend::BinaryOpKind;
+use noirc_frontend::{
+    monomorphization::ast::{Definition, FuncId},
+    BinaryOpKind,
+};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
-use std::ops::{Add, Mul, Sub};
-use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
-
-use super::block::BlockId;
-use super::context::SsaContext;
-use super::mem::ArrayId;
-use super::{builtin, conditional};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;

@@ -1,17 +1,18 @@
 mod errors;
 mod ssa;
 
-use acvm::acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs};
-use acvm::acir::native_types::{Expression, Witness};
-use acvm::compiler::fallback::IsBlackBoxSupported;
-use acvm::Language;
+use acvm::{
+    acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
+    acir::native_types::{Expression, Witness},
+    compiler::fallback::IsBlackBoxSupported,
+    Language,
+};
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
-use std::collections::BTreeMap;
-
 use ssa::{code_gen::IRGenerator, node};
+use std::collections::BTreeMap;
 
 pub struct Evaluator {
     // Why is this not u64?

@@ -1,12 +1,10 @@
-use std::collections::HashSet;
-
-use crate::ssa::node::{Mark, Operation};
-
-use super::{
-    block::{self, BlockId},
+use crate::ssa::{
+    block::BlockId,
     context::SsaContext,
-    node::{self, NodeId},
+    node::{Mark, NodeId, Operation},
+    {block, node},
 };
+use std::collections::HashSet;
 
 // create phi arguments from the predecessors of the block (containing phi)
 pub fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, phi: NodeId) {
