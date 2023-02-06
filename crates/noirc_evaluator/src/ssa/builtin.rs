@@ -1,4 +1,7 @@
-use crate::ssa::{node::{NodeId, ObjectType}, context::SsaContext};
+use crate::ssa::{
+    context::SsaContext,
+    node::{NodeId, ObjectType},
+};
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
