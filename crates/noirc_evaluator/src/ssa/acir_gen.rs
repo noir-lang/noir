@@ -45,27 +45,27 @@ impl Acir {
             return internal_var.clone();
         }
 
-        let var = match ctx.try_get_node(id) {
+        let mut var = match ctx.try_get_node(id) {
             Some(NodeObject::Const(c)) => {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                let expr = Expression::from_field(field_value);
-                InternalVar::new(expr, None, Some(id))
+                InternalVar::from_constant(field_value)
             }
             Some(NodeObject::Obj(variable)) => match variable.get_type() {
+                // TODO We should return None instead of default here
+                // TODO so that when one calls `InternalVar` in other
+                // TODO functions, they must explicitly unwrap this
                 ObjectType::Pointer(_) => InternalVar::default(),
                 _ => {
                     let witness = variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
-                    let expr = Expression::from(&witness);
-                    InternalVar::new(expr, Some(witness), Some(id))
+                    InternalVar::from_witness(witness)
                 }
             },
             _ => {
                 let witness = evaluator.add_witness_to_cs();
-                let expr = Expression::from(&witness);
-                InternalVar::new(expr, Some(witness), Some(id))
+                InternalVar::from_witness(witness)
             }
         };
-
+        *var.id_mut() = Some(id);
         self.arith_cache.insert(id, var.clone());
         var
     }

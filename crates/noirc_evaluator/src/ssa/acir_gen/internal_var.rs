@@ -38,14 +38,6 @@ pub struct InternalVar {
 }
 
 impl InternalVar {
-    pub(super) fn new(
-        expression: Expression,
-        cached_witness: Option<Witness>,
-        id: Option<NodeId>,
-    ) -> InternalVar {
-        InternalVar { expression, cached_witness, id }
-    }
-
     pub(crate) fn expression(&self) -> &Expression {
         &self.expression
     }
@@ -94,7 +86,7 @@ impl InternalVar {
     /// Creates an `InternalVar` from a `Witness`.
     /// Since a `Witness` can alway be coerced into an
     /// Expression, this method is infallible.
-    fn from_witness(witness: Witness) -> InternalVar {
+    pub(crate) fn from_witness(witness: Witness) -> InternalVar {
         InternalVar {
             expression: Expression::from(&witness),
             cached_witness: Some(witness),
@@ -103,7 +95,7 @@ impl InternalVar {
     }
 
     /// Creates an `InternalVar` from a `FieldElement`.
-    fn from_constant(constant: FieldElement) -> InternalVar {
+    pub(crate) fn from_constant(constant: FieldElement) -> InternalVar {
         InternalVar { expression: Expression::from_field(constant), cached_witness: None, id: None }
     }
 
