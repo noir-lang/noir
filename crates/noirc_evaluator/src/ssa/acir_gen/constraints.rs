@@ -150,6 +150,9 @@ pub(crate) fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expre
 }
 
 // returns a + k*b
+// TODO: possibly rename to add_mul
+// TODO also check why we are doing all of this complicated logic with i1 and i2
+// TODO in either case, we can put this in ACIR, if its useful
 pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
     let mut output = Expression::default();
 
