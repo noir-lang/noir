@@ -1,22 +1,16 @@
-use std::collections::{HashMap, VecDeque};
-
 use crate::errors::RuntimeError;
-use crate::ssa::node::Opcode;
-use iter_extended::try_vecmap;
-use noirc_frontend::monomorphisation::ast::{Call, Definition, FuncId, LocalId, Type};
-
-use super::builtin;
-use super::conditional::{AssumptionId, DecisionTree, TreeBuilder};
-use super::mem::ArrayId;
-use super::node::{Node, Operation};
-use super::{
-    block,
+use crate::ssa::{
     block::BlockId,
     code_gen::IRGenerator,
+    conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
-    node::{self, NodeId, ObjectType},
-    ssa_form,
+    mem::ArrayId,
+    node::{Node, NodeId, ObjectType, Opcode, Operation},
+    {block, builtin, node, ssa_form},
 };
+use iter_extended::try_vecmap;
+use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct FuncIndex(pub usize);
@@ -61,59 +55,60 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, igen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
-        let function_cfg = block::bfs(self.entry_block, None, &igen.context);
-        block::compute_sub_dom(&mut igen.context, &function_cfg);
-        //Optimisation
+    pub fn compile(&self, ir_gen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+        let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
+        block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
+        //Optimization
         //catch the error because the function may not be called
-        super::optim::full_cse(&mut igen.context, self.entry_block, false)?;
+        super::optimizations::full_cse(&mut ir_gen.context, self.entry_block, false)?;
         //Unrolling
-        super::flatten::unroll_tree(&mut igen.context, self.entry_block)?;
+        super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 
         //reduce conditionals
-        let mut decision = DecisionTree::new(&igen.context);
+        let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = igen.context.get_object_type(*arg) {
+            if let ObjectType::Pointer(a) = ir_gen.context.get_object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
 
         let mut to_remove: VecDeque<BlockId> = VecDeque::new();
 
-        let result = decision.make_decision_tree(&mut igen.context, builder);
+        let result = decision.make_decision_tree(&mut ir_gen.context, builder);
         if result.is_err() {
             // we take the last block to ensure we have the return instruction
-            let exit = block::exit(&igen.context, self.entry_block);
+            let exit = block::exit(&ir_gen.context, self.entry_block);
             //short-circuit for function: false constraint and return 0
-            let instructions = &igen.context[exit].instructions.clone();
+            let instructions = &ir_gen.context[exit].instructions.clone();
             let stack = block::short_circuit_instructions(
-                &mut igen.context,
+                &mut ir_gen.context,
                 self.entry_block,
                 instructions,
             );
             if self.entry_block != exit {
                 for i in &stack {
-                    igen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                    ir_gen.context.get_mut_instruction(*i).parent_block = self.entry_block;
                 }
             }
 
-            let function_block = &mut igen.context[self.entry_block];
+            let function_block = &mut ir_gen.context[self.entry_block];
             function_block.instructions.clear();
             function_block.instructions = stack;
             function_block.left = None;
             to_remove.extend(function_cfg.iter()); //let's remove all the other blocks
         } else {
-            decision.reduce(&mut igen.context, decision.root)?;
+            decision.reduce(&mut ir_gen.context, decision.root)?;
         }
 
         //merge blocks
-        to_remove = block::merge_path(&mut igen.context, self.entry_block, BlockId::dummy(), None)?;
+        to_remove =
+            block::merge_path(&mut ir_gen.context, self.entry_block, BlockId::dummy(), None)?;
 
-        igen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
+        ir_gen.context[self.entry_block].dominated.retain(|b| !to_remove.contains(b));
         for i in to_remove {
             if i != self.entry_block {
-                igen.context.remove_block(i);
+                ir_gen.context.remove_block(i);
             }
         }
         Ok(decision)
@@ -132,7 +127,7 @@ impl SSAFunction {
         }
 
         let node_obj_opt = ctx.try_get_node(*node_id);
-        if let Some(node::NodeObj::Const(c)) = node_obj_opt {
+        if let Some(node::NodeObject::Const(c)) = node_obj_opt {
             ctx.get_or_create_const(c.get_value_field(), c.value_type)
         } else if let Some(id) = inline_map.get(node_id) {
             *id
@@ -253,8 +248,8 @@ impl IRGenerator {
         let call_instruction =
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
-        if let Some(id) = self.context.try_get_funcid(func) {
-            let callee = self.context.get_ssafunc(id).unwrap().idx;
+        if let Some(id) = self.context.try_get_func_id(func) {
+            let callee = self.context.get_ssa_func(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
             }
@@ -265,7 +260,7 @@ impl IRGenerator {
         // return an array of size 0.
         // we should check issue #628 again when this block is removed
         // we should also see if the lca check in StackFrame.is_new_array() can be removed (cf. issue #661)
-        if let Some(func_id) = self.context.try_get_funcid(func) {
+        if let Some(func_id) = self.context.try_get_func_id(func) {
             let rtt = self.context.functions[&func_id].result_types.clone();
             let mut result = Vec::new();
             for i in rtt.iter().enumerate() {
@@ -274,7 +269,7 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
-            let ssa_func = self.context.get_ssafunc(func_id).unwrap();
+            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
             let func_arguments = ssa_func.arguments.clone();
             for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
                 let mut is_array_result = false;
@@ -332,7 +327,7 @@ impl IRGenerator {
         })
     }
 
-    //Lowlevel functions with no more than 2 arguments
+    //Low-level functions with no more than 2 arguments
     pub fn call_low_level(
         &mut self,
         op: builtin::Opcode,
@@ -402,7 +397,7 @@ pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optim::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
+            super::optimizations::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {

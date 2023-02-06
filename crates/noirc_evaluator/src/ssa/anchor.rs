@@ -1,12 +1,10 @@
-use std::collections::{HashMap, VecDeque};
-
 use crate::errors::{RuntimeError, RuntimeErrorKind};
-
-use super::{
+use crate::ssa::{
     context::SsaContext,
     mem::ArrayId,
     node::{NodeId, ObjectType, Opcode, Operation},
 };
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug)]
 pub enum MemItem {
@@ -67,7 +65,7 @@ impl Anchor {
 
     pub fn find_similar_cast(
         &self,
-        igen: &SsaContext,
+        ir_gen: &SsaContext,
         operator: &Operation,
         res_type: super::node::ObjectType,
     ) -> Option<NodeId> {
@@ -77,7 +75,7 @@ impl Anchor {
                     let by_type = &self.cast_map[id];
                     if by_type.contains_key(&res_type) {
                         let tu = by_type[&res_type];
-                        if let Some(ins) = igen.try_get_instruction(tu) {
+                        if let Some(ins) = ir_gen.try_get_instruction(tu) {
                             if !ins.is_deleted() {
                                 return Some(tu);
                             }

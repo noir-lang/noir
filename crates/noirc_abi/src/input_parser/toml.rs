@@ -24,7 +24,7 @@ pub(crate) fn parse_toml(
     })
 }
 
-pub(crate) fn serialise_to_toml(
+pub(crate) fn serialize_to_toml(
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<String, InputParserError> {
     // Toml requires that values be emitted before tables. Thus, we must reorder our map in case a TomlTypes::Table comes before any other values in the toml map

@@ -15,8 +15,10 @@ members = [
 default-members = ["crates/nargo"]
 
 [workspace.package]
+# x-release-please-start-version
 version = "0.1.0"
-authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+# x-release-please-end
+authors = ["The Noir Team <kevtheappdev@gmail.com>"]
 edition = "2021"
 rust-version = "1.64"
 
@@ -44,5 +46,5 @@ smol_str = "0.1.17"
 thiserror = "1.0.21"
 toml = "0.5.8"
 url = "2.2.0"
-wasm-bindgen = { version = "*", features = ["serde-serialize"] }
-wasm-bindgen-test = "*"
+wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.33"

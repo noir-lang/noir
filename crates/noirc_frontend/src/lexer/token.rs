@@ -129,8 +129,8 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
-    // An invalid character is one that is not in noir's language or grammer.
-    // Delaying reporting these as errors until parsing improves error messsages
+    // An invalid character is one that is not in noir's language or grammar.
+    // Delaying reporting these as errors until parsing improves error messages
     Invalid(char),
 }
 
@@ -235,9 +235,9 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binop(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
         use crate::BinaryOpKind::*;
-        let binop = match self {
+        let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,
             Token::Caret => Xor,
@@ -256,7 +256,7 @@ impl Token {
             Token::Percent => Modulo,
             _ => return None,
         };
-        Some(Spanned::from(span, binop))
+        Some(Spanned::from(span, binary_op))
     }
 }
 
@@ -319,6 +319,7 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Alternative(String),
+    Test,
 }
 
 impl fmt::Display for Attribute {
@@ -327,6 +328,7 @@ impl fmt::Display for Attribute {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Alternative(ref k) => write!(f, "#[alternative({k})]"),
+            Attribute::Test => write!(f, "#[test]"),
         }
     }
 }
@@ -341,7 +343,14 @@ impl Attribute {
             .collect();
 
         if word_segments.len() != 2 {
-            return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() });
+            if word_segments.len() == 1 && word_segments[0] == "test" {
+                return Ok(Token::Attribute(Attribute::Test));
+            } else {
+                return Err(LexerErrorKind::MalformedFuncAttribute {
+                    span,
+                    found: word.to_owned(),
+                });
+            }
         }
 
         let attribute_type = word_segments[0];
@@ -360,21 +369,22 @@ impl Attribute {
 
     pub fn builtin(self) -> Option<String> {
         match self {
-            Attribute::Foreign(_) | Attribute::Alternative(_) => None,
             Attribute::Builtin(name) => Some(name),
+            _ => None,
         }
     }
 
     pub fn foreign(self) -> Option<String> {
         match self {
             Attribute::Foreign(name) => Some(name),
-            Attribute::Builtin(_) | Attribute::Alternative(_) => None,
+            _ => None,
         }
     }
 
     pub fn is_foreign(&self) -> bool {
         matches!(self, Attribute::Foreign(_))
     }
+
     pub fn is_low_level(&self) -> bool {
         matches!(self, Attribute::Foreign(_) | Attribute::Builtin(_))
     }
@@ -386,6 +396,7 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Alternative(string) => string,
+            Attribute::Test => "",
         }
     }
 }
@@ -396,7 +407,7 @@ pub enum Keyword {
     As,
     Bool,
     Char,
-    Comptime,
+    CompTime,
     Constrain,
     Crate,
     Dep,
@@ -425,7 +436,7 @@ impl fmt::Display for Keyword {
             Keyword::As => write!(f, "as"),
             Keyword::Bool => write!(f, "bool"),
             Keyword::Char => write!(f, "char"),
-            Keyword::Comptime => write!(f, "comptime"),
+            Keyword::CompTime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
@@ -459,7 +470,7 @@ impl Keyword {
             "as" => Keyword::As,
             "bool" => Keyword::Bool,
             "char" => Keyword::Char,
-            "comptime" => Keyword::Comptime,
+            "comptime" => Keyword::CompTime,
             "constrain" => Keyword::Constrain,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,

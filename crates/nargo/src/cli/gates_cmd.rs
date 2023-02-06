@@ -13,8 +13,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 pub fn count_gates(show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
-    let curr_dir = std::env::current_dir().unwrap();
-    count_gates_with_path(curr_dir, show_ssa, allow_warnings)
+    let current_dir = std::env::current_dir().unwrap();
+    count_gates_with_path(current_dir, show_ssa, allow_warnings)
 }
 
 pub fn count_gates_with_path<P: AsRef<Path>>(
