@@ -63,7 +63,7 @@ fn resolve_node_id(
                 Some(_var) => {
                     let mut var = _var.clone();
                     let witness = var.cached_witness().unwrap_or_else(|| {
-                        var.witness(evaluator).expect("unexpected constant expression")
+                        var.witness(evaluator, false).expect("unexpected constant expression")
                     });
                     vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
                 }
@@ -115,7 +115,7 @@ fn resolve_array(
                         evaluator.create_intermediate_variable(internal_var.expression().clone());
                     *var.cached_witness_mut() = Some(w);
                 }
-                let w = var.witness(evaluator).expect("unexpected constant expression");
+                let w = var.witness(evaluator, false).expect("unexpected constant expression");
                 memory_map.insert(address, var);
 
                 FunctionInput { witness: w, num_bits }

@@ -160,7 +160,9 @@ impl Acir {
                         let witness = if object.expression().is_const() {
                             evaluator.create_intermediate_variable(object.expression().clone())
                         } else {
-                            object.witness(evaluator).expect("unexpected constant expression")
+                            object
+                                .witness(evaluator, false)
+                                .expect("unexpected constant expression")
                         };
 
                         // Before pushing to the public inputs, we need to check that
@@ -321,7 +323,7 @@ impl Acir {
             ),
             BinaryOp::Div => {
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
-                let x_witness = r_c.witness(evaluator).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
+                let x_witness = r_c.witness(evaluator, false).expect("unexpected constant expression"); //TODO avoid creating witnesses here.
 
                 let inverse = expression_from_witness(constraints::evaluate_inverse(
                     x_witness, &predicate, evaluator,
@@ -442,7 +444,7 @@ impl Acir {
             // TODO we need a witness because of the directive, but we should use an expression
             // TODO if we change the Invert directive to take an `Expression`, then we
             // TODO can get rid of this extra gate.
-            let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+            let x_witness = x.witness(evaluator, false).expect("unexpected constant expression");
 
             return expression_from_witness(constraints::evaluate_zero_equality(
                 x_witness, evaluator,
@@ -465,7 +467,7 @@ impl Acir {
             r_c.expression(),
         ));
         //todo we need a witness because of the directive, but we should use an expression
-        let x_witness = x.witness(evaluator).expect("unexpected constant expression");
+        let x_witness = x.witness(evaluator, false).expect("unexpected constant expression");
         expression_from_witness(constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 
@@ -699,8 +701,8 @@ fn evaluate_bitwise(
             Some(evaluator.create_intermediate_variable(lhs.expression().clone()));
     }
 
-    let mut a_witness = lhs.witness(evaluator).expect("unexpected constant expression");
-    let mut b_witness = rhs.witness(evaluator).expect("unexpected constant expression");
+    let mut a_witness = lhs.witness(evaluator, false).expect("unexpected constant expression");
+    let mut b_witness = rhs.witness(evaluator, false).expect("unexpected constant expression");
 
     let result = evaluator.add_witness_to_cs();
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
@@ -846,8 +848,8 @@ fn expression_is_degree_1(expression: &Expression) -> bool {
 // - f(x,y) = x + 6 would return true
 // - f(x,y) = 2*y + 6 would return true
 // - f(x,y) = x + y would return false
-// - f(x, y) = x + x should return true, but we return false *** (we do not simplify)
-//
+// - f(x,y) = x + x should return true, but we return false *** (we do not simplify)
+// - f(x,y) = 5 would return false
 // TODO move to ACVM repo
 // TODO: ACVM has a method called is_linear, we should change this to `max_degree_one`
 fn expression_is_deg_one_univariate(expression: &Expression) -> bool {
