@@ -236,10 +236,10 @@ impl Acir {
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
             | i @ Operation::Phi { .. }
+            | i @ Operation::Call { .. }
             | i @ Operation::Result { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
-            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
         };
 
         // If the output returned an `InternalVar` then we add it to the cache
