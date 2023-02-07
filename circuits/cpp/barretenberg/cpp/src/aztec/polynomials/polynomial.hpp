@@ -15,10 +15,8 @@ template <typename Fr> class Polynomial {
     // Creates a read only polynomial using mmap.
     Polynomial(std::string const& filename);
 
-    // TODO: add a 'spill' factor when allocating memory - we sometimes needs to extend poly degree by 2/4,
-    // if page size = power of two, will trigger unneccesary copies
-    Polynomial(const size_t initial_size, const size_t initial_max_size_hint = DEFAULT_SIZE_HINT);
-    Polynomial(const Polynomial& other, const size_t target_max_size = 0);
+    Polynomial(const size_t initial_size);
+    Polynomial(const Polynomial& other, const size_t target_size = 0);
 
     Polynomial(Polynomial&& other) noexcept;
 
@@ -26,7 +24,7 @@ template <typename Fr> class Polynomial {
     Polynomial(Fr* buf, const size_t initial_size);
 
     // Allow polynomials to be entirely reset/dormant
-    Polynomial();
+    Polynomial() = default;
 
     /**
      * @brief Create the degree-(m-1) polynomial T(X) that interpolates the given evaluations.
@@ -45,40 +43,41 @@ template <typename Fr> class Polynomial {
     {
         free();
 
-        mapped_ = false;
         coefficients_ = 0;
-        initial_size_ = 0;
         size_ = 0;
-        page_size_ = DEFAULT_SIZE_HINT;
-        max_size_ = 0;
-        allocated_pages_ = 0;
+        mapped_ = false;
     }
 
     bool operator==(Polynomial const& rhs) const
     {
-        if (size_ == rhs.size_) {
-
-            // If either poly has null coefficients then we are equal only if both are null
-            if ((coefficients_ == nullptr) || (rhs.coefficients_ == nullptr))
-                return (coefficients_ == nullptr) && (rhs.coefficients_ == nullptr);
-
-            // Size is equal and both have coefficients, compare
-            for (size_t i = 0; i < size_; ++i) {
+        // If either is empty, both must be
+        if (is_empty() || rhs.is_empty()) {
+            return is_empty() && rhs.is_empty();
+        }
+        // Otherwise, check that the coefficients match on the minimum of the two sizes and that the higher coefficients
+        // of the larger poly (if one exists) are identically zero.
+        else {
+            size_t min_size = std::min(size(), rhs.size());
+            for (size_t i = 0; i < min_size; i++) {
                 if (coefficients_[i] != rhs.coefficients_[i])
+                    return false;
+            }
+            for (size_t i = min_size; i < size(); i++) {
+                if (coefficients_[i] != 0)
+                    return false;
+            }
+            for (size_t i = min_size; i < rhs.size(); i++) {
+                if (rhs.coefficients_[i] != 0)
                     return false;
             }
 
             return true;
         }
-
-        return false;
     }
 
+    // IMPROVEMENT: deprecate in favor of 'data()' and ensure const correctness
     Fr* get_coefficients() const { return coefficients_; };
     Fr* get_coefficients() { return coefficients_; };
-
-    size_t get_size() const { return size_; };
-    size_t get_max_size() const { return max_size_; };
 
     // Const and non const versions of coefficient accessors
     Fr const& operator[](const size_t i) const
@@ -126,21 +125,15 @@ template <typename Fr> class Polynomial {
     void ifft(const EvaluationDomain<Fr>& domain);
     void ifft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& constant);
     void coset_ifft(const EvaluationDomain<Fr>& domain);
-    // void coset_ifft_with_constant(const EvaluationDomain<Fr> &domain, const Fr &constant);
 
     Fr compute_kate_opening_coefficients(const Fr& z);
-    void add_lagrange_base_coefficient(const Fr& coefficient);
-    void add_coefficient(const Fr& coefficient);
 
-    void reserve(const size_t new_max_size);
-    void resize(const size_t new_size);
-    void resize_unsafe(const size_t new_size);
+    bool is_empty() const { return (coefficients_ == nullptr) || (size_ == 0); }
 
-    bool empty() const
+    // safety check for in place operations
+    bool in_place_operation_viable(size_t domain_size = 0)
     {
-        bool is_null_ptr = (coefficients_ == nullptr);
-        bool size_is_zero = (size_ == 0);
-        return is_null_ptr || size_is_zero;
+        return !is_empty() && !mapped() && (size() >= domain_size);
     }
 
     /**
@@ -152,9 +145,8 @@ template <typename Fr> class Polynomial {
     std::span<Fr> shifted() const
     {
         ASSERT(size_ > 0);
-        // TODO(luke): Reinstate the below ASSERT once Adrian's relations update makes this true!
         ASSERT(coefficients_[0].is_zero());
-        ASSERT(coefficients_[size_].is_zero()); // relies on DEFAULT_PAGE_SPILL > 1
+        ASSERT(coefficients_[size_].is_zero()); // relies on DEFAULT_CAPACITY_INCREASE >= 1
         return std::span{ coefficients_ + 1, size_ };
     }
 
@@ -168,7 +160,6 @@ template <typename Fr> class Polynomial {
 
     /**
      * @brief adds the polynomial q(X) 'other'.
-     * If the degree of q is larger, we bump the size.
      *
      * @param other q(X)
      */
@@ -176,7 +167,6 @@ template <typename Fr> class Polynomial {
 
     /**
      * @brief subtracts the polynomial q(X) 'other'.
-     * If the degree of q is larger, we bump the size
      *
      * @param other q(X)
      */
@@ -211,16 +201,8 @@ template <typename Fr> class Polynomial {
      *
      * @param roots list of roots (r₁,…,rₘ)
      */
-    void factor_roots(std::span<const Fr> roots)
-    {
-        polynomial_arithmetic::factor_roots(std::span{ *this }, roots);
-        size_ -= roots.size();
-    };
-    void factor_roots(const Fr& root)
-    {
-        polynomial_arithmetic::factor_roots(std::span{ *this }, root);
-        size_--;
-    };
+    void factor_roots(std::span<const Fr> roots) { polynomial_arithmetic::factor_roots(std::span{ *this }, roots); };
+    void factor_roots(const Fr& root) { polynomial_arithmetic::factor_roots(std::span{ *this }, root); };
 
     /**
      * Implements requirements of `std::ranges::contiguous_range` and `std::ranges::sized_range`
@@ -242,23 +224,24 @@ template <typename Fr> class Polynomial {
     const_pointer data() const { return coefficients_; }
 
     std::size_t size() const { return size_; }
+    std::size_t capacity() const { return size_ + DEFAULT_CAPACITY_INCREASE; }
+    bool mapped() const { return mapped_; }
 
   private:
     void free();
-    void zero_memory(const size_t zero_size);
-    const static size_t DEFAULT_SIZE_HINT = 1 << 12; // DOCTODO: justify this number.
-    const static size_t DEFAULT_PAGE_SPILL = 20;     // DOCTODO: explain this, or rename.
-    void add_coefficient_internal(const Fr& coefficient);
-    void bump_memory(const size_t new_size);
+    void zero_memory_beyond(const size_t start_position);
+    // When a polynomial is instantiated from a size alone, the memory allocated corresponds to
+    // input size + DEFAULT_CAPACITY_INCREASE. A DEFAULT_CAPACITY_INCREASE of >= 1 is required to ensure
+    // that polynomials can be 'shifted' via a span of the 1st to size+1th coefficients.
+    const static size_t DEFAULT_CAPACITY_INCREASE = 1;
 
   public:
-    bool mapped_;
-    Fr* coefficients_;
-    size_t initial_size_;
-    size_t size_;      // This is the size() of the `coefficients` vector.
-    size_t page_size_; // DOCTODO: what does 'page' mean? Explain this.
-    size_t max_size_;
-    size_t allocated_pages_;
+    Fr* coefficients_ = nullptr;
+    // The size_ effectively represents the 'usable' length of the coefficients array but may be less than the true
+    // 'capacity' of the array. It is not explicitly tied to the degree and is not changed by any operations on the
+    // polynomial.
+    size_t size_ = 0;
+    bool mapped_ = false;
 };
 
 template <typename Fr> inline std::ostream& operator<<(std::ostream& os, Polynomial<Fr> const& p)

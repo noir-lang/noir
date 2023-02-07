@@ -82,7 +82,7 @@ template <typename Params> class MultiBatchOpeningScheme {
             // - Cₖ = ∑ⱼ ρʲ⋅Cⱼ
             // - Yₖ = {yᵏ₁, …, yᵏₘₖ}, where yᵏᵢ = ∑ⱼ ρʲ⋅yʲᵢ
             // create an empty polynomial in which we merge all polynomials openened at the same claim
-            auto& B_k = merged_polynomials.emplace_back(Polynomial(size_t(0), merged_poly_size));
+            auto& B_k = merged_polynomials.emplace_back(merged_poly_size);
             auto& C_k = merged_commitments.emplace_back(Commitment::zero());
             std::vector<Fr> evals_k(num_queries_k, Fr::zero());
 
@@ -108,8 +108,8 @@ template <typename Params> class MultiBatchOpeningScheme {
         }
 
         // initialize Q(X) = 0
-        Polynomial Q(size_t(0), max_poly_size);
-        Polynomial tmp(size_t(0), max_poly_size);
+        Polynomial Q(max_poly_size);
+        Polynomial tmp(max_poly_size);
         for (size_t k = 0; k < num_multi_claims; ++k) {
             // Bₖ(X) into temp_poly
             tmp = merged_polynomials[k];

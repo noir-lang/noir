@@ -154,8 +154,7 @@ TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
     // Generate proving key
     auto proving_key = composer.compute_proving_key();
     // Generate a random polynomial
-    barretenberg::polynomial random_polynomial =
-        barretenberg::polynomial(proving_key->circuit_size, proving_key->circuit_size);
+    barretenberg::polynomial random_polynomial = barretenberg::polynomial(proving_key->circuit_size);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
         random_polynomial[i] = barretenberg::fr::random_element();
     }

@@ -80,10 +80,10 @@ void proving_key::init()
     }
 
     // t_i for i = 1,2,3 have n+1 coefficients after blinding. t_4 has only n coefficients.
-    quotient_polynomial_parts[0] = barretenberg::polynomial(circuit_size + 1, circuit_size + 1);
-    quotient_polynomial_parts[1] = barretenberg::polynomial(circuit_size + 1, circuit_size + 1);
-    quotient_polynomial_parts[2] = barretenberg::polynomial(circuit_size + 1, circuit_size + 1);
-    quotient_polynomial_parts[3] = barretenberg::polynomial(circuit_size, circuit_size);
+    quotient_polynomial_parts[0] = barretenberg::polynomial(circuit_size + 1);
+    quotient_polynomial_parts[1] = barretenberg::polynomial(circuit_size + 1);
+    quotient_polynomial_parts[2] = barretenberg::polynomial(circuit_size + 1);
+    quotient_polynomial_parts[3] = barretenberg::polynomial(circuit_size);
 
     memset((void*)&quotient_polynomial_parts[0][0], 0x00, sizeof(barretenberg::fr) * (circuit_size + 1));
     memset((void*)&quotient_polynomial_parts[1][0], 0x00, sizeof(barretenberg::fr) * (circuit_size + 1));

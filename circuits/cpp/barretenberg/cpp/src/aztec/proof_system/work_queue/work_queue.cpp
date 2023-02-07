@@ -248,16 +248,15 @@ void work_queue::process_queue()
         case WorkType::FFT: {
             using namespace barretenberg;
             polynomial& wire = key->polynomial_cache.get(item.tag);
-            polynomial wire_fft(4 * key->circuit_size + 4, 4 * key->circuit_size + 4);
+            polynomial wire_fft(4 * key->circuit_size + 4);
 
             polynomial_arithmetic::copy_polynomial(
-                &wire[0], &wire_fft[0], key->circuit_size, 4 * key->circuit_size + 4);
+                wire.data(), wire_fft.data(), key->circuit_size, 4 * key->circuit_size + 4);
 
             wire_fft.coset_fft(key->large_domain);
-            wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
-            wire_fft.add_lagrange_base_coefficient(wire_fft[1]);
-            wire_fft.add_lagrange_base_coefficient(wire_fft[2]);
-            wire_fft.add_lagrange_base_coefficient(wire_fft[3]);
+            for (size_t i = 0; i < 4; i++) {
+                wire_fft[4 * key->circuit_size + i] = wire_fft[i];
+            }
 
             key->polynomial_cache.put(item.tag + "_fft", std::move(wire_fft));
 

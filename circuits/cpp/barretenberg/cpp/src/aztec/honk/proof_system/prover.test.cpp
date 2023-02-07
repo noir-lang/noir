@@ -60,8 +60,8 @@ template <class Fscalar> class ProverTests : public testing::Test {
         std::vector<polynomial> wires;
         std::vector<polynomial> sigmas;
         for (size_t i = 0; i < program_width; ++i) {
-            polynomial wire_poly(proving_key->circuit_size, proving_key->circuit_size);
-            polynomial sigma_poly(proving_key->circuit_size, proving_key->circuit_size);
+            polynomial wire_poly(proving_key->circuit_size);
+            polynomial sigma_poly(proving_key->circuit_size);
             for (size_t j = 0; j < proving_key->circuit_size; ++j) {
                 wire_poly[j] = Fscalar::random_element();
                 sigma_poly[j] = Fscalar::random_element();
@@ -143,7 +143,7 @@ template <class Fscalar> class ProverTests : public testing::Test {
         }
 
         // Step (4)
-        polynomial z_perm(proving_key->circuit_size, proving_key->circuit_size);
+        polynomial z_perm(proving_key->circuit_size);
         z_perm[0] = Fscalar::zero(); // Z_0 = 1
         // Note: in practice, we replace this expensive element-wise division with Montgomery batch inversion
         for (size_t i = 0; i < proving_key->circuit_size - 1; ++i) {

@@ -267,7 +267,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
 
     // Construct permutation polynomial 'z' in lagrange form as:
     // z = [1 accumulators[0][0] accumulators[0][1] ... accumulators[0][n-2]]
-    polynomial z_perm(key->circuit_size, key->circuit_size);
+    polynomial z_perm(key->circuit_size);
     z_perm[0] = fr::one();
     barretenberg::polynomial_arithmetic::copy_polynomial(
         accumulators[0], &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);

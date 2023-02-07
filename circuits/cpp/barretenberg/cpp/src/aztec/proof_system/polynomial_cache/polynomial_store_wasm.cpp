@@ -17,7 +17,7 @@ template <typename... Args> inline void debug(Args...) {}
 
 void PolynomialStoreWasm::put(std::string const& key, polynomial const& poly)
 {
-    set_data(key.c_str(), poly.get_coefficients(), poly.get_size() * sizeof(fr));
+    set_data(key.c_str(), poly.get_coefficients(), poly.size() * sizeof(fr));
 }
 
 polynomial PolynomialStoreWasm::get(std::string const& key) const

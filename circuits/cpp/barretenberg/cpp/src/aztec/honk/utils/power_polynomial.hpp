@@ -19,7 +19,7 @@ namespace power_polynomial {
 template <typename Fr> barretenberg::Polynomial<Fr> generate_vector(Fr zeta, size_t vector_size)
 {
     // We know the size from the start, so we can allocate exactly the right amount of memory
-    barretenberg::Polynomial<Fr> pow_vector(vector_size, vector_size);
+    barretenberg::Polynomial<Fr> pow_vector(vector_size);
 
     constexpr size_t usefulness_margin = 4;
     size_t num_threads = max_threads::compute_num_threads();

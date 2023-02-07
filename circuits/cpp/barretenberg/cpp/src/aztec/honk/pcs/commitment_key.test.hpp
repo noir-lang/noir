@@ -72,7 +72,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 
     Polynomial random_polynomial(const size_t n)
     {
-        Polynomial p(n, n);
+        Polynomial p(n);
         for (size_t i = 0; i < n; ++i) {
             p[i] = Fr::random_element(engine);
         }

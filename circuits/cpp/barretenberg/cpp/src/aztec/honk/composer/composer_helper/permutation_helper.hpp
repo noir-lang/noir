@@ -118,7 +118,7 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
     // at the end of the loop, sigma[j][i] = j*n + i
     std::array<barretenberg::polynomial, program_width> sigma;
     for (size_t j = 0; j < program_width; ++j) {
-        sigma[j] = barretenberg::polynomial(n, n);
+        sigma[j] = barretenberg::polynomial(n);
         for (size_t i = 0; i < n; i++) {
             sigma[j][i] = (j * n + i);
         }
@@ -189,7 +189,7 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_pt
     // Fill id polynomials with default values
     for (size_t j = 0; j < program_width; ++j) {
         // Construct permutation polynomials in lagrange base
-        barretenberg::polynomial id_j(n, n);
+        barretenberg::polynomial id_j(n);
         for (size_t i = 0; i < key->circuit_size; ++i) {
             id_j[i] = (j * n + i);
         }
@@ -207,8 +207,8 @@ inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key
 {
     const size_t n = key->circuit_size;
     // info("Computing Lagrange basis polys, the  value of n is: ",/s n);
-    barretenberg::polynomial lagrange_polynomial_0(n, n);
-    barretenberg::polynomial lagrange_polynomial_n_min_1(n, n);
+    barretenberg::polynomial lagrange_polynomial_0(n);
+    barretenberg::polynomial lagrange_polynomial_n_min_1(n);
     lagrange_polynomial_0[0] = 1;
     lagrange_polynomial_n_min_1[n - 1] = 1;
     key->polynomial_cache.put("L_first_lagrange", std::move(lagrange_polynomial_0));

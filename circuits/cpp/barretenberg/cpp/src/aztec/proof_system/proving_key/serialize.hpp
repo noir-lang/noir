@@ -99,7 +99,7 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
         auto filename = format(path, "/", file_num++, "_", poly_id);
         write(os, poly_id);
         const barretenberg::polynomial& value = ((proving_key&)key).polynomial_cache.get(poly_id);
-        auto size = value.get_size();
+        auto size = value.size();
         std::ofstream ofs(filename);
         ofs.write((char*)&value[0], (std::streamsize)(size * sizeof(barretenberg::fr)));
         if (!ofs.good()) {

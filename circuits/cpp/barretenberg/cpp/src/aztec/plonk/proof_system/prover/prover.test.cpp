@@ -115,23 +115,14 @@ waffle::Prover generate_test_data(const size_t n)
     auto reference_string = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
     std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string, waffle::STANDARD);
 
-    polynomial w_l;
-    polynomial w_r;
-    polynomial w_o;
-    polynomial q_l;
-    polynomial q_r;
-    polynomial q_o;
-    polynomial q_c;
-    polynomial q_m;
-
-    w_l.resize(n);
-    w_r.resize(n);
-    w_o.resize(n);
-    q_l.resize(n);
-    q_r.resize(n);
-    q_o.resize(n);
-    q_m.resize(n);
-    q_c.resize(n);
+    polynomial w_l(n);
+    polynomial w_r(n);
+    polynomial w_o(n);
+    polynomial q_l(n);
+    polynomial q_r(n);
+    polynomial q_o(n);
+    polynomial q_c(n);
+    polynomial q_m(n);
 
     for (size_t i = 0; i < n / 4; ++i) {
         w_l.at(2 * i) = fr::random_element();
@@ -252,11 +243,11 @@ waffle::Prover generate_test_data(const size_t n)
     q_m.ifft(key->small_domain);
     q_c.ifft(key->small_domain);
 
-    polynomial q_1_fft(q_l, n * 2);
-    polynomial q_2_fft(q_r, n * 2);
-    polynomial q_3_fft(q_o, n * 2);
-    polynomial q_m_fft(q_m, n * 2);
-    polynomial q_c_fft(q_c, n * 2);
+    polynomial q_1_fft(q_l, n * 4);
+    polynomial q_2_fft(q_r, n * 4);
+    polynomial q_3_fft(q_o, n * 4);
+    polynomial q_m_fft(q_m, n * 4);
+    polynomial q_c_fft(q_c, n * 4);
 
     q_1_fft.coset_fft(key->large_domain);
     q_2_fft.coset_fft(key->large_domain);

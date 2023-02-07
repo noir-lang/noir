@@ -52,7 +52,7 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
         // Compute selector vector, initialized to 0.
         // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
         // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
-        polynomial selector_poly_lagrange(subgroup_size, subgroup_size);
+        polynomial selector_poly_lagrange(subgroup_size);
         for (size_t i = 0; i < num_gates; ++i) {
             selector_poly_lagrange[num_public_inputs + i] = selector_values[i];
         }
@@ -156,7 +156,7 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(const CircuitConst
     for (size_t j = 0; j < program_width; ++j) {
         // Initialize the polynomial with all the actual copies variable values
         // Expect all values to be set to 0 initially
-        polynomial w_lagrange(subgroup_size, subgroup_size);
+        polynomial w_lagrange(subgroup_size);
 
         // Place all public inputs at the start of w_l and w_r.
         // All selectors at these indices are set to 0 so these values are not constrained at all.

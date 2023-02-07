@@ -201,7 +201,7 @@ template <typename Params> class MultilinearReductionScheme {
         // such that A₀(X) = F(X) + G↺(X) = F(X) + G(X)/X.
 
         //  F(X) = ∑ⱼ ρʲ fⱼ(X)
-        Polynomial& batched_F = witness_polynomials.emplace_back(Polynomial(n, n));
+        Polynomial& batched_F = witness_polynomials.emplace_back(Polynomial(n));
         for (size_t j = 0; j < num_polys_f; ++j) {
             const size_t n_j = polys_f[j]->size();
             ASSERT(n_j <= n);
@@ -210,7 +210,7 @@ template <typename Params> class MultilinearReductionScheme {
         }
 
         //  G(X) = ∑ⱼ ρʲ gⱼ(X)
-        Polynomial& batched_G = witness_polynomials.emplace_back(Polynomial(n, n));
+        Polynomial& batched_G = witness_polynomials.emplace_back(Polynomial(n));
         for (size_t j = 0; j < num_polys_g; ++j) {
             const size_t n_j = polys_g[j]->size();
             ASSERT(n_j <= n);
@@ -235,7 +235,7 @@ template <typename Params> class MultilinearReductionScheme {
             const size_t n_l = 1 << (num_variables - l - 1);
 
             // A_l_fold = Aₗ₊₁(X) = (1-uₗ)⋅even(Aₗ)(X) + uₗ⋅odd(Aₗ)(X)
-            Fr* A_l_fold = witness_polynomials.emplace_back(Polynomial(n_l, n_l)).get_coefficients();
+            Fr* A_l_fold = witness_polynomials.emplace_back(Polynomial(n_l)).get_coefficients();
 
             // fold the previous polynomial with odd and even parts
             for (size_t i = 0; i < n_l; ++i) {

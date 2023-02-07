@@ -165,7 +165,7 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
 
     // Construct permutation polynomial 'z_perm' in lagrange form as:
     // z_perm = [0 numerator_accumulator[0][0] numerator_accumulator[0][1] ... numerator_accumulator[0][n-2] 0]
-    Polynomial z_perm(key->circuit_size, key->circuit_size);
+    Polynomial z_perm(key->circuit_size);
     // We'll need to shift this polynomial to the left by dividing it by X in gemini, so the the 0-th coefficient should
     // stay zero
     copy_polynomial(numerator_accumulator[0], &z_perm[1], key->circuit_size - 1, key->circuit_size - 1);

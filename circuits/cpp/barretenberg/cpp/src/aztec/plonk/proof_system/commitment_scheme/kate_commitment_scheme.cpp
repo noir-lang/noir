@@ -175,8 +175,8 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Note: the opening poly W_\frak{z} is always size (n + 1) due to blinding
     // of the quotient polynomial
-    polynomial opening_poly(input_key->circuit_size + 1, input_key->circuit_size + 1);
-    polynomial shifted_opening_poly(input_key->circuit_size, input_key->circuit_size);
+    polynomial opening_poly(input_key->circuit_size + 1);
+    polynomial shifted_opening_poly(input_key->circuit_size);
 
     const polynomial& linear_poly = input_key->polynomial_cache.get("linear_poly");
 

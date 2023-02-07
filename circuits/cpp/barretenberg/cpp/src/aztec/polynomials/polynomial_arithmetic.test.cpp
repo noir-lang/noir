@@ -1,7 +1,9 @@
 #include "polynomial_arithmetic.hpp"
 #include <algorithm>
 #include <common/mem.hpp>
+#include <cstddef>
 #include <gtest/gtest.h>
+#include <utility>
 #include "numeric/bitop/get_msb.hpp"
 #include "numeric/random/engine.hpp"
 #include "polynomial.hpp"
@@ -616,9 +618,9 @@ TEST(polynomials, divide_by_vanishing_polynomial)
 
     constexpr size_t n = 16;
 
-    polynomial A(n, 2 * n);
-    polynomial B(n, 2 * n);
-    polynomial C(n, 2 * n);
+    polynomial A(2 * n);
+    polynomial B(2 * n);
+    polynomial C(2 * n);
 
     for (size_t i = 0; i < 13; ++i) {
         A[i] = fr::random_element();
@@ -651,12 +653,12 @@ TEST(polynomials, divide_by_vanishing_polynomial)
     C.coset_fft(large_domain);
 
     // compute A(X) * B(X) - C(X)
-    polynomial R(2 * n, 2 * n);
+    polynomial R(2 * n);
 
     polynomial_arithmetic::mul(&A[0], &B[0], &R[0], large_domain);
     polynomial_arithmetic::sub(&R[0], &C[0], &R[0], large_domain);
 
-    polynomial R_copy(2 * n, 2 * n);
+    polynomial R_copy(2 * n);
     R_copy = R;
 
     polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial({ &R[0] }, small_domain, large_domain, 3);
@@ -1006,7 +1008,7 @@ TEST(polynomials, evaluate_mle)
         auto& engine = numeric::random::get_debug_engine();
         const size_t m = numeric::get_msb(N);
         EXPECT_EQ(N, 1 << m);
-        polynomial poly(N, N);
+        polynomial poly(N);
         for (size_t i = 1; i < N - 1; ++i) {
             poly[i] = fr::random_element(&engine);
         }
@@ -1062,7 +1064,7 @@ TEST(polynomials, factor_roots)
     auto test_case = [](size_t NUM_ZERO_ROOTS, size_t NUM_NON_ZERO_ROOTS) {
         const size_t NUM_ROOTS = NUM_NON_ZERO_ROOTS + NUM_ZERO_ROOTS;
 
-        polynomial poly(N, N);
+        polynomial poly(N);
         for (size_t i = NUM_ZERO_ROOTS; i < N; ++i) {
             poly[i] = fr::random_element();
         }
@@ -1101,8 +1103,6 @@ TEST(polynomials, factor_roots)
         polynomial quotient(poly);
         quotient.factor_roots(roots);
 
-        EXPECT_EQ(quotient.size(), N - NUM_ROOTS);
-
         // check that (t-r)q(t) == p(t)
         fr t = fr::random_element();
         fr roots_eval = polynomial_arithmetic::compute_linear_polynomial_product_evaluation(roots.data(), t, NUM_ROOTS);
@@ -1129,4 +1129,68 @@ TEST(polynomials, factor_roots)
     test_case(2, 0);
     test_case(0, 2);
     test_case(3, 6);
+}
+
+TEST(polynomials, move_construct_and_assign)
+{
+    // construct a poly with some arbitrary data
+    size_t num_coeffs = 64;
+    polynomial polynomial_a(num_coeffs);
+    for (auto& coeff : polynomial_a) {
+        coeff = fr::random_element();
+    }
+
+    // construct a new poly from the original via the move constructor
+    polynomial polynomial_b(std::move(polynomial_a));
+
+    // verifiy that source poly is appropriately destroyed
+    EXPECT_EQ(polynomial_a.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_a.size(), 0);
+    EXPECT_EQ(polynomial_a.mapped_, false);
+
+    // construct another poly; this will also use the move constructor!
+    auto polynomial_c = std::move(polynomial_b);
+
+    // verifiy that source poly is appropriately destroyed
+    EXPECT_EQ(polynomial_b.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_b.size(), 0);
+    EXPECT_EQ(polynomial_b.mapped_, false);
+
+    // define a poly with some arbitrary coefficients
+    polynomial polynomial_d(num_coeffs);
+    for (auto& coeff : polynomial_d) {
+        coeff = fr::random_element();
+    }
+
+    // reset its data using move assignment
+    polynomial_d = std::move(polynomial_c);
+
+    // verifiy that source poly is appropriately destroyed
+    EXPECT_EQ(polynomial_c.coefficients_, nullptr);
+    EXPECT_EQ(polynomial_c.size(), 0);
+    EXPECT_EQ(polynomial_c.mapped_, false);
+}
+
+TEST(polynomials, default_construct_then_assign)
+{
+    // construct an arbitrary but non-empty polynomial
+    size_t num_coeffs = 64;
+    polynomial interesting_poly(num_coeffs);
+    for (auto& coeff : interesting_poly) {
+        coeff = fr::random_element();
+    }
+
+    // construct an empty poly via the default constructor
+    polynomial poly;
+
+    EXPECT_EQ(poly.is_empty(), true);
+
+    // fill the empty poly using the assignment operator
+    poly = interesting_poly;
+
+    // coefficients and size should be equal in value
+    for (size_t i = 0; i < num_coeffs; ++i) {
+        EXPECT_EQ(poly[i], interesting_poly[i]);
+    }
+    EXPECT_EQ(poly.size(), interesting_poly.size());
 }

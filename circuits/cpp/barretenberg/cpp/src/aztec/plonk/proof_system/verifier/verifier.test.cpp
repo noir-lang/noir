@@ -114,23 +114,15 @@ waffle::Prover generate_test_data(const size_t n)
     auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
     std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
 
-    polynomial w_l;
-    polynomial w_r;
-    polynomial w_o;
-    polynomial q_l;
-    polynomial q_r;
-    polynomial q_o;
-    polynomial q_c;
-    polynomial q_m;
+    polynomial w_l(n);
+    polynomial w_r(n);
+    polynomial w_o(n);
+    polynomial q_l(n);
+    polynomial q_r(n);
+    polynomial q_o(n);
+    polynomial q_c(n);
+    polynomial q_m(n);
 
-    w_l.resize(n);
-    w_r.resize(n);
-    w_o.resize(n);
-    q_l.resize(n);
-    q_r.resize(n);
-    q_o.resize(n);
-    q_m.resize(n);
-    q_c.resize(n);
     fr T0;
     for (size_t i = 0; i < n / 4; ++i) {
         w_l.at(2 * i) = fr::random_element();

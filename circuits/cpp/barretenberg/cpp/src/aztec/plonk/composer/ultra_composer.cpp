@@ -689,8 +689,8 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
 
     // Instantiate z_lookup and s polynomials in the proving key (no values assigned yet).
     // Note: might be better to add these polys to cache only after they've been computed, as is convention
-    polynomial z_lookup_fft(subgroup_size * 4, subgroup_size * 4);
-    polynomial s_fft(subgroup_size * 4, subgroup_size * 4);
+    polynomial z_lookup_fft(subgroup_size * 4);
+    polynomial s_fft(subgroup_size * 4);
     circuit_proving_key->polynomial_cache.put("z_lookup_fft", std::move(z_lookup_fft));
     circuit_proving_key->polynomial_cache.put("s_fft", std::move(s_fft));
 

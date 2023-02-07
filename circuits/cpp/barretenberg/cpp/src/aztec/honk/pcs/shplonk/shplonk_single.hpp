@@ -44,8 +44,8 @@ template <typename Params> class SingleBatchOpeningScheme {
             max_poly_size = std::max(max_poly_size, poly.size());
         }
         // Q(X) = ∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( X − xⱼ )
-        Polynomial Q(max_poly_size, max_poly_size);
-        Polynomial tmp(max_poly_size, max_poly_size);
+        Polynomial Q(max_poly_size);
+        Polynomial tmp(max_poly_size);
 
         Fr current_nu = Fr::one();
         for (size_t j = 0; j < num_claims; ++j) {

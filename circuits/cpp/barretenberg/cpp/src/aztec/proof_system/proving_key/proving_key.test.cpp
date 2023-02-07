@@ -8,15 +8,6 @@
 using namespace barretenberg;
 using namespace waffle;
 
-polynomial create_polynomial(size_t size)
-{
-    polynomial p(size, size);
-    for (size_t i = 0; i < size; ++i) {
-        p.add_coefficient(fr::random_element());
-    }
-    return p;
-}
-
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {

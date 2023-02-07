@@ -495,7 +495,7 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
 
     fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
-    polynomial linear_poly(key->circuit_size + 1, key->circuit_size + 1);
+    polynomial linear_poly(key->circuit_size + 1);
 
     commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, false);
     if constexpr (settings::use_linearisation) {
@@ -597,17 +597,12 @@ template <typename settings> void ProverBase<settings>::add_blinding_to_quotient
 // Compute FFT of lagrange polynomial L_1 needed in random widgets only
 template <typename settings> void ProverBase<settings>::compute_lagrange_1_fft()
 {
-    polynomial lagrange_1_fft(4 * circuit_size, 4 * circuit_size + 8);
+    polynomial lagrange_1_fft(4 * circuit_size + 8);
     polynomial_arithmetic::compute_lagrange_polynomial_fft(
         lagrange_1_fft.get_coefficients(), key->small_domain, key->large_domain);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[0]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[1]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[2]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[3]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[4]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[5]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[6]);
-    lagrange_1_fft.add_lagrange_base_coefficient(lagrange_1_fft[7]);
+    for (size_t i = 0; i < 8; i++) {
+        lagrange_1_fft[4 * circuit_size + i] = lagrange_1_fft[i];
+    }
     key->polynomial_cache.put("lagrange_1_fft", std::move(lagrange_1_fft));
 }
 

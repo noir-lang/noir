@@ -58,7 +58,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
     const fr* s_3 = key->polynomial_cache.get("s_3_lagrange").get_coefficients();
     const fr* s_4 = key->polynomial_cache.get("s_4_lagrange").get_coefficients();
 
-    barretenberg::polynomial s_accum(key->circuit_size, key->circuit_size);
+    barretenberg::polynomial s_accum(key->circuit_size);
     barretenberg::polynomial_arithmetic::copy_polynomial(&s_1[0], &s_accum[0], key->circuit_size, key->circuit_size);
 
     // Get challenge η
@@ -128,7 +128,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
 
     // Note: z_lookup ultimately is only only size 'n' but we allow 'n+1' for convenience
     // essentially as scratch space in the calculation to follow
-    polynomial z_lookup(key->circuit_size + 1, key->circuit_size + 1);
+    polynomial z_lookup(key->circuit_size + 1);
 
     // Allocate 4 length n 'accumulators'. accumulators[0] points to the 1th index of
     // z_lookup and will be used to construct z_lookup (lagrange base) in place. The
