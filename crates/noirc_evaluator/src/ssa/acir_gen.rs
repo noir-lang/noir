@@ -26,7 +26,6 @@ pub(crate) use constraints::range_constraint;
 mod intrinsics;
 mod memory_map;
 use memory_map::MemoryMap;
-mod instructions;
 
 #[derive(Default)]
 pub struct Acir {
