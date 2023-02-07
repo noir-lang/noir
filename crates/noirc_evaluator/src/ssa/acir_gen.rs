@@ -55,15 +55,25 @@ impl Acir {
             NodeObject::Obj(variable) => {
                 let variable_type = variable.get_type();
                 match variable_type {
-                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
-                    _ => {
+                    ObjectType::Boolean
+                    | ObjectType::NativeField
+                    | ObjectType::Signed(..)
+                    | ObjectType::Unsigned(..) => {
                         let witness =
                             variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                         InternalVar::from_witness(witness)
                     }
+                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
+                    ObjectType::Function => {
+                        unreachable!("ICE: functions should have been removed by this stage")
+                    }
                 }
             }
-            _ => {
+            NodeObject::Function(..) => {
+                unreachable!("ICE: functions should have been removed by this stage")
+            }
+            // TODO: Why do we create a `Witness` for an instruction
+            NodeObject::Instr(..) => {
                 let witness = evaluator.add_witness_to_cs();
                 InternalVar::from_witness(witness)
             }
