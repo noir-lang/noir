@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "arena"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "generational-arena",
 ]
@@ -1053,7 +1053,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cfg-if 1.0.0",
  "codespan-reporting",
@@ -1501,7 +1501,7 @@ checksum = "30e22bd8629359895450b59ea7a776c850561b96a3b1d31321c1949d9e6c9146"
 
 [[package]]
 name = "iter-extended"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "itoa"
@@ -1696,7 +1696,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "barretenberg_static_lib",
@@ -1724,7 +1724,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "console_error_panic_hook",
@@ -1738,7 +1738,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "dirs 4.0.0",
@@ -1764,7 +1764,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chumsky",
  "codespan",
@@ -1774,7 +1774,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "arena",
@@ -1790,7 +1790,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "acvm",
  "arena",
