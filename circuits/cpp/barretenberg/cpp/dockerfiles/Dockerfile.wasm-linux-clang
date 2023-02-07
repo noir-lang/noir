@@ -7,7 +7,7 @@ WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Build both honk_tests barretenberg.wasm
 # This ensures that we aren't using features that would be incompatible with WASM for Honk
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && make -j$(nproc) honk_tests barretenberg.wasm
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && cmake --build . --parallel --target honk_tests --target barretenberg.wasm
 
 FROM alpine:3.17
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build/bin/barretenberg.wasm

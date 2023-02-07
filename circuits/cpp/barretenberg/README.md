@@ -17,8 +17,8 @@ The structured reference string contains monomials up to x^{2^20}. This SRS was 
 RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
   && cd llvm-project && mkdir build-openmp && cd build-openmp \
   && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
-  && make -j$(nproc) \
-  && make install \
+  && cmake --build . --parallel \
+  && cmake --build . --parallel --target install \
   && cd ../.. && rm -rf llvm-project
 ```
 
@@ -27,12 +27,13 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
 Run the bootstrap script. (The bootstrap script will build both the native and wasm versions of barretenberg)
 
 ```
+cd cpp
 ./bootstrap.sh
 ```
 
 ### Parallelise the build
 
-Make sure your MAKEFLAGS environment variable is set to run jobs equal to number of cores. e.g. `MAKEFLAGS=-j$(nproc)`.
+Use the `--parallel` option to `cmake --build <path>` to parallelize builds. This is roughly equivalent to `make -j$(nproc)` but is more portable.
 
 ### Formatting
 
@@ -44,20 +45,20 @@ If you've installed the C++ Vscode extension you should configure it to format o
 Each module has its own tests. e.g. To build and run `ecc` tests:
 
 ```
-make ecc_tests
+cmake --build . --parallel --target ecc_tests
 ./bin/ecc_tests
 ```
 
 A shorthand for the above is:
 
 ```
-make run_ecc_tests
+cmake --build . --parallel --target run_ecc_tests
 ```
 
 Running the entire suite of tests using `ctest`:
 
 ```
-make test
+cmake --build . --parallel --target test
 ```
 
 You can run specific tests, e.g.
@@ -71,14 +72,14 @@ You can run specific tests, e.g.
 Some modules have benchmarks. The build targets are named `<module_name>_bench`. To build and run, for example `ecc` benchmarks.
 
 ```
-make ecc_bench
+cmake --build . --parallel --target ecc_bench
 ./src/aztec/ecc/ecc_bench
 ```
 
 A shorthand for the above is:
 
 ```
-make run_ecc_bench
+cmake --build . --parallel --target run_ecc_bench
 ```
 
 ### CMake Build Options
@@ -101,10 +102,10 @@ To build:
 ```
 mkdir build-wasm && cd build-wasm
 cmake -DTOOLCHAIN=wasm-linux-clang ..
-make barretenberg.wasm
+cmake --build . --parallel --target barretenberg.wasm
 ```
 
-The resulting wasm binary will be at `./src/aztec/barretenberg.wasm`.
+The resulting wasm binary will be at `./build-wasm/bin/barretenberg.wasm`.
 
 To run the tests, you'll need to install `wasmtime`.
 
@@ -115,7 +116,7 @@ curl https://wasmtime.dev/install.sh -sSf | bash
 Tests can be built and run like:
 
 ```
-make ecc_tests
+cmake --build . --parallel --target ecc_tests
 wasmtime --dir=.. ./bin/ecc_tests
 ```
 
@@ -125,11 +126,11 @@ To build:
 ```
 mkdir build-fuzzing && cd build-fuzzing
 cmake -DTOOLCHAIN=x86_64-linux-clang -DFUZZING=ON ..
-make
+cmake --build . --parallel
 ```
 Fuzzing build turns off building tests and benchmarks, since they are incompatible with libfuzzer interface.
 
 To turn on address sanitizer add `-DADDRESS_SANITIZER=ON`. Note that address sanitizer can be used to explore crashes.
 Sometimes you might have to specify the address of llvm-symbolizer. You have to do it with `export ASAN_SYMBOLIZER_PATH=<PATH_TO_SYMBOLIZER>`.
 For undefined behaviour sanitizer `-DUNDEFINED_BEHAVIOUR_SANITIZER=ON`.
-Note that the fuzzer can be orders of magnitude slower with ASan (2-3x slower) or UBSan on, so it is best to run a non-sanitized build first, minimize the testcase and then run it for a bit of time with sanitizers.  
+Note that the fuzzer can be orders of magnitude slower with ASan (2-3x slower) or UBSan on, so it is best to run a non-sanitized build first, minimize the testcase and then run it for a bit of time with sanitizers.

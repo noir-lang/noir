@@ -14,7 +14,7 @@ WORKDIR /usr/src/barretenberg/cpp
 
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
-RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON .. && make -j$(nproc)
+RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON .. && cmake --build . --parallel
 
 FROM alpine:3.17
 RUN apk update && apk add curl openmp

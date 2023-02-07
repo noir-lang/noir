@@ -2077,42 +2077,39 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
             linear_terms += to_add[to_add.size() - 1].prime_basis_limb;
         }
         if (remainders.size() >= 2) {
-            for (size_t i = 0; i < remainders.size(); i += 2) {
+            for (size_t i = 0; i < (remainders.size() >> 1); i += 1) {
                 linear_terms =
-                    linear_terms.add_two(-remainders[i].prime_basis_limb, -remainders[i + 1].prime_basis_limb);
+                    linear_terms.add_two(-remainders[2 * i].prime_basis_limb, -remainders[2 * i + 1].prime_basis_limb);
             }
-        }
-        if ((remainders.size() & 1UL) == 1UL) {
-            linear_terms += -remainders[remainders.size() - 1].prime_basis_limb;
-        }
 
-        // This is where we show our identity is zero mod r (to use CRT we show it's zero mod r and mod 2^t)
-        field_t<C>::evaluate_polynomial_identity(
-            left.prime_basis_limb, to_mul.prime_basis_limb, quotient.prime_basis_limb * neg_prime, linear_terms);
+            // This is where we show our identity is zero mod r (to use CRT we show it's zero mod r and mod 2^t)
+            field_t<C>::evaluate_polynomial_identity(
+                left.prime_basis_limb, to_mul.prime_basis_limb, quotient.prime_basis_limb * neg_prime, linear_terms);
 
-        const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
-        const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
+            const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
+            const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 
-        const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-        if ((carry_hi_msb + carry_lo_msb) < field_t<C>::modulus.get_msb()) {
-            field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-            carry_combined = carry_combined.normalize();
-            const auto accumulators = ctx->decompose_into_base4_accumulators(
-                carry_combined.witness_index,
-                static_cast<size_t>(carry_lo_msb + carry_hi_msb),
-                "bigfield: carry_combined too large in unsafe_evaluate_multiply_add.");
-            field_t<C> accumulator_midpoint =
-                field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-            carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
-        } else {
-            carry_lo = carry_lo.normalize();
-            carry_hi = carry_hi.normalize();
-            ctx->decompose_into_base4_accumulators(carry_lo.witness_index,
-                                                   static_cast<size_t>(carry_lo_msb),
-                                                   "bigfield: carry_lo too large in unsafe_evaluate_multiply_add.");
-            ctx->decompose_into_base4_accumulators(carry_hi.witness_index,
-                                                   static_cast<size_t>(carry_hi_msb),
-                                                   "bigfield: carry_hi too large in unsafe_evaluate_multiply_add.");
+            const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
+            if ((carry_hi_msb + carry_lo_msb) < field_t<C>::modulus.get_msb()) {
+                field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+                carry_combined = carry_combined.normalize();
+                const auto accumulators = ctx->decompose_into_base4_accumulators(
+                    carry_combined.witness_index,
+                    static_cast<size_t>(carry_lo_msb + carry_hi_msb),
+                    "bigfield: carry_combined too large in unsafe_evaluate_multiply_add.");
+                field_t<C> accumulator_midpoint =
+                    field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+                carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
+            } else {
+                carry_lo = carry_lo.normalize();
+                carry_hi = carry_hi.normalize();
+                ctx->decompose_into_base4_accumulators(carry_lo.witness_index,
+                                                    static_cast<size_t>(carry_lo_msb),
+                                                    "bigfield: carry_lo too large in unsafe_evaluate_multiply_add.");
+                ctx->decompose_into_base4_accumulators(carry_hi.witness_index,
+                                                    static_cast<size_t>(carry_hi_msb),
+                                                    "bigfield: carry_hi too large in unsafe_evaluate_multiply_add.");
+            }
         }
     }
 }

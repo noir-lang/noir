@@ -82,7 +82,7 @@ Build with coverage instrumentation:
 mkdir build-coverage/
 cd build-coverage/
 cmake -DFUZZING=ON -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" ..
-make -j$(nproc)
+cmake --build . --parallel
 ```
 
 Then run the fuzzer on the corpus and generate the HTML coverage reports:

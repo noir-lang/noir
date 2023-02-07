@@ -2,8 +2,7 @@
 #include <functional>
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
-#include "../../../rollup/constants.hpp"
-#include "../../../rollup/constants.hpp"
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 using namespace bonk;
 
@@ -1066,8 +1065,7 @@ template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
 {
     ASSERT(msb >= lsb);
-    ASSERT(msb < rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH); //  CODY: eek! Why is rollup info here? function input arg
-                                                          //  msb_bound or something
+    ASSERT(msb < grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH);
     const field_t lhs = *this;
     ComposerContext* ctx = lhs.get_context();
 
@@ -1086,7 +1084,7 @@ std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const ui
     const field_t lo_wit = field_t(witness_t(ctx, lo));
     const field_t slice_wit = field_t(witness_t(ctx, slice));
 
-    hi_wit.create_range_constraint(rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb),
+    hi_wit.create_range_constraint(grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb),
                                    "slice: hi value too large.");
     lo_wit.create_range_constraint(lsb, "slice: lo value too large.");
     slice_wit.create_range_constraint(msb_plus_one - lsb, "slice: sliced value too large.");

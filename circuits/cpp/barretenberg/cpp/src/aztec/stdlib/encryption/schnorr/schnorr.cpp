@@ -291,7 +291,6 @@ void verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     // compute  e' = hash(([s]g + [e]pub).x | message)
     byte_array<C> output = blake2s(hash_input);
 
-    // verify that e' == e
     field_t<C> output_hi(output.slice(0, 16));
     field_t<C> output_lo(output.slice(16, 16));
     output_lo.assert_equal(sig.e_lo, "verify signature failed");

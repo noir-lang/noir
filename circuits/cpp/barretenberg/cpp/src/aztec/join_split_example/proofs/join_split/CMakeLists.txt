@@ -1,0 +1,11 @@
+barretenberg_module(
+  join_split_example_proofs_join_split
+  join_split_example_proofs_inner_proof_data
+  join_split_example_proofs_notes
+  crypto_schnorr
+  stdlib_blake2s
+  stdlib_sha256
+  stdlib_pedersen
+  stdlib_schnorr
+  stdlib_primitives
+  stdlib_merkle_tree)

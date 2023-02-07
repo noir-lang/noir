@@ -5,6 +5,9 @@
 #include "../bn254/fr.hpp"
 
 namespace grumpkin {
+
+constexpr size_t MAX_NO_WRAP_INTEGER_BIT_LENGTH = 252;
+
 typedef barretenberg::fr fq;
 typedef barretenberg::fq fr;
 

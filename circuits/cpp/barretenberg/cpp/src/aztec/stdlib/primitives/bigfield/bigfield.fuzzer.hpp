@@ -1,7 +1,6 @@
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/random/engine.hpp>
 #include <stdlib/primitives/bigfield/bigfield.hpp>
-#include "../../../rollup/constants.hpp"
 #include <ecc/curves/bn254/fq.hpp>
 
 // This is a global variable, so that the execution handling class could alter it and signal to the input tester

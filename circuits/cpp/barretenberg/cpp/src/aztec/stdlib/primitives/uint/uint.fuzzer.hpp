@@ -3,7 +3,6 @@
 #include <stdlib/primitives/field/field.hpp>
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/bool/bool.hpp>
-#include "../../../rollup/constants.hpp"
 // This is a global variable, so that the execution handling class could alter it and signal to the input tester that
 // the input should fail
 bool circuit_should_fail = false;

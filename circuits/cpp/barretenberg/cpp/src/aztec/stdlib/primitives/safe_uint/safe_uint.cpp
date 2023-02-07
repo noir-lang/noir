@@ -1,7 +1,7 @@
 #include "safe_uint.hpp"
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
-#include "../../../rollup/constants.hpp"
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -64,14 +64,14 @@ std::array<safe_uint_t<ComposerContext>, 3> safe_uint_t<ComposerContext>::slice(
                                                                                 const uint8_t lsb) const
 {
     ASSERT(msb >= lsb);
-    ASSERT(static_cast<size_t>(msb) <= rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH);
+    ASSERT(static_cast<size_t>(msb) <= grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH);
     const safe_uint_t lhs = *this;
     ComposerContext* ctx = lhs.get_context();
 
     const uint256_t value = uint256_t(get_value());
     // This should be caught by the proof itself, but the circuit creator will have now way of knowing where the issue
     // is
-    ASSERT(value < (static_cast<uint256_t>(1) << rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH));
+    ASSERT(value < (static_cast<uint256_t>(1) << grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH));
     const auto msb_plus_one = uint32_t(msb) + 1;
     const auto hi_mask = ((uint256_t(1) << (256 - uint32_t(msb))) - 1);
     const auto hi = (value >> msb_plus_one) & hi_mask;
@@ -88,7 +88,7 @@ std::array<safe_uint_t<ComposerContext>, 3> safe_uint_t<ComposerContext>::slice(
         slice_wit = safe_uint_t(slice);
 
     } else {
-        hi_wit = safe_uint_t(witness_t(ctx, hi), rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "hi_wit");
+        hi_wit = safe_uint_t(witness_t(ctx, hi), grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "hi_wit");
         lo_wit = safe_uint_t(witness_t(ctx, lo), lsb, "lo_wit");
         slice_wit = safe_uint_t(witness_t(ctx, slice), msb_plus_one - lsb, "slice_wit");
     }

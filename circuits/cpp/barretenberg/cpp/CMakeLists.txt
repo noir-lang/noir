@@ -47,6 +47,7 @@ if(FUZZING)
 
     set(WASM OFF)
     set(BENCHMARKS OFF)
+    set(MULTITHREADING OFF)
     set(TESTING OFF)
 endif()
 

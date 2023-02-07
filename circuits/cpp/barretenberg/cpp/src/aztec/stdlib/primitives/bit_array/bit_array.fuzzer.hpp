@@ -1,6 +1,5 @@
 #include <numeric/random/engine.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
-#include "../../../rollup/constants.hpp"
 
 #define MAX_ARRAY_SIZE 128
 

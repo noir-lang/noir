@@ -1,6 +1,5 @@
 #include <numeric/random/engine.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
-#include "../../../rollup/constants.hpp"
 
 // This is a global variable, so that the execution handling class could alter it and signal to the input tester that
 // the input should fail

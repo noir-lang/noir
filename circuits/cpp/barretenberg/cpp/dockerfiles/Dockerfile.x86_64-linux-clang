@@ -9,15 +9,13 @@ RUN apk update \
         git \
         curl \
         perl
+
 WORKDIR /usr/src/barretenberg/cpp
+
 COPY . .
-# Only build binaries that are needed upstream.
-RUN mkdir build && cd build && cmake .. && make -j$(nproc) db_cli rollup_cli tx_factory keygen
+# Build the entire project, as we want to check everything builds under clang
+RUN mkdir build && cd build && cmake .. && cmake --build . --parallel
 
 FROM alpine:3.17
 RUN apk update && apk add openmp
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/db_cli /usr/src/barretenberg/cpp/build/bin/db_cli
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/rollup_cli /usr/src/barretenberg/cpp/build/bin/rollup_cli
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/tx_factory /usr/src/barretenberg/cpp/build/bin/tx_factory
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/keygen /usr/src/barretenberg/cpp/build/bin/keygen

@@ -8,10 +8,9 @@ RUN apk update \
         curl
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
-# Build the entire project (not just rollup_cli and db_cli), as we want to check everything builds under gcc.
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc -DCI=ON .. && make -j$(nproc)
+# Build the entire project, as we want to check everything builds under gcc.
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc -DCI=ON .. && cmake --build . --parallel
 
 FROM alpine:3.17
 RUN apk update && apk add libstdc++ libgomp
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/db_cli /usr/src/barretenberg/cpp/build/bin/db_cli
-COPY --from=builder /usr/src/barretenberg/cpp/build/bin/rollup_cli /usr/src/barretenberg/cpp/build/bin/rollup_cli
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
