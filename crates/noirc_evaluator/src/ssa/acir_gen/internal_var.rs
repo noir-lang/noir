@@ -84,10 +84,7 @@ impl InternalVar {
     pub(crate) fn zero_expr() -> InternalVar {
         InternalVar::from_expression(Expression::zero())
     }
-    // TODO: Analyze usecase of this
-    pub(crate) fn one_expr() -> InternalVar {
-        InternalVar::from_expression(Expression::one())
-    }
+
     // TODO: Analyze usecase of this
     pub(crate) fn zero_const() -> InternalVar {
         InternalVar::from_constant(FieldElement::zero())

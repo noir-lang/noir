@@ -82,7 +82,7 @@ impl Acir {
     ) -> InternalVar {
         let predicate_node_id = match binary.predicate {
             Some(pred) => pred,
-            None => return InternalVar::one_expr(),
+            None => return InternalVar::from(Expression::one()),
         };
 
         self.substitute(predicate_node_id, evaluator, ctx)
