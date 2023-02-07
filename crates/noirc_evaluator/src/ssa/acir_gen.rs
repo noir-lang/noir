@@ -73,7 +73,6 @@ impl Acir {
         self.arith_cache.insert(id, var.clone());
         Some(var)
     }
-
     fn node_id_to_internal_var_unwrap(
         &mut self,
         id: NodeId,
