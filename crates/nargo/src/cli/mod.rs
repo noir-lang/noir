@@ -119,7 +119,8 @@ pub fn start_cli() {
                 .arg(
                     Arg::with_name("witness_name")
                         .long("witness_name")
-                        .help("Write the execution witness to named file"),
+                        .help("Write the execution witness to named file")
+                        .takes_value(true),
                 )
                 .arg(show_ssa)
                 .arg(allow_warnings),
