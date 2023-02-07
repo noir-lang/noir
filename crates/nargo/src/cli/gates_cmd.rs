@@ -9,9 +9,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("gates").unwrap();
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
-    let program_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     count_gates_with_path(program_dir, show_ssa, allow_warnings)
 }

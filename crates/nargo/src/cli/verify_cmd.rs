@@ -11,15 +11,17 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
-use std::{collections::BTreeMap, path::Path, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
 
     let proof_name = args.value_of("proof").unwrap();
-    let program_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let mut proof_path = program_dir.clone();
     proof_path.push(Path::new(PROOFS_DIR));

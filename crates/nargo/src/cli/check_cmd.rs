@@ -15,9 +15,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("check").unwrap();
     let allow_warnings = args.is_present("allow-warnings");
 
-    let program_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     check_from_path(program_dir, allow_warnings)?;
     println!("Constraint system successfully built!");

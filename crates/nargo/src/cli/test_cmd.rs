@@ -18,9 +18,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
     let test_name = args.value_of("test_name").unwrap_or("");
     let allow_warnings = args.is_present("allow-warnings");
-    let program_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     run_tests(program_dir, test_name, allow_warnings)
 }

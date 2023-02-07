@@ -12,9 +12,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let package_name = cmd.value_of("package_name").unwrap();
 
-    let mut package_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let mut package_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     package_dir.push(Path::new(package_name));
     if package_dir.exists() {

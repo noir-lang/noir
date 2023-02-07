@@ -18,9 +18,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
 
-    let program_dir = args
-        .value_of("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let mut proof_dir = program_dir.clone();
     proof_dir.push(PROOFS_DIR);
