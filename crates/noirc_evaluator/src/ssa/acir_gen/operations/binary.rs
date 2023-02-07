@@ -33,12 +33,12 @@ pub(crate) fn evaluate_binary(
     res_type: ObjectType,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> InternalVar {
+) -> Option<InternalVar> {
     let r_size = ctx[binary.rhs].size_in_bits();
     let l_size = ctx[binary.lhs].size_in_bits();
     let max_size = u32::max(r_size, l_size);
 
-    match &binary.operator {
+    let binary_output = match &binary.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
@@ -233,5 +233,6 @@ pub(crate) fn evaluate_binary(
             }
             BinaryOp::Shl | BinaryOp::Shr => unreachable!("ICE: ShiftLeft and ShiftRight are replaced by multiplications and divisions in optimization pass."),
             i @ BinaryOp::Assign => unreachable!("Invalid Instruction: {:?}", i),
-        }
+        };
+    Some(binary_output)
 }

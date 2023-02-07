@@ -1,16 +1,79 @@
 use crate::{
     ssa::{
-        acir_gen::{InternalVarCache, MemoryMap},
+        acir_gen::{constraints::to_radix_base, InternalVar, InternalVarCache, MemoryMap},
+        builtin,
         context::SsaContext,
         mem::ArrayId,
-        node::{self, Node, NodeId},
+        node::{self, Instruction, Node, NodeId, ObjectType},
     },
     Evaluator,
 };
-use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
+use acvm::acir::{
+    circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    native_types::{Expression, Witness},
+};
+
+// Generate constraints for two types of functions:
+// - Builtin functions: These are functions that
+// are implemented by the compiler.
+// - ACIR black box functions. These are referred
+// to as `LowLevel`
+pub(crate) fn evaluate_opcode(
+    args: &[NodeId],
+    instruction: &Instruction,
+    opcode: builtin::Opcode,
+    var_cache: &mut InternalVarCache,
+    memory_map: &mut MemoryMap,
+    ctx: &SsaContext,
+    evaluator: &mut Evaluator,
+) -> Option<InternalVar> {
+    use builtin::Opcode;
+
+    let instruction_id = instruction.id;
+    let res_type = instruction.res_type;
+
+    let outputs;
+    match opcode {
+        Opcode::ToBits => {
+            // TODO: document where `0` and `1` are coming from, for args[0], args[1]
+            let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+            let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
+            outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
+            if let ObjectType::Pointer(a) = res_type {
+                memory_map.map_array(a, &outputs, ctx);
+            }
+        }
+        Opcode::ToRadix => {
+            // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
+            let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
+            let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
+            let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
+            outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
+            if let ObjectType::Pointer(a) = res_type {
+                memory_map.map_array(a, &outputs, ctx);
+            }
+        }
+        Opcode::LowLevel(op) => {
+            let inputs = prepare_inputs(var_cache, memory_map, args, ctx, evaluator);
+            let output_count = op.definition().output_size.0 as u32;
+            outputs = prepare_outputs(memory_map, instruction_id, output_count, ctx, evaluator);
+
+            let func_call = BlackBoxFuncCall {
+                name: op,
+                inputs,                   //witness + bit size
+                outputs: outputs.clone(), //witness
+            };
+            evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
+        }
+    }
+    // TODO: document why we only return something when outputs.len()==1
+    // TODO what about outputs.len() > 1
+    //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
+    (outputs.len() == 1).then_some(Expression::from(&outputs[0])).map(InternalVar::from)
+}
 
 // Transform the arguments of intrinsic functions into witnesses
-pub(crate) fn prepare_inputs(
+fn prepare_inputs(
     arith_cache: &mut InternalVarCache,
     memory_map: &mut MemoryMap,
     arguments: &[NodeId],
@@ -97,7 +160,7 @@ fn resolve_array(
     inputs
 }
 
-pub(crate) fn prepare_outputs(
+fn prepare_outputs(
     memory_map: &mut MemoryMap,
     pointer: NodeId,
     output_nb: u32,

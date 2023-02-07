@@ -1,12 +1,9 @@
 use crate::ssa::{
     context::SsaContext,
-    mem::Memory,
-    node::{Instruction, NodeId, ObjectType, Operation},
-    {builtin, mem},
+    node::{Instruction, Operation},
 };
 use crate::{Evaluator, RuntimeErrorKind};
 use acvm::{
-    acir::circuit::opcodes::{BlackBoxFuncCall, Opcode as AcirOpcode},
     acir::native_types::{Expression, Witness},
     FieldElement,
 };
@@ -16,13 +13,12 @@ mod operations;
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
 mod constraints;
-use constraints::to_radix_base;
 mod internal_var_cache;
 use internal_var_cache::InternalVarCache;
 // Expose this to the crate as we need to apply range constraints when
 // converting the ABI(main parameters) to Noir types
 pub(crate) use constraints::range_constraint;
-mod intrinsics;
+
 mod memory_map;
 use memory_map::MemoryMap;
 
@@ -44,139 +40,84 @@ impl Acir {
         }
 
         let output = match &ins.operation {
-            Operation::Binary(binary) => Some(operations::binary::evaluate_binary(
+            Operation::Binary(binary) => operations::binary::evaluate_binary(
                 &mut self.var_cache,
                 &mut self.memory_map,
                 binary,
                 ins.res_type,
                 evaluator,
                 ctx,
-            )),
+            ),
             Operation::Constrain(value, ..) => operations::constrain::evaluate_constrain_op(
                 value,
                 &mut self.var_cache,
                 evaluator,
                 ctx,
             ),
-            Operation::Not(value) => {
-                let a = (1_u128 << ins.res_type.bits()) - 1;
-                let l_c = self.var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
-                Some(
-                    constraints::subtract(
-                        &Expression::from(&FieldElement::from(a)),
-                        FieldElement::one(),
-                        l_c.expression(),
-                    )
-                    .into(),
-                )
-            }
+            Operation::Not(value) => operations::not::evaluate_not_op(
+                value,
+                ins.res_type,
+                &mut self.var_cache,
+                evaluator,
+                ctx,
+            ),
             Operation::Cast(value) => {
                 self.var_cache.get_or_compute_internal_var(*value, evaluator, ctx)
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
-                let value =
-                    self.var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
-                Some(InternalVar::from_expression(constraints::evaluate_truncate(
-                    value.expression(),
+                operations::truncate::evaluate_truncate_op(
+                    value,
                     *bit_size,
                     *max_bit_size,
+                    &mut self.var_cache,
                     evaluator,
-                )))
+                    ctx,
+                )
             }
-            Operation::Intrinsic(opcode, args) => self
-                .evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator)
-                .map(InternalVar::from),
-            Operation::Return(node_ids) => {
-                // XXX: When we return a node_id that was created from
-                // the UnitType, there is a witness associated with it
-                // Ideally no witnesses are created for such types.
-
-                // This can only ever be called in the main context.
-                // In all other context's, the return operation is transformed.
-
-                for node_id in node_ids {
-                    // An array produces a single node_id
-                    // We therefore need to check if the node_id is referring to an array
-                    // and deference to get the elements
-                    let objects = match Memory::deref(ctx, *node_id) {
-                        Some(a) => {
-                            let array = &ctx.mem[a];
-                            self.memory_map.load_array(array)
-                        }
-                        None => vec![self
-                            .var_cache
-                            .get_or_compute_internal_var_unwrap(*node_id, evaluator, ctx)],
-                    };
-
-                    for mut object in objects {
-                        let witness = object
-                            .get_or_compute_witness(evaluator, true)
-                            .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
-                        // Before pushing to the public inputs, we need to check that
-                        // it was not a private ABI input
-                        if evaluator.is_private_abi_input(witness) {
-                            return Err(RuntimeErrorKind::Spanless(String::from(
-                                "we do not allow private ABI inputs to be returned as public outputs",
-                            )));
-                        }
-                        evaluator.public_inputs.push(witness);
-                    }
-                }
-
-                None
-            }
+            Operation::Intrinsic(opcode, args) => operations::intrinsics::evaluate_opcode(
+                args,
+                ins,
+                *opcode,
+                &mut self.var_cache,
+                &mut self.memory_map,
+                ctx,
+                evaluator,
+            ),
+            Operation::Return(node_ids) => operations::r#return::evaluate_return_op(
+                node_ids,
+                &mut self.memory_map,
+                &mut self.var_cache,
+                evaluator,
+                ctx,
+            )?,
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
-                let cond =
-                    self.var_cache.get_or_compute_internal_var_unwrap(*condition, evaluator, ctx);
-                let l_c = self.var_cache.get_or_compute_internal_var_unwrap(*lhs, evaluator, ctx);
-                let r_c = self.var_cache.get_or_compute_internal_var_unwrap(*rhs, evaluator, ctx);
-                let sub =
-                    constraints::subtract(l_c.expression(), FieldElement::one(), r_c.expression());
-                let result = constraints::add(
-                    &constraints::mul_with_witness(evaluator, cond.expression(), &sub),
-                    FieldElement::one(),
-                    r_c.expression(),
-                );
-                Some(result.into())
+                operations::condition::evaluate_condition_op(
+                    *condition,
+                    *lhs,
+                    *rhs,
+                    &mut self.var_cache,
+                    evaluator,
+                    ctx,
+                )
             }
+            Operation::Load { array_id, index } => operations::load::evaluate_load_op(
+                *array_id,
+                *index,
+                &mut self.memory_map,
+                &mut self.var_cache,
+                evaluator,
+                ctx,
+            ),
+            Operation::Store { array_id, index, value } => operations::store::evaluate_store_op(
+                *array_id,
+                *index,
+                *value,
+                &mut self.memory_map,
+                &mut self.var_cache,
+                evaluator,
+                ctx,
+            ),
             Operation::Nop => None,
-            Operation::Load { array_id, index } => {
-                //retrieves the value from the map if address is known at compile time:
-                //address = l_c and should be constant
-                let index =
-                    self.var_cache.get_or_compute_internal_var_unwrap(*index, evaluator, ctx);
-
-                let array_element = match index.to_const() {
-                    Some(index) => {
-                        let idx = mem::Memory::as_u32(index);
-                        let mem_array = &ctx.mem[*array_id];
-
-                        self.memory_map.load_array_element_constant_index(mem_array, idx).expect(
-                            "ICE: index {idx} was out of bounds for array of length {mem_array.len}",
-                        )
-                    }
-                    None => unimplemented!("dynamic arrays are not implemented yet"),
-                };
-                Some(array_element)
-            }
-            Operation::Store { array_id, index, value } => {
-                //maps the address to the rhs if address is known at compile time
-                let index =
-                    self.var_cache.get_or_compute_internal_var_unwrap(*index, evaluator, ctx);
-                let value =
-                    self.var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
-
-                match index.to_const() {
-                    Some(index) => {
-                        let idx = mem::Memory::as_u32(index);
-                        let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
-                        self.memory_map.insert(absolute_adr, value);
-                        //we do not generate constraint, so no output.
-                        None
-                    }
-                    None => todo!("dynamic arrays are not implemented yet"),
-                }
-            }
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
@@ -194,76 +135,6 @@ impl Acir {
         }
 
         Ok(())
-    }
-
-    // Generate constraints for two types of functions:
-    // - Builtin functions: These are functions that
-    // are implemented by the compiler.
-    // - ACIR black box functions. These are referred
-    // to as `LowLevel`
-    fn evaluate_opcode(
-        &mut self,
-        instruction_id: NodeId,
-        opcode: builtin::Opcode,
-        args: &[NodeId],
-        res_type: ObjectType,
-        ctx: &SsaContext,
-        evaluator: &mut Evaluator,
-    ) -> Option<Expression> {
-        use builtin::Opcode;
-
-        let outputs;
-        match opcode {
-            Opcode::ToBits => {
-                // TODO: document where `0` and `1` are coming from, for args[0], args[1]
-                let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
-                let l_c =
-                    self.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-                outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
-                if let ObjectType::Pointer(a) = res_type {
-                    self.memory_map.map_array(a, &outputs, ctx);
-                }
-            }
-            Opcode::ToRadix => {
-                // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
-                let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
-                let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
-                let l_c =
-                    self.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-                outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
-                if let ObjectType::Pointer(a) = res_type {
-                    self.memory_map.map_array(a, &outputs, ctx);
-                }
-            }
-            Opcode::LowLevel(op) => {
-                let inputs = intrinsics::prepare_inputs(
-                    &mut self.var_cache,
-                    &mut self.memory_map,
-                    args,
-                    ctx,
-                    evaluator,
-                );
-                let output_count = op.definition().output_size.0 as u32;
-                outputs = intrinsics::prepare_outputs(
-                    &mut self.memory_map,
-                    instruction_id,
-                    output_count,
-                    ctx,
-                    evaluator,
-                );
-
-                let func_call = BlackBoxFuncCall {
-                    name: op,
-                    inputs,                   //witness + bit size
-                    outputs: outputs.clone(), //witness
-                };
-                evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
-            }
-        }
-        // TODO: document why we only return something when outputs.len()==1
-        // TODO what about outputs.len() > 1
-        //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
-        (outputs.len() == 1).then_some(Expression::from(&outputs[0]))
     }
 }
 
