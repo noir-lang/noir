@@ -673,51 +673,42 @@ fn simplify_bitwise(
 
     assert!(bit_size < FieldElement::max_num_bits());
     let max = FieldElement::from((1_u128 << bit_size) - 1);
-    let mut field = None;
-    let mut var = lhs;
-    if let Some(l_c) = lhs.to_const() {
-        if l_c == FieldElement::zero() || l_c == max {
-            field = Some(l_c);
-            var = rhs
-        }
-    } else if let Some(r_c) = rhs.to_const() {
-        if r_c == FieldElement::zero() || r_c == max {
-            field = Some(r_c);
-        }
-    }
-    if let Some(field) = field {
-        //simplify bitwise operation of the form: 0 OP var or 1 OP var
-        return Some(match opcode {
-            BinaryOp::And => {
-                if field.is_zero() {
-                    InternalVar::from(field)
-                } else {
-                    var.clone()
-                }
-            }
-            BinaryOp::Xor => {
-                if field.is_zero() {
-                    var.clone()
-                } else {
-                    InternalVar::from(constraints::subtract(
-                        &Expression::from_field(field),
-                        FieldElement::one(),
-                        var.expression(),
-                    ))
-                }
-            }
-            BinaryOp::Or => {
-                if field.is_zero() {
-                    var.clone()
-                } else {
-                    InternalVar::from(field)
-                }
-            }
-            _ => unreachable!(),
-        });
-    }
 
-    None
+    let (field, var) = match (lhs.to_const(), rhs.to_const()) {
+        (Some(l_c), None) => (l_c == FieldElement::zero() || l_c == max).then_some((l_c, rhs))?,
+        (None, Some(r_c)) => (r_c == FieldElement::zero() || r_c == max).then_some((r_c, lhs))?,
+        _ => return None,
+    };
+
+    //simplify bitwise operation of the form: 0 OP var or 1 OP var
+    return Some(match opcode {
+        BinaryOp::And => {
+            if field.is_zero() {
+                InternalVar::from(field)
+            } else {
+                var.clone()
+            }
+        }
+        BinaryOp::Xor => {
+            if field.is_zero() {
+                var.clone()
+            } else {
+                InternalVar::from(constraints::subtract(
+                    &Expression::from_field(field),
+                    FieldElement::one(),
+                    var.expression(),
+                ))
+            }
+        }
+        BinaryOp::Or => {
+            if field.is_zero() {
+                var.clone()
+            } else {
+                InternalVar::from(field)
+            }
+        }
+        _ => unreachable!(),
+    });
 }
 // Precondition: `lhs` and `rhs` do not represent constant expressions
 fn evaluate_bitwise(
