@@ -266,19 +266,15 @@ impl Acir {
             BinaryOp::Add | BinaryOp::SafeAdd => {
                 let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 InternalVar::from(constraints::add(
                     l_c.expression(),
                     FieldElement::one(),
                     r_c.expression(),
                 ))
-                
             },
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
-               
                 if res_type == ObjectType::NativeField {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
@@ -318,10 +314,8 @@ impl Acir {
                 }
             }
             BinaryOp::Mul | BinaryOp::SafeMul => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
-                
                 InternalVar::from(constraints::mul_with_witness(
                 evaluator,
                 l_c.expression(),
@@ -329,11 +323,9 @@ impl Acir {
             ))
             },
             BinaryOp::Udiv => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let predicate = self.get_predicate(binary, evaluator, ctx);
-                
                 let (q_wit, _) = constraints::evaluate_udiv(
                     l_c.expression(),
                     r_c.expression(),
@@ -344,17 +336,15 @@ impl Acir {
                 InternalVar::from(q_wit)
             }
             BinaryOp::Sdiv => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 InternalVar::from(
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).0,
             )
         },
             BinaryOp::Urem => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let (_, r_wit) = constraints::evaluate_udiv(
                     l_c.expression(),
@@ -366,19 +356,15 @@ impl Acir {
                 InternalVar::from(r_wit)
             }
             BinaryOp::Srem => {
-                
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
-
                 InternalVar::from(
                 // TODO: we should use variable naming here instead of .1
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
             )},
             BinaryOp::Div => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let mut r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
                 //TODO avoid creating witnesses here.
                 let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
@@ -393,25 +379,20 @@ impl Acir {
                 ))
             }
             BinaryOp::Eq => {
-                                let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var(binary.rhs, evaluator, ctx);
-                
                 InternalVar::from(
                 self.evaluate_eq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ne => {
-                                let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var(binary.rhs, evaluator, ctx);
-                
-                
                 InternalVar::from(
                 self.evaluate_neq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ult => {
-                
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let size = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(
                     l_c.expression(),
@@ -423,9 +404,8 @@ impl Acir {
                 .into()
             }
             BinaryOp::Ule => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let size = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -437,17 +417,15 @@ impl Acir {
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let s = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)
                     .into()
             }
             BinaryOp::Sle => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let s = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -467,9 +445,8 @@ impl Acir {
             )
             }
             BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
-                                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
+                let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                
                 let bit_size = res_type.bits();
                 let opcode = binary.operator.clone();
                 let bitwise_result = match simplify_bitwise(&l_c, &r_c, bit_size, &opcode) {
