@@ -97,7 +97,6 @@ impl Acir {
 
         self.node_id_to_internal_var_unwrap(predicate_node_id, evaluator, ctx)
     }
-    // TODO: (create issue): change evaluate_instruction to acir_gen_instruction
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
