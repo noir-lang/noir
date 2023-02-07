@@ -12,6 +12,7 @@ use noirc_driver::CompiledProgram;
 use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use super::{InputMap, WitnessMap};
 use crate::{
+    cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
     errors::CliError,
 };
@@ -21,14 +22,19 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let witness_name = args.value_of("witness_name");
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
-    let (return_value, solved_witness) = execute(show_ssa, allow_warnings)?;
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+
+    let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
+    let (return_value, solved_witness) = execute_program(&program_dir, &compiled_program)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
     if let Some(witness_name) = witness_name {
-        let mut witness_dir = std::env::current_dir().unwrap();
+        let mut witness_dir = program_dir;
         witness_dir.push(TARGET_DIR);
 
         let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
@@ -41,18 +47,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
-
-fn execute(
-    show_ssa: bool,
-    allow_warnings: bool,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-
-    let compiled_program =
-        super::compile_cmd::compile_circuit(&current_dir, show_ssa, allow_warnings)?;
-
-    execute_program(current_dir, &compiled_program)
-}
 
 pub(crate) fn execute_program<P: AsRef<Path>>(
     inputs_dir: P,

@@ -1,6 +1,6 @@
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
@@ -9,12 +9,11 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("gates").unwrap();
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
-    count_gates(show_ssa, allow_warnings)
-}
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
 
-pub fn count_gates(show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-    count_gates_with_path(current_dir, show_ssa, allow_warnings)
+    count_gates_with_path(program_dir, show_ssa, allow_warnings)
 }
 
 pub fn count_gates_with_path<P: AsRef<Path>>(

@@ -17,25 +17,19 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
 
     let proof_name = args.value_of("proof").unwrap();
-    let mut proof_path = std::path::PathBuf::new();
-    proof_path.push(Path::new(PROOFS_DIR));
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
 
+    let mut proof_path = program_dir.clone();
+    proof_path.push(Path::new(PROOFS_DIR));
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
     let allow_warnings = args.is_present("allow-warnings");
-    let result = verify(proof_name, allow_warnings)?;
+    let result = verify_with_path(program_dir, proof_path, false, allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())
-}
-
-fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-    let mut proof_path = PathBuf::new(); //or cur_dir?
-    proof_path.push(PROOFS_DIR);
-    proof_path.push(Path::new(proof_name));
-    proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&current_dir, &proof_path, false, allow_warnings)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(

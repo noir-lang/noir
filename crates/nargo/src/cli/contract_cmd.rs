@@ -1,23 +1,26 @@
+use std::path::PathBuf;
+
 use super::{create_named_dir, write_to_file};
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::ArgMatches;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let cmd = args.subcommand_matches("contract").unwrap();
-
-    let package_dir = match cmd.value_of("path") {
-        Some(path) => std::path::PathBuf::from(path),
-        None => std::env::current_dir().unwrap(),
-    };
+    let args = args.subcommand_matches("contract").unwrap();
 
     let allow_warnings = args.is_present("allow-warnings");
-    let compiled_program = compile_circuit(package_dir, false, allow_warnings)?;
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+
+    let compiled_program = compile_circuit(program_dir.clone(), false, allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
-    let mut contract_path = create_named_dir(CONTRACT_DIR.as_ref(), "contract");
+    let mut contract_dir = program_dir;
+    contract_dir.push(CONTRACT_DIR);
+    let mut contract_path = create_named_dir(contract_dir.as_ref(), "contract");
     contract_path.push("plonk_vk");
     contract_path.set_extension("sol");
 

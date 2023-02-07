@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, io::Write};
+use std::{
+    collections::BTreeMap,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use clap::ArgMatches;
@@ -14,14 +18,21 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
     let test_name = args.value_of("test_name").unwrap_or("");
     let allow_warnings = args.is_present("allow-warnings");
-    run_tests(test_name, allow_warnings)
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+
+    run_tests(program_dir, test_name, allow_warnings)
 }
 
-fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
+fn run_tests<P: AsRef<Path>>(
+    program_dir: P,
+    test_name: &str,
+    allow_warnings: bool,
+) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    let package_dir = std::env::current_dir().unwrap();
-    let mut driver = Resolver::resolve_root_config(&package_dir, backend.np_language())?;
+    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
     if driver.check_crate(allow_warnings).is_err() {

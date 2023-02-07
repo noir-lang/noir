@@ -18,16 +18,14 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
 
-    prove(proof_name, show_ssa, allow_warnings)
-}
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
 
-fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-
-    let mut proof_dir = PathBuf::new();
+    let mut proof_dir = program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
-    prove_with_path(proof_name, current_dir, proof_dir, show_ssa, allow_warnings)?;
+    prove_with_path(proof_name, program_dir, proof_dir, show_ssa, allow_warnings)?;
 
     Ok(())
 }

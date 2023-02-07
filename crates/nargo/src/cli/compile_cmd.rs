@@ -20,14 +20,16 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let circuit_name = args.value_of("circuit_name").unwrap();
     let witness = args.is_present("witness");
     let allow_warnings = args.is_present("allow-warnings");
+    let program_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
 
-    let current_dir = std::env::current_dir().unwrap();
-    let mut circuit_path = PathBuf::new();
+    let mut circuit_path = program_dir.clone();
     circuit_path.push(TARGET_DIR);
 
     generate_circuit_and_witness_to_disk(
         circuit_name,
-        current_dir,
+        program_dir,
         circuit_path,
         witness,
         allow_warnings,

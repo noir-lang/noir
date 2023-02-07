@@ -5,17 +5,17 @@ use crate::{
 
 use super::{create_named_dir, write_to_file};
 use clap::ArgMatches;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let cmd = args.subcommand_matches("new").unwrap();
 
     let package_name = cmd.value_of("package_name").unwrap();
 
-    let mut package_dir = match cmd.value_of("path") {
-        Some(path) => std::path::PathBuf::from(path),
-        None => std::env::current_dir().unwrap(),
-    };
+    let mut package_dir = args
+        .value_of("path")
+        .map_or_else(|| std::env::current_dir().unwrap(), |path_str| PathBuf::from(path_str));
+
     package_dir.push(Path::new(package_name));
     if package_dir.exists() {
         return Err(CliError::DestinationAlreadyExists(package_dir));
