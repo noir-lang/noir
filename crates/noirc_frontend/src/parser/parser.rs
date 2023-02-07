@@ -228,10 +228,13 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(path())
+        .then(generics())
         .then_ignore(just(Token::LeftBrace))
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
-        .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+        .map(|((type_path, generics), methods)| {
+            TopLevelStatement::Impl(NoirImpl { type_path, generics, methods })
+        })
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a

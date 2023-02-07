@@ -25,6 +25,7 @@ impl NoirStruct {
 #[derive(Clone, Debug)]
 pub struct NoirImpl {
     pub type_path: Path,
+    pub generics: Vec<Ident>,
     pub methods: Vec<NoirFunction>,
 }
 
