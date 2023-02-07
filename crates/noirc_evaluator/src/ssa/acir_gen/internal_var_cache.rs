@@ -54,7 +54,7 @@ impl InternalVarCache {
             NodeObject::Function(..) => {
                 unreachable!("ICE: functions should have been removed by this stage")
             }
-            // TODO: Why do we create a `Witness` for an instruction
+            // TODO: Why do we create a `Witness` for an instruction (Guillaume)
             NodeObject::Instr(..) => {
                 let witness = evaluator.add_witness_to_cs();
                 InternalVar::from_witness(witness)
@@ -80,6 +80,6 @@ impl InternalVarCache {
         self.inner.insert(id, var);
     }
     pub(super) fn get(&mut self, id: &NodeId) -> Option<&InternalVar> {
-        self.inner.get(&id)
+        self.inner.get(id)
     }
 }
