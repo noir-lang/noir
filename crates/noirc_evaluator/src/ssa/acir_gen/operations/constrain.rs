@@ -1,0 +1,25 @@
+use acvm::{
+    acir::circuit::opcodes::Opcode as AcirOpcode, acir::native_types::Expression, FieldElement,
+};
+
+use crate::{
+    ssa::{
+        acir_gen::{constraints, internal_var_cache::InternalVarCache, InternalVar},
+        context::SsaContext,
+        node::NodeId,
+    },
+    Evaluator,
+};
+
+pub fn evaluate_constrain_op(
+    value: &NodeId,
+    var_cache: &mut InternalVarCache,
+    evaluator: &mut Evaluator,
+    ctx: &SsaContext,
+) -> Option<InternalVar> {
+    let value = var_cache.get_or_compute_internal_var_unwrap(*value, evaluator, ctx);
+    let subtract =
+        constraints::subtract(&Expression::one(), FieldElement::one(), value.expression());
+    evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
+    Some(value)
+}
