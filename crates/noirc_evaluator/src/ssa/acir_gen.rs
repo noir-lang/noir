@@ -55,7 +55,7 @@ impl Acir {
             Some(NodeObject::Obj(variable)) => {
                 let variable_type = variable.get_type();
                 match variable_type {
-                    ObjectType::Pointer(_) => return None,
+                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
                     _ => {
                         let witness =
                             variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
