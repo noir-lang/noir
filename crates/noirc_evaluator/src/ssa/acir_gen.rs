@@ -14,6 +14,8 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
+mod operations;
+
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
 mod constraints;
@@ -353,13 +355,13 @@ impl Acir {
                 let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                self.evaluate_eq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                Self::evaluate_eq(&mut self.memory_map,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ne => {
                 let l_c = self.node_id_to_internal_var(binary.lhs, evaluator, ctx);
                 let r_c = self.node_id_to_internal_var(binary.rhs, evaluator, ctx);
                 InternalVar::from(
-                self.evaluate_neq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
+                Self::evaluate_neq(&mut self.memory_map,binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             )},
             BinaryOp::Ult => {
                 let l_c = self.node_id_to_internal_var_unwrap(binary.lhs, evaluator, ctx);
@@ -446,7 +448,7 @@ impl Acir {
     // so in reality, the NEQ instruction will be done on the fields
     // of the struct
     fn evaluate_neq(
-        &mut self,
+        memory_map: &mut MemoryMap,
         lhs: NodeId,
         rhs: NodeId,
         l_c: Option<InternalVar>,
@@ -475,7 +477,7 @@ impl Acir {
                 )
             }
 
-            let mut x = InternalVar::from(self.array_eq(array_a, array_b, evaluator));
+            let mut x = InternalVar::from(Self::array_eq(memory_map, array_a, array_b, evaluator));
             // TODO we need a witness because of the directive, but we should use an expression
             // TODO if we change the Invert directive to take an `Expression`, then we
             // TODO can get rid of this extra gate.
@@ -511,7 +513,7 @@ impl Acir {
     }
 
     fn evaluate_eq(
-        &mut self,
+        memory_map: &mut MemoryMap,
         lhs: NodeId,
         rhs: NodeId,
         l_c: Option<InternalVar>,
@@ -519,7 +521,7 @@ impl Acir {
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
-        let neq = self.evaluate_neq(lhs, rhs, l_c, r_c, ctx, evaluator);
+        let neq = Self::evaluate_neq(memory_map, lhs, rhs, l_c, r_c, ctx, evaluator);
         constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
     }
 
@@ -528,12 +530,17 @@ impl Acir {
     // `0` if the arrays were equal and `1` otherwise.
     //
     // N.B. We assumes the lengths of a and b are the same but it is not checked inside the function.
-    fn array_eq(&mut self, a: &MemArray, b: &MemArray, evaluator: &mut Evaluator) -> Expression {
+    fn array_eq(
+        memory_map: &mut MemoryMap,
+        a: &MemArray,
+        b: &MemArray,
+        evaluator: &mut Evaluator,
+    ) -> Expression {
         // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
         // We then convert these to `Expressions`
         let internal_var_to_expr = |internal_var: InternalVar| internal_var.expression().clone();
-        let a_values = vecmap(self.memory_map.load_array(a), internal_var_to_expr);
-        let b_values = vecmap(self.memory_map.load_array(b), internal_var_to_expr);
+        let a_values = vecmap(memory_map.load_array(a), internal_var_to_expr);
+        let b_values = vecmap(memory_map.load_array(b), internal_var_to_expr);
 
         constraints::arrays_eq_predicate(&a_values, &b_values, evaluator)
     }
