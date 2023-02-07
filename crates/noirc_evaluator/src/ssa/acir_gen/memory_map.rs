@@ -59,19 +59,18 @@ impl MemoryMap {
         array: &MemArray,
         offset: u32,
     ) -> Option<InternalVar> {
-        let address_of_element = array.absolute_adr(offset);
-
-        // First check the memory_map to see if the element is there
-        if let Some(internal_var) = self.inner.get(&address_of_element) {
-            return Some(internal_var.clone());
-        };
-
-        // Now check to see if the index has gone out of bounds
-        // TODO: should we check this first?
+        // Check to see if the index has gone out of bounds
         let array_length = array.len;
         if offset >= array_length {
             return None; // IndexOutOfBoundsError
         }
+
+        let address_of_element = array.absolute_adr(offset);
+
+        // Check the memory_map to see if the element is there
+        if let Some(internal_var) = self.inner.get(&address_of_element) {
+            return Some(internal_var.clone());
+        };
 
         // TODO (Guillaume) we could put the values into the memory_map when
         // TODO we process the ABI, then we only need to check the memory_map
