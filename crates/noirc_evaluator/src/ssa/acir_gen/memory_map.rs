@@ -4,6 +4,7 @@ use crate::ssa::{
     mem::{ArrayId, MemArray},
 };
 use acvm::acir::native_types::Witness;
+use iter_extended::vecmap;
 use std::collections::HashMap;
 
 // maps memory address to expression
@@ -27,19 +28,13 @@ impl MemoryMap {
         }
     }
 
-    //Load array values into InternalVars
-    //If create_witness is true, we create witnesses for values that do not have witness
+    // Load array values into InternalVars
+    // If create_witness is true, we create witnesses for values that do not have witness
     pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
-        let mut array_as_internal_var = Vec::with_capacity(array.len as usize);
-
-        for offset in 0..array.len {
-            let element = self
-                .load_array_element_constant_index(array, offset)
-                .expect("infallible: array out of bounds error");
-            array_as_internal_var.push(element.clone())
-        }
-
-        array_as_internal_var
+        vecmap(0..array.len, |offset| {
+            self.load_array_element_constant_index(array, offset)
+                .expect("infallible: array out of bounds error")
+        })
     }
 
     // Loads the associated `InternalVar` for the element
