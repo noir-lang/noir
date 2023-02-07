@@ -418,7 +418,7 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
 pub fn short_circuit_instructions(
     ctx: &mut SsaContext,
     target: BlockId,
-    instructions: &Vec<NodeId>,
+    instructions: &[NodeId],
 ) -> Vec<NodeId> {
     // short-circuit the return instruction (if it exists)
     zero_instructions(ctx, instructions, None);
@@ -437,7 +437,7 @@ pub fn short_circuit_instructions(
         if let Some(ins) = ctx.try_get_instruction(i) {
             if ins.operation.opcode() == Opcode::Return {
                 stack.push(i);
-                zero_instructions(ctx, &vec![i], None);
+                zero_instructions(ctx, &[i], None);
             }
         }
     }
@@ -459,7 +459,7 @@ pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
 }
 
 //Delete instructions and replace them with zeros, except for return instruction which is kept with zeroed return values, and the avoid instruction
-pub fn zero_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>, avoid: Option<&NodeId>) {
+pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: Option<&NodeId>) {
     let mut zeros = HashMap::new();
     let mut zero_keys = Vec::new();
     for i in instructions {
