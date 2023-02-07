@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{InternalVar, MemoryMap},
+        acir_gen::{InternalVarCache, MemoryMap},
         context::SsaContext,
         mem::ArrayId,
         node::{self, Node, NodeId},
@@ -8,11 +8,10 @@ use crate::{
     Evaluator,
 };
 use acvm::acir::{circuit::opcodes::FunctionInput, native_types::Witness};
-use std::collections::HashMap;
 
 // Transform the arguments of intrinsic functions into witnesses
 pub(crate) fn prepare_inputs(
-    arith_cache: &mut HashMap<NodeId, InternalVar>,
+    arith_cache: &mut InternalVarCache,
     memory_map: &mut MemoryMap,
     arguments: &[NodeId],
     cfg: &SsaContext,
@@ -28,7 +27,7 @@ pub(crate) fn prepare_inputs(
 
 fn resolve_node_id(
     node_id: &NodeId,
-    arith_cache: &mut HashMap<NodeId, InternalVar>,
+    arith_cache: &mut InternalVarCache,
     memory_map: &mut MemoryMap,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -56,12 +55,11 @@ fn resolve_node_id(
             // Otherwise, this is a internal compiler error.
             let internal_var = arith_cache.get(node_id);
             match internal_var {
-                Some(_var) => {
-                    let mut var = _var.clone();
-                    let witness = var.cached_witness().unwrap_or_else(|| {
-                        var.get_or_compute_witness(evaluator, false)
-                            .expect("unexpected constant expression")
-                    });
+                Some(var) => {
+                    let witness = var
+                        .clone()
+                        .get_or_compute_witness(evaluator, false)
+                        .expect("unexpected constant expression");
                     vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
                 }
                 None => unreachable!("invalid input: {:?}", node_object),

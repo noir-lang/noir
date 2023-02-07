@@ -1,7 +1,7 @@
 use crate::ssa::{
     context::SsaContext,
     mem::{MemArray, Memory},
-    node::{BinaryOp, Instruction, Node, NodeId, NodeObject, ObjectType, Operation},
+    node::{BinaryOp, Instruction, Node, NodeId, ObjectType, Operation},
     {builtin, mem, node},
 };
 use crate::{Evaluator, RuntimeErrorKind};
@@ -13,23 +13,25 @@ use acvm::{
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use std::collections::HashMap;
 
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
 mod constraints;
 use constraints::to_radix_base;
+mod internal_var_cache;
+use internal_var_cache::InternalVarCache;
 // Expose this to the crate as we need to apply range constraints when
 // converting the ABI(main parameters) to Noir types
 pub(crate) use constraints::range_constraint;
 mod intrinsics;
 mod memory_map;
 use memory_map::MemoryMap;
+mod instructions;
 
 #[derive(Default)]
 pub struct Acir {
     memory_map: MemoryMap,
-    arith_cache: HashMap<NodeId, InternalVar>,
+    arith_cache: InternalVarCache,
 }
 
 impl Acir {
@@ -43,45 +45,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> Option<InternalVar> {
-        if let Some(internal_var) = self.arith_cache.get(&id) {
-            return Some(internal_var.clone());
-        }
-
-        let mut var = match ctx.try_get_node(id)? {
-            NodeObject::Const(c) => {
-                let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
-                InternalVar::from_constant(field_value)
-            }
-            NodeObject::Obj(variable) => {
-                let variable_type = variable.get_type();
-                match variable_type {
-                    ObjectType::Boolean
-                    | ObjectType::NativeField
-                    | ObjectType::Signed(..)
-                    | ObjectType::Unsigned(..) => {
-                        let witness =
-                            variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
-                        InternalVar::from_witness(witness)
-                    }
-                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
-                    ObjectType::Function => {
-                        unreachable!("ICE: functions should have been removed by this stage")
-                    }
-                }
-            }
-            NodeObject::Function(..) => {
-                unreachable!("ICE: functions should have been removed by this stage")
-            }
-            // TODO: Why do we create a `Witness` for an instruction
-            NodeObject::Instr(..) => {
-                let witness = evaluator.add_witness_to_cs();
-                InternalVar::from_witness(witness)
-            }
-        };
-
-        var.set_id(id);
-        self.arith_cache.insert(id, var.clone());
-        Some(var)
+        self.arith_cache.get_or_compute_internal_var(id, evaluator, ctx)
     }
     fn node_id_to_internal_var_unwrap(
         &mut self,
@@ -89,8 +53,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> InternalVar {
-        self.node_id_to_internal_var(id, evaluator, ctx)
-            .expect("ICE: `NodeId` type cannot be converted into an `InternalVar`")
+        self.arith_cache.get_or_compute_internal_var_unwrap(id, evaluator, ctx)
     }
 
     fn get_predicate(
@@ -254,7 +217,7 @@ impl Acir {
         // If the output returned an `InternalVar` then we add it to the cache
         if let Some(mut output) = output {
             output.set_id(ins.id);
-            self.arith_cache.insert(ins.id, output);
+            self.arith_cache.update(ins.id, output);
         }
 
         Ok(())
