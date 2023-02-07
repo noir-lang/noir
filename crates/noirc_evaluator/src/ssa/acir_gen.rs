@@ -47,12 +47,12 @@ impl Acir {
             return Some(internal_var.clone());
         }
 
-        let mut var = match ctx.try_get_node(id) {
-            Some(NodeObject::Const(c)) => {
+        let mut var = match ctx.try_get_node(id)? {
+            NodeObject::Const(c) => {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 InternalVar::from_constant(field_value)
             }
-            Some(NodeObject::Obj(variable)) => {
+            NodeObject::Obj(variable) => {
                 let variable_type = variable.get_type();
                 match variable_type {
                     ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
