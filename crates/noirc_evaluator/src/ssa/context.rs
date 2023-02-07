@@ -702,7 +702,7 @@ impl SsaContext {
         //Optimization
         block::compute_dom(self);
         optimizations::full_cse(self, self.first_block, false)?;
-
+        optimizations::full_cse(self, self.first_block, false)?;
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling

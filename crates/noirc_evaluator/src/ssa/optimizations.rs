@@ -238,6 +238,16 @@ fn cse_block_with_anchor(
                         anchor.push_front(&ins.operation, *ins_id);
                     }
                 }
+                Operation::Result { .. } => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        debug_assert!(similar != ins.id);
+                        *modified = true;
+                        new_mark = Mark::ReplaceWith(similar);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
+                }
                 Operation::Load { array_id: x, .. } | Operation::Store { array_id: x, .. } => {
                     if !is_join && ins.operation.is_dummy_store() {
                         continue;

@@ -375,7 +375,9 @@ impl DecisionTree {
         }
         let mut modified = false;
         super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
-
+        if modified {
+            super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
+        }
         //housekeeping...
         let if_block = &mut ctx[if_block_id];
         if_block.dominated = vec![left];
@@ -977,8 +979,8 @@ impl Segment {
         Segment { left: (left_node.0, *left_node.1), right: (right_node.0, *right_node.1) }
     }
     pub fn intersect(&self, other: &Segment) -> bool {
-        (self.right.0 < other.right.0 && self.left.0 < other.left.0)
-            || (self.right.0 > other.right.0 && self.left.0 > other.left.0)
+        !((self.right.0 < other.right.0 && self.left.0 < other.left.0)
+            || (self.right.0 > other.right.0 && self.left.0 > other.left.0))
     }
 }
 
