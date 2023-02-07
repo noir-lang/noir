@@ -25,6 +25,7 @@ mod intrinsics;
 mod memory_map;
 use memory_map::MemoryMap;
 
+
 #[derive(Default)]
 pub struct Acir {
     memory_map: MemoryMap,
@@ -35,14 +36,15 @@ impl Acir {
     //This function stores the substitution with the arithmetic expression in the cache
     //When an instruction performs arithmetic operation, its output can be represented as an arithmetic expression of its arguments
     //Substitute a node object as an arithmetic expression
+    // Returns `None` if `NodeId` represents an array pointer.
     fn substitute(
         &mut self,
         id: NodeId,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
-    ) -> InternalVar {
+    ) -> Option<InternalVar> {
         if let Some(internal_var) = self.arith_cache.get(&id) {
-            return internal_var.clone();
+            return Some(internal_var.clone());
         }
 
         let mut var = match ctx.try_get_node(id) {
@@ -50,16 +52,17 @@ impl Acir {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 InternalVar::from_constant(field_value)
             }
-            Some(NodeObject::Obj(variable)) => match variable.get_type() {
-                // TODO We should return None instead of default here
-                // TODO so that when one calls `InternalVar` in other
-                // TODO functions, they must explicitly unwrap this
-                ObjectType::Pointer(_) => InternalVar::zero_expr(),
-                _ => {
-                    let witness = variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
-                    InternalVar::from_witness(witness)
+            Some(NodeObject::Obj(variable)) => {
+                let variable_type = variable.get_type();
+                match variable_type {
+                    ObjectType::Pointer(_) => return None,
+                    _ => {
+                        let witness =
+                            variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
+                        InternalVar::from_witness(witness)
+                    }
                 }
-            },
+            }
             _ => {
                 let witness = evaluator.add_witness_to_cs();
                 InternalVar::from_witness(witness)
@@ -68,7 +71,7 @@ impl Acir {
 
         var.set_id(id);
         self.arith_cache.insert(id, var.clone());
-        var
+        Some(var)
     }
 
     fn get_predicate(
@@ -77,10 +80,13 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> InternalVar {
-        match binary.predicate {
-            Some(pred) => self.substitute(pred, evaluator, ctx),
-            None => InternalVar::one_expr(),
-        }
+        let predicate_node_id = match binary.predicate {
+            Some(pred) => pred,
+            None => return InternalVar::one_expr(),
+        };
+
+        self.substitute(predicate_node_id, evaluator, ctx)
+            .expect("ICE: predicate cannot be a pointer as it must be a boolean")
     }
 
     pub fn evaluate_instruction(
@@ -96,7 +102,8 @@ impl Acir {
         let mut output = match &ins.operation {
             Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
             Operation::Constrain(value, ..) => {
-                let value = self.substitute(*value, evaluator, ctx);
+                let value =
+                    self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
                 let subtract = constraints::subtract(
                     &Expression::one(),
                     FieldElement::one(),
@@ -107,7 +114,8 @@ impl Acir {
             }
             Operation::Not(value) => {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
-                let l_c = self.substitute(*value, evaluator, ctx);
+                let l_c =
+                    self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
                 constraints::subtract(
                     &Expression::from(&FieldElement::from(a)),
                     FieldElement::one(),
@@ -115,7 +123,7 @@ impl Acir {
                 )
                 .into()
             }
-            Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
+            Operation::Cast(value) => self.substitute(*value, evaluator, ctx).expect("msg"),
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
@@ -124,7 +132,8 @@ impl Acir {
                 unreachable!("Invalid instruction: {:?}", i);
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
-                let value = self.substitute(*value, evaluator, ctx);
+                let value =
+                    self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
                 InternalVar::from_expression(constraints::evaluate_truncate(
                     value.expression(),
                     *bit_size,
@@ -154,7 +163,9 @@ impl Acir {
                             let array = &ctx.mem[a];
                             self.memory_map.load_array(array)
                         }
-                        None => vec![self.substitute(*node_id, evaluator, ctx)],
+                        None => vec![self
+                            .substitute(*node_id, evaluator, ctx)
+                            .expect("ICE: unexpected array pointer")],
                     };
 
                     for mut object in objects {
@@ -175,9 +186,13 @@ impl Acir {
                 InternalVar::zero_expr()
             }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
-                let cond = self.substitute(*condition, evaluator, ctx);
-                let l_c = self.substitute(*lhs, evaluator, ctx);
-                let r_c = self.substitute(*rhs, evaluator, ctx);
+                let cond = self
+                    .substitute(*condition, evaluator, ctx)
+                    .expect("ICE: unexpected array pointer");
+                let l_c =
+                    self.substitute(*lhs, evaluator, ctx).expect("ICE: unexpected array pointer");
+                let r_c =
+                    self.substitute(*rhs, evaluator, ctx).expect("ICE: unexpected array pointer");
                 let sub =
                     constraints::subtract(l_c.expression(), FieldElement::one(), r_c.expression());
                 let result = constraints::add(
@@ -191,7 +206,8 @@ impl Acir {
             Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
-                let index = self.substitute(*index, evaluator, ctx);
+                let index =
+                    self.substitute(*index, evaluator, ctx).expect("ICE: unexpected array pointer");
 
                 match index.to_const() {
                     Some(index) => {
@@ -207,8 +223,10 @@ impl Acir {
             }
             Operation::Store { array_id, index, value } => {
                 //maps the address to the rhs if address is known at compile time
-                let index = self.substitute(*index, evaluator, ctx);
-                let value = self.substitute(*value, evaluator, ctx);
+                let index =
+                    self.substitute(*index, evaluator, ctx).expect("ICE: unexpected array pointer");
+                let value =
+                    self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
 
                 match index.to_const() {
                     Some(index) => {
@@ -237,18 +255,28 @@ impl Acir {
         ctx: &SsaContext,
     ) -> InternalVar {
         let l_c = self.substitute(binary.lhs, evaluator, ctx);
-        let mut r_c = self.substitute(binary.rhs, evaluator, ctx);
+        let r_c = self.substitute(binary.rhs, evaluator, ctx);
         let r_size = ctx[binary.rhs].size_in_bits();
         let l_size = ctx[binary.lhs].size_in_bits();
         let max_size = u32::max(r_size, l_size);
 
         match &binary.operator {
-            BinaryOp::Add | BinaryOp::SafeAdd => InternalVar::from(constraints::add(
-                l_c.expression(),
-                FieldElement::one(),
-                r_c.expression(),
-            )),
+            BinaryOp::Add | BinaryOp::SafeAdd => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
+                
+                
+                InternalVar::from(constraints::add(
+                    l_c.expression(),
+                    FieldElement::one(),
+                    r_c.expression(),
+                ))
+                
+            },
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
+               
                 if res_type == ObjectType::NativeField {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
@@ -258,6 +286,7 @@ impl Acir {
                 } else {
                     //we need the type of rhs and its max value, then:
                     //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
+                    // TODO: what is this code doing?
                     let bit_size = r_size;
                     let r_big = BigUint::one() << bit_size;
                     let mut k = max_rhs_value / &r_big;
@@ -286,13 +315,21 @@ impl Acir {
                     sub_var
                 }
             }
-            BinaryOp::Mul | BinaryOp::SafeMul => InternalVar::from(constraints::mul_with_witness(
+            BinaryOp::Mul | BinaryOp::SafeMul => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
+                
+                InternalVar::from(constraints::mul_with_witness(
                 evaluator,
                 l_c.expression(),
                 r_c.expression(),
-            )),
+            ))
+            },
             BinaryOp::Udiv => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let predicate = self.get_predicate(binary, evaluator, ctx);
+                
                 let (q_wit, _) = constraints::evaluate_udiv(
                     l_c.expression(),
                     r_c.expression(),
@@ -302,10 +339,17 @@ impl Acir {
                 );
                 InternalVar::from(q_wit)
             }
-            BinaryOp::Sdiv => InternalVar::from(
+            BinaryOp::Sdiv => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
+                
+                InternalVar::from(
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).0,
-            ),
+            )
+        },
             BinaryOp::Urem => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let predicate = self.get_predicate(binary, evaluator, ctx);
                 let (_, r_wit) = constraints::evaluate_udiv(
                     l_c.expression(),
@@ -316,11 +360,18 @@ impl Acir {
                 );
                 InternalVar::from(r_wit)
             }
-            BinaryOp::Srem => InternalVar::from(
+            BinaryOp::Srem => {
+                
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
+
+                InternalVar::from(
                 // TODO: we should use variable naming here instead of .1
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
-            ),
+            )},
             BinaryOp::Div => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let mut r_c = r_c.expect("ICE: unexpected array pointer");
                 let predicate = self.get_predicate(binary, evaluator, ctx).expression().clone();
                 //TODO avoid creating witnesses here.
                 let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
@@ -335,12 +386,15 @@ impl Acir {
                 ))
             }
             BinaryOp::Eq => InternalVar::from(
-                self.evaluate_eq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                self.evaluate_eq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             ),
             BinaryOp::Ne => InternalVar::from(
-                self.evaluate_neq(binary.lhs, binary.rhs, &l_c, &r_c, ctx, evaluator),
+                self.evaluate_neq(binary.lhs, binary.rhs, l_c, r_c, ctx, evaluator),
             ),
             BinaryOp::Ult => {
+                
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let size = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(
                     l_c.expression(),
@@ -352,6 +406,8 @@ impl Acir {
                 .into()
             }
             BinaryOp::Ule => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let size = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -363,11 +419,15 @@ impl Acir {
                 constraints::subtract(&Expression::one(), FieldElement::one(), &e).into()
             }
             BinaryOp::Slt => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let s = ctx[binary.lhs].get_type().bits();
                 constraints::evaluate_cmp(l_c.expression(), r_c.expression(), s, true, evaluator)
                     .into()
             }
             BinaryOp::Sle => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let s = ctx[binary.lhs].get_type().bits();
                 let e = constraints::evaluate_cmp(
                     r_c.expression(),
@@ -387,6 +447,8 @@ impl Acir {
             )
             }
             BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
+                let l_c = l_c.expect("ICE: unexpected array pointer");
+                let r_c = r_c.expect("ICE: unexpected array pointer");
                 let bit_size = res_type.bits();
                 let opcode = binary.operator.clone();
                 let bitwise_result = match simplify_bitwise(&l_c, &r_c, bit_size, &opcode) {
@@ -418,8 +480,8 @@ impl Acir {
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
-        l_c: &InternalVar,
-        r_c: &InternalVar,
+        l_c: Option<InternalVar>,
+        r_c: Option<InternalVar>,
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
@@ -427,6 +489,9 @@ impl Acir {
         if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
             let array_a = &ctx.mem[a];
             let array_b = &ctx.mem[b];
+
+            assert!(l_c.is_none());
+            assert!(r_c.is_none());
 
             // TODO What happens if we call `l_c.expression()` on InternalVar
             // TODO when we know that they should correspond to Arrays
@@ -452,6 +517,8 @@ impl Acir {
                 x_witness, evaluator,
             ));
         }
+        let l_c = l_c.expect("ICE: unexpected array pointer");
+        let r_c = r_c.expect("ICE: unexpected array pointer");
         // Arriving here means that `lhs` and `rhs` are not Arrays
         //
         // Check if `lhs` and `rhs` are constants. If so, we can evaluate whether
@@ -478,8 +545,8 @@ impl Acir {
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
-        l_c: &InternalVar,
-        r_c: &InternalVar,
+        l_c: Option<InternalVar>,
+        r_c: Option<InternalVar>,
         ctx: &SsaContext,
         evaluator: &mut Evaluator,
     ) -> Expression {
@@ -532,7 +599,7 @@ impl Acir {
             Opcode::ToBits => {
                 // TODO: document where `0` and `1` are coming from, for args[0], args[1]
                 let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
-                let l_c = self.substitute(args[0], evaluator, ctx);
+                let l_c = self.substitute(args[0], evaluator, ctx).expect("ICE: unexpected array pointer");
                 outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
                 if let ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
@@ -542,7 +609,7 @@ impl Acir {
                 // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
                 let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
                 let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
-                let l_c = self.substitute(args[0], evaluator, ctx);
+                let l_c = self.substitute(args[0], evaluator, ctx).expect("ICE: unexpected array pointer");
                 outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
                 if let ObjectType::Pointer(a) = res_type {
                     self.memory_map.map_array(a, &outputs, ctx);
@@ -579,6 +646,7 @@ impl Acir {
             expression_from_witness(outputs[0])
         } else {
             //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
+            // TODO: this is representing no expression
             Expression::default()
         }
     }
