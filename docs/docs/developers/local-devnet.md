@@ -25,7 +25,7 @@ Mac M1s run this on an emulator so they will be slower.
 For a simple, fresh Ethereum network + Aztec sequencer without any bridge contracts, run
 
 ```bash
-curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml | docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.dev.yml | docker compose -f - up --force-recreate --pull always
 ```
 
 This will be useful for testing basic functionality of the Aztec network like deposits, withdrawals, account registrations, account migrations, account recovery and asset transfers.
@@ -37,7 +37,7 @@ Or for a an Ethereum fork of mainnet along with all of the mainnet Aztec bridge 
 You will need to add a `FORK_URL` with a valid API key.
 
 ```bash
-curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | NETWORK=DONT_CARE CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker-compose -f - up --force-recreate
+curl -s https://raw.githubusercontent.com/AztecProtocol/dev-rel/main/docker-compose.fork.yml  | NETWORK=DONT_CARE CHAIN_ID=3567 FORK_URL=https://mainnet.infura.io/v3/{infura_api_key} docker compose -f - up --force-recreate --pull always
 ```
 
 This network will be useful for testing functionality associated with bridge contracts and interacting with other contracts/protocols that are on Ethereum.
