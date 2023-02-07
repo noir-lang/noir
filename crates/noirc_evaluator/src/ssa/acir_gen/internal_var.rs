@@ -80,8 +80,7 @@ impl InternalVar {
         let witness = optional_expression_to_witness(&expression);
         InternalVar { expression, cached_witness: witness, id: None }
     }
-    // TODO: Analyze where we use this and see if we can replace it with
-    // TODO Option<InternalVar>
+
     pub(crate) fn zero_expr() -> InternalVar {
         InternalVar::from_expression(Expression::zero())
     }
