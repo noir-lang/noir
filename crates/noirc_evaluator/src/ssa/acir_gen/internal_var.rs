@@ -42,8 +42,14 @@ impl InternalVar {
         &self.expression
     }
     pub(crate) fn set_id(&mut self, id: NodeId) {
+        match self.id {
+            Some(existing_id) => {
+                assert_eq!(existing_id, id, "ICE: changing node id to a different value")
+            }
+            None => self.id = Some(id),
+        }
+
         assert!(self.id.is_some(), "ICE: node id has already been set for this `InternalVar`");
-        self.id = Some(id)
     }
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness
