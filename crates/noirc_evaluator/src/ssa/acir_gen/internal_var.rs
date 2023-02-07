@@ -42,7 +42,7 @@ impl InternalVar {
         &self.expression
     }
     pub(crate) fn set_id(&mut self, id: NodeId) {
-        assert!(self.id.is_none(), "ICE: node id has already been set for this `InternalVar`");
+        assert!(self.id.is_some(), "ICE: node id has already been set for this `InternalVar`");
         self.id = Some(id)
     }
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
@@ -83,11 +83,6 @@ impl InternalVar {
 
     pub(crate) fn zero_expr() -> InternalVar {
         InternalVar::from_expression(Expression::zero())
-    }
-
-    // TODO: Analyze usecase of this
-    pub(crate) fn zero_const() -> InternalVar {
-        InternalVar::from_constant(FieldElement::zero())
     }
 
     /// Creates an `InternalVar` from a `Witness`.
