@@ -55,6 +55,8 @@ mod tests {
                         }
                     };
 
+                    dbg!(r);
+
                     if config_data["fail"].contains(&test_name) {
                         assert!(!r, "{:?} should not succeed", c.file_name());
                     } else {

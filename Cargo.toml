@@ -24,7 +24,7 @@ rust-version = "1.64"
 
 [workspace.dependencies]
 # acvm = "0.3.1"
-acvm = { path = "/Users/maximvezenov/Documents/dev/noir-lang/acvm/acvm" }
+acvm = { git = "https://github.com/vezenovm/acvm", branch = "mv/preprocess" }
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

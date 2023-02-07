@@ -10,4 +10,6 @@ pkg/
 *.proof
 *.acir
 *.tr
+*.pk
+*.vk
 **/Verifier.toml

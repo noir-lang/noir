@@ -29,10 +29,10 @@ mod contract_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
+mod preprocess_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
-mod preprocess_cmd;
 
 const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
 const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
@@ -123,11 +123,16 @@ pub fn start_cli() {
                         .help("Write the execution witness to named file"),
                 )
                 .arg(show_ssa)
-                .arg(allow_warnings),
+                .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("preprocess")
-            .about("Generate the prover and verifier keys for a circuit")
+                .about("Generate the prover and verifier keys for a circuit")
+                .arg(
+                    Arg::with_name("key_name")
+                        .help("The name of the proving key and verification key files"),
+                )
+                .arg(allow_warnings),
         )
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
@@ -217,11 +222,21 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    let preprocess_dir = TempDir::new("p_and_v_tests_preprocess").unwrap();
+    let (pk_path, vk_path) = match preprocess_cmd::preprocess_with_path(prg_dir, &preprocess_dir.into_path(), proof_name, false) {
+        Ok((pk_path, vk_path)) => (pk_path, vk_path),
+        Err(error) => {
+            println!("{error}");
+            return false;
+        }
+    };
+
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
+        &pk_path,
         show_ssa,
         false,
     ) {
@@ -232,7 +247,14 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(
+        prg_dir,
+        &proof_path.unwrap(),
+        &vk_path,
+        show_ssa,
+        false,
+    )
+    .unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
@@ -282,6 +304,15 @@ pub(crate) fn dedup_public_input_indices_values(
         PublicInputs(already_seen_public_indices.keys().copied().collect()),
         public_inputs_without_duplicates,
     )
+}
+
+pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
+    let hex_data: Vec<_> =
+        std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
+
+    let raw_bytes = hex::decode(hex_data).map_err(CliError::ProofNotValid)?;
+
+    Ok(raw_bytes)
 }
 
 // FIXME: I not sure that this is the right place for this tests.

@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use acvm::ProofSystemCompiler;
+use std::path::PathBuf;
 
 use clap::ArgMatches;
 
@@ -13,7 +12,7 @@ use crate::{
     resolver::Resolver,
 };
 
-use super::{add_std_lib, create_named_dir, write_to_file};
+use super::{add_std_lib, create_named_dir, write_to_file, preprocess_cmd::preprocess};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -24,6 +23,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let current_dir = std::env::current_dir().unwrap();
     let mut circuit_path = PathBuf::new();
     circuit_path.push(TARGET_DIR);
+
+    preprocess("", allow_warnings)?;
 
     generate_circuit_and_witness_to_disk(
         circuit_name,
@@ -46,9 +47,10 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
     let serialized = compiled_program.circuit.to_bytes();
 
-    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
+    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
     circuit_path.push(circuit_name);
     circuit_path.set_extension(ACIR_EXT);
+
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
     println!("{:?}", std::fs::canonicalize(&circuit_path));

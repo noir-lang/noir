@@ -29,9 +29,11 @@ git-version = "0.3.5"
 hex = "0.4.2"
 termcolor = "1.1.2"
 tempdir = "0.3.7"
+sha2 = "0.10.6"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", path = "/Users/maximvezenov/Documents/dev/noir-backends/aztec_backend/barretenberg_static_lib" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/preprocess" }
+# aztec_backend = { optional = true, package = "barretenberg_static_lib", path = "/Users/maximvezenov/Documents/dev/noir-backends/aztec_backend/barretenberg_static_lib" }
 # aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
 aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }

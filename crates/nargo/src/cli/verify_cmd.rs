@@ -1,9 +1,10 @@
 use super::{
-    compile_cmd::compile_circuit, dedup_public_input_indices_values, read_inputs_from_file,
-    InputMap,
+    compile_cmd::compile_circuit, dedup_public_input_indices_values, load_hex_data,
+    read_inputs_from_file, InputMap,
+    preprocess_cmd::preprocess,
 };
 use crate::{
-    constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
+    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
     errors::CliError,
 };
 use acvm::ProofSystemCompiler;
@@ -31,16 +32,29 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
 fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
     let current_dir = std::env::current_dir().unwrap();
+
     let mut proof_path = PathBuf::new(); //or cur_dir?
     proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&current_dir, &proof_path, false, allow_warnings)
+
+    let mut verification_key_path = PathBuf::new();
+    verification_key_path.push(TARGET_DIR);
+    verification_key_path.push("verification_key");
+    verification_key_path.set_extension(VK_EXT);
+
+    if !verification_key_path.exists() {
+        // TODO: consider switching from Option for proof_name in nargo prove, makes it easier to use with preprocess
+        preprocess("", allow_warnings)?;
+    }
+    
+    verify_with_path(&current_dir, &proof_path, &verification_key_path, false, allow_warnings)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_path: P,
+    vk_path: P,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
@@ -56,7 +70,12 @@ pub fn verify_with_path<P: AsRef<Path>>(
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
-    let valid_proof = verify_proof(compiled_program, public_inputs_map, load_proof(proof_path)?)?;
+    let valid_proof = verify_proof(
+        compiled_program,
+        public_inputs_map,
+        load_hex_data(proof_path)?,
+        load_hex_data(vk_path)?,
+    )?;
 
     Ok(valid_proof)
 }
@@ -65,6 +84,7 @@ fn verify_proof(
     mut compiled_program: CompiledProgram,
     public_inputs_map: InputMap,
     proof: Vec<u8>,
+    verification_key: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
     let public_inputs =
@@ -83,15 +103,12 @@ fn verify_proof(
 
     let backend = crate::backends::ConcreteBackend;
     // let valid_proof = backend.verify_from_cs(&proof, dedup_public_values, compiled_program.circuit);
-    let valid_proof = backend.verify_with_vk(&proof, public_inputs, compiled_program.circuit);
+    let valid_proof = backend.verify_with_vk(
+        &proof,
+        dedup_public_values,
+        compiled_program.circuit,
+        verification_key,
+    );
 
     Ok(valid_proof)
-}
-
-fn load_proof<P: AsRef<Path>>(proof_path: P) -> Result<Vec<u8>, CliError> {
-    let proof_hex: Vec<_> = std::fs::read(&proof_path)
-        .map_err(|_| CliError::PathNotValid(proof_path.as_ref().to_path_buf()))?;
-    let proof = hex::decode(proof_hex).map_err(CliError::ProofNotValid)?;
-
-    Ok(proof)
 }

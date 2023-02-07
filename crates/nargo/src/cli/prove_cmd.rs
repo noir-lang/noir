@@ -5,10 +5,12 @@ use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
+use super::preprocess_cmd::preprocess;
 use super::{create_named_dir, write_inputs_to_file, write_to_file};
-use crate::cli::dedup_public_input_indices;
+use crate::cli::{dedup_public_input_indices, load_hex_data};
+use crate::constants::PK_EXT;
 use crate::{
-    constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
+    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
@@ -27,20 +29,40 @@ fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Resu
     let mut proof_dir = PathBuf::new();
     proof_dir.push(PROOFS_DIR);
 
-    prove_with_path(proof_name, current_dir, proof_dir, show_ssa, allow_warnings)?;
+    let mut proving_key_path = PathBuf::new();
+    proving_key_path.push(TARGET_DIR);
+    proving_key_path.push("proving_key");
+    proving_key_path.set_extension(PK_EXT);
+
+    if !proving_key_path.exists() {
+        // TODO: consider switching from Option for proof_name, makes it easier to use with preprocess
+        preprocess("", allow_warnings)?;
+    }
+
+    prove_with_path(
+        proof_name,
+        current_dir,
+        proof_dir,
+        proving_key_path,
+        show_ssa,
+        allow_warnings,
+    )?;
 
     Ok(())
 }
 
+#[allow(deprecated)]
 pub fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<&str>,
     program_dir: P,
     proof_dir: P,
+    pk_path: P,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
     let mut compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+
     let (_, solved_witness) = execute_program(&program_dir, &compiled_program)?;
 
     // Write public inputs into Verifier.toml
@@ -53,9 +75,11 @@ pub fn prove_with_path<P: AsRef<Path>>(
     compiled_program.circuit.public_inputs =
         dedup_public_input_indices(compiled_program.circuit.public_inputs);
 
+    let proving_key = load_hex_data(pk_path)?;
+
     let backend = crate::backends::ConcreteBackend;
     // let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
-    let proof = backend.prove_with_pk(compiled_program.circuit, solved_witness);
+    let proof = backend.prove_with_pk(compiled_program.circuit, solved_witness, proving_key);
 
     println!("Proof successfully created");
     if let Some(proof_name) = proof_name {
