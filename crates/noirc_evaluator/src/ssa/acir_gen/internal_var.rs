@@ -45,7 +45,7 @@ impl InternalVar {
         match self.id {
             Some(_existing_id) => {
                 // TODO: this assert will panic the compiler.
-                // TODO why does the NodeId change?
+                // TODO why does the NodeId change (Guillaume)?
                 // assert_eq!(existing_id, id, "ICE: changing node id to a different value")
                 self.id = Some(id)
             }
