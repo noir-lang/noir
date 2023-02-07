@@ -99,8 +99,8 @@ impl Acir {
             return Ok(());
         }
 
-        let mut output = match &ins.operation {
-            Operation::Binary(binary) => self.evaluate_binary(binary, ins.res_type, evaluator, ctx),
+        let output = match &ins.operation {
+            Operation::Binary(binary) => Some(self.evaluate_binary(binary, ins.res_type, evaluator, ctx)),
             Operation::Constrain(value, ..) => {
                 let value =
                     self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
@@ -110,20 +110,21 @@ impl Acir {
                     value.expression(),
                 );
                 evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract));
-                value
+                Some(value)
             }
             Operation::Not(value) => {
                 let a = (1_u128 << ins.res_type.bits()) - 1;
                 let l_c =
                     self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
-                constraints::subtract(
+                Some(constraints::subtract(
                     &Expression::from(&FieldElement::from(a)),
                     FieldElement::one(),
                     l_c.expression(),
                 )
-                .into()
+                .into())
             }
-            Operation::Cast(value) => self.substitute(*value, evaluator, ctx).expect("msg"),
+            Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
+            // TODO: Group together all instructions which are invalid at this stage
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
@@ -134,16 +135,16 @@ impl Acir {
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 let value =
                     self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
-                InternalVar::from_expression(constraints::evaluate_truncate(
+                Some(InternalVar::from_expression(constraints::evaluate_truncate(
                     value.expression(),
                     *bit_size,
                     *max_bit_size,
                     evaluator,
-                ))
+                )))
             }
             Operation::Intrinsic(opcode, args) => {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
-                InternalVar::from(v)
+                Some(InternalVar::from(v))
             }
             Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(node_ids) => {
@@ -183,7 +184,7 @@ impl Acir {
                     }
                 }
 
-                InternalVar::zero_expr()
+                None
             }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 let cond = self
@@ -200,16 +201,16 @@ impl Acir {
                     FieldElement::one(),
                     r_c.expression(),
                 );
-                result.into()
+                Some(result.into())
             }
-            Operation::Nop => InternalVar::zero_expr(),
+            Operation::Nop => None,
             Operation::Load { array_id, index } => {
                 //retrieves the value from the map if address is known at compile time:
                 //address = l_c and should be constant
                 let index =
                     self.substitute(*index, evaluator, ctx).expect("ICE: unexpected array pointer");
 
-                match index.to_const() {
+                let array_element = match index.to_const() {
                     Some(index) => {
                         let idx = mem::Memory::as_u32(index);
                         let mem_array = &ctx.mem[*array_id];
@@ -219,7 +220,8 @@ impl Acir {
                         )
                     }
                     None => unimplemented!("dynamic arrays are not implemented yet"),
-                }
+                };
+                Some(array_element)
             }
             Operation::Store { array_id, index, value } => {
                 //maps the address to the rhs if address is known at compile time
@@ -234,15 +236,18 @@ impl Acir {
                         let absolute_adr = ctx.mem[*array_id].absolute_adr(idx);
                         self.memory_map.insert(absolute_adr, value);
                         //we do not generate constraint, so no output.
-                        InternalVar::zero_expr()
+                        None
                     }
                     None => todo!("dynamic arrays are not implemented yet"),
                 }
             }
         };
 
-        output.set_id(ins.id);
-        self.arith_cache.insert(ins.id, output);
+        // If the output returned an `InternalVar` then we add it to the cache
+        if let Some(mut output) = output {
+            output.set_id(ins.id);
+            self.arith_cache.insert(ins.id, output);
+        }
 
         Ok(())
     }
