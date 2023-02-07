@@ -30,7 +30,7 @@ use memory_map::MemoryMap;
 #[derive(Default)]
 pub struct Acir {
     memory_map: MemoryMap,
-    arith_cache: InternalVarCache,
+    internal_var_cache: InternalVarCache,
 }
 
 impl Acir {
@@ -44,7 +44,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> Option<InternalVar> {
-        self.arith_cache.get_or_compute_internal_var(id, evaluator, ctx)
+        self.internal_var_cache.get_or_compute_internal_var(id, evaluator, ctx)
     }
     fn node_id_to_internal_var_unwrap(
         &mut self,
@@ -52,7 +52,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> InternalVar {
-        self.arith_cache.get_or_compute_internal_var_unwrap(id, evaluator, ctx)
+        self.internal_var_cache.get_or_compute_internal_var_unwrap(id, evaluator, ctx)
     }
 
     fn get_predicate(
@@ -65,9 +65,9 @@ impl Acir {
             Some(pred) => pred,
             None => return InternalVar::from(Expression::one()),
         };
-
         self.node_id_to_internal_var_unwrap(predicate_node_id, evaluator, ctx)
     }
+
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
@@ -216,7 +216,7 @@ impl Acir {
         // If the output returned an `InternalVar` then we add it to the cache
         if let Some(mut output) = output {
             output.set_id(ins.id);
-            self.arith_cache.update(ins.id, output);
+            self.internal_var_cache.update(ins.id, output);
         }
 
         Ok(())
@@ -577,7 +577,7 @@ impl Acir {
             }
             Opcode::LowLevel(op) => {
                 let inputs = intrinsics::prepare_inputs(
-                    &mut self.arith_cache,
+                    &mut self.internal_var_cache,
                     &mut self.memory_map,
                     args,
                     ctx,
