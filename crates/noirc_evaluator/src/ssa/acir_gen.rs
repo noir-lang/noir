@@ -124,14 +124,6 @@ impl Acir {
                 .into())
             }
             Operation::Cast(value) => self.substitute(*value, evaluator, ctx),
-            // TODO: Group together all instructions which are invalid at this stage
-            i @ Operation::Jne(..)
-            | i @ Operation::Jeq(..)
-            | i @ Operation::Jmp(_)
-            | i @ Operation::Phi { .. }
-            | i @ Operation::Result { .. } => {
-                unreachable!("Invalid instruction: {:?}", i);
-            }
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 let value =
                     self.substitute(*value, evaluator, ctx).expect("ICE: unexpected array pointer");
@@ -146,7 +138,6 @@ impl Acir {
                 let v = self.evaluate_opcode(ins.id, *opcode, args, ins.res_type, ctx, evaluator);
                 Some(InternalVar::from(v))
             }
-            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
             Operation::Return(node_ids) => {
                 // XXX: When we return a node_id that was created from
                 // the UnitType, there is a witness associated with it
@@ -241,6 +232,14 @@ impl Acir {
                     None => todo!("dynamic arrays are not implemented yet"),
                 }
             }
+            i @ Operation::Jne(..)
+            | i @ Operation::Jeq(..)
+            | i @ Operation::Jmp(_)
+            | i @ Operation::Phi { .. }
+            | i @ Operation::Result { .. } => {
+                unreachable!("Invalid instruction: {:?}", i);
+            }
+            Operation::Call { .. } => unreachable!("call instruction should have been inlined"),
         };
 
         // If the output returned an `InternalVar` then we add it to the cache
