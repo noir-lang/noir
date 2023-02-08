@@ -18,7 +18,6 @@ use internal_var_cache::InternalVarCache;
 // Expose this to the crate as we need to apply range constraints when
 // converting the ABI(main parameters) to Noir types
 pub(crate) use constraints::range_constraint;
-
 mod memory_map;
 use memory_map::MemoryMap;
 
