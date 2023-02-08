@@ -67,10 +67,6 @@ impl MemoryMap {
             return Some(internal_var.clone());
         };
 
-        // TODO (Guillaume) we could put the values into the memory_map when
-        // TODO we process the ABI, then we only need to check the memory_map
-        // TODO since this is the only case where the values will be in the
-        // TODO array, but not in the `memory_map`
         let array_element = array.values[offset as usize].clone();
 
         // Compiler sanity check
