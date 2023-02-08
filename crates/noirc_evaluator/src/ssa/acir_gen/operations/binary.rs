@@ -26,11 +26,11 @@ fn get_predicate(
     var_cache.get_or_compute_internal_var_unwrap(predicate_node_id, evaluator, ctx)
 }
 
-pub(crate) fn evaluate_binary(
-    var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+pub(crate) fn evaluate(
     binary: &node::Binary,
     res_type: ObjectType,
+    var_cache: &mut InternalVarCache,
+    memory_map: &mut MemoryMap,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {

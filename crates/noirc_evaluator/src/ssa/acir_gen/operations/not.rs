@@ -8,7 +8,7 @@ use crate::{
 };
 use acvm::{acir::native_types::Expression, FieldElement};
 
-pub(crate) fn evaluate_not_op(
+pub(crate) fn evaluate(
     value: &NodeId,
     res_type: ObjectType,
     var_cache: &mut InternalVarCache,

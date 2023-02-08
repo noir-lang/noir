@@ -8,7 +8,7 @@ use crate::{
 };
 use acvm::FieldElement;
 
-pub(crate) fn evaluate_condition_op(
+pub(crate) fn evaluate(
     condition: NodeId,
     lhs: NodeId,
     rhs: NodeId,

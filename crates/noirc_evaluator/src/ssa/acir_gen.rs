@@ -35,88 +35,46 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
     ) -> Result<(), RuntimeErrorKind> {
+        use operations::{
+            binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
+        };
+
         if ins.operation == Operation::Nop {
             return Ok(());
         }
 
+        let memory_map = &mut self.memory_map;
+        let var_cache = &mut self.var_cache;
+
         let output = match &ins.operation {
-            Operation::Binary(binary) => operations::binary::evaluate_binary(
-                &mut self.var_cache,
-                &mut self.memory_map,
-                binary,
-                ins.res_type,
-                evaluator,
-                ctx,
-            ),
-            Operation::Constrain(value, ..) => operations::constrain::evaluate_constrain_op(
-                value,
-                &mut self.var_cache,
-                evaluator,
-                ctx,
-            ),
-            Operation::Not(value) => operations::not::evaluate_not_op(
-                value,
-                ins.res_type,
-                &mut self.var_cache,
-                evaluator,
-                ctx,
-            ),
+            Operation::Binary(binary) => {
+                binary::evaluate(binary, ins.res_type, var_cache, memory_map, evaluator, ctx)
+            }
+            Operation::Constrain(value, ..) => {
+                constrain::evaluate(value, var_cache, evaluator, ctx)
+            }
+            Operation::Not(value) => not::evaluate(value, ins.res_type, var_cache, evaluator, ctx),
             Operation::Cast(value) => {
                 self.var_cache.get_or_compute_internal_var(*value, evaluator, ctx)
             }
             Operation::Truncate { value, bit_size, max_bit_size } => {
-                operations::truncate::evaluate_truncate_op(
-                    value,
-                    *bit_size,
-                    *max_bit_size,
-                    &mut self.var_cache,
-                    evaluator,
-                    ctx,
-                )
+                truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
             }
-            Operation::Intrinsic(opcode, args) => operations::intrinsics::evaluate_opcode(
-                args,
-                ins,
-                *opcode,
-                &mut self.var_cache,
-                &mut self.memory_map,
-                ctx,
-                evaluator,
-            ),
-            Operation::Return(node_ids) => operations::r#return::evaluate_return_op(
-                node_ids,
-                &mut self.memory_map,
-                &mut self.var_cache,
-                evaluator,
-                ctx,
-            )?,
+            Operation::Intrinsic(opcode, args) => {
+                intrinsics::evaluate(args, ins, *opcode, var_cache, memory_map, ctx, evaluator)
+            }
+            Operation::Return(node_ids) => {
+                r#return::evaluate(node_ids, memory_map, var_cache, evaluator, ctx)?
+            }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
-                operations::condition::evaluate_condition_op(
-                    *condition,
-                    *lhs,
-                    *rhs,
-                    &mut self.var_cache,
-                    evaluator,
-                    ctx,
-                )
+                condition::evaluate(*condition, *lhs, *rhs, var_cache, evaluator, ctx)
             }
-            Operation::Load { array_id, index } => operations::load::evaluate_load_op(
-                *array_id,
-                *index,
-                &mut self.memory_map,
-                &mut self.var_cache,
-                evaluator,
-                ctx,
-            ),
-            Operation::Store { array_id, index, value } => operations::store::evaluate_store_op(
-                *array_id,
-                *index,
-                *value,
-                &mut self.memory_map,
-                &mut self.var_cache,
-                evaluator,
-                ctx,
-            ),
+            Operation::Load { array_id, index } => {
+                load::evaluate(*array_id, *index, memory_map, var_cache, evaluator, ctx)
+            }
+            Operation::Store { array_id, index, value } => {
+                store::evaluate(*array_id, *index, *value, memory_map, var_cache, evaluator, ctx)
+            }
             Operation::Nop => None,
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
@@ -128,7 +86,8 @@ impl Acir {
             }
         };
 
-        // If the output returned an `InternalVar` then we add it to the cache
+        // If the operation returned an `InternalVar`
+        // then we add it to the `InternalVar` cache
         if let Some(mut output) = output {
             output.set_id(ins.id);
             self.var_cache.update(ins.id, output);
@@ -191,6 +150,7 @@ fn optional_expression_to_witness(arith: &Expression) -> Option<Witness> {
 
     None
 }
+
 /// Converts an `Expression` into a `Witness`
 /// - If the `Expression` is a degree-1 univariate polynomial
 /// then this conversion is a simple coercion.

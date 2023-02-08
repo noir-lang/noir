@@ -18,7 +18,7 @@ use acvm::acir::{
 // are implemented by the compiler.
 // - ACIR black box functions. These are referred
 // to as `LowLevel`
-pub(crate) fn evaluate_opcode(
+pub(crate) fn evaluate(
     args: &[NodeId],
     instruction: &Instruction,
     opcode: builtin::Opcode,

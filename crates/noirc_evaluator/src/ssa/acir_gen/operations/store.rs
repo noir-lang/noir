@@ -8,7 +8,7 @@ use crate::{
     Evaluator,
 };
 
-pub(crate) fn evaluate_store_op(
+pub(crate) fn evaluate(
     array_id: ArrayId,
     index: NodeId,
     value: NodeId,

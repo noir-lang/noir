@@ -7,7 +7,7 @@ use crate::{
     Evaluator,
 };
 
-pub(crate) fn evaluate_truncate_op(
+pub(crate) fn evaluate(
     value: &NodeId,
     bit_size: u32,
     max_bit_size: u32,

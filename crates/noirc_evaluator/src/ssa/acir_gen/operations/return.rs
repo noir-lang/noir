@@ -9,7 +9,7 @@ use crate::{
     Evaluator,
 };
 
-pub(crate) fn evaluate_return_op(
+pub(crate) fn evaluate(
     node_ids: &[NodeId],
     memory_map: &mut MemoryMap,
     var_cache: &mut InternalVarCache,

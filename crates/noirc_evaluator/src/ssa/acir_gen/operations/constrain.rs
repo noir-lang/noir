@@ -11,7 +11,7 @@ use crate::{
     Evaluator,
 };
 
-pub fn evaluate_constrain_op(
+pub fn evaluate(
     value: &NodeId,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,

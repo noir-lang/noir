@@ -14,7 +14,7 @@ use crate::{
     Evaluator,
 };
 
-pub(crate) fn simplify_bitwise(
+pub(super) fn simplify_bitwise(
     lhs: &InternalVar,
     rhs: &InternalVar,
     bit_size: u32,
@@ -75,7 +75,7 @@ pub(crate) fn simplify_bitwise(
     });
 }
 // Precondition: `lhs` and `rhs` do not represent constant expressions
-pub(crate) fn evaluate_bitwise(
+pub(super) fn evaluate_bitwise(
     mut lhs: InternalVar,
     mut rhs: InternalVar,
     bit_size: u32,
