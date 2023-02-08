@@ -21,6 +21,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
     if ins.is_deleted() {
         return Ok(());
     }
+    if let Operation::Binary(bin) = &ins.operation {
+        if bin.predicate == Some(ctx.zero_with_type(ObjectType::Boolean)) {
+            ins.mark = Mark::Deleted;
+            return Ok(());
+        }
+    }
     //1. constant folding
     let new_id = ins.evaluate(ctx)?.to_index(ctx);
 
