@@ -1,3 +1,5 @@
+mod poseidon;
+
 #[foreign(sha256)]
 fn sha256(_input : [u8]) -> [u8; 32] {}
 
