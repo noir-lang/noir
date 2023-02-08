@@ -8,8 +8,10 @@ use crate::pow_32;
 use crate::hash::poseidon::apply_matrix;
 
 // Optimised permutation for this particular field
-fn permute<M,N,O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O])
-                  -> [Field; O]
+fn permute<M,N,O>(
+    pos_conf: PoseidonConfig<M, N>,
+    mut state: [Field; O])
+    -> [Field; O]
 {
     let PoseidonConfig {t, rf: config_rf, rp: config_rp, alpha, ark, mds} = pos_conf;
     let rf = 8;
@@ -20,27 +22,24 @@ fn permute<M,N,O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O])
     constrain rp == config_rp as Field;
     
     let mut count = 0;
-    
-    for _r in 0..rf/2 // First half of full rounds
-    {
-        for i in 0..array::len(state)
-        {
+
+    // First half of full rounds
+    for _r in 0..rf/2 {
+        for i in 0..array::len(state) {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        for i in 0..array::len(state)
-        {
+        for i in 0..array::len(state) {
             state[i] = pow_32(state[i], alpha);
         }
         
         state = apply_matrix(mds, state); // Apply MDS matrix
         count = count + t;
     }
-    
-    for _r in 0..rp // Partial rounds
-    {
-        for i in 0..array::len(state)
-        {
+
+    // Partial rounds
+    for _r in 0..rp {
+        for i in 0..array::len(state) {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
@@ -49,16 +48,14 @@ fn permute<M,N,O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O])
         state = apply_matrix(mds, state); // Apply MDS matrix
         count = count + t;
     }
-    
-    for _r in 0..rf/2 // Second half of full rounds
-    {
-        for i in 0..array::len(state)
-        {
+
+    // Second half of full rounds
+    for _r in 0..rf/2 {
+        for i in 0..array::len(state) {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        for i in 0..array::len(state)
-        {
+        for i in 0..array::len(state) {
             state[i] = pow_32(state[i], alpha);
         }
         
@@ -70,11 +67,12 @@ fn permute<M,N,O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O])
 }
 
 // Corresponding absorption.
-fn absorb<M,N,O,P>(pos_conf: PoseidonConfig<M, N>,
-                   mut state: [Field; O], // Initial state; usually [0; N]
-                   rate: comptime Field, // Rate
-                   capacity: comptime Field, // Capacity; usually 1
-                   msg: [Field; P] // Arbitrary length message
+fn absorb<M,N,O,P>(
+    pos_conf: PoseidonConfig<M, N>,
+    mut state: [Field; O], // Initial state; usually [0; N]
+    rate: comptime Field, // Rate
+    capacity: comptime Field, // Capacity; usually 1
+    msg: [Field; P] // Arbitrary length message
 ) -> [Field; O]
 {
 
@@ -82,20 +80,20 @@ fn absorb<M,N,O,P>(pos_conf: PoseidonConfig<M, N>,
     
     let mut i = 0;
 
-    for k in 0..array::len(msg)
-    {
+    for k in 0..array::len(msg) {
         // Add current block to state
         state[capacity + i] += msg[k];
         i = i+1;
-        if i == rate // Enough to absorb
-        {
+        
+        // Enough to absorb
+        if i == rate {
             state = permute(pos_conf, state);
             i = 0;
         }
-    };
-    
-    if i > 0 // If we have one more block to permute
-    {
+    }
+
+    // If we have one more block to permute
+    if i > 0 {
         state = permute(pos_conf, state);
     }
     
