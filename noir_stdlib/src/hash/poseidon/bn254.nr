@@ -7,12 +7,12 @@ use crate::array;
 use crate::pow_32;
 use crate::hash::poseidon::apply_matrix;
 
-// Optimised permutation for this particular field
+// Optimised permutation for this particular field; uses hardcoded rf and rp values,
+// which should agree with those in pos_conf.
 fn permute<M,N,O>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O])
-    -> [Field; O]
-{
+    -> [Field; O] {
     let PoseidonConfig {t, rf: config_rf, rp: config_rp, alpha, ark, mds} = pos_conf;
     let rf = 8;
     let rp = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][array::len(state) - 2];
@@ -73,8 +73,7 @@ fn absorb<M,N,O,P>(
     rate: comptime Field, // Rate
     capacity: comptime Field, // Capacity; usually 1
     msg: [Field; P] // Arbitrary length message
-) -> [Field; O]
-{
+) -> [Field; O] {
 
     constrain pos_conf.t == rate + capacity;
     
@@ -93,7 +92,7 @@ fn absorb<M,N,O,P>(
     }
 
     // If we have one more block to permute
-    if i > 0 {
+    if i != 0 {
         state = permute(pos_conf, state);
     }
     
@@ -101,7 +100,6 @@ fn absorb<M,N,O,P>(
 }
 
 // Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
-fn sponge<N>(msg: [Field; N]) -> Field // Poseidon sponge (absorption) with rate 4 and width 5
-{
+fn sponge<N>(msg: [Field; N]) -> Field {
     absorb(consts::x5_5_config(), [0;5], 4, 1, msg)[1]
 }

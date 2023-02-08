@@ -4,8 +4,7 @@ use crate::array;
 use crate::pow_32;
 use crate::field::modulus_num_bits;
 
-struct PoseidonConfig<M,N>
-{
+struct PoseidonConfig<M,N> {
     t: comptime Field, // Width, i.e. state size
     rf: comptime u8, // Number of full rounds; should be even
     rp: comptime u8, // Number of partial rounds
@@ -21,12 +20,11 @@ fn config<M,N>(
     alpha: comptime Field,
     ark: [Field; M],
     mds: [Field; N])
-    -> PoseidonConfig<M,N>
-{
+    -> PoseidonConfig<M,N> {
     // Input checks
     constrain t as u8 * (rf + rp) == array::len(ark) as u8;
     constrain t * t == array::len(mds);
-    constrain alpha > 0;
+    constrain alpha != 0;
     
     PoseidonConfig {t, rf, rp, alpha, ark, mds}
 }
@@ -35,8 +33,7 @@ fn config<M,N>(
 fn permute<M,N,O>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O])
-    -> [Field; O]
-{
+    -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
     constrain t == array::len(state);
@@ -72,9 +69,7 @@ fn absorb<M,N,O,P>(
     rate: comptime Field, // Rate
     capacity: comptime Field, // Capacity; usually 1
     msg: [Field; P]) // Arbitrary length message
-    -> [Field; O]
-{
-
+    -> [Field; O] {
     constrain pos_conf.t == rate + capacity;
     
     let mut i = 0;
@@ -92,7 +87,7 @@ fn absorb<M,N,O,P>(
     }
 
     // If we have one more block to permute
-    if i > 0 {
+    if i != 0 {
         state = permute(pos_conf, state);
     }
     
@@ -101,16 +96,14 @@ fn absorb<M,N,O,P>(
 
 
 // Check security of sponge instantiation
-fn check_security(rate: Field, width: Field, security: Field) -> bool
-{
+fn check_security(rate: Field, width: Field, security: Field) -> bool {
     let n = modulus_num_bits();
 
     ((n-1)*(width-rate)/2) as u8 > security as u8
 }
 
 // A*x where A is an n x n matrix in row-major order and x an n-vector
-fn apply_matrix<N>(a: [Field], x: [Field; N]) -> [Field; N]
-{
+fn apply_matrix<N>(a: [Field], x: [Field; N]) -> [Field; N] {
     let mut y = x;
 
     for i in 0..array::len(x) {
