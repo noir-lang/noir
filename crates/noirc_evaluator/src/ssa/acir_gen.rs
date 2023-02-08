@@ -28,6 +28,7 @@ pub struct Acir {
 }
 
 impl Acir {
+    /// Generate ACIR opcodes based on the given instruction
     pub fn evaluate_instruction(
         &mut self,
         ins: &Instruction,
@@ -37,10 +38,6 @@ impl Acir {
         use operations::{
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
         };
-
-        if ins.operation == Operation::Nop {
-            return Ok(());
-        }
 
         let memory_map = &mut self.memory_map;
         let var_cache = &mut self.var_cache;
