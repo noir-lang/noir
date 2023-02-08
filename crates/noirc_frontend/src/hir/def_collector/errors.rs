@@ -3,6 +3,7 @@ use crate::{hir::resolution::import::ImportDirective, Ident};
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
 use noirc_errors::IntoFileDiagnostic;
+use noirc_errors::Span;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,6 +20,8 @@ pub enum DefCollectorErrorKind {
     UnresolvedModuleDecl { mod_name: Ident },
     #[error("unresolved import")]
     UnresolvedImport { import: ImportDirective },
+    #[error("Non-struct type used in impl")]
+    NonStructTypeInImpl { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -104,6 +107,11 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     span,
                 )
             }
+            DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
+                "Non-struct type used in impl".into(),
+                "Only struct types may have implementation methods".into(),
+                span,
+            ),
         }
     }
 }

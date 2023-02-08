@@ -13,12 +13,12 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Path, Type,
-    UnresolvedGenerics,
+    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Type,
+    UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
-use noirc_errors::IntoFileDiagnostic;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{IntoFileDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
 /// Stores all of the unresolved functions in a particular file/mod
@@ -57,10 +57,11 @@ pub struct DefCollector {
     pub(crate) collected_impls: ImplMap,
 }
 
-/// collected impls maps the type name and the module id in which
+/// collected impls maps the type and the module id in which
 /// the impl is defined to the functions contained in that impl
 /// along with the generics declared on the impl itself.
-type ImplMap = HashMap<(Path, LocalModuleId), Vec<(UnresolvedGenerics, UnresolvedFunctions)>>;
+type ImplMap =
+    HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
 impl DefCollector {
     fn new(def_map: CrateDefMap) -> DefCollector {
@@ -194,22 +195,21 @@ fn collect_impls(
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
 
-    for ((path, module_id), methods) in collected_impls {
+    for ((unresolved_type, module_id), methods) in collected_impls {
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
 
         let file = def_maps[&crate_id].module_file_id(*module_id);
 
-        for (_generics, unresolved) in methods {
-            let resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-            let (typ, more_errors) = resolver.lookup_type_for_impl(path.clone());
-            extend_errors(errors, unresolved.file_id, more_errors);
+        for (_generics, span, unresolved) in methods {
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            let typ = resolver.resolve_type(unresolved_type.clone());
+            extend_errors(errors, unresolved.file_id, resolver.take_errors());
 
-            if typ != StructId::dummy_id() {
+            if let Some(type_module) = get_local_id_from_type(&typ) {
                 // Grab the scope defined by the struct type. Note that impls are a case
                 // where the scope the methods are added to is not the same as the scope
                 // they are resolved in.
-                let type_module = typ.0.local_id;
                 let scope = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0].scope;
 
                 // .define_func_def(name, func_id);
@@ -222,8 +222,19 @@ fn collect_impls(
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
+            } else if typ != Type::Error {
+                let span = *span;
+                let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
+                errors.push(error.into_file_diagnostic(unresolved.file_id))
             }
         }
+    }
+}
+
+fn get_local_id_from_type(typ: &Type) -> Option<LocalModuleId> {
+    match typ {
+        Type::Struct(definition, _) => Some(definition.borrow().id.0.local_id),
+        _ => None,
     }
 }
 
@@ -331,36 +342,36 @@ fn resolve_impls(
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
 
-    for ((path, module_id), methods) in collected_impls {
+    for ((unresolved_type, module_id), methods) in collected_impls {
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
 
         let file = def_maps[&crate_id].module_file_id(module_id);
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-        let self_type = resolver.lookup_struct(path);
-        let self_type_id = self_type.as_ref().map(|typ| typ.borrow().id);
+        let self_type = resolver.resolve_type(unresolved_type);
 
         let mut file_func_ids = vec![];
-        for (generics, functions) in methods {
+        for (generics, _, functions) in methods {
             resolve_function_set(
                 interner,
                 crate_id,
                 def_maps,
                 functions,
-                self_type_id,
+                Some(self_type.clone()),
                 generics,
                 &mut file_func_ids,
                 errors,
             );
         }
 
-        if let Some(typ) = self_type {
+        if self_type != Type::Error {
             for (file_id, method_id) in &file_func_ids {
                 let method_name = interner.function_name(method_id).to_owned();
-                let mut typ = typ.borrow_mut();
 
-                if let Some(first_fn) = typ.methods.insert(method_name.clone(), *method_id) {
+                if let Some(first_fn) =
+                    interner.add_method(&self_type, method_name.clone(), *method_id)
+                {
                     let error = ResolverError::DuplicateDefinition {
                         name: method_name,
                         first_span: interner.function_ident(&first_fn).span(),
@@ -383,7 +394,7 @@ fn resolve_free_functions(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
-    self_type: Option<StructId>,
+    self_type: Option<Type>,
     errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, FuncId)> {
     let mut file_func_ids = Vec::new();
@@ -395,7 +406,7 @@ fn resolve_free_functions(
             crate_id,
             def_maps,
             unresolved_functions,
-            self_type,
+            self_type.clone(),
             vec![], // no impl generics
             &mut file_func_ids,
             errors,
@@ -410,7 +421,7 @@ fn resolve_function_set(
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
     unresolved_functions: UnresolvedFunctions,
-    self_type: Option<StructId>,
+    self_type: Option<Type>,
     impl_generics: UnresolvedGenerics,
     file_func_ids: &mut Vec<(FileId, FuncId)>,
     errors: &mut Vec<FileDiagnostic>,
@@ -425,7 +436,7 @@ fn resolve_function_set(
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
         resolver.add_generics(&impl_generics);
-        resolver.set_self_type(self_type);
+        resolver.set_self_type(self_type.clone());
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);

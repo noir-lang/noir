@@ -70,7 +70,7 @@ pub struct Resolver<'a> {
     file: FileId,
 
     /// Set to the current type if we're resolving an impl
-    self_type: Option<StructId>,
+    self_type: Option<Type>,
 
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
@@ -104,7 +104,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn set_self_type(&mut self, self_type: Option<StructId>) {
+    pub fn set_self_type(&mut self, self_type: Option<Type>) {
         self.self_type = self_type;
     }
 
@@ -182,6 +182,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         name: Ident,
         mutable: bool,
+        allow_shadowing: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
         if definition.is_global() {
@@ -195,13 +196,17 @@ impl<'a> Resolver<'a> {
 
         let scope = self.scopes.get_mut_scope();
         let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
-        if let Some(old_value) = old_value {
-            self.push_err(ResolverError::DuplicateDefinition {
-                name: name.0.contents,
-                first_span: old_value.ident.location.span,
-                second_span: location.span,
-            });
+
+        if !allow_shadowing {
+            if let Some(old_value) = old_value {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.0.contents,
+                    first_span: old_value.ident.location.span,
+                    second_span: location.span,
+                });
+            }
         }
+
         ident
     }
 
@@ -314,24 +319,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
-            UnresolvedType::Named(path, args) => {
-                // Check if the path is a type variable first. We currently disallow generics on type
-                // variables since we do not support higher-kinded types.
-                if args.is_empty() && path.segments.len() == 1 {
-                    let name = &path.last_segment().0.contents;
-                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
-                        return Type::NamedGeneric(var.clone(), name.clone());
-                    }
-                }
-
-                match self.lookup_struct(path) {
-                    Some(definition) => {
-                        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-                        Type::Struct(definition, args)
-                    }
-                    None => Type::Error,
-                }
-            }
+            UnresolvedType::Named(path, args) => self.resolve_named_type(path, args, new_variables),
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
@@ -339,6 +327,51 @@ impl<'a> Resolver<'a> {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
+            }
+        }
+    }
+
+    fn resolve_named_type(
+        &mut self,
+        path: Path,
+        args: Vec<UnresolvedType>,
+        new_variables: &mut Generics,
+    ) -> Type {
+        // Check if the path is a type variable first. We currently disallow generics on type
+        // variables since we do not support higher-kinded types.
+        if args.is_empty() && path.segments.len() == 1 {
+            let name = &path.last_segment().0.contents;
+            if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                return Type::NamedGeneric(var.clone(), name.clone());
+            }
+        }
+
+        let span = path.span();
+        match self.lookup_type(path) {
+            Type::Struct(struct_type, generics) => {
+                let args = if !args.is_empty() {
+                    if !generics.is_empty() {
+                        // This case is possible if we're in an impl block such as
+                        // `impl<T> Foo<T>` and a user tries to refer to `Self<U>`
+                        // since `Self` is already applied to `T`.
+                        let typ = Type::Struct(struct_type.clone(), generics);
+                        self.push_err(ResolverError::TypeAlreadyHasGenericArguments { typ, span });
+                        vec![]
+                    } else {
+                        vecmap(args, |arg| self.resolve_type_inner(arg, new_variables))
+                    }
+                } else {
+                    generics
+                };
+
+                Type::Struct(struct_type, args)
+            }
+            Type::Error => Type::Error,
+            other => {
+                if !args.is_empty() {
+                    self.push_err(ResolverError::NonStructWithGenerics { span });
+                }
+                other
             }
         }
     }
@@ -425,8 +458,12 @@ impl<'a> Resolver<'a> {
     }
 
     /// Translates an UnresolvedType to a Type
-    fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+    pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    pub fn take_errors(self) -> Vec<ResolverError> {
+        self.errors
     }
 
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
@@ -678,8 +715,12 @@ impl<'a> Resolver<'a> {
                 // TODO: For loop variables are currently mutable by default since we haven't
                 //       yet implemented syntax for them to be optionally mutable.
                 let (identifier, block_id) = self.in_new_scope(|this| {
-                    let decl =
-                        this.add_variable_decl(identifier, false, DefinitionKind::Local(None));
+                    let decl = this.add_variable_decl(
+                        identifier,
+                        false,
+                        false,
+                        DefinitionKind::Local(None),
+                    );
                     (decl, this.resolve_expression(block))
                 });
 
@@ -711,19 +752,12 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
 
-                if let Some(typ) = self.lookup_struct(constructor.type_name) {
-                    let type_id = typ.borrow().id;
-
-                    HirExpression::Constructor(HirConstructorExpression {
-                        type_id,
-                        fields: self.resolve_constructor_fields(
-                            type_id,
-                            constructor.fields,
-                            span,
-                            Resolver::resolve_expression,
-                        ),
-                        r#type: typ,
-                    })
+                if let Some((r#type, _)) = self.lookup_struct(constructor.type_name) {
+                    let typ = r#type.clone();
+                    let fields = constructor.fields;
+                    let resolve_expr = Resolver::resolve_expression;
+                    let fields = self.resolve_constructor_fields(typ, fields, span, resolve_expr);
+                    HirExpression::Constructor(HirConstructorExpression { fields, r#type })
                 } else {
                     HirExpression::Error
                 }
@@ -783,7 +817,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable.is_some(), definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -801,14 +835,28 @@ impl<'a> Resolver<'a> {
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
-                let struct_id = self.lookup_type(name);
-                let struct_type = self.get_struct(struct_id);
+                let typ = self.lookup_type(name);
+
                 let resolve_field = |this: &mut Self, pattern| {
                     this.resolve_pattern_mutable(pattern, mutable, definition)
                 };
-                let fields =
-                    self.resolve_constructor_fields(struct_id, fields, span, resolve_field);
-                HirPattern::Struct(struct_type, fields, span)
+
+                match typ {
+                    Type::Struct(struct_type, _) => {
+                        let typ = struct_type.clone();
+                        let fields =
+                            self.resolve_constructor_fields(typ, fields, span, resolve_field);
+                        HirPattern::Struct(struct_type, fields, span)
+                    }
+                    typ => {
+                        self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                        // Must create a name here to return a HirPattern::Identifer. $error is chosen
+                        // since it is an invalid identifier that will not crash with any user variables.
+                        let ident =
+                            self.add_variable_decl("$error".into(), false, true, definition);
+                        HirPattern::Identifier(ident)
+                    }
+                }
             }
         }
     }
@@ -821,14 +869,14 @@ impl<'a> Resolver<'a> {
     /// and constructor patterns.
     fn resolve_constructor_fields<T, U>(
         &mut self,
-        type_id: StructId,
+        struct_type: Shared<StructType>,
         fields: Vec<(Ident, T)>,
         span: Span,
         mut resolve_function: impl FnMut(&mut Self, T) -> U,
     ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
-        let mut unseen_fields = self.get_field_names_of_type(type_id);
+        let mut unseen_fields = self.get_field_names_of_type(&struct_type);
 
         for (field, expr) in fields {
             let resolved = resolve_function(self, expr);
@@ -843,7 +891,7 @@ impl<'a> Resolver<'a> {
                 // field not required by struct
                 self.push_err(ResolverError::NoSuchField {
                     field: field.clone(),
-                    struct_definition: self.get_struct(type_id).borrow().name.clone(),
+                    struct_definition: struct_type.borrow().name.clone(),
                 });
             }
 
@@ -854,7 +902,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::MissingFields {
                 span,
                 missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
-                struct_definition: self.get_struct(type_id).borrow().name.clone(),
+                struct_definition: struct_type.borrow().name.clone(),
             });
         }
 
@@ -865,10 +913,8 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, type_id: StructId) -> BTreeSet<Ident> {
-        let typ = self.get_struct(type_id);
-        let typ = typ.borrow();
-        typ.field_names()
+    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
+        typ.borrow().field_names()
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
@@ -915,30 +961,33 @@ impl<'a> Resolver<'a> {
         Err(ResolverError::Expected { span, expected, got })
     }
 
-    fn lookup_type(&mut self, path: Path) -> StructId {
+    fn lookup_type(&mut self, path: Path) -> Type {
         let ident = path.as_ident();
         if ident.map_or(false, |i| i == "Self") {
-            if let Some(id) = &self.self_type {
-                return *id;
+            if let Some(typ) = &self.self_type {
+                return typ.clone();
             }
         }
 
         match self.lookup(path) {
-            Ok(id) => id,
+            Ok(struct_id) => {
+                let struct_type = self.get_struct(struct_id);
+                let next_type_var = |_| self.interner.next_type_variable();
+                let generics = vecmap(&struct_type.borrow().generics, next_type_var);
+                Type::Struct(struct_type, generics)
+            }
             Err(error) => {
                 self.push_err(error);
-                StructId::dummy_id()
+                Type::Error
             }
         }
     }
 
-    pub fn lookup_struct(&mut self, path: Path) -> Option<Shared<StructType>> {
-        let id = self.lookup_type(path);
-        (id != StructId::dummy_id()).then(|| self.get_struct(id))
-    }
-
-    pub fn lookup_type_for_impl(mut self, path: Path) -> (StructId, Vec<ResolverError>) {
-        (self.lookup_type(path), self.errors)
+    pub fn lookup_struct(&mut self, path: Path) -> Option<(Shared<StructType>, Vec<Type>)> {
+        match self.lookup_type(path) {
+            Type::Struct(struct_type, generics) => Some((struct_type, generics)),
+            _ => None,
+        }
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {

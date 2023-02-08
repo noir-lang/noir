@@ -102,9 +102,9 @@ impl<'a> ModCollector<'a> {
                 unresolved_functions.push_fn(self.module_id, func_id, method);
             }
 
-            let key = (r#impl.type_path, self.module_id);
+            let key = (r#impl.object_type, self.module_id);
             let methods = self.def_collector.collected_impls.entry(key).or_default();
-            methods.push((r#impl.generics, unresolved_functions));
+            methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
         }
     }
 

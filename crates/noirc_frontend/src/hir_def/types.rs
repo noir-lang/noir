@@ -9,10 +9,7 @@ use iter_extended::{btree_map, vecmap};
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{
-    node_interner::{FuncId, StructId},
-    Ident, Signedness,
-};
+use crate::{node_interner::StructId, Ident, Signedness};
 
 /// A shared, mutable reference to some T.
 /// Wrapper is required for Hash impl of RefCell.
@@ -75,7 +72,6 @@ pub struct StructType {
     fields: BTreeMap<Ident, Type>,
 
     pub generics: Generics,
-    pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
 
@@ -101,7 +97,7 @@ impl StructType {
         fields: BTreeMap<Ident, Type>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, span, generics, methods: HashMap::new() }
+        StructType { id, fields, name, span, generics }
     }
 
     pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {

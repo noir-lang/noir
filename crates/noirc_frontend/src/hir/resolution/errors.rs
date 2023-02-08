@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, IntoFileDiagnostic};
 use thiserror::Error;
 
-use crate::Ident;
+use crate::{Ident, Type};
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
@@ -44,6 +44,12 @@ pub enum ResolverError {
     CapturedMutableVariable { span: Span },
     #[error("Test functions are not allowed to have any parameters")]
     TestFunctionHasParameters { span: Span },
+    #[error("Only struct types can be used in constructor expressions")]
+    NonStructUsedInConstructor { typ: Type, span: Span },
+    #[error("Only struct types can have generics")]
+    NonStructWithGenerics { span: Span },
+    #[error("This type already has generic arguments applied")]
+    TypeAlreadyHasGenericArguments { typ: Type, span: Span },
 }
 
 impl ResolverError {
@@ -212,6 +218,21 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::TestFunctionHasParameters { span } => Diagnostic::simple_error(
                 "Test functions cannot have any parameters".into(),
                 "Try removing the parameters or moving the test into a wrapper function".into(),
+                span,
+            ),
+            ResolverError::NonStructUsedInConstructor { typ, span } => Diagnostic::simple_error(
+                "Only struct types can be used in constructor expressions".into(),
+                format!("{} has no fields to construct it with", typ),
+                span,
+            ),
+            ResolverError::NonStructWithGenerics { span } => Diagnostic::simple_error(
+                "Only struct types can have generic arguments".into(),
+                "Try removing the generic arguments".into(),
+                span,
+            ),
+            ResolverError::TypeAlreadyHasGenericArguments { typ, span } => Diagnostic::simple_error(
+                format!("The type {} already has generic arguments applied", typ),
+                "Try removing the generic arguments".into(),
                 span,
             ),
         }

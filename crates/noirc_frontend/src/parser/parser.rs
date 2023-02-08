@@ -227,13 +227,13 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
 
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
-        .ignore_then(path())
-        .then(generics())
+        .ignore_then(generics())
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then_ignore(just(Token::LeftBrace))
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
-        .map(|((type_path, generics), methods)| {
-            TopLevelStatement::Impl(NoirImpl { type_path, generics, methods })
+        .map(|((generics, (object_type, type_span)), methods)| {
+            TopLevelStatement::Impl(NoirImpl { generics, object_type, type_span, methods })
         })
 }
 
@@ -913,7 +913,7 @@ mod test {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
         if !lexer_errors.is_empty() {
-            return Err(vecmap(&lexer_errors, Into::into));
+            return Err(vecmap(lexer_errors, Into::into));
         }
         parser
             .then_ignore(just(Token::EOF))

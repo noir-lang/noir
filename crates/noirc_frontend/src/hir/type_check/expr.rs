@@ -353,21 +353,16 @@ fn lookup_method(
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
     match &object_type {
-        Type::Struct(typ, _args) => {
-            let typ = typ.borrow();
-            match typ.methods.get(method_name) {
-                Some(method_id) => Some(*method_id),
-                None => {
-                    errors.push(TypeCheckError::Unstructured {
-                        span: interner.expr_span(expr_id),
-                        msg: format!(
-                            "No method named '{method_name}' found for type '{object_type}'",
-                        ),
-                    });
-                    None
-                }
+        Type::Struct(typ, _args) => match interner.lookup_method(typ.borrow().id, method_name) {
+            Some(method_id) => Some(method_id),
+            None => {
+                errors.push(TypeCheckError::Unstructured {
+                    span: interner.expr_span(expr_id),
+                    msg: format!("No method named '{method_name}' found for type '{object_type}'",),
+                });
+                None
             }
-        }
+        },
         // If we fail to resolve the object to a struct type, we have no way of type
         // checking its arguments as we can't even resolve the name of the function
         Type::Error => None,
