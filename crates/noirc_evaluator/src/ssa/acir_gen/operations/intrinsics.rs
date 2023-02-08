@@ -66,9 +66,10 @@ pub(crate) fn evaluate(
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
         }
     }
-    // TODO: document why we only return something when outputs.len()==1
-    // TODO what about outputs.len() > 1
-    //if there are more than one witness returned, the result is inside ins.res_type as a pointer to an array
+
+    // If more than witness is returned,
+    // the result is inside the result type of `Instruction`
+    // as a pointer to an array
     (outputs.len() == 1).then_some(Expression::from(&outputs[0])).map(InternalVar::from)
 }
 
