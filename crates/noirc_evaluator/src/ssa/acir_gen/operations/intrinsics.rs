@@ -74,7 +74,7 @@ pub(crate) fn evaluate(
 
 // Transform the arguments of intrinsic functions into witnesses
 fn prepare_inputs(
-    arith_cache: &mut InternalVarCache,
+    var_cache: &mut InternalVarCache,
     memory_map: &mut MemoryMap,
     arguments: &[NodeId],
     cfg: &SsaContext,
@@ -83,14 +83,14 @@ fn prepare_inputs(
     let mut inputs: Vec<FunctionInput> = Vec::new();
 
     for argument in arguments {
-        inputs.extend(resolve_node_id(argument, arith_cache, memory_map, cfg, evaluator))
+        inputs.extend(resolve_node_id(argument, var_cache, memory_map, cfg, evaluator))
     }
     inputs
 }
 
 fn resolve_node_id(
     node_id: &NodeId,
-    arith_cache: &mut InternalVarCache,
+    var_cache: &mut InternalVarCache,
     memory_map: &mut MemoryMap,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -116,7 +116,7 @@ fn resolve_node_id(
             // Upon the case that the `NodeObject` is not a `Variable`,
             // we attempt to fetch an associated `InternalVar`.
             // Otherwise, this is a internal compiler error.
-            let internal_var = arith_cache.get(node_id);
+            let internal_var = var_cache.get(node_id);
             match internal_var {
                 Some(var) => {
                     let witness = var
