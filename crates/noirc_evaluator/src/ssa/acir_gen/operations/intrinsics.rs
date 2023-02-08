@@ -12,6 +12,7 @@ use acvm::acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     native_types::{Expression, Witness},
 };
+use iter_extended::vecmap;
 
 // Generate constraints for two types of functions:
 // - Builtin functions: These are functions that
@@ -169,11 +170,7 @@ fn prepare_outputs(
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // Create fresh variables that will link to the output
-    let mut outputs = Vec::with_capacity(output_nb as usize);
-    for _ in 0..output_nb {
-        let witness = evaluator.add_witness_to_cs();
-        outputs.push(witness);
-    }
+    let outputs = vecmap(0..output_nb, |_| evaluator.add_witness_to_cs());
 
     let l_obj = ctx.try_get_node(pointer).unwrap();
     if let node::ObjectType::Pointer(a) = l_obj.get_type() {

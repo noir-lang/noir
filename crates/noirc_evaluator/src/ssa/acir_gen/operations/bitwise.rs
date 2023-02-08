@@ -45,7 +45,7 @@ pub(super) fn simplify_bitwise(
     };
 
     //simplify bitwise operation of the form: 0 OP var or 1 OP var
-    return Some(match opcode {
+    Some(match opcode {
         BinaryOp::And => {
             if field.is_zero() {
                 InternalVar::from(field)
@@ -72,7 +72,7 @@ pub(super) fn simplify_bitwise(
             }
         }
         _ => unreachable!(),
-    });
+    })
 }
 // Precondition: `lhs` and `rhs` do not represent constant expressions
 pub(super) fn evaluate_bitwise(
