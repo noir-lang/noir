@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Ident, NoirFunction, Path, UnresolvedType};
+use crate::{Ident, NoirFunction, Path, UnresolvedGenerics, UnresolvedType};
 use noirc_errors::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,7 +25,7 @@ impl NoirStruct {
 #[derive(Clone, Debug)]
 pub struct NoirImpl {
     pub type_path: Path,
-    pub generics: Vec<Ident>,
+    pub generics: UnresolvedGenerics,
     pub methods: Vec<NoirFunction>,
 }
 

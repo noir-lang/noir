@@ -40,7 +40,8 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeVariable, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression,
+    ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -71,7 +72,7 @@ pub struct Resolver<'a> {
     /// Set to the current type if we're resolving an impl
     self_type: Option<StructId>,
 
-    /// Contains a mapping of the current struct's generics to
+    /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
     generics: HashMap<Rc<String>, (TypeVariable, Span)>,
 
@@ -130,7 +131,7 @@ impl<'a> Resolver<'a> {
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        self.add_generics(func.def.generics.clone());
+        self.add_generics(&func.def.generics);
 
         let (hir_func, func_meta) = self.intern_function(func, func_id);
         let func_scope_tree = self.scopes.end_function();
@@ -437,7 +438,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn add_generics(&mut self, generics: Vec<Ident>) -> Generics {
+    pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
@@ -449,7 +450,7 @@ impl<'a> Resolver<'a> {
             if let Some(old) = self.generics.insert(name, (typevar.clone(), span)) {
                 let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: generic.0.contents,
+                    name: generic.0.contents.clone(),
                     first_span: old.1,
                     second_span: span,
                 })
@@ -462,7 +463,7 @@ impl<'a> Resolver<'a> {
         mut self,
         unresolved: NoirStruct,
     ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
-        let generics = self.add_generics(unresolved.generics);
+        let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();

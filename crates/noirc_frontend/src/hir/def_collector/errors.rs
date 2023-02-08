@@ -1,7 +1,8 @@
 use crate::{hir::resolution::import::ImportDirective, Ident};
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
-use noirc_errors::DiagnosableError;
+use noirc_errors::FileDiagnostic;
+use noirc_errors::IntoFileDiagnostic;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -20,9 +21,15 @@ pub enum DefCollectorErrorKind {
     UnresolvedImport { import: ImportDirective },
 }
 
-impl DiagnosableError for DefCollectorErrorKind {
-    fn to_diagnostic(&self) -> Diagnostic {
-        match self {
+impl DefCollectorErrorKind {
+    pub fn into_file_diagnostic(self, file: fm::FileId) -> FileDiagnostic {
+        Diagnostic::from(self).in_file(file)
+    }
+}
+
+impl From<DefCollectorErrorKind> for Diagnostic {
+    fn from(error: DefCollectorErrorKind) -> Diagnostic {
+        match error {
             DefCollectorErrorKind::DuplicateFunction { first_def, second_def } => {
                 let first_span = first_def.0.span();
                 let second_span = second_def.0.span();

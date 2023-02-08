@@ -1,5 +1,5 @@
-use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, IntoFileDiagnostic};
 use thiserror::Error;
 
 use crate::Ident;
@@ -47,11 +47,17 @@ pub enum ResolverError {
 }
 
 impl ResolverError {
+    pub fn into_file_diagnostic(self, file: fm::FileId) -> FileDiagnostic {
+        Diagnostic::from(self).in_file(file)
+    }
+}
+
+impl From<ResolverError> for Diagnostic {
     /// Only user errors can be transformed into a Diagnostic
     /// ICEs will make the compiler panic, as they could affect the
     /// soundness of the generated program
-    pub fn into_diagnostic(self) -> Diagnostic {
-        match self {
+    fn from(error: ResolverError) -> Diagnostic {
+        match error {
             ResolverError::DuplicateDefinition { name, first_span, second_span } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {name} found"),

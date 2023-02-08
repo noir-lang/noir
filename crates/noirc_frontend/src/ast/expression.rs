@@ -26,6 +26,8 @@ pub enum ExpressionKind {
     Error,
 }
 
+pub type UnresolvedGenerics = Vec<Ident>;
+
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
@@ -306,7 +308,7 @@ pub struct Lambda {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub generics: Vec<Ident>,
+    pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
     pub body: BlockExpression,
     pub span: Span,

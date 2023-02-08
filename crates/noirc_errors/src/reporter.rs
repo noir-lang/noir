@@ -1,10 +1,9 @@
-use crate::{ReportedError, Span};
+use crate::{FileDiagnostic, ReportedError, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{
     Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
 };
-use fm::FileId;
 use std::io::Write;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -64,6 +63,10 @@ impl CustomDiagnostic {
     pub fn add_secondary(&mut self, message: String, span: Span) {
         self.secondaries.push(CustomLabel::new(message, span));
     }
+
+    fn is_error(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Error)
+    }
 }
 
 impl std::fmt::Display for CustomDiagnostic {
@@ -94,71 +97,72 @@ impl CustomLabel {
     }
 }
 
-pub struct Reporter;
+/// Writes the given diagnostics to stderr and returns the count
+/// of diagnostics that were errors.
+pub fn report_all(
+    files: &fm::FileManager,
+    diagnostics: &[FileDiagnostic],
+    allow_warnings: bool,
+) -> u32 {
+    diagnostics
+        .iter()
+        .map(|error| report(files, &error.diagnostic, Some(error.file_id), allow_warnings) as u32)
+        .sum()
+}
 
-impl Reporter {
-    /// Writes the given diagnostics to stderr and returns the count
-    /// of diagnostics that were errors.
-    pub fn with_diagnostics(
-        file_id: Option<FileId>,
-        files: &fm::FileManager,
-        diagnostics: &[CustomDiagnostic],
-        allow_warnings: bool,
-    ) -> usize {
-        let mut error_count = 0;
+/// Report the given diagnostic, and return true if it was an error
+pub fn report(
+    files: &fm::FileManager,
+    custom_diagnostic: &CustomDiagnostic,
+    file: Option<fm::FileId>,
+    allow_warnings: bool,
+) -> bool {
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let config = codespan_reporting::term::Config::default();
 
-        // Convert each Custom Diagnostic into a diagnostic
-        let diagnostics = diagnostics.iter().map(|cd| {
-            let diagnostic = match (cd.kind, allow_warnings) {
-                (DiagnosticKind::Warning, true) => Diagnostic::warning(),
-                _ => {
-                    error_count += 1;
-                    Diagnostic::error()
-                }
-            };
+    let diagnostic = convert_diagnostic(custom_diagnostic, file, allow_warnings);
+    term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
 
-            let secondary_labels = if let Some(f_id) = file_id {
-                cd.secondaries
-                    .iter()
-                    .map(|sl| {
-                        let start_span = sl.span.start() as usize;
-                        let end_span = sl.span.end() as usize + 1;
+    !allow_warnings || custom_diagnostic.is_error()
+}
 
-                        Label::secondary(f_id.as_usize(), start_span..end_span)
-                            .with_message(&sl.message)
-                    })
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            diagnostic
-                .with_message(&cd.message)
-                .with_labels(secondary_labels)
-                .with_notes(cd.notes.clone())
-        });
+fn convert_diagnostic(
+    cd: &CustomDiagnostic,
+    file: Option<fm::FileId>,
+    allow_warnings: bool,
+) -> Diagnostic<usize> {
+    let diagnostic = match (cd.kind, allow_warnings) {
+        (DiagnosticKind::Warning, true) => Diagnostic::warning(),
+        _ => Diagnostic::error(),
+    };
 
+    let secondary_labels = if let Some(file_id) = file {
+        cd.secondaries
+            .iter()
+            .map(|sl| {
+                let start_span = sl.span.start() as usize;
+                let end_span = sl.span.end() as usize + 1;
+                Label::secondary(file_id.as_usize(), start_span..end_span).with_message(&sl.message)
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+
+    diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
+}
+
+pub fn finish_report_and_exit_on_error(error_count: u32) -> Result<(), ReportedError> {
+    if error_count != 0 {
         let writer = StandardStream::stderr(ColorChoice::Always);
-        let config = codespan_reporting::term::Config::default();
+        let mut writer = writer.lock();
 
-        for diagnostic in diagnostics {
-            term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
-        }
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
+        writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
+        writer.reset().ok(); // Ignore any IO errors, we're exiting at this point anyway
 
-        error_count
-    }
-
-    pub fn finish(error_count: usize) -> Result<(), ReportedError> {
-        if error_count != 0 {
-            let writer = StandardStream::stderr(ColorChoice::Always);
-            let mut writer = writer.lock();
-
-            writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-            writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
-            writer.reset().ok(); // Ignore any IO errors, we're exiting at this point anyway
-
-            Err(ReportedError)
-        } else {
-            Ok(())
-        }
+        Err(ReportedError)
+    } else {
+        Ok(())
     }
 }

@@ -5,7 +5,7 @@ use crate::node_interner::FuncId;
 use crate::parser::{parse_program, ParsedModule};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::CollectedErrors;
+use noirc_errors::{FileDiagnostic, IntoFileDiagnostic};
 use std::collections::HashMap;
 
 mod module_def;
@@ -50,7 +50,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<CollectedErrors>,
+        errors: &mut Vec<FileDiagnostic>,
     ) {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -118,13 +118,11 @@ impl CrateDefMap {
 pub fn parse_file(
     fm: &mut FileManager,
     file_id: FileId,
-    all_errors: &mut Vec<CollectedErrors>,
+    all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
     let (program, errors) = parse_program(file.get_source());
-    if !errors.is_empty() {
-        all_errors.push(CollectedErrors { file_id, errors });
-    };
+    all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
     program
 }
 
