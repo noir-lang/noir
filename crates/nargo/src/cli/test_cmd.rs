@@ -21,17 +21,13 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let program_dir =
         args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
-    run_tests(program_dir, test_name, allow_warnings)
+    run_tests(&program_dir, test_name, allow_warnings)
 }
 
-fn run_tests<P: AsRef<Path>>(
-    program_dir: P,
-    test_name: &str,
-    allow_warnings: bool,
-) -> Result<(), CliError> {
+fn run_tests(program_dir: &Path, test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
+    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
 
     if driver.check_crate(allow_warnings).is_err() {
