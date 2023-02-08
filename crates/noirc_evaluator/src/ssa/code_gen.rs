@@ -181,8 +181,22 @@ impl IRGenerator {
     ) -> NodeId {
         let element_type = self.get_object_type_from_abi(el_type);
         let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
-        self.context.mem[array_idx].values = vecmap(witness, |w| w.into());
-        self.context.get_current_block_mut().update_variable(v_id, v_id);
+        let mut values = Vec::new();
+        for (i, w) in witness.iter().enumerate() {
+            let mut var = Variable::new(
+                element_type,
+                format!("{name}_{i}"),
+                None,
+                self.context.current_block,
+            );
+            var.witness = Some(*w);
+            values.push(self.context.add_variable(var, None));
+        }
+        let mut stack_frame = crate::ssa::inline::StackFrame::new(self.context.current_block);
+        self.context.init_array_from_values(array_idx, values, &mut stack_frame);
+        let block = self.context.get_current_block_mut();
+        block.instructions.extend_from_slice(&stack_frame.stack);
+        block.update_variable(v_id, v_id);
         v_id
     }
 

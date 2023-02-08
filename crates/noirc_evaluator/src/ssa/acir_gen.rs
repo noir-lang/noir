@@ -252,13 +252,7 @@ impl Acir {
                     if self.memory_map.contains_key(&absolute_adr) {
                         InternalVar::from(self.memory_map[&absolute_adr].expression.clone())
                     } else {
-                        //if not found, then it must be a witness (else it is non-initialized memory)
-                        let index = idx as usize;
-                        if mem_array.values.len() > index {
-                            mem_array.values[index].clone()
-                        } else {
-                            unreachable!("Could not find value at index {}", index);
-                        }
+                        unreachable!("Could not find value at index {}", index);
                     }
                 } else {
                     unimplemented!("dynamic arrays are not implemented yet");
@@ -451,7 +445,7 @@ impl Acir {
                     }
                     self.memory_map[&address].clone()
                 } else {
-                    array.values[i as usize].clone()
+                    unreachable!();
                 }
             })
             .collect()
@@ -594,10 +588,7 @@ impl Acir {
                                     inputs.push(FunctionInput { witness: w, num_bits });
                                 }
                             } else {
-                                inputs.push(FunctionInput {
-                                    witness: array.values[i as usize].witness.unwrap(),
-                                    num_bits,
-                                });
+                                unreachable!();
                             }
                         }
                     }

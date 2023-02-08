@@ -433,17 +433,6 @@ impl DecisionTree {
         Ok(())
     }
 
-    //assigns the arrays to the block where they are seen for the first time
-    fn new_array(ctx: &SsaContext, array_id: super::mem::ArrayId, stack: &mut StackFrame) {
-        if let std::collections::hash_map::Entry::Vacant(e) = stack.created_arrays.entry(array_id) {
-            if !ctx.mem[array_id].values.is_empty() {
-                e.insert(ctx.first_block);
-            } else {
-                e.insert(stack.block);
-            }
-        }
-    }
-
     fn short_circuit(
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -506,17 +495,17 @@ impl DecisionTree {
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
                 for a in returned_arrays {
-                    DecisionTree::new_array(ctx, a.0, stack);
+                    stack.new_array(a.0);
                 }
             }
             Operation::Store { array_id, index, .. } => {
                 if *index != NodeId::dummy() {
-                    DecisionTree::new_array(ctx, *array_id, stack);
+                    stack.new_array(*array_id);
                 }
             }
             _ => {
                 if let ObjectType::Pointer(a) = ins1.res_type {
-                    DecisionTree::new_array(ctx, a, stack);
+                    stack.new_array(a);
                 }
             }
         }
@@ -713,7 +702,7 @@ impl DecisionTree {
                             val_false: ctx.one(),
                         };
                         if ctx.is_zero(*expr) {
-                            stack.clear();
+                            stack.stack.clear();
                         }
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,

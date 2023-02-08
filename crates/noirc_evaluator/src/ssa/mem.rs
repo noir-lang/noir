@@ -1,5 +1,4 @@
 use crate::ssa::{
-    acir_gen::InternalVar,
     context::SsaContext,
     node,
     node::{Node, NodeId},
@@ -30,7 +29,6 @@ impl ArrayId {
 pub struct MemArray {
     pub id: ArrayId,
     pub element_type: node::ObjectType, //type of elements
-    pub values: Vec<InternalVar>,
     pub name: String,
     pub def: Definition,
     pub len: u32,     //number of elements
@@ -51,7 +49,6 @@ impl MemArray {
             id,
             element_type: of,
             name: name.to_string(),
-            values: Vec::new(),
             def: definition,
             len,
             adr: 0,
