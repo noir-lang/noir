@@ -752,7 +752,7 @@ impl SsaContext {
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
+                acir.acir_gen_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
