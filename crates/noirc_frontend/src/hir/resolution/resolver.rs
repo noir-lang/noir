@@ -74,7 +74,9 @@ pub struct Resolver<'a> {
 
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
-    generics: HashMap<Rc<String>, (TypeVariable, Span)>,
+    /// This is a Vec rather than a map to preserve the order a functions generics
+    /// were declared in.
+    generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
     /// Lambdas share the function scope of the function they're defined in,
     /// so to identify whether they use any variables from the parent function
@@ -97,7 +99,7 @@ impl<'a> Resolver<'a> {
             scopes: ScopeForest::new(),
             interner,
             self_type: None,
-            generics: HashMap::new(),
+            generics: Vec::new(),
             errors: Vec::new(),
             lambda_index: 0,
             file,
@@ -331,6 +333,10 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
+        self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
+    }
+
     fn resolve_named_type(
         &mut self,
         path: Path,
@@ -341,7 +347,7 @@ impl<'a> Resolver<'a> {
         // variables since we do not support higher-kinded types.
         if args.is_empty() && path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+            if let Some((name, var, _)) = self.find_generic(name) {
                 return Type::NamedGeneric(var.clone(), name.clone());
             }
         }
@@ -401,7 +407,7 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::Variable(path) => {
                 if path.segments.len() == 1 {
                     let name = &path.last_segment().0.contents;
-                    if let Some((name, (var, _))) = self.generics.get_key_value(name) {
+                    if let Some((name, var, _)) = self.find_generic(name) {
                         return Type::NamedGeneric(var.clone(), name.clone());
                     }
                 }
@@ -484,14 +490,18 @@ impl<'a> Resolver<'a> {
 
             // Check for name collisions of this generic
             let name = Rc::new(generic.0.contents.clone());
-            if let Some(old) = self.generics.insert(name, (typevar.clone(), span)) {
+
+            if let Some((_, _, first_span)) = self.find_generic(&name) {
                 let span = generic.0.span();
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: generic.0.contents.clone(),
-                    first_span: old.1,
+                    first_span: *first_span,
                     second_span: span,
                 })
+            } else {
+                self.generics.push((name, typevar.clone(), span));
             }
+
             (id, typevar)
         })
     }
@@ -526,6 +536,8 @@ impl<'a> Resolver<'a> {
 
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
+    /// Prerequisite: self.add_generics() has already been called with the given
+    /// function's generics, including any generics from the impl, if any.
     fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
@@ -533,16 +545,10 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attribute().cloned();
 
-        assert_eq!(self.generics.len(), func.def.generics.len());
-        let mut generics = vecmap(&func.def.generics, |generic| {
-            // Always expect self.generics to contain all the generics of this function
-            let typevar = self.generics.get(&generic.0.contents).unwrap();
-            match &*typevar.0.borrow() {
-                TypeBinding::Unbound(id) => (*id, typevar.0.clone()),
-                TypeBinding::Bound(binding) => unreachable!(
-                    "Expected {} to be unbound, but it is bound to {}",
-                    generic, binding
-                ),
+        let mut generics = vecmap(&self.generics, |(name, typevar, _)| match &*typevar.borrow() {
+            TypeBinding::Unbound(id) => (*id, typevar.clone()),
+            TypeBinding::Bound(binding) => {
+                unreachable!("Expected {} to be unbound, but it is bound to {}", name, binding)
             }
         });
 

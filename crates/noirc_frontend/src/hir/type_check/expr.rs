@@ -683,8 +683,9 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s, args) = &lhs_type {
+    if let Type::Struct(s, args) = dbg!(&lhs_type) {
         let s = s.borrow();
+        dbg!(interner.expr_span(&access.lhs));
         if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
             interner.set_field_index(expr_id, index);
             return field;
