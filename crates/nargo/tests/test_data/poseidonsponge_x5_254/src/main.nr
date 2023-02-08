@@ -1,8 +1,8 @@
 use dep::std::hash::poseidon;
 
-fn main(x: [Field; 7]) -> pub Field
+fn main(x: [Field; 7])
 {
-    let perm = poseidon::bn254::sponge(x);
- 
-    perm
+    let result = poseidon::bn254::sponge(x);
+    
+    constrain result == 0x080ae1669d62f0197190573d4a325bfb8d8fc201ce3127cbac0c47a7ac81ac48;
 }
