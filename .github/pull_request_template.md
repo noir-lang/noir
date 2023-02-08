@@ -25,6 +25,7 @@ Resolves # <!-- link to issue -->
 - [ ] I have [linked](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) this PR to the issue(s) that it resolves.
 - [ ] I have reviewed the changes on GitHub, line by line.
 - [ ] I have ensured all changes are covered in the description.
+- [ ] This PR requires documentation updates when merged.
 
 # Additional context
 

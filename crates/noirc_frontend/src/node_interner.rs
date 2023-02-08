@@ -10,6 +10,7 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
@@ -17,6 +18,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::token::Attribute;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -123,7 +125,6 @@ enum Node {
     Expression(HirExpression),
 }
 
-#[derive(Debug, Clone)]
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
@@ -152,8 +153,8 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
-    /// filled out during type checking from instantiated variables. Used during monomorphisation
-    /// to map callsite types back onto function parameter types, and undo this binding as needed.
+    /// filled out during type checking from instantiated variables. Used during monomorphization
+    /// to map call site types back onto function parameter types, and undo this binding as needed.
     instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
     /// Remembers the field index a given HirMemberAccess expression was resolved to during type
@@ -166,7 +167,11 @@ pub struct NodeInterner {
 
     //used for fallback mechanism
     language: Language,
+
+    delayed_type_checks: Vec<TypeCheckFn>,
 }
+
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone)]
 pub struct DefinitionInfo {
@@ -230,6 +235,7 @@ impl Default for NodeInterner {
             next_type_variable_id: 0,
             globals: HashMap::new(),
             language: Language::R1CS,
+            delayed_type_checks: vec![],
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -554,5 +560,20 @@ impl NodeInterner {
             None => return false,
         };
         is_supported(&black_box_func)
+    }
+
+    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
+        self.delayed_type_checks.push(f);
+    }
+
+    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
+        std::mem::take(&mut self.delayed_type_checks)
+    }
+
+    pub fn get_all_test_functions(&self) -> impl Iterator<Item = FuncId> + '_ {
+        self.func_meta.iter().filter_map(|(id, meta)| {
+            let is_test = meta.attributes.as_ref()? == &Attribute::Test;
+            is_test.then_some(*id)
+        })
     }
 }

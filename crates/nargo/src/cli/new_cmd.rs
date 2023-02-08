@@ -1,6 +1,9 @@
-use crate::errors::CliError;
+use crate::{
+    constants::{PKG_FILE, SRC_DIR},
+    errors::CliError,
+};
 
-use super::{create_named_dir, write_to_file, PKG_FILE, SRC_DIR};
+use super::{create_named_dir, write_to_file};
 use clap::ArgMatches;
 use std::path::Path;
 

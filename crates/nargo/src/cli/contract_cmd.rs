@@ -1,5 +1,5 @@
-use super::{create_named_dir, write_to_file, CONTRACT_DIR};
-use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
+use super::{create_named_dir, write_to_file};
+use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::ArgMatches;
 

@@ -19,8 +19,6 @@ pub enum LexerErrorKind {
     TooManyBits { span: Span, max: u32, got: u32 },
     #[error("LogicalAnd used instead of bitwise and")]
     LogicalAnd { span: Span },
-    #[error("LogicalOr used instead of bitwise or")]
-    LogicalOr { span: Span },
 }
 
 impl LexerErrorKind {
@@ -32,7 +30,6 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
-            LexerErrorKind::LogicalOr { span } => *span,
         }
     }
 
@@ -74,11 +71,6 @@ impl LexerErrorKind {
             LexerErrorKind::LogicalAnd { span } => (
                 "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
-                *span,
-            ),
-            LexerErrorKind::LogicalOr { span } => (
-                "Noir has no logical-or (||) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
-                "Try `|` instead, or use `if` only if you require short-circuiting".to_string(),
                 *span,
             ),
         }

@@ -4,6 +4,7 @@ mod baz;
 global M: Field = 32;
 global L: Field = 10; // Unused globals currently allowed
 global N: Field = 5;
+global T_LEN = 2; // Type inference is allowed on globals
 //global N: Field = 5; // Uncomment to see duplicate globals error 
 
 struct Dummy {
@@ -40,9 +41,7 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
 
      arrays_neq(a, b);
 
-     //let mut L: Field = 2; // Uncomment to show expected comptime error for array annotations
-     let L: comptime Field = 2;
-     let t: [Field; L] = [N, M];
+     let t: [Field; T_LEN] = [N, M];
      constrain t[1] == 32;
 
      constrain 15 == mysubmodule::my_helper();

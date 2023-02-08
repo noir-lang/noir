@@ -22,6 +22,7 @@ pub enum ExpressionKind {
     If(Box<IfExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
+    Lambda(Box<Lambda>),
     Error,
 }
 
@@ -242,31 +243,6 @@ impl BinaryOpKind {
     }
 }
 
-impl From<&Token> for Option<BinaryOpKind> {
-    fn from(token: &Token) -> Option<BinaryOpKind> {
-        let op = match token {
-            Token::Plus => BinaryOpKind::Add,
-            Token::Ampersand => BinaryOpKind::And,
-            Token::Caret => BinaryOpKind::Xor,
-            Token::ShiftLeft => BinaryOpKind::ShiftLeft,
-            Token::ShiftRight => BinaryOpKind::ShiftRight,
-            Token::Pipe => BinaryOpKind::Or,
-            Token::Minus => BinaryOpKind::Subtract,
-            Token::Star => BinaryOpKind::Multiply,
-            Token::Slash => BinaryOpKind::Divide,
-            Token::Equal => BinaryOpKind::Equal,
-            Token::NotEqual => BinaryOpKind::NotEqual,
-            Token::Less => BinaryOpKind::Less,
-            Token::LessEqual => BinaryOpKind::LessEqual,
-            Token::Greater => BinaryOpKind::Greater,
-            Token::GreaterEqual => BinaryOpKind::GreaterEqual,
-            Token::Percent => BinaryOpKind::Modulo,
-            _ => return None,
-        };
-        Some(op)
-    }
-}
-
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 pub enum UnaryOp {
     Minus,
@@ -275,7 +251,7 @@ pub enum UnaryOp {
 
 impl UnaryOp {
     /// Converts a token to a unary operator
-    /// If you want the parser to recognise another Token as being a prefix operator, it is defined here
+    /// If you want the parser to recognize another Token as being a prefix operator, it is defined here
     pub fn from(token: &Token) -> Option<UnaryOp> {
         match token {
             Token::Minus => Some(UnaryOp::Minus),
@@ -317,6 +293,13 @@ pub struct IfExpression {
     pub condition: Expression,
     pub consequence: Expression,
     pub alternative: Option<Expression>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Lambda {
+    pub parameters: Vec<(Pattern, UnresolvedType)>,
+    pub return_type: UnresolvedType,
+    pub body: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -412,6 +395,7 @@ impl Display for ExpressionKind {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
+            Lambda(lambda) => lambda.fmt(f),
             Error => write!(f, "Error"),
         }
     }
@@ -549,6 +533,14 @@ impl Display for IfExpression {
             write!(f, " else {alternative}")?;
         }
         Ok(())
+    }
+}
+
+impl Display for Lambda {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+
+        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
     }
 }
 

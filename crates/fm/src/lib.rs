@@ -46,7 +46,7 @@ impl FileManager {
         let source = file_reader::read_file_to_string(path_to_file).ok()?;
 
         let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
-        let path_to_file = virtualise_path(path_to_file, file_type);
+        let path_to_file = virtualize_path(path_to_file, file_type);
         self.register_path(file_id, path_to_file);
 
         Some(file_id)
@@ -99,7 +99,7 @@ impl Default for FileManager {
 /// Returns
 /// For Normal filetypes, given "src/mod.nr" this method returns "src/mod"
 /// For Root filetypes, given "src/mod.nr" this method returns "src"
-fn virtualise_path(path: &Path, file_type: FileType) -> VirtualPath {
+fn virtualize_path(path: &Path, file_type: FileType) -> VirtualPath {
     let mut path = path.to_path_buf();
     let path = match file_type {
         FileType::Root => {

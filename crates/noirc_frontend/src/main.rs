@@ -57,7 +57,7 @@ fn main() {
     //     println!("-----------------------------Start Data for module at position {}----------------------------", i);
     //     println!("current module id is: {:?}", module_index);
     //     println!("parent module id is: {:?}", module_data.parent);
-    //     println!("-----------------------------Chidren for module at position {}----------------------------", i);
+    //     println!("-----------------------------Children for module at position {}----------------------------", i);
     //     for (child_name, child_id) in &module_data.children {
     //         println!("{:?} is a child module with id {:?}", child_name, child_id);
     //     }

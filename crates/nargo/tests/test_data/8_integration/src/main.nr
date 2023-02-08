@@ -4,7 +4,7 @@ fn matrix_mul_2(a: [u32; 4], b: [u32; 4]) ->[u32; 4] {
         for j in 0..2 {
             c[i+2*j] = 0;
             for k in 0..2 {
-               c[i+2*j] = c[i+2*j] + a[i+2*k]*b[k+2*j];
+               c[i+2*j] += a[i+2*k] * b[k+2*j];
             }
         }
     }
@@ -18,7 +18,7 @@ fn matrix_mul_10(a: [u32; 100], b: [u32; 100]) -> [u32; 100] {
             c[i+10*j] = 0 as u32;
 
             for k in 0..10 {
-               c[i+10*j] = c[i+10*j] + a[i+10*k]*b[k+10*j];
+               c[i+10*j] += a[i+10*k] * b[k+10*j];
             }
         }
     }
@@ -52,7 +52,7 @@ fn iterate1(mut a0: u32) -> u32{
         g = f;
         a = t1 + t2;
     }
-    a0 = a0 + a;
+    a0 += a;
     a0
 }
 
@@ -254,8 +254,8 @@ fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32])
     a = test4(c);
     constrain a[3] == c[1] * 10;
 
-    d[0] = d[0] + c[0];
-    d[0] = d[0] + c[1];
+    d[0] += c[0];
+    d[0] += c[1];
     constrain d[0] == 2739986880;
 
     let h = iterate1(1);

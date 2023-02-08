@@ -28,7 +28,7 @@ impl CrateName {
     /// Creates a new CrateName rejecting any crate name that
     /// has a character on the blacklist.
     /// The difference between RA and this implementation is that
-    /// characters on the blacklist are never allowed; there is no normalisation.
+    /// characters on the blacklist are never allowed; there is no normalization.
     pub fn new(name: &str) -> Result<CrateName, &str> {
         let is_invalid = name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
         if is_invalid {

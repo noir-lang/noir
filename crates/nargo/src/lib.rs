@@ -12,6 +12,7 @@ fn nargo_crates() -> PathBuf {
 
 mod backends;
 pub mod cli;
+mod constants;
 mod errors;
 mod git;
 mod resolver;

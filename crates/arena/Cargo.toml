@@ -7,4 +7,4 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-generational-arena.workspace = true
+generational-arena = "0.2.8"

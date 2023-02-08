@@ -1,58 +1,54 @@
-name: Publish
-# <arch>-<vendor>-<os>-<env>
-# For esoteric targets, there is probably a succint way to do it with a target array
-# Alternatively, we can wait for action-rs to get a v2, where we can input 'targets' 
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 
 jobs:
-  publish:
-    name: Publish for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        name: [
-            linux,
-            windows,
-            macos
-        ]
-
-        include:
-          - name: linux
-            os: ubuntu-20.04
-            artifact_name: nargo
-            asset_name: nargo-linux
-          - name: windows
-            os: windows-latest
-            artifact_name: nargo.exe
-            asset_name: nargo-windows
-          - name: macos
-            os: macos-latest
-            artifact_name: nargo
-            asset_name: nargo-macos
-
+  release-please:
+    name: Create Release
+    outputs:
+      release-pr: ${{ steps.release.outputs.pr }}
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+      - name: Run release-please
+        id: release
+        uses: google-github-actions/release-please-action@v3
+        with:
+          release-type: simple
+          package-name: noir
+          bump-minor-pre-major: true
+          bump-patch-for-minor-pre-major: true
+          pull-request-title-pattern: "chore(noir): Release ${version}"
+          extra-files: |
+            Cargo.toml
 
-    - name: 'Get Previous tag'
-      id: previoustag
-      uses: "WyriHaximus/github-action-get-previous-tag@master"
-    
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
+  update-lockfile:
+    name: Update lockfile
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.release-pr }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
 
-    - name: Build
-      run: cargo build --release --locked
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.65.0
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v1-release
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}-${{ steps.previoustag.outputs.tag }}
-        tag: ${{ github.ref }}
+      - name: Update lockfile
+        run: |
+          cargo update --workspace
+
+      - name: Configure git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Commit updates
+        run: |
+          git add Cargo.lock
+          git commit -m 'chore: Update lockfile'
+          git push

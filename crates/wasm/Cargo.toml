@@ -13,15 +13,13 @@ crate-type = ["cdylib"]
 [dependencies]
 
 acvm.workspace = true
-noirc_driver = { path = "../noirc_driver" }
-
-console_error_panic_hook.workspace = true
-
+noirc_driver.workspace = true
 wasm-bindgen.workspace = true
-gloo-utils.workspace = true
 
-getrandom.workspace = true
-js-sys.workspace = true
+console_error_panic_hook = "0.1.7"
+getrandom = { version = "0.2.4", features = ["js"] }
+gloo-utils = { version = "0.1", features = ["serde"] }
+js-sys = "0.3.55"
 
 [dev-dependencies]
 wasm-bindgen-test.workspace = true

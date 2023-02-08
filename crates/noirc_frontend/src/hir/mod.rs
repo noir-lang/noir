@@ -12,7 +12,6 @@ use fm::FileManager;
 use std::collections::HashMap;
 
 /// Global context that is accessible during each stage
-#[derive(Debug)]
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,

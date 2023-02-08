@@ -1,19 +1,20 @@
-use super::acir_gen::InternalVar;
-use super::context::SsaContext;
-use super::node::{self, Node, NodeId};
+use crate::ssa::{
+    acir_gen::InternalVar,
+    context::SsaContext,
+    node,
+    node::{Node, NodeId},
+};
 use acvm::FieldElement;
-use noirc_frontend::monomorphisation::ast::{Definition, LocalId};
+use noirc_frontend::monomorphization::ast::{Definition, LocalId};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
-
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct Memory {
     arrays: Vec<MemArray>,
     pub last_adr: u32,                    //last address in 'memory'
-    pub memory_map: HashMap<u32, NodeId>, //maps memory adress to expression
+    pub memory_map: HashMap<u32, NodeId>, //maps memory address to expression
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -8,7 +8,7 @@ fn f1(mut x: Field) -> Field {
 }
 
 fn f2(mut x: Field) -> Field{
-    x = x + 2;
+    x += 2;
     x
 }
 
@@ -33,7 +33,7 @@ fn test2(z: Field, t: u32 ) {
 
 fn pow(base: Field, exponent: Field) -> Field {
     let mut r = 1 as Field;
-    let b = std::to_bits(exponent, 32 as u32);
+    let b = std::field::to_le_bits(exponent, 32 as u32);
     for i in 1..33 {
         r = r*r;
         r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;

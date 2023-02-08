@@ -294,7 +294,7 @@ fn resolve_structs(
 ) {
     // We must first go through the struct list once to ensure all IDs are pushed to
     // the def_interner map. This lets structs refer to each other regardless of declaration order
-    // without resolve_struct_fields nondeterministically unwrapping a value
+    // without resolve_struct_fields non-deterministically unwrapping a value
     // that isn't in the HashMap.
     for (type_id, typ) in &structs {
         context.def_interner.push_empty_struct(*type_id, typ);
