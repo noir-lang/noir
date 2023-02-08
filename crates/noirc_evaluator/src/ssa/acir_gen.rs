@@ -152,10 +152,7 @@ fn optional_expression_to_witness(arith: &Expression) -> Option<Witness> {
 /// then this conversion is a simple coercion.
 /// - Otherwise, we create a new `Witness` and set it to be equal to the
 /// `Expression`.
-pub(crate) fn expression_to_witness<A: constraints::ACIRState>(
-    expr: Expression,
-    evaluator: &mut A,
-) -> Witness {
+pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
     match optional_expression_to_witness(&expr) {
         Some(witness) => witness,
         None => evaluator.create_intermediate_variable(expr),
