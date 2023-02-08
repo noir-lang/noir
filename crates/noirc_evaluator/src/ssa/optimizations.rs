@@ -233,7 +233,7 @@ fn cse_block_with_anchor(
 
                         new_list.push(*ins_id);
                     } else if let Some(similar) = anchor.find_similar_instruction(&operator) {
-                        assert!(similar != ins.id);
+                        assert_ne!(similar, ins.id);
                         *modified = true;
                         new_mark = Mark::ReplaceWith(similar);
                     } else if binary.operator == BinaryOp::Assign {
@@ -246,7 +246,7 @@ fn cse_block_with_anchor(
                 }
                 Operation::Result { .. } => {
                     if let Some(similar) = anchor.find_similar_instruction(&operator) {
-                        assert!(similar != ins.id);
+                        assert_ne!(similar, ins.id);
                         *modified = true;
                         new_mark = Mark::ReplaceWith(similar);
                     } else {
