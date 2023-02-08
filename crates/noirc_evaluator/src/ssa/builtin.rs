@@ -54,7 +54,12 @@ impl Opcode {
                     | BlackBoxFunc::EcdsaSecp256k1
                     | BlackBoxFunc::MerkleMembership => BigUint::one(), //verify returns 0 or 1
                     BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
-                    _ => unreachable!("ICE: max value should be implemented for opcode {} ", op),
+                    BlackBoxFunc::RANGE
+                    | BlackBoxFunc::AES
+                    | BlackBoxFunc::AND
+                    | BlackBoxFunc::XOR => {
+                        unreachable!("ICE: max value should be implemented for opcode {} ", op)
+                    }
                 }
             }
             Opcode::ToBits | Opcode::ToRadix => BigUint::zero(), //pointers do not overflow
