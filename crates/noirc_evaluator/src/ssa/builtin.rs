@@ -46,13 +46,15 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
+                    // Pointers do not overflow
                     BlackBoxFunc::SHA256
                     | BlackBoxFunc::Blake2s
                     | BlackBoxFunc::Pedersen
-                    | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(), //pointers do not overflow
+                    | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
+                    // Verify returns zero or one
                     BlackBoxFunc::SchnorrVerify
                     | BlackBoxFunc::EcdsaSecp256k1
-                    | BlackBoxFunc::MerkleMembership => BigUint::one(), //verify returns 0 or 1
+                    | BlackBoxFunc::MerkleMembership => BigUint::one(),
                     BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
                     BlackBoxFunc::RANGE
                     | BlackBoxFunc::AES
@@ -73,14 +75,13 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
-                    BlackBoxFunc::SHA256 => (32, ObjectType::Unsigned(8)),
-                    BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
                     BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
                     // See issue #775 on changing this to return a boolean
-                    BlackBoxFunc::MerkleMembership => (1, ObjectType::NativeField),
-                    BlackBoxFunc::SchnorrVerify => (1, ObjectType::NativeField),
+                    BlackBoxFunc::MerkleMembership
+                    | BlackBoxFunc::SchnorrVerify
+                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField),
                     BlackBoxFunc::Pedersen => (2, ObjectType::NativeField),
-                    BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::NativeField),
                     BlackBoxFunc::AND => (1, ObjectType::NativeField),
                     BlackBoxFunc::XOR => (1, ObjectType::NativeField),
