@@ -129,7 +129,7 @@ impl Driver {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
         let error_count = reporter::report_all(&self.context.file_manager, &errs, allow_warnings);
-        reporter::finish_report_and_exit_on_error(error_count)
+        reporter::finish_report(error_count)
     }
 
     pub fn compute_abi(&self) -> Option<Abi> {
@@ -194,7 +194,7 @@ impl Driver {
                 let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
                 let error = reporter::report(files, &err.into(), file, allow_warnings);
-                reporter::finish_report_and_exit_on_error(error as u32)?;
+                reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }
         }

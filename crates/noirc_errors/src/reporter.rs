@@ -152,14 +152,14 @@ fn convert_diagnostic(
     diagnostic.with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
 }
 
-pub fn finish_report_and_exit_on_error(error_count: u32) -> Result<(), ReportedError> {
+pub fn finish_report(error_count: u32) -> Result<(), ReportedError> {
     if error_count != 0 {
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
 
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
         writeln!(&mut writer, "error: aborting due to {error_count} previous errors").unwrap();
-        writer.reset().ok(); // Ignore any IO errors, we're exiting at this point anyway
+        writer.reset().ok();
 
         Err(ReportedError)
     } else {
