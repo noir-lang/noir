@@ -1753,7 +1753,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "barretenberg_static_lib",
  "barretenberg_wasm",
  "cfg-if 1.0.0",
@@ -1781,7 +1781,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "console_error_panic_hook",
  "getrandom",
  "gloo-utils",
@@ -1795,7 +1795,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "iter-extended",
  "serde",
  "serde_json",
@@ -1807,7 +1807,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "dirs 4.0.0",
  "fm",
  "noirc_abi",
@@ -1831,7 +1831,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "arena",
  "fm",
  "iter-extended",
@@ -1847,7 +1847,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.1"
 dependencies = [
- "acvm 0.3.1",
+ "acvm 0.4.1",
  "arena",
  "chumsky",
  "fm",
