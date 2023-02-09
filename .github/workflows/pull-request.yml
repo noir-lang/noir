@@ -1,6 +1,7 @@
 name: Pull Request
 
 on:
+  merge_group:
   pull_request_target:
     types:
       - opened
@@ -17,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check title
+        if: github.event_name != 'merge_group'
         uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
