@@ -322,7 +322,7 @@ impl IRGenerator {
     ) -> (NodeId, ArrayId) {
         let (id, array_id) = self.context.new_array(name, element_type, len, def.clone());
         if let Some(def) = def {
-            self.variable_values.insert(def, super::code_gen::Value::Single(id));
+            self.variable_values.insert(def, super::ssa_gen::Value::Single(id));
         }
         (id, array_id)
     }

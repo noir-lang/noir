@@ -11,7 +11,7 @@ use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
-use ssa::{code_gen::IRGenerator, node};
+use ssa::{node, ssa_gen::IRGenerator};
 use std::collections::BTreeMap;
 
 pub struct Evaluator {

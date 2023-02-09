@@ -1,10 +1,10 @@
 use crate::errors::RuntimeError;
 use crate::ssa::{
     block::BlockId,
-    code_gen::{resize_graph, IRGenerator},
     conditional::{DecisionTree, TreeBuilder},
     context::SsaContext,
     node::{NodeId, ObjectType},
+    ssa_gen::{resize_graph, IRGenerator},
     {block, node, ssa_form},
 };
 use noirc_frontend::monomorphization::ast::FuncId;
