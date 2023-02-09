@@ -599,7 +599,6 @@ impl NodeInterner {
     }
 
     pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
-        // TODO: Apply generics
         self.struct_methods.get(&(id, method_name.to_owned())).map(|(_, id)| *id)
     }
 }
