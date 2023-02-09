@@ -702,8 +702,8 @@ impl SsaContext {
         //Optimization
         block::compute_dom(self);
         optimizations::full_cse(self, self.first_block, false)?;
-        // the second cse is recommended because of opportunities occuring from the first one
-        // we could use an optimisation level that will run more cse pass
+        // The second cse is recommended because of opportunities occurring from the first one
+        // we could use an optimization level that will run more cse pass
         optimizations::full_cse(self, self.first_block, false)?;
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
