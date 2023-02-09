@@ -17,13 +17,14 @@ use crate::{
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
     let proof_name = args.value_of("proof_name");
+    let circuit_name = args.value_of("circuit_name").unwrap();
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
 
-    prove(proof_name, show_ssa, allow_warnings)
+    prove(proof_name, circuit_name, show_ssa, allow_warnings)
 }
 
-fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
+fn prove(proof_name: Option<&str>, circuit_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
     let current_dir = std::env::current_dir().unwrap();
 
     let mut proof_dir = PathBuf::new();
@@ -31,12 +32,11 @@ fn prove(proof_name: Option<&str>, show_ssa: bool, allow_warnings: bool) -> Resu
 
     let mut proving_key_path = PathBuf::new();
     proving_key_path.push(TARGET_DIR);
-    proving_key_path.push("proving_key");
+    proving_key_path.push(circuit_name);
     proving_key_path.set_extension(PK_EXT);
 
     if !proving_key_path.exists() {
-        // TODO: consider switching from Option for proof_name, makes it easier to use with preprocess
-        preprocess("", allow_warnings)?;
+        return Err(CliError::MissingProvingKey(proving_key_path));
     }
 
     prove_with_path(
@@ -78,7 +78,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let proving_key = load_hex_data(pk_path)?;
 
     let backend = crate::backends::ConcreteBackend;
-    // let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
     let proof = backend.prove_with_pk(compiled_program.circuit, solved_witness, proving_key);
 
     println!("Proof successfully created");

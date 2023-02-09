@@ -23,8 +23,7 @@ edition = "2021"
 rust-version = "1.64"
 
 [workspace.dependencies]
-# acvm = "0.3.1"
-acvm = { git = "https://github.com/vezenovm/acvm", branch = "mv/preprocess" }
+acvm = "0.4.1"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

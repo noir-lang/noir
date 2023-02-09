@@ -17,6 +17,8 @@ pub enum CliError {
     ProofNotValid(FromHexError),
     #[error("cannot find input file located at {0:?}, run nargo build to generate the missing Prover and/or Verifier toml files")]
     MissingTomlFile(PathBuf),
+    #[error("Error: cannot find proving key located at {}, run nargo compile to generate the missing proving key", .0.display())]
+    MissingProvingKey(PathBuf)
 }
 
 impl From<OpcodeResolutionError> for CliError {

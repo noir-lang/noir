@@ -24,8 +24,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let mut circuit_path = PathBuf::new();
     circuit_path.push(TARGET_DIR);
 
-    preprocess("", allow_warnings)?;
-
     generate_circuit_and_witness_to_disk(
         circuit_name,
         current_dir,
@@ -45,6 +43,9 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
+
+    preprocess_with_path(circuit_name, current_dir, circuit_path, compiled_program.circuit, allow_warnings)?;
+
     let serialized = compiled_program.circuit.to_bytes();
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
@@ -78,4 +79,41 @@ pub fn compile_circuit<P: AsRef<Path>>(
     driver
         .into_compiled_program(backend.np_language(), show_ssa, allow_warnings)
         .map_err(|_| std::process::exit(1))
+}
+
+pub fn preprocess_with_path<P: AsRef<Path>>(
+    key_name: &str, 
+    program_dir: P,
+    preprocess_dir: P,
+    circuit: acvm::acir::circuit::Circuit,
+    allow_warnings: bool,
+) -> Result<(PathBuf, PathBuf), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+
+    let (proving_key, verification_key) = backend.preprocess(circuit);
+
+    println!("Proving and verification key successfully created");
+    let pk_path = save_key_to_dir(proving_key.clone(), key_name, &preprocess_dir, true)?;
+    println!("Proving key saved to {}", pk_path.display());
+    let vk_path =
+        save_key_to_dir(verification_key.clone(), key_name, preprocess_dir, false)?;
+    println!("Verification key saved to {}", vk_path.display());
+
+    Ok((pk_path, vk_path))
+}
+
+fn save_key_to_dir<P: AsRef<Path>>(
+    key: Vec<u8>,
+    key_name: &str,
+    key_dir: P,
+    is_proving_key: bool,
+) -> Result<PathBuf, CliError> {
+    let mut key_path = create_named_dir(key_dir.as_ref(), key_name);
+    key_path.push(key_name);
+    let extension = if is_proving_key { PK_EXT } else { VK_EXT };
+    key_path.set_extension(extension);
+
+    write_to_file(hex::encode(key).as_bytes(), &key_path);
+
+    Ok(key_path)
 }

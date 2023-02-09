@@ -83,6 +83,7 @@ pub fn start_cli() {
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
+                .arg(Arg::with_name("circuit_name").help("The name of the circuit build files (ACIR, proving and verification keys)"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -125,15 +126,6 @@ pub fn start_cli() {
                 .arg(show_ssa)
                 .arg(allow_warnings.clone()),
         )
-        .subcommand(
-            App::new("preprocess")
-                .about("Generate the prover and verifier keys for a circuit")
-                .arg(
-                    Arg::with_name("key_name")
-                        .help("The name of the proving key and verification key files"),
-                )
-                .arg(allow_warnings),
-        )
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .get_matches();
 
@@ -145,7 +137,6 @@ pub fn start_cli() {
         Some("compile") => compile_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
         Some("gates") => gates_cmd::run(matches),
-        Some("preprocess") => preprocess_cmd::run(matches),
         Some("execute") => execute_cmd::run(matches),
         Some("test") => test_cmd::run(matches),
         Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
