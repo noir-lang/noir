@@ -383,7 +383,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/preprocess#74f394a8ba0930b193c3f51a43ca61df886c48c3"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/preprocess#e1122d1b0f43db87ba6cea14fd1748a7cbeffdcd"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -416,7 +416,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?branch=mv/preprocess#935caaa1d7353194a57d5289dfd196538343bffc"
+source = "git+https://github.com/noir-lang/aztec-connect?branch=mv/preprocess#18d8e3d6d8780c7294af21a27e76856df2c91814"
 dependencies = [
  "bindgen",
  "cmake",
@@ -655,7 +655,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/preprocess#74f394a8ba0930b193c3f51a43ca61df886c48c3"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/preprocess#e1122d1b0f43db87ba6cea14fd1748a7cbeffdcd"
 dependencies = [
  "acvm 0.3.1 (git+https://github.com/vezenovm/acvm?branch=mv/preprocess)",
  "blake2",
