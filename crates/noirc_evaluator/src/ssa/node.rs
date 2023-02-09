@@ -704,7 +704,11 @@ impl Binary {
     }
 
     fn zero_div_error(&self) -> Result<(), RuntimeError> {
-        Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+        if self.predicate.is_none() {
+            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+        } else {
+            Ok(())
+        }
     }
 
     fn evaluate<F>(
