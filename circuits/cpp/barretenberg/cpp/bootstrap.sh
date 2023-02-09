@@ -32,6 +32,7 @@ cd ./srs_db
 cd ..
 
 # Pick native toolchain file.
+ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then
   export BREW_PREFIX=$(brew --prefix)
   # Ensure we have toolchain.
@@ -39,14 +40,17 @@ if [ "$OS" == "macos" ]; then
     echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
     exit 1
   fi
-  ARCH=$(uname -m)
   if [ "$ARCH" = "arm64" ]; then
     TOOLCHAIN=arm-apple-clang
   else
     TOOLCHAIN=x86_64-apple-clang
   fi
 else
-  TOOLCHAIN=x86_64-linux-clang
+  if [ "$ARCH" = "aarch64" ]; then
+      TOOLCHAIN=aarch64-linux-clang
+  else
+      TOOLCHAIN=x86_64-linux-clang
+  fi
 fi
 
 # Build native.
