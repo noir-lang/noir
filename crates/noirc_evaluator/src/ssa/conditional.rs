@@ -376,8 +376,8 @@ impl DecisionTree {
         let mut modified = false;
         super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         if modified {
-            // a second round is necessary when the synchronisation optimise function calls between the two branches
-            // in that case, the first cse update the result instructions to the same call
+            // A second round is necessary when the synchronization optimizes function calls between the two branches.
+            // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
             super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
