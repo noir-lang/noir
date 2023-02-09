@@ -5,7 +5,6 @@ use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
-use super::preprocess_cmd::preprocess;
 use super::{create_named_dir, write_inputs_to_file, write_to_file};
 use crate::cli::{dedup_public_input_indices, load_hex_data};
 use crate::constants::PK_EXT;
@@ -24,7 +23,12 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     prove(proof_name, circuit_name, show_ssa, allow_warnings)
 }
 
-fn prove(proof_name: Option<&str>, circuit_name: &str, show_ssa: bool, allow_warnings: bool) -> Result<(), CliError> {
+fn prove(
+    proof_name: Option<&str>,
+    circuit_name: &str,
+    show_ssa: bool,
+    allow_warnings: bool,
+) -> Result<(), CliError> {
     let current_dir = std::env::current_dir().unwrap();
 
     let mut proof_dir = PathBuf::new();

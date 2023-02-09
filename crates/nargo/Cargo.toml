@@ -33,8 +33,8 @@ sha2 = "0.10.6"
 
 # Backends
 aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/preprocess" }
-# aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "b7349851d7afcffef4171e4d3a30b163ea37e579" }
+# TODO: Finish implementing the new backend methods requiring proving and verification keys in barretenberg_wasm to match the static lib
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "mv/preprocess" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 
 [features]

@@ -201,7 +201,7 @@ impl Driver {
 
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let blackbox_supported = acvm::default_is_blackbox_supported(np_language.clone());
+        let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
         match create_circuit(program, np_language, blackbox_supported, show_ssa) {
             Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
             Err(err) => {

@@ -77,13 +77,18 @@ pub fn start_cli() {
             App::new("verify")
                 .about("Given a proof and a program, verify whether the proof is valid")
                 .arg(Arg::with_name("proof").help("The proof to verify").required(true))
+                .arg(Arg::with_name("circuit_name").help(
+                    "The name of the circuit build files (ACIR, proving and verification keys)",
+                ))
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
-                .arg(Arg::with_name("circuit_name").help("The name of the circuit build files (ACIR, proving and verification keys)"))
+                .arg(Arg::with_name("circuit_name").help(
+                    "The name of the circuit build files (ACIR, proving and verification keys)",
+                ))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -213,8 +218,21 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    let compiled_program = match compile_cmd::compile_circuit(prg_dir, false, false) {
+        Ok(compiled_program) => compiled_program,
+        Err(error) => {
+            println!("{error}");
+            return false;
+        }
+    };
+
     let preprocess_dir = TempDir::new("p_and_v_tests_preprocess").unwrap();
-    let (pk_path, vk_path) = match preprocess_cmd::preprocess_with_path(prg_dir, &preprocess_dir.into_path(), proof_name, false) {
+    let (pk_path, vk_path) = match compile_cmd::preprocess_with_path(
+        proof_name,
+        prg_dir,
+        &preprocess_dir.into_path(),
+        compiled_program.circuit,
+    ) {
         Ok((pk_path, vk_path)) => (pk_path, vk_path),
         Err(error) => {
             println!("{error}");
@@ -238,14 +256,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(
-        prg_dir,
-        &proof_path.unwrap(),
-        &vk_path,
-        show_ssa,
-        false,
-    )
-    .unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), &vk_path, show_ssa, false).unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {

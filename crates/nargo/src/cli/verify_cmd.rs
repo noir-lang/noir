@@ -1,7 +1,6 @@
 use super::{
     compile_cmd::compile_circuit, dedup_public_input_indices_values, load_hex_data,
-    read_inputs_from_file, InputMap,
-    preprocess_cmd::preprocess,
+    preprocess_cmd::preprocess, read_inputs_from_file, InputMap,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
@@ -24,13 +23,15 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
+    let circuit_name = args.value_of("circuit_name").unwrap();
+
     let allow_warnings = args.is_present("allow-warnings");
-    let result = verify(proof_name, allow_warnings)?;
+    let result = verify(proof_name, circuit_name, allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())
 }
 
-fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
+fn verify(proof_name: &str, circuit_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
     let current_dir = std::env::current_dir().unwrap();
 
     let mut proof_path = PathBuf::new(); //or cur_dir?
@@ -40,14 +41,13 @@ fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
 
     let mut verification_key_path = PathBuf::new();
     verification_key_path.push(TARGET_DIR);
-    verification_key_path.push("verification_key");
+    verification_key_path.push(circuit_name);
     verification_key_path.set_extension(VK_EXT);
 
     if !verification_key_path.exists() {
-        // TODO: consider switching from Option for proof_name in nargo prove, makes it easier to use with preprocess
-        preprocess("", allow_warnings)?;
+        return Err(CliError::MissingVerificationkey(verification_key_path));
     }
-    
+
     verify_with_path(&current_dir, &proof_path, &verification_key_path, false, allow_warnings)
 }
 

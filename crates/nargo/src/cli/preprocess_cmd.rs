@@ -33,7 +33,7 @@ pub fn preprocess(key_name: &str, allow_warnings: bool) -> Result<(), CliError> 
 pub fn preprocess_with_path<P: AsRef<Path>>(
     program_dir: P,
     preprocess_dir: P,
-    _key_name: &str, 
+    _key_name: &str,
     allow_warnings: bool,
 ) -> Result<(PathBuf, PathBuf), CliError> {
     let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;

@@ -7,12 +7,12 @@ use std::path::Path;
 
 use crate::{
     cli::execute_cmd::save_witness_to_dir,
-    constants::{ACIR_EXT, TARGET_DIR},
+    constants::{ACIR_EXT, PK_EXT, TARGET_DIR, VK_EXT},
     errors::CliError,
     resolver::Resolver,
 };
 
-use super::{add_std_lib, create_named_dir, write_to_file, preprocess_cmd::preprocess};
+use super::{add_std_lib, create_named_dir, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -44,14 +44,18 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
 
-    preprocess_with_path(circuit_name, current_dir, circuit_path, compiled_program.circuit, allow_warnings)?;
-
-    let serialized = compiled_program.circuit.to_bytes();
+    preprocess_with_path(
+        circuit_name,
+        program_dir.as_ref(),
+        circuit_dir.as_ref(),
+        compiled_program.circuit.clone(),
+    )?;
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
     circuit_path.push(circuit_name);
     circuit_path.set_extension(ACIR_EXT);
 
+    let serialized = compiled_program.circuit.to_bytes();
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
     println!("{:?}", std::fs::canonicalize(&circuit_path));
@@ -82,11 +86,10 @@ pub fn compile_circuit<P: AsRef<Path>>(
 }
 
 pub fn preprocess_with_path<P: AsRef<Path>>(
-    key_name: &str, 
+    key_name: &str,
     program_dir: P,
     preprocess_dir: P,
     circuit: acvm::acir::circuit::Circuit,
-    allow_warnings: bool,
 ) -> Result<(PathBuf, PathBuf), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
@@ -95,8 +98,7 @@ pub fn preprocess_with_path<P: AsRef<Path>>(
     println!("Proving and verification key successfully created");
     let pk_path = save_key_to_dir(proving_key.clone(), key_name, &preprocess_dir, true)?;
     println!("Proving key saved to {}", pk_path.display());
-    let vk_path =
-        save_key_to_dir(verification_key.clone(), key_name, preprocess_dir, false)?;
+    let vk_path = save_key_to_dir(verification_key.clone(), key_name, preprocess_dir, false)?;
     println!("Verification key saved to {}", vk_path.display());
 
     Ok((pk_path, vk_path))
