@@ -107,7 +107,10 @@ fn evaluate_intrinsic(
         _ => todo!(),
     }
 }
-////////////////////CSE////////////////////////////////////////
+
+//
+// The following code will be concerned with Common Subexpression Elimination (CSE)
+//
 
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
@@ -409,7 +412,7 @@ fn cse_block_with_anchor(
     Ok(last)
 }
 
-pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
+fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
     if id == NodeId::dummy() {
         return false;
     }

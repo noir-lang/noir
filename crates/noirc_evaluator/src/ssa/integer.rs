@@ -442,7 +442,6 @@ fn get_load_max(
     max_map: &mut HashMap<NodeId, BigUint>,
     value_map: &HashMap<NodeId, NodeId>,
     array: ArrayId,
-    // obj_type: ObjectType,
 ) -> BigUint {
     if let Some(&value) = ctx.get_indexed_value(array, address) {
         return get_obj_max_value(ctx, value, max_map, value_map);
