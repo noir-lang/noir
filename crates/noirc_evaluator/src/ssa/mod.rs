@@ -13,3 +13,4 @@ pub mod mem;
 pub mod node;
 pub mod optimizations;
 pub mod ssa_form;
+mod value;

@@ -4,6 +4,7 @@ use crate::ssa::{
     function::FuncIndex,
     mem::ArrayId,
     node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable},
+    value::Value,
     {block, builtin, node, ssa_form},
 };
 use crate::{errors, errors::RuntimeError};
@@ -29,92 +30,6 @@ pub struct IRGenerator {
     variable_values: HashMap<Definition, Value>,
 
     pub program: Program,
-}
-
-#[derive(Debug, Clone)]
-pub enum Value {
-    Single(NodeId),
-    Tuple(Vec<Value>),
-}
-
-impl Value {
-    pub fn unwrap_id(&self) -> NodeId {
-        match self {
-            Value::Single(id) => *id,
-            Value::Tuple(_) => panic!("Tried to unwrap a struct into a single value"),
-        }
-    }
-
-    pub fn dummy() -> Value {
-        Value::Single(NodeId::dummy())
-    }
-
-    pub fn is_dummy(&self) -> bool {
-        match self {
-            Value::Single(id) => *id == NodeId::dummy(),
-            _ => false,
-        }
-    }
-
-    pub fn to_node_ids(&self) -> Vec<NodeId> {
-        match self {
-            Value::Single(id) => vec![*id],
-            Value::Tuple(v) => v.iter().flat_map(|i| i.to_node_ids()).collect(),
-        }
-    }
-
-    pub fn zip<F>(&self, v2: &Value, f: &mut F) -> Value
-    where
-        F: FnMut(NodeId, NodeId) -> NodeId,
-    {
-        if self.is_dummy() || v2.is_dummy() {
-            return Value::dummy();
-        }
-
-        match (self, v2) {
-            (Value::Single(id1), Value::Single(id2)) => Value::Single(f(*id1, *id2)),
-            (Value::Tuple(tup1), Value::Tuple(tup2)) => {
-                Value::Tuple(vecmap(tup1.iter().zip(tup2), |(v1, v2)| v1.zip(v2, f)))
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn into_field_member(self, field_index: usize) -> Value {
-        match self {
-            Value::Single(_) => {
-                unreachable!("Runtime type error, expected struct but found a single value")
-            }
-            Value::Tuple(mut fields) => fields.remove(field_index),
-        }
-    }
-
-    pub fn get_field_member(&self, field_index: usize) -> &Value {
-        match self {
-            Value::Single(_) => {
-                unreachable!("Runtime type error, expected struct but found a single value")
-            }
-            Value::Tuple(fields) => &fields[field_index],
-        }
-    }
-
-    //Reconstruct a value whose type is provided in argument, from a bunch of NodeIds
-    fn reshape(value_type: &Type, iter: &mut core::slice::Iter<NodeId>) -> Value {
-        match value_type {
-            Type::Tuple(tup) => {
-                let values = vecmap(tup, |v| Self::reshape(v, iter));
-                Value::Tuple(values)
-            }
-            _ => Value::Single(*iter.next().unwrap()),
-        }
-    }
-
-    fn from_slice(value_type: &Type, slice: &[NodeId]) -> Value {
-        let mut iter = slice.iter();
-        let result = Value::reshape(value_type, &mut iter);
-        assert!(iter.next().is_none());
-        result
-    }
 }
 
 impl IRGenerator {
