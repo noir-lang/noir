@@ -20,7 +20,7 @@ use crate::{
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
     let proof_name = args.value_of("proof_name");
-    let check_proof = args.is_present("checked");
+    let check_proof = args.is_present("verify");
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
 

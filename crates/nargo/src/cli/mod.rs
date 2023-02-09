@@ -82,7 +82,7 @@ pub fn start_cli() {
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
-                .arg(Arg::with_name("checked").help("Verify proof after proving"))
+                .arg(Arg::with_name("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
