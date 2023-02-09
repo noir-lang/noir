@@ -45,6 +45,9 @@ if [ "$OS" == "macos" ]; then
   else
     TOOLCHAIN=x86_64-apple-clang
   fi
+
+  export LDFLAGS="-L$BREW_PREFIX/opt/libomp/lib"
+  export CPPFLAGS="-I$BREW_PREFIX/opt/libomp/include"
 else
   if [ "$ARCH" = "aarch64" ]; then
       TOOLCHAIN=aarch64-linux-clang
