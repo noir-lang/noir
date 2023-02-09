@@ -719,8 +719,8 @@ impl Binary {
     {
         let l_eval = eval_fn(ctx, self.lhs)?;
         let r_eval = eval_fn(ctx, self.rhs)?;
-        let l_type = ctx.get_object_type(self.lhs);
-        let r_type = ctx.get_object_type(self.rhs);
+        let l_type = ctx.object_type(self.lhs);
+        let r_type = ctx.object_type(self.rhs);
 
         let lhs = l_eval.into_const_value();
         let rhs = r_eval.into_const_value();
