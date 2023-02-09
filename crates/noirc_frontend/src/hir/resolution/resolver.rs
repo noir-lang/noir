@@ -355,8 +355,11 @@ impl<'a> Resolver<'a> {
             }
 
             if name == "Self" {
-                if !args.is_empty() {
-                    self.push_err(ResolverError::GenericsOnSelfType { span: path.span() });
+                if let Some(self_type) = self.self_type.clone() {
+                    if !args.is_empty() {
+                        self.push_err(ResolverError::GenericsOnSelfType { span: path.span() });
+                    }
+                    return self_type;
                 }
             }
         }
@@ -458,6 +461,20 @@ impl<'a> Resolver<'a> {
 
     pub fn take_errors(self) -> Vec<ResolverError> {
         self.errors
+    }
+
+    /// Return the current generics.
+    /// Needed to keep referring to the same type variables across many
+    /// methods in a single impl.
+    pub fn get_generics(&self) -> &[(Rc<String>, TypeVariable, Span)] {
+        &self.generics
+    }
+
+    /// Set the current generics that are in scope.
+    /// Unlike add_generics, this function will not create any new type variables,
+    /// opting to reuse the existing ones it is directly given.
+    pub fn set_generics(&mut self, generics: Vec<(Rc<String>, TypeVariable, Span)>) {
+        self.generics = generics;
     }
 
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.

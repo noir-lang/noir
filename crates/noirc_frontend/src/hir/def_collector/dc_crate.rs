@@ -13,13 +13,15 @@ use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Type,
-    UnresolvedGenerics, UnresolvedType,
+    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Shared, Type,
+    TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_errors::{IntoFileDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -201,9 +203,11 @@ fn collect_impls(
 
         let file = def_maps[&crate_id].module_file_id(*module_id);
 
-        for (_generics, span, unresolved) in methods {
+        for (generics, span, unresolved) in methods {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(generics);
             let typ = resolver.resolve_type(unresolved_type.clone());
+
             extend_errors(errors, unresolved.file_id, resolver.take_errors());
 
             if let Some(type_module) = get_local_id_from_type(&typ) {
@@ -348,42 +352,41 @@ fn resolve_impls(
 
         let file = def_maps[&crate_id].module_file_id(module_id);
 
-        let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-        let self_type = resolver.resolve_type(unresolved_type);
-
-        let mut file_func_ids = vec![];
         for (generics, _, functions) in methods {
-            resolve_function_set(
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+            resolver.add_generics(&generics);
+            let generics = resolver.get_generics().to_vec();
+            let self_type = resolver.resolve_type(unresolved_type.clone());
+
+            let mut file_func_ids = resolve_function_set(
                 interner,
                 crate_id,
                 def_maps,
                 functions,
                 Some(self_type.clone()),
                 generics,
-                &mut file_func_ids,
                 errors,
             );
-        }
 
-        if self_type != Type::Error {
-            for (file_id, method_id) in &file_func_ids {
-                let method_name = interner.function_name(method_id).to_owned();
+            if self_type != Type::Error {
+                for (file_id, method_id) in &file_func_ids {
+                    let method_name = interner.function_name(method_id).to_owned();
 
-                if let Some(first_fn) =
-                    interner.add_method(&self_type, method_name.clone(), *method_id)
-                {
-                    let error = ResolverError::DuplicateDefinition {
-                        name: method_name,
-                        first_span: interner.function_ident(&first_fn).span(),
-                        second_span: interner.function_ident(method_id).span(),
-                    };
+                    if let Some(first_fn) =
+                        interner.add_method(&self_type, method_name.clone(), *method_id)
+                    {
+                        let error = ResolverError::DuplicateDefinition {
+                            name: method_name,
+                            first_span: interner.function_ident(&first_fn).span(),
+                            second_span: interner.function_ident(method_id).span(),
+                        };
 
-                    errors.push(error.into_file_diagnostic(*file_id));
+                        errors.push(error.into_file_diagnostic(*file_id));
+                    }
                 }
             }
+            file_method_ids.append(&mut file_func_ids);
         }
-
-        file_method_ids.append(&mut file_func_ids);
     }
 
     file_method_ids
@@ -397,23 +400,21 @@ fn resolve_free_functions(
     self_type: Option<Type>,
     errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, FuncId)> {
-    let mut file_func_ids = Vec::new();
-
     // Lower each function in the crate. This is now possible since imports have been resolved
-    for unresolved_functions in collected_functions {
-        resolve_function_set(
-            interner,
-            crate_id,
-            def_maps,
-            unresolved_functions,
-            self_type.clone(),
-            vec![], // no impl generics
-            &mut file_func_ids,
-            errors,
-        );
-    }
-
-    file_func_ids
+    collected_functions
+        .into_iter()
+        .flat_map(|unresolved_functions| {
+            resolve_function_set(
+                interner,
+                crate_id,
+                def_maps,
+                unresolved_functions,
+                self_type.clone(),
+                vec![], // no impl generics
+                errors,
+            )
+        })
+        .collect()
 }
 
 fn resolve_function_set(
@@ -422,27 +423,25 @@ fn resolve_function_set(
     def_maps: &HashMap<CrateId, CrateDefMap>,
     unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
-    impl_generics: UnresolvedGenerics,
-    file_func_ids: &mut Vec<(FileId, FuncId)>,
+    impl_generics: Vec<(Rc<String>, Shared<TypeBinding>, Span)>,
     errors: &mut Vec<FileDiagnostic>,
-) {
+) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;
 
-    for (mod_id, func_id, func) in unresolved_functions.functions {
-        file_func_ids.push((file_id, func_id));
-
+    vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
-        resolver.add_generics(&impl_generics);
+        resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
         let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);
-    }
+        (file_id, func_id)
+    })
 }
 
 fn type_check_functions(

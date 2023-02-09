@@ -655,7 +655,7 @@ fn check_constructor(
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
     // preserve the evaluation order of the source code.
-    let mut args = constructor.fields.clone();
+    let mut args = constructor.fields;
     args.sort_by_key(|arg| arg.0.clone());
 
     let fields = typ.borrow().get_fields(&generics);

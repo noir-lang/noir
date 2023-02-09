@@ -152,7 +152,7 @@ impl StructType {
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
     /// the same order as self.generics)
-    pub fn instantiate<'a>(&'a self, interner: &mut NodeInterner) -> Vec<Type> {
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
         vecmap(&self.generics, |_| interner.next_type_variable())
     }
 }
