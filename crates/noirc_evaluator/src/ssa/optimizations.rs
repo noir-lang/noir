@@ -21,6 +21,12 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
     if ins.is_deleted() {
         return Ok(());
     }
+    if let Operation::Binary(bin) = &ins.operation {
+        if bin.predicate == Some(ctx.zero_with_type(ObjectType::Boolean)) {
+            ins.mark = Mark::Deleted;
+            return Ok(());
+        }
+    }
     //1. constant folding
     let new_id = ins.evaluate(ctx)?.to_index(ctx);
 
@@ -227,12 +233,22 @@ fn cse_block_with_anchor(
 
                         new_list.push(*ins_id);
                     } else if let Some(similar) = anchor.find_similar_instruction(&operator) {
-                        debug_assert!(similar != ins.id);
+                        assert_ne!(similar, ins.id);
                         *modified = true;
                         new_mark = Mark::ReplaceWith(similar);
                     } else if binary.operator == BinaryOp::Assign {
                         *modified = true;
                         new_mark = Mark::ReplaceWith(binary.rhs);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
+                }
+                Operation::Result { .. } => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        assert_ne!(similar, ins.id);
+                        *modified = true;
+                        new_mark = Mark::ReplaceWith(similar);
                     } else {
                         new_list.push(*ins_id);
                         anchor.push_front(&ins.operation, *ins_id);
