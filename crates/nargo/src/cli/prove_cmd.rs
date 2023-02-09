@@ -71,13 +71,11 @@ pub fn prove_with_path<P: AsRef<Path>>(
     // Since the public outputs are added onto the public inputs list, there can be duplicates.
     // We keep the duplicates for when one is encoding the return values into the Verifier.toml,
     // however we must remove these duplicates when creating a proof.
-    let proof = {
-        let mut prover_circuit = compiled_program.circuit.clone();
-        prover_circuit.public_inputs = dedup_public_input_indices(prover_circuit.public_inputs);
+    let mut prover_circuit = compiled_program.circuit.clone();
+    prover_circuit.public_inputs = dedup_public_input_indices(prover_circuit.public_inputs);
 
-        let backend = crate::backends::ConcreteBackend;
-        backend.prove_with_meta(prover_circuit, solved_witness)
-    };
+    let backend = crate::backends::ConcreteBackend;
+    let proof = backend.prove_with_meta(prover_circuit, solved_witness);
 
     println!("Proof successfully created");
     if check_proof {
