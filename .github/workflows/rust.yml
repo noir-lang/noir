@@ -17,4 +17,4 @@ jobs:
 
   spellcheck:
     name: spellcheck
-    uses: noir-lang/.github/.github/workflows/spellcheck.yml@phated/reusable-spellcheck
+    uses: noir-lang/.github/.github/workflows/spellcheck.yml@main
