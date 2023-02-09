@@ -1,19 +1,20 @@
 use crate::ssa::{
     block::BlockType,
+    conditional::AssumptionId,
     context::SsaContext,
-    function::FuncIndex,
+    function::{FuncIndex, SSAFunction},
     mem::ArrayId,
-    node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable},
+    node::{Binary, BinaryOp, Node, NodeId, ObjectType, Opcode, Operation, Variable},
     value::Value,
     {block, builtin, node, ssa_form},
 };
 use crate::{errors, errors::RuntimeError};
 use acvm::FieldElement;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::{
     monomorphization::ast::{
-        ArrayLiteral, Definition, Expression, For, Ident, If, LValue, Let, Literal, LocalId,
-        Program, Type,
+        ArrayLiteral, Call, Definition, Expression, For, FuncId, Ident, If, LValue, Let, Literal,
+        LocalId, Program, Type,
     },
     BinaryOpKind, UnaryOp,
 };
@@ -764,5 +765,239 @@ impl IRGenerator {
         let mut counter = 0;
         let mut phi = |a, b| self.context.new_phi(a, b, &mut counter);
         Ok(v1.zip(&v2, &mut phi))
+    }
+}
+
+impl IRGenerator {
+    /// Creates an ssa function and returns its type upon success
+    pub fn create_function(
+        &mut self,
+        func_id: FuncId,
+        index: FuncIndex,
+    ) -> Result<ObjectType, RuntimeError> {
+        let current_block = self.context.current_block;
+        let current_function = self.function_context;
+        let func_block = block::BasicBlock::create_cfg(&mut self.context);
+
+        let function = &mut self.program[func_id];
+        let mut func =
+            SSAFunction::new(func_id, &function.name, func_block, index, &mut self.context);
+
+        //arguments:
+        for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
+            let node_ids = self.create_function_parameter(param_id, &typ, &name);
+            func.arguments.extend(node_ids.into_iter().map(|id| (id, mutable)));
+        }
+
+        // ensure return types are defined in case of recursion call cycle
+        let function = &mut self.program[func_id];
+        let return_types = function.return_type.flatten();
+        for typ in return_types {
+            func.result_types.push(match typ {
+                Type::Unit => ObjectType::NotAnObject,
+                Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                _ => self.context.convert_type(&typ),
+            });
+        }
+
+        self.function_context = Some(index);
+        self.context.functions.insert(func_id, func.clone());
+
+        let function_body = self.program.take_function_body(func_id);
+        let last_value = self.codegen_expression(&function_body)?;
+        let return_values = last_value.to_node_ids();
+
+        func.result_types.clear();
+        let return_values = try_vecmap(return_values, |mut return_id| {
+            let node_opt = self.context.try_get_node(return_id);
+            let typ = node_opt.map_or(ObjectType::NotAnObject, |node| node.get_type());
+
+            if let Some(ins) = self.context.try_get_instruction(return_id) {
+                if ins.operation.opcode() == Opcode::Results {
+                    // n.b. this required for result instructions, but won't hurt if done for all i
+                    let new_var = node::Variable {
+                        id: NodeId::dummy(),
+                        obj_type: typ,
+                        name: format!("return_{}", return_id.0.into_raw_parts().0),
+                        root: None,
+                        def: None,
+                        witness: None,
+                        parent_block: self.context.current_block,
+                    };
+                    let b_id = self.context.add_variable(new_var, None);
+                    let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
+                    return_id = ssa_form::get_current_value(&mut self.context, b_id1);
+                }
+            }
+            func.result_types.push(typ);
+            Ok::<NodeId, RuntimeError>(return_id)
+        })?;
+
+        self.context.new_instruction(
+            node::Operation::Return(return_values),
+            node::ObjectType::NotAnObject,
+        )?;
+        let decision = func.compile(self)?; //unroll the function
+        func.decision = decision;
+        self.context.functions.insert(func_id, func);
+        self.context.current_block = current_block;
+        self.function_context = current_function;
+
+        Ok(ObjectType::Function)
+    }
+
+    fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {
+        //check if the variable is already created:
+        let def = Definition::Local(id);
+        let val = match self.find_variable(&def) {
+            Some(var) => self.get_current_value(&var.clone()),
+            None => self.create_new_value(typ, name, Some(def)),
+        };
+        val.to_node_ids()
+    }
+
+    //generates an instruction for calling the function
+    pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
+        let func = self.codegen_expression(&call.func)?.unwrap_id();
+        let arguments = self.codegen_expression_list(&call.arguments);
+
+        if let Some(opcode) = self.context.get_builtin_opcode(func) {
+            return self.call_low_level(opcode, arguments);
+        }
+
+        let predicate = AssumptionId::dummy();
+        let location = call.location;
+
+        let mut call_op = Operation::Call {
+            func,
+            arguments: arguments.clone(),
+            returned_arrays: vec![],
+            predicate,
+            location,
+        };
+
+        let call_instruction =
+            self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
+
+        if let Some(id) = self.context.try_get_func_id(func) {
+            let callee = self.context.get_ssa_func(id).unwrap().idx;
+            if let Some(caller) = self.function_context {
+                update_call_graph(&mut self.context.call_graph, caller, callee);
+            }
+        }
+
+        // Temporary: this block is needed to fix a bug in 7_function
+        // where `foo` is incorrectly inferred to take an array of size 1 and
+        // return an array of size 0.
+        // we should check issue #628 again when this block is removed
+        // we should also see if the lca check in StackFrame.is_new_array() can be removed (cf. issue #661)
+        if let Some(func_id) = self.context.try_get_func_id(func) {
+            let rtt = self.context.functions[&func_id].result_types.clone();
+            let mut result = Vec::new();
+            for i in rtt.iter().enumerate() {
+                result.push(self.context.new_instruction(
+                    node::Operation::Result { call_instruction, index: i.0 as u32 },
+                    *i.1,
+                )?);
+            }
+            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
+            let func_arguments = ssa_func.arguments.clone();
+            for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
+                let mut is_array_result = false;
+                if let Some(node::Instruction {
+                    operation: node::Operation::Result { .. }, ..
+                }) = self.context.try_get_instruction(*caller_arg)
+                {
+                    is_array_result =
+                        super::mem::Memory::deref(&self.context, func_arg.0).is_some();
+                }
+                if is_array_result {
+                    self.context.handle_assign(func_arg.0, None, *caller_arg)?;
+                }
+            }
+
+            // If we have the function directly the ArrayIds in the Result types are correct
+            // and we don't need to set returned_arrays yet as they can be set later.
+            return Ok(result);
+        }
+
+        let returned_arrays = match &mut call_op {
+            Operation::Call { returned_arrays, .. } => returned_arrays,
+            _ => unreachable!(),
+        };
+
+        let result_ids = self.create_call_results(call, call_instruction, returned_arrays);
+
+        // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
+        // otherwise.
+        self.context.get_mut_instruction(call_instruction).operation = call_op;
+        result_ids
+    }
+
+    fn create_call_results(
+        &mut self,
+        call: &Call,
+        call_instruction: NodeId,
+        returned_arrays: &mut Vec<(ArrayId, u32)>,
+    ) -> Result<Vec<NodeId>, RuntimeError> {
+        let return_types = call.return_type.flatten().into_iter().enumerate();
+
+        try_vecmap(return_types, |(i, typ)| {
+            let result = Operation::Result { call_instruction, index: i as u32 };
+            let typ = match typ {
+                Type::Array(len, elem_type) => {
+                    let elem_type = self.context.convert_type(&elem_type);
+                    let array_id = self.context.new_array("", elem_type, len as u32, None).1;
+                    returned_arrays.push((array_id, i as u32));
+                    ObjectType::Pointer(array_id)
+                }
+                other => self.context.convert_type(&other),
+            };
+
+            self.context.new_instruction(result, typ)
+        })
+    }
+
+    //Low-level functions with no more than 2 arguments
+    pub fn call_low_level(
+        &mut self,
+        op: builtin::Opcode,
+        args: Vec<NodeId>,
+    ) -> Result<Vec<NodeId>, RuntimeError> {
+        let (len, elem_type) = op.get_result_type();
+
+        let result_type = if len > 1 {
+            //We create an array that will contain the result and set the res_type to point to that array
+            let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;
+            node::ObjectType::Pointer(result_index)
+        } else {
+            elem_type
+        };
+
+        //when the function returns an array, we use ins.res_type(array)
+        //else we map ins.id to the returned witness
+        let id = self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)?;
+        Ok(vec![id])
+    }
+}
+
+fn update_call_graph(call_graph: &mut Vec<Vec<u8>>, caller: FuncIndex, callee: FuncIndex) {
+    let a = caller.0;
+    let b = callee.0;
+    let max = a.max(b) + 1;
+    resize_graph(call_graph, max);
+
+    call_graph[a][b] = 1;
+}
+
+pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
+    while call_graph.len() < size {
+        call_graph.push(vec![0; size]);
+    }
+
+    for i in call_graph.iter_mut() {
+        while i.len() < size {
+            i.push(0);
+        }
     }
 }
