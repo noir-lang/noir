@@ -513,19 +513,8 @@ pub fn infix_operand_type_rules(
 
     use Type::*;
     match (lhs_type, rhs_type)  {
-        (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
-            if sign_x != sign_y {
-                return Err(make_error(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} ")))
-            }
-            if bit_width_x != bit_width_y {
-                return Err(make_error(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} ")))
-            }
-            let comptime = comptime_x.and(comptime_y, op.location.span);
-            Ok(Integer(comptime, *sign_x, *bit_width_x))
-        }
-        (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
-            Err(make_error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string()))
-        }
+        // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
+        // bindings.
         (PolymorphicInteger(comptime, int), other)
         | (other, PolymorphicInteger(comptime, int)) => {
             if let TypeBinding::Bound(binding) = &*int.borrow() {
@@ -555,6 +544,32 @@ pub fn infix_operand_type_rules(
                 Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
             }
         }
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return infix_operand_type_rules(binding, op, other, span, interner, errors);
+            }
+
+            let comptime = CompTime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
+            }
+        }
+        (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
+            if sign_x != sign_y {
+                return Err(make_error(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} ")))
+            }
+            if bit_width_x != bit_width_y {
+                return Err(make_error(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} ")))
+            }
+            let comptime = comptime_x.and(comptime_y, op.location.span);
+            Ok(Integer(comptime, *sign_x, *bit_width_x))
+        }
+        (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
+            Err(make_error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string()))
+        }
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(make_error(format!("Integer cannot be used with type {typ}")))
         }
@@ -577,20 +592,6 @@ pub fn infix_operand_type_rules(
         }
 
         (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
-
-        (TypeVariable(var), other)
-        | (other, TypeVariable(var)) => {
-            if let TypeBinding::Bound(binding) = &*var.borrow() {
-                return infix_operand_type_rules(binding, op, other, span, interner, errors);
-            }
-
-            let comptime = CompTime::No(None);
-            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(other.clone())
-            } else {
-                Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
-            }
-        }
 
         (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
     }
@@ -722,6 +723,32 @@ pub fn comparator_operand_type_rules(
     use crate::BinaryOpKind::{Equal, NotEqual};
     use Type::*;
     match (lhs_type, rhs_type)  {
+        // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
+        // bindings.
+        (PolymorphicInteger(comptime, int), other)
+        | (other, PolymorphicInteger(comptime, int)) => {
+            if let TypeBinding::Bound(binding) = &*int.borrow() {
+                return comparator_operand_type_rules(other, binding, op, errors);
+            }
+            if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(Bool(comptime.clone()))
+            } else {
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+            }
+        }
+        (TypeVariable(var), other)
+        | (other, TypeVariable(var)) => {
+            if let TypeBinding::Bound(binding) = &*var.borrow() {
+                return comparator_operand_type_rules(binding, other, op, errors);
+            }
+
+            let comptime = CompTime::No(None);
+            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                Ok(other.clone())
+            } else {
+                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+            }
+        }
         (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
             if sign_x != sign_y {
                 return Err(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} "))
@@ -734,17 +761,6 @@ pub fn comparator_operand_type_rules(
         }
         (Integer(..), FieldElement(..)) | ( FieldElement(..), Integer(..) ) => {
             Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first".to_string())
-        }
-        (PolymorphicInteger(comptime, int), other)
-        | (other, PolymorphicInteger(comptime, int)) => {
-            if let TypeBinding::Bound(binding) = &*int.borrow() {
-                return comparator_operand_type_rules(other, binding, op, errors);
-            }
-            if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(Bool(comptime.clone()))
-            } else {
-                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
-            }
         }
         (Integer(..), typ) | (typ,Integer(..)) => {
             Err(format!("Integer cannot be used with type {typ}"))
@@ -794,19 +810,6 @@ pub fn comparator_operand_type_rules(
                 return Ok(Bool(CompTime::No(Some(op.location.span))));
             }
             Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
-        }
-        (TypeVariable(var), other)
-        | (other, TypeVariable(var)) => {
-            if let TypeBinding::Bound(binding) = &*var.borrow() {
-                return comparator_operand_type_rules(binding, other, op, errors);
-            }
-
-            let comptime = CompTime::No(None);
-            if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(other.clone())
-            } else {
-                Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
-            }
         }
         (String(x_size), String(y_size)) => {
             x_size.unify(y_size, op.location.span, errors, || {
