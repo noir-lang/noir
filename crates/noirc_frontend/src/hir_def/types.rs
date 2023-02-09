@@ -151,30 +151,9 @@ impl StructType {
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
-    /// the same order as self.generics) and a map of each instantiated field
-    pub fn instantiate<'a>(
-        &'a self,
-        interner: &mut NodeInterner,
-    ) -> (Vec<Type>, BTreeMap<&'a str, Type>) {
-        let (generics, substitutions) = self
-            .generics
-            .iter()
-            .map(|(old_id, old_var)| {
-                let new = interner.next_type_variable();
-                (new.clone(), (*old_id, (old_var.clone(), new)))
-            })
-            .unzip();
-
-        let fields = self
-            .fields
-            .iter()
-            .map(|(name, typ)| {
-                let typ = typ.substitute(&substitutions);
-                (name.0.contents.as_str(), typ)
-            })
-            .collect();
-
-        (generics, fields)
+    /// the same order as self.generics)
+    pub fn instantiate<'a>(&'a self, interner: &mut NodeInterner) -> Vec<Type> {
+        vecmap(&self.generics, |_| interner.next_type_variable())
     }
 }
 

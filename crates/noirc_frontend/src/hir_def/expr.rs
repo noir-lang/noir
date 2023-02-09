@@ -150,6 +150,7 @@ impl HirMethodCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
     pub r#type: Shared<StructType>,
+    pub struct_generics: Vec<Type>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
     //       names (and thus remove the need to normalize them during type checking)

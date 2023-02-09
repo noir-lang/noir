@@ -216,7 +216,7 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::If(if_expr) => check_if_expr(&if_expr, expr_id, interner, errors),
         HirExpression::Constructor(constructor) => {
-            check_constructor(&constructor, expr_id, interner, errors)
+            check_constructor(constructor, expr_id, interner, errors)
         }
         HirExpression::MemberAccess(access) => {
             check_member_access(access, interner, *expr_id, errors)
@@ -407,8 +407,10 @@ fn type_check_method_call(
         }
 
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
+
         interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         interner.push_expr_type(function_ident_id, function_type.clone());
+
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -639,12 +641,13 @@ fn check_if_expr(
 }
 
 fn check_constructor(
-    constructor: &expr::HirConstructorExpression,
+    constructor: expr::HirConstructorExpression,
     expr_id: &ExprId,
     interner: &mut NodeInterner,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    let typ = &constructor.r#type;
+    let typ = constructor.r#type;
+    let generics = constructor.struct_generics;
 
     // Sanity check, this should be caught during name resolution anyway
     assert_eq!(constructor.fields.len(), typ.borrow().num_fields());
@@ -655,12 +658,11 @@ fn check_constructor(
     let mut args = constructor.fields.clone();
     args.sort_by_key(|arg| arg.0.clone());
 
-    let typ_ref = typ.borrow();
-    let (generics, fields) = typ_ref.instantiate(interner);
+    let fields = typ.borrow().get_fields(&generics);
 
     for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &arg_ident.0.contents);
+        assert_eq!(param_name, arg_ident.0.contents);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
@@ -672,7 +674,7 @@ fn check_constructor(
         });
     }
 
-    Type::Struct(typ.clone(), generics)
+    Type::Struct(typ, generics)
 }
 
 pub fn check_member_access(
@@ -683,9 +685,8 @@ pub fn check_member_access(
 ) -> Type {
     let lhs_type = type_check_expression(interner, &access.lhs, errors);
 
-    if let Type::Struct(s, args) = dbg!(&lhs_type) {
+    if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
-        dbg!(interner.expr_span(&access.lhs));
         if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
             interner.set_field_index(expr_id, index);
             return field;

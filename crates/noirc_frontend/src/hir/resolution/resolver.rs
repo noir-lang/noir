@@ -345,40 +345,28 @@ impl<'a> Resolver<'a> {
     ) -> Type {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        if args.is_empty() && path.segments.len() == 1 {
+        if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, var, _)) = self.find_generic(name) {
-                return Type::NamedGeneric(var.clone(), name.clone());
+
+            if args.is_empty() {
+                if let Some((name, var, _)) = self.find_generic(name) {
+                    return Type::NamedGeneric(var.clone(), name.clone());
+                }
+            }
+
+            if name == "Self" {
+                if !args.is_empty() {
+                    self.push_err(ResolverError::GenericsOnSelfType { span: path.span() });
+                }
             }
         }
 
-        let span = path.span();
-        match self.lookup_type(path) {
-            Type::Struct(struct_type, generics) => {
-                let args = if !args.is_empty() {
-                    if !generics.is_empty() {
-                        // This case is possible if we're in an impl block such as
-                        // `impl<T> Foo<T>` and a user tries to refer to `Self<U>`
-                        // since `Self` is already applied to `T`.
-                        let typ = Type::Struct(struct_type.clone(), generics);
-                        self.push_err(ResolverError::TypeAlreadyHasGenericArguments { typ, span });
-                        vec![]
-                    } else {
-                        vecmap(args, |arg| self.resolve_type_inner(arg, new_variables))
-                    }
-                } else {
-                    generics
-                };
-
+        match self.lookup_struct_or_error(path) {
+            Some(struct_type) => {
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 Type::Struct(struct_type, args)
             }
-            Type::Error => Type::Error,
-            other => {
-                if !args.is_empty() {
-                    self.push_err(ResolverError::NonStructWithGenerics { span });
-                }
-                other
-            }
+            None => Type::Error,
         }
     }
 
@@ -758,14 +746,24 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
 
-                if let Some((r#type, _)) = self.lookup_struct(constructor.type_name) {
-                    let typ = r#type.clone();
-                    let fields = constructor.fields;
-                    let resolve_expr = Resolver::resolve_expression;
-                    let fields = self.resolve_constructor_fields(typ, fields, span, resolve_expr);
-                    HirExpression::Constructor(HirConstructorExpression { fields, r#type })
-                } else {
-                    HirExpression::Error
+                match self.lookup_type_or_error(constructor.type_name) {
+                    Some(Type::Struct(r#type, struct_generics)) => {
+                        let typ = r#type.clone();
+                        let fields = constructor.fields;
+                        let resolve_expr = Resolver::resolve_expression;
+                        let fields =
+                            self.resolve_constructor_fields(typ, fields, span, resolve_expr);
+                        HirExpression::Constructor(HirConstructorExpression {
+                            fields,
+                            r#type,
+                            struct_generics,
+                        })
+                    }
+                    Some(typ) => {
+                        self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                        HirExpression::Error
+                    }
+                    None => HirExpression::Error,
                 }
             }
             ExpressionKind::MemberAccess(access) => {
@@ -841,28 +839,31 @@ impl<'a> Resolver<'a> {
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
-                let typ = self.lookup_type(name);
+                let error_ident = |this: &mut Self| {
+                    // Must create a name here to return a HirPattern::Identifer. $error is chosen
+                    // since it is an invalid identifier that will not crash with any user variables.
+                    let ident = this.add_variable_decl("$error".into(), false, true, definition);
+                    HirPattern::Identifier(ident)
+                };
+
+                let (struct_type, generics) = match self.lookup_type_or_error(name) {
+                    Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
+                    None => return error_ident(self),
+                    Some(typ) => {
+                        self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                        return error_ident(self);
+                    }
+                };
 
                 let resolve_field = |this: &mut Self, pattern| {
                     this.resolve_pattern_mutable(pattern, mutable, definition)
                 };
 
-                match typ {
-                    Type::Struct(struct_type, _) => {
-                        let typ = struct_type.clone();
-                        let fields =
-                            self.resolve_constructor_fields(typ, fields, span, resolve_field);
-                        HirPattern::Struct(struct_type, fields, span)
-                    }
-                    typ => {
-                        self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
-                        // Must create a name here to return a HirPattern::Identifer. $error is chosen
-                        // since it is an invalid identifier that will not crash with any user variables.
-                        let ident =
-                            self.add_variable_decl("$error".into(), false, true, definition);
-                        HirPattern::Identifier(ident)
-                    }
-                }
+                let typ = struct_type.clone();
+                let fields = self.resolve_constructor_fields(typ, fields, span, resolve_field);
+
+                let typ = Type::Struct(struct_type, generics);
+                HirPattern::Struct(typ, fields, span)
             }
         }
     }
@@ -967,32 +968,37 @@ impl<'a> Resolver<'a> {
         Err(ResolverError::Expected { span, expected, got })
     }
 
-    fn lookup_type(&mut self, path: Path) -> Type {
+    /// Lookup a given struct type by name.
+    fn lookup_struct_or_error(&mut self, path: Path) -> Option<Shared<StructType>> {
+        match self.lookup(path) {
+            Ok(struct_id) => Some(self.get_struct(struct_id)),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Looks up a given type by name.
+    /// This will also instantiate any struct types found.
+    fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
         let ident = path.as_ident();
         if ident.map_or(false, |i| i == "Self") {
             if let Some(typ) = &self.self_type {
-                return typ.clone();
+                return Some(typ.clone());
             }
         }
 
         match self.lookup(path) {
             Ok(struct_id) => {
                 let struct_type = self.get_struct(struct_id);
-                let next_type_var = |_| self.interner.next_type_variable();
-                let generics = vecmap(&struct_type.borrow().generics, next_type_var);
-                Type::Struct(struct_type, generics)
+                let generics = struct_type.borrow().instantiate(self.interner);
+                Some(Type::Struct(struct_type, generics))
             }
             Err(error) => {
                 self.push_err(error);
-                Type::Error
+                None
             }
-        }
-    }
-
-    pub fn lookup_struct(&mut self, path: Path) -> Option<(Shared<StructType>, Vec<Type>)> {
-        match self.lookup_type(path) {
-            Type::Struct(struct_type, generics) => Some((struct_type, generics)),
-            _ => None,
         }
     }
 

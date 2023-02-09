@@ -48,8 +48,8 @@ pub enum ResolverError {
     NonStructUsedInConstructor { typ: Type, span: Span },
     #[error("Only struct types can have generics")]
     NonStructWithGenerics { span: Span },
-    #[error("This type already has generic arguments applied")]
-    TypeAlreadyHasGenericArguments { typ: Type, span: Span },
+    #[error("Cannot apply generics on Self type")]
+    GenericsOnSelfType { span: Span },
 }
 
 impl ResolverError {
@@ -230,9 +230,9 @@ impl From<ResolverError> for Diagnostic {
                 "Try removing the generic arguments".into(),
                 span,
             ),
-            ResolverError::TypeAlreadyHasGenericArguments { typ, span } => Diagnostic::simple_error(
-                format!("The type {} already has generic arguments applied", typ),
-                "Try removing the generic arguments".into(),
+            ResolverError::GenericsOnSelfType { span } => Diagnostic::simple_error(
+                "Cannot apply generics to Self type".into(),
+                "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 span,
             ),
         }
