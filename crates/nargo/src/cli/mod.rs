@@ -29,7 +29,6 @@ mod contract_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
-mod preprocess_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;

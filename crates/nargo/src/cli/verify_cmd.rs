@@ -1,6 +1,6 @@
 use super::{
     compile_cmd::compile_circuit, dedup_public_input_indices_values, load_hex_data,
-    preprocess_cmd::preprocess, read_inputs_from_file, InputMap,
+    read_inputs_from_file, InputMap,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
