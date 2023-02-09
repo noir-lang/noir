@@ -114,7 +114,7 @@ impl Evaluator {
         self.parse_abi_alt(&mut ir_gen);
 
         // Now call the main function
-        ir_gen.codegen_main()?;
+        ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
         ir_gen.context.ir_to_acir(self, enable_logging)?;

@@ -43,9 +43,9 @@ impl IRGenerator {
         }
     }
 
-    pub fn codegen_main(&mut self) -> Result<(), RuntimeError> {
+    pub fn ssa_gen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
-        let value = self.codegen_expression(&main_body)?;
+        let value = self.ssa_gen_expression(&main_body)?;
         let node_ids = value.to_node_ids();
 
         if self.program.main().return_type != Type::Unit {
@@ -148,7 +148,7 @@ impl IRGenerator {
         self.insert_new_struct(ident_def, values)
     }
 
-    fn codegen_identifier(&mut self, ident: &Ident) -> Result<Value, RuntimeError> {
+    fn ssa_gen_identifier(&mut self, ident: &Ident) -> Result<Value, RuntimeError> {
         // Check if we have already code-gen'd the definition of this variable
         if let Some(value) = self.variable_values.get(&ident.definition) {
             Ok(self.get_current_value(&value.clone()))
@@ -166,7 +166,7 @@ impl IRGenerator {
                         self.create_function(id, index)?;
                     }
 
-                    let expect_msg = "Expected called function to already be codegen'd";
+                    let expect_msg = "Expected called function to already be ssa_gen'd";
                     let function_node_id = self.context.get_function_node_id(id).expect(expect_msg);
                     Ok(Value::Single(function_node_id))
                 }
@@ -181,7 +181,7 @@ impl IRGenerator {
         }
     }
 
-    fn codegen_prefix_expression(
+    fn ssa_gen_prefix_expression(
         &mut self,
         rhs: NodeId,
         op: UnaryOp,
@@ -198,7 +198,7 @@ impl IRGenerator {
         }
     }
 
-    fn codegen_infix_expression(
+    fn ssa_gen_infix_expression(
         &mut self,
         lhs: NodeId,
         rhs: NodeId,
@@ -211,14 +211,14 @@ impl IRGenerator {
         self.context.new_instruction(opcode, op_type)
     }
 
-    fn codegen_indexed_value(
+    fn ssa_gen_indexed_value(
         &mut self,
         array: &LValue,
         index: &Expression,
     ) -> Result<(NodeId, NodeId), RuntimeError> {
         let value = self.lvalue_to_value(array);
         let lhs = value.unwrap_id();
-        let index = self.codegen_expression(index)?.unwrap_id();
+        let index = self.ssa_gen_expression(index)?.unwrap_id();
         Ok((lhs, index))
     }
 
@@ -328,12 +328,12 @@ impl IRGenerator {
     }
 
     // Add a constraint to constrain two expression together
-    fn codegen_constrain(
+    fn ssa_gen_constrain(
         &mut self,
         expr: &Expression,
         location: noirc_errors::Location,
     ) -> Result<Value, RuntimeError> {
-        let cond = self.codegen_expression(expr)?.unwrap_id();
+        let cond = self.ssa_gen_expression(expr)?.unwrap_id();
         let operation = Operation::Constrain(cond, Some(location));
         self.context.new_instruction(operation, ObjectType::NotAnObject)?;
         Ok(Value::dummy())
@@ -412,13 +412,13 @@ impl IRGenerator {
         self.context.update_variable_id(var_id, new_var, new_value);
     }
 
-    fn codegen_assign(
+    fn ssa_gen_assign(
         &mut self,
         lvalue: &LValue,
         expression: &Expression,
     ) -> Result<Value, RuntimeError> {
         let ident_def = Self::lvalue_ident_def(lvalue);
-        let rhs = self.codegen_expression(expression)?;
+        let rhs = self.ssa_gen_expression(expression)?;
 
         match lvalue {
             LValue::Ident(_) => {
@@ -430,7 +430,7 @@ impl IRGenerator {
                 self.variable_values.insert(ident_def.clone(), result);
             }
             LValue::Index { array, index, .. } => {
-                let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index)?;
+                let (lhs_id, array_idx) = self.ssa_gen_indexed_value(array.as_ref(), index)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
@@ -465,13 +465,13 @@ impl IRGenerator {
     }
 
     // Let statements are used to declare higher level objects
-    fn codegen_let(&mut self, let_expr: &Let) -> Result<Value, RuntimeError> {
-        let rhs = self.codegen_expression(&let_expr.expression)?;
+    fn ssa_gen_let(&mut self, let_expr: &Let) -> Result<Value, RuntimeError> {
+        let rhs = self.ssa_gen_expression(&let_expr.expression)?;
         self.bind_id(let_expr.id, rhs, &let_expr.name)?;
         Ok(Value::dummy())
     }
 
-    pub(crate) fn codegen_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
+    pub(crate) fn ssa_gen_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
         match expr {
             Expression::Literal(Literal::Integer(x, typ)) => {
                 let typ = self.context.convert_type(typ);
@@ -483,7 +483,7 @@ impl IRGenerator {
                 let (new_var, array_id) =
                     self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
 
-                let elements = self.codegen_expression_list(&arr_lit.contents);
+                let elements = self.ssa_gen_expression_list(&arr_lit.contents);
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
                         FieldElement::from((pos as u32) as u128),
@@ -509,16 +509,16 @@ impl IRGenerator {
                 };
 
                 let new_value = self
-                    .codegen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
+                    .ssa_gen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
                 Ok(new_value)
             }
-            Expression::Ident(ident) => self.codegen_identifier(ident),
+            Expression::Ident(ident) => self.ssa_gen_identifier(ident),
             Expression::Binary(binary) => {
                 // Note: we disallows structs/tuples in infix expressions.
                 // The type checker currently disallows this as well but not if they come from generic type
                 // We could allow some in the future, e.g. struct == struct
-                let lhs = self.codegen_expression(&binary.lhs)?.to_node_ids();
-                let rhs = self.codegen_expression(&binary.rhs)?.to_node_ids();
+                let lhs = self.ssa_gen_expression(&binary.lhs)?.to_node_ids();
+                let rhs = self.ssa_gen_expression(&binary.rhs)?.to_node_ids();
                 if lhs.len() != 1 || rhs.len() != 1 {
                     return Err(errors::RuntimeErrorKind::UnsupportedOp {
                         op: binary.operator.to_string(),
@@ -527,17 +527,17 @@ impl IRGenerator {
                     }
                     .into());
                 }
-                Ok(Value::Single(self.codegen_infix_expression(lhs[0], rhs[0], binary.operator)?))
+                Ok(Value::Single(self.ssa_gen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }
             Expression::Cast(cast_expr) => {
-                let lhs = self.codegen_expression(&cast_expr.lhs)?.unwrap_id();
+                let lhs = self.ssa_gen_expression(&cast_expr.lhs)?.unwrap_id();
                 let object_type = self.context.convert_type(&cast_expr.r#type);
 
                 Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), object_type)?))
             }
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
-                let expr_node = self.codegen_expression(&indexed_expr.collection)?.unwrap_id();
+                let expr_node = self.ssa_gen_expression(&indexed_expr.collection)?.unwrap_id();
                 let array = match self.context.get_object_type(expr_node) {
                     ObjectType::Pointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
@@ -545,7 +545,7 @@ impl IRGenerator {
                 let array_id = array.id;
                 let e_type = array.element_type;
                 // Evaluate the index expression
-                let index_as_obj = self.codegen_expression(&indexed_expr.index)?.unwrap_id();
+                let index_as_obj = self.ssa_gen_expression(&indexed_expr.index)?.unwrap_id();
                 let load = Operation::Load { array_id, index: index_as_obj };
                 Ok(Value::Single(self.context.new_instruction(load, e_type)?))
             }
@@ -553,34 +553,34 @@ impl IRGenerator {
                 let results = self.call(call_expr)?;
                 Ok(Value::from_slice(&call_expr.return_type, &results))
             }
-            Expression::For(for_expr) => self.codegen_for(for_expr),
-            Expression::Tuple(fields) => self.codegen_tuple(fields),
+            Expression::For(for_expr) => self.ssa_gen_for(for_expr),
+            Expression::Tuple(fields) => self.ssa_gen_tuple(fields),
             Expression::If(if_expr) => self.handle_if_expr(if_expr),
             Expression::Unary(prefix) => {
-                let rhs = self.codegen_expression(&prefix.rhs)?.unwrap_id();
-                self.codegen_prefix_expression(rhs, prefix.operator).map(Value::Single)
+                let rhs = self.ssa_gen_expression(&prefix.rhs)?.unwrap_id();
+                self.ssa_gen_prefix_expression(rhs, prefix.operator).map(Value::Single)
             }
-            Expression::Literal(l) => Ok(Value::Single(self.codegen_literal(l))),
-            Expression::Block(block) => self.codegen_block(block),
+            Expression::Literal(l) => Ok(Value::Single(self.ssa_gen_literal(l))),
+            Expression::Block(block) => self.ssa_gen_block(block),
             Expression::ExtractTupleField(expr, field) => {
-                let tuple = self.codegen_expression(expr.as_ref())?;
+                let tuple = self.ssa_gen_expression(expr.as_ref())?;
                 Ok(tuple.into_field_member(*field))
             }
-            Expression::Let(let_expr) => self.codegen_let(let_expr),
+            Expression::Let(let_expr) => self.ssa_gen_let(let_expr),
             Expression::Constrain(expr, location) => {
-                self.codegen_constrain(expr.as_ref(), *location)
+                self.ssa_gen_constrain(expr.as_ref(), *location)
             }
             Expression::Assign(assign) => {
-                self.codegen_assign(&assign.lvalue, assign.expression.as_ref())
+                self.ssa_gen_assign(&assign.lvalue, assign.expression.as_ref())
             }
             Expression::Semi(expr) => {
-                self.codegen_expression(expr.as_ref())?;
+                self.ssa_gen_expression(expr.as_ref())?;
                 Ok(Value::dummy())
             }
         }
     }
 
-    fn codegen_literal(&mut self, l: &Literal) -> NodeId {
+    fn ssa_gen_literal(&mut self, l: &Literal) -> NodeId {
         match l {
             Literal::Bool(b) => {
                 if *b {
@@ -598,28 +598,28 @@ impl IRGenerator {
     }
 
     /// A tuple is much the same as a constructor, we just give it fields with numbered names
-    fn codegen_tuple(&mut self, fields: &[Expression]) -> Result<Value, RuntimeError> {
+    fn ssa_gen_tuple(&mut self, fields: &[Expression]) -> Result<Value, RuntimeError> {
         let fields = fields
             .iter()
-            .map(|field| self.codegen_expression(field))
+            .map(|field| self.ssa_gen_expression(field))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Value::Tuple(fields))
     }
 
-    pub fn codegen_expression_list(&mut self, exprs: &[Expression]) -> Vec<NodeId> {
+    pub fn ssa_gen_expression_list(&mut self, exprs: &[Expression]) -> Vec<NodeId> {
         let mut result = Vec::with_capacity(exprs.len());
         for expr in exprs {
-            let value = self.codegen_expression(expr);
+            let value = self.ssa_gen_expression(expr);
             result.extend(value.unwrap().to_node_ids());
         }
         result
     }
 
-    fn codegen_for(&mut self, for_expr: &For) -> Result<Value, RuntimeError> {
+    fn ssa_gen_for(&mut self, for_expr: &For) -> Result<Value, RuntimeError> {
         //we add the 'i = start' instruction (in the block before the join)
-        let start_idx = self.codegen_expression(&for_expr.start_range).unwrap().unwrap_id();
-        let end_idx = self.codegen_expression(&for_expr.end_range).unwrap().unwrap_id();
+        let start_idx = self.ssa_gen_expression(&for_expr.start_range).unwrap().unwrap_id();
+        let end_idx = self.ssa_gen_expression(&for_expr.end_range).unwrap().unwrap_id();
 
         //We support only const range for now
         let iter_def = Definition::Local(for_expr.index_variable);
@@ -661,7 +661,7 @@ impl IRGenerator {
         let body_block1 = &mut self.context[body_id];
         body_block1.update_variable(iter_id, phi); //TODO try with just a get_current_value(iter)
 
-        self.codegen_expression(for_expr.block.as_ref())?;
+        self.ssa_gen_expression(for_expr.block.as_ref())?;
 
         //increment iter
         let one = self.context.get_or_create_const(FieldElement::one(), iter_type);
@@ -693,10 +693,10 @@ impl IRGenerator {
     }
 
     //Parse a block of AST statements into ssa form
-    pub fn codegen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
+    pub fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for expr in block {
-            last_value = self.codegen_expression(expr)?;
+            last_value = self.ssa_gen_expression(expr)?;
         }
         Ok(last_value)
     }
@@ -709,17 +709,17 @@ impl IRGenerator {
                 block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
         }
 
-        let condition = self.codegen_expression(if_expr.condition.as_ref())?.unwrap_id();
+        let condition = self.ssa_gen_expression(if_expr.condition.as_ref())?.unwrap_id();
 
         if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
             if cond.is_zero() {
                 if let Some(alt) = &if_expr.alternative {
-                    return self.codegen_expression(alt);
+                    return self.ssa_gen_expression(alt);
                 } else {
                     return Ok(Value::dummy());
                 }
             } else {
-                return self.codegen_expression(if_expr.consequence.as_ref());
+                return self.ssa_gen_expression(if_expr.consequence.as_ref());
             }
         }
 
@@ -729,7 +729,7 @@ impl IRGenerator {
         //Then block
         block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
 
-        let v1 = self.codegen_expression(if_expr.consequence.as_ref())?;
+        let v1 = self.ssa_gen_expression(if_expr.consequence.as_ref())?;
 
         //Exit block
         let exit_block =
@@ -750,7 +750,7 @@ impl IRGenerator {
 
         let mut v2 = Value::dummy();
         if let Some(alt) = if_expr.alternative.as_ref() {
-            v2 = self.codegen_expression(alt)?;
+            v2 = self.ssa_gen_expression(alt)?;
         }
 
         //Connect with the exit block
@@ -804,7 +804,7 @@ impl IRGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.codegen_expression(&function_body)?;
+        let last_value = self.ssa_gen_expression(&function_body)?;
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -858,8 +858,8 @@ impl IRGenerator {
 
     //generates an instruction for calling the function
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
-        let func = self.codegen_expression(&call.func)?.unwrap_id();
-        let arguments = self.codegen_expression_list(&call.arguments);
+        let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
+        let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func) {
             return self.call_low_level(opcode, arguments);
