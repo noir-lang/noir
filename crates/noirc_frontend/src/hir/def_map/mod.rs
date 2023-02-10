@@ -121,7 +121,7 @@ pub fn parse_file(
     all_errors: &mut Vec<CollectedErrors>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.get_source());
+    let (program, errors) = parse_program(file.source());
     if !errors.is_empty() {
         all_errors.push(CollectedErrors { file_id, errors });
     };

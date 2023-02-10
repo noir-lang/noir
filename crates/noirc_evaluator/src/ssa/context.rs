@@ -479,8 +479,8 @@ impl SsaContext {
         None
     }
 
-    pub fn get_root_value(&self, id: NodeId) -> NodeId {
-        self.get_variable(id).map(|v| v.get_root()).unwrap_or(id)
+    pub fn root_value(&self, id: NodeId) -> NodeId {
+        self.get_variable(id).map(|v| v.root()).unwrap_or(id)
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
@@ -502,7 +502,7 @@ impl SsaContext {
         new_value: NodeId,
         block_id: BlockId,
     ) {
-        let root_id = self.get_root_value(var_id);
+        let root_id = self.root_value(var_id);
         let root = self.get_variable(root_id).unwrap();
         let root_name = root.name.clone();
         let cb = &mut self[block_id];
@@ -907,7 +907,7 @@ impl SsaContext {
             witness: None,
             parent_block: self.current_block,
         };
-        let ls_root = lhs_obj.get_root();
+        let ls_root = lhs_obj.root();
         //ssa: we create a new variable a1 linked to a
         let new_var_id = self.add_variable(new_var, Some(ls_root));
         let op = Operation::Binary(node::Binary {
@@ -998,7 +998,7 @@ impl SsaContext {
                 witness: None,
                 parent_block: self.current_block,
             };
-            let ls_root = lhs_obj.get_root();
+            let ls_root = lhs_obj.root();
             //ssa: we create a new variable a1 linked to a
             let new_var_id = self.add_variable(new_var, Some(ls_root));
             //ass
