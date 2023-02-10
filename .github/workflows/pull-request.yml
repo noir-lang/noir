@@ -1,7 +1,11 @@
 name: Pull Request
 
 on:
-  merge_group:
+  # merge_group:
+  # The `merge_group` event is currently broken (Feb 9th) so we use `push` and scope the branches
+  push:
+    branches:
+      - gh-readonly-queue/master/*
   pull_request_target:
     types:
       - opened
@@ -18,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check title
-        if: github.event_name != 'merge_group'
+        if: github.event_name == 'pull_request_target'
         uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

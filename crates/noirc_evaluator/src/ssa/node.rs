@@ -173,17 +173,12 @@ impl Variable {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ObjectType {
-    //Numeric(NumericType),
     NativeField,
-    // custom_field(BigUint), //TODO requires copy trait for BigUint
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
     Pointer(ArrayId),
-
     Function,
-    //TODO big_int
-    //TODO floats
     NotAnObject, //not an object
 }
 
@@ -497,7 +492,6 @@ pub enum Operation {
         root: NodeId,
         block_args: Vec<(NodeId, BlockId)>,
     },
-    //Call(function::FunctionCall),
     Call {
         func: NodeId,
         arguments: Vec<NodeId>,
@@ -704,7 +698,11 @@ impl Binary {
     }
 
     fn zero_div_error(&self) -> Result<(), RuntimeError> {
-        Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+        if self.predicate.is_none() {
+            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+        } else {
+            Ok(())
+        }
     }
 
     fn evaluate<F>(
