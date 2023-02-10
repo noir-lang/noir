@@ -72,6 +72,12 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
 
 fn main() {
     check_rustc_version();
+
+    build_data::set_GIT_COMMIT();
+    build_data::set_GIT_DIRTY();
+    build_data::set_SOURCE_TIMESTAMP();
+    build_data::no_debug_rebuilds();
+
     let stdlib_src_dir = Path::new("../../noir_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
     let target = dirs::config_dir().unwrap().join("noir-lang").join("std");

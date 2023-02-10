@@ -1,7 +1,21 @@
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
+
+#[derive(Serialize, Deserialize)]
+pub struct BuildInfo {
+    git_hash: &'static str,
+    version: &'static str,
+    dirty: &'static str,
+}
+
+const BUILD_INFO: BuildInfo = BuildInfo {
+    git_hash: env!("GIT_COMMIT"),
+    version: env!("CARGO_PKG_VERSION"),
+    dirty: env!("GIT_DIRTY"),
+};
 
 // Returns a compiled program which is the ACIR circuit along with the ABI
 #[wasm_bindgen]
@@ -26,4 +40,10 @@ pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
     console_error_panic_hook::set_once();
     let circuit: Circuit = JsValueSerdeExt::into_serde(&acir).unwrap();
     circuit.to_bytes()
+}
+
+#[wasm_bindgen]
+pub fn build_info() -> JsValue {
+    console_error_panic_hook::set_once();
+    <JsValue as JsValueSerdeExt>::from_serde(&BUILD_INFO).unwrap()
 }
