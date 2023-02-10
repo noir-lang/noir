@@ -25,6 +25,12 @@ impl<N> BigInt<N> {
     }
 }
 
+impl Bar<Field> {
+    fn get_other(self) -> Field {
+        self.other
+    }
+}
+
 fn main(x: Field, y: Field) {
     let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };
     let bar2 = Bar { one: x, two: y, other: [0] };
@@ -37,4 +43,10 @@ fn main(x: Field, y: Field) {
     let int2 = BigInt { limbs: [2] };
     let BigInt { limbs } = int1.second(int2).first(int1);
     constrain limbs == int2.limbs;
+
+    // Test impl exclusively for Bar<Field>
+    constrain bar1.get_other() == bar1.other;
+
+    // Expected type error
+    // constrain bar2.get_other() == bar2.other;
 }
