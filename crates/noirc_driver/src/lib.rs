@@ -225,7 +225,7 @@ impl Driver {
         let interner = &self.context.def_interner;
         self.context
             .def_map(LOCAL_CRATE)
-            .unwrap()
+            .expect("The local crate should be analyzed already")
             .get_all_test_functions(interner)
             .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
             .collect()
