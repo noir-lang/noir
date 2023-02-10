@@ -664,7 +664,7 @@ impl SsaContext {
             None
         }
     }
-    //blocks/////////////////////////
+
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
     }
@@ -702,8 +702,8 @@ impl SsaContext {
         //Optimization
         block::compute_dom(self);
         optimizations::full_cse(self, self.first_block, false)?;
-        // the second cse is recommended because of opportunities occuring from the first one
-        // we could use an optimisation level that will run more cse pass
+        // The second cse is recommended because of opportunities occurring from the first one
+        // we could use an optimization level that will run more cse pass
         optimizations::full_cse(self, self.first_block, false)?;
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
@@ -754,7 +754,7 @@ impl SsaContext {
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
+                acir.acir_gen_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
