@@ -38,11 +38,12 @@ pub fn create_circuit(
     np_language: Language,
     is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
+    capture_output: bool,
 ) -> Result<Circuit, RuntimeError> {
     let mut evaluator = Evaluator::new();
 
     // First evaluate the main function
-    evaluator.evaluate_main_alt(program, enable_logging)?;
+    evaluator.evaluate_main_alt(program, enable_logging, capture_output)?;
 
     let witness_index = evaluator.current_witness_index();
 
@@ -109,6 +110,7 @@ impl Evaluator {
         &mut self,
         program: Program,
         enable_logging: bool,
+        capture_output: bool,
     ) -> Result<(), RuntimeError> {
         let mut ir_gen = IRGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
@@ -117,7 +119,7 @@ impl Evaluator {
         ir_gen.codegen_main()?;
 
         //Generates ACIR representation:
-        ir_gen.context.ir_to_acir(self, enable_logging)?;
+        ir_gen.context.ir_to_acir(self, enable_logging, capture_output)?;
         Ok(())
     }
 

@@ -34,6 +34,7 @@ impl Acir {
         ins: &Instruction,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
+        capture_output: bool,
     ) -> Result<(), RuntimeErrorKind> {
         use operations::{
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
@@ -56,9 +57,16 @@ impl Acir {
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
             }
-            Operation::Intrinsic(opcode, args) => {
-                intrinsics::evaluate(args, ins, *opcode, var_cache, memory_map, ctx, evaluator)
-            }
+            Operation::Intrinsic(opcode, args) => intrinsics::evaluate(
+                args,
+                ins,
+                *opcode,
+                var_cache,
+                memory_map,
+                ctx,
+                evaluator,
+                capture_output,
+            ),
             Operation::Return(node_ids) => {
                 r#return::evaluate(node_ids, memory_map, var_cache, evaluator, ctx)?
             }

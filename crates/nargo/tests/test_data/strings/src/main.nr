@@ -26,3 +26,24 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     // constrain hex_as_string != 0x41; This will fail with a type mismatch between str[4] and Field
     constrain hex_as_field == 0x41;
 }
+
+#[test]
+fn test_prints_strings() {
+    let message = "hello world!";
+
+    std::println(message);
+
+    let bad_message = "goodbye world";
+
+    std::println(bad_message);
+}
+
+#[test]
+fn test_prints_array() {
+    let array = [1, 2, 3, 5, 8];
+
+    std::println(array);
+
+    let hash = std::hash::pedersen(array);
+    std::println(hash);
+}

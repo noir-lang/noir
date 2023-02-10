@@ -14,10 +14,11 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
     let test_name = args.value_of("test_name").unwrap_or("");
     let allow_warnings = args.is_present("allow-warnings");
-    run_tests(test_name, allow_warnings)
+    let capture_output = !args.is_present("nocapture");
+    run_tests(test_name, allow_warnings, capture_output)
 }
 
-fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
+fn run_tests(test_name: &str, allow_warnings: bool, capture_output: bool) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let package_dir = std::env::current_dir().unwrap();
@@ -37,10 +38,10 @@ fn run_tests(test_name: &str, allow_warnings: bool) -> Result<(), CliError> {
 
     for test_function in test_functions {
         let test_name = driver.function_name(test_function);
-        write!(writer, "Testing {test_name}... ").expect("Failed to write to stdout");
+        write!(writer, "Testing {test_name}...\n").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, allow_warnings) {
+        match run_test(test_name, test_function, &driver, allow_warnings, capture_output) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -70,12 +71,13 @@ fn run_test(
     main: FuncId,
     driver: &Driver,
     allow_warnings: bool,
+    capture_output: bool,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
     let language = backend.np_language();
 
     let program = driver
-        .compile_no_check(language, false, allow_warnings, Some(main))
+        .compile_no_check(language, false, allow_warnings, Some(main), capture_output)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();

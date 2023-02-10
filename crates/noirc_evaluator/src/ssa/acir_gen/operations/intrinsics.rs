@@ -28,6 +28,7 @@ pub(crate) fn evaluate(
     memory_map: &mut MemoryMap,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
+    capture_output: bool,
 ) -> Option<InternalVar> {
     use builtin::Opcode;
 
@@ -57,7 +58,9 @@ pub(crate) fn evaluate(
         }
         Opcode::Println(is_string_output) => {
             outputs = Vec::new(); // print statements do not output anything
-            evaluate_println(var_cache, memory_map, is_string_output, args, ctx, evaluator);
+            if !capture_output {
+                evaluate_println(var_cache, memory_map, is_string_output, args, ctx, evaluator);
+            }
         }
         Opcode::LowLevel(op) => {
             let inputs = prepare_inputs(var_cache, memory_map, args, ctx, evaluator);
@@ -76,11 +79,8 @@ pub(crate) fn evaluate(
     // If more than witness is returned,
     // the result is inside the result type of `Instruction`
     // as a pointer to an array
-    if outputs.len() == 1 {
-        Some(InternalVar::from(Expression::from(&outputs[0])))
-    } else {
-        None
-    }
+    // (outputs.len() == 1).then(|| Expression::from(&outputs[0])).map(InternalVar::from)
+    (outputs.len() == 1).then(|| InternalVar::from(outputs[0]))
 }
 
 // Transform the arguments of intrinsic functions into witnesses
