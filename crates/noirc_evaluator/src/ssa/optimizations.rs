@@ -21,12 +21,6 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
     if ins.is_deleted() {
         return Ok(());
     }
-    if let Operation::Binary(bin) = &ins.operation {
-        if bin.predicate == Some(ctx.zero_with_type(ObjectType::Boolean)) {
-            ins.mark = Mark::Deleted;
-            return Ok(());
-        }
-    }
     //1. constant folding
     let new_id = ins.evaluate(ctx)?.to_index(ctx);
 
@@ -107,7 +101,10 @@ fn evaluate_intrinsic(
         _ => todo!(),
     }
 }
-////////////////////CSE////////////////////////////////////////
+
+//
+// The following code will be concerned with Common Subexpression Elimination (CSE)
+//
 
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
@@ -409,7 +406,7 @@ fn cse_block_with_anchor(
     Ok(last)
 }
 
-pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
+fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
     if id == NodeId::dummy() {
         return false;
     }

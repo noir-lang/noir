@@ -37,6 +37,9 @@ pub(crate) fn evaluate(
     let r_size = ctx[binary.rhs].size_in_bits();
     let l_size = ctx[binary.lhs].size_in_bits();
     let max_size = u32::max(r_size, l_size);
+    if binary.predicate == Some(ctx.zero()) {
+        return None;
+    }
 
     let binary_output = match &binary.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
