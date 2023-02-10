@@ -7,7 +7,7 @@ use crate::{
     hir_def::{
         expr::*,
         function::{Param, Parameters},
-        stmt::{HirAssignStatement, HirLetStatement, HirLvalue, HirPattern, HirStatement},
+        stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     CompTime, FunctionKind, TypeBinding, TypeBindings,
@@ -644,17 +644,17 @@ impl<'interner> Monomorphizer<'interner> {
         ast::Expression::Assign(ast::Assign { lvalue, expression })
     }
 
-    fn lvalue(&mut self, lvalue: HirLvalue) -> ast::Lvalue {
+    fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLvalue::Ident(ident, _) => ast::Lvalue::Ident(self.local_ident(&ident).unwrap()),
-            HirLvalue::MemberAccess { object, field_index, .. } => {
+            HirLValue::Ident(ident, _) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
+            HirLValue::MemberAccess { object, field_index, .. } => {
                 let object = Box::new(self.lvalue(*object));
-                ast::Lvalue::MemberAccess { object, field_index: field_index.unwrap() }
+                ast::LValue::MemberAccess { object, field_index: field_index.unwrap() }
             }
-            HirLvalue::Index { array, index, .. } => {
+            HirLValue::Index { array, index, .. } => {
                 let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr_infer(index));
-                ast::Lvalue::Index { array, index }
+                ast::LValue::Index { array, index }
             }
         }
     }

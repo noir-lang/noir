@@ -22,7 +22,7 @@ impl HirLetStatement {
 
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
-    pub lvalue: HirLvalue,
+    pub lvalue: HirLValue,
     pub expression: ExprId,
 }
 
@@ -81,16 +81,16 @@ impl HirPattern {
 
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum HirLvalue {
+pub enum HirLValue {
     Ident(HirIdent, Type),
     MemberAccess {
-        object: Box<HirLvalue>,
+        object: Box<HirLValue>,
         field_name: Ident,
         field_index: Option<usize>,
         typ: Type,
     },
     Index {
-        array: Box<HirLvalue>,
+        array: Box<HirLValue>,
         index: ExprId,
         typ: Type,
     },

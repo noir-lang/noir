@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirLvalue, HirPattern, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
@@ -129,12 +129,12 @@ fn type_check_assign_stmt(
 
 fn type_check_lvalue(
     interner: &mut NodeInterner,
-    lvalue: HirLvalue,
+    lvalue: HirLValue,
     assign_span: Span,
     errors: &mut Vec<TypeCheckError>,
-) -> (Type, HirLvalue) {
+) -> (Type, HirLValue) {
     match lvalue {
-        HirLvalue::Ident(ident, _) => {
+        HirLValue::Ident(ident, _) => {
             let typ = if ident.id == DefinitionId::dummy_id() {
                 Type::Error
             } else {
@@ -152,9 +152,9 @@ fn type_check_lvalue(
                 interner.id_type(ident.id).instantiate(interner).0
             };
 
-            (typ.clone(), HirLvalue::Ident(ident, typ))
+            (typ.clone(), HirLValue::Ident(ident, typ))
         }
-        HirLvalue::MemberAccess { object, field_name, .. } => {
+        HirLValue::MemberAccess { object, field_name, .. } => {
             let (result, object) = type_check_lvalue(interner, *object, assign_span, errors);
             let object = Box::new(object);
 
@@ -177,9 +177,9 @@ fn type_check_lvalue(
                 other => error(other),
             };
 
-            (typ.clone(), HirLvalue::MemberAccess { object, field_name, field_index, typ })
+            (typ.clone(), HirLValue::MemberAccess { object, field_name, field_index, typ })
         }
-        HirLvalue::Index { array, index, .. } => {
+        HirLValue::Index { array, index, .. } => {
             let index_type = type_check_expression(interner, &index, errors);
             let expr_span = interner.expr_span(&index);
 
@@ -208,7 +208,7 @@ fn type_check_lvalue(
                 }
             };
 
-            (typ.clone(), HirLvalue::Index { array, index, typ })
+            (typ.clone(), HirLValue::Index { array, index, typ })
         }
     }
 }

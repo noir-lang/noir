@@ -9,7 +9,7 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, ImportStatement, InfixExpression, Lambda, Lvalue, NoirFunction, NoirImpl,
+    Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
     NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
@@ -419,28 +419,28 @@ fn assign_operator() -> impl NoirParser<Token> {
     just(Token::Assign).or(shorthand_syntax)
 }
 
-enum LvalueRhs {
+enum LValueRhs {
     MemberAccess(Ident),
     Index(Expression),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<Lvalue>
+fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue>
 where
     P: ExprParser + 'a,
 {
-    let l_ident = ident().map(Lvalue::Ident);
+    let l_ident = ident().map(LValue::Ident);
 
-    let l_member_rhs = just(Token::Dot).ignore_then(ident()).map(LvalueRhs::MemberAccess);
+    let l_member_rhs = just(Token::Dot).ignore_then(ident()).map(LValueRhs::MemberAccess);
 
     let l_index = expr_parser
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .map(LvalueRhs::Index);
+        .map(LValueRhs::Index);
 
     l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-        LvalueRhs::MemberAccess(field_name) => {
-            Lvalue::MemberAccess { object: Box::new(lvalue), field_name }
+        LValueRhs::MemberAccess(field_name) => {
+            LValue::MemberAccess { object: Box::new(lvalue), field_name }
         }
-        LvalueRhs::Index(index) => Lvalue::Index { array: Box::new(lvalue), index },
+        LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
     })
 }
 

@@ -11,7 +11,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     monomorphization::ast::{
-        ArrayLiteral, Definition, Expression, For, Ident, If, Let, Literal, LocalId, Lvalue,
+        ArrayLiteral, Definition, Expression, For, Ident, If, LValue, Let, Literal, LocalId,
         Program, Type,
     },
     BinaryOpKind, UnaryOp,
@@ -297,7 +297,7 @@ impl IrGenerator {
 
     fn codegen_indexed_value(
         &mut self,
-        array: &Lvalue,
+        array: &LValue,
         index: &Expression,
     ) -> Result<(NodeId, NodeId), RuntimeError> {
         let value = self.lvalue_to_value(array);
@@ -306,13 +306,13 @@ impl IrGenerator {
         Ok((lhs, index))
     }
 
-    fn lvalue_to_value(&self, lvalue: &Lvalue) -> &Value {
+    fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
         match lvalue {
-            Lvalue::Ident(ident) => self.find_variable(&ident.definition).unwrap(),
-            Lvalue::Index { array, .. } => {
+            LValue::Ident(ident) => self.find_variable(&ident.definition).unwrap(),
+            LValue::Index { array, .. } => {
                 self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
             }
-            Lvalue::MemberAccess { object, field_index, .. } => {
+            LValue::MemberAccess { object, field_index, .. } => {
                 let ident_def = Self::lvalue_ident_def(object.as_ref());
                 let val = self.find_variable(ident_def).unwrap();
                 val.get_field_member(*field_index)
@@ -320,11 +320,11 @@ impl IrGenerator {
         }
     }
 
-    fn lvalue_ident_def(lvalue: &Lvalue) -> &Definition {
+    fn lvalue_ident_def(lvalue: &LValue) -> &Definition {
         match lvalue {
-            Lvalue::Ident(ident) => &ident.definition,
-            Lvalue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
-            Lvalue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
+            LValue::Ident(ident) => &ident.definition,
+            LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
+            LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
         }
     }
 
@@ -498,14 +498,14 @@ impl IrGenerator {
 
     fn codegen_assign(
         &mut self,
-        lvalue: &Lvalue,
+        lvalue: &LValue,
         expression: &Expression,
     ) -> Result<Value, RuntimeError> {
         let ident_def = Self::lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(expression)?;
 
         match lvalue {
-            Lvalue::Ident(_) => {
+            LValue::Ident(_) => {
                 let lhs = self.find_variable(ident_def).unwrap();
                 // We may be able to avoid cloning here if we change find_variable
                 // and assign_pattern to use only fields of self instead of `self` itself.
@@ -513,12 +513,12 @@ impl IrGenerator {
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def.clone(), result);
             }
-            Lvalue::Index { array, index, .. } => {
+            LValue::Index { array, index, .. } => {
                 let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
-            Lvalue::MemberAccess { object: _, field_index } => {
+            LValue::MemberAccess { object: _, field_index } => {
                 // TODO: This is incorrect for nested structs
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(*field_index).clone();

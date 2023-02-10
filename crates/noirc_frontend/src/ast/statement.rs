@@ -201,13 +201,13 @@ impl Statement {
 
     /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
     pub fn assign(
-        lvalue: Lvalue,
+        lvalue: LValue,
         operator: Token,
         mut expression: Expression,
         span: Span,
     ) -> Statement {
         // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of Lvalues.
+        // which is currently enforced by the restricted syntax of LValues.
         if operator != Token::Assign {
             let lvalue_expr = lvalue.as_expression(span);
             let error_msg = "Token passed to Statement::assign is not a binary operator";
@@ -328,16 +328,16 @@ impl LetStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssignStatement {
-    pub lvalue: Lvalue,
+    pub lvalue: LValue,
     pub expression: Expression,
 }
 
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Lvalue {
+pub enum LValue {
     Ident(Ident),
-    MemberAccess { object: Box<Lvalue>, field_name: Ident },
-    Index { array: Box<Lvalue>, index: Expression },
+    MemberAccess { object: Box<LValue>, field_name: Ident },
+    Index { array: Box<LValue>, index: Expression },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -366,17 +366,17 @@ impl Recoverable for Pattern {
     }
 }
 
-impl Lvalue {
+impl LValue {
     fn as_expression(&self, span: Span) -> Expression {
         let kind = match self {
-            Lvalue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
-            Lvalue::MemberAccess { object, field_name } => {
+            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
+            LValue::MemberAccess { object, field_name } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(span),
                     rhs: field_name.clone(),
                 }))
             }
-            Lvalue::Index { array, index } => ExpressionKind::Index(Box::new(IndexExpression {
+            LValue::Index { array, index } => ExpressionKind::Index(Box::new(IndexExpression {
                 collection: array.as_expression(span),
                 index: index.clone(),
             })),
@@ -416,12 +416,12 @@ impl Display for AssignStatement {
     }
 }
 
-impl Display for Lvalue {
+impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Lvalue::Ident(ident) => ident.fmt(f),
-            Lvalue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
-            Lvalue::Index { array, index } => write!(f, "{array}[{index}]"),
+            LValue::Ident(ident) => ident.fmt(f),
+            LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
+            LValue::Index { array, index } => write!(f, "{array}[{index}]"),
         }
     }
 }

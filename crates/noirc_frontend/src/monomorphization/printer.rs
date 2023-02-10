@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use iter_extended::vecmap;
 
-use super::ast::{Definition, Expression, Function, Lvalue};
+use super::ast::{Definition, Expression, Function, LValue};
 
 #[derive(Default)]
 pub struct AstPrinter {
@@ -250,16 +250,16 @@ impl AstPrinter {
         write!(f, ")")
     }
 
-    fn print_lvalue(&mut self, lvalue: &Lvalue, f: &mut Formatter) -> std::fmt::Result {
+    fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            Lvalue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
-            Lvalue::Index { array, index, .. } => {
+            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            LValue::Index { array, index, .. } => {
                 self.print_lvalue(array, f)?;
                 write!(f, "[")?;
                 self.print_expr(index, f)?;
                 write!(f, "]")
             }
-            Lvalue::MemberAccess { object, field_index } => {
+            LValue::MemberAccess { object, field_index } => {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{field_index}")
             }
