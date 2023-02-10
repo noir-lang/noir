@@ -29,7 +29,7 @@ pub struct Acir {
 
 impl Acir {
     /// Generate ACIR opcodes based on the given instruction
-    pub fn evaluate_instruction(
+    pub fn acir_gen_instruction(
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,
