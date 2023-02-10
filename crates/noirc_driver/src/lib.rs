@@ -223,8 +223,10 @@ impl Driver {
     /// will return all functions marked with #[test].
     pub fn get_all_test_functions_in_crate_matching(&self, pattern: &str) -> Vec<FuncId> {
         let interner = &self.context.def_interner;
-        interner
-            .get_all_test_functions()
+        self.context
+            .def_map(LOCAL_CRATE)
+            .unwrap()
+            .get_all_test_functions(interner)
             .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
             .collect()
     }
