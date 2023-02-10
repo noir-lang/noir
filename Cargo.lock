@@ -418,7 +418,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#f95b4d3551db4a62bbf7de56c6c3362523635e50"
+source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#225bb52f9f9831fae94d0bfbd2f3c554b92ed039"
 dependencies = [
  "bindgen",
  "cmake",
@@ -2831,9 +2831,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e267c18a719545b481171952a79f8c25c80361463ba44bc7fa9eba7c742ef4f"
+checksum = "bc6a3b08b64e6dfad376fa2432c7b1f01522e37a623c3050bc95db2d3ff21583"
 dependencies = [
  "bytes",
  "futures-core",

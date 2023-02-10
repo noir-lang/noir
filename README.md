@@ -63,7 +63,7 @@ Concretely the following items are on the road map:
 
 ## Minimum Rust version
 
-This crate's minimum supported rustc version is 1.64.0.
+This crate's minimum supported rustc version is 1.66.0.
 
 ## License
 
