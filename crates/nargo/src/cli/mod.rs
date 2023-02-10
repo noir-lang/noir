@@ -32,9 +32,9 @@ mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
 
-const GIT_HASH: &'static str = env!("GIT_COMMIT");
-const IS_DIRTY: &'static str = env!("GIT_DIRTY");
-const CARGO_PKG_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const GIT_HASH: &str = env!("GIT_COMMIT");
+const IS_DIRTY: &str = env!("GIT_DIRTY");
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 static VERSION_STRING: &str =
     formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
