@@ -2,9 +2,7 @@ use crate::ssa::node::NodeId;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::Type;
 
-/// A `Value` is the descriptor used for items in the SSA IR.
-/// A `Value` can hold a `NodeId` which by proxy means that
-/// it represents Variables, Constants, Functions and Instructions.
+/// `Value` is used only to construct the SSA IR.
 #[derive(Debug, Clone)]
 pub enum Value {
     Single(NodeId),
