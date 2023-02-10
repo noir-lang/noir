@@ -7,7 +7,7 @@ use crate::{
     hir_def::{
         expr::*,
         function::{Param, Parameters},
-        stmt::{HirAssignStatement, HirLvalue, HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirAssignStatement, HirLetStatement, HirLvalue, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     CompTime, FunctionKind, TypeBinding, TypeBindings,

@@ -11,7 +11,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     monomorphization::ast::{
-        ArrayLiteral, Definition, Expression, For, Ident, If, Lvalue, Let, Literal, LocalId,
+        ArrayLiteral, Definition, Expression, For, Ident, If, Let, Literal, LocalId, Lvalue,
         Program, Type,
     },
     BinaryOpKind, UnaryOp,

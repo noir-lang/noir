@@ -1,7 +1,7 @@
 use noirc_errors::Span;
 
 use crate::hir_def::stmt::{
-    HirAssignStatement, HirConstrainStatement, HirLvalue, HirLetStatement, HirPattern, HirStatement,
+    HirAssignStatement, HirConstrainStatement, HirLetStatement, HirLvalue, HirPattern, HirStatement,
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};

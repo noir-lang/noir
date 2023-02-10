@@ -9,7 +9,7 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, ImportStatement, InfixExpression, Lvalue, Lambda, NoirFunction, NoirImpl,
+    Ident, IfExpression, ImportStatement, InfixExpression, Lambda, Lvalue, NoirFunction, NoirImpl,
     NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
