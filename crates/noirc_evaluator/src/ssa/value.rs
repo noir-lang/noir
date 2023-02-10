@@ -5,7 +5,7 @@ use noirc_frontend::monomorphization::ast::Type;
 /// `Value` is used only to construct the SSA IR.
 #[derive(Debug, Clone)]
 pub enum Value {
-    Single(NodeId),
+    Node(NodeId),
     Tuple(Vec<Value>),
 }
 
@@ -14,22 +14,22 @@ impl Value {
     /// Panics: If `Value` holds multiple Values
     pub fn unwrap_id(&self) -> NodeId {
         match self {
-            Value::Single(id) => *id,
-            Value::Tuple(_) => panic!("Tried to unwrap a struct into a single value"),
+            Value::Node(id) => *id,
+            Value::Tuple(_) => panic!("Tried to unwrap a struct/tuple into a NodeId"),
         }
     }
 
     /// Returns a placeholder NodeId that can
     /// be used to represent the absence of a value.
     pub fn dummy() -> Value {
-        Value::Single(NodeId::dummy())
+        Value::Node(NodeId::dummy())
     }
 
     /// Checks if the `Value` corresponds to
     /// `Option::None` or no value.
     pub fn is_dummy(&self) -> bool {
         match self {
-            Value::Single(id) => *id == NodeId::dummy(),
+            Value::Node(id) => *id == NodeId::dummy(),
             _ => false,
         }
     }
@@ -37,7 +37,7 @@ impl Value {
     /// Converts `Value` into a vector of NodeId's
     pub fn to_node_ids(&self) -> Vec<NodeId> {
         match self {
-            Value::Single(id) => vec![*id],
+            Value::Node(id) => vec![*id],
             Value::Tuple(v) => v.iter().flat_map(|i| i.to_node_ids()).collect(),
         }
     }
@@ -54,7 +54,7 @@ impl Value {
         }
 
         match (self, rhs_value) {
-            (Value::Single(lhs), Value::Single(rhs)) => Value::Single(f(*lhs, *rhs)),
+            (Value::Node(lhs), Value::Node(rhs)) => Value::Node(f(*lhs, *rhs)),
             (Value::Tuple(lhs), Value::Tuple(rhs)) => {
                 Value::Tuple(vecmap(lhs.iter().zip(rhs), |(lhs_value, rhs_value)| {
                     lhs_value.zip(rhs_value, f)
@@ -71,16 +71,16 @@ impl Value {
     /// Panics: If the `self` is not the `Tuple` Variant.
     pub fn into_field_member(self, field_index: usize) -> Value {
         match self {
-            Value::Single(_) => {
-                unreachable!("Runtime type error, expected struct but found a single value")
+            Value::Node(_) => {
+                unreachable!("Runtime type error, expected struct/tuple but found a NodeId")
             }
             Value::Tuple(mut fields) => fields.remove(field_index),
         }
     }
     pub fn get_field_member(&self, field_index: usize) -> &Value {
         match self {
-            Value::Single(_) => {
-                unreachable!("Runtime type error, expected struct but found a single value")
+            Value::Node(_) => {
+                unreachable!("Runtime type error, expected struct but found a NodeId")
             }
             Value::Tuple(fields) => &fields[field_index],
         }
@@ -99,7 +99,7 @@ impl Value {
             | Type::String(..)
             | Type::Integer(..)
             | Type::Bool
-            | Type::Field => Value::Single(*iter.next().unwrap()),
+            | Type::Field => Value::Node(*iter.next().unwrap()),
         }
     }
 

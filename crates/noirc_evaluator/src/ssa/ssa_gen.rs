@@ -59,7 +59,7 @@ impl IRGenerator {
 
     pub fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
-            Value::Single(id) => Value::Single(ssa_form::get_current_value(&mut self.context, *id)),
+            Value::Node(id) => Value::Node(ssa_form::get_current_value(&mut self.context, *id)),
             Value::Tuple(fields) => {
                 Value::Tuple(vecmap(fields, |value| self.get_current_value(value)))
             }
@@ -114,7 +114,7 @@ impl IRGenerator {
                 noirc_abi::AbiType::Array { length, typ } => {
                     let v_id =
                         self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
-                    Value::Single(v_id)
+                    Value::Node(v_id)
                 }
                 noirc_abi::AbiType::Struct { fields, .. } => {
                     let new_name = format!("{struct_name}.{name}");
@@ -130,7 +130,7 @@ impl IRGenerator {
                         *length,
                         witnesses[&new_name].clone(),
                     );
-                    Value::Single(v_id)
+                    Value::Node(v_id)
                 }
                 _ => {
                     let obj_type = self.get_object_type_from_abi(field_typ);
@@ -140,7 +140,7 @@ impl IRGenerator {
                         obj_type,
                         Some(witnesses[&new_name][0]),
                     );
-                    Value::Single(v_id)
+                    Value::Node(v_id)
                 }
             }
         });
@@ -167,14 +167,14 @@ impl IRGenerator {
 
                     let expect_msg = "Expected called function to already be ssa_gen'd";
                     let function_node_id = self.context.get_function_node_id(id).expect(expect_msg);
-                    Ok(Value::Single(function_node_id))
+                    Ok(Value::Node(function_node_id))
                 }
                 Definition::Builtin(opcode) | Definition::LowLevel(opcode) => {
                     let opcode = builtin::Opcode::lookup(opcode).unwrap_or_else(|| {
                         unreachable!("Unknown builtin/low level opcode '{}'", opcode)
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
-                    Ok(Value::Single(function_node_id))
+                    Ok(Value::Node(function_node_id))
                 }
             }
         }
@@ -260,7 +260,7 @@ impl IRGenerator {
             parent_block: self.context.current_block,
         };
         let v_id = self.context.add_variable(new_var, None);
-        let v_value = Value::Single(v_id);
+        let v_value = Value::Node(v_id);
         if let Some(def) = def {
             self.variable_values.insert(def, v_value);
         }
@@ -295,19 +295,19 @@ impl IRGenerator {
                 let obj_type = self.context.convert_type(elem);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
-                Value::Single(v_id)
+                Value::Node(v_id)
             }
             Type::String(len) => {
                 let obj_type = ObjectType::Unsigned(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
-                Value::Single(v_id)
+                Value::Node(v_id)
             }
             _ => {
                 let obj_type = self.context.convert_type(typ);
                 let v_id = self.create_new_variable(base_name.to_string(), def, obj_type, None);
                 self.context.get_current_block_mut().update_variable(v_id, v_id);
-                Value::Single(v_id)
+                Value::Node(v_id)
             }
         }
     }
@@ -321,7 +321,7 @@ impl IRGenerator {
     ) -> (NodeId, ArrayId) {
         let (id, array_id) = self.context.new_array(name, element_type, len, def.clone());
         if let Some(def) = def {
-            self.variable_values.insert(def, super::ssa_gen::Value::Single(id));
+            self.variable_values.insert(def, super::ssa_gen::Value::Node(id));
         }
         (id, array_id)
     }
@@ -343,7 +343,7 @@ impl IRGenerator {
     fn bind_id(&mut self, id: LocalId, value: Value, name: &str) -> Result<(), RuntimeError> {
         let definition = Definition::Local(id);
         match value {
-            Value::Single(node_id) => {
+            Value::Node(node_id) => {
                 let object_type = self.context.get_object_type(node_id);
                 let value = self.bind_variable(
                     name.to_owned(),
@@ -367,7 +367,7 @@ impl IRGenerator {
     /// This function could use a clearer name
     fn bind_fresh_pattern(&mut self, basename: &str, value: Value) -> Result<Value, RuntimeError> {
         match value {
-            Value::Single(node_id) => {
+            Value::Node(node_id) => {
                 let object_type = self.context.get_object_type(node_id);
                 self.bind_variable(basename.to_owned(), None, object_type, node_id)
             }
@@ -403,7 +403,7 @@ impl IRGenerator {
             self.context.add_variable(new_var, None)
         };
         //Assign rhs to lhs
-        Ok(Value::Single(self.context.handle_assign(id, None, value_id)?))
+        Ok(Value::Node(self.context.handle_assign(id, None, value_id)?))
     }
 
     //same as update_variable but using the var index instead of var
@@ -447,8 +447,8 @@ impl IRGenerator {
     /// each value rather than defining new variables.
     fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Result<Value, RuntimeError> {
         match (lhs, rhs) {
-            (Value::Single(lhs_id), Value::Single(rhs_id)) => {
-                Ok(Value::Single(self.context.handle_assign(*lhs_id, None, rhs_id)?))
+            (Value::Node(lhs_id), Value::Node(rhs_id)) => {
+                Ok(Value::Node(self.context.handle_assign(*lhs_id, None, rhs_id)?))
             }
             (Value::Tuple(lhs_fields), Value::Tuple(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
@@ -458,8 +458,8 @@ impl IRGenerator {
 
                 Ok(Value::Tuple(fields))
             }
-            (Value::Single(_), Value::Tuple(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
-            (Value::Tuple(_), Value::Single(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
+            (Value::Node(_), Value::Tuple(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
+            (Value::Tuple(_), Value::Node(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
         }
     }
 
@@ -474,7 +474,7 @@ impl IRGenerator {
         match expr {
             Expression::Literal(Literal::Integer(x, typ)) => {
                 let typ = self.context.convert_type(typ);
-                Ok(Value::Single(self.context.get_or_create_const(*x, typ)))
+                Ok(Value::Node(self.context.get_or_create_const(*x, typ)))
             }
             Expression::Literal(Literal::Array(arr_lit)) => {
                 let element_type = self.context.convert_type(&arr_lit.element_type);
@@ -491,7 +491,7 @@ impl IRGenerator {
                     let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type)?;
                 }
-                Ok(Value::Single(new_var))
+                Ok(Value::Node(new_var))
             }
             Expression::Literal(Literal::Str(string)) => {
                 let string_as_integers = vecmap(string.bytes(), |byte| {
@@ -526,13 +526,13 @@ impl IRGenerator {
                     }
                     .into());
                 }
-                Ok(Value::Single(self.ssa_gen_infix_expression(lhs[0], rhs[0], binary.operator)?))
+                Ok(Value::Node(self.ssa_gen_infix_expression(lhs[0], rhs[0], binary.operator)?))
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.ssa_gen_expression(&cast_expr.lhs)?.unwrap_id();
                 let object_type = self.context.convert_type(&cast_expr.r#type);
 
-                Ok(Value::Single(self.context.new_instruction(Operation::Cast(lhs), object_type)?))
+                Ok(Value::Node(self.context.new_instruction(Operation::Cast(lhs), object_type)?))
             }
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
@@ -546,7 +546,7 @@ impl IRGenerator {
                 // Evaluate the index expression
                 let index_as_obj = self.ssa_gen_expression(&indexed_expr.index)?.unwrap_id();
                 let load = Operation::Load { array_id, index: index_as_obj };
-                Ok(Value::Single(self.context.new_instruction(load, e_type)?))
+                Ok(Value::Node(self.context.new_instruction(load, e_type)?))
             }
             Expression::Call(call_expr) => {
                 let results = self.call(call_expr)?;
@@ -557,9 +557,9 @@ impl IRGenerator {
             Expression::If(if_expr) => self.handle_if_expr(if_expr),
             Expression::Unary(prefix) => {
                 let rhs = self.ssa_gen_expression(&prefix.rhs)?.unwrap_id();
-                self.ssa_gen_prefix_expression(rhs, prefix.operator).map(Value::Single)
+                self.ssa_gen_prefix_expression(rhs, prefix.operator).map(Value::Node)
             }
-            Expression::Literal(l) => Ok(Value::Single(self.ssa_gen_literal(l))),
+            Expression::Literal(l) => Ok(Value::Node(self.ssa_gen_literal(l))),
             Expression::Block(block) => self.ssa_gen_block(block),
             Expression::ExtractTupleField(expr, field) => {
                 let tuple = self.ssa_gen_expression(expr.as_ref())?;
@@ -688,7 +688,7 @@ impl IRGenerator {
         //seal join
         ssa_form::seal_block(&mut self.context, join_idx, join_idx);
 
-        Ok(Value::Single(exit_first))
+        Ok(Value::Node(exit_first))
     }
 
     //Parse a block of AST statements into ssa form
