@@ -56,11 +56,11 @@ impl Opcode {
                     | BlackBoxFunc::EcdsaSecp256k1
                     | BlackBoxFunc::MerkleMembership => BigUint::one(),
                     BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
-                    BlackBoxFunc::RANGE
-                    | BlackBoxFunc::AES
-                    | BlackBoxFunc::AND
-                    | BlackBoxFunc::XOR => {
-                        unreachable!("ICE: max value should be implemented for opcode {} ", op)
+                    BlackBoxFunc::AES => {
+                        todo!("ICE: AES is unimplemented")
+                    }
+                    BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                        unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
                 }
             }
@@ -83,9 +83,9 @@ impl Opcode {
                     | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField),
                     BlackBoxFunc::Pedersen => (2, ObjectType::NativeField),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::NativeField),
-                    BlackBoxFunc::AND => (1, ObjectType::NativeField),
-                    BlackBoxFunc::XOR => (1, ObjectType::NativeField),
-                    BlackBoxFunc::RANGE => (0, ObjectType::NotAnObject),
+                    BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                        unreachable!("ICE: these opcodes do not have Noir builtin functions")
+                    }
                 }
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
