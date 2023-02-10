@@ -583,6 +583,9 @@ impl NodeInterner {
         })
     }
 
+    /// Add a method to a type.
+    /// This will panic for non-struct types currently as we do not support methods
+    /// for primitives. We could allow this in the future however.
     pub fn add_method(
         &mut self,
         self_type: &Type,
@@ -598,6 +601,7 @@ impl NodeInterner {
         }
     }
 
+    /// Search by name for a method on the given struct
     pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
         self.struct_methods.get(&(id, method_name.to_owned())).map(|(_, id)| *id)
     }

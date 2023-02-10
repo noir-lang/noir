@@ -56,6 +56,10 @@ impl CustomDiagnostic {
         }
     }
 
+    pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
+        FileDiagnostic { file_id, diagnostic: self }
+    }
+
     pub fn add_note(&mut self, message: String) {
         self.notes.push(message);
     }

@@ -2,7 +2,6 @@ use crate::{hir::resolution::import::ImportDirective, Ident};
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
-use noirc_errors::IntoFileDiagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 

@@ -26,6 +26,8 @@ pub enum ExpressionKind {
     Error,
 }
 
+/// A Vec of unresolved names for type variables.
+/// For `fn foo<A, B>(...)` this corresponds to vec!["A", "B"].
 pub type UnresolvedGenerics = Vec<Ident>;
 
 impl ExpressionKind {

@@ -1,5 +1,5 @@
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, IntoFileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
 use crate::{Ident, Type};

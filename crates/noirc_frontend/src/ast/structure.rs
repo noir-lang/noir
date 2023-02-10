@@ -4,6 +4,7 @@ use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+/// Ast node for a struct
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
@@ -23,6 +24,7 @@ impl NoirStruct {
     }
 }
 
+/// Ast node for an impl
 #[derive(Clone, Debug)]
 pub struct NoirImpl {
     pub object_type: UnresolvedType,

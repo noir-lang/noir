@@ -57,6 +57,8 @@ use crate::hir_def::{
 
 use super::errors::ResolverError;
 
+const SELF_TYPE_NAME: &str = "Self";
+
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
@@ -354,7 +356,7 @@ impl<'a> Resolver<'a> {
                 }
             }
 
-            if name == "Self" {
+            if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
                     if !args.is_empty() {
                         self.push_err(ResolverError::GenericsOnSelfType { span: path.span() });
@@ -486,6 +488,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Add the given generics to scope.
+    /// Each generic will have a fresh Shared<TypeBinding> associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
@@ -856,19 +860,21 @@ impl<'a> Resolver<'a> {
                 HirPattern::Tuple(fields, span)
             }
             Pattern::Struct(name, fields, span) => {
-                let error_ident = |this: &mut Self| {
-                    // Must create a name here to return a HirPattern::Identifer. $error is chosen
-                    // since it is an invalid identifier that will not crash with any user variables.
-                    let ident = this.add_variable_decl("$error".into(), false, true, definition);
-                    HirPattern::Identifier(ident)
+                let error_identifier = |this: &mut Self| {
+                    // Must create a name here to return a HirPattern::Identifer. Allowing
+                    // shadowing here lets us avoid further errors if we define ERROR_IDENT
+                    // multiple times.
+                    let name = ERROR_IDENT.into();
+                    let identifier = this.add_variable_decl(name, false, true, definition);
+                    HirPattern::Identifier(identifier)
                 };
 
                 let (struct_type, generics) = match self.lookup_type_or_error(name) {
                     Some(Type::Struct(struct_type, generics)) => (struct_type, generics),
-                    None => return error_ident(self),
+                    None => return error_identifier(self),
                     Some(typ) => {
                         self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
-                        return error_ident(self);
+                        return error_identifier(self);
                     }
                 };
 
@@ -1000,7 +1006,7 @@ impl<'a> Resolver<'a> {
     /// This will also instantiate any struct types found.
     fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
         let ident = path.as_ident();
-        if ident.map_or(false, |i| i == "Self") {
+        if ident.map_or(false, |i| i == SELF_TYPE_NAME) {
             if let Some(typ) = &self.self_type {
                 return Some(typ.clone());
             }

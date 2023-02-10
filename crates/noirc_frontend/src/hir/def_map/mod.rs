@@ -5,7 +5,7 @@ use crate::node_interner::FuncId;
 use crate::parser::{parse_program, ParsedModule};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::{FileDiagnostic, IntoFileDiagnostic};
+use noirc_errors::FileDiagnostic;
 use std::collections::HashMap;
 
 mod module_def;

@@ -18,8 +18,8 @@ use crate::{
 };
 use fm::FileId;
 use iter_extended::vecmap;
+use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_errors::{IntoFileDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
