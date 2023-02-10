@@ -8,7 +8,7 @@ use noirc_errors::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoirStruct {
     pub name: Ident,
-    pub generics: Vec<Ident>,
+    pub generics: UnresolvedGenerics,
     pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
 }

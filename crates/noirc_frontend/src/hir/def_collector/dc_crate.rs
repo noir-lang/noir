@@ -59,9 +59,9 @@ pub struct DefCollector {
     pub(crate) collected_impls: ImplMap,
 }
 
-/// collected impls maps the type and the module id in which
-/// the impl is defined to the functions contained in that impl
-/// along with the generics declared on the impl itself.
+/// Maps the type and the module id in which the impl is defined to the functions contained in that
+/// impl along with the generics declared on the impl itself. This also contains the Span
+/// of the object_type of the impl, used to issue an error if the object type fails to resolve.
 type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
@@ -433,6 +433,9 @@ fn resolve_function_set(
             StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
+        // Must use set_generics here to ensure we re-use the same generics from when
+        // the impl was originally collected. Otherwise the function will be using different
+        // TypeVariables for the same generic, causing it to instantiate incorrectly.
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 

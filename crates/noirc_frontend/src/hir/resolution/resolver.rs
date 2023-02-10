@@ -861,7 +861,7 @@ impl<'a> Resolver<'a> {
             }
             Pattern::Struct(name, fields, span) => {
                 let error_identifier = |this: &mut Self| {
-                    // Must create a name here to return a HirPattern::Identifer. Allowing
+                    // Must create a name here to return a HirPattern::Identifier. Allowing
                     // shadowing here lets us avoid further errors if we define ERROR_IDENT
                     // multiple times.
                     let name = ERROR_IDENT.into();
