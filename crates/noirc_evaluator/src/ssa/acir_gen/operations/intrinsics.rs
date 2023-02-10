@@ -226,36 +226,6 @@ fn evaluate_println(
                 } else {
                     unreachable!("array element being logged does not exist in memory");
                 }
-
-                // let absolute_adr = mem_array.absolute_adr(idx);
-                // if memory_map.contains_key(&absolute_adr) {
-                //     let array_elem_expr = memory_map[&absolute_adr].expression.clone();
-                //     if array_elem_expr.is_const() {
-                //         field_elements.push(array_elem_expr.q_c)
-                //     } else {
-                //         // let var = if self.arith_cache.contains_key(&node_id) {
-                //         //     self.arith_cache[&node_id].clone()
-                //         // } else {
-                //         //     InternalVar::from(array_elem_expr)
-                //         // };
-                //         // if let Some(w) = var.witness {
-                //         //     log_witnesses.push(w);
-                //         // } else {
-                //         //     unreachable!("array element to be logged is missing a witness");
-                //         // }
-                //         let var = match var_cache.get(&node_id) {
-                //             Some(var) => *var,
-                //             _ => InternalVar::from(array_elem_expr),
-                //         };
-                //         if let Some(w) = var.cached_witness() {
-                //             log_witnesses.push(*w);
-                //         } else {
-                //             unreachable!("array element to be logged is missing a witness");
-                //         }
-                //     }
-                // } else {
-                //     unreachable!("array element being logged does not exist in memory");
-                // }
             }
 
             if is_string_output {
@@ -279,21 +249,6 @@ fn evaluate_println(
                 log_string.push_str(&field.to_hex());
             }
             None => {
-                // if self.arith_cache.contains_key(&node_id) {
-                //     let var = self.arith_cache[&node_id].clone();
-                //     if let Some(field) = var.to_const() {
-                //         log_string.push_str(&field.to_hex());
-                //     } else if let Some(w) = var.witness {
-                //         log_witnesses.push(w);
-                //     } else {
-                //         unreachable!("array element to be logged is missing a witness");
-                //     }
-                // } else {
-                //     unreachable!(
-                //         "invalid input for print statement: {:?}",
-                //         ctx.try_get_node(node_id).expect("node is missing from SSA")
-                //     )
-                // }
                 if let Some(var) = var_cache.get(&node_id) {
                     if let Some(field) = var.to_const() {
                         log_string.push_str(&field.to_hex());
