@@ -10,6 +10,7 @@ jobs:
     name: Create Release
     outputs:
       release-pr: ${{ steps.release.outputs.pr }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
@@ -52,3 +53,48 @@ jobs:
           git add Cargo.lock
           git commit -m 'chore: Update lockfile'
           git push
+
+  build-linux-binaries:
+    name: Build linux binaries
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to build-nargo
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-linux.yml
+          repo: noir-lang/build-nargo
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  build-windows-binaries:
+    name: Build windows binaries
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to build-nargo
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-x86_64-pc-windows-wasm.yml
+          repo: noir-lang/build-nargo
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+
+  build-mac-binaries:
+    name: Build mac binaries
+    needs: [release-please]
+    if: ${{ needs.release-please.outputs.tag-name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to build-nargo
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish-apple-darwin-wasm.yml
+          repo: noir-lang/build-nargo
+          ref: master
+          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
