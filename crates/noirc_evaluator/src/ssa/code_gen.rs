@@ -11,7 +11,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     monomorphization::ast::{
-        ArrayLiteral, Definition, Expression, For, Ident, If, LValue, Let, Literal, LocalId,
+        ArrayLiteral, Definition, Expression, For, Ident, If, Lvalue, Let, Literal, LocalId,
         Program, Type,
     },
     BinaryOpKind, UnaryOp,
@@ -20,7 +20,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
-pub struct IRGenerator {
+pub struct IrGenerator {
     pub context: SsaContext,
     pub function_context: Option<FuncIndex>,
 
@@ -117,9 +117,9 @@ impl Value {
     }
 }
 
-impl IRGenerator {
-    pub fn new(program: Program) -> IRGenerator {
-        IRGenerator {
+impl IrGenerator {
+    pub fn new(program: Program) -> IrGenerator {
+        IrGenerator {
             context: SsaContext::new(),
             variable_values: HashMap::new(),
             function_context: None,
@@ -297,7 +297,7 @@ impl IRGenerator {
 
     fn codegen_indexed_value(
         &mut self,
-        array: &LValue,
+        array: &Lvalue,
         index: &Expression,
     ) -> Result<(NodeId, NodeId), RuntimeError> {
         let value = self.lvalue_to_value(array);
@@ -306,13 +306,13 @@ impl IRGenerator {
         Ok((lhs, index))
     }
 
-    fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
+    fn lvalue_to_value(&self, lvalue: &Lvalue) -> &Value {
         match lvalue {
-            LValue::Ident(ident) => self.find_variable(&ident.definition).unwrap(),
-            LValue::Index { array, .. } => {
+            Lvalue::Ident(ident) => self.find_variable(&ident.definition).unwrap(),
+            Lvalue::Index { array, .. } => {
                 self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
             }
-            LValue::MemberAccess { object, field_index, .. } => {
+            Lvalue::MemberAccess { object, field_index, .. } => {
                 let ident_def = Self::lvalue_ident_def(object.as_ref());
                 let val = self.find_variable(ident_def).unwrap();
                 val.get_field_member(*field_index)
@@ -320,11 +320,11 @@ impl IRGenerator {
         }
     }
 
-    fn lvalue_ident_def(lvalue: &LValue) -> &Definition {
+    fn lvalue_ident_def(lvalue: &Lvalue) -> &Definition {
         match lvalue {
-            LValue::Ident(ident) => &ident.definition,
-            LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
-            LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
+            Lvalue::Ident(ident) => &ident.definition,
+            Lvalue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
+            Lvalue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
         }
     }
 
@@ -498,14 +498,14 @@ impl IRGenerator {
 
     fn codegen_assign(
         &mut self,
-        lvalue: &LValue,
+        lvalue: &Lvalue,
         expression: &Expression,
     ) -> Result<Value, RuntimeError> {
         let ident_def = Self::lvalue_ident_def(lvalue);
         let rhs = self.codegen_expression(expression)?;
 
         match lvalue {
-            LValue::Ident(_) => {
+            Lvalue::Ident(_) => {
                 let lhs = self.find_variable(ident_def).unwrap();
                 // We may be able to avoid cloning here if we change find_variable
                 // and assign_pattern to use only fields of self instead of `self` itself.
@@ -513,12 +513,12 @@ impl IRGenerator {
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def.clone(), result);
             }
-            LValue::Index { array, index, .. } => {
+            Lvalue::Index { array, index, .. } => {
                 let (lhs_id, array_idx) = self.codegen_indexed_value(array.as_ref(), index)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
             }
-            LValue::MemberAccess { object: _, field_index } => {
+            Lvalue::MemberAccess { object: _, field_index } => {
                 // TODO: This is incorrect for nested structs
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(*field_index).clone();

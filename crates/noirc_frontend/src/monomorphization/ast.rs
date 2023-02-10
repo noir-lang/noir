@@ -130,7 +130,7 @@ pub struct Let {
 
 #[derive(Debug, Clone)]
 pub struct Assign {
-    pub lvalue: LValue,
+    pub lvalue: Lvalue,
     pub expression: Box<Expression>,
 }
 
@@ -143,10 +143,10 @@ pub struct BinaryStatement {
 
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, Clone)]
-pub enum LValue {
+pub enum Lvalue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression> },
-    MemberAccess { object: Box<LValue>, field_index: usize },
+    Index { array: Box<Lvalue>, index: Box<Expression> },
+    MemberAccess { object: Box<Lvalue>, field_index: usize },
 }
 
 #[derive(Debug, Clone)]

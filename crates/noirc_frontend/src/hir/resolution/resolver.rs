@@ -29,7 +29,7 @@ use std::rc::Rc;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
-use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
+use crate::hir_def::stmt::{HirAssignStatement, HirLvalue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
 };
@@ -39,7 +39,7 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
+    ArrayLiteral, Generics, Lvalue, NoirStruct, Path, Pattern, Shared, StructType, Type,
     TypeBinding, TypeVariable, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -599,19 +599,19 @@ impl<'a> Resolver<'a> {
         self.interner.push_stmt(hir_stmt)
     }
 
-    fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
+    fn resolve_lvalue(&mut self, lvalue: Lvalue) -> HirLvalue {
         match lvalue {
-            LValue::Ident(ident) => {
-                HirLValue::Ident(self.find_variable_or_default(&ident), Type::Error)
+            Lvalue::Ident(ident) => {
+                HirLvalue::Ident(self.find_variable_or_default(&ident), Type::Error)
             }
-            LValue::MemberAccess { object, field_name } => {
+            Lvalue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
+                HirLvalue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
             }
-            LValue::Index { array, index } => {
+            Lvalue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                HirLValue::Index { array, index, typ: Type::Error }
+                HirLvalue::Index { array, index, typ: Type::Error }
             }
         }
     }

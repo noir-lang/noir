@@ -3,7 +3,7 @@ use crate::ssa::{
     acir_gen::Acir,
     block::{BasicBlock, BlockId},
     conditional::{DecisionTree, TreeBuilder},
-    function::{FuncIndex, SSAFunction},
+    function::{FuncIndex, SsaFunction},
     inline::StackFrame,
     mem::{ArrayId, Memory},
     node::{
@@ -32,7 +32,7 @@ pub struct SsaContext {
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
 
-    pub functions: HashMap<FuncId, function::SSAFunction>,
+    pub functions: HashMap<FuncId, function::SsaFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
@@ -374,7 +374,7 @@ impl SsaContext {
         id
     }
 
-    pub fn get_ssa_func(&self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn get_ssa_func(&self, func_id: FuncId) -> Option<&SsaFunction> {
         self.functions.get(&func_id)
     }
 
@@ -385,7 +385,7 @@ impl SsaContext {
         }
     }
 
-    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SSAFunction> {
+    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SsaFunction> {
         self.try_get_func_id(id).and_then(|id| self.get_ssa_func(id))
     }
 
