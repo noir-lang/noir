@@ -93,7 +93,10 @@ impl Memory {
         self.last_adr += len;
         id
     }
-
+    /// Coerces a FieldElement into a u32
+    /// By taking its value modulo 2^32
+    ///
+    /// See issue #785 on whether this is safe
     pub fn as_u32(value: FieldElement) -> u32 {
         let big_v = BigUint::from_bytes_be(&value.to_be_bytes());
         let mut modulus = BigUint::from(2_u32);

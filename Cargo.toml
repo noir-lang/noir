@@ -20,10 +20,10 @@ version = "0.1.1"
 # x-release-please-end
 authors = ["The Noir Team <kevtheappdev@gmail.com>"]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.3.1"
+acvm = "0.4.1"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
