@@ -1,11 +1,11 @@
 use crate::errors::RuntimeError;
 use crate::ssa::{
     block::BlockId,
-    code_gen::IRGenerator,
     conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
     mem::ArrayId,
     node::{Node, NodeId, ObjectType, Opcode, Operation},
+    ssa_gen::IRGenerator,
     {block, builtin, node, ssa_form},
 };
 use iter_extended::try_vecmap;
@@ -173,7 +173,7 @@ impl IRGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.codegen_expression(&function_body)?;
+        let last_value = self.ssa_gen_expression(&function_body)?;
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -227,8 +227,8 @@ impl IRGenerator {
 
     //generates an instruction for calling the function
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
-        let func = self.codegen_expression(&call.func)?.unwrap_id();
-        let arguments = self.codegen_expression_list(&call.arguments);
+        let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
+        let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func) {
             return self.call_low_level(opcode, arguments);
