@@ -8,7 +8,7 @@ Noir is a Domain Specific Language for SNARK proving systems. It has been design
 
 Read the installation section [here](https://noir-lang.github.io/book/getting_started/nargo/installation.html).
 
-Once you have read through the documentation, you can also run the examples located in the `examples` folder.
+Once you have read through the documentation, you can visit [Awesome Noir](https://github.com/noir-lang/awesome-noir) to run some of the examples that others have created.
 
 ## Current Features
 
@@ -70,7 +70,3 @@ This crate's minimum supported rustc version is 1.66.0.
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
-
-## Barretenberg License
-
-Barretenberg is licensed under GPL V2.0.
