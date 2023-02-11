@@ -77,27 +77,25 @@ pub fn bind_pattern(
                 });
             }
         },
-        HirPattern::Struct(struct_type, fields, span) => match typ {
-            Type::Struct(inner, args) if &inner == struct_type => {
+        HirPattern::Struct(struct_type, fields, span) => {
+            struct_type.unify(&typ, *span, errors, || TypeCheckError::TypeMismatch {
+                expected_typ: typ.to_string(),
+                expr_typ: struct_type.to_string(),
+                expr_span: *span,
+            });
+
+            if let Type::Struct(struct_type, generics) = struct_type {
                 let mut pattern_fields = fields.clone();
-
                 pattern_fields.sort_by_key(|(ident, _)| ident.clone());
+                let struct_type = struct_type.borrow();
 
-                for pattern_field in pattern_fields {
+                for (field_name, field_pattern) in pattern_fields {
                     let type_field =
-                        inner.borrow().get_field(&pattern_field.0 .0.contents, &args).unwrap().0;
-                    bind_pattern(interner, &pattern_field.1, type_field, errors);
+                        struct_type.get_field(&field_name.0.contents, generics).unwrap().0;
+                    bind_pattern(interner, &field_pattern, type_field, errors);
                 }
             }
-            Type::Error => (),
-            other => {
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: other.to_string(),
-                    expr_typ: other.to_string(),
-                    expr_span: *span,
-                });
-            }
-        },
+        }
     }
 }
 

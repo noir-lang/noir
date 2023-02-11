@@ -1,4 +1,4 @@
-use noirc_errors::{CustomDiagnostic as Diagnostic, DiagnosableError, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -64,11 +64,11 @@ impl RuntimeErrorKind {
     }
 }
 
-impl DiagnosableError for RuntimeError {
-    fn to_diagnostic(&self) -> Diagnostic {
+impl From<RuntimeError> for Diagnostic {
+    fn from(error: RuntimeError) -> Diagnostic {
         let span =
-            if let Some(loc) = self.location { loc.span } else { noirc_errors::Span::new(0..0) };
-        match &self.kind {
+            if let Some(loc) = error.location { loc.span } else { noirc_errors::Span::new(0..0) };
+        match &error.kind {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound } => Diagnostic::simple_error(
                 "index out of bounds".to_string(),
                 format!("out of bounds error, index is {index} but length is {bound}"),

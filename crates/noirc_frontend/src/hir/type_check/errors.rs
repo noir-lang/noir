@@ -35,15 +35,21 @@ pub enum TypeCheckError {
 }
 
 impl TypeCheckError {
-    pub fn into_diagnostic(self) -> Diagnostic {
-        match self {
+    pub fn add_context(self, ctx: &'static str) -> Self {
+        TypeCheckError::Context { err: Box::new(self), ctx }
+    }
+}
+
+impl From<TypeCheckError> for Diagnostic {
+    fn from(error: TypeCheckError) -> Diagnostic {
+        match error {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => Diagnostic::simple_error(
                 format!("The type {} cannot be used in a {}", &typ, place),
                 String::new(),
                 span,
             ),
             TypeCheckError::Context { err, ctx } => {
-                let mut diag = err.into_diagnostic();
+                let mut diag = Diagnostic::from(*err);
                 diag.add_note(ctx.to_owned());
                 diag
             }
@@ -91,9 +97,5 @@ impl TypeCheckError {
                 span,
             ),
         }
-    }
-
-    pub fn add_context(self, ctx: &'static str) -> Self {
-        TypeCheckError::Context { err: Box::new(self), ctx }
     }
 }
