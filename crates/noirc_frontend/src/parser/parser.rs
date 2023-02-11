@@ -46,7 +46,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Import(i) => program.push_import(i),
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
-                    TopLevelStatement::TyAlias(i) => program.push_type_alias(t),
+                    TopLevelStatement::TyAlias(t) => program.push_type_alias(t),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
