@@ -151,7 +151,7 @@ impl Evaluator {
                 ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
-                    node::ObjectType::NativeField,
+                    node::ObjectType::native_field(),
                     Some(witness),
                 );
             }

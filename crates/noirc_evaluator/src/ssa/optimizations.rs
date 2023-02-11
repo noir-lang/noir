@@ -84,7 +84,7 @@ fn evaluate_intrinsic(
                 for i in 0..bit_count {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let op = if args[0] & (1 << i) != 0 {
                         Operation::Store { array_id: *a, index, value: ctx.one() }

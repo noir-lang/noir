@@ -55,7 +55,7 @@ impl Opcode {
                     BlackBoxFunc::SchnorrVerify
                     | BlackBoxFunc::EcdsaSecp256k1
                     | BlackBoxFunc::MerkleMembership => BigUint::one(),
-                    BlackBoxFunc::HashToField128Security => ObjectType::NativeField.max_size(),
+                    BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
                     }
@@ -75,21 +75,23 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
-                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
-                    BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                        (32, ObjectType::unsigned_integer(8))
+                    }
+                    BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
                     // See issue #775 on changing this to return a boolean
                     BlackBoxFunc::MerkleMembership
                     | BlackBoxFunc::SchnorrVerify
-                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::NativeField),
-                    BlackBoxFunc::Pedersen => (2, ObjectType::NativeField),
-                    BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::NativeField),
+                    | BlackBoxFunc::EcdsaSecp256k1 => (1, ObjectType::native_field()),
+                    BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
+                    BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unreachable!("ICE: these opcodes do not have Noir builtin functions")
                     }
                 }
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
-            Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
+            Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::native_field()),
         }
     }
 }

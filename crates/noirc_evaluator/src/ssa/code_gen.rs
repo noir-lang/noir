@@ -153,10 +153,10 @@ impl IRGenerator {
 
     pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
-            noirc_abi::AbiType::Field => ObjectType::NativeField,
+            noirc_abi::AbiType::Field => ObjectType::native_field(),
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
-                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
-                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
+                noirc_abi::Sign::Unsigned => ObjectType::unsigned_integer(*width),
+                noirc_abi::Sign::Signed => ObjectType::signed_integer(*width),
             },
             noirc_abi::AbiType::Boolean => ObjectType::Boolean,
             noirc_abi::AbiType::Array { .. } => {
@@ -383,7 +383,8 @@ impl IRGenerator {
                 Value::Single(v_id)
             }
             Type::String(len) => {
-                let obj_type = ObjectType::Unsigned(8);
+                // TODO: document why this is 8
+                let obj_type = ObjectType::unsigned_integer(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Single(v_id)
@@ -571,7 +572,7 @@ impl IRGenerator {
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
                         FieldElement::from((pos as u32) as u128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let store = Operation::Store { array_id, index: lhs_adr, value: object };
                     self.context.new_instruction(store, element_type)?;

@@ -792,10 +792,14 @@ impl SsaContext {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction(op_b, e_type)?;
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
@@ -937,8 +941,10 @@ impl SsaContext {
         let len = self.mem[array_id].len;
         let e_type = self.mem[array_id].element_type;
         for i in 0..len {
-            let index =
-                self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+            let index = self.get_or_create_const(
+                FieldElement::from(i as i128),
+                ObjectType::unsigned_integer(32),
+            );
             let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
@@ -958,10 +964,15 @@ impl SsaContext {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    // TODO: Should document where 32 comes from
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
                 let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
@@ -1050,7 +1061,7 @@ impl SsaContext {
             let (id, array_id) = self.new_array(&name, el_type, len, None);
             for i in 0..len {
                 let index = self
-                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::native_field());
                 self.current_block = block1;
                 let op = Operation::Load { array_id: adr1, index };
                 let v1 = self.new_instruction(op, el_type).unwrap();
@@ -1120,15 +1131,15 @@ impl SsaContext {
         use noirc_frontend::Signedness;
         match t {
             Type::Bool => ObjectType::Boolean,
-            Type::Field => ObjectType::NativeField,
+            Type::Field => ObjectType::native_field(),
             Type::Integer(sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
                 );
                 match sign {
-                    Signedness::Signed => ObjectType::Signed(*bit_size),
-                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                    Signedness::Signed => ObjectType::signed_integer(*bit_size),
+                    Signedness::Unsigned => ObjectType::unsigned_integer(*bit_size),
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
