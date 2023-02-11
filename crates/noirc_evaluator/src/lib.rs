@@ -11,7 +11,7 @@ use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
-use ssa::{code_gen::IRGenerator, node};
+use ssa::{code_gen::IRGenerator, node::ObjectType};
 use std::collections::BTreeMap;
 
 pub struct Evaluator {
@@ -151,7 +151,7 @@ impl Evaluator {
                 ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
-                    node::ObjectType::native_field(),
+                    ObjectType::native_field(),
                     Some(witness),
                 );
             }
@@ -177,7 +177,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                let obj_type = node::ObjectType::Boolean;
+                let obj_type = ObjectType::Boolean;
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Struct { fields } => {

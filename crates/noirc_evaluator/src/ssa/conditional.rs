@@ -3,7 +3,7 @@ use crate::ssa::{
     context::SsaContext,
     flatten::UnrollContext,
     inline::StackFrame,
-    node::{BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
+    node::{Binary, BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
     {block, flatten, node, optimizations},
 };
 use crate::{errors, errors::RuntimeError};
@@ -605,7 +605,7 @@ impl DecisionTree {
                             }
                             if ctx.under_assumption(cond) {
                                 let ins2 = ctx.get_mut_instruction(ins_id);
-                                ins2.operation = Operation::Binary(crate::node::Binary {
+                                ins2.operation = Operation::Binary(Binary {
                                     lhs: binary_op.lhs,
                                     rhs: binary_op.rhs,
                                     operator: binary_op.operator.clone(),
