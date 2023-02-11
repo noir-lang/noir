@@ -39,7 +39,7 @@ pub fn inline_cfg(
     to_inline: Option<FuncId>,
 ) -> Result<bool, RuntimeError> {
     let mut result = true;
-    let func = ctx.get_ssa_func(func_id).unwrap();
+    let func = ctx.ssa_func(func_id).unwrap();
     let func_cfg = block::bfs(func.entry_block, None, ctx);
     let decision = func.decision.clone();
     for block_id in func_cfg {
@@ -78,7 +78,7 @@ fn inline_block(
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {
         if let Some(func_id) = ctx.try_get_func_id(f) {
-            let f_copy = ctx.get_ssa_func(func_id).unwrap().clone();
+            let f_copy = ctx.ssa_func(func_id).unwrap().clone();
             if !inline(ctx, &f_copy, &args, &arrays, parent_block, ins_id, decision)? {
                 result = false;
             }
@@ -209,8 +209,8 @@ pub fn inline(
     //2. by copy parameters:
     for (&arg_caller, &arg_function) in args.iter().zip(&func_arg) {
         //pass by-ref const array arguments
-        if let node::ObjectType::Pointer(x) = ctx.get_object_type(arg_function.0) {
-            if let node::ObjectType::Pointer(y) = ctx.get_object_type(arg_caller) {
+        if let node::ObjectType::Pointer(x) = ctx.object_type(arg_function.0) {
+            if let node::ObjectType::Pointer(y) = ctx.object_type(arg_caller) {
                 if !arg_function.1 && !stack_frame.array_map.contains_key(&x) {
                     stack_frame.array_map.insert(x, y);
                     continue;
@@ -254,12 +254,11 @@ pub fn inline_in_block(
     let block_func = &ctx[block_id];
     let next_block = block_func.left;
     let block_func_instructions = &block_func.instructions.clone();
-    let predicate =
-        if let Operation::Call { predicate, .. } = &ctx.get_instruction(call_id).operation {
-            *predicate
-        } else {
-            unreachable!("invalid call id");
-        };
+    let predicate = if let Operation::Call { predicate, .. } = &ctx.instruction(call_id).operation {
+        *predicate
+    } else {
+        unreachable!("invalid call id");
+    };
     let mut short_circuit = false;
 
     *nested_call = false;
@@ -295,7 +294,7 @@ pub fn inline_in_block(
                             result.mark = Mark::ReplaceWith(*value);
                         }
                     }
-                    let call_ins = ctx.get_mut_instruction(call_id);
+                    let call_ins = ctx.instruction_mut(call_id);
                     call_ins.mark = Mark::Deleted;
                 }
                 Operation::Call { .. } => {

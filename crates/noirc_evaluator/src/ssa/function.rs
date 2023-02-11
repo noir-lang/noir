@@ -68,7 +68,7 @@ impl SSAFunction {
         let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = ir_gen.context.get_object_type(*arg) {
+            if let ObjectType::Pointer(a) = ir_gen.context.object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
@@ -88,7 +88,7 @@ impl SSAFunction {
             );
             if self.entry_block != exit {
                 for i in &stack {
-                    ir_gen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                    ir_gen.context.instruction_mut(*i).parent_block = self.entry_block;
                 }
             }
 
@@ -249,7 +249,7 @@ impl IRGenerator {
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
         if let Some(id) = self.context.try_get_func_id(func) {
-            let callee = self.context.get_ssa_func(id).unwrap().idx;
+            let callee = self.context.ssa_func(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
             }
@@ -269,7 +269,7 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
-            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
+            let ssa_func = self.context.ssa_func(func_id).unwrap();
             let func_arguments = ssa_func.arguments.clone();
             for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
                 let mut is_array_result = false;
@@ -299,7 +299,7 @@ impl IRGenerator {
 
         // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
         // otherwise.
-        self.context.get_mut_instruction(call_instruction).operation = call_op;
+        self.context.instruction_mut(call_instruction).operation = call_op;
         result_ids
     }
 

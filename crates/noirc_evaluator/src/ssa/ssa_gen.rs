@@ -185,7 +185,7 @@ impl IRGenerator {
         rhs: NodeId,
         op: UnaryOp,
     ) -> Result<NodeId, RuntimeError> {
-        let rhs_type = self.context.get_object_type(rhs);
+        let rhs_type = self.context.object_type(rhs);
         match op {
             UnaryOp::Minus => {
                 let lhs = self.context.zero_with_type(rhs_type);
@@ -203,7 +203,7 @@ impl IRGenerator {
         rhs: NodeId,
         op: BinaryOpKind,
     ) -> Result<NodeId, RuntimeError> {
-        let lhs_type = self.context.get_object_type(lhs);
+        let lhs_type = self.context.object_type(lhs);
         // Get the opcode from the infix operator
         let opcode = Operation::Binary(Binary::from_ast(op, lhs_type, lhs, rhs));
         let op_type = self.context.get_result_type(&opcode, lhs_type);
@@ -344,7 +344,7 @@ impl IRGenerator {
         let definition = Definition::Local(id);
         match value {
             Value::Node(node_id) => {
-                let object_type = self.context.get_object_type(node_id);
+                let object_type = self.context.object_type(node_id);
                 let value = self.bind_variable(
                     name.to_owned(),
                     Some(definition.clone()),
@@ -368,7 +368,7 @@ impl IRGenerator {
     fn bind_fresh_pattern(&mut self, basename: &str, value: Value) -> Result<Value, RuntimeError> {
         match value {
             Value::Node(node_id) => {
-                let object_type = self.context.get_object_type(node_id);
+                let object_type = self.context.object_type(node_id);
                 self.bind_variable(basename.to_owned(), None, object_type, node_id)
             }
             Value::Tuple(field_values) => {
@@ -537,7 +537,7 @@ impl IRGenerator {
             Expression::Index(indexed_expr) => {
                 // Evaluate the 'array' expression
                 let expr_node = self.ssa_gen_expression(&indexed_expr.collection)?.unwrap_id();
-                let array = match self.context.get_object_type(expr_node) {
+                let array = match self.context.object_type(expr_node) {
                     ObjectType::Pointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
                 };
@@ -742,7 +742,7 @@ impl IRGenerator {
 
         //Fixup the jump
         if let node::Instruction { operation: Operation::Jeq(_, target), .. } =
-            self.context.get_mut_instruction(jump_ins)
+            self.context.instruction_mut(jump_ins)
         {
             *target = block2;
         }
