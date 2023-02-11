@@ -5,7 +5,7 @@ use crate::ssa::{
     context::SsaContext,
     mem::{ArrayId, Memory},
     node::{Instruction, Mark, Node, NodeId, ObjectType, Operation},
-    {block, function, node, optimizations},
+    {block, cse, function, node, optimizations},
 };
 use noirc_frontend::monomorphization::ast::FuncId;
 use std::collections::{hash_map::Entry, HashMap};
@@ -86,7 +86,7 @@ fn inline_block(
     }
 
     if to_inline.is_none() {
-        optimizations::simple_cse(ctx, block_id)?;
+        cse::simple_cse(ctx, block_id)?;
     }
     Ok(result)
 }

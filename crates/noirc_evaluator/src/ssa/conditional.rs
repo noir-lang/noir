@@ -374,12 +374,12 @@ impl DecisionTree {
             merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
-        super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
+        super::cse::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         if modified {
             // A second round is necessary when the synchronization optimizes function calls between the two branches.
             // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
-            super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
+            super::cse::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
         //housekeeping...
         let if_block = &mut ctx[if_block_id];

@@ -4,7 +4,7 @@ use crate::ssa::{
     context::SsaContext,
     mem::{ArrayId, Memory},
     node::{BinaryOp, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation},
-    {node, optimizations},
+    {cse, node, optimizations},
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -400,7 +400,7 @@ fn block_overflow(
 
     //We run another round of CSE for the block in order to remove possible duplicated truncates, this will assign 'new_list' to the block instructions
     let mut modified = false;
-    optimizations::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
+    cse::cse_block(ctx, block_id, &mut new_list, &mut modified)?;
     Ok(())
 }
 

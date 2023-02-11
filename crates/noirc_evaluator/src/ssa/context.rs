@@ -9,7 +9,7 @@ use crate::ssa::{
     node::{
         BinaryOp, FunctionKind, Instruction, Mark, Node, NodeId, NodeObject, ObjectType, Operation,
     },
-    {block, builtin, flatten, function, inline, integer, node, optimizations},
+    {block, builtin, cse, flatten, function, inline, integer, node, optimizations},
 };
 use crate::Evaluator;
 use acvm::FieldElement;
@@ -701,10 +701,10 @@ impl SsaContext {
 
         //Optimization
         block::compute_dom(self);
-        optimizations::full_cse(self, self.first_block, false)?;
+        cse::full_cse(self, self.first_block, false)?;
         // The second cse is recommended because of opportunities occurring from the first one
         // we could use an optimization level that will run more cse pass
-        optimizations::full_cse(self, self.first_block, false)?;
+        cse::full_cse(self, self.first_block, false)?;
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling
@@ -733,7 +733,7 @@ impl SsaContext {
         let first_block = self.first_block;
         self[first_block].dominated.clear();
 
-        optimizations::cse(self, first_block, true)?;
+        cse::cse(self, first_block, true)?;
 
         //Truncation
         integer::overflow_strategy(self)?;

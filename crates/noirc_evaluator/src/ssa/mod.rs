@@ -1,8 +1,5 @@
-pub mod acir_gen;
-mod anchor;
 mod block;
 mod builtin;
-pub mod code_gen;
 mod conditional;
 mod context;
 mod flatten;
@@ -13,3 +10,15 @@ mod mem;
 pub mod node;
 mod optimizations;
 mod ssa_form;
+
+// Generate SSA
+pub mod code_gen;
+
+// Generate ACIR code
+pub mod acir_gen;
+
+// Optimizations
+//
+// CSE
+mod anchor;
+mod cse;

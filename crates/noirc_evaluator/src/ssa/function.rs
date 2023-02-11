@@ -60,7 +60,7 @@ impl SSAFunction {
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
         //catch the error because the function may not be called
-        super::optimizations::full_cse(&mut ir_gen.context, self.entry_block, false)?;
+        super::cse::full_cse(&mut ir_gen.context, self.entry_block, false)?;
         //Unrolling
         super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 
@@ -397,7 +397,7 @@ pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     while processed.len() < l {
         let i = get_new_leaf(ctx, &processed);
         if !processed.is_empty() {
-            super::optimizations::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
+            super::cse::full_cse(ctx, ctx.functions[&i.1].entry_block, false)?;
         }
         let mut to_inline = Vec::new();
         for f in ctx.functions.values() {
