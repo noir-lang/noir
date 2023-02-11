@@ -604,7 +604,7 @@ impl SsaContext {
         })
     }
 
-    //Return the type of the operation result, based on the left hand type
+    // Return the type of the operation result, based on the left hand type
     pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
         use {BinaryOp::*, Operation::*};
         match op {
@@ -656,7 +656,7 @@ impl SsaContext {
         (self.add_variable(new_var, None), array_index)
     }
 
-    //returns the value of the element array[index], if it exists in the memory_map
+    // Returns the value of the element array[index], if it exists in the memory_map
     pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
         if let Some(idx) = Memory::to_u32(self, index) {
             self.mem.get_value_from_map(array_id, idx)
