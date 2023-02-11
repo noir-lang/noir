@@ -426,6 +426,7 @@ pub enum Keyword {
     String,
     Return,
     Struct,
+    Type,
     Use,
     While,
 }
@@ -455,6 +456,7 @@ impl fmt::Display for Keyword {
             Keyword::String => write!(f, "str"),
             Keyword::Return => write!(f, "return"),
             Keyword::Struct => write!(f, "struct"),
+            Keyword::Type => write!(f, "type"),
             Keyword::Use => write!(f, "use"),
             Keyword::While => write!(f, "while"),
         }
@@ -489,6 +491,7 @@ impl Keyword {
             "str" => Keyword::String,
             "return" => Keyword::Return,
             "struct" => Keyword::Struct,
+            "type" => Keyword::Type,
             "use" => Keyword::Use,
             "while" => Keyword::While,
 

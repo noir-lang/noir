@@ -5,7 +5,7 @@ mod parser;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::token::{Keyword, Token};
-use crate::{ast::ImportStatement, Expression, NoirStruct};
+use crate::{ast::ImportStatement, Expression, NoirStruct, NoirTyAlias};
 use crate::{
     BlockExpression, CallExpression, ExpressionKind, ForExpression, Ident, IndexExpression,
     LetStatement, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
@@ -31,6 +31,7 @@ pub(crate) enum TopLevelStatement {
     Import(ImportStatement),
     Struct(NoirStruct),
     Impl(NoirImpl),
+    TyAlias(NoirTyAlias),
     SubModule(SubModule),
     Global(LetStatement),
     Error,
@@ -210,6 +211,7 @@ pub struct ParsedModule {
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
+    pub type_aliases: Vec<NoirTyAlias>,
     pub module_decls: Vec<Ident>,
     pub submodules: Vec<SubModule>,
     pub globals: Vec<LetStatement>,
@@ -232,6 +234,10 @@ impl ParsedModule {
 
     fn push_impl(&mut self, r#impl: NoirImpl) {
         self.impls.push(r#impl);
+    }
+
+    fn push_type_alias(&mut self, type_alias: NoirTyAlias) {
+        self.type_aliases.push(type_alias);
     }
 
     fn push_import(&mut self, import_stmt: ImportStatement) {
@@ -435,6 +441,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Import(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
+            TopLevelStatement::TyAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Global(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
@@ -466,6 +473,10 @@ impl std::fmt::Display for ParsedModule {
 
         for impl_ in &self.impls {
             write!(f, "{impl_}")?;
+        }
+
+        for type_alias in &self.type_aliases {
+            write!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {

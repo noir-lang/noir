@@ -10,7 +10,8 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
-    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
+    NoirStruct, NoirTyAlias, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -45,6 +46,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Import(i) => program.push_import(i),
                     TopLevelStatement::Struct(s) => program.push_type(s),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::TyAlias(i) => program.push_type_alias(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
@@ -61,6 +63,7 @@ fn top_level_statement(
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
+        type_alias_definition(),
         submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
@@ -146,6 +149,16 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
             TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
         },
     )
+}
+
+fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
+    use self::Keyword::Type;
+
+    let p = ignore_then_commit(keyword(Type), ident());
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, parse_type());
+
+    p.map_with_span(|(name, ty), span| TopLevelStatement::TyAlias(NoirTyAlias { name, ty, span }))
 }
 
 fn lambda_return_type() -> impl NoirParser<UnresolvedType> {

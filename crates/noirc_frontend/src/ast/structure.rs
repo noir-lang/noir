@@ -33,6 +33,22 @@ pub struct NoirImpl {
     pub methods: Vec<NoirFunction>,
 }
 
+/// Ast node for type aliases
+#[derive(Clone, Debug)]
+pub struct NoirTyAlias {
+    pub name: Ident,
+    pub ty: UnresolvedType,
+    pub span: Span,
+    // TODO: should allow generics but disable for now
+    // pub generics: UnresolvedGenerics,
+}
+
+impl NoirTyAlias {
+    pub fn new(name: Ident, ty: UnresolvedType, span: Span) -> NoirTyAlias {
+        NoirTyAlias { name, ty, span }
+    }
+}
+
 impl Display for NoirStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
@@ -63,5 +79,11 @@ impl Display for NoirImpl {
         }
 
         write!(f, "}}")
+    }
+}
+
+impl Display for NoirTyAlias {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "type {} = {}", self.name, self.ty)
     }
 }
