@@ -197,6 +197,18 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c_661 = issue_661_foo(issue_661_bar(c), x);
     }
     constrain c_661[0] < 20000;
+
+    // Test case for function synchronisation
+    let mut c_sync = 0;
+    if a == 42 {
+        c_sync = foo2();
+    } else {
+        c_sync = foo2() + foo2();
+    }
+    constrain c_sync == 6;
+    
+    // Regression for predicate simplification
+    safe_inverse(0);
 }
 
 fn test5(a : u32) {
@@ -249,4 +261,18 @@ fn issue_661_bar(a : [u32;4]) ->[u32;4] {
     let mut b:[u32;4] = [0;4];
     b[0]=a[0]+1;
     b
+}
+
+fn foo2() -> Field {
+    3
+}
+
+fn safe_inverse(n: Field) -> Field
+{
+    if n == 0 {
+        0
+    }
+    else {
+        1 / n
+    }
 }

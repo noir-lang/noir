@@ -101,7 +101,10 @@ fn evaluate_intrinsic(
         _ => todo!(),
     }
 }
-////////////////////CSE////////////////////////////////////////
+
+//
+// The following code will be concerned with Common Subexpression Elimination (CSE)
+//
 
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
@@ -227,12 +230,22 @@ fn cse_block_with_anchor(
 
                         new_list.push(*ins_id);
                     } else if let Some(similar) = anchor.find_similar_instruction(&operator) {
-                        debug_assert!(similar != ins.id);
+                        assert_ne!(similar, ins.id);
                         *modified = true;
                         new_mark = Mark::ReplaceWith(similar);
                     } else if binary.operator == BinaryOp::Assign {
                         *modified = true;
                         new_mark = Mark::ReplaceWith(binary.rhs);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
+                    }
+                }
+                Operation::Result { .. } => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        assert_ne!(similar, ins.id);
+                        *modified = true;
+                        new_mark = Mark::ReplaceWith(similar);
                     } else {
                         new_list.push(*ins_id);
                         anchor.push_front(&ins.operation, *ins_id);
@@ -393,7 +406,7 @@ fn cse_block_with_anchor(
     Ok(last)
 }
 
-pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
+fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
     if id == NodeId::dummy() {
         return false;
     }

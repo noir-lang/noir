@@ -173,17 +173,12 @@ impl Variable {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ObjectType {
-    //Numeric(NumericType),
     NativeField,
-    // custom_field(BigUint), //TODO requires copy trait for BigUint
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
     Pointer(ArrayId),
-
     Function,
-    //TODO big_int
-    //TODO floats
     NotAnObject, //not an object
 }
 
@@ -497,7 +492,6 @@ pub enum Operation {
         root: NodeId,
         block_args: Vec<(NodeId, BlockId)>,
     },
-    //Call(function::FunctionCall),
     Call {
         func: NodeId,
         arguments: Vec<NodeId>,
@@ -703,6 +697,14 @@ impl Binary {
         Binary::new(operator, lhs, rhs)
     }
 
+    fn zero_div_error(&self) -> Result<(), RuntimeError> {
+        if self.predicate.is_none() {
+            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+        } else {
+            Ok(())
+        }
+    }
+
     fn evaluate<F>(
         &self,
         ctx: &SsaContext,
@@ -723,8 +725,6 @@ impl Binary {
 
         let l_is_zero = lhs.map_or(false, |x| x.is_zero());
         let r_is_zero = rhs.map_or(false, |x| x.is_zero());
-        let zero_div_error =
-            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into());
 
         match &self.operator {
             BinaryOp::Add | BinaryOp::SafeAdd => {
@@ -770,7 +770,7 @@ impl Binary {
 
             BinaryOp::Udiv => {
                 if r_is_zero {
-                    return zero_div_error;
+                    self.zero_div_error()?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -783,7 +783,7 @@ impl Binary {
             }
             BinaryOp::Div => {
                 if r_is_zero {
-                    return zero_div_error;
+                    self.zero_div_error()?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -792,7 +792,7 @@ impl Binary {
             }
             BinaryOp::Sdiv => {
                 if r_is_zero {
-                    return zero_div_error;
+                    self.zero_div_error()?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -803,7 +803,7 @@ impl Binary {
             }
             BinaryOp::Urem => {
                 if r_is_zero {
-                    return zero_div_error;
+                    self.zero_div_error()?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -812,7 +812,7 @@ impl Binary {
             }
             BinaryOp::Srem => {
                 if r_is_zero {
-                    return zero_div_error;
+                    self.zero_div_error()?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
