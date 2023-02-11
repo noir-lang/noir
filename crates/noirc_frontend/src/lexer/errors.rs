@@ -2,7 +2,7 @@ use crate::token::SpannedToken;
 
 use super::token::Token;
 use noirc_errors::CustomDiagnostic as Diagnostic;
-use noirc_errors::{DiagnosableError, Span};
+use noirc_errors::Span;
 use thiserror::Error;
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
@@ -77,9 +77,9 @@ impl LexerErrorKind {
     }
 }
 
-impl DiagnosableError for LexerErrorKind {
-    fn to_diagnostic(&self) -> Diagnostic {
-        let (primary, secondary, span) = self.parts();
+impl From<LexerErrorKind> for Diagnostic {
+    fn from(error: LexerErrorKind) -> Diagnostic {
+        let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
     }
 }
