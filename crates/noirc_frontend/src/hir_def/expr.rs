@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, StructId};
+use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId};
 use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 
 use super::stmt::HirPattern;
@@ -149,8 +149,8 @@ impl HirMethodCallExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
-    pub type_id: StructId,
     pub r#type: Shared<StructType>,
+    pub struct_generics: Vec<Type>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
     //       names (and thus remove the need to normalize them during type checking)

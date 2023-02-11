@@ -216,7 +216,7 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::If(if_expr) => check_if_expr(&if_expr, expr_id, interner, errors),
         HirExpression::Constructor(constructor) => {
-            check_constructor(&constructor, expr_id, interner, errors)
+            check_constructor(constructor, expr_id, interner, errors)
         }
         HirExpression::MemberAccess(access) => {
             check_member_access(access, interner, *expr_id, errors)
@@ -353,21 +353,16 @@ fn lookup_method(
     errors: &mut Vec<TypeCheckError>,
 ) -> Option<FuncId> {
     match &object_type {
-        Type::Struct(typ, _args) => {
-            let typ = typ.borrow();
-            match typ.methods.get(method_name) {
-                Some(method_id) => Some(*method_id),
-                None => {
-                    errors.push(TypeCheckError::Unstructured {
-                        span: interner.expr_span(expr_id),
-                        msg: format!(
-                            "No method named '{method_name}' found for type '{object_type}'",
-                        ),
-                    });
-                    None
-                }
+        Type::Struct(typ, _args) => match interner.lookup_method(typ.borrow().id, method_name) {
+            Some(method_id) => Some(method_id),
+            None => {
+                errors.push(TypeCheckError::Unstructured {
+                    span: interner.expr_span(expr_id),
+                    msg: format!("No method named '{method_name}' found for type '{object_type}'",),
+                });
+                None
             }
-        }
+        },
         // If we fail to resolve the object to a struct type, we have no way of type
         // checking its arguments as we can't even resolve the name of the function
         Type::Error => None,
@@ -412,8 +407,10 @@ fn type_check_method_call(
         }
 
         let (function_type, instantiation_bindings) = func_meta.typ.instantiate(interner);
+
         interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
         interner.push_expr_type(function_ident_id, function_type.clone());
+
         bind_function_type(function_type, arguments, span, interner, errors)
     }
 }
@@ -645,12 +642,13 @@ fn check_if_expr(
 }
 
 fn check_constructor(
-    constructor: &expr::HirConstructorExpression,
+    constructor: expr::HirConstructorExpression,
     expr_id: &ExprId,
     interner: &mut NodeInterner,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    let typ = &constructor.r#type;
+    let typ = constructor.r#type;
+    let generics = constructor.struct_generics;
 
     // Sanity check, this should be caught during name resolution anyway
     assert_eq!(constructor.fields.len(), typ.borrow().num_fields());
@@ -658,15 +656,14 @@ fn check_constructor(
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
     // preserve the evaluation order of the source code.
-    let mut args = constructor.fields.clone();
+    let mut args = constructor.fields;
     args.sort_by_key(|arg| arg.0.clone());
 
-    let typ_ref = typ.borrow();
-    let (generics, fields) = typ_ref.instantiate(interner);
+    let fields = typ.borrow().get_fields(&generics);
 
     for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
         // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, &arg_ident.0.contents);
+        assert_eq!(param_name, arg_ident.0.contents);
 
         let arg_type = type_check_expression(interner, &arg, errors);
 
@@ -678,7 +675,7 @@ fn check_constructor(
         });
     }
 
-    Type::Struct(typ.clone(), generics)
+    Type::Struct(typ, generics)
 }
 
 pub fn check_member_access(
