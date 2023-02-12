@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use std::collections::BTreeMap;
 
 /// Equivalent to .into_iter().map(f).collect::<Vec<_>>()

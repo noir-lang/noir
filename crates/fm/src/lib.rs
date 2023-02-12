@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 mod file_map;
 mod file_reader;
 
