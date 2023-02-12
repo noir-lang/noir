@@ -21,7 +21,7 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
-pub struct IRGenerator {
+pub struct IrGenerator {
     pub context: SsaContext,
     pub function_context: Option<FuncIndex>,
 
@@ -32,9 +32,9 @@ pub struct IRGenerator {
     pub program: Program,
 }
 
-impl IRGenerator {
-    pub fn new(program: Program) -> IRGenerator {
-        IRGenerator {
+impl IrGenerator {
+    pub fn new(program: Program) -> IrGenerator {
+        IrGenerator {
             context: SsaContext::new(),
             variable_values: HashMap::new(),
             function_context: None,

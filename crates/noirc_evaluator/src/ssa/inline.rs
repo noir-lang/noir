@@ -185,7 +185,7 @@ impl StackFrame {
 //Return false if the inlined function performs a function call
 pub fn inline(
     ctx: &mut SsaContext,
-    ssa_func: &function::SSAFunction,
+    ssa_func: &function::SsaFunction,
     args: &[NodeId],
     arrays: &[(ArrayId, u32)],
     block: BlockId,
@@ -437,7 +437,7 @@ impl node::Operation {
                             return id;
                         }
                     }
-                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
+                    function::SsaFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
                 });
             }
             //However we deliberately not use the default case to force review of the behavior if a new type of operation is added.
@@ -450,7 +450,7 @@ impl node::Operation {
             | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call { .. }
             => {
                 self.map_id_mut(|id| {
-                    function::SSAFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
+                    function::SsaFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
                 });
             }
         }

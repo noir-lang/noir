@@ -5,7 +5,7 @@ use crate::ssa::{
     context::SsaContext,
     mem::ArrayId,
     node::{Node, NodeId, ObjectType, Opcode, Operation},
-    ssa_gen::IRGenerator,
+    ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
 use iter_extended::try_vecmap;
@@ -22,7 +22,7 @@ impl FuncIndex {
 }
 
 #[derive(Clone, Debug)]
-pub struct SSAFunction {
+pub struct SsaFunction {
     pub entry_block: BlockId,
     pub id: FuncId,
     pub idx: FuncIndex,
@@ -35,15 +35,15 @@ pub struct SSAFunction {
     pub decision: DecisionTree,
 }
 
-impl SSAFunction {
+impl SsaFunction {
     pub fn new(
         id: FuncId,
         name: &str,
         block_id: BlockId,
         idx: FuncIndex,
         ctx: &mut SsaContext,
-    ) -> SSAFunction {
-        SSAFunction {
+    ) -> SsaFunction {
+        SsaFunction {
             entry_block: block_id,
             id,
             node_id: ctx.push_function_id(id, name),
@@ -55,7 +55,7 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, ir_gen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+    pub fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
@@ -137,7 +137,7 @@ impl SSAFunction {
     }
 }
 
-impl IRGenerator {
+impl IrGenerator {
     /// Creates an ssa function and returns its type upon success
     pub fn create_function(
         &mut self,
@@ -150,7 +150,7 @@ impl IRGenerator {
 
         let function = &mut self.program[func_id];
         let mut func =
-            SSAFunction::new(func_id, &function.name, func_block, index, &mut self.context);
+            SsaFunction::new(func_id, &function.name, func_block, index, &mut self.context);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
