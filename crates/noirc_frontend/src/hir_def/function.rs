@@ -18,9 +18,10 @@ impl HirFunction {
         HirFunction(ExprId::empty_block_id())
     }
 
+    // <Note> Originally named unsafe_from_expr changed to unchecked_from_expr as per this issue https://github.com/noir-lang/noir/issues/812 </Note>
     // This function is marked as unsafe because
     // the expression kind is not being checked
-    pub const fn unsafe_from_expr(expr_id: ExprId) -> HirFunction {
+    pub const fn unchecked_from_expr(expr_id: ExprId) -> HirFunction {
         HirFunction(expr_id)
     }
 
