@@ -26,6 +26,11 @@ WASM_EXPORT void unrolled_prover_get_work_queue_item_info(WasmUnrolledProver* pr
     memcpy(result, &info, sizeof(info));
 }
 
+WASM_EXPORT bool unrolled_prover_get_scalar_multiplication_type(WasmUnrolledProver* prover, size_t work_item_number)
+{
+    return prover->get_scalar_multiplication_type(work_item_number);
+}
+
 WASM_EXPORT fr* unrolled_prover_get_scalar_multiplication_data(WasmUnrolledProver* prover, size_t work_item_number)
 {
     return prover->get_scalar_multiplication_data(work_item_number);

@@ -10,6 +10,7 @@
 #include <srs/reference_string/file_reference_string.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
+#include <numeric/bitop/pow.hpp>
 
 #include <string_view>
 #include <memory>
@@ -59,9 +60,24 @@ class CommitmentKey {
     C commit(std::span<const Fr> polynomial)
     {
         const size_t degree = polynomial.size();
-        ASSERT(degree <= srs.get_size());
+        ASSERT(degree <= srs.get_monomial_size());
         return barretenberg::scalar_multiplication::pippenger_unsafe(
-            const_cast<Fr*>(polynomial.data()), srs.get_monomials(), degree, pippenger_runtime_state);
+            const_cast<Fr*>(polynomial.data()), srs.get_monomial_points(), degree, pippenger_runtime_state);
+    };
+
+    /**
+     * @brief Uses the ProverSRS to create a commitment to p(X)
+     *
+     * @param polynomial a univariate polynomial in its evaluation form p(X) = ∑ᵢ p(ωⁱ)⋅Lᵢ(X)
+     * @return Commitment computed as C = [p(x)] = ∑ᵢ p(ωⁱ)⋅[Lᵢ(x)]₁
+     */
+    C commit_lagrange(std::span<const Fr> polynomial)
+    {
+        const size_t degree = polynomial.size();
+        ASSERT(degree == srs.get_lagrange_size());
+        ASSERT(numeric::is_power_of_two(degree));
+        return barretenberg::scalar_multiplication::pippenger_unsafe(
+            const_cast<Fr*>(polynomial.data()), srs.get_lagrange_points(), degree, pippenger_runtime_state);
     };
 
   private:

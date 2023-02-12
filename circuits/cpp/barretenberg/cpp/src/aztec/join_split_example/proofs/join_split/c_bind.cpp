@@ -58,10 +58,12 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
     return len;
 }
 
-WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
+WASM_EXPORT void join_split__init_verification_key(void* pippenger, void* pippenger_lagrange, uint8_t const* g2x)
 {
     auto crs_factory = std::make_unique<waffle::PippengerReferenceStringFactory>(
-        reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
+        reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger),
+        reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger_lagrange),
+        g2x);
     init_verification_key(std::move(crs_factory));
 }
 

@@ -44,7 +44,7 @@ template <class FF> class VerifierTests : public testing::Test {
         for (size_t i = 0; i < 8; ++i) {
             commitments[i] = g1::affine_element(
                 scalar_multiplication::pippenger(poly_coefficients[i],
-                                                 circuit_proving_key->reference_string->get_monomials(),
+                                                 circuit_proving_key->reference_string->get_monomial_points(),
                                                  circuit_proving_key->circuit_size,
                                                  prover));
         }

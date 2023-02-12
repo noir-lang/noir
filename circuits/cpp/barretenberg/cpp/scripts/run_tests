@@ -20,6 +20,6 @@ docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -e; \
   cd /usr/src/barretenberg/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \
-  ./download_ignition_lagrange.sh 12; \
+  ./download_ignition_lagrange.sh 24; \
   cd /usr/src/barretenberg/cpp/build; \
   for BIN in $TESTS; do ./bin/\$BIN $@; done"

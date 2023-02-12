@@ -67,6 +67,7 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
 /**
  * - Compute wire commitments and add them to the transcript.
  * - Add public_inputs from w_2_fft to transcript.
+ * - We use Lagrange srs to commit to wire polynomials (in their Lagrange form).
  *
  * @tparam settings Program settings.
  * */
@@ -77,9 +78,9 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     for (size_t i = 0; i < end; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         std::string commit_tag = "W_" + std::to_string(i + 1);
-        barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag).get_coefficients();
+        barretenberg::fr* coefficients = key->polynomial_cache.get(wire_tag + "_lagrange").get_coefficients();
         // This automatically saves the computed point to the transcript
-        commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMSize::N, queue);
+        commitment_scheme->commit(coefficients, commit_tag, work_queue::MSMType::LAGRANGE_N, queue);
     }
 
     // add public inputs
@@ -136,7 +137,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
         std::string quotient_tag = "T_" + std::to_string(i + 1);
         // Set flag that determines domain size (currently n or n+1) in pippenger (see process_queue()).
         // Note: After blinding, all t_i have size n+1 representation (degree n) except t_4 in Turbo/Ultra.
-        fr domain_size_flag = i > 2 ? work_queue::MSMSize::N : work_queue::MSMSize::N_PLUS_ONE;
+        fr domain_size_flag = i > 2 ? work_queue::MSMType::MONOMIAL_N : work_queue::MSMType::MONOMIAL_N_PLUS_ONE;
         commitment_scheme->commit(coefficients, quotient_tag, domain_size_flag, queue);
     }
 }
@@ -206,15 +207,6 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
         }
 
         key->polynomial_cache.put(wire_tag + "_lagrange", std::move(wire_lagrange));
-
-        // perfom an IFFT so that the "w_i" polynomials will contain the monomial form
-        queue.add_to_queue({
-            .work_type = work_queue::WorkType::IFFT,
-            .mul_scalars = nullptr,
-            .tag = wire_tag,
-            .constant = barretenberg::fr(0),
-            .index = 0,
-        });
     }
 }
 
@@ -251,6 +243,20 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
     start = std::chrono::steady_clock::now();
 #endif
     compute_wire_commitments();
+
+    // perfom an IFFT so that the "w_i" polynomials will contain the monomial form
+    const size_t end = settings::is_plookup ? (settings::program_width - 1) : settings::program_width;
+    for (size_t i = 0; i < end; ++i) {
+        std::string wire_tag = "w_" + std::to_string(i + 1);
+        queue.add_to_queue({
+            .work_type = work_queue::WorkType::IFFT,
+            .mul_scalars = nullptr,
+            .tag = wire_tag,
+            .constant = 0,
+            .index = 0,
+        });
+    }
+
     for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 1, queue);
     }
@@ -285,30 +291,31 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
         add_plookup_memory_records_to_w_4();
         std::string wire_tag = "w_4";
         barretenberg::polynomial& w_4_lagrange = key->polynomial_cache.get(wire_tag + "_lagrange");
-        // barretenberg::polynomial& wire_fft = key->polynomial_cache.get(wire_tag + "_fft");
-        barretenberg::polynomial w_4(key->circuit_size);
-        // barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
-        barretenberg::polynomial_arithmetic::copy_polynomial(&w_4_lagrange[0], &w_4[0], circuit_size, circuit_size);
 
-        // TODO: This adds blinding to the what will become the w_4_monomial, NOT to the w_4_lagrange poly. Is this
-        // intentional?
+        // add randomness to w_4_lagrange
         const size_t w_randomness = 3;
         ASSERT(w_randomness < settings::num_roots_cut_out_of_vanishing_polynomial);
         for (size_t k = 0; k < w_randomness; ++k) {
             // Blinding
-            w_4.at(circuit_size - settings::num_roots_cut_out_of_vanishing_polynomial + k) = fr::random_element();
+            w_4_lagrange.at(circuit_size - settings::num_roots_cut_out_of_vanishing_polynomial + k) =
+                fr::random_element();
         }
 
-        // poly w_4 and add to cache
-        w_4.ifft(key->small_domain);
-        key->polynomial_cache.put(wire_tag, std::move(w_4));
-
-        // Commit to w_4:
+        // commit to w_4 using Lagrange srs.
         queue.add_to_queue({
             .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
-            .mul_scalars = key->polynomial_cache.get(wire_tag).get_coefficients(),
+            .mul_scalars = w_4_lagrange.get_coefficients(),
             .tag = "W_4",
-            .constant = barretenberg::fr(0),
+            .constant = work_queue::MSMType::LAGRANGE_N,
+            .index = 0,
+        });
+
+        // convert w_4 to the coefficient form.
+        queue.add_to_queue({
+            .work_type = work_queue::WorkType::IFFT,
+            .mul_scalars = nullptr,
+            .tag = wire_tag,
+            .constant = 0,
             .index = 0,
         });
     }

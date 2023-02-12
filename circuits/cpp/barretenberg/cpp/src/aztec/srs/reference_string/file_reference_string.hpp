@@ -21,7 +21,7 @@ using namespace barretenberg;
 
 class VerifierFileReferenceString : public VerifierReferenceString {
   public:
-    VerifierFileReferenceString(std::string const& path, bool is_lagrange = false);
+    VerifierFileReferenceString(std::string const& path);
     ~VerifierFileReferenceString();
 
     g2::affine_element get_g2x() const override { return g2_x; }
@@ -35,59 +35,62 @@ class VerifierFileReferenceString : public VerifierReferenceString {
 
 class FileReferenceString : public ProverReferenceString {
   public:
-    FileReferenceString(const size_t num_points, std::string const& path, bool is_lagrange = false)
+    FileReferenceString(const size_t num_points, std::string const& path)
         : num_points(num_points)
-        , pippenger_(path, num_points, is_lagrange)
+        , pippenger_(path, num_points, false)
+        , pippenger_lagrange_(path, num_points, true)
     {}
 
-    g1::affine_element* get_monomials() override { return pippenger_.get_point_table(); }
+    g1::affine_element* get_monomial_points() override { return pippenger_.get_point_table(); }
 
-    size_t get_size() const override { return num_points; }
+    g1::affine_element* get_lagrange_points() override { return pippenger_lagrange_.get_point_table(); }
+
+    size_t get_monomial_size() const override { return num_points; }
+
+    size_t get_lagrange_size() const override { return 1UL << numeric::get_msb(num_points); }
 
   private:
     size_t num_points;
     scalar_multiplication::Pippenger pippenger_;
+    scalar_multiplication::Pippenger pippenger_lagrange_;
 };
 
 class FileReferenceStringFactory : public ReferenceStringFactory {
   public:
-    FileReferenceStringFactory(std::string path, bool is_lagrange = false)
+    FileReferenceStringFactory(std::string path)
         : path_(std::move(path))
-        , is_lagrange_(is_lagrange)
     {}
 
     FileReferenceStringFactory(FileReferenceStringFactory&& other) = default;
 
     std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree) override
     {
-        return std::make_shared<FileReferenceString>(degree, path_, is_lagrange_);
+        return std::make_shared<FileReferenceString>(degree, path_);
     }
 
     std::shared_ptr<VerifierReferenceString> get_verifier_crs() override
     {
-        return std::make_shared<VerifierFileReferenceString>(path_, is_lagrange_);
+        return std::make_shared<VerifierFileReferenceString>(path_);
     }
 
   private:
     std::string path_;
-    bool is_lagrange_;
 };
 
 class DynamicFileReferenceStringFactory : public ReferenceStringFactory {
   public:
-    DynamicFileReferenceStringFactory(std::string path, size_t initial_degree = 0, bool is_lagrange = false)
+    DynamicFileReferenceStringFactory(std::string path, size_t initial_degree = 0)
         : path_(std::move(path))
         , degree_(initial_degree)
-        , is_lagrange_(is_lagrange)
-        , verifier_crs_(std::make_shared<VerifierFileReferenceString>(path_, is_lagrange))
+        , verifier_crs_(std::make_shared<VerifierFileReferenceString>(path_))
     {}
 
     DynamicFileReferenceStringFactory(DynamicFileReferenceStringFactory&& other) = default;
 
     std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree) override
     {
-        if (degree > degree_) {
-            prover_crs_ = std::make_shared<FileReferenceString>(degree, path_, is_lagrange_);
+        if (degree != degree_) {
+            prover_crs_ = std::make_shared<FileReferenceString>(degree, path_);
             degree_ = degree;
         }
         return prover_crs_;
@@ -98,7 +101,6 @@ class DynamicFileReferenceStringFactory : public ReferenceStringFactory {
   private:
     std::string path_;
     size_t degree_;
-    bool is_lagrange_;
     std::shared_ptr<FileReferenceString> prover_crs_;
     std::shared_ptr<VerifierFileReferenceString> verifier_crs_;
 };

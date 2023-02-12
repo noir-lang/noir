@@ -50,12 +50,31 @@ size_t work_queue::get_scalar_multiplication_size(const size_t work_item_number)
     for (const auto& item : work_item_queue) {
         if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
             if (count == work_item_number) {
-                return item.constant == MSMSize::N ? key->circuit_size : key->circuit_size + 1;
+                return (item.constant == MSMType::MONOMIAL_N_PLUS_ONE) ? key->circuit_size + 1 : key->circuit_size;
             }
             ++count;
         }
     }
     return 0;
+}
+
+/**
+ * Returns a boolean that denotes if the scalar multiplication is to be done with the Monomial SRS or Lagrange SRS.
+ * 0: MSM with Monomial SRS (size n or n + 1)
+ * 1: MSM with Lagrange SRS (size n)
+ */
+bool work_queue::get_scalar_multiplication_type(const size_t work_item_number) const
+{
+    size_t count = 0;
+    for (const auto& item : work_item_queue) {
+        if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
+            if (count == work_item_number) {
+                return (item.constant == MSMType::LAGRANGE_N);
+            }
+            ++count;
+        }
+    }
+    return false;
 }
 
 barretenberg::fr* work_queue::get_ifft_data(const size_t work_item_number) const
@@ -198,32 +217,54 @@ void work_queue::process_queue()
             // We use the variable work_item::constant to set the size of the multi-scalar multiplication.
             // Note that a size (n+1) MSM is always needed to commit to the quotient polynomial parts t_1, t_2
             // and t_3 for Standard/Turbo/Ultra due to the addition of blinding factors
-            if (item.constant == MSMSize::N_PLUS_ONE) {
-                if (key->reference_string->get_size() < key->small_domain.size + 1) {
-                    info("Reference string too small for Pippenger.");
+            size_t msm_size = 0;
+            barretenberg::g1::affine_element* srs_points;
+            switch (static_cast<size_t>(uint256_t(item.constant))) {
+            case MSMType::MONOMIAL_N: {
+                if (key->reference_string->get_monomial_size() < key->small_domain.size) {
+                    info("MSM: Monomial reference string size: ",
+                         key->reference_string->get_monomial_size(),
+                         ", required size: ",
+                         key->small_domain.size);
                 }
-                auto runtime_state =
-                    barretenberg::scalar_multiplication::pippenger_runtime_state(key->small_domain.size + 1);
-                barretenberg::g1::affine_element result(
-                    barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
-                                                                          key->reference_string->get_monomials(),
-                                                                          key->small_domain.size + 1,
-                                                                          runtime_state));
-
-                transcript->add_element(item.tag, result.to_buffer());
-            } else {
-                ASSERT(item.constant == MSMSize::N);
-                if (key->reference_string->get_size() < key->small_domain.size) {
-                    info("Reference string too small for Pippenger.");
-                }
-                barretenberg::g1::affine_element result(
-                    barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
-                                                                          key->reference_string->get_monomials(),
-                                                                          key->small_domain.size,
-                                                                          key->pippenger_runtime_state));
-
-                transcript->add_element(item.tag, result.to_buffer());
+                msm_size = key->small_domain.size;
+                srs_points = key->reference_string->get_monomial_points();
+                break;
             }
+            case MSMType::MONOMIAL_N_PLUS_ONE: {
+                if (key->reference_string->get_monomial_size() < key->small_domain.size + 1) {
+                    info("MSM: Monomial reference string size: ",
+                         key->reference_string->get_monomial_size(),
+                         ", required size: ",
+                         key->small_domain.size + 1);
+                }
+                msm_size = key->small_domain.size + 1;
+                srs_points = key->reference_string->get_monomial_points();
+                break;
+            }
+            case MSMType::LAGRANGE_N: {
+                if (key->reference_string->get_lagrange_size() != key->small_domain.size) {
+                    info("MSM: Lagrange reference string size: ",
+                         key->reference_string->get_lagrange_size(),
+                         ", required size: ",
+                         key->small_domain.size);
+                }
+                msm_size = key->small_domain.size;
+                srs_points = key->reference_string->get_lagrange_points();
+                break;
+            }
+            default: {
+                info("Incorrect item constant value: ", static_cast<size_t>(uint256_t(item.constant)));
+                srs_points = key->reference_string->get_monomial_points();
+            }
+            }
+
+            // Run pippenger multi-scalar multiplication.
+            auto runtime_state = barretenberg::scalar_multiplication::pippenger_runtime_state(msm_size);
+            barretenberg::g1::affine_element result(barretenberg::scalar_multiplication::pippenger_unsafe(
+                item.mul_scalars, srs_points, msm_size, runtime_state));
+
+            transcript->add_element(item.tag, result.to_buffer());
 
             break;
         }

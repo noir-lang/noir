@@ -8,7 +8,7 @@ class work_queue {
 
   public:
     enum WorkType { FFT, SMALL_FFT, IFFT, SCALAR_MULTIPLICATION };
-    enum MSMSize { N, N_PLUS_ONE };
+    enum MSMType { MONOMIAL_N, MONOMIAL_N_PLUS_ONE, LAGRANGE_N };
 
     struct work_item_info {
         uint32_t num_scalar_multiplications;
@@ -41,6 +41,8 @@ class work_queue {
     barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const;
 
     size_t get_scalar_multiplication_size(const size_t work_item_number) const;
+
+    bool get_scalar_multiplication_type(const size_t work_item_number) const;
 
     barretenberg::fr* get_ifft_data(const size_t work_item_number) const;
 

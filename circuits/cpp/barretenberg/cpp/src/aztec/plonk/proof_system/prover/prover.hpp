@@ -56,6 +56,11 @@ template <typename settings> class ProverBase {
         return queue.get_scalar_multiplication_size(work_item_number);
     }
 
+    bool get_scalar_multiplication_type(const size_t work_item_number) const
+    {
+        return queue.get_scalar_multiplication_type(work_item_number);
+    }
+
     barretenberg::fr* get_ifft_data(const size_t work_item_number) const
     {
         return queue.get_ifft_data(work_item_number);

@@ -33,7 +33,7 @@ int main(int argc, char** argv)
     auto reference_string = std::make_shared<waffle::FileReferenceString>(subgroup_size, srs_path);
     std::vector<barretenberg::g1::affine_element> monomial_srs(subgroup_size);
     for (size_t i = 0; i < subgroup_size; ++i) {
-        monomial_srs[i] = reference_string->get_monomials()[2 * i];
+        monomial_srs[i] = reference_string->get_monomial_points()[2 * i];
     }
 
     auto verifier_ref_string = std::make_shared<waffle::VerifierFileReferenceString>(srs_path);

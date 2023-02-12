@@ -68,11 +68,11 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
-        commitments[i] =
-            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
-                                                                circuit_proving_key->reference_string->get_monomials(),
-                                                                circuit_proving_key->circuit_size,
-                                                                state));
+        commitments[i] = g1::affine_element(
+            scalar_multiplication::pippenger(poly_coefficients[i],
+                                             circuit_proving_key->reference_string->get_monomial_points(),
+                                             circuit_proving_key->circuit_size,
+                                             state));
     }
 
     auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");

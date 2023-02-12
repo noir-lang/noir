@@ -327,11 +327,11 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
             selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
-            auto selector_poly_commitment =
-                g1::affine_element(scalar_multiplication::pippenger(selector_poly_coefficients,
-                                                                    proving_key->reference_string->get_monomials(),
-                                                                    proving_key->circuit_size,
-                                                                    proving_key->pippenger_runtime_state));
+            auto selector_poly_commitment = g1::affine_element(
+                scalar_multiplication::pippenger(selector_poly_coefficients,
+                                                 proving_key->reference_string->get_monomial_points(),
+                                                 proving_key->circuit_size,
+                                                 proving_key->pippenger_runtime_state));
 
             circuit_verification_key->commitments.insert({ selector_commitment_label, selector_poly_commitment });
         }

@@ -11,7 +11,7 @@ Pippenger::Pippenger(g1::affine_element* points, size_t num_points)
     scalar_multiplication::generate_pippenger_point_table(monomials_, monomials_, num_points);
 }
 
-Pippenger::Pippenger(uint8_t const* points, size_t num_points, bool)
+Pippenger::Pippenger(uint8_t const* points, size_t num_points)
     : num_points_(num_points)
 {
     monomials_ = point_table_alloc<g1::affine_element>(num_points);

@@ -49,6 +49,11 @@ WASM_EXPORT void prover_get_work_queue_item_info(WasmProver* prover, uint8_t* re
     memcpy(result, &info, sizeof(info));
 }
 
+WASM_EXPORT bool prover_get_scalar_multiplication_type(WasmProver* prover, size_t work_item_number)
+{
+    return prover->get_scalar_multiplication_type(work_item_number);
+}
+
 WASM_EXPORT fr* prover_get_scalar_multiplication_data(WasmProver* prover, size_t work_item_number)
 {
     return prover->get_scalar_multiplication_data(work_item_number);

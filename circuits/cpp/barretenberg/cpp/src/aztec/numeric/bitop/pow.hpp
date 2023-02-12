@@ -25,4 +25,9 @@ constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)
     return accumulator;
 }
 
+constexpr bool is_power_of_two(uint64_t x)
+{
+    return x && !(x & (x - 1));
+}
+
 } // namespace numeric
