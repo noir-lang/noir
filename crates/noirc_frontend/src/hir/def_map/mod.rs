@@ -134,7 +134,7 @@ pub fn parse_file(
     all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
-    let (program, errors) = parse_program(file.get_source());
+    let (program, errors) = parse_program(file.source());
     all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
     program
 }

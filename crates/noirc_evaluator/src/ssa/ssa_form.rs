@@ -107,7 +107,7 @@ pub fn get_current_value_in_block(
     var_id: NodeId,
     block_id: BlockId,
 ) -> NodeId {
-    let root = ctx.get_root_value(var_id);
+    let root = ctx.root_value(var_id);
 
     ctx[block_id]
         .get_current_value(root) //Local value numbering

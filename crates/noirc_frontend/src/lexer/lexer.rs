@@ -33,7 +33,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn from_file(source: File<'a>) -> Self {
-        let source_file = source.get_source();
+        let source_file = source.source();
         Lexer::new(source_file)
     }
 
