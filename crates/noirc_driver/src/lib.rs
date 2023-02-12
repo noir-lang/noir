@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use acvm::acir::circuit::Circuit;
 
 use acvm::Language;
