@@ -151,7 +151,8 @@ impl DefCollector {
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id, errors);
+        let file_global_ids =
+            resolve_globals(context, def_collector.collected_globals, crate_id, errors);
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 

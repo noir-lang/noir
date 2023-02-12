@@ -611,8 +611,8 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_literal(
-        mut self, 
-        let_stmt: crate::LetStatement
+        mut self,
+        let_stmt: crate::LetStatement,
     ) -> (HirStatement, Vec<ResolverError>) {
         let expression = self.resolve_expression(let_stmt.expression);
         let definition = DefinitionKind::Global(expression);
@@ -625,8 +625,8 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_global_let(
-        mut self, 
-        let_stmt: crate::LetStatement
+        mut self,
+        let_stmt: crate::LetStatement,
     ) -> (HirStatement, Vec<ResolverError>) {
         match let_stmt.expression.kind.clone() {
             // Ensure it is a literal.
@@ -642,8 +642,8 @@ impl<'a> Resolver<'a> {
                                 // This element is not a literal.
                                 _ => {
                                     type_error = true;
-                                    self.push_err(ResolverError::Expected { 
-                                        span: let_stmt.expression.span, 
+                                    self.push_err(ResolverError::Expected {
+                                        span: let_stmt.expression.span,
                                         expected: "global array elements can only be array, bool, integer or field literals".to_owned(), 
                                         got: e.kind.to_string(),
                                     });
@@ -651,20 +651,18 @@ impl<'a> Resolver<'a> {
                             }
                         }
                         if type_error {
-                            return (HirStatement::Error, self.errors)
+                            return (HirStatement::Error, self.errors);
                         }
                         self.resolve_literal(let_stmt)
                     }
                     // Just check the type of the repeated element.
-                    Literal::Array(ArrayLiteral::Repeated { repeated_element, length: _}) => {
+                    Literal::Array(ArrayLiteral::Repeated { repeated_element, length: _ }) => {
                         match repeated_element.kind {
-                            ExpressionKind::Literal(_) => {
-                                self.resolve_literal(let_stmt)
-                            }
+                            ExpressionKind::Literal(_) => self.resolve_literal(let_stmt),
                             // Repeated type is not a literal.
                             _ => {
-                                self.push_err(ResolverError::Expected { 
-                                    span: let_stmt.expression.span, 
+                                self.push_err(ResolverError::Expected {
+                                    span: let_stmt.expression.span,
                                     expected: "global array elements can only be array, bool, integer or field literals".to_owned(), 
                                     got: repeated_element.kind.to_string(),
                                 });
@@ -673,16 +671,15 @@ impl<'a> Resolver<'a> {
                         }
                     }
                     // Non-array literal is OK.
-                    _ => {
-                        self.resolve_literal(let_stmt)
-                    }
+                    _ => self.resolve_literal(let_stmt),
                 }
             }
             // Not a literal.
             _ => {
-                self.push_err(ResolverError::Expected { 
-                    span: let_stmt.expression.span, 
-                    expected: "globals can only be array, bool, integer or field literals".to_owned(), 
+                self.push_err(ResolverError::Expected {
+                    span: let_stmt.expression.span,
+                    expected: "globals can only be array, bool, integer or field literals"
+                        .to_owned(),
                     got: let_stmt.expression.kind.to_string(),
                 });
                 (HirStatement::Error, self.errors)
