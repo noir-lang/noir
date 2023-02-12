@@ -11,7 +11,7 @@ use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
-use ssa::{code_gen::IrGenerator, node};
+use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::BTreeMap;
 
 pub struct Evaluator {
@@ -114,7 +114,7 @@ impl Evaluator {
         self.parse_abi_alt(&mut ir_gen);
 
         // Now call the main function
-        ir_gen.codegen_main()?;
+        ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
         ir_gen.context.ir_to_acir(self, enable_logging)?;

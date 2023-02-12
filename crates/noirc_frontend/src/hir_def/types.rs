@@ -9,10 +9,7 @@ use iter_extended::{btree_map, vecmap};
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{
-    node_interner::{FuncId, StructId},
-    Ident, Signedness,
-};
+use crate::{node_interner::StructId, Ident, Signedness};
 
 /// A shared, mutable reference to some T.
 /// Wrapper is required for Hash impl of RefCell.
@@ -75,7 +72,6 @@ pub struct StructType {
     fields: BTreeMap<Ident, Type>,
 
     pub generics: Generics,
-    pub methods: HashMap<String, FuncId>,
     pub span: Span,
 }
 
@@ -101,7 +97,7 @@ impl StructType {
         fields: BTreeMap<Ident, Type>,
         generics: Generics,
     ) -> StructType {
-        StructType { id, fields, name, span, generics, methods: HashMap::new() }
+        StructType { id, fields, name, span, generics }
     }
 
     pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
@@ -155,30 +151,9 @@ impl StructType {
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
-    /// the same order as self.generics) and a map of each instantiated field
-    pub fn instantiate<'a>(
-        &'a self,
-        interner: &mut NodeInterner,
-    ) -> (Vec<Type>, BTreeMap<&'a str, Type>) {
-        let (generics, substitutions) = self
-            .generics
-            .iter()
-            .map(|(old_id, old_var)| {
-                let new = interner.next_type_variable();
-                (new.clone(), (*old_id, (old_var.clone(), new)))
-            })
-            .unzip();
-
-        let fields = self
-            .fields
-            .iter()
-            .map(|(name, typ)| {
-                let typ = typ.substitute(&substitutions);
-                (name.0.contents.as_str(), typ)
-            })
-            .collect();
-
-        (generics, fields)
+    /// the same order as self.generics)
+    pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
+        vecmap(&self.generics, |_| interner.next_type_variable())
     }
 }
 

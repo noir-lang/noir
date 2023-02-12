@@ -16,15 +16,15 @@ use crate::{
 use chumsky::prelude::*;
 use iter_extended::vecmap;
 use noirc_abi::AbiVisibility;
-use noirc_errors::{CustomDiagnostic, DiagnosableError, Span, Spanned};
+use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
     let lexer = Lexer::new(source_program);
     let (tokens, lexing_errors) = lexer.lex();
-    let mut errors = vecmap(&lexing_errors, DiagnosableError::to_diagnostic);
+    let mut errors = vecmap(lexing_errors, Into::into);
 
     let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
-    errors.extend(parsing_errors.iter().map(DiagnosableError::to_diagnostic));
+    errors.extend(parsing_errors.into_iter().map(Into::into));
 
     (module.unwrap(), errors)
 }
@@ -227,11 +227,14 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
 
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
-        .ignore_then(path())
+        .ignore_then(generics())
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then_ignore(just(Token::LeftBrace))
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
-        .map(|(type_path, methods)| TopLevelStatement::Impl(NoirImpl { type_path, methods }))
+        .map(|((generics, (object_type, type_span)), methods)| {
+            TopLevelStatement::Impl(NoirImpl { generics, object_type, type_span, methods })
+        })
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
@@ -898,7 +901,7 @@ fn literal() -> impl NoirParser<ExpressionKind> {
 
 #[cfg(test)]
 mod test {
-    use noirc_errors::{CustomDiagnostic, DiagnosableError};
+    use noirc_errors::CustomDiagnostic;
 
     use super::*;
     use crate::{ArrayLiteral, Literal};
@@ -910,12 +913,12 @@ mod test {
         let lexer = Lexer::new(program);
         let (tokens, lexer_errors) = lexer.lex();
         if !lexer_errors.is_empty() {
-            return Err(vecmap(&lexer_errors, DiagnosableError::to_diagnostic));
+            return Err(vecmap(lexer_errors, Into::into));
         }
         parser
             .then_ignore(just(Token::EOF))
             .parse(tokens)
-            .map_err(|errors| vecmap(&errors, DiagnosableError::to_diagnostic))
+            .map_err(|errors| vecmap(errors, Into::into))
     }
 
     fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<CustomDiagnostic>)
@@ -926,8 +929,8 @@ mod test {
         let (tokens, lexer_errors) = lexer.lex();
         let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
-        let mut errors = vecmap(&lexer_errors, DiagnosableError::to_diagnostic);
-        errors.extend(errs.iter().map(DiagnosableError::to_diagnostic));
+        let mut errors = vecmap(lexer_errors, Into::into);
+        errors.extend(errs.into_iter().map(Into::into));
 
         (opt, errors)
     }
