@@ -1,11 +1,12 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
-use crate::node_interner::FuncId;
+use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
+use crate::token::Attribute;
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::CollectedErrors;
+use noirc_errors::FileDiagnostic;
 use std::collections::HashMap;
 
 mod module_def;
@@ -50,7 +51,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<CollectedErrors>,
+        errors: &mut Vec<FileDiagnostic>,
     ) {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -112,19 +113,29 @@ impl CrateDefMap {
     pub fn module_file_id(&self, module_id: LocalModuleId) -> FileId {
         self.modules[module_id.0].origin.file_id()
     }
+
+    /// Go through all modules in this crate, and find all functions in
+    /// each module with the #[test] attribute
+    pub fn get_all_test_functions<'a>(
+        &'a self,
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = FuncId> + 'a {
+        self.modules.iter().flat_map(|(_, module)| {
+            let functions = module.scope.values().values().filter_map(|(id, _)| id.as_function());
+            functions.filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+        })
+    }
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(
     fm: &mut FileManager,
     file_id: FileId,
-    all_errors: &mut Vec<CollectedErrors>,
+    all_errors: &mut Vec<FileDiagnostic>,
 ) -> ParsedModule {
     let file = fm.fetch_file(file_id);
     let (program, errors) = parse_program(file.source());
-    if !errors.is_empty() {
-        all_errors.push(CollectedErrors { file_id, errors });
-    };
+    all_errors.extend(errors.into_iter().map(|error| error.in_file(file_id)));
     program
 }
 
