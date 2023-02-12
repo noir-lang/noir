@@ -13,6 +13,8 @@ TEST(io, read_transcript_loads_well_formed_srs)
     g2::affine_element g2_x;
     io::read_transcript(monomials, g2_x, degree, "../srs_db/ignition");
 
+    EXPECT_EQ(g1::affine_one, monomials[0]);
+
     g1::affine_element P[2];
     g2::affine_element Q[2];
     P[0] = monomials[1];

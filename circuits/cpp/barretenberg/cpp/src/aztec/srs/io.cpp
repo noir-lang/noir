@@ -128,14 +128,15 @@ void read_file_into_buffer(
 
 std::string get_transcript_path(std::string const& dir, size_t num)
 {
-    return dir + "/transcript" + (num < 10 ? "0" : "") + std::to_string(num) + ".dat";
+    return format(dir, "/monomial/transcript", (num < 10) ? "0" : "", std::to_string(num), ".dat");
 };
 
-std::string get_lagrange_transcript_path(std::string const& dir, size_t degree)
+std::string get_lagrange_transcript_path(std::string const& dir, size_t degree, size_t num = 0)
 {
     auto log2_n = static_cast<uint32_t>(numeric::get_msb(degree));
     auto new_degree = (1 << log2_n);
-    return dir + "/transcript_" + std::to_string(new_degree) + ".dat";
+    std::string suffix_str = (num > 0) ? format("_", std::to_string(num)) : "";
+    return format(dir, "/lagrange/transcript_", std::to_string(new_degree), suffix_str, ".dat");
 };
 
 bool is_file_exist(std::string const& fileName)
@@ -148,14 +149,7 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 {
     size_t num = 0;
     size_t num_read = 0;
-    std::string path = get_lagrange_transcript_path(dir, degree);
-    if (!is_lagrange) {
-        // read g1 elements at second array position - first point is the basic generato
-        // This is true for monomial base srs. We start from index 0 for lagrange base transcript.
-        monomials[0] = g1::affine_one;
-        num_read = 1;
-        path = get_transcript_path(dir, num);
-    }
+    std::string path = is_lagrange ? get_lagrange_transcript_path(dir, degree, num) : get_transcript_path(dir, num);
 
     while (is_file_exist(path) && num_read < degree) {
         Manifest manifest;
@@ -174,14 +168,16 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
         byteswap(&monomials[num_read], size);
 
         num_read += num_to_read;
-        path = get_transcript_path(dir, ++num);
+        path = is_lagrange ? get_lagrange_transcript_path(dir, degree, ++num) : get_transcript_path(dir, ++num);
     }
 
     const bool monomial_srs_condition = (num_read < degree) & (!is_lagrange);
     if (monomial_srs_condition) {
         throw_or_abort(format("Only read ",
                               num_read,
-                              " points but require ",
+                              " points from ",
+                              path,
+                              ", but require ",
                               degree,
                               ". Is your srs large enough? Either run bootstrap.sh to download the transcript.dat "
                               "files to `srs_db/ignition/`, or you might need to download extra transcript.dat files "
@@ -194,7 +190,7 @@ void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir, bool i
 {
 
     const size_t g2_size = sizeof(fq2) * 2;
-    std::string path = dir + "/g2.dat";
+    std::string path = format(dir, "/g2.dat");
 
     if (is_file_exist(path)) {
         char* buffer = (char*)&g2_x;
@@ -320,13 +316,13 @@ void write_transcript(g1::affine_element const* g1_x,
 {
     const size_t num_g1_x = manifest.num_g1_points;
     const size_t num_g2_x = manifest.num_g2_points;
+    const size_t transcript_num = manifest.transcript_number;
     const size_t manifest_size = sizeof(Manifest);
     const size_t g1_buffer_size = sizeof(fq) * 2 * num_g1_x;
     const size_t g2_buffer_size = sizeof(fq) * 4 * num_g2_x;
     const size_t transcript_size = manifest_size + g1_buffer_size + g2_buffer_size;
-    std::string path = is_lagrange ? get_lagrange_transcript_path(dir, num_g1_x) : get_transcript_path(dir, 0);
-    // const size_t transcript_size = manifest_size + g1_buffer_size + g2_buffer_size +
-    // checksum::BLAKE2B_CHECKSUM_LENGTH;
+    std::string path = is_lagrange ? get_lagrange_transcript_path(dir, num_g1_x, transcript_num)
+                                   : get_transcript_path(dir, transcript_num);
     std::vector<char> buffer(transcript_size);
 
     Manifest net_manifest;
@@ -342,7 +338,6 @@ void write_transcript(g1::affine_element const* g1_x,
 
     write_g1_elements_to_buffer(g1_x, &buffer[manifest_size], num_g1_x);
     write_g2_elements_to_buffer(g2_x, &buffer[manifest_size + g1_buffer_size], num_g2_x);
-    // add_checksum_to_buffer(&buffer[0], manifest_size + g1_buffer_size + g2_buffer_size);
     write_buffer_to_file(path, &buffer[0], transcript_size);
 }
 

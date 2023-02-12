@@ -35,15 +35,15 @@ void transform_srs(g1::affine_element* monomials, g1::affine_element* lagrange_b
     barretenberg::fr root = domain.root_inverse;
     std::vector<g1::element> monomials_jac(degree);
     for (size_t i = 0; i < degree; ++i) {
-        monomials_jac[i] = g1::element(monomials[i].x, monomials[i].y, g1::one.z );
+        monomials_jac[i] = g1::element(monomials[i].x, monomials[i].y, g1::one.z);
     }
 
     auto lagrange_jac = g1fft(&monomials_jac[0], degree, root, 1);
     for (size_t i = 0; i < degree - 1; ++i) {
         lagrange_base_affine[i + 1] = static_cast<g1::affine_element>(lagrange_jac[i] * domain.domain_inverse);
     }
-    lagrange_base_affine[0] = static_cast<g1::affine_element>(lagrange_jac[degree-1] * domain.domain_inverse);
+    lagrange_base_affine[0] = static_cast<g1::affine_element>(lagrange_jac[degree - 1] * domain.domain_inverse);
 }
 
 } // namespace lagrange_base
-}
+} // namespace barretenberg

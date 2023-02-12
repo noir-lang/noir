@@ -10,8 +10,8 @@
 TEST(reference_string, mem_file_consistency)
 {
     std::ifstream transcript;
-    int NUM_POINTS_IN_TRANSCRIPT = 5040000;
-    transcript.open("../srs_db/ignition/transcript00.dat", std::ifstream::binary);
+    int NUM_POINTS_IN_TRANSCRIPT = 5040001;
+    transcript.open("../srs_db/ignition/monomial/transcript00.dat", std::ifstream::binary);
     std::vector<uint8_t> monomials(32768 * 64);
     std::vector<uint8_t> g2x(128);
     transcript.seekg(28);

@@ -154,12 +154,10 @@ TEST(lagrange_base, verify_lagrange_base_import_srs)
     EXPECT_EQ(result, expected);
 }
 
-void test_lagrange_transcripts_helper(const size_t degree,
-                                      const std::string monomial_path,
-                                      const std::string lagrange_path)
+void test_lagrange_transcripts_helper(const size_t degree, const std::string path)
 {
-    auto lagrange_reference_string = scalar_multiplication::Pippenger(lagrange_path, degree, true);
-    auto monomial_reference_string = scalar_multiplication::Pippenger(monomial_path, degree, false);
+    auto lagrange_reference_string = scalar_multiplication::Pippenger(path, degree, true);
+    auto monomial_reference_string = scalar_multiplication::Pippenger(path, degree, false);
 
     barretenberg::evaluation_domain domain(degree);
     domain.compute_lookup_table();
@@ -178,8 +176,8 @@ void test_lagrange_transcripts_helper(const size_t degree,
 
     g2::affine_element lagrange_g2x;
     g2::affine_element monomial_g2x;
-    barretenberg::io::read_transcript_g2(lagrange_g2x, lagrange_path, true);
-    barretenberg::io::read_transcript_g2(monomial_g2x, monomial_path, false);
+    barretenberg::io::read_transcript_g2(lagrange_g2x, path, true);
+    barretenberg::io::read_transcript_g2(monomial_g2x, path, false);
 
     EXPECT_EQ(lagrange_g2x, monomial_g2x);
 }
@@ -200,7 +198,7 @@ HEAVY_TEST(lagrange_base, test_local_lagrange_transcripts)
     for (size_t i = 0; i < num_files; i++) {
         const size_t degree = static_cast<size_t>(1 << (i + 1));
         auto begin = std::chrono::steady_clock::now();
-        test_lagrange_transcripts_helper(degree, "../srs_db/ignition", "../srs_db/lagrange");
+        test_lagrange_transcripts_helper(degree, "../srs_db/ignition");
         auto end = std::chrono::steady_clock::now();
 
         std::cout << "Verified Lagrange transcript of size " << degree << " in "
