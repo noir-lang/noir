@@ -22,8 +22,8 @@ fn sort_via<T>(mut a: [T], ordering: fn(T, T) -> bool) -> [T] {
 // returning the final accumulated value. This function is also sometimes
 // called `foldl`, `fold_left`, `reduce`, or `inject`.
 fn fold<T, U, N>(array: [T; N], mut accumulator: U, f: fn(U, T) -> U) -> U {
-    for elem in array {
-        accumulator = f(accumulator, elem);
+    for i in 0 .. len(array) {
+        accumulator = f(accumulator, array[i]);
     }
     accumulator
 }
@@ -43,8 +43,8 @@ fn find<T, N>(array: [T; N], predicate: fn(T) -> bool) -> i64 {
 // Returns true if all elements in the array satisfy the predicate
 fn all<T, N>(array: [T; N], predicate: fn(T) -> bool) -> bool {
     let mut ret = true;
-    for elem in array {
-        ret &= predicate(elem);
+    for i in 0 .. len(array) {
+        ret &= predicate(array[i]);
     }
     ret
 }
@@ -52,8 +52,8 @@ fn all<T, N>(array: [T; N], predicate: fn(T) -> bool) -> bool {
 // Returns true if any element in the array satisfies the predicate
 fn any<T, N>(array: [T; N], predicate: fn(T) -> bool) -> bool {
     let mut ret = false;
-    for elem in array {
-        ret |= predicate(elem);
+    for i in 0 .. len(array) {
+        ret |= predicate(array[i]);
     }
     ret
 }
