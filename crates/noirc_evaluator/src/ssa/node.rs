@@ -14,7 +14,7 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
 pub trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
-    fn get_id(&self) -> NodeId;
+    fn id(&self) -> NodeId;
     fn size_in_bits(&self) -> u32;
 }
 
@@ -52,7 +52,7 @@ impl Node for Variable {
         self.get_type().bits()
     }
 
-    fn get_id(&self) -> NodeId {
+    fn id(&self) -> NodeId {
         self.id
     }
 }
@@ -76,11 +76,11 @@ impl Node for NodeObject {
         }
     }
 
-    fn get_id(&self) -> NodeId {
+    fn id(&self) -> NodeId {
         match self {
-            NodeObject::Obj(o) => o.get_id(),
+            NodeObject::Obj(o) => o.id(),
             NodeObject::Instr(i) => i.id,
-            NodeObject::Const(c) => c.get_id(),
+            NodeObject::Const(c) => c.id(),
             NodeObject::Function(_, id, _) => *id,
         }
     }
@@ -95,7 +95,7 @@ impl Node for Constant {
         self.value.bits().try_into().unwrap()
     }
 
-    fn get_id(&self) -> NodeId {
+    fn id(&self) -> NodeId {
         self.id
     }
 }
@@ -152,7 +152,7 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn get_root(&self) -> NodeId {
+    pub fn root(&self) -> NodeId {
         self.root.unwrap_or(self.id)
     }
 
@@ -721,8 +721,8 @@ impl Binary {
     {
         let l_eval = eval_fn(ctx, self.lhs)?;
         let r_eval = eval_fn(ctx, self.rhs)?;
-        let l_type = ctx.get_object_type(self.lhs);
-        let r_type = ctx.get_object_type(self.rhs);
+        let l_type = ctx.object_type(self.lhs);
+        let r_type = ctx.object_type(self.rhs);
 
         let lhs = l_eval.into_const_value();
         let rhs = r_eval.into_const_value();

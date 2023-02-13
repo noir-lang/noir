@@ -110,7 +110,7 @@ impl Anchor {
         ctx: &SsaContext,
         id: NodeId,
     ) -> Result<(), RuntimeError> {
-        let ins = ctx.get_instruction(id);
+        let ins = ctx.instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
         let prev_list = self.mem_list.get_mut(&array_id).unwrap();

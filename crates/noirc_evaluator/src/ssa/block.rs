@@ -430,7 +430,7 @@ pub fn short_circuit_instructions(
         Some(target),
     ));
     let nop = instructions[0];
-    debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
+    debug_assert_eq!(ctx.instruction(nop).operation, node::Operation::Nop);
     let mut stack = vec![nop, unreachable_ins];
     //return:
     for &i in instructions.iter() {
@@ -463,13 +463,13 @@ pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: O
     let mut zeros = HashMap::new();
     let mut zero_keys = Vec::new();
     for i in instructions {
-        let ins = ctx.get_instruction(*i);
+        let ins = ctx.instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
         } else if let node::Operation::Return(ret) = &ins.operation {
             for i in ret {
                 if *i != NodeId::dummy() {
-                    let typ = ctx.get_object_type(*i);
+                    let typ = ctx.object_type(*i);
                     assert_ne!(typ, node::ObjectType::NotAnObject);
                     zero_keys.push(typ);
                 } else {
@@ -488,7 +488,7 @@ pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: O
     }
 
     for i in instructions.iter().filter(|x| Some(*x) != avoid) {
-        let ins = ctx.get_mut_instruction(*i);
+        let ins = ctx.instruction_mut(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
         } else if ins.operation.opcode() != Opcode::Nop {
