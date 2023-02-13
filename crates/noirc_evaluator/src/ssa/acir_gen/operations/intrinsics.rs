@@ -4,7 +4,7 @@ use crate::{
             constraints::{bound_constraint_with_offset, to_radix_base},
             expression_from_witness,
             operations::sort::evaluate_permutation,
-            InternalVar, InternalVarCache, AcirMem,
+            AcirMem, InternalVar, InternalVarCache,
         },
         builtin,
         context::SsaContext,
