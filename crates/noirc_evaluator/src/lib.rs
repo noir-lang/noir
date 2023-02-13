@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 mod errors;
 mod ssa;
 
@@ -11,7 +12,7 @@ use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
-use ssa::{code_gen::IRGenerator, node};
+use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::BTreeMap;
 
 pub struct Evaluator {
@@ -112,11 +113,11 @@ impl Evaluator {
         enable_logging: bool,
         capture_output: bool,
     ) -> Result<(), RuntimeError> {
-        let mut ir_gen = IRGenerator::new(program);
+        let mut ir_gen = IrGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
 
         // Now call the main function
-        ir_gen.codegen_main()?;
+        ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
         ir_gen.context.ir_to_acir(self, enable_logging, capture_output)?;
@@ -142,7 +143,7 @@ impl Evaluator {
         def: Definition,
         param_type: &AbiType,
         visibility: &AbiVisibility,
-        ir_gen: &mut IRGenerator,
+        ir_gen: &mut IrGenerator,
     ) -> Result<(), RuntimeErrorKind> {
         match param_type {
             AbiType::Field => {
@@ -276,7 +277,7 @@ impl Evaluator {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi_alt(&mut self, ir_gen: &mut IRGenerator) {
+    fn parse_abi_alt(&mut self, ir_gen: &mut IrGenerator) {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar

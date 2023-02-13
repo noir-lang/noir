@@ -134,7 +134,7 @@ mod test {
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement
-        let func = HirFunction::unsafe_from_expr(expr_id);
+        let func = HirFunction::unchecked_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
         let name = HirIdent {

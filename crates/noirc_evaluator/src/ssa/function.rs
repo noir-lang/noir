@@ -1,11 +1,11 @@
 use crate::errors::RuntimeError;
 use crate::ssa::{
     block::BlockId,
-    code_gen::IRGenerator,
     conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
     mem::ArrayId,
     node::{Node, NodeId, ObjectType, Opcode, Operation},
+    ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
 use iter_extended::try_vecmap;
@@ -22,7 +22,7 @@ impl FuncIndex {
 }
 
 #[derive(Clone, Debug)]
-pub struct SSAFunction {
+pub struct SsaFunction {
     pub entry_block: BlockId,
     pub id: FuncId,
     pub idx: FuncIndex,
@@ -35,15 +35,15 @@ pub struct SSAFunction {
     pub decision: DecisionTree,
 }
 
-impl SSAFunction {
+impl SsaFunction {
     pub fn new(
         id: FuncId,
         name: &str,
         block_id: BlockId,
         idx: FuncIndex,
         ctx: &mut SsaContext,
-    ) -> SSAFunction {
-        SSAFunction {
+    ) -> SsaFunction {
+        SsaFunction {
             entry_block: block_id,
             id,
             node_id: ctx.push_function_id(id, name),
@@ -55,7 +55,7 @@ impl SSAFunction {
         }
     }
 
-    pub fn compile(&self, ir_gen: &mut IRGenerator) -> Result<DecisionTree, RuntimeError> {
+    pub fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
@@ -68,7 +68,7 @@ impl SSAFunction {
         let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = ir_gen.context.get_object_type(*arg) {
+            if let ObjectType::Pointer(a) = ir_gen.context.object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
@@ -88,7 +88,7 @@ impl SSAFunction {
             );
             if self.entry_block != exit {
                 for i in &stack {
-                    ir_gen.context.get_mut_instruction(*i).parent_block = self.entry_block;
+                    ir_gen.context.instruction_mut(*i).parent_block = self.entry_block;
                 }
             }
 
@@ -137,7 +137,7 @@ impl SSAFunction {
     }
 }
 
-impl IRGenerator {
+impl IrGenerator {
     /// Creates an ssa function and returns its type upon success
     pub fn create_function(
         &mut self,
@@ -150,7 +150,7 @@ impl IRGenerator {
 
         let function = &mut self.program[func_id];
         let mut func =
-            SSAFunction::new(func_id, &function.name, func_block, index, &mut self.context);
+            SsaFunction::new(func_id, &function.name, func_block, index, &mut self.context);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
@@ -173,7 +173,7 @@ impl IRGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.codegen_expression(&function_body)?;
+        let last_value = self.ssa_gen_expression(&function_body)?;
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -227,8 +227,8 @@ impl IRGenerator {
 
     //generates an instruction for calling the function
     pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
-        let func = self.codegen_expression(&call.func)?.unwrap_id();
-        let arguments = self.codegen_expression_list(&call.arguments);
+        let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
+        let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
             return self.call_low_level(opcode, arguments);
@@ -249,7 +249,7 @@ impl IRGenerator {
             self.context.new_instruction(call_op.clone(), ObjectType::NotAnObject)?;
 
         if let Some(id) = self.context.try_get_func_id(func) {
-            let callee = self.context.get_ssa_func(id).unwrap().idx;
+            let callee = self.context.ssa_func(id).unwrap().idx;
             if let Some(caller) = self.function_context {
                 update_call_graph(&mut self.context.call_graph, caller, callee);
             }
@@ -269,7 +269,7 @@ impl IRGenerator {
                     *i.1,
                 )?);
             }
-            let ssa_func = self.context.get_ssa_func(func_id).unwrap();
+            let ssa_func = self.context.ssa_func(func_id).unwrap();
             let func_arguments = ssa_func.arguments.clone();
             for (caller_arg, func_arg) in arguments.iter().zip(func_arguments) {
                 let mut is_array_result = false;
@@ -299,7 +299,7 @@ impl IRGenerator {
 
         // Fixup the returned_arrays, they will be incorrectly tracked for higher order functions
         // otherwise.
-        self.context.get_mut_instruction(call_instruction).operation = call_op;
+        self.context.instruction_mut(call_instruction).operation = call_op;
         result_ids
     }
 

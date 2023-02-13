@@ -124,7 +124,8 @@ pub fn start_cli() {
                 .arg(
                     Arg::with_name("witness_name")
                         .long("witness_name")
-                        .help("Write the execution witness to named file"),
+                        .help("Write the execution witness to named file")
+                        .takes_value(true),
                 )
                 .arg(show_ssa)
                 .arg(allow_warnings),
@@ -188,7 +189,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
         dir_path
     };
     if !file_path.exists() {
-        return Err(CliError::MissingTomlFile(file_path));
+        return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
