@@ -1,15 +1,23 @@
 use crate::{
     ssa::{
-        acir_gen::{constraints::to_radix_base, InternalVar, InternalVarCache, MemoryMap},
+        acir_gen::{
+            constraints::{bound_constraint_with_offset, to_radix_base},
+            expression_from_witness,
+            operations::sort::evaluate_permutation,
+            InternalVar, InternalVarCache, MemoryMap,
+        },
         builtin,
         context::SsaContext,
-        mem::ArrayId,
+        mem::{ArrayId, Memory},
         node::{self, Instruction, Node, NodeId, ObjectType},
     },
     Evaluator,
 };
 use acvm::acir::{
-    circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    circuit::{
+        directives::Directive,
+        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    },
     native_types::{Expression, Witness},
 };
 use iter_extended::vecmap;
@@ -65,6 +73,42 @@ pub(crate) fn evaluate(
                 outputs: outputs.clone(), //witness
             };
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
+        }
+        Opcode::Sort => {
+            let mut in_expr = Vec::new();
+            let array_id = Memory::deref(ctx, args[0]).unwrap();
+            let array = &ctx.mem[array_id];
+            let num_bits = array.element_type.bits();
+            for i in 0..array.len {
+                in_expr.push(
+                    memory_map.load_array_element_constant_index(array, i).unwrap().to_expression(),
+                );
+            }
+            outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
+            let out_expr: Vec<Expression> =
+                outputs.iter().map(|w| expression_from_witness(*w)).collect();
+            for i in 0..(out_expr.len() - 1) {
+                bound_constraint_with_offset(
+                    &out_expr[i],
+                    &out_expr[i + 1],
+                    &Expression::zero(),
+                    num_bits,
+                    evaluator,
+                );
+            }
+            let bits = evaluate_permutation(&in_expr, &out_expr, evaluator);
+            let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
+            evaluator.opcodes.push(AcirOpcode::Directive(Directive::PermutationSort {
+                inputs,
+                tuple: 1,
+                bits,
+                sort_by: vec![0],
+            }));
+            if let node::ObjectType::Pointer(a) = res_type {
+                memory_map.map_array(a, &outputs, ctx);
+            } else {
+                unreachable!();
+            }
         }
     }
 

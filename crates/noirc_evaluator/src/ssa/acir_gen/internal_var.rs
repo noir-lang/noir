@@ -1,5 +1,8 @@
 use crate::{
-    ssa::acir_gen::{const_from_expression, expression_to_witness, optional_expression_to_witness},
+    ssa::acir_gen::{
+        const_from_expression, expression_from_witness, expression_to_witness,
+        optional_expression_to_witness,
+    },
     ssa::node::NodeId,
     Evaluator,
 };
@@ -41,6 +44,14 @@ impl InternalVar {
     }
     pub(crate) fn set_id(&mut self, id: NodeId) {
         self.id = Some(id)
+    }
+
+    pub fn to_expression(&self) -> Expression {
+        if let Some(w) = self.cached_witness {
+            expression_from_witness(w)
+        } else {
+            self.expression().clone()
+        }
     }
 
     /// If the InternalVar holds a constant expression
