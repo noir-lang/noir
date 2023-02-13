@@ -128,7 +128,6 @@ pub(crate) fn evaluate(
     // If more than witness is returned,
     // the result is inside the result type of `Instruction`
     // as a pointer to an array
-    // (outputs.len() == 1).then(|| Expression::from(&outputs[0])).map(InternalVar::from)
     (outputs.len() == 1).then(|| InternalVar::from(outputs[0]))
 }
 
