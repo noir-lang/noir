@@ -5,7 +5,7 @@
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 
 namespace aztec3::circuits::abis {

@@ -1,5 +1,5 @@
 // #include <common/serialize.hpp>
-// #include <stdlib/types/turbo.hpp>
+// #include <stdlib/types/types.hpp>
 // #include <aztec3/oracle/oracle.hpp>
 // #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 // #include <numeric/random/engine.hpp>
@@ -247,15 +247,15 @@ TEST(private_kernel_tests, test_deposit)
     private_kernel_circuit(private_kernel_composer, private_inputs);
 
     info("computed witness: ", private_kernel_composer.computed_witness);
-    info("witness: ", private_kernel_composer.witness);
+    // info("witness: ", private_kernel_composer.witness);
     // info("constant variables: ", private_kernel_composer.constant_variables);
     // info("variables: ", private_kernel_composer.variables);
 
     // TODO: this fails intermittently, with:
     // bigfield multiply range check failed
-    info("failed?: ", private_kernel_composer.failed);
-    info("err: ", private_kernel_composer.err);
-    info("n: ", private_kernel_composer.n);
+    info("failed?: ", private_kernel_composer.failed());
+    info("err: ", private_kernel_composer.err());
+    info("n: ", private_kernel_composer.num_gates);
 }
 
 } // namespace aztec3::circuits::kernel::private_kernel

@@ -7,7 +7,7 @@
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <stdlib/types/convert.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/native_types.hpp>
@@ -15,8 +15,8 @@
 namespace aztec3::circuits::kernel::private_kernel {
 
 // Turbo specific, at the moment:
-using Composer = plonk::stdlib::types::turbo::Composer;
-using plonk::stdlib::types::turbo::UnrolledProver;
+using Composer = plonk::stdlib::types::Composer;
+using plonk::stdlib::types::UnrolledProver;
 
 using Aggregator = aztec3::circuits::recursion::TurboAggregator;
 

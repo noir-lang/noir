@@ -1,11 +1,11 @@
 #include "index.hpp"
 #include <common/test.hpp>
 // #include <numeric/random/engine.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace aztec3::circuits::recursion {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 using plonk::stdlib::recursion::recursion_output;
 
 // namespace {
@@ -36,8 +36,8 @@ TEST(play_tests, test_play_app_proof_gen)
     Composer app_composer;
     play_app_circuit(app_composer, 100, 200);
 
-    if (app_composer.failed) {
-        info("Play app circuit logic failed: ", app_composer.err);
+    if (app_composer.failed()) {
+        info("Play app circuit logic failed: ", app_composer.err());
     }
 
     UnrolledProver app_prover = app_composer.create_unrolled_prover();
@@ -50,8 +50,8 @@ TEST(play_tests, test_play_recursive_proof_gen)
     Composer app_composer;
     play_app_circuit(app_composer, 1, 2);
 
-    if (app_composer.failed) {
-        info("Play app circuit logic failed: ", app_composer.err);
+    if (app_composer.failed()) {
+        info("Play app circuit logic failed: ", app_composer.err());
     }
 
     UnrolledProver app_prover = app_composer.create_unrolled_prover();
@@ -63,8 +63,8 @@ TEST(play_tests, test_play_recursive_proof_gen)
     Composer recursive_composer;
     recursion_output<bn254> recursion_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
 
-    if (recursive_composer.failed) {
-        info("Play recursive circuit logic failed: ", recursive_composer.err);
+    if (recursive_composer.failed()) {
+        info("Play recursive circuit logic failed: ", recursive_composer.err());
     }
 }
 
@@ -73,8 +73,8 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     Composer app_composer;
     play_app_circuit(app_composer, 1, 2);
 
-    if (app_composer.failed) {
-        info("Play app circuit logic failed: ", app_composer.err);
+    if (app_composer.failed()) {
+        info("Play app circuit logic failed: ", app_composer.err());
     }
 
     UnrolledProver app_prover = app_composer.create_unrolled_prover();
@@ -86,8 +86,8 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     Composer dummy_circuit_composer;
     dummy_circuit(dummy_circuit_composer, 1, 2);
 
-    if (dummy_circuit_composer.failed) {
-        info("dummy_circuit logic failed: ", dummy_circuit_composer.err);
+    if (dummy_circuit_composer.failed()) {
+        info("dummy_circuit logic failed: ", dummy_circuit_composer.err());
     }
 
     UnrolledProver dummy_circuit_prover = dummy_circuit_composer.create_unrolled_prover();
@@ -100,8 +100,8 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     recursion_output<bn254> recursion_1_output =
         play_recursive_circuit_2(recursion_1_composer, app_vk, app_proof, dummy_circuit_vk, dummy_circuit_proof);
 
-    if (recursion_1_composer.failed) {
-        info("recursion_1 circuit logic failed: ", recursion_1_composer.err);
+    if (recursion_1_composer.failed()) {
+        info("recursion_1 circuit logic failed: ", recursion_1_composer.err());
     }
 
     UnrolledProver recursion_1_prover = recursion_1_composer.create_unrolled_prover();
@@ -116,8 +116,8 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     // recursion_output<bn254> recursion_2_output = play_recursive_circuit_2<TurboRecursion>(
     //     recursion_2_composer, app_vk, app_proof, recursion_1_vk, recursion_1_proof);
 
-    // if (recursion_2_composer.failed) {
-    //     info("recursion_2 circuit logic failed: ", recursion_2_composer.err);
+    // if (recursion_2_composer.failed()) {
+    //     info("recursion_2 circuit logic failed: ", recursion_2_composer.err());
     // }
 
     // UnrolledProver recursion_2_prover = recursion_2_composer.create_unrolled_prover();

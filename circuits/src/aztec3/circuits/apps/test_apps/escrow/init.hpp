@@ -9,14 +9,14 @@
 #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 #include <aztec3/oracle/oracle.hpp>
 
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 #include <stdlib/types/convert.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/native_types.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 
-using C = plonk::stdlib::types::turbo::Composer;
+using C = plonk::stdlib::types::Composer;
 
 using CT = plonk::stdlib::types::CircuitTypes<C>;
 using NT = plonk::stdlib::types::NativeTypes;

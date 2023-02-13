@@ -3,12 +3,12 @@
 #include <common/serialize.hpp>
 // #include <numeric/random/engine.hpp>
 #include "index.hpp"
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace aztec3::circuits::abis {
 
-using TurboComposer = plonk::stdlib::types::turbo::Composer;
-using CT = plonk::stdlib::types::CircuitTypes<TurboComposer>;
+using Composer = plonk::stdlib::types::Composer;
+using CT = plonk::stdlib::types::CircuitTypes<Composer>;
 using NT = plonk::stdlib::types::NativeTypes;
 
 class abi_tests : public ::testing::Test {};
@@ -39,8 +39,8 @@ TEST(abi_tests, test_native_to_circuit_function_signature)
 
     info("function signature: ", native_function_signature);
 
-    TurboComposer turbo_composer;
-    FunctionSignature<CT> circuit_function_signature = native_function_signature.to_circuit_type(turbo_composer);
+    Composer composer;
+    FunctionSignature<CT> circuit_function_signature = native_function_signature.to_circuit_type(composer);
 
     info("function signature: ", circuit_function_signature);
 }
@@ -70,8 +70,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
     info("call context: ", native_call_context);
 
-    TurboComposer turbo_composer;
-    CallContext<CT> circuit_call_context = native_call_context.to_circuit_type(turbo_composer);
+    Composer composer;
+    CallContext<CT> circuit_call_context = native_call_context.to_circuit_type(composer);
 
     info("call context: ", circuit_call_context);
 }
@@ -109,8 +109,8 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
 //     info("public_circuit_public_inputs: ", native_public_inputs);
 
-//     TurboComposer turbo_composer;
-//     PublicCircuitPublicInputs<CT> circuit_public_inputs = native_public_inputs.to_circuit_type(turbo_composer);
+//     Composer composer;
+//     PublicCircuitPublicInputs<CT> circuit_public_inputs = native_public_inputs.to_circuit_type(composer);
 
 //     info("public_circuit_public_inputs: ", circuit_public_inputs);
 // }
@@ -180,9 +180,9 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
 //     info("call stack item: ", native_call_stack_item);
 
-//     TurboComposer turbo_composer;
+//     Composer composer;
 //     CallStackItem<CT, CallType::Public> circuit_call_stack_item =
-//         native_call_stack_item.to_circuit_type(turbo_composer);
+//         native_call_stack_item.to_circuit_type(composer);
 
 //     info("call stack item: ", circuit_call_stack_item);
 // }

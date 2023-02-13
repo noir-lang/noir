@@ -1,6 +1,6 @@
 #include "init.hpp"
 
-#include <aztec3/circuits/types/array.hpp>
+#include <stdlib/primitives/field/array.hpp>
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
@@ -10,10 +10,10 @@ namespace aztec3::circuits::kernel::private_kernel {
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 
-using aztec3::circuits::types::array_length;
-using aztec3::circuits::types::array_pop;
-using aztec3::circuits::types::is_array_empty;
-using aztec3::circuits::types::push_array_to_array;
+using plonk::stdlib::array_length;
+using plonk::stdlib::array_pop;
+using plonk::stdlib::is_array_empty;
+using plonk::stdlib::push_array_to_array;
 
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!

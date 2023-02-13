@@ -3,7 +3,7 @@
 #include <common/map.hpp>
 #include <common/streams.hpp>
 
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -11,7 +11,7 @@
 
 namespace aztec3::circuits::apps::notes {
 
-using crypto::pedersen::generator_index_t;
+using crypto::generators::generator_index_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 

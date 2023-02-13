@@ -8,7 +8,7 @@
 
 #include "../../state_vars/state_var_base.hpp"
 
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 
 #include <plonk/composer/turbo_composer.hpp>
 
@@ -28,7 +28,7 @@ namespace aztec3::circuits::apps::notes {
 
 using aztec3::GeneratorIndex;
 
-using crypto::pedersen::generator_index_t;
+using crypto::generators::generator_index_t;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;

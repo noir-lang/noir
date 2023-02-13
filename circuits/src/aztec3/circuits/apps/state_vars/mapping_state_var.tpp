@@ -11,7 +11,7 @@
 
 #include <common/streams.hpp>
 #include <common/map.hpp>
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -23,7 +23,7 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using crypto::pedersen::generator_index_t;
+using crypto::generators::generator_index_t;
 
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;

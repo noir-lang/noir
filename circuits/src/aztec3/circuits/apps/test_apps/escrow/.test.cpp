@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <common/test.hpp>
 // #include <common/serialize.hpp>
-// #include <stdlib/types/turbo.hpp>
+// #include <stdlib/types/types.hpp>
 // #include <numeric/random/engine.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
@@ -63,12 +63,12 @@ TEST_F(escrow_tests, test_deposit)
     info("result: ", result);
 
     info("computed witness: ", composer.computed_witness);
-    info("witness: ", composer.witness);
+    // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed);
-    info("err: ", composer.err);
-    info("n: ", composer.n);
+    info("failed?: ", composer.failed());
+    info("err: ", composer.err());
+    info("n: ", composer.num_gates);
 }
 
 TEST_F(escrow_tests, test_transfer)
@@ -89,12 +89,12 @@ TEST_F(escrow_tests, test_transfer)
     transfer(exec_ctx, amount, to, asset_id, memo, reveal_msg_sender_to_recipient, fee);
 
     info("computed witness: ", composer.computed_witness);
-    info("witness: ", composer.witness);
+    // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed);
-    info("err: ", composer.err);
-    info("n: ", composer.n);
+    info("failed?: ", composer.failed());
+    info("err: ", composer.err());
+    info("n: ", composer.num_gates);
 }
 
 TEST_F(escrow_tests, test_withdraw)
@@ -114,12 +114,12 @@ TEST_F(escrow_tests, test_withdraw)
     withdraw(exec_ctx, amount, asset_id, memo, l1_withdrawal_address, fee);
 
     info("computed witness: ", composer.computed_witness);
-    info("witness: ", composer.witness);
+    // info("witness: ", composer.witness);
     // info("constant variables: ", composer.constant_variables);
     // info("variables: ", composer.variables);
-    info("failed?: ", composer.failed);
-    info("err: ", composer.err);
-    info("n: ", composer.n);
+    info("failed?: ", composer.failed());
+    info("err: ", composer.err());
+    info("n: ", composer.num_gates);
 }
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

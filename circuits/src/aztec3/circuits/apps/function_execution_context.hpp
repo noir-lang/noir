@@ -13,7 +13,7 @@
 #include <aztec3/circuits/abis/function_signature.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
-#include <aztec3/circuits/types/array.hpp>
+#include <stdlib/primitives/field/array.hpp>
 
 #include <common/container.hpp>
 
@@ -30,7 +30,7 @@ using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 using aztec3::circuits::apps::notes::NoteInterface;
 using aztec3::circuits::apps::opcodes::Opcodes;
 
-using aztec3::circuits::types::array_push;
+using plonk::stdlib::array_push;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;

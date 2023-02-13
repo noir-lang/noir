@@ -56,12 +56,12 @@ TEST(private_to_private_function_call_tests, test_private_to_private_function_ca
     info("function_1_1_public_inputs: ", function_1_1_public_inputs);
 
     info("computed witness: ", fn1_composer.computed_witness);
-    info("witness: ", fn1_composer.witness);
+    // info("witness: ", fn1_composer.witness);
     // info("constant variables: ", fn1_composer.constant_variables);
     // info("variables: ", fn1_composer.variables);
-    info("failed?: ", fn1_composer.failed);
-    info("err: ", fn1_composer.err);
-    info("n: ", fn1_composer.n);
+    info("failed?: ", fn1_composer.failed());
+    info("err: ", fn1_composer.err());
+    info("n: ", fn1_composer.num_gates);
 }
 
 } // namespace aztec3::circuits::apps::test_apps::private_to_private_function_call

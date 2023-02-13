@@ -4,7 +4,7 @@
 
 #include <plonk/composer/turbo_composer.hpp>
 
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -15,7 +15,7 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
-using crypto::pedersen::generator_index_t;
+using crypto::generators::generator_index_t;
 using plonk::stdlib::types::CircuitTypes;
 
 template <typename Composer>
@@ -33,6 +33,6 @@ template <typename Composer> typename CircuitTypes<Composer>::grumpkin_point Sta
     return CT::commit({ start_slot }, { StorageSlotGeneratorIndex::BASE_SLOT });
 }
 
-// template class PrivateStateVar<waffle::TurboComposer>;
+// template class PrivateStateVar<Composer>;
 
 }; // namespace aztec3::circuits::apps::state_vars

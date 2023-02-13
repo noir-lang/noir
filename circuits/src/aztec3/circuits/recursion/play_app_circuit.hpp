@@ -1,8 +1,8 @@
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace aztec3::circuits::recursion {
 
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types;
 // using plonk::stdlib::recursion::recursion_output;
 
 void play_app_circuit(Composer& composer, barretenberg::fr const& a_in, barretenberg::fr const& b_in)

@@ -2,7 +2,7 @@
 #include <common/map.hpp>
 #include <stdlib/primitives/field/field.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
+#include <stdlib/commitment/pedersen/pedersen.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
@@ -12,7 +12,7 @@ namespace aztec3::circuits::mock {
 
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 using NT = plonk::stdlib::types::NativeTypes;
-using plonk::stdlib::pedersen;
+using plonk::stdlib::pedersen_commitment;
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 
@@ -36,7 +36,7 @@ template <typename Composer> void mock_kernel_circuit(Composer& composer, Public
 
     public_inputs.set_public();
 
-    plonk::stdlib::pedersen<Composer>::compress(fr(witness_t(&composer, 1)), fr(witness_t(&composer, 1)));
+    plonk::stdlib::pedersen_commitment<Composer>::compress(fr(witness_t(&composer, 1)), fr(witness_t(&composer, 1)));
 }
 
 } // namespace aztec3::circuits::mock

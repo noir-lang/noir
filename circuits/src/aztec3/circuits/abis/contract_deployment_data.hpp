@@ -1,5 +1,5 @@
 #pragma once
-#include <crypto/pedersen/generator_data.hpp>
+#include <crypto/generators/generator_data.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/circuit_types.hpp>

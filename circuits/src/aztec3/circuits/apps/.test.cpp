@@ -1,6 +1,6 @@
 
 // #include <common/serialize.hpp>
-// #include <stdlib/types/turbo.hpp>
+// #include <stdlib/types/types.hpp>
 // #include <numeric/random/engine.hpp>
 
 #include <gtest/gtest.h>
@@ -31,11 +31,11 @@
 #include <stdlib/types/convert.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/native_types.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/types.hpp>
 
 namespace {
 // Composer
-using C = plonk::stdlib::types::turbo::Composer;
+using C = plonk::stdlib::types::Composer;
 
 // Types
 using CT = plonk::stdlib::types::CircuitTypes<C>;

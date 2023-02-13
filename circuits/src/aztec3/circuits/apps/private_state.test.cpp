@@ -4,7 +4,7 @@
 // #include <common/test.hpp>
 // #include <common/serialize.hpp>
 // // #include <numeric/random/engine.hpp>
-// #include <stdlib/types/turbo.hpp>
+// #include <stdlib/types/types.hpp>
 // // #include <aztec3/constants.hpp>
 // // #include <crypto/pedersen/pedersen.hpp>
 // // #include <stdlib/hash/pedersen/pedersen.hpp>
@@ -12,8 +12,8 @@
 // namespace aztec3::circuits::apps {
 
 // namespace {
-// using TurboComposer = plonk::stdlib::types::turbo::Composer;
-// using CT = plonk::stdlib::types::CircuitTypes<TurboComposer>;
+// using Composer = plonk::stdlib::types::Composer;
+// using CT = plonk::stdlib::types::CircuitTypes<Composer>;
 // using NT = plonk::stdlib::types::NativeTypes;
 // // using plonk::stdlib::pedersen;
 // } // namespace
