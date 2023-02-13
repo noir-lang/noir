@@ -1,31 +1,20 @@
 #[builtin(array_len)]
 fn len<T>(_input : [T]) -> comptime Field {}
 
-// insertion sort - n.b. it is a quadratic sort
-fn sort<T>(mut a: [T]) -> [T] { 
-    for i in 1..len(a) {
-        for j in 0..i {
-            if a[i] < a[j] {
-                let c = a[j];
-                a[j] = a[i];
-                a[i]= c;
-            }
-        };
-    };
-    a
-}
+#[builtin(arraysort)]
+fn sort<T, N>(_a: [T; N]) -> [T; N] {}
 
 // Sort with a custom sorting function.
 fn sort_via<T>(mut a: [T], ordering: fn(T, T) -> bool) -> [T] { 
     for i in 1..len(a) {
         for j in 0..i {
             if ordering(a[i], a[j]) {
-                let c = a[j];
+                let old_a_j = a[j];
                 a[j] = a[i];
-                a[i]= c;
+                a[i] = old_a_j;
             }
-        };
-    };
+        }
+    }
     a
 }
 

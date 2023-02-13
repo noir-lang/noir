@@ -17,3 +17,6 @@ iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
 num-traits = "0.2.8"
+
+[dev-dependencies]
+rand="0.8.5"
