@@ -250,9 +250,15 @@ impl Anchor {
                             return Some(CseAction::ReplaceWith(a));
                         }
                     }
-                    Operation::Store { index, value, .. } => {
+                    Operation::Store { index, value, predicate, .. } => {
                         if !ctx.maybe_distinct(*index, b_idx) {
-                            return Some(CseAction::ReplaceWith(*value));
+                            if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
+                                ctx, predicate,
+                            )) {
+                                return Some(CseAction::ReplaceWith(*value));
+                            } else {
+                                return Some(CseAction::Keep);
+                            }
                         }
                         if ctx.maybe_equal(*index, b_idx) {
                             return Some(CseAction::Keep);

@@ -123,8 +123,12 @@ impl SsaContext {
     #[allow(clippy::map_entry)]
     pub fn add_dummy_store(&mut self, a: ArrayId) {
         if !self.dummy_store.contains_key(&a) {
-            let op_a =
-                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+            let op_a = Operation::Store {
+                array_id: a,
+                index: NodeId::dummy(),
+                value: NodeId::dummy(),
+                predicate: None,
+            };
             let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
@@ -224,11 +228,17 @@ impl SsaContext {
             Operation::Load { array_id, index } => {
                 format!("load {array_id:?}, index {}", self.id_to_string(*index))
             }
-            Operation::Store { array_id, index, value } => {
+            Operation::Store { array_id, index, value, predicate } => {
+                let pred_str = if let Some(predicate) = predicate {
+                    format!(", predicate {}", self.id_to_string(*predicate))
+                } else {
+                    String::new()
+                };
                 format!(
-                    "store {array_id:?}, index {}, value {}",
+                    "store {array_id:?}, index {}, value {}{}",
                     self.id_to_string(*index),
-                    self.id_to_string(*value)
+                    self.id_to_string(*value),
+                    pred_str
                 )
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
@@ -798,7 +808,8 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction(op_b, e_type)?;
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
                 self.new_instruction(op_a, l_type)?;
             }
         } else {
@@ -878,7 +889,8 @@ impl SsaContext {
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store
-                let op_a = Operation::Store { array_id: a, index: idx, value: rhs };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx, value: rhs, predicate: None };
                 return self.new_instruction(op_a, self.mem[a].element_type);
             } else {
                 unreachable!("Index expression must be for an array");
@@ -939,7 +951,12 @@ impl SsaContext {
         for i in 0..len {
             let index =
                 self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            let op_a = Operation::Store {
+                array_id,
+                index,
+                value: self.zero_with_type(e_type),
+                predicate: None,
+            };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
     }
@@ -964,7 +981,8 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
                 self.new_instruction_inline(op_a, l_type, stack_frame);
             }
         } else {
@@ -1060,7 +1078,7 @@ impl SsaContext {
                 let v2 = self.new_instruction(op, el_type).unwrap();
                 self.current_block = exit_block;
                 let v = self.new_phi(v1, v2, c);
-                let op = Operation::Store { array_id, index, value: v };
+                let op = Operation::Store { array_id, index, value: v, predicate: None };
                 self.new_instruction(op, el_type).unwrap();
             }
             id

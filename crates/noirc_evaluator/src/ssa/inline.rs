@@ -314,10 +314,15 @@ pub fn inline_in_block(
                     new_ins.id = clone.id;
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, predicate } => {
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
-                        Operation::Store { array_id: b, index: *index, value: *value },
+                        Operation::Store {
+                            array_id: b,
+                            index: *index,
+                            value: *value,
+                            predicate: *predicate,
+                        },
                         clone.res_type,
                         Some(stack_frame.block),
                     );

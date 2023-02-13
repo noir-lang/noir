@@ -66,8 +66,12 @@ fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
 
     //add dummy store
     for a in modified {
-        let store =
-            node::Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+        let store = node::Operation::Store {
+            array_id: a,
+            index: NodeId::dummy(),
+            value: NodeId::dummy(),
+            predicate: None,
+        };
         let i = node::Instruction::new(store, node::ObjectType::NotAnObject, Some(join));
         ctx.insert_instruction_after_phi(i, join);
     }
