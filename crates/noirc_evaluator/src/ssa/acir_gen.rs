@@ -1,4 +1,5 @@
 use crate::ssa::{
+    builtin,
     context::SsaContext,
     node::{Instruction, Operation},
 };
@@ -57,16 +58,18 @@ impl Acir {
             Operation::Truncate { value, bit_size, max_bit_size } => {
                 truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
             }
-            Operation::Intrinsic(opcode, args) => intrinsics::evaluate(
-                args,
-                ins,
-                *opcode,
-                var_cache,
-                memory_map,
-                ctx,
-                evaluator,
-                show_output,
-            ),
+            Operation::Intrinsic(opcode, args) => {
+                let opcode = match opcode {
+                    builtin::Opcode::Println(print_info) => {
+                        builtin::Opcode::Println(builtin::PrintlnInfo {
+                            is_string_output: print_info.is_string_output,
+                            show_output,
+                        })
+                    }
+                    _ => *opcode,
+                };
+                intrinsics::evaluate(args, ins, opcode, var_cache, memory_map, ctx, evaluator)
+            }
             Operation::Return(node_ids) => {
                 r#return::evaluate(node_ids, memory_map, var_cache, evaluator, ctx)?
             }

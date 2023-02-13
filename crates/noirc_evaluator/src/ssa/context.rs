@@ -1127,7 +1127,10 @@ impl SsaContext {
                         Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
                         _ => unreachable!("logging this expression type is not supported"),
                     };
-                    Some(builtin::Opcode::Println(is_string))
+                    Some(builtin::Opcode::Println(builtin::PrintlnInfo {
+                        is_string_output: is_string,
+                        show_output: true,
+                    }))
                 }
                 _ => Some(*opcode),
             },

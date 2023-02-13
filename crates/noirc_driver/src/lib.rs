@@ -151,7 +151,7 @@ impl Driver {
         allow_warnings: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings, None, false)
+        self.compile_no_check(np_language, show_ssa, allow_warnings, None, true)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!

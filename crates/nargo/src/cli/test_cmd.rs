@@ -49,7 +49,7 @@ fn run_tests(
 
     for test_function in test_functions {
         let test_name = driver.function_name(test_function);
-        write!(writer, "Testing {test_name}...\n").expect("Failed to write to stdout");
+        writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
         match run_test(test_name, test_function, &driver, allow_warnings, show_output) {

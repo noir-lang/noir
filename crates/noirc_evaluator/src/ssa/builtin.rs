@@ -12,9 +12,7 @@ pub enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits,
     ToRadix,
-    // We store strings as arrays and there is no differentiation between them in the SSA.
-    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
-    Println(bool),
+    Println(PrintlnInfo),
 }
 
 impl std::fmt::Display for Opcode {
@@ -33,7 +31,9 @@ impl Opcode {
         match op_name {
             "to_le_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
-            "println" => Some(Opcode::Println(false)),
+            "println" => {
+                Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
+            }
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
     }
@@ -98,4 +98,13 @@ impl Opcode {
             Opcode::Println(_) => (0, ObjectType::NotAnObject),
         }
     }
+}
+
+#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
+pub struct PrintlnInfo {
+    // We store strings as arrays and there is no differentiation between them in the SSA.
+    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
+    pub is_string_output: bool,
+    // This is a flag used during `nargo test` to determine whether to display println output.
+    pub show_output: bool,
 }
