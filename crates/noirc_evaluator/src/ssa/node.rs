@@ -10,6 +10,7 @@ use noirc_frontend::{
 };
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
+use std::fmt::Display;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
 pub trait Node: std::fmt::Display {
@@ -618,6 +619,39 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
+}
+
+impl Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let op = match &self {
+            BinaryOp::Add => "add",
+            BinaryOp::SafeAdd => "safe_add",
+            BinaryOp::Sub { .. } => "sub",
+            BinaryOp::SafeSub { .. } => "safe_sub",
+            BinaryOp::Mul => "mul",
+            BinaryOp::SafeMul => "safe_mul",
+            BinaryOp::Udiv => "udiv",
+            BinaryOp::Sdiv => "sdiv",
+            BinaryOp::Urem => "urem",
+            BinaryOp::Srem => "srem",
+            BinaryOp::Div => "div",
+            BinaryOp::Eq => "eq",
+            BinaryOp::Ne => "ne",
+            BinaryOp::Ult => "ult",
+            BinaryOp::Ule => "ule",
+            BinaryOp::Slt => "slt",
+            BinaryOp::Sle => "sle",
+            BinaryOp::Lt => "lt",
+            BinaryOp::Lte => "lte",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::Xor => "xor",
+            BinaryOp::Assign => "assign",
+            BinaryOp::Shl => "shl",
+            BinaryOp::Shr => "shr",
+        };
+        write!(f, "{op}")
+    }
 }
 
 impl Binary {
