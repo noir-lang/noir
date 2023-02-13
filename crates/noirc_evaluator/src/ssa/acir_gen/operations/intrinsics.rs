@@ -13,12 +13,15 @@ use crate::{
     },
     Evaluator,
 };
-use acvm::acir::{
-    circuit::{
-        directives::{Directive, LogInfo},
-        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+use acvm::{
+    acir::{
+        circuit::{
+            directives::{Directive, LogInfo},
+            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+        },
+        native_types::{Expression, Witness},
     },
-    native_types::{Expression, Witness},
+    FieldElement,
 };
 use iter_extended::vecmap;
 
@@ -278,15 +281,13 @@ fn evaluate_println(
                 let final_string = noirc_abi::decode_string_value(&field_elements);
                 log_string.push_str(&final_string);
             } else if !field_elements.is_empty() {
-                let fields = vecmap(field_elements, |elem| {
-                    "0x".to_owned() + &elem.to_hex().trim_start_matches('0')
-                });
+                let fields = vecmap(field_elements, |elem| format_field_string(elem));
                 log_string = format!("[{}]", fields.join(", "));
             }
         }
         _ => match ctx.get_as_constant(node_id) {
             Some(field) => {
-                log_string = "0x".to_owned() + &field.to_hex().trim_start_matches('0');
+                log_string = format_field_string(field);
             }
             None => {
                 let var = var_cache.get(&node_id).unwrap_or_else(|| {
@@ -296,7 +297,7 @@ fn evaluate_println(
                     )
                 });
                 if let Some(field) = var.to_const() {
-                    log_string = "0x".to_owned() + &field.to_hex().trim_start_matches('0');
+                    log_string = format_field_string(field);
                 } else if let Some(w) = var.cached_witness() {
                     log_witnesses.push(*w);
                 } else {
@@ -316,4 +317,12 @@ fn evaluate_println(
     };
 
     evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
+}
+
+fn format_field_string(field: FieldElement) -> String {
+    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
+    if trimmed_field.len() % 2 != 0 {
+        trimmed_field = "0".to_owned() + &trimmed_field
+    };
+    "0x".to_owned() + &trimmed_field
 }
