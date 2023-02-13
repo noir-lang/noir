@@ -94,8 +94,8 @@ pub fn start_cli() {
                 )
                 .arg(allow_warnings.clone())
                 .arg(
-                    Arg::with_name("nocapture")
-                        .long("nocapture")
+                    Arg::with_name("show-logs")
+                        .long("show-logs")
                         .help("Display output of println statements during tests"),
                 ),
         )

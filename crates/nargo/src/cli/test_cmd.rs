@@ -18,14 +18,19 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
     let test_name = args.value_of("test_name").unwrap_or("");
     let allow_warnings = args.is_present("allow-warnings");
-    let capture_output = !args.is_present("nocapture");
+    let show_output = args.is_present("show-logs");
     let program_dir =
         args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
-    run_tests(&program_dir, test_name, allow_warnings, capture_output)
+    run_tests(&program_dir, test_name, allow_warnings, show_output)
 }
 
-fn run_tests(program_dir: &Path, test_name: &str, allow_warnings: bool, capture_output: bool) -> Result<(), CliError> {
+fn run_tests(
+    program_dir: &Path,
+    test_name: &str,
+    allow_warnings: bool,
+    show_output: bool,
+) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
@@ -47,7 +52,7 @@ fn run_tests(program_dir: &Path, test_name: &str, allow_warnings: bool, capture_
         write!(writer, "Testing {test_name}...\n").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, allow_warnings, capture_output) {
+        match run_test(test_name, test_function, &driver, allow_warnings, show_output) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -77,13 +82,13 @@ fn run_test(
     main: FuncId,
     driver: &Driver,
     allow_warnings: bool,
-    capture_output: bool,
+    show_output: bool,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
     let language = backend.np_language();
 
     let program = driver
-        .compile_no_check(language, false, allow_warnings, Some(main), capture_output)
+        .compile_no_check(language, false, allow_warnings, Some(main), show_output)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();

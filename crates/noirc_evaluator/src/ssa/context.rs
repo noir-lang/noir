@@ -694,7 +694,7 @@ impl SsaContext {
         &mut self,
         evaluator: &mut Evaluator,
         enable_logging: bool,
-        capture_output: bool,
+        show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
@@ -740,7 +740,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator, capture_output)?;
+        self.acir(evaluator, show_output)?;
         if enable_logging {
             print_acir_circuit(&evaluator.opcodes);
             println!("DONE");
@@ -749,17 +749,13 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(
-        &self,
-        evaluator: &mut Evaluator,
-        capture_output: bool,
-    ) -> Result<(), RuntimeError> {
+    pub fn acir(&self, evaluator: &mut Evaluator, show_output: bool) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.instruction(*iter);
-                acir.acir_gen_instruction(ins, evaluator, self, capture_output)
+                acir.acir_gen_instruction(ins, evaluator, self, show_output)
                     .map_err(RuntimeError::from)?;
             }
             //TODO we should rather follow the jumps

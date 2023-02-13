@@ -163,7 +163,7 @@ impl Driver {
         allow_warnings: bool,
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
-        capture_output: bool,
+        show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
@@ -188,7 +188,7 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        match create_circuit(program, np_language, blackbox_supported, show_ssa, capture_output) {
+        match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
             Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

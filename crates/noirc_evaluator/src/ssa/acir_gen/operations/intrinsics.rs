@@ -28,7 +28,7 @@ pub(crate) fn evaluate(
     memory_map: &mut MemoryMap,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
-    capture_output: bool,
+    show_output: bool,
 ) -> Option<InternalVar> {
     use builtin::Opcode;
 
@@ -58,7 +58,7 @@ pub(crate) fn evaluate(
         }
         Opcode::Println(is_string_output) => {
             outputs = Vec::new(); // print statements do not output anything
-            if !capture_output {
+            if show_output {
                 evaluate_println(var_cache, memory_map, is_string_output, args, ctx, evaluator);
             }
         }
