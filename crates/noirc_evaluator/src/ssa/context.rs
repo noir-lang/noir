@@ -755,8 +755,7 @@ impl SsaContext {
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.instruction(*iter);
-                acir.acir_gen_instruction(ins, evaluator, self, show_output)
-                    .map_err(RuntimeError::from)?;
+                acir.acir_gen_instruction(ins, evaluator, self, show_output)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
@@ -1119,8 +1118,9 @@ impl SsaContext {
             NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
                 builtin::Opcode::Println(_) => {
                     // Compiler sanity check. This should be caught during typechecking
-                    assert!(
-                        arguments.len() == 1,
+                    assert_eq!(
+                        arguments.len(),
+                        1,
                         "print statements currently only support one argument"
                     );
                     let is_string = match &arguments[0] {

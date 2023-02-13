@@ -278,13 +278,15 @@ fn evaluate_println(
                 let final_string = noirc_abi::decode_string_value(&field_elements);
                 log_string.push_str(&final_string);
             } else if !field_elements.is_empty() {
-                let fields = vecmap(field_elements, |elem| elem.to_hex());
+                let fields = vecmap(field_elements, |elem| {
+                    "0x".to_owned() + &elem.to_hex().trim_start_matches('0')
+                });
                 log_string = format!("[{}]", fields.join(", "));
             }
         }
         _ => match ctx.get_as_constant(node_id) {
             Some(field) => {
-                log_string.push_str(&field.to_hex());
+                log_string = "0x".to_owned() + &field.to_hex().trim_start_matches('0');
             }
             None => {
                 let var = var_cache.get(&node_id).unwrap_or_else(|| {
@@ -294,7 +296,7 @@ fn evaluate_println(
                     )
                 });
                 if let Some(field) = var.to_const() {
-                    log_string.push_str(&field.to_hex());
+                    log_string = "0x".to_owned() + &field.to_hex().trim_start_matches('0');
                 } else if let Some(w) = var.cached_witness() {
                     log_witnesses.push(*w);
                 } else {
