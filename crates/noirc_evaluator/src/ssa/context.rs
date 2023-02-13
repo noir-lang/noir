@@ -111,18 +111,16 @@ impl SsaContext {
         self.dummy_load[&a]
     }
 
-    #[allow(clippy::map_entry)]
     pub fn add_dummy_load(&mut self, a: ArrayId) {
-        if !self.dummy_load.contains_key(&a) {
+        if self.dummy_load.get(&a).is_none() {
             let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
             let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
             let id = self.add_instruction(dummy_load);
             self.dummy_load.insert(a, id);
         }
     }
-    #[allow(clippy::map_entry)]
     pub fn add_dummy_store(&mut self, a: ArrayId) {
-        if !self.dummy_store.contains_key(&a) {
+        if self.dummy_store.get(&a).is_none() {
             let op_a =
                 Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
             let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
