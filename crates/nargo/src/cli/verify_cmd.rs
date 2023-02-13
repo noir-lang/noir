@@ -11,24 +11,23 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, path::Path};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
 
-    let proof_name = args.value_of("proof").unwrap();
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let proof_name: &String = args.get_one("proof").unwrap();
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let mut proof_path = program_dir.clone();
     proof_path.push(Path::new(PROOFS_DIR));
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
-    let allow_warnings = args.is_present("allow-warnings");
+    let allow_warnings = args.get_flag("allow-warnings");
     let result = verify_with_path(program_dir, proof_path, false, allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())

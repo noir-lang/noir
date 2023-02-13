@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use super::{create_named_dir, write_to_file};
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
@@ -8,9 +6,11 @@ use clap::ArgMatches;
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("contract").unwrap();
 
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let allow_warnings = args.get_flag("allow-warnings");
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let compiled_program = compile_circuit(program_dir.clone(), false, allow_warnings)?;
 

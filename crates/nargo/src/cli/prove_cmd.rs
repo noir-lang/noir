@@ -14,12 +14,14 @@ use crate::{
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("prove").unwrap();
-    let proof_name = args.value_of("proof_name");
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
+    let proof_name: Option<&String> = args.get_one("proof_name");
+    let show_ssa = args.get_flag("show-ssa");
+    let allow_warnings = args.get_flag("allow-warnings");
 
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let mut proof_dir = program_dir.clone();
     proof_dir.push(PROOFS_DIR);
@@ -30,7 +32,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
-    proof_name: Option<&str>,
+    proof_name: Option<&String>,
     program_dir: P,
     proof_dir: P,
     show_ssa: bool,

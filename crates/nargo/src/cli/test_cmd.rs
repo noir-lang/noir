@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, io::Write, path::Path};
 
 use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use clap::ArgMatches;
@@ -16,10 +12,13 @@ use super::add_std_lib;
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("test").unwrap();
-    let test_name = args.value_of("test_name").unwrap_or("");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let empty_string = "".to_owned();
+    let test_name: &String = args.get_one("test_name").unwrap_or(&empty_string);
+    let allow_warnings = args.get_flag("allow-warnings");
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     run_tests(&program_dir, test_name, allow_warnings)
 }

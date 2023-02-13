@@ -19,11 +19,14 @@ use crate::{
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("execute").unwrap();
-    let witness_name = args.value_of("witness_name");
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let witness_name: Option<&String> = args.get_one("witness_name");
+    let show_ssa = args.get_flag("show-ssa");
+    let allow_warnings = args.get_flag("allow-warnings");
+
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
     let (return_value, solved_witness) = execute_program(&program_dir, &compiled_program)?;

@@ -13,10 +13,12 @@ use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("check").unwrap();
-    let allow_warnings = args.is_present("allow-warnings");
+    let allow_warnings = args.get_flag("allow-warnings");
 
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     check_from_path(program_dir, allow_warnings)?;
     println!("Constraint system successfully built!");

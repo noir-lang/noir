@@ -17,11 +17,14 @@ use super::{add_std_lib, create_named_dir, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
-    let circuit_name = args.value_of("circuit_name").unwrap();
-    let witness = args.is_present("witness");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    let circuit_name: &String = args.get_one("circuit_name").unwrap();
+    let witness = args.get_flag("witness");
+    let allow_warnings = args.get_flag("allow-warnings");
+
+    let program_dir = std::env::current_dir().unwrap();
+    // let program_dir = args
+    //     .get_one::<String>("path")
+    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
     let mut circuit_path = program_dir.clone();
     circuit_path.push(TARGET_DIR);

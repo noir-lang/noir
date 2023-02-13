@@ -3,7 +3,7 @@ use acvm::{
     FieldElement,
 };
 pub use check_cmd::check_from_path;
-use clap::{App, AppSettings, Arg};
+use clap::{Arg, Command};
 use const_format::formatcp;
 use git_version::git_version;
 use noirc_abi::{
@@ -43,89 +43,89 @@ pub type InputMap = BTreeMap<String, InputValue>;
 pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub fn start_cli() {
-    let allow_warnings = Arg::with_name("allow-warnings")
+    let allow_warnings = Arg::new("allow-warnings")
         .long("allow-warnings")
-        .help("Issue a warning for each unused variable instead of an error");
+        .help("Issue a warning for each unused variable instead of an error")
+        .action(clap::ArgAction::SetTrue);
 
-    let show_ssa = Arg::with_name("show-ssa")
+    let show_ssa = Arg::new("show-ssa")
         .long("show-ssa")
-        .help("Emit debug information for the intermediate SSA IR");
+        .help("Emit debug information for the intermediate SSA IR")
+        .action(clap::ArgAction::SetTrue);
 
-    let matches = App::new("nargo")
+    let matches = Command::new("nargo")
         .about("Noir's package manager")
         .version(VERSION_STRING)
         .author("The Noir Team <kevtheappdev@gmail.com>")
         .subcommand(
-            App::new("check")
+            Command::new("check")
                 .about("Checks the constraint system for errors")
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("contract")
-                .about("Generates a Solidity verifier smart contract for the program"),
-        )
-        .subcommand(
-            App::new("new")
-                .about("Create a new binary project")
-                .arg(Arg::with_name("package_name").help("Name of the package").required(true))
-                .arg(
-                    Arg::with_name("path").help("The path to save the new project").required(false),
-                ),
-        )
-        .subcommand(
-            App::new("verify")
-                .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(Arg::with_name("proof").help("The proof to verify").required(true))
+            Command::new("contract")
+                .about("Generates a Solidity verifier smart contract for the program")
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("prove")
+            Command::new("new")
+                .about("Create a new binary project")
+                .arg(Arg::new("package_name").help("Name of the package").required(true))
+                .arg(Arg::new("path").help("The path to save the new project").required(false)),
+        )
+        .subcommand(
+            Command::new("verify")
+                .about("Given a proof and a program, verify whether the proof is valid")
+                .arg(Arg::new("proof").help("The proof to verify").required(true))
+                .arg(allow_warnings.clone()),
+        )
+        .subcommand(
+            Command::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof"))
+                .arg(Arg::new("proof_name").help("The name of the proof"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("test")
+            Command::new("test")
                 .about("Run the tests for this program")
                 .arg(
-                    Arg::with_name("test_name")
+                    Arg::new("test_name")
                         .help("If given, only tests with names containing this string will be run"),
                 )
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("compile")
+            Command::new("compile")
                 .about("Compile the program and its secret execution trace into ACIR format")
+                .arg(Arg::new("circuit_name").help("The name of the ACIR file").required(true))
                 .arg(
-                    Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
-                )
-                .arg(
-                    Arg::with_name("witness")
+                    Arg::new("witness")
                         .long("witness")
-                        .help("Solve the witness and write it to file along with the ACIR"),
+                        .help("Solve the witness and write it to file along with the ACIR")
+                        .action(clap::ArgAction::SetTrue),
                 )
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("gates")
+            Command::new("gates")
                 .about("Counts the occurrences of different gates in circuit")
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
-            App::new("execute")
+            Command::new("execute")
                 .about("Executes a circuit to calculate its return value")
                 .arg(
-                    Arg::with_name("witness_name")
+                    Arg::new("witness_name")
                         .long("witness_name")
                         .help("Write the execution witness to named file")
-                        .takes_value(true),
+                        .num_args(1),
                 )
                 .arg(show_ssa)
                 .arg(allow_warnings),
         )
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg_required_else_help(true)
         .get_matches();
 
     let result = match matches.subcommand_name() {
@@ -214,7 +214,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path = match prove_cmd::prove_with_path(
-        Some(proof_name),
+        Some(&proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         show_ssa,
