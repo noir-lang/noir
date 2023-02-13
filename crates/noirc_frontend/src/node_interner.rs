@@ -18,7 +18,6 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::token::Attribute;
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -169,6 +168,11 @@ pub struct NodeInterner {
     language: Language,
 
     delayed_type_checks: Vec<TypeCheckFn>,
+
+    // A map from a struct type and method name to a function id for the method
+    // along with any generic on the struct it may require. E.g. if the impl is
+    // only for `impl Foo<String>` rather than all Foo, the generics will be `vec![String]`.
+    struct_methods: HashMap<(StructId, String), (Vec<Type>, FuncId)>,
 }
 
 type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
@@ -236,6 +240,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             language: Language::R1CS,
             delayed_type_checks: vec![],
+            struct_methods: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -570,10 +575,26 @@ impl NodeInterner {
         std::mem::take(&mut self.delayed_type_checks)
     }
 
-    pub fn get_all_test_functions(&self) -> impl Iterator<Item = FuncId> + '_ {
-        self.func_meta.iter().filter_map(|(id, meta)| {
-            let is_test = meta.attributes.as_ref()? == &Attribute::Test;
-            is_test.then_some(*id)
-        })
+    /// Add a method to a type.
+    /// This will panic for non-struct types currently as we do not support methods
+    /// for primitives. We could allow this in the future however.
+    pub fn add_method(
+        &mut self,
+        self_type: &Type,
+        method_name: String,
+        method_id: FuncId,
+    ) -> Option<FuncId> {
+        match self_type {
+            Type::Struct(struct_type, generics) => {
+                let key = (struct_type.borrow().id, method_name);
+                self.struct_methods.insert(key, (generics.clone(), method_id)).map(|(_, id)| id)
+            }
+            other => unreachable!("Tried adding method to non-struct type '{}'", other),
+        }
+    }
+
+    /// Search by name for a method on the given struct
+    pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
+        self.struct_methods.get(&(id, method_name.to_owned())).map(|(_, id)| *id)
     }
 }
