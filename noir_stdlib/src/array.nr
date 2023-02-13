@@ -2,4 +2,4 @@
 fn len<T>(_input : [T]) -> comptime Field {}
 
 #[builtin(arraysort)]
- fn sort<T>(_a: [T]) -> [T] {}
+fn sort<T, N>(_a: [T; N]) -> [T; N] {}
