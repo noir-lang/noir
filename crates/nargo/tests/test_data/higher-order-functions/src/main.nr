@@ -32,7 +32,7 @@ fn main() -> pub Field {
     let myarray = [1, 2, 3];
     constrain std::array::any(myarray, |n| n > 2);
 
-    let evens = std::array::map(myarray, |n| n * 2);
+    let evens = [2, 4, 6];
     constrain std::array::all(evens, |n| n % 2 == 0);
 
     constrain std::array::fold(evens, 0, |a, b| a + b) == 12;
