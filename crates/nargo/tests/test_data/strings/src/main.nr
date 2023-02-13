@@ -32,18 +32,25 @@ fn test_prints_strings() {
     let message = "hello world!";
 
     std::println(message);
-
-    let bad_message = "goodbye world";
-
-    std::println(bad_message);
+    std::println("goodbye world");
 }
 
 #[test]
 fn test_prints_array() {
     let array = [1, 2, 3, 5, 8];
 
+    // TODO: Printing structs currently not supported
+    // let s = Test { a: 1, b: 2, c: [3, 4] };
+    // std::println(s);
+
     std::println(array);
 
     let hash = std::hash::pedersen(array);
     std::println(hash);
+}
+
+struct Test {
+    a: Field,
+    b: Field,
+    c: [Field; 2],
 }

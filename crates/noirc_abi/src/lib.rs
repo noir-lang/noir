@@ -4,8 +4,8 @@ use std::{collections::BTreeMap, convert::TryInto, str};
 use acvm::FieldElement;
 use errors::AbiError;
 use input_parser::InputValue;
+use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
-
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
@@ -283,15 +283,12 @@ impl Abi {
 }
 
 pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
-    let string_as_slice = field_elements
-        .iter()
-        .map(|e| {
-            let mut field_as_bytes = e.to_be_bytes();
-            let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-            assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-            char_byte
-        })
-        .collect::<Vec<_>>();
+    let string_as_slice = vecmap(field_elements, |e| {
+        let mut field_as_bytes = e.to_be_bytes();
+        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+        char_byte
+    });
 
     let final_string = str::from_utf8(&string_as_slice).unwrap();
     final_string.to_owned()

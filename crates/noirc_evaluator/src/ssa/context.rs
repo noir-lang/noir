@@ -1118,12 +1118,22 @@ impl SsaContext {
         match &self[node_id] {
             NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
                 builtin::Opcode::Println(_) => {
+                    // Compiler sanity check. This should be caught during typechecking
                     assert!(
                         arguments.len() == 1,
                         "print statements currently only support one argument"
                     );
                     let is_string = match &arguments[0] {
-                        Expression::Ident(ident) => matches!(ident.typ, Type::String(_)),
+                        Expression::Ident(ident) => match ident.typ {
+                            Type::String(_) => true,
+                            Type::Tuple(_) => {
+                                unreachable!("logging structs/tuples is not supported")
+                            }
+                            Type::Function { .. } => {
+                                unreachable!("logging functions is not supported")
+                            }
+                            _ => false,
+                        },
                         Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
                         _ => unreachable!("logging this expression type is not supported"),
                     };

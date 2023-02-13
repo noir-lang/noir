@@ -244,7 +244,7 @@ fn evaluate_println(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) {
-    assert!(args.len() == 1, "print statements can only support one argument");
+    assert_eq!(args.len(), 1, "print statements can only support one argument");
     let node_id = args[0];
 
     let mut log_string = "".to_owned();
@@ -256,23 +256,21 @@ fn evaluate_println(
             let mem_array = &ctx.mem[array_id];
             let mut field_elements = Vec::new();
             for idx in 0..mem_array.len {
-                if let Some(var) = memory_map.load_array_element_constant_index(mem_array, idx) {
-                    let array_elem_expr = var.expression();
-                    if array_elem_expr.is_const() {
-                        field_elements.push(array_elem_expr.q_c);
-                    } else {
-                        let var = match var_cache.get(&node_id) {
-                            Some(var) => var.clone(),
-                            _ => InternalVar::from(array_elem_expr.clone()),
-                        };
-                        if let Some(w) = var.cached_witness() {
-                            log_witnesses.push(*w);
-                        } else {
-                            unreachable!("array element to be logged is missing a witness");
-                        }
-                    }
+                let var = memory_map
+                    .load_array_element_constant_index(mem_array, idx)
+                    .expect("array element being logged does not exist in memory");
+                let array_elem_expr = var.expression();
+                if array_elem_expr.is_const() {
+                    field_elements.push(array_elem_expr.q_c);
                 } else {
-                    unreachable!("array element being logged does not exist in memory");
+                    let var = match var_cache.get(&node_id) {
+                        Some(var) => var.clone(),
+                        _ => InternalVar::from(array_elem_expr.clone()),
+                    };
+                    let w = var
+                        .cached_witness()
+                        .expect("array element to be logged is missing a witness");
+                    log_witnesses.push(w);
                 }
             }
 
@@ -280,16 +278,8 @@ fn evaluate_println(
                 let final_string = noirc_abi::decode_string_value(&field_elements);
                 log_string.push_str(&final_string);
             } else if !field_elements.is_empty() {
-                log_string.push('[');
-                let mut iter = field_elements.iter().peekable();
-                while let Some(elem) = iter.next() {
-                    if iter.peek().is_none() {
-                        log_string.push_str(&elem.to_hex());
-                    } else {
-                        log_string.push_str(&format!("{}, ", elem.to_hex()));
-                    }
-                }
-                log_string.push(']');
+                let fields = vecmap(field_elements, |elem| elem.to_hex());
+                log_string = format!("[{}]", fields.join(", "));
             }
         }
         _ => match ctx.get_as_constant(node_id) {
@@ -297,19 +287,18 @@ fn evaluate_println(
                 log_string.push_str(&field.to_hex());
             }
             None => {
-                if let Some(var) = var_cache.get(&node_id) {
-                    if let Some(field) = var.to_const() {
-                        log_string.push_str(&field.to_hex());
-                    } else if let Some(w) = var.cached_witness() {
-                        log_witnesses.push(*w);
-                    } else {
-                        unreachable!("array element to be logged is missing a witness");
-                    }
-                } else {
-                    unreachable!(
+                let var = var_cache.get(&node_id).unwrap_or_else(|| {
+                    panic!(
                         "invalid input for print statement: {:?}",
                         ctx.try_get_node(node_id).expect("node is missing from SSA")
                     )
+                });
+                if let Some(field) = var.to_const() {
+                    log_string.push_str(&field.to_hex());
+                } else if let Some(w) = var.cached_witness() {
+                    log_witnesses.push(*w);
+                } else {
+                    unreachable!("array element to be logged is missing a witness");
                 }
             }
         },
