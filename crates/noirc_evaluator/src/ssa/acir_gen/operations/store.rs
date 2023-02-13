@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{internal_var_cache::InternalVarCache, memory_map::MemoryMap, InternalVar},
+        acir_gen::{acir_mem::AcirMem, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
         mem::{self, ArrayId},
         node::NodeId,
@@ -12,7 +12,7 @@ pub(crate) fn evaluate(
     array_id: ArrayId,
     index: NodeId,
     value: NodeId,
-    memory_map: &mut MemoryMap,
+    acir_mem: &mut AcirMem,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
@@ -24,8 +24,8 @@ pub(crate) fn evaluate(
     match index.to_const() {
         Some(index) => {
             let idx = mem::Memory::as_u32(index);
-            let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
-            memory_map.insert(absolute_adr, value);
+            let mem_map = acir_mem.array_map_mut(array_id);
+            mem_map.insert(idx, value);
             //we do not generate constraint, so no output.
             None
         }

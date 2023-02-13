@@ -5,26 +5,31 @@ use crate::ssa::{
 };
 use acvm::acir::native_types::Witness;
 use iter_extended::vecmap;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-// maps memory address to expression
 #[derive(Default)]
-pub struct MemoryMap {
-    inner: HashMap<u32, InternalVar>,
+pub struct AcirMem {
+    // maps memory address to InternalVar
+    memory_map: BTreeMap<ArrayId, BTreeMap<u32, InternalVar>>,
 }
 
-impl MemoryMap {
+impl AcirMem {
+    // returns the memory_map for the array
+    pub fn array_map_mut(&mut self, array_id: ArrayId) -> &mut BTreeMap<u32, InternalVar> {
+        let entry = self.memory_map.entry(array_id);
+        entry.or_insert(BTreeMap::new())
+    }
+
     //Map the outputs into the array
     pub(crate) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
         let array = &ctx.mem[a];
-        let address = array.adr;
         for i in 0..array.len {
             let var = if i < outputs.len() as u32 {
                 InternalVar::from(outputs[i as usize])
             } else {
                 InternalVar::zero_expr()
             };
-            self.inner.insert(address + i, var);
+            self.array_map_mut(array.id).insert(i, var);
         }
     }
 
@@ -60,10 +65,8 @@ impl MemoryMap {
             return None; // IndexOutOfBoundsError
         }
 
-        let address_of_element = array.absolute_adr(offset);
-
         // Check the memory_map to see if the element is there
-        if let Some(internal_var) = self.inner.get(&address_of_element) {
+        if let Some(internal_var) = self.array_map_mut(array.id).get(&offset) {
             return Some(internal_var.clone());
         };
 
@@ -77,9 +80,5 @@ impl MemoryMap {
         array_element.cached_witness().expect("ICE: since the value is not in the memory_map it must have came from the ABI, so it is a Witness");
 
         Some(array_element)
-    }
-
-    pub(crate) fn insert(&mut self, key: u32, value: InternalVar) -> Option<InternalVar> {
-        self.inner.insert(key, value)
     }
 }

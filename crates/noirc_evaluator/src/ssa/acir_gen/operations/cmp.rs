@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{constraints, memory_map::MemoryMap, InternalVar},
+        acir_gen::{acir_mem::AcirMem, constraints, InternalVar},
         context::SsaContext,
         mem::{MemArray, Memory},
         node::NodeId,
@@ -26,7 +26,7 @@ use iter_extended::vecmap;
 // so in reality, the NEQ instruction will be done on the fields
 // of the struct
 pub(crate) fn evaluate_neq(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -89,7 +89,7 @@ pub(crate) fn evaluate_neq(
 }
 
 pub(crate) fn evaluate_eq(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -107,7 +107,7 @@ pub(crate) fn evaluate_eq(
 //
 // N.B. We assumes the lengths of a and b are the same but it is not checked inside the function.
 fn array_eq(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     a: &MemArray,
     b: &MemArray,
     evaluator: &mut Evaluator,

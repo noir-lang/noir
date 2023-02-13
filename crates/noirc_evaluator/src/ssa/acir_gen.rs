@@ -18,12 +18,12 @@ use internal_var_cache::InternalVarCache;
 // Expose this to the crate as we need to apply range constraints when
 // converting the ABI(main parameters) to Noir types
 pub(crate) use constraints::range_constraint;
-mod memory_map;
-use memory_map::MemoryMap;
+mod acir_mem;
+use acir_mem::AcirMem;
 
 #[derive(Default)]
 pub struct Acir {
-    memory_map: MemoryMap,
+    memory_trace: AcirMem,
     var_cache: InternalVarCache,
 }
 
@@ -39,12 +39,12 @@ impl Acir {
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
         };
 
-        let memory_map = &mut self.memory_map;
+        let acir_mem = &mut self.memory_trace;
         let var_cache = &mut self.var_cache;
 
         let output = match &ins.operation {
             Operation::Binary(binary) => {
-                binary::evaluate(binary, ins.res_type, var_cache, memory_map, evaluator, ctx)
+                binary::evaluate(binary, ins.res_type, var_cache, acir_mem, evaluator, ctx)
             }
             Operation::Constrain(value, ..) => {
                 constrain::evaluate(value, var_cache, evaluator, ctx)
@@ -57,19 +57,19 @@ impl Acir {
                 truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
             }
             Operation::Intrinsic(opcode, args) => {
-                intrinsics::evaluate(args, ins, *opcode, var_cache, memory_map, ctx, evaluator)
+                intrinsics::evaluate(args, ins, *opcode, var_cache, acir_mem, ctx, evaluator)
             }
             Operation::Return(node_ids) => {
-                r#return::evaluate(node_ids, memory_map, var_cache, evaluator, ctx)?
+                r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?
             }
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 condition::evaluate(*condition, *lhs, *rhs, var_cache, evaluator, ctx)
             }
             Operation::Load { array_id, index } => {
-                load::evaluate(*array_id, *index, memory_map, var_cache, evaluator, ctx)
+                load::evaluate(*array_id, *index, acir_mem, var_cache, evaluator, ctx)
             }
             Operation::Store { array_id, index, value } => {
-                store::evaluate(*array_id, *index, *value, memory_map, var_cache, evaluator, ctx)
+                store::evaluate(*array_id, *index, *value, acir_mem, var_cache, evaluator, ctx)
             }
             Operation::Nop => None,
             i @ Operation::Jne(..)
