@@ -319,6 +319,9 @@ fn evaluate_println(
     evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
 }
 
+/// This trims any leading zeroes and prepends a '0' if the trimmed string has an odd length.
+/// A hex string's length needs to be even, as two digits correspond to
+/// one byte.
 fn format_field_string(field: FieldElement) -> String {
     let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
     if trimmed_field.len() % 2 != 0 {
