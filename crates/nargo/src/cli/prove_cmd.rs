@@ -1,38 +1,49 @@
 use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
+use clap::Args;
 use noirc_abi::input_parser::Format;
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
-use super::{create_named_dir, write_inputs_to_file, write_to_file};
+use super::{create_named_dir, write_inputs_to_file, write_to_file, NargoConfig};
 use crate::cli::dedup_public_input_indices;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("prove").unwrap();
-    let proof_name: Option<&String> = args.get_one("proof_name");
-    let show_ssa = args.get_flag("show-ssa");
-    let allow_warnings = args.get_flag("allow-warnings");
+/// Create proof for this program
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ProveCommand {
+    /// The name of the proof
+    proof_name: Option<String>,
 
-    let program_dir = std::env::current_dir().unwrap();
-    // let program_dir = args
-    //     .get_one::<String>("path")
-    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
 
-    let mut proof_dir = program_dir.clone();
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut proof_dir = config.program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
-    prove_with_path(proof_name, program_dir, proof_dir, show_ssa, allow_warnings)?;
+    prove_with_path(
+        args.proof_name,
+        config.program_dir,
+        proof_dir,
+        args.show_ssa,
+        args.allow_warnings,
+    )?;
 
     Ok(())
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
-    proof_name: Option<&String>,
+    proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
     show_ssa: bool,
@@ -57,7 +68,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     println!("Proof successfully created");
     if let Some(proof_name) = proof_name {
-        let proof_path = save_proof_to_dir(proof, proof_name, proof_dir)?;
+        let proof_path = save_proof_to_dir(proof, &proof_name, proof_dir)?;
 
         println!("Proof saved to {}", proof_path.display());
         Ok(Some(proof_path))

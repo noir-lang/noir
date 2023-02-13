@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use acvm::ProofSystemCompiler;
 
-use clap::ArgMatches;
+use clap::Args;
 
 use std::path::Path;
 
@@ -13,28 +13,33 @@ use crate::{
     resolver::Resolver,
 };
 
-use super::{add_std_lib, create_named_dir, write_to_file};
+use super::{add_std_lib, create_named_dir, write_to_file, NargoConfig};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("compile").unwrap();
-    let circuit_name: &String = args.get_one("circuit_name").unwrap();
-    let witness = args.get_flag("witness");
-    let allow_warnings = args.get_flag("allow-warnings");
+/// Compile the program and its secret execution trace into ACIR format
+#[derive(Debug, Clone, Args)]
+pub(crate) struct CompileCommand {
+    /// The name of the ACIR file
+    circuit_name: String,
 
-    let program_dir = std::env::current_dir().unwrap();
-    // let program_dir = args
-    //     .get_one::<String>("path")
-    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// Solve the witness and write it to file along with the ACIR
+    #[arg(short, long)]
+    witness: bool,
 
-    let mut circuit_path = program_dir.clone();
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+}
+
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut circuit_path = config.program_dir.clone();
     circuit_path.push(TARGET_DIR);
 
     generate_circuit_and_witness_to_disk(
-        circuit_name,
-        program_dir,
+        &args.circuit_name,
+        config.program_dir,
         circuit_path,
-        witness,
-        allow_warnings,
+        args.witness,
+        args.allow_warnings,
     )
     .map(|_| ())
 }

@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 use acvm::acir::native_types::Witness;
 use acvm::FieldElement;
 use acvm::PartialWitnessGenerator;
-use clap::ArgMatches;
+use clap::Args;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
+use super::NargoConfig;
 use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use super::{InputMap, WitnessMap};
 use crate::{
@@ -17,29 +18,35 @@ use crate::{
     errors::CliError,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("execute").unwrap();
-    let witness_name: Option<&String> = args.get_one("witness_name");
-    let show_ssa = args.get_flag("show-ssa");
-    let allow_warnings = args.get_flag("allow-warnings");
+/// Executes a circuit to calculate its return value
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ExecuteCommand {
+    /// Write the execution witness to named file
+    witness_name: Option<String>,
 
-    let program_dir = std::env::current_dir().unwrap();
-    // let program_dir = args
-    //     .get_one::<String>("path")
-    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
 
-    let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
-    let (return_value, solved_witness) = execute_program(&program_dir, &compiled_program)?;
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
+    let compiled_program =
+        compile_circuit(&config.program_dir, args.show_ssa, args.allow_warnings)?;
+    let (return_value, solved_witness) = execute_program(&config.program_dir, &compiled_program)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
-    if let Some(witness_name) = witness_name {
-        let mut witness_dir = program_dir;
+    if let Some(witness_name) = args.witness_name {
+        let mut witness_dir = config.program_dir;
         witness_dir.push(TARGET_DIR);
 
-        let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
+        let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;
 
         println!("Witness saved to {}", witness_path.display());
     }

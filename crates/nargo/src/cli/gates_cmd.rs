@@ -1,20 +1,26 @@
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
+use clap::Args;
 use std::path::Path;
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("gates").unwrap();
-    let show_ssa = args.get_flag("show-ssa");
-    let allow_warnings = args.get_flag("allow-warnings");
-    let program_dir = std::env::current_dir().unwrap();
-    // let program_dir = args
-    //     .get_one::<String>("path")
-    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+use super::NargoConfig;
 
-    count_gates_with_path(program_dir, show_ssa, allow_warnings)
+/// Counts the occurrences of different gates in circuit
+#[derive(Debug, Clone, Args)]
+pub(crate) struct GatesCommand {
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
+    count_gates_with_path(config.program_dir, args.show_ssa, args.allow_warnings)
 }
 
 pub fn count_gates_with_path<P: AsRef<Path>>(

@@ -3,20 +3,23 @@ use crate::{
     errors::CliError,
 };
 
-use super::{create_named_dir, write_to_file};
-use clap::ArgMatches;
+use super::{create_named_dir, write_to_file, NargoConfig};
+use clap::Args;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let cmd = args.subcommand_matches("new").unwrap();
+/// Create a new binary project
+#[derive(Debug, Clone, Args)]
+pub(crate) struct NewCommand {
+    /// Name of the package
+    package_name: String,
+    /// The path to save the new project
+    path: Option<PathBuf>,
+}
 
-    let package_name: &String = cmd.get_one("package_name").unwrap();
+pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut package_dir = config.program_dir;
 
-    let mut package_dir: PathBuf = args
-        .get_one::<String>("path")
-        .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
-
-    package_dir.push(Path::new(package_name));
+    package_dir.push(Path::new(&args.package_name));
     if package_dir.exists() {
         return Err(CliError::DestinationAlreadyExists(package_dir));
     }

@@ -1,5 +1,6 @@
 [package]
 name = "nargo"
+description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

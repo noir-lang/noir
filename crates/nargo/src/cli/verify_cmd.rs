@@ -1,34 +1,36 @@
 use super::{
     compile_cmd::compile_circuit, dedup_public_input_indices_values, read_inputs_from_file,
-    InputMap,
+    InputMap, NargoConfig,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
+use clap::Args;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("verify").unwrap();
+/// Given a proof and a program, verify whether the proof is valid
+#[derive(Debug, Clone, Args)]
+pub(crate) struct VerifyCommand {
+    /// The proof to verify
+    proof: String,
 
-    let proof_name: &String = args.get_one("proof").unwrap();
-    let program_dir = std::env::current_dir().unwrap();
-    // let program_dir = args
-    //     .get_one::<String>("path")
-    //     .map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+}
 
-    let mut proof_path = program_dir.clone();
+pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut proof_path = config.program_dir.clone();
     proof_path.push(Path::new(PROOFS_DIR));
-    proof_path.push(Path::new(proof_name));
+    proof_path.push(Path::new(&args.proof));
     proof_path.set_extension(PROOF_EXT);
 
-    let allow_warnings = args.get_flag("allow-warnings");
-    let result = verify_with_path(program_dir, proof_path, false, allow_warnings)?;
+    let result = verify_with_path(config.program_dir, proof_path, false, args.allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())
 }
