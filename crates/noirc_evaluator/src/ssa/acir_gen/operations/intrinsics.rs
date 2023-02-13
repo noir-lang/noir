@@ -11,7 +11,7 @@ use crate::{
 use acvm::acir::circuit::directives::{Directive, LogInfo};
 use acvm::acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-    native_types::{Expression, Witness},
+    native_types::Witness,
 };
 use iter_extended::vecmap;
 
@@ -202,7 +202,7 @@ fn evaluate_println(
     let mut log_string = "".to_owned();
     let mut log_witnesses = Vec::new();
 
-    let obj_type = ctx.get_object_type(node_id);
+    let obj_type = ctx.object_type(node_id);
     match obj_type {
         ObjectType::Pointer(array_id) => {
             let mem_array = &ctx.mem[array_id];

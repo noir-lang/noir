@@ -758,7 +758,7 @@ impl SsaContext {
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
-                let ins = self.get_instruction(*iter);
+                let ins = self.instruction(*iter);
                 acir.acir_gen_instruction(ins, evaluator, self, capture_output)
                     .map_err(RuntimeError::from)?;
             }
