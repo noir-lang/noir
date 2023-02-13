@@ -1840,6 +1840,7 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "num-traits",
+ "rand 0.8.5",
  "thiserror",
 ]
 

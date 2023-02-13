@@ -1,4 +1,7 @@
-use crate::ssa::node::ObjectType;
+use crate::ssa::{
+    context::SsaContext,
+    node::{NodeId, ObjectType},
+};
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -13,6 +16,7 @@ pub enum Opcode {
     ToBits,
     ToRadix,
     Println(PrintlnInfo),
+    Sort,
 }
 
 impl std::fmt::Display for Opcode {
@@ -34,6 +38,7 @@ impl Opcode {
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
+            "arraysort" => Some(Opcode::Sort),
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
     }
@@ -44,6 +49,7 @@ impl Opcode {
             Opcode::ToBits => "to_le_bits",
             Opcode::ToRadix => "to_radix",
             Opcode::Println(_) => "println",
+            Opcode::Sort => "arraysort",
         }
     }
 
@@ -69,13 +75,13 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) | Opcode::Sort => BigUint::zero(), //pointers do not overflow
         }
     }
 
     /// Returns the number of elements that the `Opcode` should return
     /// and the type.
-    pub fn get_result_type(&self) -> (u32, ObjectType) {
+    pub fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -96,6 +102,10 @@ impl Opcode {
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
             Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
             Opcode::Println(_) => (0, ObjectType::NotAnObject),
+            Opcode::Sort => {
+                let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
+                (ctx.mem[a].len, ctx.mem[a].element_type)
+            }
         }
     }
 }

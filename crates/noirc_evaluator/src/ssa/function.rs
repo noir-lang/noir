@@ -333,7 +333,7 @@ impl IrGenerator {
         op: builtin::Opcode,
         args: Vec<NodeId>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        let (len, elem_type) = op.get_result_type();
+        let (len, elem_type) = op.get_result_type(&args, &self.context);
 
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
@@ -342,7 +342,6 @@ impl IrGenerator {
         } else {
             elem_type
         };
-
         //when the function returns an array, we use ins.res_type(array)
         //else we map ins.id to the returned witness
         let id = self.context.new_instruction(node::Operation::Intrinsic(op, args), result_type)?;
