@@ -17,6 +17,7 @@ jobs:
         id: release
         uses: google-github-actions/release-please-action@v3
         with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           release-type: simple
           package-name: noir
           bump-minor-pre-major: true
