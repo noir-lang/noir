@@ -3,7 +3,7 @@ use super::{
     read_inputs_from_file, InputMap,
 };
 use crate::{
-    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
+    constants::{ACIR_EXT, PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
     errors::CliError,
 };
 use acvm::ProofSystemCompiler;
@@ -32,29 +32,37 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let allow_warnings = args.is_present("allow-warnings");
 
-    let mut verification_key_path = PathBuf::new();
-    verification_key_path.push(TARGET_DIR);
-    verification_key_path.push(circuit_name);
-    verification_key_path.set_extension(VK_EXT);
-
-    if !verification_key_path.exists() {
-        return Err(CliError::MissingVerificationkey(verification_key_path));
-    }
+    let mut circuit_build_path = program_dir.clone();
+    circuit_build_path.push(TARGET_DIR);
+    circuit_build_path.push(circuit_name);
 
     let result =
-        verify_with_path(program_dir, proof_path, verification_key_path, false, allow_warnings)?;
+        verify_with_path(program_dir, proof_path, circuit_build_path, false, allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())
 }
 
+#[allow(deprecated)]
 pub fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_path: P,
-    vk_path: P,
+    circuit_build_path: P,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
+    let mut acir_path = PathBuf::new();
+    acir_path.push(circuit_build_path.as_ref());
+    acir_path.set_extension(ACIR_EXT);
+    let existing_acir =
+        std::fs::read(&acir_path).map_err(|_| CliError::MissingAcir(acir_path.clone()))?;
+
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+
+    let serialized = compiled_program.circuit.to_bytes();
+    if serialized != existing_acir {
+        return Err(CliError::MismatchedAcir(acir_path));
+    }
+
     let mut public_inputs_map: InputMap = BTreeMap::new();
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
@@ -66,11 +74,15 @@ pub fn verify_with_path<P: AsRef<Path>>(
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
+    let mut verification_key_path = PathBuf::new();
+    verification_key_path.push(circuit_build_path);
+    verification_key_path.set_extension(VK_EXT);
+
     let valid_proof = verify_proof(
         compiled_program,
         public_inputs_map,
         load_hex_data(proof_path)?,
-        load_hex_data(vk_path)?,
+        load_hex_data(verification_key_path)?,
     )?;
 
     Ok(valid_proof)

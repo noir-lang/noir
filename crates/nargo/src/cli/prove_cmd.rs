@@ -59,8 +59,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     let mut compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let serialized = compiled_program.circuit.to_bytes();
 
+    let serialized = compiled_program.circuit.to_bytes();
     if serialized != existing_acir {
         return Err(CliError::MismatchedAcir(acir_path));
     }

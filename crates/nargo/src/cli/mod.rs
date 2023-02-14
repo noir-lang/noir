@@ -23,6 +23,8 @@ use tempdir::TempDir;
 
 use crate::errors::CliError;
 
+use self::compile_cmd::generate_circuit_and_witness_to_disk;
+
 mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
@@ -218,21 +220,15 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
-    let compiled_program = match compile_cmd::compile_circuit(prg_dir, false, false) {
-        Ok(compiled_program) => compiled_program,
-        Err(error) => {
-            println!("{error}");
-            return false;
-        }
-    };
-
-    let preprocess_dir = TempDir::new("p_and_v_tests_preprocess").unwrap();
-    let (pk_path, vk_path) = match compile_cmd::preprocess_with_path(
+    let circuit_dir = TempDir::new("p_and_v_tests_circuit").unwrap();
+    let circuit_path = match generate_circuit_and_witness_to_disk(
         proof_name,
-        preprocess_dir.into_path(),
-        compiled_program.circuit,
+        prg_dir,
+        &circuit_dir.into_path(),
+        false,
+        false,
     ) {
-        Ok((pk_path, vk_path)) => (pk_path, vk_path),
+        Ok(circuit_path) => circuit_path,
         Err(error) => {
             println!("{error}");
             return false;
@@ -244,7 +240,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
-        &pk_path,
+        &circuit_path,
         show_ssa,
         false,
     ) {
@@ -255,7 +251,8 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         }
     };
 
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), &vk_path, show_ssa, false).unwrap()
+    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), &circuit_path, show_ssa, false)
+        .unwrap()
 }
 
 fn add_std_lib(driver: &mut Driver) {
