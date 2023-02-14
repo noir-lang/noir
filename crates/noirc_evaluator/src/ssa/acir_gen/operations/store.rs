@@ -24,8 +24,7 @@ pub(crate) fn evaluate(
     match index.to_const() {
         Some(index) => {
             let idx = mem::Memory::as_u32(index);
-            let mem_map = acir_mem.array_map_mut(array_id);
-            mem_map.insert(idx, value);
+            acir_mem.insert(array_id, idx, value);
             //we do not generate constraint, so no output.
             None
         }

@@ -197,7 +197,7 @@ fn resolve_array(
         );
         let func_input = FunctionInput { witness, num_bits };
 
-        acir_mem.array_map_mut(array.id).insert(i, arr_element); //todo ca sert a qqchose ??
+        acir_mem.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
     }

@@ -8,16 +8,26 @@ use iter_extended::vecmap;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-pub struct AcirMem {
+pub struct ArrayHeap {
     // maps memory address to InternalVar
-    memory_map: BTreeMap<ArrayId, BTreeMap<u32, InternalVar>>,
+    memory_map: BTreeMap<u32, InternalVar>,
+}
+
+/// Handle virtual memory access
+#[derive(Default)]
+pub struct AcirMem {
+    virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
 }
 
 impl AcirMem {
-    // returns the memory_map for the array
-    pub fn array_map_mut(&mut self, array_id: ArrayId) -> &mut BTreeMap<u32, InternalVar> {
-        let entry = self.memory_map.entry(array_id);
-        entry.or_insert(BTreeMap::new())
+    // Returns the memory_map for the array
+    fn array_map_mut(&mut self, array_id: ArrayId) -> &mut BTreeMap<u32, InternalVar> {
+        &mut self.virtual_memory.entry(array_id).or_default().memory_map
+    }
+
+    // Write the value to the array's VM at the specified index
+    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
+        self.array_map_mut(array_id).insert(index, value);
     }
 
     //Map the outputs into the array
