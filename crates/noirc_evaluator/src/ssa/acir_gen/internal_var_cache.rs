@@ -34,7 +34,7 @@ impl InternalVarCache {
                 let field_value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                 InternalVar::from_constant(field_value)
             }
-            NodeObject::Obj(variable) => {
+            NodeObject::Variable(variable) => {
                 let variable_type = variable.get_type();
                 match variable_type {
                     ObjectType::Boolean

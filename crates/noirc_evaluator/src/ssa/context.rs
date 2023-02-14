@@ -411,7 +411,7 @@ impl SsaContext {
     pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -426,7 +426,7 @@ impl SsaContext {
     ) -> Result<&mut node::Variable, RuntimeErrorKind> {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -457,9 +457,9 @@ impl SsaContext {
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
-        let id = NodeId(self.nodes.insert(NodeObject::Obj(obj)));
+        let id = NodeId(self.nodes.insert(NodeObject::Variable(obj)));
         match &mut self[id] {
-            node::NodeObject::Obj(v) => {
+            node::NodeObject::Variable(v) => {
                 v.id = id;
                 v.root = root;
             }
