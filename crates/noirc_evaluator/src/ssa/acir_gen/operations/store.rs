@@ -1,10 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{
-            internal_var_cache::InternalVarCache,
-            memory_map::MemoryMap,
-            InternalVar,
-        },
+        acir_gen::{internal_var_cache::InternalVarCache, memory_map::MemoryMap, InternalVar},
         context::SsaContext,
         mem::{self},
         node::Operation,
