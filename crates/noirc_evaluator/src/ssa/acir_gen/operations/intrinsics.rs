@@ -281,7 +281,7 @@ fn evaluate_println(
                 let final_string = noirc_abi::decode_string_value(&field_elements);
                 log_string.push_str(&final_string);
             } else if !field_elements.is_empty() {
-                let fields = vecmap(field_elements, |elem| format_field_string(elem));
+                let fields = vecmap(field_elements, format_field_string);
                 log_string = format!("[{}]", fields.join(", "));
             }
         }
@@ -319,8 +319,9 @@ fn evaluate_println(
     evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
 }
 
-/// This trims any leading zeroes and prepends a '0' if the trimmed string has an odd length.
-/// A hex string's length needs to be even, as two digits correspond to
+/// This trims any leading zeroes.
+/// A singular '0' will be prepended as well if the trimmed string has an odd length.
+/// A hex string's length needs to be even to decode into bytes, as two digits correspond to
 /// one byte.
 fn format_field_string(field: FieldElement) -> String {
     let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
