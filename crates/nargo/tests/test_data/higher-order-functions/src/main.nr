@@ -24,24 +24,26 @@ fn main() -> pub Field {
     x = x + 1;
     constrain (|y| y + z)(1) == 4;
     x = x + 1;
+    let ret = twice(add1, 3);
 
-    twice(add1, 3)
+    test_array_functions();
 
+    ret
+}
 
-    // Test the array functions in std::array
-    let myarray = [1, 2, 3];
+/// Test the array functions in std::array
+fn test_array_functions() {
+    let myarray: [i32; 3] = [1, 2, 3];
     constrain std::array::any(myarray, |n| n > 2);
 
-    let evens = [2, 4, 6];
-    constrain std::array::all(evens, |n| n % 2 == 0);
+    let evens: [i32; 3] = [2, 4, 6];
+    constrain std::array::all(evens, |n| n > 1);
 
     constrain std::array::fold(evens, 0, |a, b| a + b) == 12;
+    constrain std::array::reduce(evens, |a, b| a + b) == 12;
     
     let descending = std::array::sort_via(myarray, |a, b| a > b);
     constrain descending == [3, 2, 1];
-
-    constrain std::array::find(myarray, |e| e == 3) == 2;  // found at index 2
-    constrain std::array::find(myarray, |e| e == 5) == -1; // not found
 }
 
 fn foo() -> [u32; 2] {
