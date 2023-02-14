@@ -374,11 +374,15 @@ impl DecisionTree {
             merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
+        // write the merged instructions to the block
         super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         if modified {
             // A second round is necessary when the synchronization optimizes function calls between the two branches.
             // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
+            // We clear the list because we want to perform the cse on the block instructions, if we don't it will use the list instead.
+            // We should refactor cse_block so that its behavior is consistent and does not rely on the list being empty.
+            merged_ins.clear();
             super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
         //housekeeping...
@@ -605,7 +609,7 @@ impl DecisionTree {
                         _ => (),
                     }
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, predicate } => {
                     if !ins.operation.is_dummy_store() {
                         if let Some(idx) = ctx.get_as_constant(*index) {
                             if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
@@ -619,32 +623,14 @@ impl DecisionTree {
                             }
                         }
                         if !stack.is_new_array(ctx, array_id) && ctx.under_assumption(ass_value) {
-                            let load = Operation::Load { array_id: *array_id, index: *index };
-                            let e_type = ctx.mem[*array_id].element_type;
-                            let dummy = ctx.add_instruction(Instruction::new(
-                                load,
-                                e_type,
-                                Some(stack.block),
-                            ));
-                            let operation = Operation::Cond {
-                                condition: ass_value,
-                                val_true: *value,
-                                val_false: dummy,
-                            };
-                            let cond = ctx.add_instruction(Instruction::new(
-                                operation,
-                                e_type,
-                                Some(stack.block),
-                            ));
-
-                            stack.push(dummy);
-                            stack.push(cond);
-                            //store the conditional value
+                            let pred =
+                                Self::and_conditions(Some(ass_value), *predicate, stack, ctx);
                             let ins2 = ctx.instruction_mut(ins_id);
                             ins2.operation = Operation::Store {
                                 array_id: *array_id,
                                 index: *index,
-                                value: cond,
+                                value: *value,
+                                predicate: pred,
                             };
                         }
                     }
@@ -739,6 +725,82 @@ impl DecisionTree {
         }
     }
 
+    // returns condition1 AND condition2
+    fn and_conditions(
+        condition1: Option<NodeId>,
+        condition2: Option<NodeId>,
+        stack_frame: &mut StackFrame,
+        ctx: &mut SsaContext,
+    ) -> Option<NodeId> {
+        match (condition1, condition2) {
+            (None, None) => None,
+            (Some(cond), other) | (other, Some(cond)) if cond.is_dummy() => {
+                Self::and_conditions(None, other, stack_frame, ctx)
+            }
+            (Some(cond), None) | (None, Some(cond)) => Some(cond),
+            (Some(cond1), Some(cond2)) if cond1 == cond2 => condition1,
+            (Some(cond1), Some(cond2)) => {
+                let op = Operation::Binary(node::Binary {
+                    lhs: cond1,
+                    rhs: cond2,
+                    operator: BinaryOp::Mul,
+                    predicate: None,
+                });
+                let cond = ctx.add_instruction(Instruction::new(
+                    op,
+                    ObjectType::Boolean,
+                    Some(stack_frame.block),
+                ));
+                optimizations::simplify_id(ctx, cond).unwrap();
+                stack_frame.push(cond);
+                Some(cond)
+            }
+        }
+    }
+
+    // returns condition1 OR condition2
+    fn or_conditions(
+        condition1: Option<NodeId>,
+        condition2: Option<NodeId>,
+        stack_frame: &mut StackFrame,
+        ctx: &mut SsaContext,
+    ) -> Option<NodeId> {
+        match (condition1, condition2) {
+            (_condition, None) | (None, _condition) => None,
+            (Some(cond1), Some(cond2)) => {
+                if cond1.is_dummy() || cond2.is_dummy() {
+                    None
+                } else if cond1 == cond2 {
+                    condition1
+                } else {
+                    let op = Operation::Binary(node::Binary {
+                        lhs: cond1,
+                        rhs: cond2,
+                        operator: BinaryOp::Or,
+                        predicate: None,
+                    });
+                    let cond = ctx.add_instruction(Instruction::new(
+                        op,
+                        ObjectType::Boolean,
+                        Some(stack_frame.block),
+                    ));
+                    optimizations::simplify_id(ctx, cond).unwrap();
+                    stack_frame.push(cond);
+                    Some(cond)
+                }
+            }
+        }
+    }
+
+    pub fn unwrap_predicate(ctx: &SsaContext, predicate: &Option<NodeId>) -> NodeId {
+        let predicate = predicate.unwrap_or(NodeId::dummy());
+        if predicate.is_dummy() {
+            ctx.one()
+        } else {
+            predicate
+        }
+    }
+
     fn synchronize(
         &self,
         ctx: &mut SsaContext,
@@ -791,19 +853,18 @@ impl DecisionTree {
         // 3. Merge the blocks using the solution
         let mut left_pos = 0;
         let mut right_pos = 0;
-        let mut result = Vec::new();
+        let mut stack_frame = StackFrame::new(block_id);
         for i in solution {
-            result.extend_from_slice(&left[left_pos..i.left.0]);
+            stack_frame.stack.extend_from_slice(&left[left_pos..i.left.0]);
             left_pos = i.left.0;
-            result.extend_from_slice(&right[right_pos..i.right.0]);
+            stack_frame.stack.extend_from_slice(&right[right_pos..i.right.0]);
             right_pos = i.right.0;
             //merge i:
-            let left_ins = ctx.instruction(left[left_pos]);
-            let right_ins = ctx.instruction(right[right_pos]);
+            let left_ins = ctx.instruction(left[left_pos]).clone();
+            let right_ins = ctx.instruction(right[right_pos]).clone();
             let assumption = &self[ctx[block_id].assumption];
 
-            let mut to_merge = Vec::new();
-            let mut merged_op = match (&left_ins.operation, &right_ins.operation) {
+            let merged_op = match (&left_ins.operation, &right_ins.operation) {
                 (
                     Operation::Call {
                         func: left_func,
@@ -815,6 +876,7 @@ impl DecisionTree {
                     Operation::Call { func: right_func, arguments: right_arg, .. },
                 ) => {
                     debug_assert_eq!(left_func, right_func);
+                    let mut args = Vec::new();
                     for a in left_arg.iter().enumerate() {
                         let op = Operation::Cond {
                             condition: self[assumption.parent].condition,
@@ -822,20 +884,28 @@ impl DecisionTree {
                             val_false: right_arg[a.0],
                         };
                         let typ = ctx.object_type(*a.1);
-                        to_merge.push(Instruction::new(op, typ, Some(block_id)));
+                        let arg_id = ctx.add_instruction(Instruction::new(op, typ, Some(block_id)));
+                        stack_frame.stack.push(arg_id);
+                        args.push(arg_id);
                     }
                     Operation::Call {
                         func: *left_func,
-                        arguments: Vec::new(),
+                        arguments: args,
                         returned_arrays: left_arrays.clone(),
                         predicate: self.root,
                         location: *left_location,
                     }
                 }
                 (
-                    Operation::Store { array_id: left_array, index: left_index, value: left_val },
-                    Operation::Store { value: right_val, .. },
+                    Operation::Store {
+                        array_id: left_array,
+                        index: left_index,
+                        value: left_val,
+                        predicate: left_pred,
+                    },
+                    Operation::Store { value: right_val, predicate: right_pred, .. },
                 ) => {
+                    let pred = Self::or_conditions(*left_pred, *right_pred, &mut stack_frame, ctx);
                     let op = Operation::Cond {
                         condition: self[assumption.parent].condition,
                         val_true: *left_val,
@@ -843,40 +913,30 @@ impl DecisionTree {
                     };
                     let merge =
                         Instruction::new(op, ctx.mem[*left_array].element_type, Some(block_id));
-                    to_merge.push(merge);
+                    let merge_id = ctx.add_instruction(merge);
+                    stack_frame.stack.push(merge_id);
                     Operation::Store {
                         array_id: *left_array,
                         index: *left_index,
-                        value: NodeId::dummy(),
+                        value: merge_id,
+                        predicate: pred,
                     }
                 }
                 _ => unreachable!(),
             };
-
-            let mut merge_ids = Vec::new();
-            for merge in to_merge {
-                let merge_id = ctx.add_instruction(merge);
-                result.push(merge_id);
-                merge_ids.push(merge_id);
-            }
-            if let Operation::Store { value, .. } = &mut merged_op {
-                *value = *merge_ids.last().unwrap();
-            } else {
-                if let Operation::Call { arguments, .. } = &mut merged_op {
-                    *arguments = merge_ids;
-                }
+            if let Opcode::Call(_) = merged_op.opcode() {
                 let left_ins = ctx.instruction_mut(left[left_pos]);
                 left_ins.mark = node::Mark::ReplaceWith(right[right_pos]);
             }
             let ins1 = ctx.instruction_mut(right[right_pos]);
             ins1.operation = merged_op;
-            result.push(ins1.id);
+            stack_frame.stack.push(ins1.id);
             left_pos += 1;
             right_pos += 1;
         }
-        result.extend_from_slice(&left[left_pos..left.len()]);
-        result.extend_from_slice(&right[right_pos..right.len()]);
-        result
+        stack_frame.stack.extend_from_slice(&left[left_pos..left.len()]);
+        stack_frame.stack.extend_from_slice(&right[right_pos..right.len()]);
+        stack_frame.stack
     }
 }
 

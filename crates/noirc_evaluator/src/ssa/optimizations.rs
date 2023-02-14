@@ -87,9 +87,9 @@ fn evaluate_intrinsic(
                         ObjectType::NativeField,
                     );
                     let op = if args[0] & (1 << i) != 0 {
-                        Operation::Store { array_id: *a, index, value: ctx.one() }
+                        Operation::Store { array_id: *a, index, value: ctx.one(), predicate: None }
                     } else {
-                        Operation::Store { array_id: *a, index, value: ctx.zero() }
+                        Operation::Store { array_id: *a, index, value: ctx.zero(), predicate: None }
                     };
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
@@ -210,8 +210,7 @@ fn cse_block_with_anchor(
             if ins.is_deleted() {
                 continue;
             }
-
-            let operator = ins.operation.map_id(|id| propagate(ctx, id, modified));
+            let mut operator = ins.operation.map_id(|id| propagate(ctx, id, modified));
 
             let mut new_mark = Mark::None;
 
@@ -268,12 +267,72 @@ fn cse_block_with_anchor(
                         }
                         CseAction::Remove(id_to_remove) => {
                             anchor.push_mem_instruction(ctx, *ins_id)?;
-                            new_list.push(*ins_id);
+
                             // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                             if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
                                 *modified = true;
                                 new_list.remove(id);
                             }
+                            // Store with predicate must be merged with the previous store
+                            if let Operation::Store {
+                                index: idx,
+                                value: value2,
+                                predicate: Some(predicate2),
+                                ..
+                            } = operator
+                            {
+                                if let Operation::Store {
+                                    value: value1,
+                                    predicate: predicate1,
+                                    ..
+                                } = ctx.instruction(id_to_remove).operation
+                                {
+                                    let (merge, pred) = if let Some(predicate1) = predicate1 {
+                                        if predicate1 != predicate2 {
+                                            let or_op = Operation::Binary(Binary {
+                                                lhs: predicate1,
+                                                rhs: predicate2,
+                                                operator: BinaryOp::Or,
+                                                predicate: None,
+                                            });
+                                            let pred_id = ctx.add_instruction(Instruction::new(
+                                                or_op,
+                                                ObjectType::Boolean,
+                                                Some(block_id),
+                                            ));
+                                            new_list.push(pred_id);
+                                            (true, Some(pred_id))
+                                        } else {
+                                            (false, None)
+                                        }
+                                    } else {
+                                        (true, None)
+                                    };
+                                    if merge {
+                                        *modified = true;
+                                        let cond_op = Operation::Cond {
+                                            condition: predicate2,
+                                            val_true: value2,
+                                            val_false: value1,
+                                        };
+                                        let cond_id = ctx.add_instruction(Instruction::new(
+                                            cond_op,
+                                            ctx.object_type(value2),
+                                            Some(block_id),
+                                        ));
+                                        new_list.push(cond_id);
+                                        operator = Operation::Store {
+                                            array_id: *x,
+                                            index: idx,
+                                            value: cond_id,
+                                            predicate: pred,
+                                        };
+                                    }
+                                } else {
+                                    unreachable!("ICE: expected store instruction")
+                                }
+                            }
+                            new_list.push(*ins_id);
                         }
                     }
                 }

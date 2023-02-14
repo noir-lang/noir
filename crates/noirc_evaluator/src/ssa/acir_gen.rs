@@ -79,8 +79,8 @@ impl Acir {
             Operation::Load { array_id, index } => {
                 load::evaluate(*array_id, *index, acir_mem, var_cache, evaluator, ctx)
             }
-            Operation::Store { array_id, index, value } => {
-                store::evaluate(*array_id, *index, *value, acir_mem, var_cache, evaluator, ctx)
+            Operation::Store { .. } => {
+                store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)
             }
             Operation::Nop => None,
             i @ Operation::Jne(..)
