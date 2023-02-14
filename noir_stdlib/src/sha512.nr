@@ -106,8 +106,7 @@ fn digest(msg: [u8]) -> [u8; 64]
     let mut out_h: [u8; 64] = [0; 64]; // Digest as sequence of bytes
     let mut i = 0; // Message byte pointer
 
-    for k in 0..crate::array::len(msg)
-    {
+    for k in 0 .. msg.len() {
         // Populate msg_block
         msg_block[i] = msg[k];
         i = i + 1;
@@ -153,40 +152,33 @@ fn digest(msg: [u8]) -> [u8; 64]
         i = 0;
     }
 
-    for _i in 0..128 // In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
-    {
-        if i < 112
-        {
+    for _i in 0..128 {// In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
+        if i < 112 {
             msg_block[i] = 0;
-            i = i + 1;
-        } else if i < 128
-        {
-            let mut len = 8*crate::array::len(msg) as u64; // u128 unsupported
-            for j in 0..16
-                {
-                    msg_block[127 - j] = len as u8;
-                    len = len >> 8;
-                };
-                i = i + 16; // Done.
+            i += 1;
+        } else if i < 128 {
+            let mut len = 8 * msg.len() as u64; // u128 unsupported
+            for j in 0..16 {
+                msg_block[127 - j] = len as u8;
+                len = len >> 8;
             }
-    };
+            i += 16; // Done.
+        }
+    }
 
     // Hash final padded block
     c = sha_c(msg_u8_to_u64(msg_block), h);
-    for j in 0..8
-    {
+    for j in 0..8 {
         h[j] = c[j] + h[j];
-    };
+    }
 
     // Return final hash as byte array
-    for j in 0..8
-    {
-        for k in 0..8
-        {
+    for j in 0..8 {
+        for k in 0..8 {
             out_h[63 - 8*j - k] = h[7 - j] as u8;
             h[7-j] = h[7-j] >> 8;
-        };
-    };
+        }
+    }
 
     out_h
 }

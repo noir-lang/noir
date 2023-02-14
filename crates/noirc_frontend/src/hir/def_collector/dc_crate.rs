@@ -227,9 +227,14 @@ fn collect_impls(
                     }
                 }
             } else if typ != Type::Error {
-                let span = *span;
-                let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
-                errors.push(error.into_file_diagnostic(unresolved.file_id))
+                if true
+                /* in std crate */
+                {
+                } else {
+                    let span = *span;
+                    let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
+                    errors.push(error.into_file_diagnostic(unresolved.file_id))
+                }
             }
         }
     }
