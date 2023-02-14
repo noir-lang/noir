@@ -52,7 +52,6 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_path.set_extension(ACIR_EXT);
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
-    println!("{:?}", std::fs::canonicalize(&circuit_path));
 
     if generate_witness {
         let (_, solved_witness) =

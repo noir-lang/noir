@@ -4,7 +4,7 @@ use crate::{
             constraints::{bound_constraint_with_offset, to_radix_base},
             expression_from_witness,
             operations::sort::evaluate_permutation,
-            InternalVar, InternalVarCache, MemoryMap,
+            AcirMem, InternalVar, InternalVarCache,
         },
         builtin,
         context::SsaContext,
@@ -35,7 +35,7 @@ pub(crate) fn evaluate(
     instruction: &Instruction,
     opcode: builtin::Opcode,
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Option<InternalVar> {
@@ -137,7 +137,7 @@ pub(crate) fn evaluate(
 // Transform the arguments of intrinsic functions into witnesses
 fn prepare_inputs(
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     arguments: &[NodeId],
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -153,7 +153,7 @@ fn prepare_inputs(
 fn resolve_node_id(
     node_id: &NodeId,
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -195,7 +195,7 @@ fn resolve_node_id(
 
 fn resolve_array(
     array_id: ArrayId,
-    memory_map: &mut MemoryMap,
+    acir_mem: &mut AcirMem,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -204,7 +204,7 @@ fn resolve_array(
     let array = &cfg.mem[array_id];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
-        let mut arr_element = memory_map
+        let mut arr_element = acir_mem
             .load_array_element_constant_index(array, i)
             .expect("array index out of bounds");
 
@@ -213,8 +213,7 @@ fn resolve_array(
         );
         let func_input = FunctionInput { witness, num_bits };
 
-        let address = array.adr + i;
-        memory_map.insert(address, arr_element);
+        acir_mem.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
     }
@@ -223,7 +222,7 @@ fn resolve_array(
 }
 
 fn prepare_outputs(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     pointer: NodeId,
     output_nb: u32,
     ctx: &SsaContext,
@@ -241,7 +240,7 @@ fn prepare_outputs(
 
 fn evaluate_println(
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     is_string_output: bool,
     args: &[NodeId],
     ctx: &SsaContext,

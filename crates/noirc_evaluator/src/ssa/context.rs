@@ -157,35 +157,8 @@ impl SsaContext {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.id_to_string(binary.lhs);
         let rhs = self.id_to_string(binary.rhs);
-        let op = match &binary.operator {
-            BinaryOp::Add => "add",
-            BinaryOp::SafeAdd => "safe_add",
-            BinaryOp::Sub { .. } => "sub",
-            BinaryOp::SafeSub { .. } => "safe_sub",
-            BinaryOp::Mul => "mul",
-            BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
-            BinaryOp::Eq => "eq",
-            BinaryOp::Ne => "ne",
-            BinaryOp::Ult => "ult",
-            BinaryOp::Ule => "ule",
-            BinaryOp::Slt => "slt",
-            BinaryOp::Sle => "sle",
-            BinaryOp::Lt => "lt",
-            BinaryOp::Lte => "lte",
-            BinaryOp::And => "and",
-            BinaryOp::Or => "or",
-            BinaryOp::Xor => "xor",
-            BinaryOp::Assign => "assign",
-            BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
-        };
 
-        format!("{op} {lhs}, {rhs}")
+        format!("{} {lhs}, {rhs}", binary.operator)
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
