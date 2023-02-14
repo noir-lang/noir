@@ -438,17 +438,6 @@ impl DecisionTree {
         Ok(())
     }
 
-    //assigns the arrays to the block where they are seen for the first time
-    fn new_array(ctx: &SsaContext, array_id: super::mem::ArrayId, stack: &mut StackFrame) {
-        if let std::collections::hash_map::Entry::Vacant(e) = stack.created_arrays.entry(array_id) {
-            if !ctx.mem[array_id].values.is_empty() {
-                e.insert(ctx.first_block);
-            } else {
-                e.insert(stack.block);
-            }
-        }
-    }
-
     fn short_circuit(
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -507,21 +496,21 @@ impl DecisionTree {
             ass_value = self[predicate].value.unwrap_or_else(NodeId::dummy);
         }
         assert!(!ctx.is_zero(ass_value), "code should have been already simplified");
-        let ins1 = ctx.get_instruction(ins_id);
+        let ins1 = ctx.instruction(ins_id);
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
                 for a in returned_arrays {
-                    DecisionTree::new_array(ctx, a.0, stack);
+                    stack.new_array(a.0);
                 }
             }
             Operation::Store { array_id, index, .. } => {
                 if *index != NodeId::dummy() {
-                    DecisionTree::new_array(ctx, *array_id, stack);
+                    stack.new_array(*array_id);
                 }
             }
             _ => {
                 if let ObjectType::Pointer(a) = ins1.res_type {
-                    DecisionTree::new_array(ctx, a, stack);
+                    stack.new_array(a);
                 }
             }
         }
@@ -529,7 +518,7 @@ impl DecisionTree {
         let ins = ins1.clone();
         if short_circuit {
             stack.set_zero(ctx, ins.res_type);
-            let ins2 = ctx.get_mut_instruction(ins_id);
+            let ins2 = ctx.instruction_mut(ins_id);
             if ins2.res_type == ObjectType::NotAnObject {
                 ins2.mark = Mark::Deleted;
             } else {
@@ -540,7 +529,7 @@ impl DecisionTree {
                 Operation::Phi { block_args, .. } => {
                     if ctx[stack.block].kind == BlockType::IfJoin {
                         assert_eq!(block_args.len(), 2);
-                        let ins2 = ctx.get_mut_instruction(ins_id);
+                        let ins2 = ctx.instruction_mut(ins_id);
                         ins2.operation = Operation::Cond {
                             condition: ass_cond,
                             val_true: block_args[0].0,
@@ -604,7 +593,7 @@ impl DecisionTree {
                                 return Ok(false);
                             }
                             if ctx.under_assumption(cond) {
-                                let ins2 = ctx.get_mut_instruction(ins_id);
+                                let ins2 = ctx.instruction_mut(ins_id);
                                 ins2.operation = Operation::Binary(Binary {
                                     lhs: binary_op.lhs,
                                     rhs: binary_op.rhs,
@@ -651,7 +640,7 @@ impl DecisionTree {
                             stack.push(dummy);
                             stack.push(cond);
                             //store the conditional value
-                            let ins2 = ctx.get_mut_instruction(ins_id);
+                            let ins2 = ctx.instruction_mut(ins_id);
                             ins2.operation = Operation::Store {
                                 array_id: *array_id,
                                 index: *index,
@@ -670,7 +659,7 @@ impl DecisionTree {
                                 let name = array.name.to_string() + DUPLICATED;
                                 ctx.new_array(&name, array.element_type, array.len, None);
                                 let array_dup = ctx.mem.last_id();
-                                let ins2 = ctx.get_mut_instruction(ins_id);
+                                let ins2 = ctx.instruction_mut(ins_id);
                                 ins2.res_type = ObjectType::Pointer(array_dup);
 
                                 let mut memcpy_stack = StackFrame::new(stack.block);
@@ -699,7 +688,7 @@ impl DecisionTree {
                 } => {
                     if ctx.under_assumption(ass_value) {
                         assert!(*ins_pred == AssumptionId::dummy());
-                        let mut ins2 = ctx.get_mut_instruction(ins_id);
+                        let mut ins2 = ctx.instruction_mut(ins_id);
                         ins2.operation = Operation::Call {
                             func: *func_id,
                             arguments: arguments.clone(),
@@ -718,7 +707,7 @@ impl DecisionTree {
                             val_false: ctx.one(),
                         };
                         if ctx.is_zero(*expr) {
-                            stack.clear();
+                            stack.stack.clear();
                         }
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
@@ -726,7 +715,7 @@ impl DecisionTree {
                             Some(stack.block),
                         ));
                         stack.push(cond);
-                        let ins2 = ctx.get_mut_instruction(ins_id);
+                        let ins2 = ctx.instruction_mut(ins_id);
                         ins2.operation = Operation::Constrain(cond, *loc);
                         if ctx.is_zero(*expr) {
                             stack.push(ins_id);
@@ -760,15 +749,15 @@ impl DecisionTree {
         // 1. find potential matches between the two blocks
         let mut candidates = Vec::new();
         let keep_call_and_store = |node_id: NodeId| -> bool {
-            let ins = ctx.get_instruction(node_id);
+            let ins = ctx.instruction(node_id);
             matches!(ins.operation.opcode(), Opcode::Call(_) | Opcode::Store(_))
         };
         let l_iter = left.iter().enumerate().filter(|&i| keep_call_and_store(*i.1));
         let mut r_iter = right.iter().enumerate().filter(|&i| keep_call_and_store(*i.1));
         for left_node in l_iter {
-            let left_ins = ctx.get_instruction(*left_node.1);
+            let left_ins = ctx.instruction(*left_node.1);
             for right_node in r_iter.by_ref() {
-                let right_ins = ctx.get_instruction(*right_node.1);
+                let right_ins = ctx.instruction(*right_node.1);
                 match (&left_ins.operation, &right_ins.operation) {
                     (
                         Operation::Call { func: left_func, returned_arrays: left_arrays, .. },
@@ -809,8 +798,8 @@ impl DecisionTree {
             result.extend_from_slice(&right[right_pos..i.right.0]);
             right_pos = i.right.0;
             //merge i:
-            let left_ins = ctx.get_instruction(left[left_pos]);
-            let right_ins = ctx.get_instruction(right[right_pos]);
+            let left_ins = ctx.instruction(left[left_pos]);
+            let right_ins = ctx.instruction(right[right_pos]);
             let assumption = &self[ctx[block_id].assumption];
 
             let mut to_merge = Vec::new();
@@ -832,7 +821,7 @@ impl DecisionTree {
                             val_true: *a.1,
                             val_false: right_arg[a.0],
                         };
-                        let typ = ctx.get_object_type(*a.1);
+                        let typ = ctx.object_type(*a.1);
                         to_merge.push(Instruction::new(op, typ, Some(block_id)));
                     }
                     Operation::Call {
@@ -876,10 +865,10 @@ impl DecisionTree {
                 if let Operation::Call { arguments, .. } = &mut merged_op {
                     *arguments = merge_ids;
                 }
-                let left_ins = ctx.get_mut_instruction(left[left_pos]);
+                let left_ins = ctx.instruction_mut(left[left_pos]);
                 left_ins.mark = node::Mark::ReplaceWith(right[right_pos]);
             }
-            let ins1 = ctx.get_mut_instruction(right[right_pos]);
+            let ins1 = ctx.instruction_mut(right[right_pos]);
             ins1.operation = merged_op;
             result.push(ins1.id);
             left_pos += 1;

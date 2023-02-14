@@ -1,7 +1,7 @@
 use crate::{
     ssa::{
         acir_gen::{
-            constraints, internal_var_cache::InternalVarCache, memory_map::MemoryMap, operations,
+            acir_mem::AcirMem, constraints, internal_var_cache::InternalVarCache, operations,
             InternalVar,
         },
         context::SsaContext,
@@ -30,7 +30,7 @@ pub(crate) fn evaluate(
     binary: &node::Binary,
     res_type: ObjectType,
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {

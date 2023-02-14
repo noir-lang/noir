@@ -222,7 +222,7 @@ impl From<ResolverError> for Diagnostic {
             ),
             ResolverError::NonStructUsedInConstructor { typ, span } => Diagnostic::simple_error(
                 "Only struct types can be used in constructor expressions".into(),
-                format!("{} has no fields to construct it with", typ),
+                format!("{typ} has no fields to construct it with"),
                 span,
             ),
             ResolverError::NonStructWithGenerics { span } => Diagnostic::simple_error(

@@ -1,15 +1,23 @@
 use crate::{
     ssa::{
-        acir_gen::{constraints::to_radix_base, InternalVar, InternalVarCache, MemoryMap},
+        acir_gen::{
+            constraints::{bound_constraint_with_offset, to_radix_base},
+            expression_from_witness,
+            operations::sort::evaluate_permutation,
+            AcirMem, InternalVar, InternalVarCache,
+        },
         builtin,
         context::SsaContext,
-        mem::ArrayId,
+        mem::{ArrayId, Memory},
         node::{self, Instruction, Node, NodeId, ObjectType},
     },
     Evaluator,
 };
 use acvm::acir::{
-    circuit::opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    circuit::{
+        directives::Directive,
+        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+    },
     native_types::{Expression, Witness},
 };
 use iter_extended::vecmap;
@@ -24,7 +32,7 @@ pub(crate) fn evaluate(
     instruction: &Instruction,
     opcode: builtin::Opcode,
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Option<InternalVar> {
@@ -66,6 +74,42 @@ pub(crate) fn evaluate(
             };
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
         }
+        Opcode::Sort => {
+            let mut in_expr = Vec::new();
+            let array_id = Memory::deref(ctx, args[0]).unwrap();
+            let array = &ctx.mem[array_id];
+            let num_bits = array.element_type.bits();
+            for i in 0..array.len {
+                in_expr.push(
+                    memory_map.load_array_element_constant_index(array, i).unwrap().to_expression(),
+                );
+            }
+            outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
+            let out_expr: Vec<Expression> =
+                outputs.iter().map(|w| expression_from_witness(*w)).collect();
+            for i in 0..(out_expr.len() - 1) {
+                bound_constraint_with_offset(
+                    &out_expr[i],
+                    &out_expr[i + 1],
+                    &Expression::zero(),
+                    num_bits,
+                    evaluator,
+                );
+            }
+            let bits = evaluate_permutation(&in_expr, &out_expr, evaluator);
+            let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
+            evaluator.opcodes.push(AcirOpcode::Directive(Directive::PermutationSort {
+                inputs,
+                tuple: 1,
+                bits,
+                sort_by: vec![0],
+            }));
+            if let node::ObjectType::Pointer(a) = res_type {
+                memory_map.map_array(a, &outputs, ctx);
+            } else {
+                unreachable!();
+            }
+        }
     }
 
     // If more than witness is returned,
@@ -77,7 +121,7 @@ pub(crate) fn evaluate(
 // Transform the arguments of intrinsic functions into witnesses
 fn prepare_inputs(
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     arguments: &[NodeId],
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -93,7 +137,7 @@ fn prepare_inputs(
 fn resolve_node_id(
     node_id: &NodeId,
     var_cache: &mut InternalVarCache,
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -135,7 +179,7 @@ fn resolve_node_id(
 
 fn resolve_array(
     array_id: ArrayId,
-    memory_map: &mut MemoryMap,
+    acir_mem: &mut AcirMem,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -144,7 +188,7 @@ fn resolve_array(
     let array = &cfg.mem[array_id];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
-        let mut arr_element = memory_map
+        let mut arr_element = acir_mem
             .load_array_element_constant_index(array, i)
             .expect("array index out of bounds");
 
@@ -153,8 +197,7 @@ fn resolve_array(
         );
         let func_input = FunctionInput { witness, num_bits };
 
-        let address = array.adr + i;
-        memory_map.insert(address, arr_element);
+        acir_mem.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
     }
@@ -163,7 +206,7 @@ fn resolve_array(
 }
 
 fn prepare_outputs(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     pointer: NodeId,
     output_nb: u32,
     ctx: &SsaContext,

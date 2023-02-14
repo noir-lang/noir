@@ -296,7 +296,7 @@ impl<'a> Resolver<'a> {
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
-                HirFunction::unsafe_from_expr(expr_id)
+                HirFunction::unchecked_from_expr(expr_id)
             }
         };
 

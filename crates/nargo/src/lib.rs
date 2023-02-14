@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use noirc_frontend::graph::CrateType;
 use std::path::{Path, PathBuf};
 

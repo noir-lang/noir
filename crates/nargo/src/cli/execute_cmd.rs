@@ -1,17 +1,16 @@
+use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
-use acvm::FieldElement;
-use acvm::PartialWitnessGenerator;
-use clap::ArgMatches;
+use acvm::{FieldElement, PartialWitnessGenerator};
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
-use super::{create_named_dir, read_inputs_from_file, write_to_file};
-use super::{InputMap, WitnessMap};
+use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
 use crate::{
+    cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
     errors::CliError,
 };
@@ -21,14 +20,17 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let witness_name = args.value_of("witness_name");
     let show_ssa = args.is_present("show-ssa");
     let allow_warnings = args.is_present("allow-warnings");
-    let (return_value, solved_witness) = execute(show_ssa, allow_warnings)?;
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+
+    let (return_value, solved_witness) = execute_with_path(&program_dir, show_ssa, allow_warnings)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
     if let Some(witness_name) = witness_name {
-        let mut witness_dir = std::env::current_dir().unwrap();
+        let mut witness_dir = program_dir;
         witness_dir.push(TARGET_DIR);
 
         let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
@@ -42,32 +44,30 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn execute(
+fn execute_with_path<P: AsRef<Path>>(
+    program_dir: P,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let current_dir = std::env::current_dir().unwrap();
+    let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
 
-    let compiled_program =
-        super::compile_cmd::compile_circuit(&current_dir, show_ssa, allow_warnings)?;
-
-    execute_program(current_dir, &compiled_program)
-}
-
-pub(crate) fn execute_program<P: AsRef<Path>>(
-    inputs_dir: P,
-    compiled_program: &CompiledProgram,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(
-        inputs_dir,
+    let inputs_map = read_inputs_from_file(
+        &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
         compiled_program.abi.as_ref().unwrap().clone(),
     )?;
 
+    execute_program(&compiled_program, &inputs_map)
+}
+
+pub(crate) fn execute_program(
+    compiled_program: &CompiledProgram,
+    inputs_map: &InputMap,
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Solve the remaining witnesses
-    let solved_witness = solve_witness(compiled_program, &witness_map)?;
+    let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
     let public_inputs = extract_public_inputs(compiled_program, &solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();

@@ -82,6 +82,7 @@ pub fn start_cli() {
             App::new("prove")
                 .about("Create proof for this program")
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
+                .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -119,7 +120,8 @@ pub fn start_cli() {
                 .arg(
                     Arg::with_name("witness_name")
                         .long("witness_name")
-                        .help("Write the execution witness to named file"),
+                        .help("Write the execution witness to named file")
+                        .takes_value(true),
                 )
                 .arg(show_ssa)
                 .arg(allow_warnings),
@@ -183,7 +185,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
         dir_path
     };
     if !file_path.exists() {
-        return Err(CliError::MissingTomlFile(file_path));
+        return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
@@ -212,21 +214,20 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path = match prove_cmd::prove_with_path(
+    match prove_cmd::prove_with_path(
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
+        true,
         show_ssa,
         false,
     ) {
-        Ok(p) => p,
+        Ok(_) => true,
         Err(error) => {
             println!("{error}");
-            return false;
+            false
         }
-    };
-
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
+    }
 }
 
 fn add_std_lib(driver: &mut Driver) {
