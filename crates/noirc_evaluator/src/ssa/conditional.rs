@@ -380,7 +380,8 @@ impl DecisionTree {
             // A second round is necessary when the synchronization optimizes function calls between the two branches.
             // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
-            // We clear the list because we want to perform the cse on the block instructions
+            // We clear the list because we want to perform the cse on the block instructions, if we don't it will use the list instead.
+            // We should refactor cse_block so that its behavior is consistent and does not rely on the list being empty.
             merged_ins.clear();
             super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
