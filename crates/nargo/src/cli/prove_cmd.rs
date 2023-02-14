@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
+use sha2::{Digest, Sha256};
 
 use super::execute_cmd::{execute_program, extract_public_inputs};
 use super::{create_named_dir, write_inputs_to_file, write_to_file};
@@ -53,15 +54,18 @@ pub fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError> {
     let mut acir_path = PathBuf::new();
     acir_path.push(circuit_build_path.as_ref());
-    acir_path.set_extension(ACIR_EXT);
-    let existing_acir =
-        std::fs::read(&acir_path).map_err(|_| CliError::MissingAcir(acir_path.clone()))?;
+    acir_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+    let existing_acir_hash = load_hex_data(acir_path.clone())?;
 
     let mut compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-
     let serialized = compiled_program.circuit.to_bytes();
-    if serialized != existing_acir {
+
+    let mut hasher = Sha256::new();
+    hasher.update(serialized);
+    let acir_hash = hasher.finalize();
+
+    if acir_hash[..] != existing_acir_hash {
         return Err(CliError::MismatchedAcir(acir_path));
     }
 

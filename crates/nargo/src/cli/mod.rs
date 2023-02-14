@@ -308,7 +308,7 @@ pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
     let hex_data: Vec<_> =
         std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
 
-    let raw_bytes = hex::decode(hex_data).map_err(CliError::ProofNotValid)?;
+    let raw_bytes = hex::decode(hex_data).map_err(CliError::HexArtifactNotValid)?;
 
     Ok(raw_bytes)
 }

@@ -9,6 +9,7 @@ pkg/
 # Nargo output
 *.proof
 *.acir
+*.acir.sha256
 *.tr
 *.pk
 *.vk

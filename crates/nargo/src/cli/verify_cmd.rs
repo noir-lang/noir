@@ -11,6 +11,7 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -50,17 +51,20 @@ pub fn verify_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
-    let mut acir_path = PathBuf::new();
-    acir_path.push(circuit_build_path.as_ref());
-    acir_path.set_extension(ACIR_EXT);
-    let existing_acir =
-        std::fs::read(&acir_path).map_err(|_| CliError::MissingAcir(acir_path.clone()))?;
+    let mut acir_hash_path = PathBuf::new();
+    acir_hash_path.push(circuit_build_path.as_ref());
+    acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+    let existing_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-
     let serialized = compiled_program.circuit.to_bytes();
-    if serialized != existing_acir {
-        return Err(CliError::MismatchedAcir(acir_path));
+
+    let mut hasher = Sha256::new();
+    hasher.update(serialized);
+    let acir_hash = hasher.finalize();
+
+    if acir_hash[..] != existing_acir_hash {
+        return Err(CliError::MismatchedAcir(acir_hash_path));
     }
 
     let mut public_inputs_map: InputMap = BTreeMap::new();

@@ -1,7 +1,7 @@
 use acvm::ProofSystemCompiler;
-use std::path::PathBuf;
-
 use clap::ArgMatches;
+use sha2::{Digest, Sha256};
+use std::path::PathBuf;
 
 use std::path::Path;
 
@@ -55,6 +55,12 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
     println!("{:?}", std::fs::canonicalize(&circuit_path));
+
+    let mut hasher = Sha256::new();
+    hasher.update(serialized);
+    let acir_hash = hasher.finalize();
+    circuit_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+    write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
 
     if generate_witness {
         let (_, solved_witness) =
