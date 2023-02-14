@@ -8,6 +8,9 @@ mod sha256;
 mod sha512;
 mod field;
 
+#[builtin(println)]
+fn println<T>(_input : T) {}
+
 // Returns base^exponent. 
 // ^ means to the power of and not xor
 // Caution: we assume the exponent fits into 32 bits

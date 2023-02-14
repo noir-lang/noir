@@ -327,9 +327,14 @@ fn cse_block_with_anchor(
                     new_list.push(*ins_id);
                 }
                 Operation::Return(..) => new_list.push(*ins_id),
-                Operation::Intrinsic(_, args) => {
+                Operation::Intrinsic(opcode, args) => {
                     //Add dummy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
+                    // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
+                    if let builtin::Opcode::Println(_) = opcode {
+                        activate_cse = false
+                    }
+
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
@@ -381,19 +386,25 @@ fn cse_block_with_anchor(
 
             //cannot simplify to_le_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
-                let args = args.iter().map(|arg| {
-                    NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
-                });
+                match opcode {
+                    // We do not simplify print statements
+                    builtin::Opcode::Println(_) => (),
+                    _ => {
+                        let args = args.iter().map(|arg| {
+                            NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
+                        });
 
-                if let Some(args) = args.collect() {
-                    update2.mark = Mark::Deleted;
-                    new_list.extend(evaluate_intrinsic(
-                        ctx,
-                        *opcode,
-                        args,
-                        &update2.res_type,
-                        block_id,
-                    ));
+                        if let Some(args) = args.collect() {
+                            update2.mark = Mark::Deleted;
+                            new_list.extend(evaluate_intrinsic(
+                                ctx,
+                                *opcode,
+                                args,
+                                &update2.res_type,
+                                block_id,
+                            ));
+                        }
+                    }
                 }
             }
             let update3 = ctx.instruction_mut(*ins_id);

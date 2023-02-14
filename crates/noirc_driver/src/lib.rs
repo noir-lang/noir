@@ -18,7 +18,7 @@ pub struct Driver {
     context: Context,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
@@ -151,7 +151,7 @@ impl Driver {
         allow_warnings: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings, None)
+        self.compile_no_check(np_language, show_ssa, allow_warnings, None, true)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -163,6 +163,7 @@ impl Driver {
         allow_warnings: bool,
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
+        show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
@@ -187,7 +188,7 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        match create_circuit(program, np_language, blackbox_supported, show_ssa) {
+        match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
             Ok(circuit) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

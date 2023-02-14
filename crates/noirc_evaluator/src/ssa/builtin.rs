@@ -15,6 +15,7 @@ pub enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits,
     ToRadix,
+    Println(PrintlnInfo),
     Sort,
 }
 
@@ -34,6 +35,9 @@ impl Opcode {
         match op_name {
             "to_le_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
+            "println" => {
+                Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
+            }
             "arraysort" => Some(Opcode::Sort),
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
@@ -44,6 +48,7 @@ impl Opcode {
             Opcode::LowLevel(op) => op.name(),
             Opcode::ToBits => "to_le_bits",
             Opcode::ToRadix => "to_radix",
+            Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
         }
     }
@@ -70,7 +75,7 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix | Opcode::Sort => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) | Opcode::Sort => BigUint::zero(), //pointers do not overflow
         }
     }
 
@@ -96,10 +101,20 @@ impl Opcode {
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
             Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
+            Opcode::Println(_) => (0, ObjectType::NotAnObject),
             Opcode::Sort => {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
         }
     }
+}
+
+#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
+pub struct PrintlnInfo {
+    // We store strings as arrays and there is no differentiation between them in the SSA.
+    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
+    pub is_string_output: bool,
+    // This is a flag used during `nargo test` to determine whether to display println output.
+    pub show_output: bool,
 }
