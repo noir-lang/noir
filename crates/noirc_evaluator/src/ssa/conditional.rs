@@ -737,6 +737,7 @@ impl DecisionTree {
                 Self::and_conditions(None, other, stack_frame, ctx)
             }
             (Some(cond), None) | (None, Some(cond)) => Some(cond),
+            (Some(cond1), Some(cond2)) if cond1 == cond2 => condition1,
             (Some(cond1), Some(cond2)) => {
                 let op = Operation::Binary(node::Binary {
                     lhs: cond1,
