@@ -229,8 +229,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     let preprocess_dir = TempDir::new("p_and_v_tests_preprocess").unwrap();
     let (pk_path, vk_path) = match compile_cmd::preprocess_with_path(
         proof_name,
-        prg_dir,
-        &preprocess_dir.into_path(),
+        preprocess_dir.into_path(),
         compiled_program.circuit,
     ) {
         Ok((pk_path, vk_path)) => (pk_path, vk_path),

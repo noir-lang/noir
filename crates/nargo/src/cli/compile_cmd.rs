@@ -45,12 +45,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
 
-    preprocess_with_path(
-        circuit_name,
-        program_dir.as_ref(),
-        circuit_dir.as_ref(),
-        compiled_program.circuit.clone(),
-    )?;
+    preprocess_with_path(circuit_name, circuit_dir.as_ref(), compiled_program.circuit.clone())?;
 
     let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
     circuit_path.push(circuit_name);
@@ -88,7 +83,6 @@ pub fn compile_circuit<P: AsRef<Path>>(
 
 pub fn preprocess_with_path<P: AsRef<Path>>(
     key_name: &str,
-    program_dir: P,
     preprocess_dir: P,
     circuit: acvm::acir::circuit::Circuit,
 ) -> Result<(PathBuf, PathBuf), CliError> {
@@ -97,9 +91,9 @@ pub fn preprocess_with_path<P: AsRef<Path>>(
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
     println!("Proving and verification key successfully created");
-    let pk_path = save_key_to_dir(proving_key.clone(), key_name, &preprocess_dir, true)?;
+    let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
     println!("Proving key saved to {}", pk_path.display());
-    let vk_path = save_key_to_dir(verification_key.clone(), key_name, preprocess_dir, false)?;
+    let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
     println!("Verification key saved to {}", vk_path.display());
 
     Ok((pk_path, vk_path))
