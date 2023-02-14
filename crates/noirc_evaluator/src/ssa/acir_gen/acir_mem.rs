@@ -55,13 +55,9 @@ impl AcirMem {
     // Loads the associated `InternalVar` for the element
     // in the `array` at the given `offset`.
     //
-    // First we check if the address of the array element
-    // is in the memory_map. If not, then we check the `array`
+    // We check if the address of the array element
+    // is in the memory_map.
     //
-    // We do not check the `MemArray` initially because the
-    // `MemoryMap` holds the most updated InternalVar
-    // associated to the array element.
-    // TODO: specify what could change between the two?
     //
     // Returns `None` if `offset` is out of bounds.
     pub(crate) fn load_array_element_constant_index(
@@ -76,19 +72,10 @@ impl AcirMem {
         }
 
         // Check the memory_map to see if the element is there
-        if let Some(internal_var) = self.array_map_mut(array.id).get(&offset) {
-            return Some(internal_var.clone());
-        };
-
-        let array_element = array.values[offset as usize].clone();
-
-        // Compiler sanity check
-        //
-        // Since the only time we take the array values
-        // from the array is when it has been defined in the
-        // ABI. We know that it must have been initialized with a `Witness`
-        array_element.cached_witness().expect("ICE: since the value is not in the memory_map it must have came from the ABI, so it is a Witness");
-
-        Some(array_element)
+        let array_element = self
+            .array_map_mut(array.id)
+            .get(&offset)
+            .expect("ICE: Could not find value at index {offset}");
+        Some(array_element.clone())
     }
 }
