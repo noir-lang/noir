@@ -52,15 +52,15 @@ pub fn verify_with_path<P: AsRef<Path>>(
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
-    let valid_proof = verify_proof(compiled_program, public_inputs_map, load_proof(proof_path)?)?;
+    let valid_proof = verify_proof(compiled_program, public_inputs_map, &load_proof(proof_path)?)?;
 
     Ok(valid_proof)
 }
 
-fn verify_proof(
+pub(crate) fn verify_proof(
     mut compiled_program: CompiledProgram,
     public_inputs_map: InputMap,
-    proof: Vec<u8>,
+    proof: &[u8],
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
     let public_inputs =
@@ -78,7 +78,7 @@ fn verify_proof(
     compiled_program.circuit.public_inputs = dedup_public_indices;
 
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, dedup_public_values, compiled_program.circuit);
+    let valid_proof = backend.verify_from_cs(proof, dedup_public_values, compiled_program.circuit);
 
     Ok(valid_proof)
 }

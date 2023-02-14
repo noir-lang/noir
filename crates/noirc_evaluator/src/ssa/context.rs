@@ -14,7 +14,7 @@ use crate::ssa::{
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::{Definition, FuncId};
+use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};
@@ -155,35 +155,8 @@ impl SsaContext {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.id_to_string(binary.lhs);
         let rhs = self.id_to_string(binary.rhs);
-        let op = match &binary.operator {
-            BinaryOp::Add => "add",
-            BinaryOp::SafeAdd => "safe_add",
-            BinaryOp::Sub { .. } => "sub",
-            BinaryOp::SafeSub { .. } => "safe_sub",
-            BinaryOp::Mul => "mul",
-            BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
-            BinaryOp::Eq => "eq",
-            BinaryOp::Ne => "ne",
-            BinaryOp::Ult => "ult",
-            BinaryOp::Ule => "ule",
-            BinaryOp::Slt => "slt",
-            BinaryOp::Sle => "sle",
-            BinaryOp::Lt => "lt",
-            BinaryOp::Lte => "lte",
-            BinaryOp::And => "and",
-            BinaryOp::Or => "or",
-            BinaryOp::Xor => "xor",
-            BinaryOp::Assign => "assign",
-            BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
-        };
 
-        format!("{op} {lhs}, {rhs}")
+        format!("{} {lhs}, {rhs}", binary.operator)
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
@@ -692,6 +665,7 @@ impl SsaContext {
         &mut self,
         evaluator: &mut Evaluator,
         enable_logging: bool,
+        show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
@@ -737,7 +711,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator)?;
+        self.acir(evaluator, show_output)?;
         if enable_logging {
             print_acir_circuit(&evaluator.opcodes);
             println!("DONE");
@@ -746,13 +720,13 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+    pub fn acir(&self, evaluator: &mut Evaluator, show_output: bool) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.instruction(*iter);
-                acir.acir_gen_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
+                acir.acir_gen_instruction(ins, evaluator, self, show_output)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
@@ -932,12 +906,25 @@ impl SsaContext {
     }
 
     fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
-        let len = self.mem[array_id].len;
+        let len = self.mem[array_id].len as usize;
         let e_type = self.mem[array_id].element_type;
-        for i in 0..len {
+        let values = vec![self.zero_with_type(e_type); len];
+        self.init_array_from_values(array_id, values, stack_frame);
+    }
+
+    pub fn init_array_from_values(
+        &mut self,
+        array_id: ArrayId,
+        values: Vec<NodeId>,
+        stack_frame: &mut StackFrame,
+    ) {
+        let len = self.mem[array_id].len as usize;
+        let e_type = self.mem[array_id].element_type;
+        assert_eq!(len, values.len());
+        for (i, v) in values.iter().enumerate() {
             let index =
                 self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            let op_a = Operation::Store { array_id, index, value: *v };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
     }
@@ -1106,15 +1093,46 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
+    pub fn get_builtin_opcode(
+        &self,
+        node_id: NodeId,
+        arguments: &[Expression],
+    ) -> Option<builtin::Opcode> {
         match &self[node_id] {
-            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
+            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
+                builtin::Opcode::Println(_) => {
+                    // Compiler sanity check. This should be caught during typechecking
+                    assert_eq!(
+                        arguments.len(),
+                        1,
+                        "print statements currently only support one argument"
+                    );
+                    let is_string = match &arguments[0] {
+                        Expression::Ident(ident) => match ident.typ {
+                            Type::String(_) => true,
+                            Type::Tuple(_) => {
+                                unreachable!("logging structs/tuples is not supported")
+                            }
+                            Type::Function { .. } => {
+                                unreachable!("logging functions is not supported")
+                            }
+                            _ => false,
+                        },
+                        Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
+                        _ => unreachable!("logging this expression type is not supported"),
+                    };
+                    Some(builtin::Opcode::Println(builtin::PrintlnInfo {
+                        is_string_output: is_string,
+                        show_output: true,
+                    }))
+                }
+                _ => Some(*opcode),
+            },
             _ => None,
         }
     }
 
-    pub fn convert_type(&mut self, t: &noirc_frontend::monomorphization::ast::Type) -> ObjectType {
-        use noirc_frontend::monomorphization::ast::Type;
+    pub fn convert_type(&mut self, t: &Type) -> ObjectType {
         use noirc_frontend::Signedness;
         match t {
             Type::Bool => ObjectType::Boolean,
