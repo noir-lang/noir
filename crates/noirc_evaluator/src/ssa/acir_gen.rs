@@ -23,7 +23,7 @@ use acir_mem::AcirMem;
 
 #[derive(Default)]
 pub struct Acir {
-    memory_trace: AcirMem,
+    memory: AcirMem,
     var_cache: InternalVarCache,
 }
 
@@ -39,7 +39,7 @@ impl Acir {
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
         };
 
-        let acir_mem = &mut self.memory_trace;
+        let acir_mem = &mut self.memory;
         let var_cache = &mut self.var_cache;
 
         let output = match &ins.operation {
