@@ -10,7 +10,6 @@ use noirc_frontend::{
 };
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
-use std::fmt::Display;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
 pub trait Node: std::fmt::Display {
@@ -621,7 +620,7 @@ pub enum BinaryOp {
     Assign,
 }
 
-impl Display for BinaryOp {
+impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let op = match &self {
             BinaryOp::Add => "add",
