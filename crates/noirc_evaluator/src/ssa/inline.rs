@@ -114,13 +114,6 @@ impl StackFrame {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.stack.clear();
-        self.array_map.clear();
-        self.created_arrays.clear();
-        self.lca_cache.clear();
-    }
-
     pub fn push(&mut self, ins_id: NodeId) {
         self.stack.push(ins_id);
     }
@@ -177,6 +170,13 @@ impl StackFrame {
             false
         } else {
             true
+        }
+    }
+
+    //assigns the arrays to the block where they are seen for the first time
+    pub fn new_array(&mut self, array_id: ArrayId) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.created_arrays.entry(array_id) {
+            e.insert(self.block);
         }
     }
 }
