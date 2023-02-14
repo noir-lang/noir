@@ -15,7 +15,7 @@ fn main(
     let new_leaf_exists = std::merkle::check_membership(new_root, leaf, index, old_hash_path);
     constrain new_leaf_exists == 1;
 
-    let h = std::hash::mimc_bn254(mimc_input);
+    let h = mimc_input.mimc_bn254();
     constrain h == 18226366069841799622585958305961373004333097209608110160936134895615261821931;
 }
     

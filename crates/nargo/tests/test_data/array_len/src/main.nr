@@ -26,6 +26,6 @@ fn main(len3: [u8; 3], len4: [Field; 4]) {
     unsorted[0] = len3[1];
     unsorted[1] = len3[0];
     constrain unsorted[0] > unsorted[1];
-    let sorted = unsorted.sort(unsorted);
+    let sorted = unsorted.sort();
     constrain sorted[0] < sorted[1];
 }
