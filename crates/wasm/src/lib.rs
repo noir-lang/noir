@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
 use std::path::PathBuf;

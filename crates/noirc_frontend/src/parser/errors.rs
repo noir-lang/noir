@@ -5,7 +5,6 @@ use crate::BinaryOp;
 
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
-use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,13 +81,13 @@ impl std::fmt::Display for ParserError {
     }
 }
 
-impl DiagnosableError for ParserError {
-    fn to_diagnostic(&self) -> Diagnostic {
-        match &self.reason {
-            Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), self.span),
+impl From<ParserError> for Diagnostic {
+    fn from(error: ParserError) -> Diagnostic {
+        match &error.reason {
+            Some(reason) => Diagnostic::simple_error(reason.clone(), String::new(), error.span),
             None => {
-                let primary = self.to_string();
-                Diagnostic::simple_error(primary, String::new(), self.span)
+                let primary = error.to_string();
+                Diagnostic::simple_error(primary, String::new(), error.span)
             }
         }
     }

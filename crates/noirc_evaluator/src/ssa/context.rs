@@ -3,7 +3,7 @@ use crate::ssa::{
     acir_gen::Acir,
     block::{BasicBlock, BlockId},
     conditional::{DecisionTree, TreeBuilder},
-    function::{FuncIndex, SSAFunction},
+    function::{FuncIndex, SsaFunction},
     inline::StackFrame,
     mem::{ArrayId, Memory},
     node::{
@@ -32,7 +32,7 @@ pub struct SsaContext {
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
 
-    pub functions: HashMap<FuncId, function::SSAFunction>,
+    pub functions: HashMap<FuncId, function::SsaFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
@@ -83,7 +83,7 @@ impl SsaContext {
         if id == NodeId::dummy() {
             return false;
         }
-        let typ = self.get_object_type(id);
+        let typ = self.object_type(id);
         if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
             id == one
         } else {
@@ -95,7 +95,7 @@ impl SsaContext {
         if id == NodeId::dummy() {
             return false;
         }
-        let typ = self.get_object_type(id);
+        let typ = self.object_type(id);
         if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
             id == zero
         } else {
@@ -374,7 +374,7 @@ impl SsaContext {
         id
     }
 
-    pub fn get_ssa_func(&self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn ssa_func(&self, func_id: FuncId) -> Option<&SsaFunction> {
         self.functions.get(&func_id)
     }
 
@@ -385,8 +385,8 @@ impl SsaContext {
         }
     }
 
-    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SSAFunction> {
-        self.try_get_func_id(id).and_then(|id| self.get_ssa_func(id))
+    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SsaFunction> {
+        self.try_get_func_id(id).and_then(|id| self.ssa_func(id))
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -401,7 +401,7 @@ impl SsaContext {
         self.nodes.get_mut(id.0)
     }
 
-    pub fn get_object_type(&self, id: NodeId) -> node::ObjectType {
+    pub fn object_type(&self, id: NodeId) -> node::ObjectType {
         self[id].get_type()
     }
 
@@ -413,11 +413,11 @@ impl SsaContext {
         None
     }
 
-    pub fn get_instruction(&self, id: NodeId) -> &node::Instruction {
+    pub fn instruction(&self, id: NodeId) -> &node::Instruction {
         self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
-    pub fn get_mut_instruction(&mut self, id: NodeId) -> &mut node::Instruction {
+    pub fn instruction_mut(&mut self, id: NodeId) -> &mut node::Instruction {
         self.try_get_mut_instruction(id).expect("Index not found or not an instruction")
     }
 
@@ -479,8 +479,8 @@ impl SsaContext {
         None
     }
 
-    pub fn get_root_value(&self, id: NodeId) -> NodeId {
-        self.get_variable(id).map(|v| v.get_root()).unwrap_or(id)
+    pub fn root_value(&self, id: NodeId) -> NodeId {
+        self.get_variable(id).map(|v| v.root()).unwrap_or(id)
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
@@ -502,7 +502,7 @@ impl SsaContext {
         new_value: NodeId,
         block_id: BlockId,
     ) {
-        let root_id = self.get_root_value(var_id);
+        let root_id = self.root_value(var_id);
         let root = self.get_variable(root_id).unwrap();
         let root_name = root.name.clone();
         let cb = &mut self[block_id];
@@ -604,7 +604,7 @@ impl SsaContext {
         })
     }
 
-    //Return the type of the operation result, based on the left hand type
+    // Return the type of the operation result, based on the left hand type
     pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
         use {BinaryOp::*, Operation::*};
         match op {
@@ -656,7 +656,7 @@ impl SsaContext {
         (self.add_variable(new_var, None), array_index)
     }
 
-    //returns the value of the element array[index], if it exists in the memory_map
+    // Returns the value of the element array[index], if it exists in the memory_map
     pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
         if let Some(idx) = Memory::to_u32(self, index) {
             self.mem.get_value_from_map(array_id, idx)
@@ -664,7 +664,7 @@ impl SsaContext {
             None
         }
     }
-    //blocks/////////////////////////
+
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
     }
@@ -753,8 +753,8 @@ impl SsaContext {
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
-                let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
+                let ins = self.instruction(*iter);
+                acir.acir_gen_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
@@ -775,7 +775,7 @@ impl SsaContext {
             }
         }
 
-        let v_type = self.get_object_type(phi_root);
+        let v_type = self.object_type(phi_root);
         let operation = Operation::Phi { root: phi_root, block_args: vec![] };
         let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
@@ -823,8 +823,8 @@ impl SsaContext {
         index: Option<NodeId>,
         rhs: NodeId,
     ) -> Result<NodeId, RuntimeError> {
-        let lhs_type = self.get_object_type(lhs);
-        let rhs_type = self.get_object_type(rhs);
+        let lhs_type = self.object_type(lhs);
+        let rhs_type = self.object_type(rhs);
 
         let mut ret_array = None;
         if let Some(Instruction {
@@ -849,7 +849,7 @@ impl SsaContext {
                 //Issue #579: we initialize the array, unless it is also in arguments in which case it is already initialized.
                 let mut init = false;
                 for i in arguments.clone() {
-                    if let ObjectType::Pointer(b) = self.get_object_type(i) {
+                    if let ObjectType::Pointer(b) = self.object_type(i) {
                         if a == b {
                             init = true;
                         }
@@ -907,7 +907,7 @@ impl SsaContext {
             witness: None,
             parent_block: self.current_block,
         };
-        let ls_root = lhs_obj.get_root();
+        let ls_root = lhs_obj.root();
         //ssa: we create a new variable a1 linked to a
         let new_var_id = self.add_variable(new_var, Some(ls_root));
         let op = Operation::Binary(node::Binary {
@@ -979,8 +979,8 @@ impl SsaContext {
         stack_frame: &mut inline::StackFrame,
         block_id: BlockId,
     ) -> NodeId {
-        let lhs_type = self.get_object_type(lhs);
-        let rhs_type = self.get_object_type(rhs);
+        let lhs_type = self.object_type(lhs);
+        let rhs_type = self.object_type(rhs);
         if let ObjectType::Pointer(a) = lhs_type {
             //Array
             let b = stack_frame.get_or_default(a);
@@ -998,7 +998,7 @@ impl SsaContext {
                 witness: None,
                 parent_block: self.current_block,
             };
-            let ls_root = lhs_obj.get_root();
+            let ls_root = lhs_obj.root();
             //ssa: we create a new variable a1 linked to a
             let new_var_id = self.add_variable(new_var, Some(ls_root));
             //ass
@@ -1040,7 +1040,7 @@ impl SsaContext {
         let block1 = self[exit_block].predecessor[0];
         let block2 = self[exit_block].predecessor[1];
 
-        let a_type = self.get_object_type(a);
+        let a_type = self.object_type(a);
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
@@ -1093,7 +1093,7 @@ impl SsaContext {
     }
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
-        self.get_ssa_func(func_id).is_some()
+        self.ssa_func(func_id).is_some()
     }
 
     pub fn get_or_create_opcode_node_id(&mut self, opcode: builtin::Opcode) -> NodeId {

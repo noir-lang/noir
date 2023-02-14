@@ -9,7 +9,7 @@ use crate::ssa::{
 use acvm::FieldElement;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
-    let mut ins = ctx.get_instruction(ins_id).clone();
+    let mut ins = ctx.instruction(ins_id).clone();
     simplify(ctx, &mut ins)?;
     ctx[ins_id] = super::node::NodeObject::Instr(ins);
     Ok(())
@@ -20,12 +20,6 @@ pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeEr
 pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
     if ins.is_deleted() {
         return Ok(());
-    }
-    if let Operation::Binary(bin) = &ins.operation {
-        if bin.predicate == Some(ctx.zero_with_type(ObjectType::Boolean)) {
-            ins.mark = Mark::Deleted;
-            return Ok(());
-        }
     }
     //1. constant folding
     let new_id = ins.evaluate(ctx)?.to_index(ctx);
@@ -107,7 +101,10 @@ fn evaluate_intrinsic(
         _ => todo!(),
     }
 }
-////////////////////CSE////////////////////////////////////////
+
+//
+// The following code will be concerned with Common Subexpression Elimination (CSE)
+//
 
 pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
@@ -220,13 +217,13 @@ fn cse_block_with_anchor(
 
             match &operator {
                 Operation::Binary(binary) => {
-                    if let ObjectType::Pointer(a) = ctx.get_object_type(binary.lhs) {
+                    if let ObjectType::Pointer(a) = ctx.object_type(binary.lhs) {
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
                         let id = ctx.get_dummy_load(a);
                         anchor.push_mem_instruction(ctx, id)?;
 
-                        if let ObjectType::Pointer(a) = ctx.get_object_type(binary.rhs) {
+                        if let ObjectType::Pointer(a) = ctx.object_type(binary.rhs) {
                             let id = ctx.get_dummy_load(a);
                             anchor.push_mem_instruction(ctx, id)?;
                         }
@@ -366,7 +363,7 @@ fn cse_block_with_anchor(
                 }
             }
 
-            let update = ctx.get_mut_instruction(*ins_id);
+            let update = ctx.instruction_mut(*ins_id);
 
             update.operation = operator;
             update.mark = new_mark;
@@ -399,7 +396,7 @@ fn cse_block_with_anchor(
                     ));
                 }
             }
-            let update3 = ctx.get_mut_instruction(*ins_id);
+            let update3 = ctx.instruction_mut(*ins_id);
             *update3 = update2;
         }
     }
@@ -409,7 +406,7 @@ fn cse_block_with_anchor(
     Ok(last)
 }
 
-pub fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
+fn is_some(ctx: &SsaContext, id: NodeId) -> bool {
     if id == NodeId::dummy() {
         return false;
     }
