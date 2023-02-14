@@ -34,9 +34,8 @@ pub(crate) struct ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
-    let compiled_program =
-        compile_circuit(&config.program_dir, args.show_ssa, args.allow_warnings)?;
-    let (return_value, solved_witness) = execute_program(&config.program_dir, &compiled_program)?;
+    let (return_value, solved_witness) =
+        execute_with_path(&config.program_dir, args.show_ssa, args.allow_warnings)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
@@ -57,20 +56,30 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-pub(crate) fn execute_program<P: AsRef<Path>>(
-    inputs_dir: P,
-    compiled_program: &CompiledProgram,
+fn execute_with_path<P: AsRef<Path>>(
+    program_dir: P,
+    show_ssa: bool,
+    allow_warnings: bool,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
+    let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
+
     // Parse the initial witness values from Prover.toml
-    let witness_map = read_inputs_from_file(
-        inputs_dir,
+    let inputs_map = read_inputs_from_file(
+        &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
         compiled_program.abi.as_ref().unwrap().clone(),
     )?;
 
+    execute_program(&compiled_program, &inputs_map)
+}
+
+pub(crate) fn execute_program(
+    compiled_program: &CompiledProgram,
+    inputs_map: &InputMap,
+) -> Result<(Option<InputValue>, WitnessMap), CliError> {
     // Solve the remaining witnesses
-    let solved_witness = solve_witness(compiled_program, &witness_map)?;
+    let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
     let public_inputs = extract_public_inputs(compiled_program, &solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
