@@ -18,8 +18,14 @@ cd lagrange
 num_transcripts=${1:-25}
 ARGS=$(seq 1 $num_transcripts)
 
+if command -v sha256sum > /dev/null; then
+  SHASUM=sha256sum
+else
+  SHASUM="shasum -a 256"
+fi
+
 checksum() {
-  grep transcript_${1}.dat checksums | sha256sum -c
+  grep transcript_${1}.dat checksums | $SHASUM -c
   return $?
 }
 
