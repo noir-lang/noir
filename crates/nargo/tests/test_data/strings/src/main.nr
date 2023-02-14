@@ -19,7 +19,7 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     std::println(bad_message);
     constrain message != bad_message;
 
-    let hash = std::hash::pedersen([x]);
+    let hash = [x].pedersen();
     std::println(hash);
     
     constrain hex_as_string == "0x41";
@@ -45,7 +45,7 @@ fn test_prints_array() {
 
     std::println(array);
 
-    let hash = std::hash::pedersen(array);
+    let hash = array.pedersen();
     std::println(hash);
 }
 
