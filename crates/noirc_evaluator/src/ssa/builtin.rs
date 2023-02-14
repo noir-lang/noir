@@ -115,7 +115,7 @@ impl Opcode {
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub struct PrintlnInfo {
     // We store strings as arrays and there is no differentiation between them in the SSA.
-    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
+    // This bool simply states whether an array that is to be printed should be outputted as a utf8 string.
     pub is_string_output: bool,
     // This is a flag used during `nargo test` to determine whether to display println output.
     pub show_output: bool,
