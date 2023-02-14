@@ -1,7 +1,7 @@
 use crate::ssa::{
     context::SsaContext,
     node,
-    node::{Node, NodeId},
+    node::{Node, NodeId, Operation},
 };
 use acvm::FieldElement;
 use noirc_frontend::monomorphization::ast::{Definition, LocalId};
@@ -22,6 +22,41 @@ pub struct ArrayId(u32);
 impl ArrayId {
     pub fn dummy() -> ArrayId {
         ArrayId(std::u32::MAX)
+    }
+    // TODO: docs
+    pub fn get_dummy_store(&self, context: &SsaContext) -> NodeId {
+        context.dummy_store[self]
+    }
+
+    // TODO: docs
+    pub fn get_dummy_load(&self, context: &SsaContext) -> NodeId {
+        context.dummy_load[self]
+    }
+
+    // TODO: docs
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_load(&self, context: &mut SsaContext) {
+        if !context.dummy_load.contains_key(self) {
+            let op_a = Operation::Load { array_id: *self, index: NodeId::dummy() };
+            let dummy_load = node::Instruction::new(op_a, context.mem[*self].element_type, None);
+            let id = context.add_instruction(dummy_load);
+            context.dummy_load.insert(*self, id);
+        }
+    }
+    // TODO: docs
+    #[allow(clippy::map_entry)]
+    pub fn add_dummy_store(&self, context: &mut SsaContext) {
+        if !context.dummy_store.contains_key(self) {
+            let op_a = Operation::Store {
+                array_id: *self,
+                index: NodeId::dummy(),
+                value: NodeId::dummy(),
+                predicate: None,
+            };
+            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let id = context.add_instruction(dummy_store);
+            context.dummy_store.insert(*self, id);
+        }
     }
 }
 
@@ -103,7 +138,7 @@ impl Memory {
     }
 
     pub fn to_u32(ctx: &SsaContext, id: NodeId) -> Option<u32> {
-        if let Some(index_as_constant) = ctx.get_as_constant(id) {
+        if let Some(index_as_constant) = id.get_as_constant(ctx) {
             if let Ok(address) = index_as_constant.to_u128().try_into() {
                 return Some(address);
             }

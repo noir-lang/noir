@@ -9,7 +9,7 @@ use noirc_frontend::{
     BinaryOpKind,
 };
 use num_bigint::BigUint;
-use num_traits::{FromPrimitive, One};
+use num_traits::{FromPrimitive, One, Zero};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
 pub trait Node: std::fmt::Display {
@@ -109,6 +109,126 @@ impl NodeId {
     }
     pub fn is_dummy(&self) -> bool {
         self.0 == SsaContext::dummy_id()
+    }
+
+    /// Create a NodeId to represent a constant value
+    /// TODO: change this to from_const, so it reads NodeId::from_const
+    pub fn add_const(context: &mut SsaContext, constant: Constant) -> NodeId {
+        let obj = NodeObject::Const(constant);
+        let id = NodeId(context.nodes.insert(obj));
+        match &mut context[id] {
+            NodeObject::Const(c) => c.id = id,
+            _ => unreachable!(),
+        }
+
+        id
+    }
+
+    /// If the NodeId represents a constant, then this value
+    /// is casted to a `FieldElement` and returned. None is
+    /// returned otherwise.
+    pub fn get_as_constant(&self, context: &SsaContext) -> Option<FieldElement> {
+        if let Some(NodeObject::Const(c)) = context.try_get_node(*self) {
+            return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
+        }
+        None
+    }
+
+    /// Compares `self` to `other and returns true if both NodeId's are distinct.
+    /// This method is named `maybe_distinct` instead of `is_distinct` since
+    /// this method eagerly returns true, if either NodeId is a dummy NodeId.
+    pub fn maybe_distinct(&self, context: &SsaContext, other: &NodeId) -> bool {
+        if self.is_dummy() || other.is_dummy() {
+            return true;
+        }
+
+        if self == other {
+            return false;
+        }
+
+        let (a_value, b_value) =
+            match (self.get_as_constant(context), other.get_as_constant(context)) {
+                (Some(a_value), Some(b_value)) => (a_value, b_value),
+                _ => return true,
+            };
+        a_value != b_value
+    }
+
+    /// Compares `self` to `other and returns true if both NodeId's are equal
+    /// This method is named `maybe_equal` instead of `is_equal` since
+    /// this method eagerly returns true, if either NodeId is a dummy NodeId.
+    pub fn maybe_equal(&self, context: &SsaContext, other: &NodeId) -> bool {
+        if self.is_dummy() || other.is_dummy() {
+            return true;
+        }
+
+        if self == other {
+            return true;
+        }
+
+        let (a_value, b_value) =
+            match (self.get_as_constant(context), other.get_as_constant(context)) {
+                (Some(a_value), Some(b_value)) => (a_value, b_value),
+                _ => return true,
+            };
+
+        a_value == b_value
+    }
+
+    /// Returns true if the NodeId is identical to
+    /// its registered zero type.
+    ///
+    /// If the zero type had not been registered
+    /// previous to calling this method, then this
+    /// method will return false.
+    ///
+    /// If the NodeId is a `dummy` then false is
+    /// returned, since `dummy` is different from
+    /// zero. One can think of this as the difference
+    /// between `None` and `0`.
+    ///
+    /// The zero type will differ depending on what
+    /// the underlying object the NodeId points to.
+    pub fn is_zero(&self, context: &SsaContext) -> bool {
+        if self.is_dummy() {
+            return false;
+        }
+
+        let typ = context.object_type(*self);
+        // Fetch the corresponding zero type for this NodeId
+        let zero_type_node_id = match context.find_const_with_type(&BigUint::zero(), typ) {
+            Some(zero) => zero,
+            None => return false,
+        };
+
+        *self == zero_type_node_id
+    }
+
+    /// Returns true if the NodeId is identical to
+    /// its registered one type.
+    ///
+    /// If the one type had not been registered
+    /// previous to calling this method, then this
+    /// method will return false.
+    ///
+    /// If the NodeId is a `dummy` then false is
+    /// eagerly returned. Since the "one type"
+    /// cannot equal the NodeId assigned to the
+    /// `dummy` type. This method would still
+    /// return false eventually.
+    pub fn is_one(&self, context: &SsaContext) -> bool {
+        if self.is_dummy() {
+            return false;
+        }
+        let typ = context.object_type(*self);
+
+        // Fetch the corresponding zero type for this NodeId
+        let one_type_node_id = match context.find_const_with_type(&BigUint::one(), typ) {
+            Some(one) => one,
+            None => return false,
+        };
+
+        *self == one_type_node_id
     }
 }
 
