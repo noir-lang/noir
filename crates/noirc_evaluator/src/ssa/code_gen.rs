@@ -383,7 +383,7 @@ impl IRGenerator {
                 Value::Single(v_id)
             }
             Type::String(len) => {
-                // TODO: document why this is 8
+                // Strings are a packed array of utf-8 encoded bytes
                 let obj_type = ObjectType::unsigned_integer(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
