@@ -177,7 +177,7 @@ impl Evaluator {
                 if *visibility == AbiVisibility::Public {
                     self.public_inputs.push(witness);
                 }
-                let obj_type = ObjectType::Boolean;
+                let obj_type = ObjectType::boolean();
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
             }
             AbiType::Struct { fields } => {

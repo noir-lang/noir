@@ -58,17 +58,17 @@ impl SsaContext {
             dummy_load: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Boolean);
-        pc.zero_with_type(node::ObjectType::Boolean);
+        pc.one_with_type(ObjectType::boolean());
+        pc.zero_with_type(ObjectType::boolean());
         pc
     }
 
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&BigUint::zero(), ObjectType::boolean()).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&BigUint::one(), ObjectType::boolean()).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -125,7 +125,7 @@ impl SsaContext {
         if !self.dummy_store.contains_key(&a) {
             let op_a =
                 Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
-            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let dummy_store = node::Instruction::new(op_a, ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
         }
@@ -615,7 +615,7 @@ impl SsaContext {
             | Binary(node::Binary { operator: Slt, .. })
             | Binary(node::Binary { operator: Sle, .. })
             | Binary(node::Binary { operator: Lt, .. })
-            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::boolean(),
             Operation::Jne(_, _)
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
@@ -643,7 +643,7 @@ impl SsaContext {
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
-            obj_type: node::ObjectType::Pointer(array_index),
+            obj_type: ObjectType::Pointer(array_index),
             name: name.to_string(),
             root: None,
             def: def.clone(),
@@ -1055,7 +1055,7 @@ impl SsaContext {
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
-        if let node::ObjectType::Pointer(adr1) = a_type {
+        if let ObjectType::Pointer(adr1) = a_type {
             let len = self.mem[adr1].len;
             let el_type = self.mem[adr1].element_type;
             let (id, array_id) = self.new_array(&name, el_type, len, None);
@@ -1130,7 +1130,7 @@ impl SsaContext {
         use noirc_frontend::monomorphization::ast::Type;
         use noirc_frontend::Signedness;
         match t {
-            Type::Bool => ObjectType::Boolean,
+            Type::Bool => ObjectType::boolean(),
             Type::Field => ObjectType::native_field(),
             Type::Integer(sign, bit_size) => {
                 assert!(
@@ -1174,7 +1174,7 @@ impl SsaContext {
                         });
                         let cond = self.add_instruction(Instruction::new(
                             op,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         optimizations::simplify_id(self, cond).unwrap();
@@ -1191,7 +1191,7 @@ impl SsaContext {
                     Operation::Cond { condition: pred, val_true: *cond, val_false: self.one() };
                 let c_ins = self.add_instruction(Instruction::new(
                     operation,
-                    ObjectType::Boolean,
+                    ObjectType::boolean(),
                     Some(stack.block),
                 ));
                 stack.push(c_ins);

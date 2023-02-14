@@ -173,8 +173,6 @@ impl Variable {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ObjectType {
-    Boolean,
-    // TODO: Why don't we put Boolean under Numeric type (u1)?
     Numeric(NumericType),
     Pointer(ArrayId),
     Function,
@@ -200,7 +198,6 @@ impl From<ObjectType> for NumericType {
 impl ObjectType {
     pub fn bits(&self) -> u32 {
         match self {
-            ObjectType::Boolean => 1,
             ObjectType::NotAnObject => 0,
             ObjectType::Pointer(_) => 0,
             ObjectType::Function => 0,
@@ -220,6 +217,12 @@ impl ObjectType {
     /// Returns a type that represents an unsigned integer
     pub fn unsigned_integer(bit_size: u32) -> ObjectType {
         ObjectType::Numeric(NumericType::Unsigned(bit_size))
+    }
+    /// Returns a type that represents an boolean
+    /// Booleans are just seen as an unsigned integer
+    /// with a bit size of 1.
+    pub fn boolean() -> ObjectType {
+        ObjectType::unsigned_integer(1)
     }
     /// Returns a type that represents an signed integer
     pub fn signed_integer(bit_size: u32) -> ObjectType {
@@ -257,9 +260,7 @@ impl ObjectType {
             ObjectType::Numeric(NumericType::NativeField) => f,
             // TODO: document why this is a TODO and create an issue
             ObjectType::Numeric(NumericType::Signed(_)) => todo!(),
-            ObjectType::Boolean
-            | ObjectType::Function
-            | ObjectType::Numeric(NumericType::Unsigned(_)) => {
+            ObjectType::Function | ObjectType::Numeric(NumericType::Unsigned(_)) => {
                 // TODO: document where this 128 comes from
                 assert!(self.bits() < 128);
                 FieldElement::from(f.to_u128() % (1_u128 << self.bits()))
@@ -856,7 +857,7 @@ impl Binary {
             }
             BinaryOp::Ult => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     assert!(
@@ -864,12 +865,12 @@ impl Binary {
                         "ICE: comparisons are not implemented for field elements"
                     );
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Ule => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     assert!(
@@ -877,48 +878,48 @@ impl Binary {
                         "ICE: comparisons are not implemented for field elements"
                     );
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Slt => (),
             BinaryOp::Sle => (),
             BinaryOp::Lt => {
                 if r_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs < rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Lte => {
                 if l_is_zero {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     //n.b we assume the type of lhs and rhs is unsigned because of the opcode, we could also verify this
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     let res = if lhs <= rhs { FieldElement::one() } else { FieldElement::zero() };
-                    return Ok(NodeEval::Const(res, ObjectType::Boolean));
+                    return Ok(NodeEval::Const(res, ObjectType::boolean()));
                 }
             }
             BinaryOp::Eq => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs == rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     }
                 }
             }
             BinaryOp::Ne => {
                 if self.lhs == self.rhs {
-                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                    return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     if lhs != rhs {
-                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::one(), ObjectType::boolean()));
                     } else {
-                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::Boolean));
+                        return Ok(NodeEval::Const(FieldElement::zero(), ObjectType::boolean()));
                     }
                 }
             }

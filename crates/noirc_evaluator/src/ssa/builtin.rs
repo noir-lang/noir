@@ -90,7 +90,7 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
+            Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::boolean()),
             Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::native_field()),
         }
     }

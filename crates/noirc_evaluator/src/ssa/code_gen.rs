@@ -158,7 +158,7 @@ impl IRGenerator {
                 noirc_abi::Sign::Unsigned => ObjectType::unsigned_integer(*width),
                 noirc_abi::Sign::Signed => ObjectType::signed_integer(*width),
             },
-            noirc_abi::AbiType::Boolean => ObjectType::Boolean,
+            noirc_abi::AbiType::Boolean => ObjectType::boolean(),
             noirc_abi::AbiType::Array { .. } => {
                 unreachable!("array of arrays are not supported for now")
             }
@@ -734,7 +734,7 @@ impl IRGenerator {
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
         let not_equal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(not_equal, ObjectType::Boolean)?;
+        let cond = self.context.new_instruction(not_equal, ObjectType::boolean())?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 

@@ -168,7 +168,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             )
         } else {
             let not_condition = DecisionTree::new_instruction_after_phi(
@@ -177,7 +177,7 @@ impl DecisionTree {
                 BinaryOp::Sub { max_rhs_value: BigUint::one() },
                 ctx.one(),
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             );
             DecisionTree::new_instruction_after(
                 ctx,
@@ -185,7 +185,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 not_condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 not_condition,
             )
         };
@@ -468,7 +468,7 @@ impl DecisionTree {
                 Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
             let cond = ctx.add_instruction(Instruction::new(
                 operation,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 Some(stack.block),
             ));
             stack.push(cond);
@@ -580,7 +580,7 @@ impl DecisionTree {
                             });
                             cond = ctx.add_instruction(Instruction::new(
                                 op,
-                                ObjectType::Boolean,
+                                ObjectType::boolean(),
                                 Some(stack.block),
                             ));
                             optimizations::simplify_id(ctx, cond).unwrap();
@@ -722,7 +722,7 @@ impl DecisionTree {
                         }
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         stack.push(cond);
