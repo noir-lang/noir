@@ -934,12 +934,9 @@ impl SsaContext {
     }
 
     fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
-        let len = self.mem[array_id].len;
+        let len = self.mem[array_id].len as usize;
         let e_type = self.mem[array_id].element_type;
-        let mut values = Vec::new();
-        for _ in 0..len {
-            values.push(self.zero_with_type(e_type));
-        }
+        let values = vec![self.zero_with_type(e_type); len];
         self.init_array_from_values(array_id, values, stack_frame);
     }
 
