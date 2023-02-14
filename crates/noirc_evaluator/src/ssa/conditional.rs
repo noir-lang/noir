@@ -374,11 +374,13 @@ impl DecisionTree {
             merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
+        // write the merged instructions to the block
         super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         if modified {
             // A second round is necessary when the synchronization optimizes function calls between the two branches.
             // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
+            // We clear the list because we want to perform the cse on the block instructions
             merged_ins.clear();
             super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
@@ -742,36 +744,25 @@ impl DecisionTree {
     ) -> Option<NodeId> {
         match (condition1, condition2) {
             (None, None) => None,
-            (Some(condition), None) | (None, Some(condition)) => {
-                if condition.is_dummy() {
-                    None
-                } else {
-                    Some(condition)
-                }
+            (Some(cond), other) | (other, Some(cond)) if cond.is_dummy() => {
+                Self::and_conditions(None, other, stack_frame, ctx)
             }
+            (Some(cond), None) | (None, Some(cond)) => Some(cond),
             (Some(cond1), Some(cond2)) => {
-                if cond1.is_dummy() {
-                    Self::and_conditions(None, condition2, stack_frame, ctx)
-                } else if cond2.is_dummy() {
-                    Self::and_conditions(None, condition1, stack_frame, ctx)
-                } else if cond1 == cond2 {
-                    condition1
-                } else {
-                    let op = Operation::Binary(node::Binary {
-                        lhs: cond1,
-                        rhs: cond2,
-                        operator: BinaryOp::Mul,
-                        predicate: None,
-                    });
-                    let cond = ctx.add_instruction(Instruction::new(
-                        op,
-                        ObjectType::Boolean,
-                        Some(stack_frame.block),
-                    ));
-                    optimizations::simplify_id(ctx, cond).unwrap();
-                    stack_frame.push(cond);
-                    Some(cond)
-                }
+                let op = Operation::Binary(node::Binary {
+                    lhs: cond1,
+                    rhs: cond2,
+                    operator: BinaryOp::Mul,
+                    predicate: None,
+                });
+                let cond = ctx.add_instruction(Instruction::new(
+                    op,
+                    ObjectType::Boolean,
+                    Some(stack_frame.block),
+                ));
+                optimizations::simplify_id(ctx, cond).unwrap();
+                stack_frame.push(cond);
+                Some(cond)
             }
         }
     }

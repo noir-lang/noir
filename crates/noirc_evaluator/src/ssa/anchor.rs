@@ -1,5 +1,6 @@
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{
+    conditional::DecisionTree,
     context::SsaContext,
     mem::ArrayId,
     node::{NodeId, ObjectType, Opcode, Operation},
@@ -252,9 +253,7 @@ impl Anchor {
                     }
                     Operation::Store { index, value, predicate, .. } => {
                         if !ctx.maybe_distinct(*index, b_idx) {
-                            if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
-                                ctx, predicate,
-                            )) {
+                            if ctx.is_one(DecisionTree::unwrap_predicate(ctx, predicate)) {
                                 return Some(CseAction::ReplaceWith(*value));
                             } else {
                                 return Some(CseAction::Keep);

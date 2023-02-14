@@ -1,9 +1,6 @@
-use acvm::FieldElement;
-
 use crate::{
     ssa::{
         acir_gen::{
-            constraints::{add, mul_with_witness, subtract},
             internal_var_cache::InternalVarCache,
             memory_map::MemoryMap,
             InternalVar,
@@ -14,6 +11,8 @@ use crate::{
     },
     Evaluator,
 };
+
+use super::condition;
 
 pub(crate) fn evaluate(
     store: &Operation,
@@ -39,16 +38,16 @@ pub(crate) fn evaluate(
                     } else {
                         let pred =
                             var_cache.get_or_compute_internal_var_unwrap(predicate, evaluator, ctx);
-                        let dummy = memory_map
+                        let dummy_load = memory_map
                             .load_array_element_constant_index(&ctx.mem[array_id], idx)
                             .unwrap();
-                        let x = mul_with_witness(evaluator, pred.expression(), value.expression());
-                        let y = subtract(
-                            dummy.expression(),
-                            FieldElement::one(),
-                            &mul_with_witness(evaluator, pred.expression(), dummy.expression()),
+                        let result = condition::evaluate_expression(
+                            pred.expression(),
+                            value.expression(),
+                            dummy_load.expression(),
+                            evaluator,
                         );
-                        InternalVar::from(add(&x, FieldElement::one(), &y))
+                        result.into()
                     }
                 } else {
                     value
