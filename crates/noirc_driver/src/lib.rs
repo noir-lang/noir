@@ -1,9 +1,10 @@
+#![forbid(unsafe_code)]
 use acvm::acir::circuit::Circuit;
 
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
-use noirc_errors::{DiagnosableError, ReportedError, Reporter};
+use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
 use noirc_frontend::hir::def_map::CrateDefMap;
@@ -47,14 +48,7 @@ impl Driver {
     pub fn file_compiles(&mut self) -> bool {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        for errors in &errs {
-            Reporter::with_diagnostics(
-                Some(errors.file_id),
-                &self.context.file_manager,
-                &errors.errors,
-                false,
-            );
-        }
+        reporter::report_all(&self.context.file_manager, &errs, false);
         errs.is_empty()
     }
 
@@ -135,17 +129,8 @@ impl Driver {
     pub fn check_crate(&mut self, allow_warnings: bool) -> Result<(), ReportedError> {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        let mut error_count = 0;
-        for errors in &errs {
-            error_count += Reporter::with_diagnostics(
-                Some(errors.file_id),
-                &self.context.file_manager,
-                &errors.errors,
-                allow_warnings,
-            );
-        }
-
-        Reporter::finish(error_count)
+        let error_count = reporter::report_all(&self.context.file_manager, &errs, allow_warnings);
+        reporter::finish_report(error_count)
     }
 
     pub fn compute_abi(&self) -> Option<Abi> {
@@ -179,19 +164,19 @@ impl Driver {
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
     ) -> Result<CompiledProgram, ReportedError> {
-        // Check the crate type
-        // We don't panic here to allow users to `evaluate` libraries
-        // which will do nothing
-        if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build command");
-            std::process::exit(1);
-        };
-
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
-        // All Binaries should have a main function
+        // If no override for the `main` function has been provided, attempt to find it.
         let main_function = main_function.unwrap_or_else(|| {
+            // Check the crate type
+            // We don't panic here to allow users to `evaluate` libraries which will do nothing
+            if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
+                println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
+                std::process::exit(1);
+            };
+
+            // All Binaries should have a main function
             local_crate.main_function().expect("cannot compile a program with no main function")
         });
 
@@ -207,12 +192,10 @@ impl Driver {
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace
-                let file_id = err.location.map(|loc| loc.file);
-                let error = &[err.to_diagnostic()];
+                let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
-
-                let error_count = Reporter::with_diagnostics(file_id, files, error, allow_warnings);
-                Reporter::finish(error_count)?;
+                let error = reporter::report(files, &err.into(), file, allow_warnings);
+                reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }
         }
@@ -223,8 +206,10 @@ impl Driver {
     /// will return all functions marked with #[test].
     pub fn get_all_test_functions_in_crate_matching(&self, pattern: &str) -> Vec<FuncId> {
         let interner = &self.context.def_interner;
-        interner
-            .get_all_test_functions()
+        self.context
+            .def_map(LOCAL_CRATE)
+            .expect("The local crate should be analyzed already")
+            .get_all_test_functions(interner)
             .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
             .collect()
     }

@@ -1,102 +1,25 @@
 name: Rust
 
-on:
-  push:
-    branches: [master, staging, trying]
-  pull_request:
-    branches: [master]
+on: [push, pull_request]
 
-env:
-  CARGO_TERM_COLOR: always
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
-  check_n_test:
-
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install libomp-dev
-        
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: stable
-          command: check
-          args: --all-targets --verbose
-
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: stable
-          command: test
-          args: --workspace --exclude aztec_backend
+  test:
+    name: Cargo test
+    uses: noir-lang/.github/.github/workflows/rust-test.yml@main
 
   clippy:
-    name: cargo clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install libomp-dev
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
+    name: Cargo clippy
+    uses: noir-lang/.github/.github/workflows/rust-clippy.yml@main
 
   format:
-    name: cargo fmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install libomp-dev
-      
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+    name: Cargo fmt
+    uses: noir-lang/.github/.github/workflows/rust-format.yml@main
 
   spellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: streetsidesoftware/cspell-action@v2
-        with:
-          files: |
-            **/*.{md,rs}
-          incremental_files_only : true # Run this action on files which have changed in PR
-          strict: false # Do not fail, if a spelling mistake is found (This can be annoying for contributors)
+    name: Spellcheck
+    uses: noir-lang/.github/.github/workflows/spellcheck.yml@main

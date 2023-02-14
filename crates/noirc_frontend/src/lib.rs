@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod ast;
 pub mod graph;
 pub mod lexer;

@@ -11,33 +11,26 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
-use std::{collections::BTreeMap, path::Path, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
 
     let proof_name = args.value_of("proof").unwrap();
-    let mut proof_path = std::path::PathBuf::new();
-    proof_path.push(Path::new(PROOFS_DIR));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
+    let mut proof_path = program_dir.clone();
+    proof_path.push(Path::new(PROOFS_DIR));
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
     let circuit_name = args.value_of("circuit_name").unwrap();
 
     let allow_warnings = args.is_present("allow-warnings");
-    let result = verify(proof_name, circuit_name, allow_warnings)?;
-    println!("Proof verified : {result}\n");
-    Ok(())
-}
-
-fn verify(proof_name: &str, circuit_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-
-    let mut proof_path = PathBuf::new(); //or cur_dir?
-    proof_path.push(PROOFS_DIR);
-    proof_path.push(Path::new(proof_name));
-    proof_path.set_extension(PROOF_EXT);
 
     let mut verification_key_path = PathBuf::new();
     verification_key_path.push(TARGET_DIR);
@@ -48,7 +41,10 @@ fn verify(proof_name: &str, circuit_name: &str, allow_warnings: bool) -> Result<
         return Err(CliError::MissingVerificationkey(verification_key_path));
     }
 
-    verify_with_path(&current_dir, &proof_path, &verification_key_path, false, allow_warnings)
+    let result =
+        verify_with_path(program_dir, proof_path, verification_key_path, false, allow_warnings)?;
+    println!("Proof verified : {result}\n");
+    Ok(())
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(

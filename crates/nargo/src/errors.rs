@@ -15,8 +15,10 @@ pub enum CliError {
     PathNotValid(PathBuf),
     #[error("Error: could not parse proof data ({0})")]
     ProofNotValid(FromHexError),
-    #[error("cannot find input file located at {0:?}, run nargo build to generate the missing Prover and/or Verifier toml files")]
-    MissingTomlFile(PathBuf),
+    #[error(
+        " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."
+    )]
+    MissingTomlFile(String, PathBuf),
     #[error("Error: cannot find proving key located at {}\nEither run nargo compile to generate the missing proving key or check that the correct file name has been provided", .0.display())]
     MissingProvingKey(PathBuf),
     #[error("Error: cannot find verification key located at {}\nEither run nargo compile to generate the missing verification key or check that the correct file name has been provided", .0.display())]

@@ -1,6 +1,6 @@
 use super::expr::HirIdent;
 use crate::node_interner::ExprId;
-use crate::{Ident, Shared, StructType, Type};
+use crate::{Ident, Type};
 use fm::FileId;
 use noirc_errors::Span;
 
@@ -51,7 +51,7 @@ pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Span),
     Tuple(Vec<HirPattern>, Span),
-    Struct(Shared<StructType>, Vec<(Ident, HirPattern)>, Span),
+    Struct(Type, Vec<(Ident, HirPattern)>, Span),
 }
 
 impl HirPattern {

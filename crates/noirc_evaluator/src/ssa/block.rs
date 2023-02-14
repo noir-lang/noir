@@ -418,7 +418,7 @@ pub fn rewire_block_left(ctx: &mut SsaContext, block_id: BlockId, left: BlockId)
 pub fn short_circuit_instructions(
     ctx: &mut SsaContext,
     target: BlockId,
-    instructions: &Vec<NodeId>,
+    instructions: &[NodeId],
 ) -> Vec<NodeId> {
     // short-circuit the return instruction (if it exists)
     zero_instructions(ctx, instructions, None);
@@ -430,14 +430,14 @@ pub fn short_circuit_instructions(
         Some(target),
     ));
     let nop = instructions[0];
-    debug_assert_eq!(ctx.get_instruction(nop).operation, node::Operation::Nop);
+    debug_assert_eq!(ctx.instruction(nop).operation, node::Operation::Nop);
     let mut stack = vec![nop, unreachable_ins];
     //return:
     for &i in instructions.iter() {
         if let Some(ins) = ctx.try_get_instruction(i) {
             if ins.operation.opcode() == Opcode::Return {
                 stack.push(i);
-                zero_instructions(ctx, &vec![i], None);
+                zero_instructions(ctx, &[i], None);
             }
         }
     }
@@ -459,17 +459,17 @@ pub fn short_circuit_block(ctx: &mut SsaContext, block_id: BlockId) {
 }
 
 //Delete instructions and replace them with zeros, except for return instruction which is kept with zeroed return values, and the avoid instruction
-pub fn zero_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>, avoid: Option<&NodeId>) {
+pub fn zero_instructions(ctx: &mut SsaContext, instructions: &[NodeId], avoid: Option<&NodeId>) {
     let mut zeros = HashMap::new();
     let mut zero_keys = Vec::new();
     for i in instructions {
-        let ins = ctx.get_instruction(*i);
+        let ins = ctx.instruction(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             zeros.insert(ins.res_type, ctx.zero_with_type(ins.res_type));
         } else if let node::Operation::Return(ret) = &ins.operation {
             for i in ret {
                 if *i != NodeId::dummy() {
-                    let typ = ctx.get_object_type(*i);
+                    let typ = ctx.object_type(*i);
                     assert_ne!(typ, node::ObjectType::NotAnObject);
                     zero_keys.push(typ);
                 } else {
@@ -488,7 +488,7 @@ pub fn zero_instructions(ctx: &mut SsaContext, instructions: &Vec<NodeId>, avoid
     }
 
     for i in instructions.iter().filter(|x| Some(*x) != avoid) {
-        let ins = ctx.get_mut_instruction(*i);
+        let ins = ctx.instruction_mut(*i);
         if ins.res_type != node::ObjectType::NotAnObject {
             ins.mark = Mark::ReplaceWith(zeros[&ins.res_type]);
         } else if ins.operation.opcode() != Opcode::Nop {

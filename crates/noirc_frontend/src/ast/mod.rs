@@ -18,7 +18,7 @@ use iter_extended::vecmap;
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedType {
     FieldElement(CompTime),
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
@@ -43,7 +43,7 @@ pub enum UnresolvedType {
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
 /// and numeric binary operators are allowed here.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
     Constant(u64, Span),
