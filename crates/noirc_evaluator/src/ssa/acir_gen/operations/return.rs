@@ -1,7 +1,7 @@
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
-        acir_gen::{internal_var_cache::InternalVarCache, memory_map::MemoryMap, InternalVar},
+        acir_gen::{acir_mem::AcirMem, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
         mem::Memory,
         node::NodeId,
@@ -11,7 +11,7 @@ use crate::{
 
 pub(crate) fn evaluate(
     node_ids: &[NodeId],
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
