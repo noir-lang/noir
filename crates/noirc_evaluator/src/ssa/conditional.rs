@@ -337,10 +337,10 @@ impl DecisionTree {
         let left = if_block.left.unwrap();
         let right = if_block.right.unwrap();
         let mut const_condition = None;
-        if ctx.is_one(self[if_block.assumption].condition) {
+        if self[if_block.assumption].condition.is_one(ctx) {
             const_condition = Some(true);
         }
-        if ctx.is_zero(self[if_block.assumption].condition) {
+        if self[if_block.assumption].condition.is_zero(ctx) {
             const_condition = Some(false);
         }
 
@@ -499,7 +499,7 @@ impl DecisionTree {
             ass_cond = self[predicate].condition;
             ass_value = self[predicate].value.unwrap_or_else(NodeId::dummy);
         }
-        assert!(!ctx.is_zero(ass_value), "code should have been already simplified");
+        assert!(!ass_value.is_zero(ctx), "code should have been already simplified");
         let ins1 = ctx.instruction(ins_id);
         match &ins1.operation {
             Operation::Call { returned_arrays, .. } => {
@@ -545,7 +545,7 @@ impl DecisionTree {
                 }
 
                 Operation::Load { array_id, index } => {
-                    if let Some(idx) = ctx.get_as_constant(*index) {
+                    if let Some(idx) = index.get_as_constant(ctx) {
                         if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
                             let error = format!(
                                 "index out of bounds: the len is {} but the index is {}",
@@ -587,7 +587,7 @@ impl DecisionTree {
                         | BinaryOp::Urem
                         | BinaryOp::Srem
                         | BinaryOp::Div => {
-                            if ctx.is_zero(binary_op.rhs) {
+                            if binary_op.rhs.is_zero(ctx) {
                                 DecisionTree::short_circuit(
                                     ctx,
                                     stack,
@@ -611,7 +611,7 @@ impl DecisionTree {
                 }
                 Operation::Store { array_id, index, value, predicate } => {
                     if !ins.operation.is_dummy_store() {
-                        if let Some(idx) = ctx.get_as_constant(*index) {
+                        if let Some(idx) = index.get_as_constant(ctx) {
                             if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
                                 let error = format!(
                                     "index out of bounds: the len is {} but the index is {}",
@@ -692,7 +692,7 @@ impl DecisionTree {
                             val_true: *expr,
                             val_false: ctx.one(),
                         };
-                        if ctx.is_zero(*expr) {
+                        if expr.is_zero(ctx) {
                             stack.stack.clear();
                         }
                         let cond = ctx.add_instruction(Instruction::new(
@@ -703,7 +703,7 @@ impl DecisionTree {
                         stack.push(cond);
                         let ins2 = ctx.instruction_mut(ins_id);
                         ins2.operation = Operation::Constrain(cond, *loc);
-                        if ctx.is_zero(*expr) {
+                        if expr.is_zero(ctx) {
                             stack.push(ins_id);
                             return Ok(false);
                         }

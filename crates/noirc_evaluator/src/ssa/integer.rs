@@ -15,6 +15,8 @@ use std::{
     ops::Neg,
 };
 
+use super::conditional::DecisionTree;
+
 //Returns the maximum bit size of short integers
 pub fn short_integer_max_bit_size() -> u32 {
     //TODO: it should be FieldElement::max_num_bits()/2, but for now we do not support more than 128 bits as well
@@ -55,7 +57,7 @@ fn get_instruction_max_operand(
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
                 if matches!(ins.res_type, ObjectType::Unsigned(_) | ObjectType::Boolean) {
-                    if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
+                    if let Some(lhs_const) = lhs.get_as_constant(ctx) {
                         let lhs_big = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
                         if max_map[rhs] <= lhs_big {
                             //TODO unsigned
@@ -289,9 +291,7 @@ fn block_overflow(
             }
             Operation::Store { array_id, index, value, predicate } => {
                 if let Some(idx) = Memory::to_u32(ctx, index) {
-                    if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
-                        ctx, &predicate,
-                    )) {
+                    if DecisionTree::unwrap_predicate(ctx, &predicate).is_one(ctx) {
                         let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
                         //optimize static store
                         memory_map.insert(absolute_adr, value);
@@ -299,7 +299,7 @@ fn block_overflow(
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs, .. }) => {
-                if let Some(r_const) = ctx.get_as_constant(rhs) {
+                if let Some(r_const) = rhs.get_as_constant(ctx) {
                     let r_type = ctx[rhs].get_type();
                     let rhs =
                         ctx.get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
@@ -315,7 +315,7 @@ fn block_overflow(
                 if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
-                if let Some(r_const) = ctx.get_as_constant(rhs) {
+                if let Some(r_const) = rhs.get_as_constant(ctx) {
                     let r_type = ctx[rhs].get_type();
                     if r_const.to_u128() > r_type.bits() as u128 {
                         ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type))

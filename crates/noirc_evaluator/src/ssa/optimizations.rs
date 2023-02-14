@@ -219,11 +219,11 @@ fn cse_block_with_anchor(
                     if let ObjectType::Pointer(a) = ctx.object_type(binary.lhs) {
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
-                        let id = ctx.get_dummy_load(a);
+                        let id = a.get_dummy_load(ctx);
                         anchor.push_mem_instruction(ctx, id)?;
 
                         if let ObjectType::Pointer(a) = ctx.object_type(binary.rhs) {
-                            let id = ctx.get_dummy_load(a);
+                            let id = a.get_dummy_load(ctx);
                             anchor.push_mem_instruction(ctx, id)?;
                         }
 
@@ -363,13 +363,13 @@ fn cse_block_with_anchor(
                     //No CSE for function calls because of possible side effect - TODO checks if a function has side effect when parsed and do cse for these.
                     //Add dummy store for functions that modify arrays
                     for a in returned_arrays {
-                        let id = ctx.get_dummy_store(a.0);
+                        let id = a.0.get_dummy_store(ctx);
                         anchor.push_mem_instruction(ctx, id)?;
                     }
                     if let Some(f) = ctx.try_get_ssa_func(*func) {
                         for typ in &f.result_types {
                             if let ObjectType::Pointer(a) = typ {
-                                let id = ctx.get_dummy_store(*a);
+                                let id = a.get_dummy_store(ctx);
                                 anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
@@ -378,7 +378,7 @@ fn cse_block_with_anchor(
                     for arg in arguments {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
-                                let id = ctx.get_dummy_load(a);
+                                let id = a.get_dummy_load(ctx);
                                 anchor.push_mem_instruction(ctx, id)?;
                             }
                         }
@@ -397,14 +397,14 @@ fn cse_block_with_anchor(
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
                             if let ObjectType::Pointer(a) = obj.get_type() {
-                                let id = ctx.get_dummy_load(a);
+                                let id = a.get_dummy_load(ctx);
                                 anchor.push_mem_instruction(ctx, id)?;
                                 activate_cse = false;
                             }
                         }
                     }
                     if let ObjectType::Pointer(a) = ins.res_type {
-                        let id = ctx.get_dummy_store(a);
+                        let id = a.get_dummy_store(ctx);
                         anchor.push_mem_instruction(ctx, id)?;
                         activate_cse = false;
                     }

@@ -26,9 +26,9 @@ pub(crate) fn evaluate(
             Some(index) => {
                 let idx = mem::Memory::as_u32(index);
                 let value_with_predicate = if let Some(predicate) = predicate {
-                    if predicate.is_dummy() || ctx.is_one(predicate) {
+                    if predicate.is_dummy() || predicate.is_one(ctx) {
                         value
-                    } else if ctx.is_zero(predicate) {
+                    } else if predicate.is_zero(ctx) {
                         return None;
                     } else {
                         let pred =

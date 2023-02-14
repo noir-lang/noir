@@ -116,7 +116,7 @@ impl Anchor {
         self.use_array(array_id, ctx.mem[array_id].len as usize);
         let prev_list = self.mem_list.get_mut(&array_id).unwrap();
         let len = prev_list.len();
-        if let Some(index_value) = ctx.get_as_constant(index) {
+        if let Some(index_value) = index.get_as_constant(ctx) {
             let mem_idx = index_value.to_u128() as usize;
             let last_item = prev_list.front();
             let item_pos = match last_item {
@@ -177,7 +177,7 @@ impl Anchor {
         op: &Operation,
     ) -> Result<Option<CseAction>, RuntimeErrorKind> {
         let (array_id, index, is_load) = Anchor::get_mem_op(op);
-        if let Some(b_value) = ctx.get_as_constant(index) {
+        if let Some(b_value) = index.get_as_constant(ctx) {
             match item {
                 MemItem::Const(p) | MemItem::ConstLoad(p) => {
                     let b_idx = b_value.to_u128() as usize;
@@ -247,19 +247,19 @@ impl Anchor {
             if let Some(ins_iter) = ctx.try_get_instruction(a) {
                 match &ins_iter.operation {
                     Operation::Load { index, .. } => {
-                        if !ctx.maybe_distinct(*index, b_idx) {
+                        if !index.maybe_distinct(ctx, &b_idx) {
                             return Some(CseAction::ReplaceWith(a));
                         }
                     }
                     Operation::Store { index, value, predicate, .. } => {
-                        if !ctx.maybe_distinct(*index, b_idx) {
-                            if ctx.is_one(DecisionTree::unwrap_predicate(ctx, predicate)) {
+                        if !index.maybe_distinct(ctx, &b_idx) {
+                            if DecisionTree::unwrap_predicate(ctx, predicate).is_one(ctx) {
                                 return Some(CseAction::ReplaceWith(*value));
                             } else {
                                 return Some(CseAction::Keep);
                             }
                         }
-                        if ctx.maybe_equal(*index, b_idx) {
+                        if index.maybe_equal(ctx, &b_idx) {
                             return Some(CseAction::Keep);
                         }
                     }
@@ -274,15 +274,15 @@ impl Anchor {
         } else if let Some(ins_iter) = ctx.try_get_instruction(a) {
             match ins_iter.operation {
                 Operation::Load { index, .. } => {
-                    if ctx.maybe_equal(index, b_idx) {
+                    if index.maybe_equal(ctx, &b_idx) {
                         return Some(CseAction::Keep);
                     }
                 }
                 Operation::Store { index, .. } => {
-                    if !ctx.maybe_distinct(index, b_idx) {
+                    if !index.maybe_distinct(ctx, &b_idx) {
                         return Some(CseAction::Remove(a));
                     }
-                    if ctx.maybe_equal(index, b_idx) {
+                    if index.maybe_equal(ctx, &b_idx) {
                         return Some(CseAction::Keep);
                     }
                 }

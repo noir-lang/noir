@@ -37,8 +37,8 @@ pub struct SsaContext {
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
-    dummy_store: HashMap<ArrayId, NodeId>,
-    dummy_load: HashMap<ArrayId, NodeId>,
+    pub(crate) dummy_store: HashMap<ArrayId, NodeId>,
+    pub(crate) dummy_load: HashMap<ArrayId, NodeId>,
 }
 
 impl SsaContext {
@@ -79,59 +79,38 @@ impl SsaContext {
         self.get_or_create_const(FieldElement::one(), obj_type)
     }
 
-    pub fn is_one(&self, id: NodeId) -> bool {
-        if id == NodeId::dummy() {
-            return false;
+    pub fn new_array(
+        &mut self,
+        name: &str,
+        element_type: ObjectType,
+        len: u32,
+        def: Option<Definition>,
+    ) -> (NodeId, ArrayId) {
+        let array_index = self.mem.create_new_array(len, element_type, name);
+        array_index.add_dummy_load(self);
+        array_index.add_dummy_store(self);
+        //we create a variable pointing to this MemArray
+        let new_var = node::Variable {
+            id: NodeId::dummy(),
+            obj_type: node::ObjectType::Pointer(array_index),
+            name: name.to_string(),
+            root: None,
+            def: def.clone(),
+            witness: None,
+            parent_block: self.current_block,
+        };
+        if let Some(def) = def {
+            self.mem[array_index].def = def;
         }
-        let typ = self.object_type(id);
-        if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
-            id == one
+        (self.add_variable(new_var, None), array_index)
+    }
+
+    // Returns the value of the element array[index], if it exists in the memory_map
+    pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
+        if let Some(idx) = Memory::to_u32(self, index) {
+            self.mem.get_value_from_map(array_id, idx)
         } else {
-            false
-        }
-    }
-
-    pub fn is_zero(&self, id: NodeId) -> bool {
-        if id == NodeId::dummy() {
-            return false;
-        }
-        let typ = self.object_type(id);
-        if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
-            id == zero
-        } else {
-            false
-        }
-    }
-
-    pub fn get_dummy_store(&self, a: ArrayId) -> NodeId {
-        self.dummy_store[&a]
-    }
-
-    pub fn get_dummy_load(&self, a: ArrayId) -> NodeId {
-        self.dummy_load[&a]
-    }
-
-    #[allow(clippy::map_entry)]
-    pub fn add_dummy_load(&mut self, a: ArrayId) {
-        if !self.dummy_load.contains_key(&a) {
-            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
-            let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
-            let id = self.add_instruction(dummy_load);
-            self.dummy_load.insert(a, id);
-        }
-    }
-    #[allow(clippy::map_entry)]
-    pub fn add_dummy_store(&mut self, a: ArrayId) {
-        if !self.dummy_store.contains_key(&a) {
-            let op_a = Operation::Store {
-                array_id: a,
-                index: NodeId::dummy(),
-                value: NodeId::dummy(),
-                predicate: None,
-            };
-            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
-            let id = self.add_instruction(dummy_store);
-            self.dummy_store.insert(a, id);
+            None
         }
     }
 
@@ -346,17 +325,6 @@ impl SsaContext {
         instruction_id
     }
 
-    pub fn add_const(&mut self, constant: node::Constant) -> NodeId {
-        let obj = NodeObject::Const(constant);
-        let id = NodeId(self.nodes.insert(obj));
-        match &mut self[id] {
-            NodeObject::Const(c) => c.id = id,
-            _ => unreachable!(),
-        }
-
-        id
-    }
-
     pub fn ssa_func(&self, func_id: FuncId) -> Option<&SsaFunction> {
         self.functions.get(&func_id)
     }
@@ -386,14 +354,6 @@ impl SsaContext {
 
     pub fn object_type(&self, id: NodeId) -> node::ObjectType {
         self[id].get_type()
-    }
-
-    //Returns the object value if it is a constant, None if not.
-    pub fn get_as_constant(&self, id: NodeId) -> Option<FieldElement> {
-        if let Some(node::NodeObject::Const(c)) = self.try_get_node(id) {
-            return Some(FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be()));
-        }
-        None
     }
 
     pub fn instruction(&self, id: NodeId) -> &node::Instruction {
@@ -499,39 +459,6 @@ impl SsaContext {
         }
     }
 
-    //Returns true if a may be distinct from b, and false else
-    pub fn maybe_distinct(&self, a: NodeId, b: NodeId) -> bool {
-        if a == NodeId::dummy() || b == NodeId::dummy() {
-            return true;
-        }
-        if a == b {
-            return false;
-        }
-        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
-            if a_value == b_value {
-                return false;
-            }
-        }
-        true
-    }
-
-    //Returns true if a may be equal to b, and false otherwise
-    pub fn maybe_equal(&self, a: NodeId, b: NodeId) -> bool {
-        if a == NodeId::dummy() || b == NodeId::dummy() {
-            return true;
-        }
-
-        if a == b {
-            return true;
-        }
-        if let (Some(a_value), Some(b_value)) = (self.get_as_constant(a), self.get_as_constant(b)) {
-            if a_value != b_value {
-                return false;
-            }
-        }
-        true
-    }
-
     //same as update_variable but using the var index instead of var
     pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
         self.update_variable_id_in_block(var_id, new_var, new_value, self.current_block);
@@ -579,12 +506,10 @@ impl SsaContext {
             return prev_const;
         }
 
-        self.add_const(node::Constant {
-            id: NodeId::dummy(),
-            value,
-            value_str: String::new(),
-            value_type: t,
-        })
+        NodeId::add_const(
+            self,
+            node::Constant { id: NodeId::dummy(), value, value_str: String::new(), value_type: t },
+        )
     }
 
     // Return the type of the operation result, based on the left hand type
@@ -610,41 +535,6 @@ impl SsaContext {
                 unreachable!("cannot determine result type")
             }
             _ => lhs_type,
-        }
-    }
-
-    pub fn new_array(
-        &mut self,
-        name: &str,
-        element_type: ObjectType,
-        len: u32,
-        def: Option<Definition>,
-    ) -> (NodeId, ArrayId) {
-        let array_index = self.mem.create_new_array(len, element_type, name);
-        self.add_dummy_load(array_index);
-        self.add_dummy_store(array_index);
-        //we create a variable pointing to this MemArray
-        let new_var = node::Variable {
-            id: NodeId::dummy(),
-            obj_type: node::ObjectType::Pointer(array_index),
-            name: name.to_string(),
-            root: None,
-            def: def.clone(),
-            witness: None,
-            parent_block: self.current_block,
-        };
-        if let Some(def) = def {
-            self.mem[array_index].def = def;
-        }
-        (self.add_variable(new_var, None), array_index)
-    }
-
-    // Returns the value of the element array[index], if it exists in the memory_map
-    pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
-        if let Some(idx) = Memory::to_u32(self, index) {
-            self.mem.get_value_from_map(array_id, idx)
-        } else {
-            None
         }
     }
 
