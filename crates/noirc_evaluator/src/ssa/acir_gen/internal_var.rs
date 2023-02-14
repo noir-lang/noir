@@ -45,9 +45,6 @@ impl InternalVar {
     pub(crate) fn set_id(&mut self, id: NodeId) {
         self.id = Some(id)
     }
-    pub(crate) fn cached_witness(&self) -> &Option<Witness> {
-        &self.cached_witness
-    }
 
     pub fn to_expression(&self) -> Expression {
         if let Some(w) = self.cached_witness {

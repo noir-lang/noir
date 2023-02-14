@@ -90,6 +90,7 @@ pub fn start_cli() {
                 .arg(Arg::with_name("circuit_name").help(
                     "The name of the circuit build files (ACIR, proving and verification keys)",
                 ).required(true))
+                .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -236,23 +237,21 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     };
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path = match prove_cmd::prove_with_path(
+    match prove_cmd::prove_with_path(
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
         &circuit_path,
+        true,
         show_ssa,
         false,
     ) {
-        Ok(p) => p,
+        Ok(_) => true,
         Err(error) => {
             println!("{error}");
-            return false;
+            false
         }
-    };
-
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), &circuit_path, show_ssa, false)
-        .unwrap()
+    }
 }
 
 fn add_std_lib(driver: &mut Driver) {

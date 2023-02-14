@@ -1,18 +1,16 @@
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
+use noirc_abi::input_parser::Format;
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use std::path::Path;
-
+use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::execute_cmd::save_witness_to_dir,
-    constants::{ACIR_EXT, PK_EXT, TARGET_DIR, VK_EXT},
+    constants::{ACIR_EXT, PK_EXT, PROVER_INPUT_FILE, TARGET_DIR, VK_EXT},
     errors::CliError,
     resolver::Resolver,
 };
-
-use super::{add_std_lib, create_named_dir, write_to_file};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("compile").unwrap();
@@ -54,7 +52,6 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     let serialized = compiled_program.circuit.to_bytes();
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
-    println!("{:?}", std::fs::canonicalize(&circuit_path));
 
     let mut hasher = Sha256::new();
     hasher.update(serialized);
@@ -63,13 +60,27 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
 
     if generate_witness {
+        // Parse the initial witness values from Prover.toml
+        let inputs_map = read_inputs_from_file(
+            program_dir,
+            PROVER_INPUT_FILE,
+            Format::Toml,
+            compiled_program.abi.as_ref().unwrap().clone(),
+        )?;
+
         let (_, solved_witness) =
-            super::execute_cmd::execute_program(program_dir, &compiled_program)?;
+            super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
 
         circuit_path.pop();
+        dbg!(circuit_path.clone());
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;
     }
 
+    // The circuit path is used when combining proving and verification for integration tests.
+    // The prove command sets different file extensions on the returned circuit path to access the necessary build artifacts (ACIR checksum, proving and verification keys)
+    // We reset the circuit path to end with just the circuit name to avoid any errors with setting extensions when reading the ACIR checksum and keys
+    circuit_path.pop();
+    circuit_path.push(circuit_name);
     Ok(circuit_path)
 }
 

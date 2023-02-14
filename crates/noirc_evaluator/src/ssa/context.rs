@@ -157,35 +157,8 @@ impl SsaContext {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.id_to_string(binary.lhs);
         let rhs = self.id_to_string(binary.rhs);
-        let op = match &binary.operator {
-            BinaryOp::Add => "add",
-            BinaryOp::SafeAdd => "safe_add",
-            BinaryOp::Sub { .. } => "sub",
-            BinaryOp::SafeSub { .. } => "safe_sub",
-            BinaryOp::Mul => "mul",
-            BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
-            BinaryOp::Eq => "eq",
-            BinaryOp::Ne => "ne",
-            BinaryOp::Ult => "ult",
-            BinaryOp::Ule => "ule",
-            BinaryOp::Slt => "slt",
-            BinaryOp::Sle => "sle",
-            BinaryOp::Lt => "lt",
-            BinaryOp::Lte => "lte",
-            BinaryOp::And => "and",
-            BinaryOp::Or => "or",
-            BinaryOp::Xor => "xor",
-            BinaryOp::Assign => "assign",
-            BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
-        };
 
-        format!("{op} {lhs}, {rhs}")
+        format!("{} {lhs}, {rhs}", binary.operator)
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
@@ -934,12 +907,25 @@ impl SsaContext {
     }
 
     fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
-        let len = self.mem[array_id].len;
+        let len = self.mem[array_id].len as usize;
         let e_type = self.mem[array_id].element_type;
-        for i in 0..len {
+        let values = vec![self.zero_with_type(e_type); len];
+        self.init_array_from_values(array_id, values, stack_frame);
+    }
+
+    pub fn init_array_from_values(
+        &mut self,
+        array_id: ArrayId,
+        values: Vec<NodeId>,
+        stack_frame: &mut StackFrame,
+    ) {
+        let len = self.mem[array_id].len as usize;
+        let e_type = self.mem[array_id].element_type;
+        assert_eq!(len, values.len());
+        for (i, v) in values.iter().enumerate() {
             let index =
                 self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            let op_a = Operation::Store { array_id, index, value: *v };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
     }
