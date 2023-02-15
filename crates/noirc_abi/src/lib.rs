@@ -165,10 +165,7 @@ impl Abi {
     }
 
     /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
-    pub fn encode_to_witness(
-        &self,
-        input_map: &BTreeMap<String, InputValue>,
-    ) -> Result<BTreeMap<Witness, FieldElement>, AbiError> {
+    pub fn encode_to_witness(&self, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
         // TODO: add handling for missing inputs similarly to how we do in `encode_to_array`.
 
         self.check_for_unexpected_inputs(input_map)?;
@@ -195,10 +192,7 @@ impl Abi {
     }
 
     /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
-    pub fn encode_to_array(
-        self,
-        inputs: &BTreeMap<String, InputValue>,
-    ) -> Result<Vec<FieldElement>, AbiError> {
+    pub fn encode_to_array(self, inputs: &InputMap) -> Result<Vec<FieldElement>, AbiError> {
         let mut encoded_inputs = Vec::new();
 
         self.check_for_unexpected_inputs(inputs)?;
@@ -220,10 +214,7 @@ impl Abi {
     }
 
     /// Checks that no extra witness values have been provided.
-    fn check_for_unexpected_inputs(
-        &self,
-        inputs: &BTreeMap<String, InputValue>,
-    ) -> Result<(), AbiError> {
+    fn check_for_unexpected_inputs(&self, inputs: &InputMap) -> Result<(), AbiError> {
         let param_names = self.parameter_names();
         if param_names.len() < inputs.len() {
             let unexpected_params: Vec<String> =
@@ -256,10 +247,7 @@ impl Abi {
     }
 
     /// Decode a `WitnessMap` into the types specified in the ABI.
-    pub fn decode_from_witness(
-        &self,
-        witness_map: &BTreeMap<Witness, FieldElement>,
-    ) -> Result<BTreeMap<String, InputValue>, AbiError> {
+    pub fn decode_from_witness(&self, witness_map: &WitnessMap) -> Result<InputMap, AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
@@ -275,10 +263,7 @@ impl Abi {
     }
 
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
-    pub fn decode_from_array(
-        &self,
-        encoded_inputs: &[FieldElement],
-    ) -> Result<BTreeMap<String, InputValue>, AbiError> {
+    pub fn decode_from_array(&self, encoded_inputs: &[FieldElement]) -> Result<InputMap, AbiError> {
         let input_length: u32 = encoded_inputs.len().try_into().unwrap();
         if input_length != self.field_count() {
             return Err(AbiError::UnexpectedInputLength {
