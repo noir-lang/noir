@@ -114,13 +114,6 @@ impl StackFrame {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.stack.clear();
-        self.array_map.clear();
-        self.created_arrays.clear();
-        self.lca_cache.clear();
-    }
-
     pub fn push(&mut self, ins_id: NodeId) {
         self.stack.push(ins_id);
     }
@@ -177,6 +170,13 @@ impl StackFrame {
             false
         } else {
             true
+        }
+    }
+
+    //assigns the arrays to the block where they are seen for the first time
+    pub fn new_array(&mut self, array_id: ArrayId) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.created_arrays.entry(array_id) {
+            e.insert(self.block);
         }
     }
 }
@@ -313,10 +313,15 @@ pub fn inline_in_block(
                     new_ins.id = clone.id;
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, predicate } => {
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
-                        Operation::Store { array_id: b, index: *index, value: *value },
+                        Operation::Store {
+                            array_id: b,
+                            index: *index,
+                            value: *value,
+                            predicate: *predicate,
+                        },
                         clone.res_type,
                         Some(stack_frame.block),
                     );

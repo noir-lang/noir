@@ -335,7 +335,7 @@ fn evaluate_one(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Variable(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }
@@ -377,7 +377,7 @@ fn evaluate_object(
                     let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
                     Ok(NodeEval::Const(value, c.get_type()))
                 }
-                NodeObject::Obj(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
+                NodeObject::Variable(_) => Ok(NodeEval::VarOrInstruction(obj_id)),
                 NodeObject::Function(f, id, _) => Ok(NodeEval::Function(*f, *id)),
             }
         }

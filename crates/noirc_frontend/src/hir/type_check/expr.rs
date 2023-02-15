@@ -741,7 +741,7 @@ pub fn comparator_operand_type_rules(
 
             let comptime = CompTime::No(None);
             if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(other.clone())
+                Ok(Bool(comptime))
             } else {
                 Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
             }
