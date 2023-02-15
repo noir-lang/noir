@@ -166,7 +166,9 @@ mod test {
                 b_val.push(solved_witness[&b_wit[i]]);
             }
             // ensure the outputs are a permutation of the inputs
-            assert_eq!(a_val.sort(), b_val.sort());
+            a_val.sort();
+            b_val.sort();
+            assert_eq!(a_val, b_val);
         }
     }
 }
