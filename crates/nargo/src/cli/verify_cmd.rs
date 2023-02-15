@@ -114,7 +114,6 @@ pub(crate) fn verify_proof(
     compiled_program.circuit.public_inputs = dedup_public_indices;
 
     let backend = crate::backends::ConcreteBackend;
-    // let valid_proof = backend.verify_from_cs(proof, dedup_public_values, compiled_program.circuit);
     let valid_proof = backend.verify_with_vk(
         proof,
         dedup_public_values,

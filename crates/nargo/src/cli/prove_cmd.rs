@@ -106,7 +106,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_pk(prover_circuit, solved_witness, proving_key);
-    // let proof = backend.prove_with_meta(prover_circuit, solved_witness);
 
     println!("Proof successfully created");
     if check_proof {
