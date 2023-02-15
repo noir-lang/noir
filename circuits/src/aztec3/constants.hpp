@@ -49,6 +49,7 @@ enum GeneratorIndex {
     L1_MSG_STACK_ITEM,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
+    CONTRACT_DEPLOYMENT_DATA,
 };
 
 enum StorageSlotGeneratorIndex {
