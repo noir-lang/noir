@@ -152,7 +152,7 @@ mod test {
             for _i in 0..w.len() {
                 c.push(rng.next_u32() % 2 != 0);
             }
-            // intialize bits
+            // initialize bits
             for i in 0..w.len() {
                 solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
             }
