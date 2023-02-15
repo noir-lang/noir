@@ -9,12 +9,12 @@
 use dep::std;
 
 fn main(x: [u8; 5], result: pub [u8; 32]) {
-    let mut digest = x.sha256();
+    let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
-    digest = x.sha256();
+    digest = std::hash::sha256(x);
     constrain digest == result;
 
     let y = [12,45,78,41];
-    let h = y.mimc_bn254();
+    let h = std::hash::mimc_bn254(y);
    constrain h == 18226366069841799622585958305961373004333097209608110160936134895615261821931;
 }

@@ -14,9 +14,9 @@ fn sort(mut a: [u32; 4]) -> [u32; 4] {
 }
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
-    let mut digest = x.sha256();
+    let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
-    digest = x.sha256();
+    digest = std::hash::sha256(x);
     constrain digest == result;
 }
 
@@ -36,7 +36,6 @@ fn test4() -> [u32; 4] {
 }
 
 fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
-
     // Regression test for issue #547
     // Warning: it must be kept at the start of main
     let arr: [u8; 2] = [1, 2];
@@ -49,7 +48,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     //Issue reported in #421
     if a == c[0] {
         constrain c[0] == 0;
-    } else  {
+    } else {
         if a == c[1] {
             constrain c[1] == 0;
         } else  {
@@ -137,7 +136,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 
     let mut y = 0;
     if a == 0 {
-        let digest = x.sha256();
+        let digest = std::hash::sha256(x);
         y = digest[0];
     } else {
         y = 5;
