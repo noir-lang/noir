@@ -20,7 +20,7 @@ pub fn evaluate_permutation(
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     let (w, b) = permutation_layer(in_expr, evaluator);
-    // we contrain the network output to out_expr
+    // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
@@ -45,7 +45,7 @@ pub fn permutation_layer(
         conf.push(evaluator.add_witness_to_cs());
     }
     // compute expressions after the input switches
-    // If inputs are a1,a2, and the switch value is c, then we compute expresions b1,b2 where
+    // If inputs are a1,a2, and the switch value is c, then we compute expressions b1,b2 where
     // b1 = a1+q, b2 = a2-q, q = c(a2-a1)
     let mut in_sub1 = Vec::new();
     let mut in_sub2 = Vec::new();
@@ -68,7 +68,7 @@ pub fn permutation_layer(
     // compute results for the sub networks
     let (w1, b1) = permutation_layer(&in_sub1, evaluator);
     let (w2, b2) = permutation_layer(&in_sub2, evaluator);
-    // apply the output swithces
+    // apply the output switches
     for i in 0..(n - 1) / 2 {
         let c = evaluator.add_witness_to_cs();
         conf.push(c);
@@ -152,7 +152,7 @@ mod test {
             for _i in 0..w.len() {
                 c.push(rng.next_u32() % 2 != 0);
             }
-            // intialise bits
+            // intialize bits
             for i in 0..w.len() {
                 solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
             }
