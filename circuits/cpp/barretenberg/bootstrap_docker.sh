@@ -10,7 +10,7 @@
 set -e
 
 TARGET_PROJECT=$1
-REPO=aztec2-internal
+REPO=barretenberg
 COMMIT_HASH=$(git rev-parse HEAD)
 
 # If we're calling this script from within a project directory, that's the target project.
