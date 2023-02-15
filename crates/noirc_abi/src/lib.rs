@@ -251,20 +251,16 @@ impl Abi {
         &self,
         witness_map: &BTreeMap<Witness, FieldElement>,
     ) -> Result<BTreeMap<String, InputValue>, AbiError> {
-        let public_inputs_map = self
-            .parameters
-            .iter()
-            .map(|AbiParameter { name, typ, .. }| {
+        let public_inputs_map =
+            try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
-                    vecmap(self.param_witnesses[name].clone(), |witness_index| {
+                    vecmap(self.param_witnesses[&name].clone(), |witness_index| {
                         witness_map[&witness_index]
                     });
 
-                Self::decode_value(&mut param_witness_values.into_iter(), typ)
+                Self::decode_value(&mut param_witness_values.into_iter(), &typ)
                     .map(|input_value| (name.clone(), input_value))
-                    .unwrap()
-            })
-            .collect();
+            })?;
 
         Ok(public_inputs_map)
     }
