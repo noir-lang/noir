@@ -11,31 +11,27 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
-use std::{collections::BTreeMap, path::Path, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let args = args.subcommand_matches("verify").unwrap();
 
     let proof_name = args.value_of("proof").unwrap();
-    let mut proof_path = std::path::PathBuf::new();
-    proof_path.push(Path::new(PROOFS_DIR));
+    let program_dir =
+        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
 
+    let mut proof_path = program_dir.clone();
+    proof_path.push(Path::new(PROOFS_DIR));
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
     let allow_warnings = args.is_present("allow-warnings");
-    let result = verify(proof_name, allow_warnings)?;
+    let result = verify_with_path(program_dir, proof_path, false, allow_warnings)?;
     println!("Proof verified : {result}\n");
     Ok(())
-}
-
-fn verify(proof_name: &str, allow_warnings: bool) -> Result<bool, CliError> {
-    let current_dir = std::env::current_dir().unwrap();
-    let mut proof_path = PathBuf::new(); //or cur_dir?
-    proof_path.push(PROOFS_DIR);
-    proof_path.push(Path::new(proof_name));
-    proof_path.set_extension(PROOF_EXT);
-    verify_with_path(&current_dir, &proof_path, false, allow_warnings)
 }
 
 pub fn verify_with_path<P: AsRef<Path>>(
@@ -56,15 +52,15 @@ pub fn verify_with_path<P: AsRef<Path>>(
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
-    let valid_proof = verify_proof(compiled_program, public_inputs_map, load_proof(proof_path)?)?;
+    let valid_proof = verify_proof(compiled_program, public_inputs_map, &load_proof(proof_path)?)?;
 
     Ok(valid_proof)
 }
 
-fn verify_proof(
+pub(crate) fn verify_proof(
     mut compiled_program: CompiledProgram,
     public_inputs_map: InputMap,
-    proof: Vec<u8>,
+    proof: &[u8],
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.unwrap().public_abi();
     let public_inputs =
@@ -82,7 +78,7 @@ fn verify_proof(
     compiled_program.circuit.public_inputs = dedup_public_indices;
 
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_from_cs(&proof, dedup_public_values, compiled_program.circuit);
+    let valid_proof = backend.verify_from_cs(proof, dedup_public_values, compiled_program.circuit);
 
     Ok(valid_proof)
 }

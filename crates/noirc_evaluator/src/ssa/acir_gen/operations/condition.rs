@@ -6,7 +6,7 @@ use crate::{
     },
     Evaluator,
 };
-use acvm::FieldElement;
+use acvm::{acir::native_types::Expression, FieldElement};
 
 pub(crate) fn evaluate(
     condition: NodeId,
@@ -19,11 +19,21 @@ pub(crate) fn evaluate(
     let cond = var_cache.get_or_compute_internal_var_unwrap(condition, evaluator, ctx);
     let l_c = var_cache.get_or_compute_internal_var_unwrap(lhs, evaluator, ctx);
     let r_c = var_cache.get_or_compute_internal_var_unwrap(rhs, evaluator, ctx);
-    let sub = constraints::subtract(l_c.expression(), FieldElement::one(), r_c.expression());
-    let result = constraints::add(
-        &constraints::mul_with_witness(evaluator, cond.expression(), &sub),
-        FieldElement::one(),
-        r_c.expression(),
-    );
+    let result =
+        evaluate_expression(cond.expression(), l_c.expression(), r_c.expression(), evaluator);
     Some(result.into())
+}
+
+pub fn evaluate_expression(
+    condition: &Expression,
+    lhs: &Expression,
+    rhs: &Expression,
+    evaluator: &mut Evaluator,
+) -> Expression {
+    let sub = constraints::subtract(lhs, FieldElement::one(), rhs);
+    constraints::add(
+        &constraints::mul_with_witness(evaluator, condition, &sub),
+        FieldElement::one(),
+        rhs,
+    )
 }

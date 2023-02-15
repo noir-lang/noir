@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{constraints, memory_map::MemoryMap, InternalVar},
+        acir_gen::{acir_mem::AcirMem, constraints, InternalVar},
         context::SsaContext,
         mem::{MemArray, Memory},
         node::NodeId,
@@ -26,7 +26,7 @@ use iter_extended::vecmap;
 // so in reality, the NEQ instruction will be done on the fields
 // of the struct
 pub(crate) fn evaluate_neq(
-    memory_map: &mut MemoryMap,
+    acir_mem: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -55,7 +55,7 @@ pub(crate) fn evaluate_neq(
             )
         }
 
-        let mut x = InternalVar::from(array_eq(memory_map, array_a, array_b, evaluator));
+        let mut x = InternalVar::from(array_eq(acir_mem, array_a, array_b, evaluator));
         // TODO we need a witness because of the directive, but we should use an expression
         // TODO if we change the Invert directive to take an `Expression`, then we
         // TODO can get rid of this extra gate.
@@ -89,7 +89,7 @@ pub(crate) fn evaluate_neq(
 }
 
 pub(crate) fn evaluate_eq(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -107,7 +107,7 @@ pub(crate) fn evaluate_eq(
 //
 // N.B. We assumes the lengths of a and b are the same but it is not checked inside the function.
 fn array_eq(
-    memory_map: &mut MemoryMap,
+    memory_map: &mut AcirMem,
     a: &MemArray,
     b: &MemArray,
     evaluator: &mut Evaluator,

@@ -1,5 +1,4 @@
 use crate::ssa::{
-    acir_gen::InternalVar,
     context::SsaContext,
     node,
     node::{Node, NodeId},
@@ -30,7 +29,6 @@ impl ArrayId {
 pub struct MemArray {
     pub id: ArrayId,
     pub element_type: node::ObjectType, //type of elements
-    pub values: Vec<InternalVar>,
     pub name: String,
     pub def: Definition,
     pub len: u32,     //number of elements
@@ -51,7 +49,6 @@ impl MemArray {
             id,
             element_type: of,
             name: name.to_string(),
-            values: Vec::new(),
             def: definition,
             len,
             adr: 0,
@@ -93,7 +90,10 @@ impl Memory {
         self.last_adr += len;
         id
     }
-
+    /// Coerces a FieldElement into a u32
+    /// By taking its value modulo 2^32
+    ///
+    /// See issue #785 on whether this is safe
     pub fn as_u32(value: FieldElement) -> u32 {
         let big_v = BigUint::from_bytes_be(&value.to_be_bytes());
         let mut modulus = BigUint::from(2_u32);

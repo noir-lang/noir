@@ -1,5 +1,6 @@
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{
+    conditional::DecisionTree,
     context::SsaContext,
     mem::ArrayId,
     node::{NodeId, ObjectType, Opcode, Operation},
@@ -110,7 +111,7 @@ impl Anchor {
         ctx: &SsaContext,
         id: NodeId,
     ) -> Result<(), RuntimeError> {
-        let ins = ctx.get_instruction(id);
+        let ins = ctx.instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
         let prev_list = self.mem_list.get_mut(&array_id).unwrap();
@@ -250,9 +251,13 @@ impl Anchor {
                             return Some(CseAction::ReplaceWith(a));
                         }
                     }
-                    Operation::Store { index, value, .. } => {
+                    Operation::Store { index, value, predicate, .. } => {
                         if !ctx.maybe_distinct(*index, b_idx) {
-                            return Some(CseAction::ReplaceWith(*value));
+                            if ctx.is_one(DecisionTree::unwrap_predicate(ctx, predicate)) {
+                                return Some(CseAction::ReplaceWith(*value));
+                            } else {
+                                return Some(CseAction::Keep);
+                            }
                         }
                         if ctx.maybe_equal(*index, b_idx) {
                             return Some(CseAction::Keep);

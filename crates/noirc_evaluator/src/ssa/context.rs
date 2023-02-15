@@ -3,7 +3,7 @@ use crate::ssa::{
     acir_gen::Acir,
     block::{BasicBlock, BlockId},
     conditional::{DecisionTree, TreeBuilder},
-    function::{FuncIndex, SSAFunction},
+    function::{FuncIndex, SsaFunction},
     inline::StackFrame,
     mem::{ArrayId, Memory},
     node::{
@@ -14,7 +14,7 @@ use crate::ssa::{
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::{Definition, FuncId};
+use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};
@@ -32,7 +32,7 @@ pub struct SsaContext {
     pub sealed_blocks: HashSet<BlockId>,
     pub mem: Memory,
 
-    pub functions: HashMap<FuncId, function::SSAFunction>,
+    pub functions: HashMap<FuncId, function::SsaFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
@@ -83,7 +83,7 @@ impl SsaContext {
         if id == NodeId::dummy() {
             return false;
         }
-        let typ = self.get_object_type(id);
+        let typ = self.object_type(id);
         if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
             id == one
         } else {
@@ -95,7 +95,7 @@ impl SsaContext {
         if id == NodeId::dummy() {
             return false;
         }
-        let typ = self.get_object_type(id);
+        let typ = self.object_type(id);
         if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
             id == zero
         } else {
@@ -123,8 +123,12 @@ impl SsaContext {
     #[allow(clippy::map_entry)]
     pub fn add_dummy_store(&mut self, a: ArrayId) {
         if !self.dummy_store.contains_key(&a) {
-            let op_a =
-                Operation::Store { array_id: a, index: NodeId::dummy(), value: NodeId::dummy() };
+            let op_a = Operation::Store {
+                array_id: a,
+                index: NodeId::dummy(),
+                value: NodeId::dummy(),
+                predicate: None,
+            };
             let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
@@ -157,35 +161,8 @@ impl SsaContext {
     fn binary_to_string(&self, binary: &node::Binary) -> String {
         let lhs = self.id_to_string(binary.lhs);
         let rhs = self.id_to_string(binary.rhs);
-        let op = match &binary.operator {
-            BinaryOp::Add => "add",
-            BinaryOp::SafeAdd => "safe_add",
-            BinaryOp::Sub { .. } => "sub",
-            BinaryOp::SafeSub { .. } => "safe_sub",
-            BinaryOp::Mul => "mul",
-            BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
-            BinaryOp::Eq => "eq",
-            BinaryOp::Ne => "ne",
-            BinaryOp::Ult => "ult",
-            BinaryOp::Ule => "ule",
-            BinaryOp::Slt => "slt",
-            BinaryOp::Sle => "sle",
-            BinaryOp::Lt => "lt",
-            BinaryOp::Lte => "lte",
-            BinaryOp::And => "and",
-            BinaryOp::Or => "or",
-            BinaryOp::Xor => "xor",
-            BinaryOp::Assign => "assign",
-            BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
-        };
 
-        format!("{op} {lhs}, {rhs}")
+        format!("{} {lhs}, {rhs}", binary.operator)
     }
 
     pub fn operation_to_string(&self, op: &Operation) -> String {
@@ -224,11 +201,17 @@ impl SsaContext {
             Operation::Load { array_id, index } => {
                 format!("load {array_id:?}, index {}", self.id_to_string(*index))
             }
-            Operation::Store { array_id, index, value } => {
+            Operation::Store { array_id, index, value, predicate } => {
+                let pred_str = if let Some(predicate) = predicate {
+                    format!(", predicate {}", self.id_to_string(*predicate))
+                } else {
+                    String::new()
+                };
                 format!(
-                    "store {array_id:?}, index {}, value {}",
+                    "store {array_id:?}, index {}, value {}{}",
                     self.id_to_string(*index),
-                    self.id_to_string(*value)
+                    self.id_to_string(*value),
+                    pred_str
                 )
             }
             Operation::Intrinsic(opcode, args) => format!("intrinsic {opcode}({})", join(args)),
@@ -374,7 +357,7 @@ impl SsaContext {
         id
     }
 
-    pub fn get_ssa_func(&self, func_id: FuncId) -> Option<&SSAFunction> {
+    pub fn ssa_func(&self, func_id: FuncId) -> Option<&SsaFunction> {
         self.functions.get(&func_id)
     }
 
@@ -385,8 +368,8 @@ impl SsaContext {
         }
     }
 
-    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SSAFunction> {
-        self.try_get_func_id(id).and_then(|id| self.get_ssa_func(id))
+    pub fn try_get_ssa_func(&self, id: NodeId) -> Option<&SsaFunction> {
+        self.try_get_func_id(id).and_then(|id| self.ssa_func(id))
     }
 
     pub fn dummy_id() -> arena::Index {
@@ -401,7 +384,7 @@ impl SsaContext {
         self.nodes.get_mut(id.0)
     }
 
-    pub fn get_object_type(&self, id: NodeId) -> node::ObjectType {
+    pub fn object_type(&self, id: NodeId) -> node::ObjectType {
         self[id].get_type()
     }
 
@@ -413,11 +396,11 @@ impl SsaContext {
         None
     }
 
-    pub fn get_instruction(&self, id: NodeId) -> &node::Instruction {
+    pub fn instruction(&self, id: NodeId) -> &node::Instruction {
         self.try_get_instruction(id).expect("Index not found or not an instruction")
     }
 
-    pub fn get_mut_instruction(&mut self, id: NodeId) -> &mut node::Instruction {
+    pub fn instruction_mut(&mut self, id: NodeId) -> &mut node::Instruction {
         self.try_get_mut_instruction(id).expect("Index not found or not an instruction")
     }
 
@@ -438,7 +421,7 @@ impl SsaContext {
     pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -453,7 +436,7 @@ impl SsaContext {
     ) -> Result<&mut node::Variable, RuntimeErrorKind> {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -479,14 +462,14 @@ impl SsaContext {
         None
     }
 
-    pub fn get_root_value(&self, id: NodeId) -> NodeId {
-        self.get_variable(id).map(|v| v.get_root()).unwrap_or(id)
+    pub fn root_value(&self, id: NodeId) -> NodeId {
+        self.get_variable(id).map(|v| v.root()).unwrap_or(id)
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
-        let id = NodeId(self.nodes.insert(NodeObject::Obj(obj)));
+        let id = NodeId(self.nodes.insert(NodeObject::Variable(obj)));
         match &mut self[id] {
-            node::NodeObject::Obj(v) => {
+            node::NodeObject::Variable(v) => {
                 v.id = id;
                 v.root = root;
             }
@@ -502,7 +485,7 @@ impl SsaContext {
         new_value: NodeId,
         block_id: BlockId,
     ) {
-        let root_id = self.get_root_value(var_id);
+        let root_id = self.root_value(var_id);
         let root = self.get_variable(root_id).unwrap();
         let root_name = root.name.clone();
         let cb = &mut self[block_id];
@@ -604,7 +587,7 @@ impl SsaContext {
         })
     }
 
-    //Return the type of the operation result, based on the left hand type
+    // Return the type of the operation result, based on the left hand type
     pub fn get_result_type(&self, op: &Operation, lhs_type: node::ObjectType) -> node::ObjectType {
         use {BinaryOp::*, Operation::*};
         match op {
@@ -656,7 +639,7 @@ impl SsaContext {
         (self.add_variable(new_var, None), array_index)
     }
 
-    //returns the value of the element array[index], if it exists in the memory_map
+    // Returns the value of the element array[index], if it exists in the memory_map
     pub fn get_indexed_value(&self, array_id: ArrayId, index: NodeId) -> Option<&NodeId> {
         if let Some(idx) = Memory::to_u32(self, index) {
             self.mem.get_value_from_map(array_id, idx)
@@ -664,7 +647,7 @@ impl SsaContext {
             None
         }
     }
-    //blocks/////////////////////////
+
     pub fn try_get_block_mut(&mut self, id: BlockId) -> Option<&mut block::BasicBlock> {
         self.blocks.get_mut(id.0)
     }
@@ -694,6 +677,7 @@ impl SsaContext {
         &mut self,
         evaluator: &mut Evaluator,
         enable_logging: bool,
+        show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
@@ -702,8 +686,8 @@ impl SsaContext {
         //Optimization
         block::compute_dom(self);
         optimizations::full_cse(self, self.first_block, false)?;
-        // the second cse is recommended because of opportunities occuring from the first one
-        // we could use an optimisation level that will run more cse pass
+        // The second cse is recommended because of opportunities occurring from the first one
+        // we could use an optimization level that will run more cse pass
         optimizations::full_cse(self, self.first_block, false)?;
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
@@ -739,7 +723,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator)?;
+        self.acir(evaluator, show_output)?;
         if enable_logging {
             print_acir_circuit(&evaluator.opcodes);
             println!("DONE");
@@ -748,13 +732,13 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+    pub fn acir(&self, evaluator: &mut Evaluator, show_output: bool) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
-                let ins = self.get_instruction(*iter);
-                acir.evaluate_instruction(ins, evaluator, self).map_err(RuntimeError::from)?;
+                let ins = self.instruction(*iter);
+                acir.acir_gen_instruction(ins, evaluator, self, show_output)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
@@ -775,7 +759,7 @@ impl SsaContext {
             }
         }
 
-        let v_type = self.get_object_type(phi_root);
+        let v_type = self.object_type(phi_root);
         let operation = Operation::Phi { root: phi_root, block_args: vec![] };
         let new_phi = Instruction::new(operation, v_type, Some(target_block));
         let phi_id = self.add_instruction(new_phi);
@@ -798,7 +782,8 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction(op_b, e_type)?;
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
                 self.new_instruction(op_a, l_type)?;
             }
         } else {
@@ -823,8 +808,8 @@ impl SsaContext {
         index: Option<NodeId>,
         rhs: NodeId,
     ) -> Result<NodeId, RuntimeError> {
-        let lhs_type = self.get_object_type(lhs);
-        let rhs_type = self.get_object_type(rhs);
+        let lhs_type = self.object_type(lhs);
+        let rhs_type = self.object_type(rhs);
 
         let mut ret_array = None;
         if let Some(Instruction {
@@ -849,7 +834,7 @@ impl SsaContext {
                 //Issue #579: we initialize the array, unless it is also in arguments in which case it is already initialized.
                 let mut init = false;
                 for i in arguments.clone() {
-                    if let ObjectType::Pointer(b) = self.get_object_type(i) {
+                    if let ObjectType::Pointer(b) = self.object_type(i) {
                         if a == b {
                             init = true;
                         }
@@ -878,7 +863,8 @@ impl SsaContext {
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store
-                let op_a = Operation::Store { array_id: a, index: idx, value: rhs };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx, value: rhs, predicate: None };
                 return self.new_instruction(op_a, self.mem[a].element_type);
             } else {
                 unreachable!("Index expression must be for an array");
@@ -907,7 +893,7 @@ impl SsaContext {
             witness: None,
             parent_block: self.current_block,
         };
-        let ls_root = lhs_obj.get_root();
+        let ls_root = lhs_obj.root();
         //ssa: we create a new variable a1 linked to a
         let new_var_id = self.add_variable(new_var, Some(ls_root));
         let op = Operation::Binary(node::Binary {
@@ -934,12 +920,25 @@ impl SsaContext {
     }
 
     fn init_array(&mut self, array_id: ArrayId, stack_frame: &mut StackFrame) {
-        let len = self.mem[array_id].len;
+        let len = self.mem[array_id].len as usize;
         let e_type = self.mem[array_id].element_type;
-        for i in 0..len {
+        let values = vec![self.zero_with_type(e_type); len];
+        self.init_array_from_values(array_id, values, stack_frame);
+    }
+
+    pub fn init_array_from_values(
+        &mut self,
+        array_id: ArrayId,
+        values: Vec<NodeId>,
+        stack_frame: &mut StackFrame,
+    ) {
+        let len = self.mem[array_id].len as usize;
+        let e_type = self.mem[array_id].element_type;
+        assert_eq!(len, values.len());
+        for (i, v) in values.iter().enumerate() {
             let index =
                 self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-            let op_a = Operation::Store { array_id, index, value: self.zero_with_type(e_type) };
+            let op_a = Operation::Store { array_id, index, value: *v, predicate: None };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
     }
@@ -964,7 +963,8 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let op_b = Operation::Load { array_id: b, index: idx_b };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
-                let op_a = Operation::Store { array_id: a, index: idx_a, value: load };
+                let op_a =
+                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
                 self.new_instruction_inline(op_a, l_type, stack_frame);
             }
         } else {
@@ -979,8 +979,8 @@ impl SsaContext {
         stack_frame: &mut inline::StackFrame,
         block_id: BlockId,
     ) -> NodeId {
-        let lhs_type = self.get_object_type(lhs);
-        let rhs_type = self.get_object_type(rhs);
+        let lhs_type = self.object_type(lhs);
+        let rhs_type = self.object_type(rhs);
         if let ObjectType::Pointer(a) = lhs_type {
             //Array
             let b = stack_frame.get_or_default(a);
@@ -998,7 +998,7 @@ impl SsaContext {
                 witness: None,
                 parent_block: self.current_block,
             };
-            let ls_root = lhs_obj.get_root();
+            let ls_root = lhs_obj.root();
             //ssa: we create a new variable a1 linked to a
             let new_var_id = self.add_variable(new_var, Some(ls_root));
             //ass
@@ -1040,7 +1040,7 @@ impl SsaContext {
         let block1 = self[exit_block].predecessor[0];
         let block2 = self[exit_block].predecessor[1];
 
-        let a_type = self.get_object_type(a);
+        let a_type = self.object_type(a);
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
@@ -1060,7 +1060,7 @@ impl SsaContext {
                 let v2 = self.new_instruction(op, el_type).unwrap();
                 self.current_block = exit_block;
                 let v = self.new_phi(v1, v2, c);
-                let op = Operation::Store { array_id, index, value: v };
+                let op = Operation::Store { array_id, index, value: v, predicate: None };
                 self.new_instruction(op, el_type).unwrap();
             }
             id
@@ -1093,7 +1093,7 @@ impl SsaContext {
     }
 
     pub fn function_already_compiled(&self, func_id: FuncId) -> bool {
-        self.get_ssa_func(func_id).is_some()
+        self.ssa_func(func_id).is_some()
     }
 
     pub fn get_or_create_opcode_node_id(&mut self, opcode: builtin::Opcode) -> NodeId {
@@ -1108,15 +1108,46 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
+    pub fn get_builtin_opcode(
+        &self,
+        node_id: NodeId,
+        arguments: &[Expression],
+    ) -> Option<builtin::Opcode> {
         match &self[node_id] {
-            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
+            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
+                builtin::Opcode::Println(_) => {
+                    // Compiler sanity check. This should be caught during typechecking
+                    assert_eq!(
+                        arguments.len(),
+                        1,
+                        "print statements currently only support one argument"
+                    );
+                    let is_string = match &arguments[0] {
+                        Expression::Ident(ident) => match ident.typ {
+                            Type::String(_) => true,
+                            Type::Tuple(_) => {
+                                unreachable!("logging structs/tuples is not supported")
+                            }
+                            Type::Function { .. } => {
+                                unreachable!("logging functions is not supported")
+                            }
+                            _ => false,
+                        },
+                        Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
+                        _ => unreachable!("logging this expression type is not supported"),
+                    };
+                    Some(builtin::Opcode::Println(builtin::PrintlnInfo {
+                        is_string_output: is_string,
+                        show_output: true,
+                    }))
+                }
+                _ => Some(*opcode),
+            },
             _ => None,
         }
     }
 
-    pub fn convert_type(&mut self, t: &noirc_frontend::monomorphization::ast::Type) -> ObjectType {
-        use noirc_frontend::monomorphization::ast::Type;
+    pub fn convert_type(&mut self, t: &Type) -> ObjectType {
         use noirc_frontend::Signedness;
         match t {
             Type::Bool => ObjectType::Boolean,
