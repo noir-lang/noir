@@ -80,7 +80,9 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("prove")
-                .about("Create proof for this program")
+                .about(
+                    "Create proof for this program. The proof is returned as a hex encoded string.",
+                )
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
