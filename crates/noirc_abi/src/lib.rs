@@ -176,7 +176,7 @@ impl Abi {
                 Self::encode_value(value.clone(), key).map(|v| (key.clone(), v))
             })?;
 
-        // Write input field elements into witness indices specified in `abi_witness_map`.
+        // Write input field elements into witness indices specified in `self.param_witnesses`.
         let witness_map = encoded_input_map
             .iter()
             .flat_map(|(param_name, encoded_param_fields)| {
