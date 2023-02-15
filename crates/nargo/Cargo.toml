@@ -32,8 +32,8 @@ tempdir = "0.3.7"
 sha2 = "0.10.6"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/preprocess" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/preprocess" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/get_circuit_size" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", branch = "mv/get_circuit_size" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 
 [features]
