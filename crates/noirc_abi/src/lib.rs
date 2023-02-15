@@ -169,16 +169,12 @@ impl Abi {
         &self,
         input_map: &BTreeMap<String, InputValue>,
     ) -> Result<BTreeMap<Witness, FieldElement>, AbiError> {
-        // TODO: Avoid this clone
-        let mut input_map = input_map.clone();
-
-        // Remove the return value parameter
-        input_map.remove(MAIN_RETURN_NAME);
+        // TODO: add handling for unexpected inputs similarly to how we to in `encode_to_array`.
 
         // First encode each input separately
         let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
             try_btree_map(input_map, |(key, value)| {
-                Self::encode_value(value, &key).map(|v| (key.clone(), v))
+                Self::encode_value(value.clone(), key).map(|v| (key.clone(), v))
             })?;
 
         // Write input field elements into witness indices specified in `abi_witness_map`.
