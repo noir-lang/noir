@@ -57,7 +57,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
-    let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
+    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_inputs = extract_public_inputs(&public_abi, &solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
     // Since the public outputs are added onto the public inputs list, there can be duplicates.

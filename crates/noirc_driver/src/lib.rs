@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 use acvm::acir::circuit::Circuit;
 
-use acvm::acir::native_types::Witness;
 use acvm::Language;
 use fm::FileType;
 use noirc_abi::Abi;
@@ -13,7 +12,6 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub struct Driver {
@@ -24,7 +22,6 @@ pub struct Driver {
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub abi: Option<noirc_abi::Abi>,
-    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
 }
 
 impl Driver {
@@ -185,7 +182,7 @@ impl Driver {
 
         // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.into_abi(&self.context.def_interner);
+        let mut abi = func_meta.into_abi(&self.context.def_interner);
 
         let program = monomorphize(main_function, &self.context.def_interner);
 
@@ -204,7 +201,10 @@ impl Driver {
                 }
             };
 
-        Ok(CompiledProgram { circuit, abi: Some(abi), param_witnesses })
+        // TODO: Try to avoid this hack.
+        abi.param_witnesses = param_witnesses;
+
+        Ok(CompiledProgram { circuit, abi: Some(abi) })
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]

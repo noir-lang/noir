@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 use std::{collections::BTreeMap, convert::TryInto, str};
 
-use acvm::FieldElement;
+use acvm::{acir::native_types::Witness, FieldElement};
 use errors::AbiError;
 use input_parser::InputValue;
 use serde::{Deserialize, Serialize};
@@ -120,6 +120,7 @@ impl AbiParameter {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     pub parameters: Vec<AbiParameter>,
+    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
 }
 
 impl Abi {
@@ -149,7 +150,12 @@ impl Abi {
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> =
             self.parameters.into_iter().filter(|param| param.is_public()).collect();
-        Abi { parameters }
+        let param_witnesses = self
+            .param_witnesses
+            .into_iter()
+            .filter(|(param_name, _)| parameters.iter().any(|param| &param.name == param_name))
+            .collect();
+        Abi { parameters, param_witnesses }
     }
 
     /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.

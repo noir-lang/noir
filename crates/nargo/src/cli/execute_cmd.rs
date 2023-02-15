@@ -7,7 +7,7 @@ use clap::ArgMatches;
 use iter_extended::{try_btree_map, vecmap};
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{decode_value, encode_value, AbiParameter, MAIN_RETURN_NAME};
+use noirc_abi::{decode_value, encode_value, Abi, AbiParameter, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
 use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
@@ -67,7 +67,8 @@ pub(crate) fn execute_program(
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
-    let public_inputs = extract_public_inputs(compiled_program, &solved_witness)?;
+    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_inputs = extract_public_inputs(&public_abi, &solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 
     Ok((return_value, solved_witness))
@@ -77,8 +78,10 @@ pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness = input_map_to_witness_map(input_map, &compiled_program.param_witnesses)
-        .map_err(|error| match error {
+    let abi = compiled_program.abi.as_ref().unwrap();
+
+    let mut solved_witness =
+        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
             }
@@ -95,10 +98,7 @@ pub(crate) fn solve_witness(
 ///
 /// In particular, this method shows one how to associate values in a Toml/JSON
 /// file with witness indices
-fn input_map_to_witness_map(
-    input_map: &InputMap,
-    abi_witness_map: &BTreeMap<String, Vec<Witness>>,
-) -> Result<WitnessMap, AbiError> {
+fn input_map_to_witness_map(abi: &Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
     // First encode each input separately
     let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
         try_btree_map(input_map, |(key, value)| {
@@ -109,7 +109,7 @@ fn input_map_to_witness_map(
     let witness_map = encoded_input_map
         .iter()
         .flat_map(|(param_name, encoded_param_fields)| {
-            let param_witness_indices = &abi_witness_map[param_name];
+            let param_witness_indices = &abi.param_witnesses[param_name];
             param_witness_indices
                 .iter()
                 .zip(encoded_param_fields.iter())
@@ -121,17 +121,15 @@ fn input_map_to_witness_map(
 }
 
 pub(crate) fn extract_public_inputs(
-    compiled_program: &CompiledProgram,
+    public_abi: &Abi,
     solved_witness: &WitnessMap,
 ) -> Result<InputMap, AbiError> {
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-
     let public_inputs_map = public_abi
         .parameters
         .iter()
         .map(|AbiParameter { name, typ, .. }| {
             let param_witness_values =
-                vecmap(compiled_program.param_witnesses[name].clone(), |witness_index| {
+                vecmap(public_abi.param_witnesses[name].clone(), |witness_index| {
                     solved_witness[&witness_index]
                 });
 
