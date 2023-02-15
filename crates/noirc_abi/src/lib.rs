@@ -169,7 +169,9 @@ impl Abi {
         &self,
         input_map: &BTreeMap<String, InputValue>,
     ) -> Result<BTreeMap<Witness, FieldElement>, AbiError> {
-        // TODO: add handling for unexpected inputs similarly to how we to in `encode_to_array`.
+        // TODO: add handling for missing inputs similarly to how we do in `encode_to_array`.
+
+        self.check_for_unexpected_inputs(input_map)?;
 
         // First encode each input separately
         let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
@@ -197,32 +199,39 @@ impl Abi {
         self,
         inputs: &BTreeMap<String, InputValue>,
     ) -> Result<Vec<FieldElement>, AbiError> {
-        let parameters = self.parameters.clone();
-        let param_names: Vec<&String> = parameters.iter().map(|param| &param.name).collect();
         let mut encoded_inputs = Vec::new();
 
-        for param in self.parameters {
+        self.check_for_unexpected_inputs(inputs)?;
+
+        for param in &self.parameters {
             let value = inputs
                 .get(&param.name)
                 .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
                 .clone();
 
             if !value.matches_abi(&param.typ) {
-                return Err(AbiError::TypeMismatch { param, value });
+                return Err(AbiError::TypeMismatch { param: param.clone(), value });
             }
 
             encoded_inputs.extend(Self::encode_value(value, &param.name)?);
         }
 
-        // Check that no extra witness values have been provided.
-        // Any missing values should be caught by the above for-loop so this only catches extra values.
-        if param_names.len() != inputs.len() {
+        Ok(encoded_inputs)
+    }
+
+    /// Checks that no extra witness values have been provided.
+    fn check_for_unexpected_inputs(
+        &self,
+        inputs: &BTreeMap<String, InputValue>,
+    ) -> Result<(), AbiError> {
+        let param_names = self.parameter_names();
+        if param_names.len() < inputs.len() {
             let unexpected_params: Vec<String> =
                 inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
             return Err(AbiError::UnexpectedParams(unexpected_params));
         }
 
-        Ok(encoded_inputs)
+        Ok(())
     }
 
     fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
