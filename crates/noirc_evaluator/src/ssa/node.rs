@@ -107,6 +107,9 @@ impl NodeId {
     pub fn dummy() -> NodeId {
         NodeId(SsaContext::dummy_id())
     }
+    pub fn is_dummy(&self) -> bool {
+        self.0 == SsaContext::dummy_id()
+    }
 }
 
 #[derive(Debug)]
@@ -518,6 +521,7 @@ pub enum Operation {
         array_id: ArrayId,
         index: NodeId,
         value: NodeId,
+        predicate: Option<NodeId>,
     },
 
     Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
@@ -618,6 +622,39 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
+}
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let op = match &self {
+            BinaryOp::Add => "add",
+            BinaryOp::SafeAdd => "safe_add",
+            BinaryOp::Sub { .. } => "sub",
+            BinaryOp::SafeSub { .. } => "safe_sub",
+            BinaryOp::Mul => "mul",
+            BinaryOp::SafeMul => "safe_mul",
+            BinaryOp::Udiv => "udiv",
+            BinaryOp::Sdiv => "sdiv",
+            BinaryOp::Urem => "urem",
+            BinaryOp::Srem => "srem",
+            BinaryOp::Div => "div",
+            BinaryOp::Eq => "eq",
+            BinaryOp::Ne => "ne",
+            BinaryOp::Ult => "ult",
+            BinaryOp::Ule => "ule",
+            BinaryOp::Slt => "slt",
+            BinaryOp::Sle => "sle",
+            BinaryOp::Lt => "lt",
+            BinaryOp::Lte => "lte",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::Xor => "xor",
+            BinaryOp::Assign => "assign",
+            BinaryOp::Shl => "shl",
+            BinaryOp::Shr => "shr",
+        };
+        write!(f, "{op}")
+    }
 }
 
 impl Binary {
@@ -1084,9 +1121,12 @@ impl Operation {
                 Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
             Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value } => {
-                Store { array_id: *array, index: f(*index), value: f(*value) }
-            }
+            Store { array_id: array, index, value, predicate } => Store {
+                array_id: *array,
+                index: f(*index),
+                value: f(*value),
+                predicate: predicate.as_ref().map(|pred| f(*pred)),
+            },
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
             Call { func: func_id, arguments, returned_arrays, predicate, location } => Call {
@@ -1131,9 +1171,10 @@ impl Operation {
                 *rhs = f(*rhs)
             }
             Load { index, .. } => *index = f(*index),
-            Store { index, value, .. } => {
+            Store { index, value, predicate, .. } => {
                 *index = f(*index);
                 *value = f(*value);
+                *predicate = predicate.as_mut().map(|pred| f(*pred));
             }
             Intrinsic(_, args) => {
                 for arg in args {

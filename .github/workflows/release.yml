@@ -17,6 +17,7 @@ jobs:
         id: release
         uses: google-github-actions/release-please-action@v3
         with:
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
           release-type: simple
           package-name: noir
           bump-minor-pre-major: true
@@ -35,6 +36,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.65.0
@@ -45,8 +47,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.name kevaundray
+          git config user.email kevtheappdev@gmail.com
 
       - name: Commit updates
         run: |
