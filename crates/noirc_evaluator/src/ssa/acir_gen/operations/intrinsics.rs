@@ -159,7 +159,7 @@ fn resolve_node_id(
 ) -> Vec<FunctionInput> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
-        node::NodeObject::Obj(v) => {
+        node::NodeObject::Variable(v) => {
             let node_obj_type = node_object.get_type();
             match node_obj_type {
                 // If the `Variable` represents a Pointer

@@ -28,7 +28,7 @@ impl std::fmt::Display for NodeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use FunctionKind::*;
         match self {
-            NodeObject::Obj(o) => write!(f, "{o}"),
+            NodeObject::Variable(o) => write!(f, "{o}"),
             NodeObject::Instr(i) => write!(f, "{i}"),
             NodeObject::Const(c) => write!(f, "{c}"),
             NodeObject::Function(Normal(id), ..) => write!(f, "f{}", id.0),
@@ -60,7 +60,7 @@ impl Node for Variable {
 impl Node for NodeObject {
     fn get_type(&self) -> ObjectType {
         match self {
-            NodeObject::Obj(o) => o.get_type(),
+            NodeObject::Variable(o) => o.get_type(),
             NodeObject::Instr(i) => i.res_type,
             NodeObject::Const(o) => o.value_type,
             NodeObject::Function(..) => ObjectType::Function,
@@ -69,7 +69,7 @@ impl Node for NodeObject {
 
     fn size_in_bits(&self) -> u32 {
         match self {
-            NodeObject::Obj(o) => o.size_in_bits(),
+            NodeObject::Variable(o) => o.size_in_bits(),
             NodeObject::Instr(i) => i.res_type.bits(),
             NodeObject::Const(c) => c.size_in_bits(),
             NodeObject::Function(..) => 0,
@@ -78,7 +78,7 @@ impl Node for NodeObject {
 
     fn id(&self) -> NodeId {
         match self {
-            NodeObject::Obj(o) => o.id(),
+            NodeObject::Variable(o) => o.id(),
             NodeObject::Instr(i) => i.id,
             NodeObject::Const(c) => c.id(),
             NodeObject::Function(_, id, _) => *id,
@@ -114,7 +114,7 @@ impl NodeId {
 
 #[derive(Debug)]
 pub enum NodeObject {
-    Obj(Variable),
+    Variable(Variable),
     Instr(Instruction),
     Const(Constant),
     Function(FunctionKind, NodeId, /*name:*/ String),
@@ -308,7 +308,7 @@ impl NodeEval {
                 NodeEval::Const(value, c.get_type())
             }
             NodeObject::Function(f, id, _name) => NodeEval::Function(*f, *id),
-            NodeObject::Obj(_) | NodeObject::Instr(_) => NodeEval::VarOrInstruction(id),
+            NodeObject::Variable(_) | NodeObject::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
 
