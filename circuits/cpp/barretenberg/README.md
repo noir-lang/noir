@@ -122,6 +122,8 @@ wasmtime --dir=.. ./bin/ecc_tests
 
 ### Fuzzing build
 
+For detailed instructions look in cpp/docs/Fuzzing.md
+
 To build:
 ```
 mkdir build-fuzzing && cd build-fuzzing
@@ -134,3 +136,26 @@ To turn on address sanitizer add `-DADDRESS_SANITIZER=ON`. Note that address san
 Sometimes you might have to specify the address of llvm-symbolizer. You have to do it with `export ASAN_SYMBOLIZER_PATH=<PATH_TO_SYMBOLIZER>`.
 For undefined behaviour sanitizer `-DUNDEFINED_BEHAVIOUR_SANITIZER=ON`.
 Note that the fuzzer can be orders of magnitude slower with ASan (2-3x slower) or UBSan on, so it is best to run a non-sanitized build first, minimize the testcase and then run it for a bit of time with sanitizers.
+
+### Test coverage build
+
+To build:
+```
+mkdir build-coverage && cd build-coverage
+cmake -DTOOLCHAIN=x86_64-linux-clang -DCOVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build . --parallel
+```
+
+Then run tests (on the mainframe always use taskset and nice to limit your influence on the server. Profiling instrumentation is very heavy):
+```
+taskset 0xffffff nice -n10 make test
+```
+
+And generate report:
+```
+make create_full_coverage_report
+```
+
+The report will land in the build directory in the all_test_coverage_report directory.
+
+Alternatively you can build separate test binaries, e.g. honk_tests or numeric_tests and run **make test** just for them or even just for a single test. Then the report will just show coverage for those binaries
