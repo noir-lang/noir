@@ -81,7 +81,12 @@ pub fn start_cli() {
                     Arg::with_name("test_name")
                         .help("If given, only tests with names containing this string will be run"),
                 )
-                .arg(allow_warnings.clone()),
+                .arg(allow_warnings.clone())
+                .arg(
+                    Arg::with_name("show-logs")
+                        .long("show-logs")
+                        .help("Display output of println statements during tests"),
+                ),
         )
         .subcommand(
             App::new("compile")

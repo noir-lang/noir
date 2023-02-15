@@ -6,7 +6,6 @@ use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, vecmap};
 use serde::{Deserialize, Serialize};
-
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
@@ -316,19 +315,10 @@ impl Abi {
                 InputValue::Vec(field_elements)
             }
             AbiType::String { length } => {
-                let string_as_slice: Vec<u8> = field_iterator
-                    .take(*length as usize)
-                    .map(|e| {
-                        let mut field_as_bytes = e.to_be_bytes();
-                        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-                        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-                        char_byte
-                    })
-                    .collect();
+                let field_elements: Vec<FieldElement> =
+                    field_iterator.take(*length as usize).collect();
 
-                let final_string = str::from_utf8(&string_as_slice).unwrap();
-
-                InputValue::String(final_string.to_owned())
+                InputValue::String(decode_string_value(&field_elements))
             }
             AbiType::Struct { fields, .. } => {
                 let mut struct_map = BTreeMap::new();
@@ -345,4 +335,16 @@ impl Abi {
 
         Ok(value)
     }
+}
+
+pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
+    let string_as_slice = vecmap(field_elements, |e| {
+        let mut field_as_bytes = e.to_be_bytes();
+        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+        char_byte
+    });
+
+    let final_string = str::from_utf8(&string_as_slice).unwrap();
+    final_string.to_owned()
 }
