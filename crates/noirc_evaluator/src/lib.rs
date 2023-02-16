@@ -307,5 +307,9 @@ impl Evaluator {
             self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, ir_gen)
                 .unwrap();
         }
+
+        // Store the number of witnesses used to represent the types
+        // in the ABI
+        self.num_witnesses_abi_len = self.current_witness_index as usize;
     }
 }
