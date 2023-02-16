@@ -181,16 +181,12 @@ impl Driver {
             local_crate.main_function().expect("cannot compile a program with no main function")
         });
 
-        // Create ABI for main function
-        let func_meta = self.context.def_interner.function_meta(&main_function);
-        let mut abi = func_meta.into_abi(&self.context.def_interner);
-
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        let (circuit, param_witnesses) =
+        let (circuit, abi) =
             match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
-                Ok((circuit, param_witnesses)) => (circuit, param_witnesses),
+                Ok((circuit, abi)) => (circuit, abi),
                 Err(err) => {
                     // The FileId here will be the file id of the file with the main file
                     // Errors will be shown at the call site without a stacktrace
@@ -201,9 +197,6 @@ impl Driver {
                     return Err(ReportedError);
                 }
             };
-
-        // TODO: Try to avoid this hack.
-        abi.param_witnesses = param_witnesses;
 
         Ok(CompiledProgram { circuit, abi: Some(abi) })
     }

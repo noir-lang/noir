@@ -10,7 +10,7 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::AbiType;
+use noirc_abi::{Abi, AbiType};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::BTreeMap;
@@ -40,21 +40,24 @@ pub fn create_circuit(
     is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
     show_output: bool,
-) -> Result<(Circuit, BTreeMap<String, Vec<Witness>>), RuntimeError> {
+) -> Result<(Circuit, Abi), RuntimeError> {
     let mut evaluator = Evaluator::new();
 
     // First evaluate the main function
     evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
-    let public_inputs = program
-        .abi
+    let witness_index = evaluator.current_witness_index();
+
+    let mut abi = program.abi;
+    abi.param_witnesses = evaluator.param_witnesses;
+
+    let public_inputs = abi
+        .clone()
         .public_abi()
         .parameter_names()
         .into_iter()
-        .flat_map(|param_name| evaluator.param_witnesses[param_name].clone())
+        .flat_map(|param_name| abi.param_witnesses[param_name].clone())
         .collect();
-
-    let witness_index = evaluator.current_witness_index();
 
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
@@ -67,7 +70,7 @@ pub fn create_circuit(
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
-    Ok((optimized_circuit, evaluator.param_witnesses))
+    Ok((optimized_circuit, abi))
 }
 
 impl Evaluator {
