@@ -5,8 +5,7 @@ use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 
 use super::{
-    create_named_dir, dedup_public_input_indices, fetch_pk_and_vk, read_inputs_from_file,
-    write_inputs_to_file, write_to_file,
+    create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
 };
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
@@ -80,17 +79,12 @@ pub fn prove_with_path<P: AsRef<Path>>(
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.clone().public_abi();
-    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
+    let public_inputs = public_abi.decode(&solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
-    // Since the public outputs are added onto the public inputs list, there can be duplicates.
-    // We keep the duplicates for when one is encoding the return values into the Verifier.toml,
-    // however we must remove these duplicates when creating a proof.
-    let mut prover_circuit = compiled_program.circuit.clone();
-    prover_circuit.public_inputs = dedup_public_input_indices(prover_circuit.public_inputs);
-
     let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_pk(prover_circuit, solved_witness, proving_key);
+    let proof =
+        backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
 
     println!("Proof successfully created");
     if check_proof {

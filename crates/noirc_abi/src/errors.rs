@@ -40,8 +40,6 @@ pub enum AbiError {
     MissingParam(String),
     #[error("Input value `{0}` is not defined")]
     UndefinedInput(String),
-    #[error("ABI specifies an input of length {expected} but received input of length {actual}")]
-    UnexpectedInputLength { expected: u32, actual: u32 },
     #[error(
         "Could not read witness value at index {witness_index:?} (required for parameter \"{name}\")"
     )]

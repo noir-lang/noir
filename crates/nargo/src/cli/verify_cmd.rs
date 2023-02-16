@@ -1,12 +1,11 @@
 use super::{
-    compile_cmd::compile_circuit, dedup_public_input_indices_values, fetch_pk_and_vk,
-    load_hex_data, read_inputs_from_file, InputMap,
+    compile_cmd::compile_circuit, fetch_pk_and_vk, load_hex_data, read_inputs_from_file, InputMap,
 };
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::ProofSystemCompiler;
+use acvm::{FieldElement, ProofSystemCompiler};
 use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
@@ -81,30 +80,26 @@ pub fn verify_with_path<P: AsRef<Path>>(
 }
 
 pub(crate) fn verify_proof(
-    mut compiled_program: CompiledProgram,
+    compiled_program: CompiledProgram,
     public_inputs_map: InputMap,
     proof: &[u8],
     verification_key: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.public_abi();
     let public_inputs =
-        public_abi.encode_to_array(&public_inputs_map).map_err(|error| match error {
+        public_abi.encode(&public_inputs_map, false).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
             }
             _ => CliError::from(error),
         })?;
 
-    // Similarly to when proving -- we must remove the duplicate public witnesses which
-    // can be present because a public input can also be added as a public output.
-    let (dedup_public_indices, dedup_public_values) =
-        dedup_public_input_indices_values(compiled_program.circuit.public_inputs, public_inputs);
-    compiled_program.circuit.public_inputs = dedup_public_indices;
+    let public_inputs_vec: Vec<FieldElement> = public_inputs.values().copied().collect();
 
     let backend = crate::backends::ConcreteBackend;
     let valid_proof = backend.verify_with_vk(
         proof,
-        dedup_public_values,
+        public_inputs_vec,
         compiled_program.circuit,
         verification_key,
     );

@@ -13,7 +13,7 @@ use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub struct Evaluator {
     // Why is this not u64?
@@ -29,7 +29,7 @@ pub struct Evaluator {
     // This is the list of witness indices which are linked to public inputs.
     // Witnesses below `num_witnesses_abi_len` and not included in this set
     // correspond to private inputs and must not be made public.
-    public_inputs: Vec<Witness>,
+    public_inputs: BTreeSet<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -55,11 +55,12 @@ pub fn create_circuit(
     let mut abi = program.abi;
     abi.param_witnesses = evaluator.param_witnesses;
 
+    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(evaluator.public_inputs),
+            public_inputs: PublicInputs(public_inputs),
         },
         np_language,
         is_blackbox_supported,
@@ -73,7 +74,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             num_witnesses_abi_len: 0,
-            public_inputs: Vec::new(),
+            public_inputs: BTreeSet::new(),
             param_witnesses: BTreeMap::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
