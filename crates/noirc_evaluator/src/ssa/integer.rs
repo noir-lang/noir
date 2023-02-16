@@ -97,7 +97,7 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObject::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
+        NodeObject::Variable(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, value_map),
         NodeObject::Const(c) => c.value.clone(), //TODO panic for string constants
         NodeObject::Function(..) => BigUint::zero(),
