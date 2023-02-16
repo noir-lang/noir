@@ -5,15 +5,15 @@ use clap::Args;
 use noirc_abi::input_parser::Format;
 
 use super::{
-    create_named_dir, dedup_public_input_indices, read_inputs_from_file, write_inputs_to_file,
-    write_to_file, NargoConfig,
+    create_named_dir, dedup_public_input_indices, fetch_pk_and_vk, read_inputs_from_file,
+    write_inputs_to_file, write_to_file, NargoConfig,
 };
 use crate::{
     cli::{
         execute_cmd::{execute_program, extract_public_inputs},
         verify_cmd::verify_proof,
     },
-    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
+    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
@@ -22,6 +22,9 @@ use crate::{
 pub(crate) struct ProveCommand {
     /// The name of the proof
     proof_name: Option<String>,
+
+    /// The name of the circuit build files (ACIR, proving and verification keys)
+    circuit_name: Option<String>,
 
     /// Verify proof after proving
     #[arg(short, long)]
@@ -40,10 +43,20 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     let mut proof_dir = config.program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
+    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
+        let mut circuit_build_path = config.program_dir.clone();
+        circuit_build_path.push(TARGET_DIR);
+        circuit_build_path.push(circuit_name);
+        Some(circuit_build_path)
+    } else {
+        None
+    };
+
     prove_with_path(
         args.proof_name,
         config.program_dir,
         proof_dir,
+        circuit_build_path,
         args.verify,
         args.show_ssa,
         args.allow_warnings,
@@ -56,19 +69,26 @@ pub fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
+    circuit_build_path: Option<P>,
     check_proof: bool,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
     let compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+    let (proving_key, verification_key) = fetch_pk_and_vk(
+        compiled_program.circuit.clone(),
+        circuit_build_path.as_ref(),
+        true,
+        check_proof,
+    )?;
 
     // Parse the initial witness values from Prover.toml
     let inputs_map = read_inputs_from_file(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.as_ref().unwrap().clone(),
+        &compiled_program.abi,
     )?;
 
     let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
@@ -84,11 +104,11 @@ pub fn prove_with_path<P: AsRef<Path>>(
     prover_circuit.public_inputs = dedup_public_input_indices(prover_circuit.public_inputs);
 
     let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_meta(prover_circuit, solved_witness);
+    let proof = backend.prove_with_pk(prover_circuit, solved_witness, proving_key);
 
     println!("Proof successfully created");
     if check_proof {
-        let valid_proof = verify_proof(compiled_program, public_inputs, &proof)?;
+        let valid_proof = verify_proof(compiled_program, public_inputs, &proof, verification_key)?;
         println!("Proof verified : {valid_proof}");
         if !valid_proof {
             return Err(CliError::Generic("Could not verify generated proof".to_owned()));

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
     input_string: &str,
-    abi: Abi,
+    abi: &Abi,
 ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
     // Parse input.toml into a BTreeMap.
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string)?;
