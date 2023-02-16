@@ -44,12 +44,12 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let mut public_inputs_map: InputMap = BTreeMap::new();
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
-    let public_abi = compiled_program.abi.clone().unwrap().public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
     let num_pub_params = public_abi.num_parameters();
     if num_pub_params != 0 {
         let current_dir = program_dir;
         public_inputs_map =
-            read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
+            read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
     }
 
     let valid_proof = verify_proof(compiled_program, public_inputs_map, &load_proof(proof_path)?)?;
@@ -62,7 +62,7 @@ pub(crate) fn verify_proof(
     public_inputs_map: InputMap,
     proof: &[u8],
 ) -> Result<bool, CliError> {
-    let public_abi = compiled_program.abi.unwrap().public_abi();
+    let public_abi = compiled_program.abi.public_abi();
     let public_inputs =
         public_abi.encode(&public_inputs_map, false).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {

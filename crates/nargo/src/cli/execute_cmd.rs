@@ -56,7 +56,7 @@ fn execute_with_path<P: AsRef<Path>>(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.as_ref().unwrap().clone(),
+        &compiled_program.abi,
     )?;
 
     execute_program(&compiled_program, &inputs_map)
@@ -87,7 +87,7 @@ pub(crate) fn extract_public_inputs(
         .map(|index| solved_witness[index])
         .collect();
 
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
 
     public_abi.decode(&encoded_public_inputs)
 }
@@ -96,7 +96,7 @@ pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap().clone();
+    let abi = compiled_program.abi.clone();
     let mut solved_witness =
         input_map_to_witness_map(abi, input_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
