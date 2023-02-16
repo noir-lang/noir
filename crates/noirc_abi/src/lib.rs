@@ -350,3 +350,60 @@ pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
     let final_string = str::from_utf8(&string_as_slice).unwrap();
     final_string.to_owned()
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use acvm::{acir::native_types::Witness, FieldElement};
+
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, InputMap,
+        MAIN_RETURN_NAME,
+    };
+
+    #[test]
+    fn witness_encoding_roundtrip() {
+        let abi = Abi {
+            parameters: vec![
+                AbiParameter {
+                    name: "thing1".to_string(),
+                    typ: AbiType::Array { length: 2, typ: Box::new(AbiType::Field) },
+                    visibility: AbiVisibility::Public,
+                },
+                AbiParameter {
+                    name: "thing2".to_string(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Public,
+                },
+                AbiParameter {
+                    name: MAIN_RETURN_NAME.to_string(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Public,
+                },
+            ],
+            // Note that the return value shares a witness with `thing2`
+            param_witnesses: BTreeMap::from([
+                ("thing1".to_string(), vec![Witness(1), Witness(2)]),
+                ("thing2".to_string(), vec![Witness(3)]),
+                (MAIN_RETURN_NAME.to_string(), vec![Witness(3)]),
+            ]),
+        };
+
+        // Note we omit return value from inputs
+        let inputs: InputMap = BTreeMap::from([
+            ("thing1".to_string(), InputValue::Vec(vec![FieldElement::one(), FieldElement::one()])),
+            ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
+        ]);
+
+        let witness_map = abi.encode_to_witness(&inputs).unwrap();
+        let reconstructed_inputs = abi.decode_from_witness(&witness_map).unwrap();
+
+        for (key, expected_value) in inputs {
+            assert_eq!(reconstructed_inputs[&key], expected_value);
+        }
+
+        // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
+        assert_eq!(reconstructed_inputs[MAIN_RETURN_NAME], reconstructed_inputs["thing2"])
+    }
+}
