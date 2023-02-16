@@ -51,7 +51,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.as_ref().unwrap().clone(),
+        compiled_program.abi.clone(),
     )?;
 
     let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
