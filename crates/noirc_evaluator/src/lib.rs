@@ -46,7 +46,6 @@ pub fn create_circuit(
     // First evaluate the main function
     evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
-    // TODO: shrink this ungodly mess.
     let public_inputs = program
         .abi
         .public_abi()
