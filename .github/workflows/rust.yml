@@ -21,5 +21,6 @@ jobs:
     uses: noir-lang/.github/.github/workflows/rust-format.yml@main
 
   spellcheck:
+    if: ${{ github.event_name == 'push' }}
     name: Spellcheck
     uses: noir-lang/.github/.github/workflows/spellcheck.yml@main
