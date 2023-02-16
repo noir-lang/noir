@@ -1887,8 +1887,8 @@ dependencies = [
 name = "noir_wasm"
 version = "0.1.1"
 dependencies = [
- "build-data",
  "acvm 0.4.1",
+ "build-data",
  "console_error_panic_hook",
  "getrandom",
  "gloo-utils",
