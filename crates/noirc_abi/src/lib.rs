@@ -125,7 +125,10 @@ impl AbiParameter {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
+    /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
+    /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
+    /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Witness>>,
 }
 
