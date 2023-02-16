@@ -184,21 +184,19 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
-        let (circuit, abi) =
-            match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
-                Ok((circuit, abi)) => (circuit, abi),
-                Err(err) => {
-                    // The FileId here will be the file id of the file with the main file
-                    // Errors will be shown at the call site without a stacktrace
-                    let file = err.location.map(|loc| loc.file);
-                    let files = &self.context.file_manager;
-                    let error = reporter::report(files, &err.into(), file, allow_warnings);
-                    reporter::finish_report(error as u32)?;
-                    return Err(ReportedError);
-                }
-            };
 
-        Ok(CompiledProgram { circuit, abi: Some(abi) })
+        match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
+            Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
+            Err(err) => {
+                // The FileId here will be the file id of the file with the main file
+                // Errors will be shown at the call site without a stacktrace
+                let file = err.location.map(|loc| loc.file);
+                let files = &self.context.file_manager;
+                let error = reporter::report(files, &err.into(), file, allow_warnings);
+                reporter::finish_report(error as u32)?;
+                return Err(ReportedError);
+            }
+        }
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]
