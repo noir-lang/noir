@@ -194,7 +194,7 @@ impl Driver {
                 let files = &self.context.file_manager;
                 let error = reporter::report(files, &err.into(), file, allow_warnings);
                 reporter::finish_report(error as u32)?;
-                return Err(ReportedError);
+                Err(ReportedError)
             }
         }
     }
