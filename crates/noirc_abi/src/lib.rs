@@ -189,7 +189,7 @@ impl Abi {
                     return Err(AbiError::TypeMismatch { param: missing_param, value });
                 }
 
-                Self::encode_value(value.clone(), &param_name).map(|v| (param_name, v))
+                Self::encode_value(value, &param_name).map(|v| (param_name, v))
             })
             .collect::<Result<_, _>>()?;
 
