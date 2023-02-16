@@ -19,7 +19,3 @@ jobs:
   format:
     name: Cargo fmt
     uses: noir-lang/.github/.github/workflows/rust-format.yml@main
-
-  spellcheck:
-    name: Spellcheck
-    uses: noir-lang/.github/.github/workflows/spellcheck.yml@main
