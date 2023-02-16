@@ -30,7 +30,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let allow_warnings = args.is_present("allow-warnings");
     let result = verify_with_path(program_dir, proof_path, false, allow_warnings)?;
-    println!("Proof verified : {result}\n");
+    println!("Proof verified : {result}");
     Ok(())
 }
 
