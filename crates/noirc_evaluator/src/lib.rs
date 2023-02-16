@@ -55,12 +55,11 @@ pub fn create_circuit(
     let mut abi = program.abi;
     abi.param_witnesses = evaluator.param_witnesses;
 
-    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(public_inputs),
+            public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
         is_blackbox_supported,
