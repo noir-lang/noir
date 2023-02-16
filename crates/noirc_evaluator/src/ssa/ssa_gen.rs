@@ -501,7 +501,12 @@ impl IrGenerator {
                         FieldElement::from((pos as u32) as u128),
                         ObjectType::NativeField,
                     );
-                    let store = Operation::Store { array_id, index: lhs_adr, value: object };
+                    let store = Operation::Store {
+                        array_id,
+                        index: lhs_adr,
+                        value: object,
+                        predicate: None,
+                    };
                     self.context.new_instruction(store, element_type)?;
                 }
                 Ok(Value::Node(new_var))
