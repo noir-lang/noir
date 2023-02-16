@@ -9,10 +9,7 @@ use super::{
     write_inputs_to_file, write_to_file,
 };
 use crate::{
-    cli::{
-        execute_cmd::{execute_program, extract_public_inputs},
-        verify_cmd::verify_proof,
-    },
+    cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
     constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
@@ -82,7 +79,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
-    let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
+    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
     // Since the public outputs are added onto the public inputs list, there can be duplicates.
