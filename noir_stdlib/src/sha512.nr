@@ -98,7 +98,7 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16]
 }
 
 // SHA-512 hash function
-fn digest(msg: [u8]) -> [u8; 64]
+fn digest<N>(msg: [u8; N]) -> [u8; 64]
 {
     let mut msg_block: [u8; 128] = [0; 128];
     let mut h: [u64; 8] = [7640891576956012808, 13503953896175478587, 4354685564936845355, 11912009170470909681, 5840696475078001361, 11170449401992604703, 2270897969802886507, 6620516959819538809]; // Intermediate hash, starting with the canonical initial value
@@ -110,44 +110,36 @@ fn digest(msg: [u8]) -> [u8; 64]
         // Populate msg_block
         msg_block[i] = msg[k];
         i = i + 1;
-        if i == 128 // Enough to hash block
-        {
+        if i == 128 { // Enough to hash block
             c = sha_c(msg_u8_to_u64(msg_block), h);
-            for j in 0..8
-            {
-                h[j] = c[j] + h[j];
-            };
+            for j in 0..8 {
+                h[j] += c[j];
+            }
             
             i = 0;
         }
-    };
+    }
 
     // Pad the rest such that we have a [u64; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
     msg_block[i] = 1 << 7;
-    i = i + 1;
+    i += 1;
     
     // If i >= 113, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
-    if i >= 113 // Not enough bits (128) to store length. Fill up with zeros.
-    {
-
-        if i < 128
-        {
-            for _i in 113..128
-            {
-                if i <= 127
-                {
+    if i >= 113 { // Not enough bits (128) to store length. Fill up with zeros.
+        if i < 128 {
+            for _i in 113..128 {
+                if i <= 127 {
                     msg_block[i] = 0;
-                    i = i + 1;
+                    i += 1;
                 }
-            };
+            }
         }
         c = sha_c(msg_u8_to_u64(msg_block), h);
-        for j in 0..8
-        {
-            h[j] = c[j] + h[j];
-        };
+        for j in 0..8 {
+            h[j] += c[j];
+        }
         
         i = 0;
     }
@@ -160,7 +152,7 @@ fn digest(msg: [u8]) -> [u8; 64]
             let mut len = 8 * msg.len() as u64; // u128 unsupported
             for j in 0..16 {
                 msg_block[127 - j] = len as u8;
-                len = len >> 8;
+                len >>= 8;
             }
             i += 16; // Done.
         }
@@ -169,14 +161,14 @@ fn digest(msg: [u8]) -> [u8; 64]
     // Hash final padded block
     c = sha_c(msg_u8_to_u64(msg_block), h);
     for j in 0..8 {
-        h[j] = c[j] + h[j];
+        h[j] += c[j];
     }
 
     // Return final hash as byte array
     for j in 0..8 {
         for k in 0..8 {
             out_h[63 - 8*j - k] = h[7 - j] as u8;
-            h[7-j] = h[7-j] >> 8;
+            h[7-j] >>= 8;
         }
     }
 

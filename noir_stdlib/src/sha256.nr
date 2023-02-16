@@ -100,7 +100,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16]
 
 // SHA-256 hash function
 #[alternative(sha256)]
-fn digest(msg: [u8]) -> [u8; 32] {
+fn digest<N>(msg: [u8; N]) -> [u8; 32] {
     let mut msg_block: [u8; 64] = [0; 64];
     let mut h: [u32; 8] = [1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut c: [u32; 8] = [0; 8]; // Compression of current message block as sequence of u32
@@ -140,7 +140,7 @@ fn digest(msg: [u8]) -> [u8; 32] {
         c = h;
         c = sha_c(msg_u8_to_u32(msg_block), c);
         for j in 0..8 {
-            h[j] = c[j] + h[j];
+            h[j] += c[j];
         }
         
         i = 0;
@@ -154,9 +154,9 @@ fn digest(msg: [u8]) -> [u8; 32] {
             let mut len = 8 * msg.len() as u64;
             for j in 0..8 {
                 msg_block[63 - j] = len as u8;
-                len = len >> 8;
-            };
-            i = i + 8;
+                len >>= 8;
+            }
+            i += 8;
         }
     }
 
@@ -164,14 +164,14 @@ fn digest(msg: [u8]) -> [u8; 32] {
     c = h;
     c = sha_c(msg_u8_to_u32(msg_block), c);
     for j in 0..8 {
-        h[j] = c[j] + h[j];
+        h[j] += c[j];
     }
 
     // Return final hash as byte array
     for j in 0..8 {
         for k in 0..4 {
             out_h[31 - 4*j - k] = h[7 - j] as u8;
-            h[7-j] = h[7-j] >> 8;
+            h[7-j] >>= 8;
         }
     }
 
