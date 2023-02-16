@@ -2,7 +2,6 @@ use acvm::{acir::circuit::PublicInputs, FieldElement};
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
-use git_version::git_version;
 use noirc_abi::{input_parser::Format, Abi, InputMap};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
@@ -27,8 +26,12 @@ mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
 
-const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
-const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+const GIT_HASH: &str = env!("GIT_COMMIT");
+const IS_DIRTY: &str = env!("GIT_DIRTY");
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+static VERSION_STRING: &str =
+    formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 
 pub fn start_cli() {
     let allow_warnings = Arg::with_name("allow-warnings")
@@ -68,7 +71,9 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("prove")
-                .about("Create proof for this program")
+                .about(
+                    "Create proof for this program. The proof is returned as a hex encoded string.",
+                )
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
