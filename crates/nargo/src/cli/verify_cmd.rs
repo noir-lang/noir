@@ -43,7 +43,8 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
     let result =
         verify_with_path(program_dir, proof_path, circuit_build_path, false, allow_warnings)?;
-    println!("Proof verified : {result}\n");
+    println!("Proof verified : {result}");
+    
     Ok(())
 }
 
