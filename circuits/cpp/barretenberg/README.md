@@ -2,8 +2,6 @@
 
 **This code is highly experimental, use at your own risk!**
 
-The structured reference string contains monomials up to x^{2^20}. This SRS was generated locally and is for testing and development purposes only!
-
 ### Dependencies
 
 - cmake >= 3.24
@@ -37,7 +35,7 @@ Use the `--parallel` option to `cmake --build <path>` to parallelize builds. Thi
 
 ### Formatting
 
-Code is formatted using `clang-format` and the `./format.sh` script which is called via a git pre-commit hook.
+Code is formatted using `clang-format` and the `./cpp/format.sh` script which is called via a git pre-commit hook.
 If you've installed the C++ Vscode extension you should configure it to format on save.
 
 ### Testing
@@ -84,7 +82,7 @@ cmake --build . --parallel --target run_ecc_bench
 
 ### CMake Build Options
 
-CMake can be passed various build options on it's command line:
+CMake can be passed various build options on its command line:
 
 - `-DCMAKE_BUILD_TYPE=Debug | Release | RelWithAssert`: Build types.
 - `-DDISABLE_ASM=ON | OFF`: Enable/disable x86 assembly.
@@ -159,3 +157,6 @@ make create_full_coverage_report
 The report will land in the build directory in the all_test_coverage_report directory.
 
 Alternatively you can build separate test binaries, e.g. honk_tests or numeric_tests and run **make test** just for them or even just for a single test. Then the report will just show coverage for those binaries
+
+### VS Code configuration
+A default configuration for VS Code is provided by the file [`barretenberg.code-workspace`](barretenberg.code-workspace). These settings can be overridden by placing configuration files in `.vscode/`.
