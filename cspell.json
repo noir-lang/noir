@@ -31,6 +31,7 @@
         "monomorphizer",
         "pedersen",
         "peekable",
+        "preprocess",
         "schnorr",
         "sdiv",
         "signedness",
