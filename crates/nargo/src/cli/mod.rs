@@ -5,7 +5,6 @@ use acvm::{
 pub use check_cmd::check_from_path;
 use clap::{App, AppSettings, Arg};
 use const_format::formatcp;
-use git_version::git_version;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi,
@@ -33,8 +32,12 @@ mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
 
-const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
-const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+const GIT_HASH: &str = env!("GIT_COMMIT");
+const IS_DIRTY: &str = env!("GIT_DIRTY");
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+static VERSION_STRING: &str =
+    formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -80,8 +83,11 @@ pub fn start_cli() {
         )
         .subcommand(
             App::new("prove")
-                .about("Create proof for this program")
+                .about(
+                    "Create proof for this program. The proof is returned as a hex encoded string.",
+                )
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
+                .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
         )
@@ -92,7 +98,12 @@ pub fn start_cli() {
                     Arg::with_name("test_name")
                         .help("If given, only tests with names containing this string will be run"),
                 )
-                .arg(allow_warnings.clone()),
+                .arg(allow_warnings.clone())
+                .arg(
+                    Arg::with_name("show-logs")
+                        .long("show-logs")
+                        .help("Display output of println statements during tests"),
+                ),
         )
         .subcommand(
             App::new("compile")
@@ -213,21 +224,20 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path = match prove_cmd::prove_with_path(
+    match prove_cmd::prove_with_path(
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
+        true,
         show_ssa,
         false,
     ) {
-        Ok(p) => p,
+        Ok(_) => true,
         Err(error) => {
             println!("{error}");
-            return false;
+            false
         }
-    };
-
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
+    }
 }
 
 fn add_std_lib(driver: &mut Driver) {

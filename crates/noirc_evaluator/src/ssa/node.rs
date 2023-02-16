@@ -28,7 +28,7 @@ impl std::fmt::Display for NodeObject {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use FunctionKind::*;
         match self {
-            NodeObject::Obj(o) => write!(f, "{o}"),
+            NodeObject::Variable(o) => write!(f, "{o}"),
             NodeObject::Instr(i) => write!(f, "{i}"),
             NodeObject::Const(c) => write!(f, "{c}"),
             NodeObject::Function(Normal(id), ..) => write!(f, "f{}", id.0),
@@ -60,7 +60,7 @@ impl Node for Variable {
 impl Node for NodeObject {
     fn get_type(&self) -> ObjectType {
         match self {
-            NodeObject::Obj(o) => o.get_type(),
+            NodeObject::Variable(o) => o.get_type(),
             NodeObject::Instr(i) => i.res_type,
             NodeObject::Const(o) => o.value_type,
             NodeObject::Function(..) => ObjectType::Function,
@@ -69,7 +69,7 @@ impl Node for NodeObject {
 
     fn size_in_bits(&self) -> u32 {
         match self {
-            NodeObject::Obj(o) => o.size_in_bits(),
+            NodeObject::Variable(o) => o.size_in_bits(),
             NodeObject::Instr(i) => i.res_type.bits(),
             NodeObject::Const(c) => c.size_in_bits(),
             NodeObject::Function(..) => 0,
@@ -78,7 +78,7 @@ impl Node for NodeObject {
 
     fn id(&self) -> NodeId {
         match self {
-            NodeObject::Obj(o) => o.id(),
+            NodeObject::Variable(o) => o.id(),
             NodeObject::Instr(i) => i.id,
             NodeObject::Const(c) => c.id(),
             NodeObject::Function(_, id, _) => *id,
@@ -107,11 +107,14 @@ impl NodeId {
     pub fn dummy() -> NodeId {
         NodeId(SsaContext::dummy_id())
     }
+    pub fn is_dummy(&self) -> bool {
+        self.0 == SsaContext::dummy_id()
+    }
 }
 
 #[derive(Debug)]
 pub enum NodeObject {
-    Obj(Variable),
+    Variable(Variable),
     Instr(Instruction),
     Const(Constant),
     Function(FunctionKind, NodeId, /*name:*/ String),
@@ -305,7 +308,7 @@ impl NodeEval {
                 NodeEval::Const(value, c.get_type())
             }
             NodeObject::Function(f, id, _name) => NodeEval::Function(*f, *id),
-            NodeObject::Obj(_) | NodeObject::Instr(_) => NodeEval::VarOrInstruction(id),
+            NodeObject::Variable(_) | NodeObject::Instr(_) => NodeEval::VarOrInstruction(id),
         }
     }
 
@@ -518,6 +521,7 @@ pub enum Operation {
         array_id: ArrayId,
         index: NodeId,
         value: NodeId,
+        predicate: Option<NodeId>,
     },
 
     Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
@@ -618,6 +622,39 @@ pub enum BinaryOp {
     Shr, //(>>) Shift right
 
     Assign,
+}
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let op = match &self {
+            BinaryOp::Add => "add",
+            BinaryOp::SafeAdd => "safe_add",
+            BinaryOp::Sub { .. } => "sub",
+            BinaryOp::SafeSub { .. } => "safe_sub",
+            BinaryOp::Mul => "mul",
+            BinaryOp::SafeMul => "safe_mul",
+            BinaryOp::Udiv => "udiv",
+            BinaryOp::Sdiv => "sdiv",
+            BinaryOp::Urem => "urem",
+            BinaryOp::Srem => "srem",
+            BinaryOp::Div => "div",
+            BinaryOp::Eq => "eq",
+            BinaryOp::Ne => "ne",
+            BinaryOp::Ult => "ult",
+            BinaryOp::Ule => "ule",
+            BinaryOp::Slt => "slt",
+            BinaryOp::Sle => "sle",
+            BinaryOp::Lt => "lt",
+            BinaryOp::Lte => "lte",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::Xor => "xor",
+            BinaryOp::Assign => "assign",
+            BinaryOp::Shl => "shl",
+            BinaryOp::Shr => "shr",
+        };
+        write!(f, "{op}")
+    }
 }
 
 impl Binary {
@@ -1084,9 +1121,12 @@ impl Operation {
                 Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
             Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value } => {
-                Store { array_id: *array, index: f(*index), value: f(*value) }
-            }
+            Store { array_id: array, index, value, predicate } => Store {
+                array_id: *array,
+                index: f(*index),
+                value: f(*value),
+                predicate: predicate.as_ref().map(|pred| f(*pred)),
+            },
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
             Call { func: func_id, arguments, returned_arrays, predicate, location } => Call {
@@ -1131,9 +1171,10 @@ impl Operation {
                 *rhs = f(*rhs)
             }
             Load { index, .. } => *index = f(*index),
-            Store { index, value, .. } => {
+            Store { index, value, predicate, .. } => {
                 *index = f(*index);
                 *value = f(*value);
+                *predicate = predicate.as_mut().map(|pred| f(*pred));
             }
             Intrinsic(_, args) => {
                 for arg in args {
