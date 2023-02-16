@@ -52,8 +52,7 @@ pub fn create_circuit(
         .public_abi()
         .parameter_names()
         .into_iter()
-        .cloned()
-        .flat_map(|param_name| evaluator.param_witnesses[&param_name].clone())
+        .flat_map(|param_name| evaluator.param_witnesses[param_name].clone())
         .collect();
 
     let witness_index = evaluator.current_witness_index();
