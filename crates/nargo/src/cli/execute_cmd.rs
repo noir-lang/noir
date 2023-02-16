@@ -52,7 +52,7 @@ fn execute_with_path<P: AsRef<Path>>(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.as_ref().unwrap().clone(),
+        &compiled_program.abi,
     )?;
 
     execute_program(&compiled_program, &inputs_map)
@@ -76,14 +76,13 @@ pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap();
-
-    let mut solved_witness = abi.encode_to_witness(input_map).map_err(|error| match error {
-        AbiError::UndefinedInput(_) => {
-            CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-        }
-        _ => CliError::from(error),
-    })?;
+    let mut solved_witness =
+        compiled_program.abi.encode_to_witness(input_map).map_err(|error| match error {
+            AbiError::UndefinedInput(_) => {
+                CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
+            }
+            _ => CliError::from(error),
+        })?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;

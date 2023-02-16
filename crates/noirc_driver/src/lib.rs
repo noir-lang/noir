@@ -21,7 +21,7 @@ pub struct Driver {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CompiledProgram {
     pub circuit: Circuit,
-    pub abi: Option<noirc_abi::Abi>,
+    pub abi: noirc_abi::Abi,
 }
 
 impl Driver {
@@ -186,7 +186,7 @@ impl Driver {
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
 
         match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
-            Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi: Some(abi) }),
+            Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace

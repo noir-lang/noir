@@ -174,7 +174,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
     format: Format,
-    abi: Abi,
+    abi: &Abi,
 ) -> Result<InputMap, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
