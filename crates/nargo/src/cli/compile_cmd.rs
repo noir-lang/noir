@@ -1,8 +1,7 @@
-use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
+use acvm::{acir::circuit::Circuit, hash_constraint_system};
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
@@ -54,9 +53,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     let path = write_to_file(serialized.as_slice(), &circuit_path);
     println!("Generated ACIR code into {path}");
 
-    let mut hasher = Sha256::new();
-    hasher.update(serialized);
-    let acir_hash = hasher.finalize();
+    let acir_hash = hash_constraint_system(&compiled_program.circuit);
     circuit_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
     write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
 

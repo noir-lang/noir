@@ -1,9 +1,9 @@
 use super::{
-    compile_cmd::compile_circuit, dedup_public_input_indices_values, load_hex_data,
-    read_inputs_from_file, InputMap,
+    compile_cmd::compile_circuit, dedup_public_input_indices_values, fetch_pk_and_vk,
+    load_hex_data, read_inputs_from_file, InputMap,
 };
 use crate::{
-    constants::{ACIR_EXT, PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE, VK_EXT},
+    constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 use acvm::ProofSystemCompiler;
@@ -11,7 +11,6 @@ use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
-use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -29,13 +28,18 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
-    let circuit_name = args.value_of("circuit_name").unwrap();
+    let circuit_name = args.value_of("circuit_name");
 
     let allow_warnings = args.is_present("allow-warnings");
 
-    let mut circuit_build_path = program_dir.clone();
-    circuit_build_path.push(TARGET_DIR);
-    circuit_build_path.push(circuit_name);
+    let circuit_build_path = if let Some(circuit_name) = circuit_name {
+        let mut circuit_build_path = program_dir.clone();
+        circuit_build_path.push(TARGET_DIR);
+        circuit_build_path.push(circuit_name);
+        Some(circuit_build_path)
+    } else {
+        None
+    };
 
     let result =
         verify_with_path(program_dir, proof_path, circuit_build_path, false, allow_warnings)?;
@@ -43,29 +47,16 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     Ok(())
 }
 
-#[allow(deprecated)]
 pub fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_path: P,
-    circuit_build_path: P,
+    circuit_build_path: Option<P>,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
-    let mut acir_hash_path = PathBuf::new();
-    acir_hash_path.push(circuit_build_path.as_ref());
-    acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
-    let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
-
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let serialized = compiled_program.circuit.to_bytes();
-
-    let mut hasher = Sha256::new();
-    hasher.update(serialized);
-    let new_acir_hash = hasher.finalize();
-
-    if new_acir_hash[..] != expected_acir_hash {
-        return Err(CliError::MismatchedAcir(acir_hash_path));
-    }
+    let (_, verification_key) =
+        fetch_pk_and_vk(compiled_program.circuit.clone(), circuit_build_path, false, true)?;
 
     let mut public_inputs_map: InputMap = BTreeMap::new();
 
@@ -78,15 +69,11 @@ pub fn verify_with_path<P: AsRef<Path>>(
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, public_abi)?;
     }
 
-    let mut verification_key_path = PathBuf::new();
-    verification_key_path.push(circuit_build_path);
-    verification_key_path.set_extension(VK_EXT);
-
     let valid_proof = verify_proof(
         compiled_program,
         public_inputs_map,
         &load_hex_data(proof_path)?,
-        load_hex_data(verification_key_path)?,
+        verification_key,
     )?;
 
     Ok(valid_proof)

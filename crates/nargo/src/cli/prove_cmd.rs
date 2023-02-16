@@ -3,11 +3,9 @@ use std::path::{Path, PathBuf};
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
-use noirc_driver::CompiledProgram;
-use sha2::{Digest, Sha256};
 
 use super::{
-    create_named_dir, dedup_public_input_indices, load_hex_data, read_inputs_from_file,
+    create_named_dir, dedup_public_input_indices, fetch_pk_and_vk, read_inputs_from_file,
     write_inputs_to_file, write_to_file,
 };
 use crate::{
@@ -15,10 +13,7 @@ use crate::{
         execute_cmd::{execute_program, extract_public_inputs},
         verify_cmd::verify_proof,
     },
-    constants::{
-        ACIR_EXT, PK_EXT, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR,
-        VERIFIER_INPUT_FILE, VK_EXT,
-    },
+    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
@@ -58,7 +53,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     Ok(())
 }
 
-#[allow(deprecated)]
 pub fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<&str>,
     program_dir: P,
@@ -68,12 +62,13 @@ pub fn prove_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let (compiled_program, proving_key, verification_key) = fetch_build_artifacts(
-        &program_dir,
+    let compiled_program =
+        super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+    let (proving_key, verification_key) = fetch_pk_and_vk(
+        compiled_program.circuit.clone(),
         circuit_build_path.as_ref(),
+        true,
         check_proof,
-        show_ssa,
-        allow_warnings,
     )?;
 
     // Parse the initial witness values from Prover.toml
@@ -133,54 +128,4 @@ fn save_proof_to_dir<P: AsRef<Path>>(
     write_to_file(hex::encode(proof).as_bytes(), &proof_path);
 
     Ok(proof_path)
-}
-
-#[allow(deprecated)]
-fn fetch_build_artifacts<P: AsRef<Path>>(
-    program_dir: P,
-    circuit_build_path: Option<P>,
-    check_proof: bool,
-    show_ssa: bool,
-    allow_warnings: bool,
-) -> Result<(CompiledProgram, Vec<u8>, Vec<u8>), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-    if let Some(circuit_build_path) = circuit_build_path {
-        let mut acir_hash_path = PathBuf::new();
-        acir_hash_path.push(circuit_build_path.as_ref());
-        acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
-        let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
-
-        let compiled_program =
-            super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-        let serialized = compiled_program.circuit.to_bytes();
-
-        let mut hasher = Sha256::new();
-        hasher.update(serialized);
-        let new_acir_hash = hasher.finalize();
-
-        if new_acir_hash[..] != expected_acir_hash {
-            return Err(CliError::MismatchedAcir(acir_hash_path));
-        }
-        let mut proving_key_path = PathBuf::new();
-        proving_key_path.push(circuit_build_path.as_ref());
-        proving_key_path.set_extension(PK_EXT);
-        let proving_key = load_hex_data(proving_key_path)?;
-
-        let verification_key = if check_proof {
-            let mut verification_key_path = PathBuf::new();
-            verification_key_path.push(circuit_build_path);
-            verification_key_path.set_extension(VK_EXT);
-            load_hex_data(verification_key_path)?
-        } else {
-            // We can return an empty Vec here as the verification key is used only is `check_proof` is true
-            vec![]
-        };
-
-        Ok((compiled_program, proving_key, verification_key))
-    } else {
-        let compiled_program =
-            super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-        let (proving_key, verification_key) = backend.preprocess(compiled_program.circuit.clone());
-        Ok((compiled_program, proving_key, verification_key))
-    }
 }
