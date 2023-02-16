@@ -10,7 +10,7 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiType};
+use noirc_abi::{Abi, AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::BTreeMap;
@@ -26,6 +26,10 @@ pub struct Evaluator {
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
     param_witnesses: BTreeMap<String, Vec<Witness>>,
+    // This is the list of witness indices which are linked to public inputs.
+    // Witnesses below `num_witnesses_abi_len` and not included in this set
+    // correspond to private inputs and must not be made public.
+    public_inputs: Vec<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -51,14 +55,7 @@ pub fn create_circuit(
     let mut abi = program.abi;
     abi.param_witnesses = evaluator.param_witnesses;
 
-    let public_inputs = abi
-        .clone()
-        .public_abi()
-        .parameter_names()
-        .into_iter()
-        .flat_map(|param_name| abi.param_witnesses[param_name].clone())
-        .collect();
-
+    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
@@ -77,6 +74,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             num_witnesses_abi_len: 0,
+            public_inputs: Vec::new(),
             param_witnesses: BTreeMap::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
@@ -102,8 +100,7 @@ impl Evaluator {
         // an intermediate variable.
         let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
-        let is_public_input =
-            self.param_witnesses.values().flatten().any(|&index| index == witness_index);
+        let is_public_input = self.public_inputs.contains(&witness_index);
 
         !is_intermediate_variable && !is_public_input
     }
@@ -154,6 +151,7 @@ impl Evaluator {
         name: &str,
         def: Definition,
         param_type: &AbiType,
+        param_visibility: &AbiVisibility,
         ir_gen: &mut IrGenerator,
     ) -> Result<(), RuntimeErrorKind> {
         let witnesses = match param_type {
@@ -209,6 +207,9 @@ impl Evaluator {
             }
         };
 
+        if param_visibility == &AbiVisibility::Public {
+            self.public_inputs.extend(witnesses.clone());
+        }
         self.param_witnesses.insert(name.to_owned(), witnesses);
 
         Ok(())
@@ -304,11 +305,8 @@ impl Evaluator {
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
             assert_eq!(param_name, &abi_param.name);
             let def = Definition::Local(*param_id);
-            self.param_to_var(param_name, def, &abi_param.typ, ir_gen).unwrap();
+            self.param_to_var(param_name, def, &abi_param.typ, &abi_param.visibility, ir_gen)
+                .unwrap();
         }
-
-        // Store the number of witnesses used to represent the types
-        // in the ABI
-        self.num_witnesses_abi_len = self.current_witness_index as usize;
     }
 }
