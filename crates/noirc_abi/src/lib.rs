@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, convert::TryInto, str};
 use acvm::{acir::native_types::Witness, FieldElement};
 use errors::AbiError;
 use input_parser::InputValue;
-use iter_extended::{try_btree_map, vecmap};
+use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use serde::{Deserialize, Serialize};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -267,9 +267,15 @@ impl Abi {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
-                    vecmap(self.param_witnesses[&name].clone(), |witness_index| {
-                        witness_map[&witness_index]
-                    });
+                    try_vecmap(self.param_witnesses[&name].clone(), |witness_index| {
+                        witness_map
+                            .get(&witness_index)
+                            .ok_or_else(|| AbiError::MissingParamWitnessValue {
+                                name: name.clone(),
+                                witness_index,
+                            })
+                            .copied()
+                    })?;
 
                 Self::decode_value(&mut param_witness_values.into_iter(), &typ)
                     .map(|input_value| (name.clone(), input_value))
