@@ -65,7 +65,7 @@ pub(crate) fn execute_program(
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 

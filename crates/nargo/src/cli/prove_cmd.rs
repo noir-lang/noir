@@ -54,7 +54,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
     write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
 
