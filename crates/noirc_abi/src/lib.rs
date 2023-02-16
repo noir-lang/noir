@@ -166,15 +166,32 @@ impl Abi {
 
     /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
     pub fn encode_to_witness(&self, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
-        // TODO: add handling for missing inputs similarly to how we do in `encode_to_array`.
-
         self.check_for_unexpected_inputs(input_map)?;
 
-        // First encode each input separately
-        let encoded_input_map: BTreeMap<String, Vec<FieldElement>> =
-            try_btree_map(input_map, |(key, value)| {
-                Self::encode_value(value.clone(), key).map(|v| (key.clone(), v))
-            })?;
+        // First encode each input separately, performing any input validation.
+        let encoded_input_map: BTreeMap<String, Vec<FieldElement>> = self
+            .to_btree_map()
+            .into_iter()
+            .filter(|(param_name, _)| param_name != MAIN_RETURN_NAME)
+            .map(|(param_name, expected_type)| {
+                let value = input_map
+                    .get(&param_name)
+                    .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
+                    .clone();
+
+                if !value.matches_abi(&expected_type) {
+                    let missing_param = self
+                        .parameters
+                        .iter()
+                        .find(|param| param.name == param_name)
+                        .unwrap()
+                        .clone();
+                    return Err(AbiError::TypeMismatch { param: missing_param, value });
+                }
+
+                Self::encode_value(value.clone(), &param_name).map(|v| (param_name, v))
+            })
+            .collect::<Result<_, _>>()?;
 
         // Write input field elements into witness indices specified in `self.param_witnesses`.
         let witness_map = encoded_input_map
@@ -193,10 +210,9 @@ impl Abi {
 
     /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
     pub fn encode_to_array(self, inputs: &InputMap) -> Result<Vec<FieldElement>, AbiError> {
-        let mut encoded_inputs = Vec::new();
-
         self.check_for_unexpected_inputs(inputs)?;
 
+        let mut encoded_inputs = Vec::new();
         for param in &self.parameters {
             let value = inputs
                 .get(&param.name)
