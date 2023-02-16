@@ -90,7 +90,7 @@ impl Format {
     pub fn parse(
         &self,
         input_string: &str,
-        abi: Abi,
+        abi: &Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
             Format::Toml => toml::parse_toml(input_string, abi),

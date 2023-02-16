@@ -56,7 +56,7 @@ fn execute_with_path<P: AsRef<Path>>(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.clone(),
+        &compiled_program.abi,
     )?;
 
     execute_program(&compiled_program, &inputs_map)
