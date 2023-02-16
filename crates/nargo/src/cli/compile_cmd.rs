@@ -33,7 +33,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     .map(|_| ())
 }
 
-#[allow(deprecated)]
 pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,
@@ -45,12 +44,6 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
 
     preprocess_with_path(circuit_name, circuit_dir.as_ref(), compiled_program.circuit.clone())?;
 
-    // let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
-    // circuit_path.push(circuit_name);
-    // circuit_path.set_extension(ACIR_EXT);
-
-    // let serialized = compiled_program.circuit.to_bytes();
-    // let path = write_to_file(serialized.as_slice(), &circuit_path);
     let mut circuit_path =
         save_acir_to_dir(compiled_program.circuit.clone(), circuit_name, circuit_dir.as_ref());
     println!("Generated ACIR code into {}", circuit_path.display());
