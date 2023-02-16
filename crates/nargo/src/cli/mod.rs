@@ -23,8 +23,6 @@ use tempdir::TempDir;
 
 use crate::errors::CliError;
 
-use self::compile_cmd::generate_circuit_and_witness_to_disk;
-
 mod check_cmd;
 mod compile_cmd;
 mod contract_cmd;
@@ -80,7 +78,7 @@ pub fn start_cli() {
                 .arg(Arg::with_name("proof").help("The proof to verify").required(true))
                 .arg(Arg::with_name("circuit_name").help(
                     "The name of the circuit build files (ACIR, proving and verification keys)",
-                ).required(true))
+                ))
                 .arg(allow_warnings.clone()),
         )
         .subcommand(
@@ -89,7 +87,7 @@ pub fn start_cli() {
                 .arg(Arg::with_name("proof_name").help("The name of the proof"))
                 .arg(Arg::with_name("circuit_name").help(
                     "The name of the circuit build files (ACIR, proving and verification keys)",
-                ).required(true))
+                ))
                 .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
                 .arg(show_ssa.clone())
                 .arg(allow_warnings.clone()),
@@ -221,27 +219,12 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
-    let circuit_dir = TempDir::new("p_and_v_tests_circuit").unwrap();
-    let circuit_path = match generate_circuit_and_witness_to_disk(
-        proof_name,
-        prg_dir,
-        &circuit_dir.into_path(),
-        false,
-        false,
-    ) {
-        Ok(circuit_path) => circuit_path,
-        Err(error) => {
-            println!("{error}");
-            return false;
-        }
-    };
-
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     match prove_cmd::prove_with_path(
         Some(proof_name),
         prg_dir,
         &tmp_dir.into_path(),
-        &circuit_path,
+        None,
         true,
         show_ssa,
         false,

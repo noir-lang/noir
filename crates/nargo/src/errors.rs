@@ -11,7 +11,7 @@ pub enum CliError {
     Generic(String),
     #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
-    #[error("Error: {} is not a valid path\nRun `nargo compile` to generate missing build artifacts", .0.display())]
+    #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to constuct a proof", .0.display())]
     PathNotValid(PathBuf),
     #[error("Error: could not parse hex build artifact (proof, proving and/or verification keys, ACIR checksum) ({0})")]
     HexArtifactNotValid(FromHexError),

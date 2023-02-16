@@ -1,3 +1,4 @@
+use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
@@ -72,15 +73,9 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
             super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
 
         circuit_path.pop();
-        dbg!(circuit_path.clone());
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;
     }
 
-    // The circuit path is used when combining proving and verification for integration tests.
-    // The prove command sets different file extensions on the returned circuit path to access the necessary build artifacts (ACIR checksum, proving and verification keys)
-    // We reset the circuit path to end with just the circuit name to avoid any errors with setting extensions when reading the ACIR checksum and keys
-    circuit_path.pop();
-    circuit_path.push(circuit_name);
     Ok(circuit_path)
 }
 
@@ -101,13 +96,12 @@ pub fn compile_circuit<P: AsRef<Path>>(
 pub fn preprocess_with_path<P: AsRef<Path>>(
     key_name: &str,
     preprocess_dir: P,
-    circuit: acvm::acir::circuit::Circuit,
+    circuit: Circuit,
 ) -> Result<(PathBuf, PathBuf), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
-    println!("Proving and verification key successfully created");
     let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
     println!("Proving key saved to {}", pk_path.display());
     let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
