@@ -1,8 +1,7 @@
 #include "hash.hpp"
-#include "leveldb_store.hpp"
+#include "memory_store.hpp"
 #include "merkle_tree.hpp"
 #include <benchmark/benchmark.h>
-#include <leveldb/db.h>
 #include <numeric/random/engine.hpp>
 
 using namespace benchmark;
@@ -14,7 +13,6 @@ auto& engine = numeric::random::get_debug_engine();
 
 constexpr size_t DEPTH = 256;
 constexpr size_t MAX = 4096;
-const std::string DB_PATH = "/tmp/leveldb_test";
 
 static std::vector<fr> VALUES = []() {
     std::vector<fr> values(MAX);
@@ -34,9 +32,8 @@ BENCHMARK(hash)->MinTime(5);
 
 void update_first_element(State& state) noexcept
 {
-    LevelDbStore::destroy(DB_PATH);
-    LevelDbStore store(DB_PATH);
-    LevelDbTree db(store, DEPTH);
+    MemoryStore store;
+    MerkleTree<MemoryStore> db(store, DEPTH);
 
     for (auto _ : state) {
         db.update_element(0, VALUES[1]);
@@ -48,9 +45,8 @@ void update_elements(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        LevelDbStore::destroy(DB_PATH);
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, DEPTH);
+        MemoryStore store;
+        MerkleTree<MemoryStore> db(store, DEPTH);
         state.ResumeTiming();
         for (size_t i = 0; i < (size_t)state.range(0); ++i) {
             db.update_element(i, VALUES[i]);
@@ -63,12 +59,11 @@ void update_random_elements(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        LevelDbStore::destroy(DB_PATH);
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, DEPTH);
+        MemoryStore store;
+        MerkleTree db(store, DEPTH);
         for (size_t i = 0; i < (size_t)state.range(0); i++) {
             state.PauseTiming();
-            auto index = LevelDbTree::index_t(engine.get_random_uint256());
+            auto index = MerkleTree<MemoryStore>::index_t(engine.get_random_uint256());
             state.ResumeTiming();
             db.update_element(index, VALUES[i]);
         }

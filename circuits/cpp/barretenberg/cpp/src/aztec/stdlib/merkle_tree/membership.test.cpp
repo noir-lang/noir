@@ -1,4 +1,3 @@
-#include "leveldb_store.hpp"
 #include "merkle_tree.hpp"
 #include "membership.hpp"
 #include "memory_store.hpp"

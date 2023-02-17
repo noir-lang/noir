@@ -1,4 +1,3 @@
-#include "leveldb_store.hpp"
 #include "merkle_tree.hpp"
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
@@ -101,7 +100,7 @@ TEST(stdlib_merkle_tree, test_get_hash_path)
     EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
 }
 
-TEST(stdlib_merkle_tree, test_leveldb_get_hash_path_layers)
+TEST(stdlib_merkle_tree, test_get_hash_path_layers)
 {
     {
         MemoryStore store;
@@ -129,66 +128,3 @@ TEST(stdlib_merkle_tree, test_leveldb_get_hash_path_layers)
         EXPECT_NE(before[2], after[2]);
     }
 }
-
-#ifndef __wasm__
-std::string DB_PATH = format("/tmp/leveldb_test_", random_engine.get_random_uint128());
-
-TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
-{
-    constexpr size_t depth = 10;
-    MemoryTree memdb(depth);
-
-    LevelDbStore::destroy(DB_PATH);
-    LevelDbStore store(DB_PATH);
-    LevelDbTree db(store, depth);
-
-    std::vector<size_t> indicies(1 << depth);
-    std::iota(indicies.begin(), indicies.end(), 0);
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(indicies.begin(), indicies.end(), g);
-
-    for (size_t i = 0; i < indicies.size(); ++i) {
-        size_t idx = indicies[i];
-        memdb.update_element(idx, VALUES[idx]);
-        db.update_element(idx, VALUES[idx]);
-    }
-
-    for (size_t i = 0; i < indicies.size(); ++i) {
-        size_t idx = indicies[i];
-        EXPECT_EQ(db.get_hash_path(idx), memdb.get_hash_path(idx));
-    }
-
-    EXPECT_EQ(db.root(), memdb.root());
-
-    LevelDbStore::destroy(DB_PATH);
-}
-
-TEST(stdlib_merkle_tree, test_leveldb_persistence)
-{
-    LevelDbStore::destroy(DB_PATH);
-
-    fr root;
-    fr_hash_path path;
-    {
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 256);
-        db.update_element(0, VALUES[1]);
-        db.update_element(1, VALUES[2]);
-        db.update_element(2, VALUES[3]);
-        root = db.root();
-        path = db.get_hash_path(2);
-        store.commit();
-    }
-    {
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 256);
-
-        EXPECT_EQ(db.root(), root);
-        EXPECT_EQ(db.size(), 3ULL);
-        EXPECT_EQ(db.get_hash_path(2), path);
-    }
-
-    LevelDbStore::destroy(DB_PATH);
-}
-#endif
