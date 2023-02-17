@@ -144,3 +144,14 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
             .map(FieldElement::from)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::parse_str_to_field;
+
+    #[test]
+    fn parse_empty_str_fails() {
+        // Check that this fails appropriately rather than being treated as 0, etc.
+        assert!(parse_str_to_field("").is_err());
+    }
+}
