@@ -593,7 +593,7 @@ where
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
 
         let next_expr =
-            expression_with_precedence(next_precedence, expr_parser.clone(), is_type_expression);
+            expression_with_precedence(next_precedence, expr_parser, is_type_expression);
 
         next_expr
             .clone()
