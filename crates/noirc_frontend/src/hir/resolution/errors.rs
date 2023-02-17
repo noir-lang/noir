@@ -50,6 +50,8 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
+    #[error("Invalid global type")]
+    InvalidGlobal { span: Span },
 }
 
 impl ResolverError {
@@ -234,6 +236,11 @@ impl From<ResolverError> for Diagnostic {
                 "Cannot apply generics to Self type".into(),
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 span,
+            ),
+            ResolverError::InvalidGlobal { span } => Diagnostic::simple_error(
+                "Invalid type found in global".into(),
+                "Valid types are: literal array, bool, integer or field".into(), 
+                span,   
             ),
         }
     }

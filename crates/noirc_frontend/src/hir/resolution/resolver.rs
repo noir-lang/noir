@@ -642,10 +642,8 @@ impl<'a> Resolver<'a> {
                                 // This element is not a literal.
                                 _ => {
                                     type_error = true;
-                                    self.push_err(ResolverError::Expected {
+                                    self.push_err(ResolverError::InvalidGlobal {
                                         span: let_stmt.expression.span,
-                                        expected: "global array elements can only be array, bool, integer or field literals".to_owned(), 
-                                        got: e.kind.to_string(),
                                     });
                                 }
                             }
@@ -661,10 +659,8 @@ impl<'a> Resolver<'a> {
                             ExpressionKind::Literal(_) => self.resolve_literal(let_stmt),
                             // Repeated type is not a literal.
                             _ => {
-                                self.push_err(ResolverError::Expected {
+                                self.push_err(ResolverError::InvalidGlobal {
                                     span: let_stmt.expression.span,
-                                    expected: "global array elements can only be array, bool, integer or field literals".to_owned(), 
-                                    got: repeated_element.kind.to_string(),
                                 });
                                 (HirStatement::Error, self.errors)
                             }
@@ -676,11 +672,8 @@ impl<'a> Resolver<'a> {
             }
             // Not a literal.
             _ => {
-                self.push_err(ResolverError::Expected {
+                self.push_err(ResolverError::InvalidGlobal {
                     span: let_stmt.expression.span,
-                    expected: "globals can only be array, bool, integer or field literals"
-                        .to_owned(),
-                    got: let_stmt.expression.kind.to_string(),
                 });
                 (HirStatement::Error, self.errors)
             }
