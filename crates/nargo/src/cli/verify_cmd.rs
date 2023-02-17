@@ -8,7 +8,6 @@ use crate::{
 };
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
-use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path};

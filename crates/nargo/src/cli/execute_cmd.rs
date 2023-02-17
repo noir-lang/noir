@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
-use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
