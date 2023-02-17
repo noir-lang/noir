@@ -1,5 +1,6 @@
 .cache/
-build*/
+build/
+build-wasm/
 src/wasi-sdk-*
 src/aztec/proof_system/proving_key/fixtures
 src/aztec/rollup/proofs/*/fixtures

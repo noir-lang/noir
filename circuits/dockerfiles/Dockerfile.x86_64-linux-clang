@@ -1,0 +1,21 @@
+FROM alpine:3.17 AS builder
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache \
+        build-base \
+        clang15 \
+        openmp-dev \
+        cmake \
+        git \
+        curl \
+        perl
+
+WORKDIR /usr/src/aztec3-circuits
+
+COPY . .
+# Build the entire project, as we want to check everything builds under clang
+RUN mkdir build && cd build && cmake .. && cmake --build . --parallel
+
+FROM alpine:3.17
+RUN apk update && apk add openmp
+COPY --from=builder /usr/src/aztec3-circuits/barretenberg/cpp/srs_db /usr/src/aztec3-circuits/barretenberg/cpp/srs_db
