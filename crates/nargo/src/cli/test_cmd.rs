@@ -1,28 +1,34 @@
-use std::{
-    collections::BTreeMap,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, io::Write, path::Path};
 
 use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
-use clap::ArgMatches;
+use clap::Args;
 use noirc_driver::Driver;
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::add_std_lib;
+use super::{add_std_lib, NargoConfig};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("test").unwrap();
-    let test_name = args.value_of("test_name").unwrap_or("");
-    let allow_warnings = args.is_present("allow-warnings");
-    let show_output = args.is_present("show-logs");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+/// Run the tests for this program
+#[derive(Debug, Clone, Args)]
+pub(crate) struct TestCommand {
+    /// If given, only tests with names containing this string will be run
+    test_name: Option<String>,
 
-    run_tests(&program_dir, test_name, allow_warnings, show_output)
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+
+    /// Display output of println statements during tests
+    #[arg(long)]
+    show_logs: bool,
+}
+
+pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
+    let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
+
+    run_tests(&config.program_dir, &test_name, args.allow_warnings, args.show_logs)
 }
 
 fn run_tests(

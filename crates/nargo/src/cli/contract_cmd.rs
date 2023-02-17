@@ -1,23 +1,23 @@
-use std::path::PathBuf;
-
-use super::{create_named_dir, write_to_file};
+use super::{create_named_dir, write_to_file, NargoConfig};
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
-use clap::ArgMatches;
+use clap::Args;
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("contract").unwrap();
+/// Generates a Solidity verifier smart contract for the program
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ContractCommand {
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+}
 
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
-
-    let compiled_program = compile_circuit(program_dir.clone(), false, allow_warnings)?;
+pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
+    let compiled_program = compile_circuit(config.program_dir.clone(), false, args.allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
-    let mut contract_dir = program_dir;
+    let mut contract_dir = config.program_dir;
     contract_dir.push(CONTRACT_DIR);
     let mut contract_path = create_named_dir(contract_dir.as_ref(), "contract");
     contract_path.push("plonk_vk");

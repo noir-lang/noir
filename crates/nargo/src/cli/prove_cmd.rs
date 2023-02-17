@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
+use clap::Args;
 use noirc_abi::input_parser::Format;
 
 use super::{
-    create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
+    create_named_dir, fetch_pk_and_vk, read_inputs_from_file,
+    write_inputs_to_file, write_to_file, NargoConfig,
 };
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
@@ -13,22 +14,34 @@ use crate::{
     errors::CliError,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("prove").unwrap();
-    let proof_name = args.value_of("proof_name");
-    let circuit_name = args.value_of("circuit_name");
-    let check_proof = args.is_present("verify");
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
+// Create proof for this program. The proof is returned as a hex encoded string.
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ProveCommand {
+    /// The name of the proof
+    proof_name: Option<String>,
 
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// The name of the circuit build files (ACIR, proving and verification keys)
+    circuit_name: Option<String>,
 
-    let mut proof_dir = program_dir.clone();
+    /// Verify proof after proving
+    #[arg(short, long)]
+    verify: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut proof_dir = config.program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
-    let circuit_build_path = if let Some(circuit_name) = circuit_name {
-        let mut circuit_build_path = program_dir.clone();
+    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
+        let mut circuit_build_path = config.program_dir.clone();
         circuit_build_path.push(TARGET_DIR);
         circuit_build_path.push(circuit_name);
         Some(circuit_build_path)
@@ -37,20 +50,20 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     };
 
     prove_with_path(
-        proof_name,
-        program_dir,
+        args.proof_name,
+        config.program_dir,
         proof_dir,
         circuit_build_path,
-        check_proof,
-        show_ssa,
-        allow_warnings,
+        args.verify,
+        args.show_ssa,
+        args.allow_warnings,
     )?;
 
     Ok(())
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
-    proof_name: Option<&str>,
+    proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<P>,
@@ -96,7 +109,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     }
 
     let proof_path = if let Some(proof_name) = proof_name {
-        let proof_path = save_proof_to_dir(&proof, proof_name, proof_dir)?;
+        let proof_path = save_proof_to_dir(&proof, &proof_name, proof_dir)?;
 
         println!("Proof saved to {}", proof_path.display());
         Some(proof_path)
