@@ -30,13 +30,14 @@ Diagnostics:
       - cppcoreguidelines-pro-bounds-pointer-arithmetic
       # Huge diff.
       - readability-magic-numbers
+      - cppcoreguidelines-avoid-magic-numbers
       # We use short names because we do math. Also, huge diff.
       - readability-identifier-length
       # Fixing this would be a lot of work.
       - bugprone-easily-swappable-parameters
       # Huge diff
       - misc-non-private-member-variables-in-classes
-
+      - cppcoreguidelines-non-private-member-variables-in-classes
       # We have many `for` loops that violate this part of the bounds safety profile
       - cppcoreguidelines-pro-bounds-constant-array-index 
       # Large diff; we often `use` an entire namespace.
