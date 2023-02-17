@@ -229,8 +229,8 @@ impl Abi {
             })
             .collect();
 
-        // The user can optionally provide a return value to be inserted into the witness map.
-        // This is to be used when encoding public values to be passed to the verifier.
+        // When encoding public inputs to be passed to the verifier, the user can must provide a return value
+        // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
         match (&self.return_type, return_value) {
             (Some(return_type), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
