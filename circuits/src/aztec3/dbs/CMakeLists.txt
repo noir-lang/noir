@@ -29,8 +29,5 @@ endif()
 
 barretenberg_module(
     aztec3_dbs
-    stdlib_merkle_tree # for the general db logic
-    stdlib_primitives
-    stdlib_pedersen
-    crypto_pedersen
+    barretenberg
 )

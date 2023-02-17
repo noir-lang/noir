@@ -5,8 +5,5 @@ barretenberg_module(
     # aztec3_circuits_abis
     aztec3_circuits_apps
 
-    # stdlib_recursion
-    stdlib_primitives
-    stdlib_pedersen
-    stdlib_blake3s
+    barretenberg
 )
