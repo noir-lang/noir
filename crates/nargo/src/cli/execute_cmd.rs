@@ -66,7 +66,7 @@ fn execute_with_path<P: AsRef<Path>>(
 
     let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
-    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_abi = compiled_program.abi.public_abi();
     let public_inputs = public_abi.decode(&solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 
