@@ -38,8 +38,6 @@ pub enum AbiError {
     TypeMismatch { param: AbiParameter, value: InputValue },
     #[error("ABI expects the parameter `{0}`, but this was not found")]
     MissingParam(String),
-    #[error("Input value `{0}` is not defined")]
-    UndefinedInput(String),
     #[error(
         "Could not read witness value at index {witness_index:?} (required for parameter \"{name}\")"
     )]

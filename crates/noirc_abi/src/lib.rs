@@ -192,7 +192,7 @@ impl Abi {
                     return Err(AbiError::TypeMismatch { param, value });
                 }
 
-                Self::encode_value(value, &param_name).map(|v| (param_name, v))
+                Self::encode_value(value).map(|v| (param_name, v))
             })
             .collect::<Result<_, _>>()?;
 
@@ -223,7 +223,7 @@ impl Abi {
         Ok(())
     }
 
-    fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
+    fn encode_value(value: InputValue) -> Result<Vec<FieldElement>, AbiError> {
         let mut encoded_value = Vec::new();
         match value {
             InputValue::Field(elem) => encoded_value.push(elem),
@@ -234,12 +234,10 @@ impl Abi {
                 encoded_value.extend(str_as_fields)
             }
             InputValue::Struct(object) => {
-                for (field_name, value) in object {
-                    let new_name = format!("{param_name}.{field_name}");
-                    encoded_value.extend(Self::encode_value(value, &new_name)?)
+                for value in object.into_values() {
+                    encoded_value.extend(Self::encode_value(value)?)
                 }
             }
-            InputValue::Undefined => return Err(AbiError::UndefinedInput(param_name.to_string())),
         }
         Ok(encoded_value)
     }
@@ -364,8 +362,8 @@ mod test {
             ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
         ]);
 
-        let witness_map = abi.encode_to_witness(&inputs).unwrap();
-        let reconstructed_inputs = abi.decode_from_witness(&witness_map).unwrap();
+        let witness_map = abi.encode(&inputs, true).unwrap();
+        let reconstructed_inputs = abi.decode(&witness_map).unwrap();
 
         for (key, expected_value) in inputs {
             assert_eq!(reconstructed_inputs[&key], expected_value);
