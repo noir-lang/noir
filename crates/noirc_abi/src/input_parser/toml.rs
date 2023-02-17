@@ -78,7 +78,6 @@ impl From<InputValue> for TomlTypes {
                     btree_map(map, |(key, value)| (key, TomlTypes::from(value)));
                 TomlTypes::Table(map_with_toml_types)
             }
-            InputValue::Undefined => unreachable!(),
         }
     }
 }
@@ -92,11 +91,7 @@ impl InputValue {
             TomlTypes::String(string) => match param_type {
                 AbiType::String { .. } => InputValue::String(string),
                 AbiType::Field | AbiType::Integer { .. } => {
-                    if string.is_empty() {
-                        InputValue::Undefined
-                    } else {
-                        InputValue::Field(parse_str_to_field(&string)?)
-                    }
+                    InputValue::Field(parse_str_to_field(&string)?)
                 }
                 _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
             },

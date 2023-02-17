@@ -86,13 +86,7 @@ pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness =
-        compiled_program.abi.encode(input_map, true).map_err(|error| match error {
-            AbiError::UndefinedInput(_) => {
-                CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-            }
-            _ => CliError::from(error),
-        })?;
+    let mut solved_witness = compiled_program.abi.encode(input_map, true)?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;

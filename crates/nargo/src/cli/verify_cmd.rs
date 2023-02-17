@@ -93,13 +93,7 @@ pub(crate) fn verify_proof(
     verification_key: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.public_abi();
-    let public_inputs =
-        public_abi.encode(&public_inputs_map, false).map_err(|error| match error {
-            AbiError::UndefinedInput(_) => {
-                CliError::Generic(format!("{error} in the {VERIFIER_INPUT_FILE}.toml file."))
-            }
-            _ => CliError::from(error),
-        })?;
+    let public_inputs = public_abi.encode(&public_inputs_map, false)?;
 
     let public_inputs_vec: Vec<FieldElement> = public_inputs.values().copied().collect();
 
