@@ -234,7 +234,14 @@ impl Abi {
         match (&self.return_type, return_value) {
             (Some(return_type), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
-                    panic!("Unexpected return value")
+                    return Err(AbiError::TypeMismatch {
+                        param: AbiParameter {
+                            name: MAIN_RETURN_NAME.to_owned(),
+                            typ: return_type.clone(),
+                            visibility: AbiVisibility::Public,
+                        },
+                        value: return_value,
+                    });
                 }
                 let encoded_return_fields = Self::encode_value(return_value)?;
 
@@ -244,13 +251,13 @@ impl Abi {
                 self.return_witnesses.iter().zip(encoded_return_fields.iter()).try_for_each(
                     |(&witness, &field_element)| match witness_map.insert(witness, field_element) {
                         Some(existing_value) if existing_value != field_element => {
-                            panic!("Inconsistent return value");
+                            Err(AbiError::InconsistentWitnessAssignment(witness))
                         }
                         _ => Ok(()),
                     },
                 )?;
             }
-            (None, Some(_)) => panic!("Unexpected return value"),
+            (None, Some(_)) => return Err(AbiError::UnexpectedParams(vec!["return".to_string()])),
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.
             (_, None) => {}
