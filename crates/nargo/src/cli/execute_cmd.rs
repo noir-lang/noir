@@ -8,7 +8,7 @@ use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
 use super::NargoConfig;
-use super::{create_named_dir, read_inputs_from_file, write_to_file};
+use super::{create_named_dir, handle_logs, read_inputs_from_file, write_to_file};
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
@@ -79,8 +79,12 @@ pub(crate) fn execute_program(
 ) -> Result<WitnessMap, CliError> {
     let mut solved_witness = compiled_program.abi.encode(inputs_map, true)?;
 
+    let mut logs = Vec::new();
+
     let backend = crate::backends::ConcreteBackend;
-    backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
+    backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone(), &mut logs)?;
+
+    handle_logs(logs)?;
 
     Ok(solved_witness)
 }

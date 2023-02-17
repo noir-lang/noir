@@ -151,7 +151,7 @@ impl Driver {
         allow_warnings: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings, None, true)
+        self.compile_no_check(np_language, show_ssa, allow_warnings, None)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -163,7 +163,6 @@ impl Driver {
         allow_warnings: bool,
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
-        show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
@@ -185,7 +184,7 @@ impl Driver {
 
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
 
-        match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
+        match create_circuit(program, np_language, blackbox_supported, show_ssa) {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

@@ -230,7 +230,7 @@ impl IrGenerator {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
         let arguments = self.ssa_gen_expression_list(&call.arguments);
 
-        if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
+        if let Some(opcode) = self.context.get_builtin_opcode(func) {
             return self.call_low_level(opcode, arguments);
         }
 

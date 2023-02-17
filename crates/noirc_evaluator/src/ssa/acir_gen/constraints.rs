@@ -407,6 +407,7 @@ pub(crate) fn to_radix_base(
         a: lhs.clone(),
         b: result.clone(),
         radix,
+        is_little_endian: true,
     }));
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));

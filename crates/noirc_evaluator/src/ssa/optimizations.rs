@@ -390,7 +390,7 @@ fn cse_block_with_anchor(
                     //Add dummy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
                     // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
-                    if let builtin::Opcode::Println(_) = opcode {
+                    if let builtin::Opcode::Println = opcode {
                         activate_cse = false
                     }
 
@@ -447,7 +447,7 @@ fn cse_block_with_anchor(
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 match opcode {
                     // We do not simplify print statements
-                    builtin::Opcode::Println(_) => (),
+                    builtin::Opcode::Println => (),
                     _ => {
                         let args = args.iter().map(|arg| {
                             NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())

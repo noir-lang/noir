@@ -15,7 +15,8 @@ pub enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits,
     ToRadix,
-    Println(PrintlnInfo),
+    Println,
+    Trace,
     Sort,
 }
 
@@ -35,10 +36,9 @@ impl Opcode {
         match op_name {
             "to_le_bits" => Some(Opcode::ToBits),
             "to_radix" => Some(Opcode::ToRadix),
-            "println" => {
-                Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
-            }
+            "println" => Some(Opcode::Println),
             "arraysort" => Some(Opcode::Sort),
+            "trace" => Some(Opcode::Trace),
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
     }
@@ -48,8 +48,9 @@ impl Opcode {
             Opcode::LowLevel(op) => op.name(),
             Opcode::ToBits => "to_le_bits",
             Opcode::ToRadix => "to_radix",
-            Opcode::Println(_) => "println",
+            Opcode::Println => "println",
             Opcode::Sort => "arraysort",
+            Opcode::Trace => "trace",
         }
     }
 
@@ -60,6 +61,7 @@ impl Opcode {
                     // Pointers do not overflow
                     BlackBoxFunc::SHA256
                     | BlackBoxFunc::Blake2s
+                    | BlackBoxFunc::Keccak256
                     | BlackBoxFunc::Pedersen
                     | BlackBoxFunc::FixedBaseScalarMul => BigUint::zero(),
                     // Verify returns zero or one
@@ -75,7 +77,9 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) | Opcode::Sort => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits | Opcode::ToRadix | Opcode::Println | Opcode::Sort | Opcode::Trace => {
+                BigUint::zero()
+            } //pointers do not overflow
         }
     }
 
@@ -86,7 +90,9 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
-                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
+                    BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s | BlackBoxFunc::Keccak256 => {
+                        (32, ObjectType::Unsigned(8))
+                    }
                     BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
                     // See issue #775 on changing this to return a boolean
                     BlackBoxFunc::MerkleMembership
@@ -101,7 +107,8 @@ impl Opcode {
             }
             Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
             Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
-            Opcode::Println(_) => (0, ObjectType::NotAnObject),
+            Opcode::Println => (0, ObjectType::NotAnObject),
+            Opcode::Trace => (0, ObjectType::NotAnObject),
             Opcode::Sort => {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)

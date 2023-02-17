@@ -1,4 +1,10 @@
-use acvm::{acir::circuit::Circuit, hash_constraint_system, ProofSystemCompiler};
+use acvm::{
+    acir::circuit::{
+        directives::{Directive, LogOutputInfo},
+        Circuit,
+    },
+    hash_constraint_system, ProofSystemCompiler,
+};
 pub use check_cmd::check_from_path;
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
@@ -236,6 +242,29 @@ fn fetch_pk_and_vk<P: AsRef<Path>>(
         let (proving_key, verification_key) = backend.preprocess(circuit);
         Ok((proving_key, verification_key))
     }
+}
+
+pub fn handle_logs(logs: Vec<Directive>) -> Result<(), CliError> {
+    for log in logs {
+        match &log {
+            Directive::Log { is_trace, output_info } => {
+                if !is_trace {
+                    match output_info {
+                        LogOutputInfo::FinalizedOutput(output_string) => println!("{output_string}"),
+                        _ => return Err(CliError::Generic(format!("Critical error: expected a log object from the compiler but got {log:?}\n",)))
+                    }
+                } else {
+                    dbg!("we got a trace still have to implement!");
+                }
+            }
+            _ => {
+                return Err(CliError::Generic(
+                    "Critical error: a log opcode was returned from evaluation unsolved".to_owned(),
+                ))
+            }
+        }
+    }
+    Ok(())
 }
 
 // FIXME: I not sure that this is the right place for this tests.

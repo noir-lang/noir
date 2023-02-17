@@ -14,7 +14,7 @@ use crate::ssa::{
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
+use noirc_frontend::monomorphization::ast::{Definition, FuncId, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};
@@ -677,7 +677,6 @@ impl SsaContext {
         &mut self,
         evaluator: &mut Evaluator,
         enable_logging: bool,
-        show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
         self.log(enable_logging, "SSA:", "\ninline functions");
@@ -723,7 +722,7 @@ impl SsaContext {
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
         //ACIR
-        self.acir(evaluator, show_output)?;
+        self.acir(evaluator)?;
         if enable_logging {
             print_acir_circuit(&evaluator.opcodes);
             println!("DONE");
@@ -732,13 +731,13 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator, show_output: bool) -> Result<(), RuntimeError> {
+    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
             for iter in &block.instructions {
                 let ins = self.instruction(*iter);
-                acir.acir_gen_instruction(ins, evaluator, self, show_output)?;
+                acir.acir_gen_instruction(ins, evaluator, self)?;
             }
             //TODO we should rather follow the jumps
             fb = block.left.map(|block_id| &self[block_id]);
@@ -1108,41 +1107,9 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(
-        &self,
-        node_id: NodeId,
-        arguments: &[Expression],
-    ) -> Option<builtin::Opcode> {
+    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
         match &self[node_id] {
-            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => match opcode {
-                builtin::Opcode::Println(_) => {
-                    // Compiler sanity check. This should be caught during typechecking
-                    assert_eq!(
-                        arguments.len(),
-                        1,
-                        "print statements currently only support one argument"
-                    );
-                    let is_string = match &arguments[0] {
-                        Expression::Ident(ident) => match ident.typ {
-                            Type::String(_) => true,
-                            Type::Tuple(_) => {
-                                unreachable!("logging structs/tuples is not supported")
-                            }
-                            Type::Function { .. } => {
-                                unreachable!("logging functions is not supported")
-                            }
-                            _ => false,
-                        },
-                        Expression::Literal(literal) => matches!(literal, Literal::Str(_)),
-                        _ => unreachable!("logging this expression type is not supported"),
-                    };
-                    Some(builtin::Opcode::Println(builtin::PrintlnInfo {
-                        is_string_output: is_string,
-                        show_output: true,
-                    }))
-                }
-                _ => Some(*opcode),
-            },
+            NodeObject::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,
         }
     }

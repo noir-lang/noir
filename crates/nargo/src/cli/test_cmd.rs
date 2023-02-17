@@ -8,7 +8,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, NargoConfig};
+use super::{add_std_lib, handle_logs, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -94,14 +94,17 @@ fn run_test(
     let language = backend.np_language();
 
     let program = driver
-        .compile_no_check(language, false, allow_warnings, Some(main), show_output)
+        .compile_no_check(language, false, allow_warnings, Some(main))
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();
 
+    let mut logs = Vec::new();
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes) {
+    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes, &mut logs) {
+        handle_logs(logs)?;
+
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
@@ -109,5 +112,9 @@ fn run_test(
         writer.reset().ok();
         return Err(error.into());
     }
+    if show_output {
+        handle_logs(logs)?;
+    }
+
     Ok(())
 }

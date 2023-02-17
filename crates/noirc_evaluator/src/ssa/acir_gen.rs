@@ -1,5 +1,4 @@
 use crate::ssa::{
-    builtin,
     context::SsaContext,
     node::{Instruction, Operation},
 };
@@ -35,7 +34,6 @@ impl Acir {
         ins: &Instruction,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
-        show_output: bool,
     ) -> Result<(), RuntimeErrorKind> {
         use operations::{
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
@@ -59,16 +57,7 @@ impl Acir {
                 truncate::evaluate(value, *bit_size, *max_bit_size, var_cache, evaluator, ctx)
             }
             Operation::Intrinsic(opcode, args) => {
-                let opcode = match opcode {
-                    builtin::Opcode::Println(print_info) => {
-                        builtin::Opcode::Println(builtin::PrintlnInfo {
-                            is_string_output: print_info.is_string_output,
-                            show_output,
-                        })
-                    }
-                    _ => *opcode,
-                };
-                intrinsics::evaluate(args, ins, opcode, var_cache, acir_mem, ctx, evaluator)
+                intrinsics::evaluate(args, ins, *opcode, var_cache, acir_mem, ctx, evaluator)
             }
             Operation::Return(node_ids) => {
                 r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?

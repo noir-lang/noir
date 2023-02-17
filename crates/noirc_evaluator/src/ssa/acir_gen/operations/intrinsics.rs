@@ -16,7 +16,7 @@ use crate::{
 use acvm::{
     acir::{
         circuit::{
-            directives::{Directive, LogInfo},
+            directives::{Directive, LogOutputInfo},
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
         native_types::{Expression, Witness},
@@ -65,18 +65,15 @@ pub(crate) fn evaluate(
                 memory_map.map_array(a, &outputs, ctx);
             }
         }
-        Opcode::Println(print_info) => {
+        Opcode::Println => {
             outputs = Vec::new(); // print statements do not output anything
-            if print_info.show_output {
-                evaluate_println(
-                    var_cache,
-                    memory_map,
-                    print_info.is_string_output,
-                    args,
-                    ctx,
-                    evaluator,
-                );
-            }
+
+            let is_string_output = ctx.get_as_constant(args[1]).unwrap().to_u128();
+            evaluate_println(var_cache, memory_map, is_string_output != 0, args, ctx, evaluator);
+        }
+        Opcode::Trace => {
+            outputs = Vec::new();
+            evaluate_println(var_cache, memory_map, false, args, ctx, evaluator)
         }
         Opcode::LowLevel(op) => {
             let inputs = prepare_inputs(var_cache, memory_map, args, ctx, evaluator);
@@ -246,7 +243,7 @@ fn evaluate_println(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) {
-    assert_eq!(args.len(), 1, "print statements can only support one argument");
+    // assert_eq!(args.len(), 1, "print statements can only support one argument");
     let node_id = args[0];
 
     let mut log_string = "".to_owned();
@@ -310,9 +307,9 @@ fn evaluate_println(
     assert!(log_witnesses.is_empty() ^ log_string.is_empty());
 
     let log_directive = if !log_string.is_empty() {
-        Directive::Log(LogInfo::FinalizedOutput(log_string))
+        Directive::Log { is_trace: false, output_info: LogOutputInfo::FinalizedOutput(log_string) }
     } else {
-        Directive::Log(LogInfo::WitnessOutput(log_witnesses))
+        Directive::Log { is_trace: false, output_info: LogOutputInfo::WitnessOutput(log_witnesses) }
     };
 
     evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
