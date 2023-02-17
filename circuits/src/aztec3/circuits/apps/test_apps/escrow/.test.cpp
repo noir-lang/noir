@@ -49,7 +49,7 @@ TEST_F(escrow_tests, test_deposit)
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
     // if all this stuff were to be declared in a setup function's scope.
     // We could instead store shared_ptrs in every class...?
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -73,7 +73,7 @@ TEST_F(escrow_tests, test_deposit)
 
 TEST_F(escrow_tests, test_transfer)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -99,7 +99,7 @@ TEST_F(escrow_tests, test_transfer)
 
 TEST_F(escrow_tests, test_withdraw)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);

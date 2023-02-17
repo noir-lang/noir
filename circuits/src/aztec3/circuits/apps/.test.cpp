@@ -121,7 +121,7 @@ TEST_F(state_var_tests, mapping)
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
     // if all this stuff were to be declared in a setup function's scope.
     // We could instead store shared_ptrs in every class...?
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -153,7 +153,7 @@ TEST_F(state_var_tests, mapping)
 
 TEST_F(state_var_tests, mapping_within_mapping)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -175,7 +175,7 @@ TEST_F(state_var_tests, mapping_within_mapping)
 
 TEST_F(state_var_tests, partial_mapping)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -197,7 +197,7 @@ TEST_F(state_var_tests, partial_mapping)
 
 TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -244,7 +244,7 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
 
 TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -306,7 +306,7 @@ TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
 
 TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);
@@ -354,7 +354,7 @@ TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
 
 TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
 {
-    C composer;
+    C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
     NativeOracle native_oracle = get_test_native_oracle(db);
     OracleWrapper oracle_wrapper = OracleWrapper(composer, native_oracle);

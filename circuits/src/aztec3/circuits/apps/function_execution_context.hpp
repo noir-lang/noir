@@ -206,7 +206,7 @@ template <typename Composer> class FunctionExecutionContext {
                                                // (which cannot own a secret), rather than a human.
         );
 
-        Composer f_composer;
+        Composer f_composer = Composer("../barretenberg/cpp/srs_db/ignition");
 
         OracleWrapperInterface<Composer> f_oracle_wrapper(f_composer, f_oracle);
 

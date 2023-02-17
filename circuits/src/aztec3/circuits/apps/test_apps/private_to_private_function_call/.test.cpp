@@ -15,7 +15,7 @@ class private_to_private_function_call_tests : public ::testing::Test {};
 TEST(private_to_private_function_call_tests, test_private_to_private_function_call)
 {
 
-    C fn1_composer;
+    C fn1_composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
 
     const NT::address contract_address = 12345;

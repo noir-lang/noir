@@ -39,7 +39,7 @@ TEST(abi_tests, test_native_to_circuit_function_signature)
 
     info("function signature: ", native_function_signature);
 
-    Composer composer;
+    Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
     FunctionSignature<CT> circuit_function_signature = native_function_signature.to_circuit_type(composer);
 
     info("function signature: ", circuit_function_signature);
@@ -70,7 +70,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
     info("call context: ", native_call_context);
 
-    Composer composer;
+    Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
     CallContext<CT> circuit_call_context = native_call_context.to_circuit_type(composer);
 
     info("call context: ", circuit_call_context);
@@ -109,7 +109,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
 //     info("public_circuit_public_inputs: ", native_public_inputs);
 
-//     Composer composer;
+//     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
 //     PublicCircuitPublicInputs<CT> circuit_public_inputs = native_public_inputs.to_circuit_type(composer);
 
 //     info("public_circuit_public_inputs: ", circuit_public_inputs);
@@ -180,7 +180,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
 //     info("call stack item: ", native_call_stack_item);
 
-//     Composer composer;
+//     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
 //     CallStackItem<CT, CallType::Public> circuit_call_stack_item =
 //         native_call_stack_item.to_circuit_type(composer);
 

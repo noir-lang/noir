@@ -27,13 +27,13 @@ class play_tests : public ::testing::Test {
 
 TEST(play_tests, test_play_app_circuit)
 {
-    Composer composer;
+    Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
     play_app_circuit(composer, 1, 2);
 }
 
 TEST(play_tests, test_play_app_proof_gen)
 {
-    Composer app_composer;
+    Composer app_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     play_app_circuit(app_composer, 100, 200);
 
     if (app_composer.failed()) {
@@ -47,7 +47,7 @@ TEST(play_tests, test_play_app_proof_gen)
 
 TEST(play_tests, test_play_recursive_proof_gen)
 {
-    Composer app_composer;
+    Composer app_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     play_app_circuit(app_composer, 1, 2);
 
     if (app_composer.failed()) {
@@ -60,7 +60,7 @@ TEST(play_tests, test_play_recursive_proof_gen)
 
     std::shared_ptr<waffle::verification_key> app_vk = app_composer.compute_verification_key();
 
-    Composer recursive_composer;
+    Composer recursive_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     recursion_output<bn254> recursion_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
 
     if (recursive_composer.failed()) {
@@ -70,7 +70,7 @@ TEST(play_tests, test_play_recursive_proof_gen)
 
 TEST(play_tests, test_play_recursive_2_proof_gen)
 {
-    Composer app_composer;
+    Composer app_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     play_app_circuit(app_composer, 1, 2);
 
     if (app_composer.failed()) {
@@ -83,7 +83,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     //*******************************************************************************
 
-    Composer dummy_circuit_composer;
+    Composer dummy_circuit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     dummy_circuit(dummy_circuit_composer, 1, 2);
 
     if (dummy_circuit_composer.failed()) {
@@ -96,7 +96,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     //*******************************************************************************
 
-    Composer recursion_1_composer = Composer("../srs_db/ignition", 0);
+    Composer recursion_1_composer = Composer("../barretenberg/cpp/srs_db/ignition", 0);
     recursion_output<bn254> recursion_1_output =
         play_recursive_circuit_2(recursion_1_composer, app_vk, app_proof, dummy_circuit_vk, dummy_circuit_proof);
 
@@ -112,7 +112,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     //*******************************************************************************
 
-    // Composer recursion_2_composer;
+    // Composer recursion_2_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     // recursion_output<bn254> recursion_2_output = play_recursive_circuit_2<TurboRecursion>(
     //     recursion_2_composer, app_vk, app_proof, recursion_1_vk, recursion_1_proof);
 

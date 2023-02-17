@@ -86,7 +86,7 @@ TEST(private_kernel_tests, test_deposit)
         NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
     const NT::address tx_origin = msg_sender;
 
-    Composer deposit_composer;
+    Composer deposit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     DB db;
 
     FunctionSignature<NT> function_signature{
@@ -157,7 +157,7 @@ TEST(private_kernel_tests, test_deposit)
     // kernel circuit expects to verify some previous kernel circuit).
     //***************************************************************************
 
-    Composer mock_kernel_composer;
+    Composer mock_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
 
     // TODO: we have a choice to make:
     // Either the `end` state of the mock kernel's public inputs can be set equal to the public call we _want_ to
@@ -215,7 +215,7 @@ TEST(private_kernel_tests, test_deposit)
     // - mock kernel proof, public inputs, etc.
     //***************************************************************************
 
-    Composer private_kernel_composer;
+    Composer private_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
 
     PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
         .signed_tx_object = signed_deposit_tx_object,
