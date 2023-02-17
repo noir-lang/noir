@@ -297,15 +297,6 @@ impl Evaluator {
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
 
-        // Remove the return type from the parameters
-        // Since this is not in the main functions parameters.
-        //
-        // TODO(See Issue633) regarding adding a `return_type` field to the ABI struct
-        let abi_params: Vec<_> = abi_params
-            .into_iter()
-            .filter(|param| param.name != noirc_abi::MAIN_RETURN_NAME)
-            .collect();
-
         assert_eq!(main_params.len(), abi_params.len());
 
         for ((param_id, _, param_name, _), abi_param) in main_params.iter().zip(abi_params) {
