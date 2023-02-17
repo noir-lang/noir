@@ -150,8 +150,10 @@ impl FuncMeta {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let return_type = self.return_type().clone();
         let mut abi = self.parameters.into_abi(interner);
-        abi.return_type =
-            if matches!(return_type, Type::Unit) { None } else { Some(return_type.as_abi_type()) };
+        abi.return_type = match return_type {
+            Type::Unit => None,
+            _ => Some(return_type.as_abi_type()),
+        };
 
         abi
     }
