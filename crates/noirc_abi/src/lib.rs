@@ -183,13 +183,13 @@ impl Abi {
                     .clone();
 
                 if !value.matches_abi(&expected_type) {
-                    let missing_param = self
+                    let param = self
                         .parameters
                         .iter()
                         .find(|param| param.name == param_name)
                         .unwrap()
                         .clone();
-                    return Err(AbiError::TypeMismatch { param: missing_param, value });
+                    return Err(AbiError::TypeMismatch { param, value });
                 }
 
                 Self::encode_value(value, &param_name).map(|v| (param_name, v))
