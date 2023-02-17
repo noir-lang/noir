@@ -1,13 +1,13 @@
-use clap::ArgMatches;
-use std::path::{Path, PathBuf};
-
 use acvm::ProofSystemCompiler;
+use acvm::{acir::circuit::Circuit, hash_constraint_system};
+use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
+use std::path::{Path, PathBuf};
 
 use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::execute_cmd::save_witness_to_dir,
-    constants::{ACIR_EXT, PROVER_INPUT_FILE, TARGET_DIR},
+    constants::{ACIR_EXT, PK_EXT, PROVER_INPUT_FILE, TARGET_DIR, VK_EXT},
     errors::CliError,
     resolver::Resolver,
 };
@@ -33,7 +33,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     .map(|_| ())
 }
 
-#[allow(deprecated)]
 pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,
@@ -42,13 +41,12 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
-    let serialized = compiled_program.circuit.to_bytes();
 
-    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
-    circuit_path.push(circuit_name);
-    circuit_path.set_extension(ACIR_EXT);
-    let path = write_to_file(serialized.as_slice(), &circuit_path);
-    println!("Generated ACIR code into {path}");
+    preprocess_with_path(circuit_name, circuit_dir.as_ref(), compiled_program.circuit.clone())?;
+
+    let mut circuit_path =
+        save_acir_to_dir(compiled_program.circuit.clone(), circuit_name, circuit_dir.as_ref());
+    println!("Generated ACIR code into {}", circuit_path.display());
 
     if generate_witness {
         // Parse the initial witness values from Prover.toml
@@ -56,7 +54,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
             program_dir,
             PROVER_INPUT_FILE,
             Format::Toml,
-            compiled_program.abi.as_ref().unwrap().clone(),
+            &compiled_program.abi,
         )?;
 
         let (_, solved_witness) =
@@ -81,4 +79,59 @@ pub fn compile_circuit<P: AsRef<Path>>(
     driver
         .into_compiled_program(backend.np_language(), show_ssa, allow_warnings)
         .map_err(|_| std::process::exit(1))
+}
+
+pub fn preprocess_with_path<P: AsRef<Path>>(
+    key_name: &str,
+    preprocess_dir: P,
+    circuit: Circuit,
+) -> Result<(PathBuf, PathBuf), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+
+    let (proving_key, verification_key) = backend.preprocess(circuit);
+
+    let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
+    println!("Proving key saved to {}", pk_path.display());
+    let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
+    println!("Verification key saved to {}", vk_path.display());
+
+    Ok((pk_path, vk_path))
+}
+
+fn save_acir_to_dir<P: AsRef<Path>>(
+    circuit: Circuit,
+    circuit_name: &str,
+    circuit_dir: P,
+) -> PathBuf {
+    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
+    circuit_path.push(circuit_name);
+
+    // Save a checksum of the circuit to compare against during proving and verification
+    let acir_hash = hash_constraint_system(&circuit);
+    circuit_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+    write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
+
+    let mut serialized = Vec::new();
+    circuit.write(&mut serialized).expect("could not serialize circuit");
+
+    circuit_path.set_extension(ACIR_EXT);
+    write_to_file(serialized.as_slice(), &circuit_path);
+
+    circuit_path
+}
+
+fn save_key_to_dir<P: AsRef<Path>>(
+    key: Vec<u8>,
+    key_name: &str,
+    key_dir: P,
+    is_proving_key: bool,
+) -> Result<PathBuf, CliError> {
+    let mut key_path = create_named_dir(key_dir.as_ref(), key_name);
+    key_path.push(key_name);
+    let extension = if is_proving_key { PK_EXT } else { VK_EXT };
+    key_path.set_extension(extension);
+
+    write_to_file(hex::encode(key).as_bytes(), &key_path);
+
+    Ok(key_path)
 }

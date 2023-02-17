@@ -1,30 +1,30 @@
 mod poseidon;
 
 #[foreign(sha256)]
-fn sha256(_input : [u8]) -> [u8; 32] {}
+fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 
 #[foreign(blake2s)]
-fn blake2s(_input : [u8]) -> [u8; 32] {}
+fn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}
 
 #[foreign(pedersen)]
-fn pedersen(_input : [Field]) -> [Field; 2] {}
+fn pedersen<N>(_input : [Field; N]) -> [Field; 2] {}
 
 #[foreign(hash_to_field_128_security)]
-fn hash_to_field(_input : [Field]) -> Field {}
+fn hash_to_field<N>(_input : [Field; N]) -> Field {}
 
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.
 // You must use constants generated for the native field
 // Rounds number should be ~ log(p)/log(exp)
 // For 254 bit primes, exponent 7 and 91 rounds seems to be recommended
-fn mimc(x: Field, k: Field, constants: [Field], exp : Field) -> Field {
+fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {
     //round 0
     let mut t = x + k;
-    let mut h = crate::pow_32(t,exp);
+    let mut h = t.pow_32(exp);
     //next rounds
-    for i in 1..crate::array::len(constants) {
+    for i in 1 .. constants.len() {
         t = h + k + constants[i];
-        h = crate::pow_32(t,exp);
+        h = t.pow_32(exp);
     };
     h + k
 }
@@ -32,7 +32,7 @@ fn mimc(x: Field, k: Field, constants: [Field], exp : Field) -> Field {
 global MIMC_BN254_ROUNDS = 91;
 
 //mimc implementation with hardcoded parameters for BN254 curve.
-fn mimc_bn254(x: [Field]) -> Field {
+fn mimc_bn254<N>(array: [Field; N]) -> Field {
     //mimc parameters
     let exponent = 7;
     //generated from seed "mimc" using keccak256 
@@ -129,11 +129,11 @@ fn mimc_bn254(x: [Field]) -> Field {
         18979889247746272055963929241596362599320706910852082477600815822482192194401,
         13602139229813231349386885113156901793661719180900395818909719758150455500533,
     ];
-        
+
     let mut r = 0;
-    for i in 0 .. crate::array::len(x) {
-        let h = mimc(x[i], r, constants, exponent);
-        r = r + x[i] + h;
-    };
+    for elem in array {
+        let h = mimc(elem, r, constants, exponent);
+        r = r + elem + h;
+    }
     r
 }

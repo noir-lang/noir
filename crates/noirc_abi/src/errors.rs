@@ -1,4 +1,5 @@
 use crate::{input_parser::InputValue, AbiParameter, AbiType};
+use acvm::acir::native_types::Witness;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -41,4 +42,8 @@ pub enum AbiError {
     UndefinedInput(String),
     #[error("ABI specifies an input of length {expected} but received input of length {actual}")]
     UnexpectedInputLength { expected: u32, actual: u32 },
+    #[error(
+        "Could not read witness value at index {witness_index:?} (required for parameter \"{name}\")"
+    )]
+    MissingParamWitnessValue { name: String, witness_index: Witness },
 }

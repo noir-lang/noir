@@ -1,14 +1,14 @@
-use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
-use acvm::{FieldElement, PartialWitnessGenerator};
+use acvm::PartialWitnessGenerator;
+use clap::ArgMatches;
 use noirc_abi::errors::AbiError;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{Abi, MAIN_RETURN_NAME};
+use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
 use noirc_driver::CompiledProgram;
 
-use super::{create_named_dir, read_inputs_from_file, write_to_file, InputMap, WitnessMap};
+use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
@@ -40,10 +40,6 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     Ok(())
 }
 
-/// In Barretenberg, the proof system adds a zero witness in the first index,
-/// So when we add witness values, their index start from 1.
-const WITNESS_OFFSET: u32 = 1;
-
 fn execute_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
@@ -56,7 +52,7 @@ fn execute_with_path<P: AsRef<Path>>(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
-        compiled_program.abi.as_ref().unwrap().clone(),
+        &compiled_program.abi,
     )?;
 
     execute_program(&compiled_program, &inputs_map)
@@ -69,36 +65,19 @@ pub(crate) fn execute_program(
     // Solve the remaining witnesses
     let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
-    let public_inputs = extract_public_inputs(compiled_program, &solved_witness)?;
+    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 
     Ok((return_value, solved_witness))
-}
-
-pub(crate) fn extract_public_inputs(
-    compiled_program: &CompiledProgram,
-    solved_witness: &WitnessMap,
-) -> Result<InputMap, AbiError> {
-    let encoded_public_inputs: Vec<FieldElement> = compiled_program
-        .circuit
-        .public_inputs
-        .0
-        .iter()
-        .map(|index| solved_witness[index])
-        .collect();
-
-    let public_abi = compiled_program.abi.as_ref().unwrap().clone().public_abi();
-
-    public_abi.decode(&encoded_public_inputs)
 }
 
 pub(crate) fn solve_witness(
     compiled_program: &CompiledProgram,
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let abi = compiled_program.abi.as_ref().unwrap().clone();
     let mut solved_witness =
-        input_map_to_witness_map(abi, input_map).map_err(|error| match error {
+        compiled_program.abi.encode_to_witness(input_map).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
             }
@@ -109,24 +88,6 @@ pub(crate) fn solve_witness(
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
 
     Ok(solved_witness)
-}
-
-/// Given an InputMap and an Abi, produce a WitnessMap
-///
-/// In particular, this method shows one how to associate values in a Toml/JSON
-/// file with witness indices
-fn input_map_to_witness_map(abi: Abi, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
-    // The ABI map is first encoded as a vector of field elements
-    let encoded_inputs = abi.encode(input_map, true)?;
-
-    Ok(encoded_inputs
-        .into_iter()
-        .enumerate()
-        .map(|(index, witness_value)| {
-            let witness = Witness::new(WITNESS_OFFSET + (index as u32));
-            (witness, witness_value)
-        })
-        .collect())
 }
 
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(

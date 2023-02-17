@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiParameter, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_errors::{Location, Span};
@@ -61,7 +63,7 @@ impl Parameters {
             let as_abi = param.1.as_abi_type();
             AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
         });
-        noirc_abi::Abi { parameters }
+        noirc_abi::Abi { parameters, param_witnesses: BTreeMap::new() }
     }
 
     pub fn span(&self) -> Span {

@@ -10,6 +10,7 @@ use crate::{Abi, AbiType};
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
+#[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug, Clone, Serialize)]
 pub enum InputValue {
     Field(FieldElement),
@@ -90,7 +91,7 @@ impl Format {
     pub fn parse(
         &self,
         input_string: &str,
-        abi: Abi,
+        abi: &Abi,
     ) -> Result<BTreeMap<String, InputValue>, InputParserError> {
         match self {
             Format::Toml => toml::parse_toml(input_string, abi),
