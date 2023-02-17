@@ -257,7 +257,9 @@ impl Abi {
                     },
                 )?;
             }
-            (None, Some(_)) => return Err(AbiError::UnexpectedParams(vec!["return".to_string()])),
+            (None, Some(_)) => {
+                return Err(AbiError::UnexpectedParams(vec![MAIN_RETURN_NAME.to_owned()]))
+            }
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.
             (_, None) => {}
