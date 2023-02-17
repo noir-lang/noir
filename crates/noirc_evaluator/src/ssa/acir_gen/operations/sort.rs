@@ -119,12 +119,7 @@ mod test {
     fn test_permutation() {
         let mut rng = rand::thread_rng();
         for n in 2..50 {
-            let mut eval = Evaluator {
-                current_witness_index: 0,
-                num_witnesses_abi_len: 0,
-                param_witnesses: BTreeMap::new(),
-                opcodes: Vec::new(),
-            };
+            let mut eval = Evaluator::new();
 
             //we generate random inputs
             let mut input = Vec::new();
