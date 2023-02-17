@@ -185,7 +185,13 @@ impl Abi {
         input_map: &InputMap,
         return_value: Option<InputValue>,
     ) -> Result<WitnessMap, AbiError> {
-        self.check_for_unexpected_inputs(input_map)?;
+        // Check that no extra witness values have been provided.
+        let param_names = self.parameter_names();
+        if param_names.len() < input_map.len() {
+            let unexpected_params: Vec<String> =
+                input_map.keys().filter(|param| !param_names.contains(param)).cloned().collect();
+            return Err(AbiError::UnexpectedParams(unexpected_params));
+        }
 
         // First encode each input separately, performing any input validation.
         let encoded_input_map: BTreeMap<String, Vec<FieldElement>> = self
@@ -252,18 +258,6 @@ impl Abi {
         }
 
         Ok(witness_map)
-    }
-
-    /// Checks that no extra witness values have been provided.
-    fn check_for_unexpected_inputs(&self, inputs: &InputMap) -> Result<(), AbiError> {
-        let param_names = self.parameter_names();
-        if param_names.len() < inputs.len() {
-            let unexpected_params: Vec<String> =
-                inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
-            return Err(AbiError::UnexpectedParams(unexpected_params));
-        }
-
-        Ok(())
     }
 
     fn encode_value(value: InputValue) -> Result<Vec<FieldElement>, AbiError> {
