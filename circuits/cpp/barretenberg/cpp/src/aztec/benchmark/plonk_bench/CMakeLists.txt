@@ -4,7 +4,7 @@ target_link_libraries(
   plonk_bench
   stdlib_primitives
   env
-  benchmark
+  benchmark::benchmark
 )
 
 add_custom_target(

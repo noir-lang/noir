@@ -4,7 +4,7 @@ target_link_libraries(
   honk_bench
   stdlib_primitives
   env
-  benchmark
+  benchmark::benchmark
 )
 
 add_custom_target(
