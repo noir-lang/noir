@@ -592,14 +592,12 @@ where
         let next_precedence =
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
 
-        expression_with_precedence(precedence.next(), expr_parser.clone(), is_type_expression)
-            .then(
-                then_commit(
-                    operator_with_precedence(precedence),
-                    expression_with_precedence(next_precedence, expr_parser, is_type_expression),
-                )
-                .repeated(),
-            )
+        let next_expr =
+            expression_with_precedence(next_precedence, expr_parser, is_type_expression);
+
+        next_expr
+            .clone()
+            .then(then_commit(operator_with_precedence(precedence), next_expr).repeated())
             .foldl(create_infix_expression)
             .boxed()
             .labelled("expression")

@@ -64,27 +64,19 @@ fn execute_with_path<P: AsRef<Path>>(
         &compiled_program.abi,
     )?;
 
-    execute_program(&compiled_program, &inputs_map)
-}
+    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
-pub(crate) fn execute_program(
-    compiled_program: &CompiledProgram,
-    inputs_map: &InputMap,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    // Solve the remaining witnesses
-    let solved_witness = solve_witness(compiled_program, inputs_map)?;
-
-    let public_abi = compiled_program.abi.clone().public_abi();
+    let public_abi = compiled_program.abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
     Ok((return_value, solved_witness))
 }
 
-pub(crate) fn solve_witness(
+pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
-    input_map: &InputMap,
+    inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness = compiled_program.abi.encode(input_map, None)?;
+    let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;

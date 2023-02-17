@@ -67,8 +67,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
             &compiled_program.abi,
         )?;
 
-        let (_, solved_witness) =
-            super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
+        let solved_witness = super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
 
         circuit_path.pop();
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;

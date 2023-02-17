@@ -88,7 +88,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         &compiled_program.abi,
     )?;
 
-    let (_, solved_witness) = execute_program(&compiled_program, &inputs_map)?;
+    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.clone().public_abi();
