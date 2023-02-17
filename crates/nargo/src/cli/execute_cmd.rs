@@ -76,7 +76,7 @@ pub(crate) fn execute_program(
     let solved_witness = solve_witness(compiled_program, inputs_map)?;
 
     let public_abi = compiled_program.abi.clone().public_abi();
-    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
+    let public_inputs = public_abi.decode(&solved_witness)?;
     let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
 
     Ok((return_value, solved_witness))
@@ -87,7 +87,7 @@ pub(crate) fn solve_witness(
     input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let mut solved_witness =
-        compiled_program.abi.encode_to_witness(input_map).map_err(|error| match error {
+        compiled_program.abi.encode(input_map, true).map_err(|error| match error {
             AbiError::UndefinedInput(_) => {
                 CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
             }

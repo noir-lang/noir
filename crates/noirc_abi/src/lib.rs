@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use std::{collections::BTreeMap, convert::TryInto, str};
+use std::{collections::BTreeMap, str};
 
 use acvm::{acir::native_types::Witness, FieldElement};
 use errors::AbiError;
@@ -168,14 +168,14 @@ impl Abi {
     }
 
     /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
-    pub fn encode_to_witness(&self, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
+    pub fn encode(&self, input_map: &InputMap, skip_output: bool) -> Result<WitnessMap, AbiError> {
         self.check_for_unexpected_inputs(input_map)?;
 
         // First encode each input separately, performing any input validation.
         let encoded_input_map: BTreeMap<String, Vec<FieldElement>> = self
             .to_btree_map()
             .into_iter()
-            .filter(|(param_name, _)| param_name != MAIN_RETURN_NAME)
+            .filter(|(param_name, _)| !skip_output || param_name != MAIN_RETURN_NAME)
             .map(|(param_name, expected_type)| {
                 let value = input_map
                     .get(&param_name)
@@ -209,27 +209,6 @@ impl Abi {
             .collect();
 
         Ok(witness_map)
-    }
-
-    /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
-    pub fn encode_to_array(self, inputs: &InputMap) -> Result<Vec<FieldElement>, AbiError> {
-        self.check_for_unexpected_inputs(inputs)?;
-
-        let mut encoded_inputs = Vec::new();
-        for param in &self.parameters {
-            let value = inputs
-                .get(&param.name)
-                .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
-                .clone();
-
-            if !value.matches_abi(&param.typ) {
-                return Err(AbiError::TypeMismatch { param: param.clone(), value });
-            }
-
-            encoded_inputs.extend(Self::encode_value(value, &param.name)?);
-        }
-
-        Ok(encoded_inputs)
     }
 
     /// Checks that no extra witness values have been provided.
@@ -266,7 +245,7 @@ impl Abi {
     }
 
     /// Decode a `WitnessMap` into the types specified in the ABI.
-    pub fn decode_from_witness(&self, witness_map: &WitnessMap) -> Result<InputMap, AbiError> {
+    pub fn decode(&self, witness_map: &WitnessMap) -> Result<InputMap, AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
@@ -285,26 +264,6 @@ impl Abi {
             })?;
 
         Ok(public_inputs_map)
-    }
-
-    /// Decode a vector of `FieldElements` into the types specified in the ABI.
-    pub fn decode_from_array(&self, encoded_inputs: &[FieldElement]) -> Result<InputMap, AbiError> {
-        let input_length: u32 = encoded_inputs.len().try_into().unwrap();
-        if input_length != self.field_count() {
-            return Err(AbiError::UnexpectedInputLength {
-                actual: input_length,
-                expected: self.field_count(),
-            });
-        }
-
-        let mut field_iterator = encoded_inputs.iter().cloned();
-        let mut decoded_inputs = BTreeMap::new();
-        for param in &self.parameters {
-            let decoded_value = Self::decode_value(&mut field_iterator, &param.typ)?;
-
-            decoded_inputs.insert(param.name.to_owned(), decoded_value);
-        }
-        Ok(decoded_inputs)
     }
 
     fn decode_value(
