@@ -237,12 +237,11 @@ impl Abi {
                     panic!("Unexpected return value")
                 }
                 let encoded_return_fields = Self::encode_value(return_value)?;
-                let return_witness_indices = &self.return_witnesses;
 
                 // We need to be more careful when writing the return value's witness values.
                 // This is as it may share witness indices with other public inputs so we must check that when
                 // this occurs the witness values are consistent with each other.
-                return_witness_indices.iter().zip(encoded_return_fields.iter()).try_for_each(
+                self.return_witnesses.iter().zip(encoded_return_fields.iter()).try_for_each(
                     |(&witness, &field_element)| match witness_map.insert(witness, field_element) {
                         Some(existing_value) if existing_value != field_element => {
                             panic!("Inconsistent return value");
