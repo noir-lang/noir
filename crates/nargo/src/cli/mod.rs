@@ -3,7 +3,7 @@ use acvm::{
     hash_constraint_system, FieldElement, ProofSystemCompiler,
 };
 pub use check_cmd::check_from_path;
-use clap::{App, AppSettings, Arg};
+use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::{input_parser::Format, Abi, InputMap};
 use noirc_driver::Driver;
@@ -39,118 +39,50 @@ const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 static VERSION_STRING: &str =
     formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 
+#[derive(Parser, Debug)]
+#[command(author, version=VERSION_STRING, about, long_about = None)]
+struct NargoCli {
+    #[command(subcommand)]
+    command: NargoCommand,
+
+    #[clap(flatten)]
+    config: NargoConfig,
+}
+
+#[non_exhaustive]
+#[derive(Args, Clone, Debug)]
+pub(crate) struct NargoConfig {
+    #[arg(short, long, hide=true, default_value_os_t = std::env::current_dir().unwrap())]
+    program_dir: PathBuf,
+}
+
+#[non_exhaustive]
+#[derive(Subcommand, Clone, Debug)]
+enum NargoCommand {
+    Check(check_cmd::CheckCommand),
+    Contract(contract_cmd::ContractCommand),
+    Compile(compile_cmd::CompileCommand),
+    New(new_cmd::NewCommand),
+    Execute(execute_cmd::ExecuteCommand),
+    Prove(prove_cmd::ProveCommand),
+    Verify(verify_cmd::VerifyCommand),
+    Test(test_cmd::TestCommand),
+    Gates(gates_cmd::GatesCommand),
+}
+
 pub fn start_cli() {
-    let allow_warnings = Arg::with_name("allow-warnings")
-        .long("allow-warnings")
-        .help("Issue a warning for each unused variable instead of an error");
+    let matches = NargoCli::parse();
 
-    let show_ssa = Arg::with_name("show-ssa")
-        .long("show-ssa")
-        .help("Emit debug information for the intermediate SSA IR");
-
-    let matches = App::new("nargo")
-        .about("Noir's package manager")
-        .version(VERSION_STRING)
-        .author("The Noir Team <kevtheappdev@gmail.com>")
-        .subcommand(
-            App::new("check")
-                .about("Checks the constraint system for errors")
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("contract")
-                .about("Generates a Solidity verifier smart contract for the program"),
-        )
-        .subcommand(
-            App::new("new")
-                .about("Create a new binary project")
-                .arg(Arg::with_name("package_name").help("Name of the package").required(true))
-                .arg(
-                    Arg::with_name("path").help("The path to save the new project").required(false),
-                ),
-        )
-        .subcommand(
-            App::new("verify")
-                .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(Arg::with_name("proof").help("The proof to verify").required(true))
-                .arg(Arg::with_name("circuit_name").help(
-                    "The name of the circuit build files (ACIR, proving and verification keys)",
-                ))
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("prove")
-                .about(
-                    "Create proof for this program. The proof is returned as a hex encoded string.",
-                )
-                .arg(Arg::with_name("proof_name").help("The name of the proof"))
-                .arg(Arg::with_name("circuit_name").help(
-                    "The name of the circuit build files (ACIR, proving and verification keys)",
-                ))
-                .arg(Arg::with_name("verify").long("verify").help("Verify proof after proving"))
-                .arg(show_ssa.clone())
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("test")
-                .about("Run the tests for this program")
-                .arg(
-                    Arg::with_name("test_name")
-                        .help("If given, only tests with names containing this string will be run"),
-                )
-                .arg(allow_warnings.clone())
-                .arg(
-                    Arg::with_name("show-logs")
-                        .long("show-logs")
-                        .help("Display output of println statements during tests"),
-                ),
-        )
-        .subcommand(
-            App::new("compile")
-                .about("Compile the program and its secret execution trace into ACIR format")
-                .arg(
-                    Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
-                )
-                .arg(
-                    Arg::with_name("witness")
-                        .long("witness")
-                        .help("Solve the witness and write it to file along with the ACIR"),
-                )
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("gates")
-                .about("Counts the occurrences of different gates in circuit")
-                .arg(show_ssa.clone())
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("execute")
-                .about("Executes a circuit to calculate its return value")
-                .arg(
-                    Arg::with_name("witness_name")
-                        .long("witness_name")
-                        .help("Write the execution witness to named file")
-                        .takes_value(true),
-                )
-                .arg(show_ssa)
-                .arg(allow_warnings.clone()),
-        )
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .get_matches();
-
-    let result = match matches.subcommand_name() {
-        Some("new") => new_cmd::run(matches),
-        Some("check") => check_cmd::run(matches),
-        Some("contract") => contract_cmd::run(matches),
-        Some("prove") => prove_cmd::run(matches),
-        Some("compile") => compile_cmd::run(matches),
-        Some("verify") => verify_cmd::run(matches),
-        Some("gates") => gates_cmd::run(matches),
-        Some("execute") => execute_cmd::run(matches),
-        Some("test") => test_cmd::run(matches),
-        Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
-        _ => unreachable!(),
+    let result = match matches.command {
+        NargoCommand::New(args) => new_cmd::run(args, matches.config),
+        NargoCommand::Check(args) => check_cmd::run(args, matches.config),
+        NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
+        NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
+        NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
+        NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
+        NargoCommand::Test(args) => test_cmd::run(args, matches.config),
+        NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
+        NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
     };
     if let Err(err) = result {
         err.write()
@@ -225,7 +157,7 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     match prove_cmd::prove_with_path(
-        Some(proof_name),
+        Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         None,
