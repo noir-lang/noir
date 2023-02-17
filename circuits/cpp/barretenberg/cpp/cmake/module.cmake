@@ -54,7 +54,7 @@ function(barretenberg_module MODULE_NAME)
         target_link_libraries(
             ${MODULE_NAME}_test_objects
             PRIVATE
-            gtest
+            GTest::gtest
             ${TBB_IMPORTED_TARGETS}
         )
 
@@ -94,8 +94,8 @@ function(barretenberg_module MODULE_NAME)
             PRIVATE
             ${MODULE_LINK_NAME}
             ${ARGN}
-            gtest
-            gtest_main
+            GTest::gtest
+            GTest::gtest_main
             ${TBB_IMPORTED_TARGETS}
         )
 
