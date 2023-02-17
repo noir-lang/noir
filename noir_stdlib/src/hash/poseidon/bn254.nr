@@ -3,8 +3,6 @@ mod perm;
 mod consts;
 
 use crate::hash::poseidon::PoseidonConfig;
-use crate::array;
-use crate::pow_32;
 use crate::hash::poseidon::apply_matrix;
 
 // Optimised permutation for this particular field; uses hardcoded rf and rp values,
@@ -15,9 +13,9 @@ fn permute<M,N,O>(
     -> [Field; O] {
     let PoseidonConfig {t, rf: config_rf, rp: config_rp, alpha, ark, mds} = pos_conf;
     let rf = 8;
-    let rp = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][array::len(state) - 2];
+    let rp = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68][state.len() - 2];
 
-    constrain t == array::len(state);
+    constrain t == state.len();
     constrain rf == config_rf as Field;
     constrain rp == config_rp as Field;
     
@@ -25,12 +23,12 @@ fn permute<M,N,O>(
 
     // First half of full rounds
     for _r in 0..rf/2 {
-        for i in 0..array::len(state) {
+        for i in 0..state.len() {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        for i in 0..array::len(state) {
-            state[i] = pow_32(state[i], alpha);
+        for i in 0..state.len() {
+            state[i] = state[i].pow_32(alpha);
         }
         
         state = apply_matrix(mds, state); // Apply MDS matrix
@@ -39,11 +37,11 @@ fn permute<M,N,O>(
 
     // Partial rounds
     for _r in 0..rp {
-        for i in 0..array::len(state) {
+        for i in 0..state.len() {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        state[0] = pow_32(state[0], alpha);
+        state[0] = state[0].pow_32(alpha);
         
         state = apply_matrix(mds, state); // Apply MDS matrix
         count = count + t;
@@ -51,12 +49,12 @@ fn permute<M,N,O>(
 
     // Second half of full rounds
     for _r in 0..rf/2 {
-        for i in 0..array::len(state) {
+        for i in 0..state.len() {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        for i in 0..array::len(state) {
-            state[i] = pow_32(state[i], alpha);
+        for i in 0..state.len() {
+            state[i] = state[i].pow_32(alpha);
         }
         
         state = apply_matrix(mds, state); // Apply MDS matrix
@@ -79,7 +77,7 @@ fn absorb<M,N,O,P>(
     
     let mut i = 0;
 
-    for k in 0..array::len(msg) {
+    for k in 0..msg.len() {
         // Add current block to state
         state[capacity + i] += msg[k];
         i = i+1;

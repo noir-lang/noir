@@ -1,7 +1,5 @@
 mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
 
-use crate::array;
-use crate::pow_32;
 use crate::field::modulus_num_bits;
 
 struct PoseidonConfig<M,N> {
@@ -22,8 +20,8 @@ fn config<M,N>(
     mds: [Field; N])
     -> PoseidonConfig<M,N> {
     // Input checks
-    constrain t as u8 * (rf + rp) == array::len(ark) as u8;
-    constrain t * t == array::len(mds);
+    constrain t as u8 * (rf + rp) == ark.len() as u8;
+    constrain t * t == mds.len();
     constrain alpha != 0;
     
     PoseidonConfig {t, rf, rp, alpha, ark, mds}
@@ -36,22 +34,22 @@ fn permute<M,N,O>(
     -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
-    constrain t == array::len(state);
+    constrain t == state.len();
     
     let mut count = 0;
 
     // for r in 0..rf + rp
-    for r in 0..(array::len(ark)/array::len(state)) {
-        for i in 0..array::len(state) {
+    for r in 0..(ark.len()/state.len()) {
+        for i in 0..state.len() {
             state[i] = state[i] + ark[count + i];
         } // Shift by round constants
         
-        state[0] = pow_32(state[0], alpha);
+        state[0] = state[0].pow_32(alpha);
 
         // Check whether we are in a full round
         if (r as u8 < rf/2) | (r as u8 >= rf/2 + rp) {
-            for i in 1..array::len(state) {
-                state[i] = pow_32(state[i], alpha);
+            for i in 1..state.len() {
+                state[i] = state[i].pow_32(alpha);
             }
         }
         
@@ -74,7 +72,7 @@ fn absorb<M,N,O,P>(
     
     let mut i = 0;
 
-    for k in 0..array::len(msg) {
+    for k in 0..msg.len() {
         // Add current block to state
         state[capacity + i] += msg[k];
         i = i+1;
@@ -106,10 +104,10 @@ fn check_security(rate: Field, width: Field, security: Field) -> bool {
 fn apply_matrix<N>(a: [Field], x: [Field; N]) -> [Field; N] {
     let mut y = x;
 
-    for i in 0..array::len(x) {
+    for i in 0..x.len() {
         y[i] = 0;
-        for j in 0..array::len(x) {
-            y[i] = y[i] + a[array::len(x)*i + j]* x[j];            
+        for j in 0..x.len() {
+            y[i] = y[i] + a[x.len()*i + j]* x[j];            
         }
     }
     
