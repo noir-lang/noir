@@ -234,12 +234,8 @@ impl Abi {
         match (&self.return_type, return_value) {
             (Some(return_type), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
-                    return Err(AbiError::TypeMismatch {
-                        param: AbiParameter {
-                            name: MAIN_RETURN_NAME.to_owned(),
-                            typ: return_type.clone(),
-                            visibility: AbiVisibility::Public,
-                        },
+                    return Err(AbiError::ReturnTypeMismatch {
+                        return_type: return_type.clone(),
                         value: return_value,
                     });
                 }
@@ -257,8 +253,8 @@ impl Abi {
                     },
                 )?;
             }
-            (None, Some(_)) => {
-                return Err(AbiError::UnexpectedParams(vec![MAIN_RETURN_NAME.to_owned()]))
+            (None, Some(return_value)) => {
+                return Err(AbiError::UnexpectedReturnValue(return_value))
             }
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.

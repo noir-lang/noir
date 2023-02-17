@@ -44,4 +44,8 @@ pub enum AbiError {
     MissingParamWitnessValue { name: String, witness_index: Witness },
     #[error("Attempted to write to witness index {0:?} but it is already initialized to a different value")]
     InconsistentWitnessAssignment(Witness),
+    #[error("The return value is expected to be a {return_type:?} but found incompatible value {value:?}")]
+    ReturnTypeMismatch { return_type: AbiType, value: InputValue },
+    #[error("No return value is expected but received {0:?}")]
+    UnexpectedReturnValue(InputValue),
 }
