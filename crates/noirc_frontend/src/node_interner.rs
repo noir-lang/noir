@@ -169,10 +169,11 @@ pub struct NodeInterner {
 
     delayed_type_checks: Vec<TypeCheckFn>,
 
-    // A map from a struct type and method name to a function id for the method
-    // along with any generic on the struct it may require. E.g. if the impl is
-    // only for `impl Foo<String>` rather than all Foo, the generics will be `vec![String]`.
-    struct_methods: HashMap<(StructId, String), (Vec<Type>, FuncId)>,
+    /// A map from a struct type and method name to a function id for the method.
+    struct_methods: HashMap<(StructId, String), FuncId>,
+
+    /// Methods on primitive types defined in the stdlib.
+    primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 }
 
 type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
@@ -241,6 +242,7 @@ impl Default for NodeInterner {
             language: Language::R1CS,
             delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
+            primitive_methods: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -585,16 +587,67 @@ impl NodeInterner {
         method_id: FuncId,
     ) -> Option<FuncId> {
         match self_type {
-            Type::Struct(struct_type, generics) => {
+            Type::Struct(struct_type, _generics) => {
                 let key = (struct_type.borrow().id, method_name);
-                self.struct_methods.insert(key, (generics.clone(), method_id)).map(|(_, id)| id)
+                self.struct_methods.insert(key, method_id)
             }
-            other => unreachable!("Tried adding method to non-struct type '{}'", other),
+            Type::Error => None,
+
+            other => {
+                let key = get_type_method_key(self_type).unwrap_or_else(|| {
+                    unreachable!("Cannot add a method to the unsupported type '{}'", other)
+                });
+                self.primitive_methods.insert((key, method_name), method_id)
+            }
         }
     }
 
     /// Search by name for a method on the given struct
     pub fn lookup_method(&self, id: StructId, method_name: &str) -> Option<FuncId> {
-        self.struct_methods.get(&(id, method_name.to_owned())).map(|(_, id)| *id)
+        self.struct_methods.get(&(id, method_name.to_owned())).copied()
+    }
+
+    /// Looks up a given method name on the given primitive type.
+    pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
+        get_type_method_key(typ)
+            .and_then(|key| self.primitive_methods.get(&(key, method_name.to_owned())).copied())
+    }
+}
+
+/// These are the primitive type variants that we support adding methods to
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+enum TypeMethodKey {
+    /// Fields and integers share methods for ease of use. These methods may still
+    /// accept only fields or integers, it is just that their names may not clash.
+    FieldOrInt,
+    Array,
+    Bool,
+    String,
+    Unit,
+    Tuple,
+    Function,
+}
+
+fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
+    use TypeMethodKey::*;
+    let typ = typ.follow_bindings();
+    match &typ {
+        Type::FieldElement(_) => Some(FieldOrInt),
+        Type::Array(_, _) => Some(Array),
+        Type::Integer(_, _, _) => Some(FieldOrInt),
+        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::Bool(_) => Some(Bool),
+        Type::String(_) => Some(String),
+        Type::Unit => Some(Unit),
+        Type::Tuple(_) => Some(Tuple),
+        Type::Function(_, _) => Some(Function),
+
+        // We do not support adding methods to these types
+        Type::TypeVariable(_)
+        | Type::NamedGeneric(_, _)
+        | Type::Forall(_, _)
+        | Type::Constant(_)
+        | Type::Error
+        | Type::Struct(_, _) => None,
     }
 }

@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 use std::{collections::BTreeMap, convert::TryInto, str};
 
-use acvm::FieldElement;
+use acvm::{acir::native_types::Witness, FieldElement};
 use errors::AbiError;
 use input_parser::InputValue;
-use iter_extended::vecmap;
+use iter_extended::{try_btree_map, try_vecmap, vecmap};
 use serde::{Deserialize, Serialize};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -14,6 +14,12 @@ use serde::{Deserialize, Serialize};
 pub mod errors;
 pub mod input_parser;
 mod serialization;
+
+/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
+pub type InputMap = BTreeMap<String, InputValue>;
+
+/// A map from the witnesses in a constraint system to the field element values
+pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 pub const MAIN_RETURN_NAME: &str = "return";
 
@@ -119,7 +125,11 @@ impl AbiParameter {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
+    /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
+    /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
+    /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
+    pub param_witnesses: BTreeMap<String, Vec<Witness>>,
 }
 
 impl Abi {
@@ -149,52 +159,89 @@ impl Abi {
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> =
             self.parameters.into_iter().filter(|param| param.is_public()).collect();
-        Abi { parameters }
+        let param_witnesses = self
+            .param_witnesses
+            .into_iter()
+            .filter(|(param_name, _)| parameters.iter().any(|param| &param.name == param_name))
+            .collect();
+        Abi { parameters, param_witnesses }
+    }
+
+    /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
+    pub fn encode_to_witness(&self, input_map: &InputMap) -> Result<WitnessMap, AbiError> {
+        self.check_for_unexpected_inputs(input_map)?;
+
+        // First encode each input separately, performing any input validation.
+        let encoded_input_map: BTreeMap<String, Vec<FieldElement>> = self
+            .to_btree_map()
+            .into_iter()
+            .filter(|(param_name, _)| param_name != MAIN_RETURN_NAME)
+            .map(|(param_name, expected_type)| {
+                let value = input_map
+                    .get(&param_name)
+                    .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
+                    .clone();
+
+                if !value.matches_abi(&expected_type) {
+                    let missing_param = self
+                        .parameters
+                        .iter()
+                        .find(|param| param.name == param_name)
+                        .unwrap()
+                        .clone();
+                    return Err(AbiError::TypeMismatch { param: missing_param, value });
+                }
+
+                Self::encode_value(value, &param_name).map(|v| (param_name, v))
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Write input field elements into witness indices specified in `self.param_witnesses`.
+        let witness_map = encoded_input_map
+            .iter()
+            .flat_map(|(param_name, encoded_param_fields)| {
+                let param_witness_indices = &self.param_witnesses[param_name];
+                param_witness_indices
+                    .iter()
+                    .zip(encoded_param_fields.iter())
+                    .map(|(&witness, &field_element)| (witness, field_element))
+            })
+            .collect();
+
+        Ok(witness_map)
     }
 
     /// Encode a set of inputs as described in the ABI into a vector of `FieldElement`s.
-    pub fn encode(
-        self,
-        inputs: &BTreeMap<String, InputValue>,
-        skip_output: bool,
-    ) -> Result<Vec<FieldElement>, AbiError> {
-        // Condition that specifies whether we should filter the "return"
-        // parameter. We do this in the case that it is not in the `inputs`
-        // map specified.
-        //
-        // See Issue #645 : Adding a `public outputs` field into acir and
-        // the ABI will clean up this logic
-        // For prosperity; the prover does not know about a `return` value
-        // so we skip this when encoding the ABI
-        let return_condition =
-            |param_name: &&String| !skip_output || (param_name != &MAIN_RETURN_NAME);
+    pub fn encode_to_array(self, inputs: &InputMap) -> Result<Vec<FieldElement>, AbiError> {
+        self.check_for_unexpected_inputs(inputs)?;
 
-        let parameters = self.parameters.iter().filter(|param| return_condition(&&param.name));
-        let param_names: Vec<&String> = parameters.clone().map(|param| &param.name).collect();
         let mut encoded_inputs = Vec::new();
-
-        for param in parameters {
+        for param in &self.parameters {
             let value = inputs
                 .get(&param.name)
                 .ok_or_else(|| AbiError::MissingParam(param.name.to_owned()))?
                 .clone();
 
             if !value.matches_abi(&param.typ) {
-                return Err(AbiError::TypeMismatch { param: param.to_owned(), value });
+                return Err(AbiError::TypeMismatch { param: param.clone(), value });
             }
 
             encoded_inputs.extend(Self::encode_value(value, &param.name)?);
         }
 
-        // Check that no extra witness values have been provided.
-        // Any missing values should be caught by the above for-loop so this only catches extra values.
-        if param_names.len() != inputs.len() {
+        Ok(encoded_inputs)
+    }
+
+    /// Checks that no extra witness values have been provided.
+    fn check_for_unexpected_inputs(&self, inputs: &InputMap) -> Result<(), AbiError> {
+        let param_names = self.parameter_names();
+        if param_names.len() < inputs.len() {
             let unexpected_params: Vec<String> =
                 inputs.keys().filter(|param| !param_names.contains(param)).cloned().collect();
             return Err(AbiError::UnexpectedParams(unexpected_params));
         }
 
-        Ok(encoded_inputs)
+        Ok(())
     }
 
     fn encode_value(value: InputValue, param_name: &String) -> Result<Vec<FieldElement>, AbiError> {
@@ -218,11 +265,30 @@ impl Abi {
         Ok(encoded_value)
     }
 
+    /// Decode a `WitnessMap` into the types specified in the ABI.
+    pub fn decode_from_witness(&self, witness_map: &WitnessMap) -> Result<InputMap, AbiError> {
+        let public_inputs_map =
+            try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
+                let param_witness_values =
+                    try_vecmap(self.param_witnesses[&name].clone(), |witness_index| {
+                        witness_map
+                            .get(&witness_index)
+                            .ok_or_else(|| AbiError::MissingParamWitnessValue {
+                                name: name.clone(),
+                                witness_index,
+                            })
+                            .copied()
+                    })?;
+
+                Self::decode_value(&mut param_witness_values.into_iter(), &typ)
+                    .map(|input_value| (name.clone(), input_value))
+            })?;
+
+        Ok(public_inputs_map)
+    }
+
     /// Decode a vector of `FieldElements` into the types specified in the ABI.
-    pub fn decode(
-        &self,
-        encoded_inputs: &[FieldElement],
-    ) -> Result<BTreeMap<String, InputValue>, AbiError> {
+    pub fn decode_from_array(&self, encoded_inputs: &[FieldElement]) -> Result<InputMap, AbiError> {
         let input_length: u32 = encoded_inputs.len().try_into().unwrap();
         if input_length != self.field_count() {
             return Err(AbiError::UnexpectedInputLength {
@@ -292,4 +358,61 @@ pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
 
     let final_string = str::from_utf8(&string_as_slice).unwrap();
     final_string.to_owned()
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use acvm::{acir::native_types::Witness, FieldElement};
+
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, InputMap,
+        MAIN_RETURN_NAME,
+    };
+
+    #[test]
+    fn witness_encoding_roundtrip() {
+        let abi = Abi {
+            parameters: vec![
+                AbiParameter {
+                    name: "thing1".to_string(),
+                    typ: AbiType::Array { length: 2, typ: Box::new(AbiType::Field) },
+                    visibility: AbiVisibility::Public,
+                },
+                AbiParameter {
+                    name: "thing2".to_string(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Public,
+                },
+                AbiParameter {
+                    name: MAIN_RETURN_NAME.to_string(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Public,
+                },
+            ],
+            // Note that the return value shares a witness with `thing2`
+            param_witnesses: BTreeMap::from([
+                ("thing1".to_string(), vec![Witness(1), Witness(2)]),
+                ("thing2".to_string(), vec![Witness(3)]),
+                (MAIN_RETURN_NAME.to_string(), vec![Witness(3)]),
+            ]),
+        };
+
+        // Note we omit return value from inputs
+        let inputs: InputMap = BTreeMap::from([
+            ("thing1".to_string(), InputValue::Vec(vec![FieldElement::one(), FieldElement::one()])),
+            ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
+        ]);
+
+        let witness_map = abi.encode_to_witness(&inputs).unwrap();
+        let reconstructed_inputs = abi.decode_from_witness(&witness_map).unwrap();
+
+        for (key, expected_value) in inputs {
+            assert_eq!(reconstructed_inputs[&key], expected_value);
+        }
+
+        // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
+        assert_eq!(reconstructed_inputs[MAIN_RETURN_NAME], reconstructed_inputs["thing2"])
+    }
 }

@@ -34,15 +34,15 @@ fn main() -> pub Field {
 /// Test the array functions in std::array
 fn test_array_functions() {
     let myarray: [i32; 3] = [1, 2, 3];
-    constrain std::array::any(myarray, |n| n > 2);
+    constrain myarray.any(|n| n > 2);
 
     let evens: [i32; 3] = [2, 4, 6];
-    constrain std::array::all(evens, |n| n > 1);
+    constrain evens.all(|n| n > 1);
 
-    constrain std::array::fold(evens, 0, |a, b| a + b) == 12;
-    constrain std::array::reduce(evens, |a, b| a + b) == 12;
+    constrain evens.fold(0, |a, b| a + b) == 12;
+    constrain evens.reduce(|a, b| a + b) == 12;
     
-    let descending = std::array::sort_via(myarray, |a, b| a > b);
+    let descending = myarray.sort_via(|a, b| a > b);
     constrain descending == [3, 2, 1];
 }
 

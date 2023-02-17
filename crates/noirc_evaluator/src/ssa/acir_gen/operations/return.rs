@@ -1,3 +1,6 @@
+use acvm::acir::native_types::Witness;
+use noirc_abi::MAIN_RETURN_NAME;
+
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
@@ -37,6 +40,7 @@ pub(crate) fn evaluate(
             }
         };
 
+        let mut witnesses: Vec<Witness> = Vec::new();
         for mut object in objects {
             let witness = object.get_or_compute_witness(evaluator, true).expect(
                 "infallible: `None` can only be returned when we disallow constant Expressions.",
@@ -48,8 +52,10 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.public_inputs.push(witness);
+            witnesses.push(witness);
         }
+        evaluator.public_inputs.extend(witnesses.clone());
+        evaluator.param_witnesses.insert(MAIN_RETURN_NAME.to_owned(), witnesses);
     }
 
     Ok(None)
