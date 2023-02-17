@@ -9,7 +9,7 @@ use crate::{
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{errors::AbiError, MAIN_RETURN_NAME};
+use noirc_abi::MAIN_RETURN_NAME;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path};
 
