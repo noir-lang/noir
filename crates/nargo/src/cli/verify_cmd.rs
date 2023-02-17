@@ -8,7 +8,8 @@ use crate::{
 };
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
-use noirc_abi::input_parser::Format;
+use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::MAIN_RETURN_NAME;
 use noirc_driver::CompiledProgram;
 use std::{collections::BTreeMap, path::Path};
 
@@ -64,20 +65,22 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let (_, verification_key) =
         fetch_pk_and_vk(compiled_program.circuit.clone(), circuit_build_path, false, true)?;
 
-    let mut public_inputs_map: InputMap = BTreeMap::new();
-
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();
-    let num_pub_params = public_abi.num_parameters();
-    if num_pub_params != 0 {
+    let (public_inputs_map, return_value) = if public_abi.has_public_inputs() {
         let current_dir = program_dir;
-        public_inputs_map =
+        let mut public_inputs_map =
             read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
-    }
+        let return_value = public_inputs_map.remove(MAIN_RETURN_NAME);
+        (public_inputs_map, return_value)
+    } else {
+        (BTreeMap::new(), None)
+    };
 
     let valid_proof = verify_proof(
         compiled_program,
         public_inputs_map,
+        return_value,
         &load_hex_data(proof_path)?,
         verification_key,
     )?;
@@ -88,11 +91,12 @@ pub fn verify_with_path<P: AsRef<Path>>(
 pub(crate) fn verify_proof(
     compiled_program: CompiledProgram,
     public_inputs_map: InputMap,
+    return_value: Option<InputValue>,
     proof: &[u8],
     verification_key: Vec<u8>,
 ) -> Result<bool, CliError> {
     let public_abi = compiled_program.abi.public_abi();
-    let public_inputs = public_abi.encode(&public_inputs_map, false)?;
+    let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
     let public_inputs_vec: Vec<FieldElement> = public_inputs.values().copied().collect();
 

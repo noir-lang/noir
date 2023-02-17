@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiParameter, AbiVisibility, MAIN_RETURN_NAME};
+use noirc_abi::{Abi, AbiParameter, AbiVisibility};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -63,7 +63,12 @@ impl Parameters {
             let as_abi = param.1.as_abi_type();
             AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
         });
-        noirc_abi::Abi { parameters, param_witnesses: BTreeMap::new() }
+        noirc_abi::Abi {
+            parameters,
+            param_witnesses: BTreeMap::new(),
+            return_type: None,
+            return_witnesses: Vec::new(),
+        }
     }
 
     pub fn span(&self) -> Span {
@@ -145,15 +150,10 @@ impl FuncMeta {
     pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let return_type = self.return_type().clone();
         let mut abi = self.parameters.into_abi(interner);
-
-        if return_type != Type::Unit {
-            let return_param = AbiParameter {
-                name: MAIN_RETURN_NAME.into(),
-                typ: return_type.as_abi_type(),
-                visibility: self.return_visibility,
-            };
-            abi.parameters.push(return_param);
-        }
+        abi.return_type = match return_type {
+            Type::Unit => None,
+            _ => Some(return_type.as_abi_type()),
+        };
 
         abi
     }

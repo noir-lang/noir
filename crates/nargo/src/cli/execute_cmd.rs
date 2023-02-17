@@ -4,7 +4,7 @@ use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
+use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::CompiledProgram;
 
 use super::NargoConfig;
@@ -67,8 +67,7 @@ fn execute_with_path<P: AsRef<Path>>(
     let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
     let public_abi = compiled_program.abi.public_abi();
-    let public_inputs = public_abi.decode(&solved_witness)?;
-    let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
+    let (_, return_value) = public_abi.decode(&solved_witness)?;
 
     Ok((return_value, solved_witness))
 }
@@ -77,7 +76,7 @@ pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness = compiled_program.abi.encode(inputs_map, true)?;
+    let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
