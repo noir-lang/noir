@@ -26,7 +26,6 @@ struct StandardArithmetization {
         ID_3,
         LAGRANGE_FIRST,
         LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
-        POW_ZETA,
         COUNT
     };
 
@@ -44,7 +43,7 @@ struct StandardHonk {
     // TODO(Cody): Maybe relation should be supplied and this should be computed as is done in sumcheck?
     // Then honk::StandardHonk (or whatever we rename it) would become an alias for a Honk flavor with a
     // certain set of parameters, including the relations?
-    static constexpr size_t MAX_RELATION_LENGTH = 6;
+    static constexpr size_t MAX_RELATION_LENGTH = 5;
 
     // TODO(Cody): should extract this from the parameter pack. Maybe that should be done here?
 
@@ -90,18 +89,11 @@ struct StandardHonk {
         // Round 3
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
             { { .name = "Z_PERM", .num_bytes = g1_size, .derived_by_verifier = false } },
-            /* challenge_name = */ "zeta",
-            /* num_challenges_in = */ 1)
-        ); 
-
-        // Round 4
-        manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
-            { { .name = "POW_ZETA", .num_bytes = g1_size, .derived_by_verifier = false } },
             /* challenge_name = */ "alpha",
-            /* num_challenges_in = */ 1) // Will bump to 2 when zeta if computed in same round at alpha
+            /* num_challenges_in = */ 2)
         ); 
 
-        // Rounds 4 + 1, ... 4 + num_sumcheck_rounds
+        // Rounds 4, ... 4 + num_sumcheck_rounds-1
         for (size_t i = 0; i < num_sumcheck_rounds; i++) {
             auto label = std::to_string(num_sumcheck_rounds - i);
             manifest_rounds.emplace_back(

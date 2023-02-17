@@ -44,7 +44,7 @@ Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_in
 
     manifest_rounds.emplace_back(transcript::Manifest::RoundManifest({ /* this is a noop */ },
                                                                      /* challenge_name = */ "alpha",
-                                                                     /* num_challenges_in = */ 1));
+                                                                     /* num_challenges_in = */ 2));
     manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(
         { { .name = "public_inputs", .num_bytes = public_input_size, .derived_by_verifier = false } },
         /* challenge_name = */ "beta",
@@ -117,13 +117,12 @@ TEST(Sumcheck, PolynomialNormalization)
     std::array<FF, multivariate_n> id_3 =           { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::array<FF, multivariate_n> lagrange_first = { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::array<FF, multivariate_n> lagrange_last =  { 0, 0, 0, 0, 0, 0, 0, 0 };
-    std::array<FF, multivariate_n> pow_zeta =       { 0, 0, 0, 0, 0, 0, 0, 0 };
     // clang-format on
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -200,13 +199,12 @@ TEST(Sumcheck, Prover)
     std::array<FF, multivariate_n> id_3 =           { 1, 2, 0, 0};
     std::array<FF, multivariate_n> lagrange_first = { 1, 2, 0, 0};
     std::array<FF, multivariate_n> lagrange_last =  { 1, 2, 0, 0};
-    std::array<FF, multivariate_n> pow_zeta      =  { 1, 2, 0, 0};
     // clang-format on
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -269,12 +267,11 @@ TEST(Sumcheck, ProverAndVerifier)
     std::array<FF, 2> id_3 = { 0, 0 };    // NOTE: Not set up to be valid.
     std::array<FF, 2> lagrange_first = { 0, 0 };
     std::array<FF, 2> lagrange_last = { 0, 0 }; // NOTE: Not set up to be valid.
-    std::array<FF, 2> pow_zeta = { 1, 1 };
 
     // These will be owned outside the class, probably by the composer.
     std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
     auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);
@@ -327,6 +324,7 @@ TEST(Sumcheck, ProverAndVerifierLonger)
     std::array<FF, multivariate_n> q_r            = { 0,  1,  0, 0 };
     std::array<FF, multivariate_n> q_o            = { 0, -1,  -1, 0 };
     std::array<FF, multivariate_n> q_c            = { 0,  0,  0, 0 };
+    // Setting all of these to 0 ensures the GrandProductRelation is satisfied
     std::array<FF, multivariate_n> sigma_1        = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> sigma_2        = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> sigma_3        = { 0,  0,  0, 0 };
@@ -335,13 +333,12 @@ TEST(Sumcheck, ProverAndVerifierLonger)
     std::array<FF, multivariate_n> id_3           = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> lagrange_first = { 0,  0,  0, 0 };
     std::array<FF, multivariate_n> lagrange_last  = { 0,  0,  0, 0 };
-    std::array<FF, multivariate_n> pow_zeta       = { 2,  4,  8, 16 }; // TODO(Cody): fails with non-1 entry
         // clang-format on
 
         // These will be owned outside the class, probably by the composer.
         std::array<std::span<FF>, Multivariates::num> full_polynomials = {
-            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
-            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
+            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
         };
 
         auto transcript = produce_mocked_transcript(multivariate_d, num_public_inputs);

@@ -3,7 +3,6 @@
 #include "proof_system/types/polynomial_manifest.hpp"
 #include <honk/utils/public_inputs.hpp>
 #include "common/throw_or_abort.hpp"
-#include "ecc/curves/bn254/fr.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"
 #include <proof_system/flavor/flavor.hpp>
@@ -11,6 +10,7 @@
 #include <cstddef>
 #include <string>
 #include <vector>
+
 namespace honk::sumcheck {
 template <class Multivariates, class Transcript, template <class> class... Relations> class Sumcheck {
     using FF = typename Multivariates::FF;
@@ -44,6 +44,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
     RelationParameters<FF> retrieve_proof_parameters()
     {
         const FF alpha = FF::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+        const FF zeta = FF::serialize_from_buffer(transcript.get_challenge("alpha", 1).begin());
         const FF beta = FF::serialize_from_buffer(transcript.get_challenge("beta").begin());
         const FF gamma = FF::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
         const auto public_input_size_vector = transcript.get_element("public_input_size");
@@ -60,7 +61,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         ASSERT(public_inputs.size() == public_input_size);
         FF public_input_delta = honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, n);
         const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
-            .alpha = alpha, .beta = beta, .gamma = gamma, .public_input_delta = public_input_delta
+            .zeta = zeta, .alpha = alpha, .beta = beta, .gamma = gamma, .public_input_delta = public_input_delta
         };
         return relation_parameters;
     }
@@ -76,26 +77,33 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // This populates multivariates.folded_polynomials.
 
         const auto relation_parameters = retrieve_proof_parameters();
-        auto round_univariate = round.compute_univariate(multivariates.full_polynomials, relation_parameters);
+        PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
+
+        // round.pow_univariate = PowUnivariate(relation_parameters.zeta);
+        auto round_univariate =
+            round.compute_univariate(multivariates.full_polynomials, relation_parameters, pow_univariate);
         transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d),
                                round_univariate.to_buffer());
         std::string challenge_label = "u_" + std::to_string(multivariates.multivariate_d);
         transcript.apply_fiat_shamir(challenge_label);
         FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
         multivariates.fold(multivariates.full_polynomials, multivariates.multivariate_n, round_challenge);
+        pow_univariate.partially_evaluate(round_challenge);
         round.round_size = round.round_size >> 1; // TODO(Cody): Maybe fold should do this and release memory?
 
         // All but final round
         // We operate on multivariates.folded_polynomials in place.
         for (size_t round_idx = 1; round_idx < multivariates.multivariate_d; round_idx++) {
             // Write the round univariate to the transcript
-            round_univariate = round.compute_univariate(multivariates.folded_polynomials, relation_parameters);
+            round_univariate =
+                round.compute_univariate(multivariates.folded_polynomials, relation_parameters, pow_univariate);
             transcript.add_element("univariate_" + std::to_string(multivariates.multivariate_d - round_idx),
                                    round_univariate.to_buffer());
             challenge_label = "u_" + std::to_string(multivariates.multivariate_d - round_idx);
             transcript.apply_fiat_shamir(challenge_label);
             FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
             multivariates.fold(multivariates.folded_polynomials, round.round_size, round_challenge);
+            pow_univariate.partially_evaluate(round_challenge);
             round.round_size = round.round_size >> 1;
         }
 
@@ -120,8 +128,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
                                      multivariates.folded_polynomials[14][0],
                                      multivariates.folded_polynomials[15][0],
                                      multivariates.folded_polynomials[16][0],
-                                     multivariates.folded_polynomials[17][0],
-                                     multivariates.folded_polynomials[18][0] })));
+                                     multivariates.folded_polynomials[17][0] })));
     };
 
     /**
@@ -134,6 +141,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         bool verified(true);
 
         const auto relation_parameters = retrieve_proof_parameters();
+        PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
         // All but final round.
         // target_total_sum is initialized to zero then mutated in place.
 
@@ -145,12 +153,13 @@ template <class Multivariates, class Transcript, template <class> class... Relat
             // Obtain the round univariate from the transcript
             auto round_univariate = Univariate<FF, MAX_RELATION_LENGTH>::serialize_from_buffer(
                 &transcript.get_element("univariate_" + std::to_string(multivariates.multivariate_d - round_idx))[0]);
-            bool checked = round.check_sum(round_univariate);
+            bool checked = round.check_sum(round_univariate, pow_univariate);
             verified = verified && checked;
             FF round_challenge = FF::serialize_from_buffer(
                 transcript.get_challenge("u_" + std::to_string(multivariates.multivariate_d - round_idx)).begin());
 
-            round.compute_next_target_sum(round_univariate, round_challenge);
+            round.compute_next_target_sum(round_univariate, round_challenge, pow_univariate);
+            pow_univariate.partially_evaluate(round_challenge);
 
             if (!verified) {
                 return false;
@@ -159,8 +168,8 @@ template <class Multivariates, class Transcript, template <class> class... Relat
 
         // Final round
         auto purported_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-        FF full_honk_relation_purported_value =
-            round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters);
+        FF full_honk_relation_purported_value = round.compute_full_honk_relation_purported_value(
+            purported_evaluations, relation_parameters, pow_univariate);
         verified = verified && (full_honk_relation_purported_value == round.target_total_sum);
         return verified;
     };

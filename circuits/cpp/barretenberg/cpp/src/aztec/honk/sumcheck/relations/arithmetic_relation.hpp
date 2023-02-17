@@ -4,8 +4,6 @@
 
 #include <proof_system/flavor/flavor.hpp>
 #include "relation.hpp"
-#include "../polynomials/multivariates.hpp"
-#include "../polynomials/barycentric_data.hpp"
 #include "../polynomials/univariate.hpp"
 
 namespace honk::sumcheck {
@@ -13,7 +11,7 @@ namespace honk::sumcheck {
 template <typename FF> class ArithmeticRelation : public Relation<FF> {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 5;
+    static constexpr size_t RELATION_LENGTH = 4;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
 
     // FUTURE OPTIMIZATION: successively extend as needed?
@@ -31,9 +29,13 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
      * The final parameter is left to conform to the general argument structure (input,output, challenges) even though
      * we don't need challenges in this relation.
      */
-    template <typename T> void add_edge_contribution(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, T)
+    template <typename T>
+    void add_edge_contribution(auto& extended_edges,
+                               Univariate<FF, RELATION_LENGTH>& evals,
+                               T,
+                               const FF& scaling_factor )
     {
-        add_edge_contribution_internal(extended_edges, evals);
+        add_edge_contribution_internal(extended_edges, evals, scaling_factor);
     };
 
     /**
@@ -51,12 +53,14 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
     template <typename T>
     void add_edge_contribution_testing(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, T)
     {
-        add_edge_contribution_internal(extended_edges, evals);
+        add_edge_contribution_internal(extended_edges, evals, FF::one());
     };
 
     // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
     //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-    void add_edge_contribution_internal(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals)
+    void add_edge_contribution_internal(auto& extended_edges,
+                                        Univariate<FF, RELATION_LENGTH>& evals,
+                                        const FF& scaling_factor)
     {
         auto w_l = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
         auto w_r = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
@@ -66,13 +70,12 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         auto q_r = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_R]);
         auto q_o = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_O]);
         auto q_c = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_C]);
-        auto pow_zeta = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::POW_ZETA]);
 
         auto tmp = w_l * (q_m * w_r + q_l);
         tmp += q_r * w_r;
         tmp += q_o * w_o;
         tmp += q_c;
-        tmp *= pow_zeta;
+        tmp *= scaling_factor;
         evals += tmp;
     };
 
@@ -87,13 +90,11 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         auto q_r = purported_evaluations[MULTIVARIATE::Q_R];
         auto q_o = purported_evaluations[MULTIVARIATE::Q_O];
         auto q_c = purported_evaluations[MULTIVARIATE::Q_C];
-        auto pow_zeta = purported_evaluations[MULTIVARIATE::POW_ZETA];
 
         full_honk_relation_value += w_l * (q_m * w_r + q_l);
         full_honk_relation_value += q_r * w_r;
         full_honk_relation_value += q_o * w_o;
         full_honk_relation_value += q_c;
-        full_honk_relation_value *= pow_zeta;
     };
 };
 } // namespace honk::sumcheck

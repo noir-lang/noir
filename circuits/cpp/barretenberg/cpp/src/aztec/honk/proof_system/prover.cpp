@@ -300,15 +300,6 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
                                         sumcheck::GrandProductInitializationRelation>;
 
     // Compute alpha challenge
-    transcript.apply_fiat_shamir("zeta");
-
-    // TODO(Cody): This is just temporary of course. Very inefficient, e.g., no commitment needed.
-    Fr zeta_challenge = transcript.get_challenge_field_element("zeta");
-    barretenberg::polynomial pow_zeta = power_polynomial::generate_vector(zeta_challenge, key->circuit_size);
-    auto commitment = commitment_key->commit(pow_zeta);
-    transcript.add_element("POW_ZETA", commitment.to_buffer());
-    key->polynomial_cache.put("pow_zeta", std::move(pow_zeta));
-
     transcript.apply_fiat_shamir("alpha");
 
     auto multivariates = Multivariates(key);

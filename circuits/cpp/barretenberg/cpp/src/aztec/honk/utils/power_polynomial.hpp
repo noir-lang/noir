@@ -5,8 +5,7 @@
 #ifndef NO_MULTITHREADING
 #include "omp.h"
 #endif
-namespace honk {
-namespace power_polynomial {
+namespace honk::power_polynomial {
 /**
  * @brief Generate the power polynomial vector
  *
@@ -62,7 +61,7 @@ template <typename Fr> barretenberg::Polynomial<Fr> generate_vector(Fr zeta, siz
  * @param variables
  * @return barretenberg::fr
  */
-template <typename Fr> Fr evaluate(Fr zeta, const std::span<Fr>& variables)
+template <typename Fr> Fr evaluate(Fr zeta, std::span<const Fr> variables)
 {
     Fr evaluation = Fr::one();
     for (size_t i = 0; i < variables.size(); i++) {
@@ -72,5 +71,4 @@ template <typename Fr> Fr evaluate(Fr zeta, const std::span<Fr>& variables)
     }
     return evaluation;
 }
-} // namespace power_polynomial
-} // namespace honk
+} // namespace honk::power_polynomial

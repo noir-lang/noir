@@ -22,7 +22,7 @@ TEST(SumcheckRound, ComputeUnivariateProver)
 {
     const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     // const size_t multivariate_d(1);
-    const size_t max_relation_length = 6;
+    const size_t max_relation_length = 5;
 
     using FF = barretenberg::fr;
     using Multivariates = ::Multivariates<FF, num_polys>;
@@ -45,11 +45,10 @@ TEST(SumcheckRound, ComputeUnivariateProver)
     std::array<FF, 2> id_3 = { 1, 2 };
     std::array<FF, 2> lagrange_first = { 1, 2 };
     std::array<FF, 2> lagrange_last = { 1, 2 };
-    std::array<FF, 2> pow_zeta = { 1, 1 };
 
     std::array<std::span<FF>, bonk::StandardArithmetization::NUM_POLYNOMIALS> full_polynomials = {
-        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,           q_l,     q_r, q_o, q_c, sigma_1, sigma_2,
-        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last, pow_zeta
+        w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
+        sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
     };
 
     size_t round_size = 1;
@@ -64,10 +63,12 @@ TEST(SumcheckRound, ComputeUnivariateProver)
                                GrandProductComputationRelation,
                                GrandProductInitializationRelation>(round_size, relations);
     const RelationParameters<FF> relation_parameters =
-        RelationParameters<FF>{ .alpha = 1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
+        RelationParameters<FF>{ .zeta = 2, .alpha = 1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
+
+    PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
     Univariate<FF, max_relation_length> round_univariate =
-        round.compute_univariate(full_polynomials, relation_parameters);
-    Univariate<FF, max_relation_length> expected_round_univariate{ { 32, 149, 406, 857, 1556, 2557 } };
+        round.compute_univariate(full_polynomials, relation_parameters, pow_univariate);
+    Univariate<FF, max_relation_length> expected_round_univariate{ { 32, 149, 406, 857, 1556 } };
     EXPECT_EQ(round_univariate, expected_round_univariate);
 }
 
@@ -100,15 +101,13 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
     FF id_3 = { 0 };
     FF lagrange_first = { 0 };
     FF lagrange_last = { 0 };
-    FF pow_zeta = { 1 };
 
-    // pow_zeta(q_m * w_l * w_r + q_l * w_l + q_r * w_r + q_o * w_o + q_c)
+    // q_m * w_l * w_r + q_l * w_l + q_r * w_r + q_o * w_o + q_c
     // = 1 * (4 * 1 * 2 + 5 * 1 + 6 * 2 + 7 * 3 + 8) = 54
     FF expected_full_purported_value = 54;
     std::vector<FF> purported_evaluations = { w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,
                                               q_l,     q_r,  q_o,  q_c,    sigma_1,        sigma_2,
-                                              sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last,
-                                              pow_zeta };
+                                              sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last };
 
     // size_t round_size = 1;
     auto relations = std::tuple(
@@ -119,9 +118,10 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
                                GrandProductComputationRelation,
                                GrandProductInitializationRelation>(relations);
     const RelationParameters<FF> relation_parameters =
-        RelationParameters<FF>{ .alpha = -1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
+        RelationParameters<FF>{ .zeta = 2, .alpha = -1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
+    PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
     FF full_purported_value =
-        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters);
+        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters, pow_univariate);
     EXPECT_EQ(full_purported_value, expected_full_purported_value);
 }
 

@@ -8,7 +8,7 @@ namespace honk::sumcheck {
 template <typename FF> class GrandProductComputationRelation : public Relation<FF> {
   public:
     // 1 + polynomial degree of this relation
-    static constexpr size_t RELATION_LENGTH = 6;
+    static constexpr size_t RELATION_LENGTH = 5;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE;
 
   public:
@@ -19,13 +19,15 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
      */
     void add_edge_contribution(auto& extended_edges,
                                Univariate<FF, RELATION_LENGTH>& evals,
-                               const RelationParameters<FF>& relation_parameters)
+                               const RelationParameters<FF>& relation_parameters,
+                               const FF& scaling_factor)
     {
         add_edge_contribution_internal(extended_edges,
                                        evals,
                                        relation_parameters.beta,
                                        relation_parameters.gamma,
-                                       relation_parameters.public_input_delta);
+                                       relation_parameters.public_input_delta,
+                                       scaling_factor);
     };
 
     /**
@@ -37,7 +39,7 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
                                        Univariate<FF, RELATION_LENGTH>& evals,
                                        std::array<FF, 3> challenges)
     {
-        add_edge_contribution_internal(extended_edges, evals, challenges[0], challenges[1], challenges[2]);
+        add_edge_contribution_internal(extended_edges, evals, challenges[0], challenges[1], challenges[2], FF::one());
     };
 
     /**
@@ -58,7 +60,8 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
                                                Univariate<FF, RELATION_LENGTH>& evals,
                                                const FF& beta,
                                                const FF& gamma,
-                                               const FF& public_input_delta)
+                                               const FF& public_input_delta,
+                                               const FF& scaling_factor)
     {
         auto w_1 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
         auto w_2 = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
@@ -73,13 +76,13 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
         auto lagrange_first = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
         auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
-        auto pow_zeta = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::POW_ZETA]);
 
         // Contribution (1)
-        evals += pow_zeta * (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                              (w_3 + id_3 * beta + gamma)) -
-                             ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                              (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma)));
+        evals += (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+                   (w_3 + id_3 * beta + gamma)) -
+                  ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
+                   (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma))) *
+                 scaling_factor;
     };
 
     void add_full_relation_value_contribution(auto& purported_evaluations,
@@ -99,11 +102,9 @@ template <typename FF> class GrandProductComputationRelation : public Relation<F
         auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
         auto lagrange_first = purported_evaluations[MULTIVARIATE::LAGRANGE_FIRST];
         auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
-        auto pow_zeta = purported_evaluations[MULTIVARIATE::POW_ZETA];
 
         // Contribution (1)
         full_honk_relation_value +=
-            pow_zeta *
             ((z_perm + lagrange_first) * (w_1 + relation_parameters.beta * id_1 + relation_parameters.gamma) *
                  (w_2 + relation_parameters.beta * id_2 + relation_parameters.gamma) *
                  (w_3 + relation_parameters.beta * id_3 + relation_parameters.gamma) -
