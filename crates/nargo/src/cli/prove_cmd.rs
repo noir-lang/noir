@@ -5,8 +5,8 @@ use clap::Args;
 use noirc_abi::input_parser::Format;
 
 use super::{
-    create_named_dir, fetch_pk_and_vk, read_inputs_from_file,
-    write_inputs_to_file, write_to_file, NargoConfig,
+    create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
+    NargoConfig,
 };
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
