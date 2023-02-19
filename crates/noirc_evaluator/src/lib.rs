@@ -15,6 +15,7 @@ use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Default)]
 pub struct Evaluator {
     // Why is this not u64?
     //
@@ -76,26 +77,16 @@ pub fn create_circuit(
     Ok((optimized_circuit, abi))
 }
 
-impl Default for Evaluator {
-    fn default() -> Self {
-        Evaluator {
-            num_witnesses_abi_len: 0,
-            public_inputs: BTreeSet::new(),
-            param_witnesses: BTreeMap::new(),
-            // XXX: Barretenberg, reserves the first index to have value 0.
-            // When we increment, we do not use this index at all.
-            // This means that every constraint system at the moment, will either need
-            // to decrease each index by 1, or create a dummy witness.
-            //
-            // We ideally want to not have this and have Barretenberg apply the
-            // following transformation to the witness index : f(i) = i + 1
-            //
-            current_witness_index: 0,
-            opcodes: Vec::new(),
-        }
-    }
-}
 impl Evaluator {
+    // current_witness_index: 0
+    // XXX: Barretenberg, reserves the first index to have value 0.
+    // When we increment, we do not use this index at all.
+    // This means that every constraint system at the moment, will either need
+    // to decrease each index by 1, or create a dummy witness.
+    //
+    // We ideally want to not have this and have Barretenberg apply the
+    // following transformation to the witness index : f(i) = i + 1
+    //
     fn new() -> Self {
         Self::default()
     }
