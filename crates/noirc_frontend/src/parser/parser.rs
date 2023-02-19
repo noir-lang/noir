@@ -63,7 +63,7 @@ fn top_level_statement(
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
-        type_alias_definition(),
+        type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
@@ -476,6 +476,7 @@ fn parse_type_inner(
         bool_type(),
         string_type(),
         function_type(recursive_type_parser),
+        type_alias_type(),
     ))
 }
 
@@ -576,6 +577,10 @@ where
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
         .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
+}
+
+fn type_alias_type() -> impl NoirParser<UnresolvedType> {
+    ident().map(|ident| UnresolvedType::MaybeTyAlias(Path::from_ident(ident)))
 }
 
 fn expression() -> impl ExprParser {
@@ -1339,10 +1344,10 @@ mod test {
 
     #[test]
     fn parse_type_aliases() {
-        let cases = vec!["type foo = int", "type bar = String", "type baz = Vec<T>"];
+        let cases = vec!["type foo = u8", "type bar = String", "type baz = Vec<T>"];
         parse_all(type_alias_definition(), cases);
 
-        let failing = vec!["type = int", "type foo", "type foo = 1"];
+        let failing = vec!["type = u8", "type foo", "type foo = 1"];
         parse_all_failing(struct_definition(), failing);
     }
 

@@ -2,12 +2,15 @@ use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    graph::CrateId,
+    hir::def_collector::dc_crate::UnresolvedStruct,
+    node_interner::{StructId, TyAliasId},
+    parser::SubModule,
+    Ident, LetStatement, NoirFunction, NoirImpl, NoirStruct, NoirTyAlias, ParsedModule,
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal},
+    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
     errors::DefCollectorErrorKind,
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
@@ -52,6 +55,8 @@ pub fn collect_defs(
     collector.collect_globals(context, ast.globals, errors);
 
     collector.collect_structs(ast.types, crate_id, errors);
+
+    collector.collect_type_aliases(ast.type_aliases, crate_id, errors);
 
     collector.collect_functions(context, ast.functions, errors);
 
@@ -174,13 +179,50 @@ impl<'a> ModCollector<'a> {
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
-            // And store the TypeId -> StructType mapping somewhere it is reachable
+            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
                 module_id: self.module_id,
                 struct_def: struct_definition,
             };
             self.def_collector.collected_types.insert(id, unresolved);
+        }
+    }
+
+    /// Collect any type aliases definitions declared within the ast.
+    /// Returns a vector of errors if any type aliases were already defined.
+    fn collect_type_aliases(
+        &mut self,
+        type_aliases: Vec<NoirTyAlias>,
+        krate: CrateId,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for type_alias in type_aliases {
+            let name = type_alias.name.clone();
+
+            // Create the corresponding module for the type aliases namespace
+            let id = match self.push_child_module(&name, self.file_id, false, errors) {
+                Some(local_id) => TyAliasId(ModuleId { krate, local_id }),
+                None => continue,
+            };
+
+            // Add the type alias to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .scope
+                .define_type_alias_def(name, id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
+            let unresolved = UnresolvedTypeAlias {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                type_alias_def: type_alias,
+            };
+            self.def_collector.collected_type_aliases.insert(id, unresolved);
         }
     }
 

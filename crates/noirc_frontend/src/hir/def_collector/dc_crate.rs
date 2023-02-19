@@ -11,10 +11,10 @@ use crate::hir::resolution::{
 use crate::hir::type_check::type_check;
 use crate::hir::type_check::type_check_func;
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TyAliasId};
 use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Shared, Type,
-    TypeBinding, UnresolvedGenerics, UnresolvedType,
+    Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTyAlias, ParsedModule, Shared,
+    Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -41,6 +41,12 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+pub struct UnresolvedTypeAlias {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub type_alias_def: NoirTyAlias,
+}
+
 #[derive(Clone)]
 pub struct UnresolvedGlobal {
     pub file_id: FileId,
@@ -55,6 +61,7 @@ pub struct DefCollector {
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
+    pub(crate) collected_type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
 }
@@ -72,6 +79,7 @@ impl DefCollector {
             collected_imports: vec![],
             collected_functions: vec![],
             collected_types: HashMap::new(),
+            collected_type_aliases: HashMap::new(),
             collected_impls: HashMap::new(),
             collected_globals: vec![],
         }
@@ -154,6 +162,8 @@ impl DefCollector {
         let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
 
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
+
+        resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -335,6 +345,29 @@ fn resolve_struct_fields(
 
     extend_errors(all_errors, unresolved.file_id, errors);
     (generics, fields)
+}
+
+/// Create the mappings from TyAliasId -> TypeAliasType
+/// so that expressions can access the fields of structs
+fn resolve_type_aliases(
+    context: &mut Context,
+    type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
+    crate_id: CrateId,
+) {
+    // We must first go through the struct list once to ensure all IDs are pushed to
+    // the def_interner map. This lets structs refer to each other regardless of declaration order
+    // without resolve_struct_fields non-deterministically unwrapping a value
+    // that isn't in the HashMap.
+    for (type_id, unresolved_typ) in &type_aliases {
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: unresolved_typ.module_id,
+            krate: crate_id,
+        });
+        let file = unresolved_typ.file_id;
+        let ty = Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
+            .resolve_type(unresolved_typ.type_alias_def.ty.clone());
+        context.def_interner.push_type_alias(*type_id, ty);
+    }
 }
 
 fn resolve_impls(

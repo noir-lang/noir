@@ -1,6 +1,6 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
 use crate::{
-    node_interner::{FuncId, StmtId, StructId},
+    node_interner::{FuncId, StmtId, StructId, TyAliasId},
     Ident,
 };
 use std::collections::{hash_map::Entry, HashMap};
@@ -51,6 +51,7 @@ impl ItemScope {
             ModuleDefId::ModuleId(_) => add_item(&mut self.types),
             ModuleDefId::FunctionId(_) => add_item(&mut self.values),
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
+            ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
             ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }
@@ -73,6 +74,14 @@ impl ItemScope {
         local_id: StructId,
     ) -> Result<(), (Ident, Ident)> {
         self.add_definition(name, ModuleDefId::TypeId(local_id))
+    }
+
+    pub fn define_type_alias_def(
+        &mut self,
+        name: Ident,
+        local_id: TyAliasId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.add_definition(name, ModuleDefId::TypeAliasId(local_id))
     }
 
     pub fn define_global(&mut self, name: Ident, stmt_id: StmtId) -> Result<(), (Ident, Ident)> {

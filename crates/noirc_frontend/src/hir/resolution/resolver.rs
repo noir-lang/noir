@@ -31,7 +31,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TyAliasId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -332,6 +332,10 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
+            UnresolvedType::MaybeTyAlias(ident) => match self.lookup_type_alias_or_error(ident) {
+                Some(ty) => ty,
+                None => Type::Error,
+            },
         }
     }
 
@@ -943,6 +947,10 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
+    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Type {
+        self.interner.get_type_alias(type_alias_id)
+    }
+
     fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
         typ.borrow().field_names()
     }
@@ -1018,6 +1026,17 @@ impl<'a> Resolver<'a> {
                 let generics = struct_type.borrow().instantiate(self.interner);
                 Some(Type::Struct(struct_type, generics))
             }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Lookup a given type alias by name.
+    fn lookup_type_alias_or_error(&mut self, path: Path) -> Option<Type> {
+        match self.lookup(path) {
+            Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(error) => {
                 self.push_err(error);
                 None
