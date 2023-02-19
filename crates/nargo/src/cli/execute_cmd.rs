@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
-use clap::ArgMatches;
-use noirc_abi::errors::AbiError;
+use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::{InputMap, WitnessMap, MAIN_RETURN_NAME};
+use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::CompiledProgram;
 
+use super::NargoConfig;
 use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::compile_cmd::compile_circuit,
@@ -15,25 +15,34 @@ use crate::{
     errors::CliError,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("execute").unwrap();
-    let witness_name = args.value_of("witness_name");
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+/// Executes a circuit to calculate its return value
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ExecuteCommand {
+    /// Write the execution witness to named file
+    witness_name: Option<String>,
 
-    let (return_value, solved_witness) = execute_with_path(&program_dir, show_ssa, allow_warnings)?;
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
+    let (return_value, solved_witness) =
+        execute_with_path(&config.program_dir, args.show_ssa, args.allow_warnings)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
-    if let Some(witness_name) = witness_name {
-        let mut witness_dir = program_dir;
+    if let Some(witness_name) = args.witness_name {
+        let mut witness_dir = config.program_dir;
         witness_dir.push(TARGET_DIR);
 
-        let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
+        let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;
 
         println!("Witness saved to {}", witness_path.display());
     }
@@ -55,34 +64,19 @@ fn execute_with_path<P: AsRef<Path>>(
         &compiled_program.abi,
     )?;
 
-    execute_program(&compiled_program, &inputs_map)
+    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+
+    let public_abi = compiled_program.abi.public_abi();
+    let (_, return_value) = public_abi.decode(&solved_witness)?;
+
+    Ok((return_value, solved_witness))
 }
 
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    // Solve the remaining witnesses
-    let solved_witness = solve_witness(compiled_program, inputs_map)?;
-
-    let public_abi = compiled_program.abi.clone().public_abi();
-    let public_inputs = public_abi.decode_from_witness(&solved_witness)?;
-    let return_value = public_inputs.get(MAIN_RETURN_NAME).cloned();
-
-    Ok((return_value, solved_witness))
-}
-
-pub(crate) fn solve_witness(
-    compiled_program: &CompiledProgram,
-    input_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let mut solved_witness =
-        compiled_program.abi.encode_to_witness(input_map).map_err(|error| match error {
-            AbiError::UndefinedInput(_) => {
-                CliError::Generic(format!("{error} in the {PROVER_INPUT_FILE}.toml file."))
-            }
-            _ => CliError::from(error),
-        })?;
+    let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;

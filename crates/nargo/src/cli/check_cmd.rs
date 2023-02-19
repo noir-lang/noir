@@ -1,6 +1,6 @@
 use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
+use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiParameter, AbiType};
 use std::{
@@ -8,17 +8,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{add_std_lib, write_to_file};
+use super::{add_std_lib, write_to_file, NargoConfig};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("check").unwrap();
-    let allow_warnings = args.is_present("allow-warnings");
+/// Checks the constraint system for errors
+#[derive(Debug, Clone, Args)]
+pub(crate) struct CheckCommand {
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+}
 
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
-
-    check_from_path(program_dir, allow_warnings)?;
+pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
+    check_from_path(config.program_dir, args.allow_warnings)?;
     println!("Constraint system successfully built!");
     Ok(())
 }

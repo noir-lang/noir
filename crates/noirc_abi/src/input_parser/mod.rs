@@ -17,7 +17,6 @@ pub enum InputValue {
     Vec(Vec<FieldElement>),
     String(String),
     Struct(BTreeMap<String, InputValue>),
-    Undefined,
 }
 
 impl InputValue {
@@ -58,8 +57,6 @@ impl InputValue {
                     }
                 })
             }
-
-            (InputValue::Undefined, _) => true,
 
             // All other InputValue-AbiType combinations are fundamentally incompatible.
             _ => false,

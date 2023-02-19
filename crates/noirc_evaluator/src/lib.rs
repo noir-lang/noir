@@ -10,10 +10,10 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiType, AbiVisibility};
+use noirc_abi::{Abi, AbiType, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub struct Evaluator {
     // Why is this not u64?
@@ -29,7 +29,7 @@ pub struct Evaluator {
     // This is the list of witness indices which are linked to public inputs.
     // Witnesses below `num_witnesses_abi_len` and not included in this set
     // correspond to private inputs and must not be made public.
-    public_inputs: Vec<Witness>,
+    public_inputs: BTreeSet<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -53,13 +53,20 @@ pub fn create_circuit(
     let witness_index = evaluator.current_witness_index();
 
     let mut abi = program.abi;
-    abi.param_witnesses = evaluator.param_witnesses;
 
+    // TODO: remove return value from `param_witnesses` once we track public outputs
+    // see https://github.com/noir-lang/acvm/pull/56
+    let mut param_witnesses = evaluator.param_witnesses;
+    let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
+    abi.param_witnesses = param_witnesses;
+    abi.return_witnesses = return_witnesses;
+
+    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(evaluator.public_inputs),
+            public_inputs: PublicInputs(public_inputs),
         },
         np_language,
         is_blackbox_supported,
@@ -73,7 +80,7 @@ impl Evaluator {
     fn new() -> Self {
         Evaluator {
             num_witnesses_abi_len: 0,
-            public_inputs: Vec::new(),
+            public_inputs: BTreeSet::new(),
             param_witnesses: BTreeMap::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
@@ -289,15 +296,6 @@ impl Evaluator {
         let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
-
-        // Remove the return type from the parameters
-        // Since this is not in the main functions parameters.
-        //
-        // TODO(See Issue633) regarding adding a `return_type` field to the ABI struct
-        let abi_params: Vec<_> = abi_params
-            .into_iter()
-            .filter(|param| param.name != noirc_abi::MAIN_RETURN_NAME)
-            .collect();
 
         assert_eq!(main_params.len(), abi_params.len());
 

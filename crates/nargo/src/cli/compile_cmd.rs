@@ -1,34 +1,44 @@
 use acvm::ProofSystemCompiler;
 use acvm::{acir::circuit::Circuit, hash_constraint_system};
-use clap::ArgMatches;
 use noirc_abi::input_parser::Format;
 use std::path::{Path, PathBuf};
 
-use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
+use clap::Args;
+
 use crate::{
-    cli::execute_cmd::save_witness_to_dir,
+    cli::{execute_cmd::save_witness_to_dir, read_inputs_from_file},
     constants::{ACIR_EXT, PK_EXT, PROVER_INPUT_FILE, TARGET_DIR, VK_EXT},
     errors::CliError,
     resolver::Resolver,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("compile").unwrap();
-    let circuit_name = args.value_of("circuit_name").unwrap();
-    let witness = args.is_present("witness");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+use super::{add_std_lib, create_named_dir, write_to_file, NargoConfig};
 
-    let mut circuit_path = program_dir.clone();
+/// Compile the program and its secret execution trace into ACIR format
+#[derive(Debug, Clone, Args)]
+pub(crate) struct CompileCommand {
+    /// The name of the ACIR file
+    circuit_name: String,
+
+    /// Solve the witness and write it to file along with the ACIR
+    #[arg(short, long)]
+    witness: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+}
+
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut circuit_path = config.program_dir.clone();
     circuit_path.push(TARGET_DIR);
 
     generate_circuit_and_witness_to_disk(
-        circuit_name,
-        program_dir,
+        &args.circuit_name,
+        config.program_dir,
         circuit_path,
-        witness,
-        allow_warnings,
+        args.witness,
+        args.allow_warnings,
     )
     .map(|_| ())
 }
@@ -57,8 +67,7 @@ pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
             &compiled_program.abi,
         )?;
 
-        let (_, solved_witness) =
-            super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
+        let solved_witness = super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
 
         circuit_path.pop();
         save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;
