@@ -76,8 +76,8 @@ pub fn create_circuit(
     Ok((optimized_circuit, abi))
 }
 
-impl Evaluator {
-    fn new() -> Self {
+impl Default for Evaluator {
+    fn default() -> Self {
         Evaluator {
             num_witnesses_abi_len: 0,
             public_inputs: BTreeSet::new(),
@@ -93,6 +93,11 @@ impl Evaluator {
             current_witness_index: 0,
             opcodes: Vec::new(),
         }
+    }
+}
+impl Evaluator {
+    fn new() -> Self {
+        Self::default()
     }
 
     // Returns true if the `witness_index`

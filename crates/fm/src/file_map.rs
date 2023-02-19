@@ -58,7 +58,7 @@ impl<'input> File<'input> {
 
 impl FileMap {
     pub fn new() -> Self {
-        FileMap(SimpleFiles::new())
+        Self::default()
     }
 
     pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
@@ -72,7 +72,7 @@ impl FileMap {
 
 impl Default for FileMap {
     fn default() -> Self {
-        Self::new()
+        FileMap(SimpleFiles::new())
     }
 }
 

@@ -26,7 +26,7 @@ pub enum FileType {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FileManager {
     file_map: file_map::FileMap,
     id_to_path: HashMap<FileId, VirtualPath>,
@@ -35,11 +35,7 @@ pub struct FileManager {
 
 impl FileManager {
     pub fn new() -> Self {
-        Self {
-            file_map: file_map::FileMap::new(),
-            id_to_path: HashMap::new(),
-            path_to_id: HashMap::new(),
-        }
+        Self::default()
     }
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
@@ -87,12 +83,6 @@ impl FileManager {
         }
 
         Err(candidate_files.remove(0).as_os_str().to_str().unwrap().to_owned())
-    }
-}
-
-impl Default for FileManager {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
