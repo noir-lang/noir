@@ -67,7 +67,7 @@ fn permute<M,N,O>(
 // Corresponding absorption.
 fn absorb<M,N,O,P>(
     pos_conf: PoseidonConfig<M, N>,
-    mut state: [Field; O], // Initial state; usually [0; N]
+    mut state: [Field; O], // Initial state; usually [0; O]
     rate: comptime Field, // Rate
     capacity: comptime Field, // Capacity; usually 1
     msg: [Field; P] // Arbitrary length message
