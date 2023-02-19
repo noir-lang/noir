@@ -1338,6 +1338,15 @@ mod test {
     }
 
     #[test]
+    fn parse_type_aliases() {
+        let cases = vec!["type foo = int", "type bar = String", "type baz = Vec<T>"];
+        parse_all(type_alias_definition(), cases);
+
+        let failing = vec!["type = int", "type foo", "type foo = 1"];
+        parse_all_failing(struct_definition(), failing);
+    }
+
+    #[test]
     fn parse_member_access() {
         let cases = vec!["a.b", "a + b.c", "foo.bar as i32"];
         parse_all(expression(), cases);
