@@ -5,6 +5,6 @@ if(WASM)
     add_compile_options(-fno-exceptions -fno-slp-vectorize)
 endif()
 
-if(NOT WASM AND NOT APPLE)
-    add_compile_options(-march=skylake-avx512)
+if(NOT WASM AND NOT APPLE AND NOT ARM)
+    add_compile_options(-march=skylake)
 endif()

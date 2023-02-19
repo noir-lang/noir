@@ -10,5 +10,4 @@ PROJECTS=(
   aztec3-circuits-wasm:./:./dockerfiles/Dockerfile.wasm-linux-clang:aztec3-circuits-wasm-linux-clang
   aztec3-circuits-x86_64-clang:./:./dockerfiles/Dockerfile.x86_64-linux-clang:aztec3-circuits-x86_64-linux-clang
   aztec3-circuits-x86_64-clang-assert:./:./dockerfiles/Dockerfile.x86_64-linux-clang-assert:aztec3-circuits-x86_64-linux-clang-assert
-  aztec3-circuits-x86_64-gcc:./:./dockerfiles/Dockerfile.x86_64-linux-gcc:aztec3-circuits-x86_64-linux-gcc
 )

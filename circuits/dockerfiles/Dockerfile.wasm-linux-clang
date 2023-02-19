@@ -7,8 +7,8 @@ WORKDIR /usr/src/aztec3-circuits
 COPY . .
 # Build both honk_tests barretenberg.wasm
 # This ensures that we aren't using features that would be incompatible with WASM for Honk
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && cmake --build . --parallel --target honk_tests --target aztec3.wasm
+# TODO Add wasm target when ready: --target aztec3.wasm
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && cmake --build . --parallel
 
-FROM alpine:3.17
-COPY --from=builder /usr/src/aztec3-circuits/build/bin/aztec3.wasm /usr/src/aztec3-circuits/build/bin/aztec3.wasm
-COPY --from=builder /usr/src/aztec3-circuits/build/bin/*_tests /usr/src/aztec3-circuits/build/bin/
+#FROM alpine:3.17
+#COPY --from=builder /usr/src/aztec3-circuits/build/bin/aztec3.wasm /usr/src/aztec3-circuits/build/bin/aztec3.wasm

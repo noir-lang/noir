@@ -128,17 +128,6 @@ jobs:
           name: 'Build'
           command: cond_spot_run_build aztec3-circuits-x86_64-linux-clang-assert 64
 
-  x86_64-linux-gcc:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: 'Build'
-          command: cond_spot_run_build aztec3-circuits-x86_64-linux-gcc 64
-
   aztec3-circuits-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -148,7 +137,7 @@ jobs:
       - *setup_env
       - run:
           name: 'Test'
-          command: cond_spot_run_tests aztec3-circuits-x86_64-linux-clang-assert a3-tests
+          command: cond_spot_run_tests aztec3-circuits-x86_64-linux-clang-assert 1 a3-tests
       - *save_logs
 
   #aztec3-circuits-<individual>-tests:
@@ -160,7 +149,7 @@ jobs:
   #    - *setup_env
   #    - run:
   #        name: 'Test'
-  #        command: cond_spot_run_tests aztec3-circuits-x86_64-linux-clang-assert
+  #        command: cond_spot_run_tests aztec3-circuits-x86_64-linux-clang-assert 1 <individual>_tests
   #    - *save_logs
 
 # Repeatable config for defining the workflow below.
@@ -181,8 +170,6 @@ workflows:
       - x86_64-linux-clang:
           filters: *tag_filter
       - x86_64-linux-clang-assert:
-          filters: *tag_filter
-      - x86_64-linux-gcc:
           filters: *tag_filter
       - aztec3-circuits-tests: *a3_test
       #- aztec3-circuit-<individual>-tests: *a3_test
