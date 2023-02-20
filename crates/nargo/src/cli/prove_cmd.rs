@@ -1,72 +1,142 @@
 use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
-use noirc_abi::input_parser::Format;
+use clap::Args;
+use noirc_abi::{input_parser::Format, MAIN_RETURN_NAME};
 
-use super::execute_cmd::{execute_program, extract_public_inputs};
-use super::{create_named_dir, write_inputs_to_file, write_to_file};
-use crate::cli::dedup_public_input_indices;
+use super::{
+    create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
+    NargoConfig,
+};
 use crate::{
-    constants::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE},
+    cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
+    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("prove").unwrap();
-    let proof_name = args.value_of("proof_name");
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
+// Create proof for this program. The proof is returned as a hex encoded string.
+#[derive(Debug, Clone, Args)]
+pub(crate) struct ProveCommand {
+    /// The name of the proof
+    proof_name: Option<String>,
 
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+    /// The name of the circuit build files (ACIR, proving and verification keys)
+    circuit_name: Option<String>,
 
-    let mut proof_dir = program_dir.clone();
+    /// Verify proof after proving
+    #[arg(short, long)]
+    verify: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    allow_warnings: bool,
+
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    show_ssa: bool,
+}
+
+pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
+    let mut proof_dir = config.program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
-    prove_with_path(proof_name, program_dir, proof_dir, show_ssa, allow_warnings)?;
+    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
+        let mut circuit_build_path = config.program_dir.clone();
+        circuit_build_path.push(TARGET_DIR);
+        circuit_build_path.push(circuit_name);
+        Some(circuit_build_path)
+    } else {
+        None
+    };
+
+    prove_with_path(
+        args.proof_name,
+        config.program_dir,
+        proof_dir,
+        circuit_build_path,
+        args.verify,
+        args.show_ssa,
+        args.allow_warnings,
+    )?;
 
     Ok(())
 }
 
 pub fn prove_with_path<P: AsRef<Path>>(
-    proof_name: Option<&str>,
+    proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
+    circuit_build_path: Option<P>,
+    check_proof: bool,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let mut compiled_program =
+    let compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, solved_witness) = execute_program(&program_dir, &compiled_program)?;
+    let (proving_key, verification_key) = fetch_pk_and_vk(
+        compiled_program.circuit.clone(),
+        circuit_build_path.as_ref(),
+        true,
+        check_proof,
+    )?;
+
+    // Parse the initial witness values from Prover.toml
+    let inputs_map = read_inputs_from_file(
+        &program_dir,
+        PROVER_INPUT_FILE,
+        Format::Toml,
+        &compiled_program.abi,
+    )?;
+
+    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
-    let public_inputs = extract_public_inputs(&compiled_program, &solved_witness)?;
-    write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+    let public_abi = compiled_program.abi.clone().public_abi();
+    let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
 
-    // Since the public outputs are added onto the public inputs list, there can be duplicates.
-    // We keep the duplicates for when one is encoding the return values into the Verifier.toml,
-    // however we must remove these duplicates when creating a proof.
-    compiled_program.circuit.public_inputs =
-        dedup_public_input_indices(compiled_program.circuit.public_inputs);
+    if let Some(return_value) = return_value.clone() {
+        // Insert return value into public inputs so it's written to file.
+        let mut public_inputs_with_return = public_inputs.clone();
+        public_inputs_with_return.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+        write_inputs_to_file(
+            &public_inputs_with_return,
+            &program_dir,
+            VERIFIER_INPUT_FILE,
+            Format::Toml,
+        )?;
+    } else {
+        write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
+    }
 
     let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+    let proof =
+        backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
 
     println!("Proof successfully created");
-    if let Some(proof_name) = proof_name {
-        let proof_path = save_proof_to_dir(proof, proof_name, proof_dir)?;
+    if check_proof {
+        let valid_proof =
+            verify_proof(compiled_program, public_inputs, return_value, &proof, verification_key)?;
+        println!("Proof verified : {valid_proof}");
+        if !valid_proof {
+            return Err(CliError::Generic("Could not verify generated proof".to_owned()));
+        }
+    }
+
+    let proof_path = if let Some(proof_name) = proof_name {
+        let proof_path = save_proof_to_dir(&proof, &proof_name, proof_dir)?;
 
         println!("Proof saved to {}", proof_path.display());
-        Ok(Some(proof_path))
+        Some(proof_path)
     } else {
         println!("{}", hex::encode(&proof));
-        Ok(None)
-    }
+        None
+    };
+
+    Ok(proof_path)
 }
 
 fn save_proof_to_dir<P: AsRef<Path>>(
-    proof: Vec<u8>,
+    proof: &[u8],
     proof_name: &str,
     proof_dir: P,
 ) -> Result<PathBuf, CliError> {

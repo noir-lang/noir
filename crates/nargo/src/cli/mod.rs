@@ -1,19 +1,11 @@
-use acvm::{
-    acir::{circuit::PublicInputs, native_types::Witness},
-    FieldElement,
-};
+use acvm::{acir::circuit::Circuit, hash_constraint_system, ProofSystemCompiler};
 pub use check_cmd::check_from_path;
-use clap::{App, AppSettings, Arg};
+use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use git_version::git_version;
-use noirc_abi::{
-    input_parser::{Format, InputValue},
-    Abi,
-};
+use noirc_abi::{input_parser::Format, Abi, InputMap};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
     fs::File,
     io::Write,
     path::{Path, PathBuf},
@@ -21,7 +13,10 @@ use std::{
 extern crate tempdir;
 use tempdir::TempDir;
 
-use crate::errors::CliError;
+use crate::{
+    constants::{ACIR_EXT, PK_EXT, VK_EXT},
+    errors::CliError,
+};
 
 mod check_cmd;
 mod compile_cmd;
@@ -33,113 +28,57 @@ mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
 
-const SHORT_GIT_HASH: &str = git_version!(prefix = "git:");
-const VERSION_STRING: &str = formatcp!("{} ({})", env!("CARGO_PKG_VERSION"), SHORT_GIT_HASH);
+const GIT_HASH: &str = env!("GIT_COMMIT");
+const IS_DIRTY: &str = env!("GIT_DIRTY");
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
-pub type InputMap = BTreeMap<String, InputValue>;
+static VERSION_STRING: &str =
+    formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 
-/// A map from the witnesses in a constraint system to the field element values
-pub type WitnessMap = BTreeMap<Witness, FieldElement>;
+#[derive(Parser, Debug)]
+#[command(author, version=VERSION_STRING, about, long_about = None)]
+struct NargoCli {
+    #[command(subcommand)]
+    command: NargoCommand,
+
+    #[clap(flatten)]
+    config: NargoConfig,
+}
+
+#[non_exhaustive]
+#[derive(Args, Clone, Debug)]
+pub(crate) struct NargoConfig {
+    #[arg(short, long, hide=true, default_value_os_t = std::env::current_dir().unwrap())]
+    program_dir: PathBuf,
+}
+
+#[non_exhaustive]
+#[derive(Subcommand, Clone, Debug)]
+enum NargoCommand {
+    Check(check_cmd::CheckCommand),
+    Contract(contract_cmd::ContractCommand),
+    Compile(compile_cmd::CompileCommand),
+    New(new_cmd::NewCommand),
+    Execute(execute_cmd::ExecuteCommand),
+    Prove(prove_cmd::ProveCommand),
+    Verify(verify_cmd::VerifyCommand),
+    Test(test_cmd::TestCommand),
+    Gates(gates_cmd::GatesCommand),
+}
 
 pub fn start_cli() {
-    let allow_warnings = Arg::with_name("allow-warnings")
-        .long("allow-warnings")
-        .help("Issue a warning for each unused variable instead of an error");
+    let matches = NargoCli::parse();
 
-    let show_ssa = Arg::with_name("show-ssa")
-        .long("show-ssa")
-        .help("Emit debug information for the intermediate SSA IR");
-
-    let matches = App::new("nargo")
-        .about("Noir's package manager")
-        .version(VERSION_STRING)
-        .author("The Noir Team <kevtheappdev@gmail.com>")
-        .subcommand(
-            App::new("check")
-                .about("Checks the constraint system for errors")
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("contract")
-                .about("Generates a Solidity verifier smart contract for the program"),
-        )
-        .subcommand(
-            App::new("new")
-                .about("Create a new binary project")
-                .arg(Arg::with_name("package_name").help("Name of the package").required(true))
-                .arg(
-                    Arg::with_name("path").help("The path to save the new project").required(false),
-                ),
-        )
-        .subcommand(
-            App::new("verify")
-                .about("Given a proof and a program, verify whether the proof is valid")
-                .arg(Arg::with_name("proof").help("The proof to verify").required(true))
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("prove")
-                .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof"))
-                .arg(show_ssa.clone())
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("test")
-                .about("Run the tests for this program")
-                .arg(
-                    Arg::with_name("test_name")
-                        .help("If given, only tests with names containing this string will be run"),
-                )
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("compile")
-                .about("Compile the program and its secret execution trace into ACIR format")
-                .arg(
-                    Arg::with_name("circuit_name").help("The name of the ACIR file").required(true),
-                )
-                .arg(
-                    Arg::with_name("witness")
-                        .long("witness")
-                        .help("Solve the witness and write it to file along with the ACIR"),
-                )
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("gates")
-                .about("Counts the occurrences of different gates in circuit")
-                .arg(show_ssa.clone())
-                .arg(allow_warnings.clone()),
-        )
-        .subcommand(
-            App::new("execute")
-                .about("Executes a circuit to calculate its return value")
-                .arg(
-                    Arg::with_name("witness_name")
-                        .long("witness_name")
-                        .help("Write the execution witness to named file")
-                        .takes_value(true),
-                )
-                .arg(show_ssa)
-                .arg(allow_warnings),
-        )
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .get_matches();
-
-    let result = match matches.subcommand_name() {
-        Some("new") => new_cmd::run(matches),
-        Some("check") => check_cmd::run(matches),
-        Some("contract") => contract_cmd::run(matches),
-        Some("prove") => prove_cmd::run(matches),
-        Some("compile") => compile_cmd::run(matches),
-        Some("verify") => verify_cmd::run(matches),
-        Some("gates") => gates_cmd::run(matches),
-        Some("execute") => execute_cmd::run(matches),
-        Some("test") => test_cmd::run(matches),
-        Some(x) => Err(CliError::Generic(format!("unknown command : {x}"))),
-        _ => unreachable!(),
+    let result = match matches.command {
+        NargoCommand::New(args) => new_cmd::run(args, matches.config),
+        NargoCommand::Check(args) => check_cmd::run(args, matches.config),
+        NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
+        NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
+        NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
+        NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
+        NargoCommand::Test(args) => test_cmd::run(args, matches.config),
+        NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
+        NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
     };
     if let Err(err) = result {
         err.write()
@@ -175,7 +114,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
     format: Format,
-    abi: Abi,
+    abi: &Abi,
 ) -> Result<InputMap, CliError> {
     let file_path = {
         let mut dir_path = path.as_ref().to_path_buf();
@@ -213,21 +152,21 @@ fn write_inputs_to_file<P: AsRef<Path>>(
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let proof_path = match prove_cmd::prove_with_path(
-        Some(proof_name),
+    match prove_cmd::prove_with_path(
+        Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
+        None,
+        true,
         show_ssa,
         false,
     ) {
-        Ok(p) => p,
+        Ok(_) => true,
         Err(error) => {
             println!("{error}");
-            return false;
+            false
         }
-    };
-
-    verify_cmd::verify_with_path(prg_dir, &proof_path.unwrap(), show_ssa, false).unwrap()
+    }
 }
 
 fn add_std_lib(driver: &mut Driver) {
@@ -241,42 +180,62 @@ fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
 }
 
-// Removes duplicates from the list of public input witnesses
-fn dedup_public_input_indices(indices: PublicInputs) -> PublicInputs {
-    let duplicates_removed: HashSet<_> = indices.0.into_iter().collect();
-    PublicInputs(duplicates_removed.into_iter().collect())
+pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
+    let hex_data: Vec<_> =
+        std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
+
+    let raw_bytes = hex::decode(hex_data).map_err(CliError::HexArtifactNotValid)?;
+
+    Ok(raw_bytes)
 }
 
-// Removes duplicates from the list of public input witnesses and the
-// associated list of duplicate values.
-pub(crate) fn dedup_public_input_indices_values(
-    indices: PublicInputs,
-    values: Vec<FieldElement>,
-) -> (PublicInputs, Vec<FieldElement>) {
-    // Assume that the public input index lists and the values contain duplicates
-    assert_eq!(indices.0.len(), values.len());
+fn fetch_pk_and_vk<P: AsRef<Path>>(
+    circuit: Circuit,
+    circuit_build_path: Option<P>,
+    prove_circuit: bool,
+    check_proof: bool,
+) -> Result<(Vec<u8>, Vec<u8>), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+    if let Some(circuit_build_path) = circuit_build_path {
+        let mut acir_hash_path = PathBuf::new();
+        acir_hash_path.push(circuit_build_path.as_ref());
+        acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+        let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
-    let mut public_inputs_without_duplicates = Vec::new();
-    let mut already_seen_public_indices = HashMap::new();
+        let new_acir_hash = hash_constraint_system(&circuit);
 
-    for (index, value) in indices.0.iter().zip(values) {
-        match already_seen_public_indices.get(index) {
-            Some(expected_value) => {
-                // The index has already been added
-                // so lets check that the values already inserted is equal to the value, we wish to insert
-                assert_eq!(*expected_value, value, "witness index {index:?} does not have a canonical map. The expected value is {expected_value}, the received value is {value}.")
-            }
-            None => {
-                already_seen_public_indices.insert(*index, value);
-                public_inputs_without_duplicates.push(value)
-            }
+        if new_acir_hash[..] != expected_acir_hash {
+            return Err(CliError::MismatchedAcir(acir_hash_path));
         }
-    }
 
-    (
-        PublicInputs(already_seen_public_indices.keys().copied().collect()),
-        public_inputs_without_duplicates,
-    )
+        // This flag exists to avoid an unnecessary read of the proving key during verification
+        // as this method is used by both `nargo prove` and `nargo verify`
+        let proving_key = if prove_circuit {
+            let mut proving_key_path = PathBuf::new();
+            proving_key_path.push(circuit_build_path.as_ref());
+            proving_key_path.set_extension(PK_EXT);
+            load_hex_data(proving_key_path)?
+        } else {
+            // We can return an empty Vec here as `prove_circuit` should only be false when running `nargo verify`
+            vec![]
+        };
+
+        let verification_key = if check_proof {
+            let mut verification_key_path = PathBuf::new();
+            verification_key_path.push(circuit_build_path);
+            verification_key_path.set_extension(VK_EXT);
+            load_hex_data(verification_key_path)?
+        } else {
+            // We can return an empty Vec here as the verification key is used only is `check_proof` is true
+            vec![]
+        };
+
+        Ok((proving_key, verification_key))
+    } else {
+        // If a path to the circuit's build dir has not been provided, run preprocess and generate the proving and verification keys
+        let (proving_key, verification_key) = backend.preprocess(circuit);
+        Ok((proving_key, verification_key))
+    }
 }
 
 // FIXME: I not sure that this is the right place for this tests.

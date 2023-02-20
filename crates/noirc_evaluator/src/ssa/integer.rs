@@ -54,7 +54,7 @@ fn get_instruction_max_operand(
         Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
-                if matches!(ins.res_type, ObjectType::Unsigned(_)) {
+                if matches!(ins.res_type, ObjectType::Unsigned(_) | ObjectType::Boolean) {
                     if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
                         let lhs_big = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
                         if max_map[rhs] <= lhs_big {
@@ -97,7 +97,7 @@ fn get_obj_max_value(
     let obj = &ctx[id];
 
     let result = match obj {
-        NodeObject::Obj(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
+        NodeObject::Variable(v) => (BigUint::one() << v.size_in_bits()) - BigUint::one(), //TODO check for signed type
         NodeObject::Instr(i) => get_instruction_max(ctx, i, max_map, value_map),
         NodeObject::Const(c) => c.value.clone(), //TODO panic for string constants
         NodeObject::Function(..) => BigUint::zero(),
@@ -287,11 +287,15 @@ fn block_overflow(
                     ins.mark = Mark::ReplaceWith(*val);
                 }
             }
-            Operation::Store { array_id, index, value } => {
+            Operation::Store { array_id, index, value, predicate } => {
                 if let Some(idx) = Memory::to_u32(ctx, index) {
-                    let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
-                    //optimize static store
-                    memory_map.insert(absolute_adr, value);
+                    if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
+                        ctx, &predicate,
+                    )) {
+                        let absolute_adr = ctx.mem[array_id].absolute_adr(idx);
+                        //optimize static store
+                        memory_map.insert(absolute_adr, value);
+                    }
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shl, lhs, rhs, .. }) => {

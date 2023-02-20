@@ -1,5 +1,6 @@
 [package]
 name = "nargo"
+description = "Noir's package manager"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -9,6 +10,7 @@ edition.workspace = true
 [build-dependencies]
 dirs.workspace = true
 rustc_version = "0.4.0"
+build-data = "0.1.3"
 
 [dependencies]
 dirs.workspace = true
@@ -23,17 +25,17 @@ cfg-if.workspace = true
 toml.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-clap = "2.33.3"
+clap = { version = "4.1.4", features = ["derive"]}
 const_format = "0.2.30"
-git-version = "0.3.5"
 hex = "0.4.2"
 termcolor = "1.1.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "d0e1257c22618f98f53781faba3c372ef91a0172" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "d0e1257c22618f98f53781faba3c372ef91a0172" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "cff757dca7971161e4bd25e7a744d910c37c22be" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "cff757dca7971161e4bd25e7a744d910c37c22be" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
+color-eyre = "0.6.2"
 
 [features]
 default = ["plonk_bn254"]

@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    BlockExpression, CallExpression, ExpressionKind, ForExpression, Ident, IndexExpression,
-    LetStatement, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
+    BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
+    MethodCallExpression, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
     UnresolvedType,
 };
 
@@ -371,19 +371,15 @@ impl ForRange {
                     expression: array,
                 });
 
-                let ident = |name: &str| Ident::new(name.to_string(), array_span);
-
-                // std::array::len(array)
+                // array.len()
                 let segments = vec![array_ident];
                 let array_ident =
                     ExpressionKind::Variable(Path { segments, kind: PathKind::Plain });
 
-                let segments = vec![ident("std"), ident("array"), ident("len")];
-                let func_ident = ExpressionKind::Variable(Path { segments, kind: PathKind::Dep });
-
-                let end_range = ExpressionKind::Call(Box::new(CallExpression {
-                    func: Box::new(Expression::new(func_ident, array_span)),
-                    arguments: vec![Expression::new(array_ident.clone(), array_span)],
+                let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: Expression::new(array_ident.clone(), array_span),
+                    method_name: Ident::new("len".to_string(), array_span),
+                    arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);
 

@@ -369,13 +369,16 @@ fn lookup_method(
 
         // In the future we could support methods for non-struct types if we have a context
         // (in the interner?) essentially resembling HashMap<Type, Methods>
-        other => {
-            errors.push(TypeCheckError::Unstructured {
-                span: interner.expr_span(expr_id),
-                msg: format!("Type '{other}' must be a struct type to call methods on it"),
-            });
-            None
-        }
+        other => match interner.lookup_primitive_method(other, method_name) {
+            Some(method_id) => Some(method_id),
+            None => {
+                errors.push(TypeCheckError::Unstructured {
+                    span: interner.expr_span(expr_id),
+                    msg: format!("No method named '{method_name}' found for type '{other}'",),
+                });
+                None
+            }
+        },
     }
 }
 
@@ -741,7 +744,7 @@ pub fn comparator_operand_type_rules(
 
             let comptime = CompTime::No(None);
             if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                Ok(other.clone())
+                Ok(Bool(comptime))
             } else {
                 Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
             }

@@ -10,10 +10,10 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{AbiType, AbiVisibility};
+use noirc_abi::{Abi, AbiType, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub struct Evaluator {
     // Why is this not u64?
@@ -25,7 +25,11 @@ pub struct Evaluator {
     // This is the number of witnesses indices used when
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
-    public_inputs: Vec<Witness>,
+    param_witnesses: BTreeMap<String, Vec<Witness>>,
+    // This is the list of witness indices which are linked to public inputs.
+    // Witnesses below `num_witnesses_abi_len` and not included in this set
+    // correspond to private inputs and must not be made public.
+    public_inputs: BTreeSet<Witness>,
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -39,33 +43,45 @@ pub fn create_circuit(
     np_language: Language,
     is_blackbox_supported: IsBlackBoxSupported,
     enable_logging: bool,
-) -> Result<Circuit, RuntimeError> {
+    show_output: bool,
+) -> Result<(Circuit, Abi), RuntimeError> {
     let mut evaluator = Evaluator::new();
 
     // First evaluate the main function
-    evaluator.evaluate_main_alt(program, enable_logging)?;
+    evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
     let witness_index = evaluator.current_witness_index();
 
+    let mut abi = program.abi;
+
+    // TODO: remove return value from `param_witnesses` once we track public outputs
+    // see https://github.com/noir-lang/acvm/pull/56
+    let mut param_witnesses = evaluator.param_witnesses;
+    let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
+    abi.param_witnesses = param_witnesses;
+    abi.return_witnesses = return_witnesses;
+
+    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(evaluator.public_inputs),
+            public_inputs: PublicInputs(public_inputs),
         },
         np_language,
         is_blackbox_supported,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
-    Ok(optimized_circuit)
+    Ok((optimized_circuit, abi))
 }
 
 impl Evaluator {
     fn new() -> Self {
         Evaluator {
-            public_inputs: Vec::new(),
             num_witnesses_abi_len: 0,
+            public_inputs: BTreeSet::new(),
+            param_witnesses: BTreeMap::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
             // When we increment, we do not use this index at all.
             // This means that every constraint system at the moment, will either need
@@ -110,6 +126,7 @@ impl Evaluator {
         &mut self,
         program: Program,
         enable_logging: bool,
+        show_output: bool,
     ) -> Result<(), RuntimeError> {
         let mut ir_gen = IrGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
@@ -118,7 +135,7 @@ impl Evaluator {
         ir_gen.ssa_gen_main()?;
 
         //Generates ACIR representation:
-        ir_gen.context.ir_to_acir(self, enable_logging)?;
+        ir_gen.context.ir_to_acir(self, enable_logging, show_output)?;
         Ok(())
     }
 
@@ -140,46 +157,41 @@ impl Evaluator {
         name: &str,
         def: Definition,
         param_type: &AbiType,
-        visibility: &AbiVisibility,
+        param_visibility: &AbiVisibility,
         ir_gen: &mut IrGenerator,
     ) -> Result<(), RuntimeErrorKind> {
-        match param_type {
+        let witnesses = match param_type {
             AbiType::Field => {
                 let witness = self.add_witness_to_cs();
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
                     node::ObjectType::NativeField,
                     Some(witness),
                 );
+                vec![witness]
             }
             AbiType::Array { length, typ } => {
                 let witnesses = self.generate_array_witnesses(length, typ)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.extend(witnesses.clone());
-                }
-                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses);
+
+                ir_gen.abi_array(name, Some(def), typ.as_ref(), *length, witnesses.clone());
+                witnesses
             }
             AbiType::Integer { sign: _, width } => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, *width, self)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 let obj_type = ir_gen.get_object_type_from_abi(param_type); // Fetch signedness of the integer
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+
+                vec![witness]
             }
             AbiType::Boolean => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, 1, self)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.push(witness);
-                }
                 let obj_type = node::ObjectType::Boolean;
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
+
+                vec![witness]
             }
             AbiType::Struct { fields } => {
                 let new_fields = btree_map(fields, |(inner_name, value)| {
@@ -189,22 +201,23 @@ impl Evaluator {
 
                 let mut struct_witnesses: BTreeMap<String, Vec<Witness>> = BTreeMap::new();
                 self.generate_struct_witnesses(&mut struct_witnesses, &new_fields)?;
-                if *visibility == AbiVisibility::Public {
-                    let witnesses: Vec<Witness> =
-                        struct_witnesses.values().flatten().cloned().collect();
-                    self.public_inputs.extend(witnesses);
-                }
-                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses);
+
+                ir_gen.abi_struct(name, Some(def), fields, struct_witnesses.clone());
+                struct_witnesses.values().flatten().cloned().collect()
             }
             AbiType::String { length } => {
                 let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
                 let witnesses = self.generate_array_witnesses(length, &typ)?;
-                if *visibility == AbiVisibility::Public {
-                    self.public_inputs.extend(witnesses.clone());
-                }
-                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses);
+                ir_gen.abi_array(name, Some(def), &typ, *length, witnesses.clone());
+                witnesses
             }
+        };
+
+        if param_visibility == &AbiVisibility::Public {
+            self.public_inputs.extend(witnesses.clone());
         }
+        self.param_witnesses.insert(name.to_owned(), witnesses);
+
         Ok(())
     }
 
@@ -283,15 +296,6 @@ impl Evaluator {
         let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
-
-        // Remove the return type from the parameters
-        // Since this is not in the main functions parameters.
-        //
-        // TODO(See Issue633) regarding adding a `return_type` field to the ABI struct
-        let abi_params: Vec<_> = abi_params
-            .into_iter()
-            .filter(|param| param.name != noirc_abi::MAIN_RETURN_NAME)
-            .collect();
 
         assert_eq!(main_params.len(), abi_params.len());
 
