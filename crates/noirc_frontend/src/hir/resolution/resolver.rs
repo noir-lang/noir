@@ -965,16 +965,6 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn lookup_ty_alias<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
-        let span = path.span();
-        let id = self.resolve_path(path)?;
-        T::try_from(id).ok_or_else(|| ResolverError::Expected {
-            expected: T::description(),
-            got: id.as_str().to_owned(),
-            span,
-        })
-    }
-
     fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1045,7 +1035,7 @@ impl<'a> Resolver<'a> {
 
     /// Lookup a given type alias by name.
     fn lookup_type_alias(&mut self, path: Path) -> Option<Type> {
-        match self.lookup_ty_alias(path) {
+        match self.lookup(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(_) => None,
         }
