@@ -476,7 +476,6 @@ fn parse_type_inner(
         bool_type(),
         string_type(),
         function_type(recursive_type_parser),
-        type_alias_type(),
     ))
 }
 
@@ -577,10 +576,6 @@ where
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
         .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
-}
-
-fn type_alias_type() -> impl NoirParser<UnresolvedType> {
-    ident().map(|ident| UnresolvedType::MaybeTyAlias(Path::from_ident(ident)))
 }
 
 fn expression() -> impl ExprParser {

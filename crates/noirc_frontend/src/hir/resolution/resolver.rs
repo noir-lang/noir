@@ -332,10 +332,6 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
-            UnresolvedType::MaybeTyAlias(ident) => match self.lookup_type_alias_or_error(ident) {
-                Some(ty) => ty,
-                None => Type::Error,
-            },
         }
     }
 
@@ -368,6 +364,13 @@ impl<'a> Resolver<'a> {
                     return self_type;
                 }
             }
+        }
+
+        match self.lookup_type_alias(path.clone()) {
+            Some(type_alias_type) => {
+                return type_alias_type;
+            }
+            None => {}
         }
 
         match self.lookup_struct_or_error(path) {
@@ -965,6 +968,16 @@ impl<'a> Resolver<'a> {
         })
     }
 
+    fn lookup_ty_alias<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
+        let span = path.span();
+        let id = self.resolve_path(path)?;
+        T::try_from(id).ok_or_else(|| ResolverError::Expected {
+            expected: T::description(),
+            got: id.as_str().to_owned(),
+            span,
+        })
+    }
+
     fn lookup_global(&mut self, path: Path) -> Result<DefinitionId, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1034,13 +1047,10 @@ impl<'a> Resolver<'a> {
     }
 
     /// Lookup a given type alias by name.
-    fn lookup_type_alias_or_error(&mut self, path: Path) -> Option<Type> {
-        match self.lookup(path) {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Type> {
+        match self.lookup_ty_alias(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
-            Err(error) => {
-                self.push_err(error);
-                None
-            }
+            Err(_) => None,
         }
     }
 

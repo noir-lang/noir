@@ -36,9 +36,6 @@ pub enum UnresolvedType {
 
     Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
 
-    // maybe this is a type alias that need to be resolved later
-    MaybeTyAlias(Path),
-
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -100,7 +97,6 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "fn({}) -> {ret}", args.join(", "))
             }
             Unit => write!(f, "()"),
-            MaybeTyAlias(ident) => write!(f, "{ident}"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
         }

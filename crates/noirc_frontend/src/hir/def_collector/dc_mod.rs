@@ -179,7 +179,7 @@ impl<'a> ModCollector<'a> {
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
-            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
+            // And store the StructId -> StructType mapping somewhere it is reachable
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
                 module_id: self.module_id,
