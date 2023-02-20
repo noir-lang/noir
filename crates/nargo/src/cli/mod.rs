@@ -202,7 +202,7 @@ fn fetch_pk_and_vk<P: AsRef<Path>>(
         acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
         let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
-        let new_acir_hash = hash_constraint_system(&circuit);
+        let new_acir_hash = hash_constraint_system(circuit);
 
         if new_acir_hash[..] != expected_acir_hash {
             return Err(CliError::MismatchedAcir(acir_hash_path));
