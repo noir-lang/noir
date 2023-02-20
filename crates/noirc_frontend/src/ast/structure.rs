@@ -39,7 +39,8 @@ pub struct NoirTyAlias {
     pub name: Ident,
     pub ty: UnresolvedType,
     pub span: Span,
-    // TODO: should allow generics but disable for now
+    // TODO: should probabaly allow generics
+    // eg. type foo = Vec<T>;
     // pub generics: UnresolvedGenerics,
 }
 
