@@ -91,10 +91,9 @@ fn run_test(
     show_output: bool,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
-    let language = backend.np_language();
 
     let program = driver
-        .compile_no_check(language, false, allow_warnings, Some(main), show_output)
+        .compile_no_check(false, allow_warnings, Some(main), show_output)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();
