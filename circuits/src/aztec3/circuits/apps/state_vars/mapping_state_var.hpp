@@ -58,7 +58,7 @@ template <typename Composer, typename V> class MappingStateVar : public StateVar
     V& operator[](std::optional<fr> const& key) { return this->at(key); };
     V& operator[](std::string const& question_mark)
     {
-        ASSERT(question_mark != "?");
+        ASSERT(question_mark == "?");
         return this->at(std::nullopt);
     };
 
