@@ -4,13 +4,15 @@ use acvm::ProofSystemCompiler;
 use clap::Args;
 use noirc_abi::input_parser::Format;
 
-use super::{
-    create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
-    NargoConfig,
+use super::fs::{
+    inputs::{read_inputs_from_file, write_inputs_to_file},
+    keys::fetch_pk_and_vk,
+    proof::save_proof_to_dir,
 };
+use super::NargoConfig;
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
-    constants::{PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
+    constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 
@@ -121,20 +123,6 @@ pub fn prove_with_path<P: AsRef<Path>>(
         println!("{}", hex::encode(&proof));
         None
     };
-
-    Ok(proof_path)
-}
-
-fn save_proof_to_dir<P: AsRef<Path>>(
-    proof: &[u8],
-    proof_name: &str,
-    proof_dir: P,
-) -> Result<PathBuf, CliError> {
-    let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
-    proof_path.push(proof_name);
-    proof_path.set_extension(PROOF_EXT);
-
-    write_to_file(hex::encode(proof).as_bytes(), &proof_path);
 
     Ok(proof_path)
 }

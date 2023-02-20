@@ -1,26 +1,14 @@
-use acvm::{acir::circuit::Circuit, hash_constraint_system, ProofSystemCompiler};
 pub use check_cmd::check_from_path;
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use noirc_abi::{
-    input_parser::{Format, InputValue},
-    Abi, InputMap, MAIN_RETURN_NAME,
-};
+use noirc_abi::InputMap;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 extern crate tempdir;
 use tempdir::TempDir;
 
-use crate::{
-    constants::{ACIR_EXT, PK_EXT, VK_EXT},
-    errors::CliError,
-};
+mod fs;
 
 mod check_cmd;
 mod compile_cmd;
@@ -89,97 +77,6 @@ pub fn start_cli() {
     }
 }
 
-fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
-    let mut dir = std::path::PathBuf::new();
-    dir.push(dir_path);
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
-}
-
-pub fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
-}
-
-fn write_to_file(bytes: &[u8], path: &Path) -> String {
-    let display = path.display();
-
-    let mut file = match File::create(path) {
-        Err(why) => panic!("couldn't create {display}: {why}"),
-        Ok(file) => file,
-    };
-
-    match file.write_all(bytes) {
-        Err(why) => panic!("couldn't write to {display}: {why}"),
-        Ok(_) => display.to_string(),
-    }
-}
-
-/// Returns the circuit's parameters and its return value, if one exists.
-/// # Examples
-///
-/// ```ignore
-/// let (input_map, return_value): (InputMap, Option<InputValue>) =
-///   read_inputs_from_file(path, "Verifier", Format::Toml, &abi)?;
-/// ```
-pub fn read_inputs_from_file<P: AsRef<Path>>(
-    path: P,
-    file_name: &str,
-    format: Format,
-    abi: &Abi,
-) -> Result<(InputMap, Option<InputValue>), CliError> {
-    if abi.is_empty() {
-        return Ok((BTreeMap::new(), None));
-    }
-
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
-    if !file_path.exists() {
-        return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
-    }
-
-    let input_string = std::fs::read_to_string(file_path).unwrap();
-    let mut input_map = format.parse(&input_string, abi)?;
-    let return_value = input_map.remove(MAIN_RETURN_NAME);
-
-    Ok((input_map, return_value))
-}
-
-pub fn write_inputs_to_file<P: AsRef<Path>>(
-    input_map: &InputMap,
-    return_value: &Option<InputValue>,
-    path: P,
-    file_name: &str,
-    format: Format,
-) -> Result<(), CliError> {
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
-
-    // We must insert the return value into the `InputMap` in order for it to be written to file.
-    let serialized_output = match return_value {
-        // Parameters and return values are kept separate except for when they're being written to file.
-        // As a result, we don't want to modify the original map and must clone it before insertion.
-        Some(return_value) => {
-            let mut input_map = input_map.clone();
-            input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
-            format.serialize(&input_map)?
-        }
-        // If no return value exists, then we can serialize the original map directly.
-        None => format.serialize(input_map)?,
-    };
-
-    write_to_file(serialized_output.as_bytes(), &file_path);
-
-    Ok(())
-}
-
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
@@ -209,64 +106,6 @@ fn add_std_lib(driver: &mut Driver) {
 
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
-}
-
-pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
-    let hex_data: Vec<_> =
-        std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
-
-    let raw_bytes = hex::decode(hex_data).map_err(CliError::HexArtifactNotValid)?;
-
-    Ok(raw_bytes)
-}
-
-fn fetch_pk_and_vk<P: AsRef<Path>>(
-    circuit: &Circuit,
-    circuit_build_path: Option<P>,
-    prove_circuit: bool,
-    check_proof: bool,
-) -> Result<(Vec<u8>, Vec<u8>), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-    if let Some(circuit_build_path) = circuit_build_path {
-        let mut acir_hash_path = PathBuf::new();
-        acir_hash_path.push(circuit_build_path.as_ref());
-        acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
-        let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
-
-        let new_acir_hash = hash_constraint_system(circuit);
-
-        if new_acir_hash[..] != expected_acir_hash {
-            return Err(CliError::MismatchedAcir(acir_hash_path));
-        }
-
-        // This flag exists to avoid an unnecessary read of the proving key during verification
-        // as this method is used by both `nargo prove` and `nargo verify`
-        let proving_key = if prove_circuit {
-            let mut proving_key_path = PathBuf::new();
-            proving_key_path.push(circuit_build_path.as_ref());
-            proving_key_path.set_extension(PK_EXT);
-            load_hex_data(proving_key_path)?
-        } else {
-            // We can return an empty Vec here as `prove_circuit` should only be false when running `nargo verify`
-            vec![]
-        };
-
-        let verification_key = if check_proof {
-            let mut verification_key_path = PathBuf::new();
-            verification_key_path.push(circuit_build_path);
-            verification_key_path.set_extension(VK_EXT);
-            load_hex_data(verification_key_path)?
-        } else {
-            // We can return an empty Vec here as the verification key is used only is `check_proof` is true
-            vec![]
-        };
-
-        Ok((proving_key, verification_key))
-    } else {
-        // If a path to the circuit's build dir has not been provided, run preprocess and generate the proving and verification keys
-        let (proving_key, verification_key) = backend.preprocess(circuit.clone());
-        Ok((proving_key, verification_key))
-    }
 }
 
 // FIXME: I not sure that this is the right place for this tests.

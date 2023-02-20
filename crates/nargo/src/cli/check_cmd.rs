@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{add_std_lib, write_to_file, NargoConfig};
+use super::fs::write_to_file;
+use super::{add_std_lib, NargoConfig};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors

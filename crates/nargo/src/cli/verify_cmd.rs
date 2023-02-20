@@ -1,7 +1,5 @@
-use super::{
-    compile_cmd::compile_circuit, fetch_pk_and_vk, load_hex_data, read_inputs_from_file, InputMap,
-    NargoConfig,
-};
+use super::fs::{inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data};
+use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
