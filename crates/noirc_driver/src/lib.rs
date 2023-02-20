@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 
 pub struct Driver {
     context: Context,
+    language: Language,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -25,8 +26,8 @@ pub struct CompiledProgram {
 }
 
 impl Driver {
-    pub fn new(np_language: &acvm::Language) -> Self {
-        let mut driver = Driver { context: Context::default() };
+    pub fn new(np_language: &Language) -> Self {
+        let mut driver = Driver { context: Context::default(), language: np_language.clone() };
         driver.context.def_interner.set_language(np_language);
         driver
     }
@@ -37,9 +38,7 @@ impl Driver {
         let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
 
-        driver
-            .into_compiled_program(np_language, false, false)
-            .unwrap_or_else(|_| std::process::exit(1))
+        driver.into_compiled_program(false, false).unwrap_or_else(|_| std::process::exit(1))
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -146,19 +145,17 @@ impl Driver {
 
     pub fn into_compiled_program(
         mut self,
-        np_language: acvm::Language,
         show_ssa: bool,
         allow_warnings: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(np_language, show_ssa, allow_warnings, None, true)
+        self.compile_no_check(show_ssa, allow_warnings, None, true)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
     #[allow(deprecated)]
     pub fn compile_no_check(
         &self,
-        np_language: acvm::Language,
         show_ssa: bool,
         allow_warnings: bool,
         // Optional override to provide a different `main` function to start execution
@@ -183,6 +180,7 @@ impl Driver {
 
         let program = monomorphize(main_function, &self.context.def_interner);
 
+        let np_language = self.language.clone();
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
 
         match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
