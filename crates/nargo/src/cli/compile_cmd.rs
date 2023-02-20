@@ -90,7 +90,7 @@ pub fn compile_circuit<P: AsRef<Path>>(
         .map_err(|_| std::process::exit(1))
 }
 
-pub fn preprocess_with_path<P: AsRef<Path>>(
+fn preprocess_with_path<P: AsRef<Path>>(
     key_name: &str,
     preprocess_dir: P,
     circuit: Circuit,
