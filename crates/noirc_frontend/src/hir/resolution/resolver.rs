@@ -366,11 +366,8 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        match self.lookup_type_alias(path.clone()) {
-            Some(type_alias_type) => {
-                return type_alias_type;
-            }
-            None => {}
+        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
+            return type_alias_type;
         }
 
         match self.lookup_struct_or_error(path) {
