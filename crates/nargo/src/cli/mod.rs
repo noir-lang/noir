@@ -190,7 +190,7 @@ pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
 }
 
 fn fetch_pk_and_vk<P: AsRef<Path>>(
-    circuit: Circuit,
+    circuit: &Circuit,
     circuit_build_path: Option<P>,
     prove_circuit: bool,
     check_proof: bool,
@@ -202,7 +202,7 @@ fn fetch_pk_and_vk<P: AsRef<Path>>(
         acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
         let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
-        let new_acir_hash = hash_constraint_system(&circuit);
+        let new_acir_hash = hash_constraint_system(circuit);
 
         if new_acir_hash[..] != expected_acir_hash {
             return Err(CliError::MismatchedAcir(acir_hash_path));
@@ -233,7 +233,7 @@ fn fetch_pk_and_vk<P: AsRef<Path>>(
         Ok((proving_key, verification_key))
     } else {
         // If a path to the circuit's build dir has not been provided, run preprocess and generate the proving and verification keys
-        let (proving_key, verification_key) = backend.preprocess(circuit);
+        let (proving_key, verification_key) = backend.preprocess(circuit.clone());
         Ok((proving_key, verification_key))
     }
 }
