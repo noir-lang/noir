@@ -75,11 +75,14 @@ pub fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError> {
     let compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (proving_key, verification_key) = if let Some(circuit_build_path) = circuit_build_path {
-        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?
-    } else {
-        let backend = crate::backends::ConcreteBackend;
-        backend.preprocess(compiled_program.circuit.clone())
+    let (proving_key, verification_key) = match circuit_build_path {
+        Some(circuit_build_path) => {
+            fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?
+        }
+        None => {
+            let backend = crate::backends::ConcreteBackend;
+            backend.preprocess(compiled_program.circuit.clone())
+        }
     };
 
     // Parse the initial witness values from Prover.toml
