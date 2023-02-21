@@ -1,5 +1,5 @@
 use super::InputValue;
-use crate::{errors::InputParserError, Abi, AbiType};
+use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
 use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,10 @@ pub(crate) fn parse_toml(
     // When parsing the toml map we recursively go through each field to enable struct inputs.
     // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
     // in the abi are already stored in a BTreeMap.
-    let abi_map = abi.to_btree_map();
+    let mut abi_map = abi.to_btree_map();
+    if let Some(return_type) = &abi.return_type {
+        abi_map.insert(MAIN_RETURN_NAME.to_owned(), return_type.to_owned());
+    }
 
     // Convert arguments to field elements.
     try_btree_map(data, |(key, value)| {
