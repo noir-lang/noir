@@ -156,12 +156,13 @@ pub fn write_inputs_to_file<P: AsRef<Path>>(
     };
 
     // If it exists, insert return value into input map so it's written to file.
-    let serialized_output = if let Some(return_value) = return_value {
-        let mut input_map = input_map.clone();
-        input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
-        format.serialize(&input_map)?
-    } else {
-        format.serialize(input_map)?
+    let serialized_output = match return_value {
+        Some(return_value) => {
+            let mut input_map = input_map.clone();
+            input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
+            format.serialize(&input_map)?
+        }
+        None => format.serialize(input_map)?,
     };
 
     write_to_file(serialized_output.as_bytes(), &file_path);
