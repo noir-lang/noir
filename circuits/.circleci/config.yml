@@ -106,6 +106,17 @@ jobs:
           name: 'Build'
           command: cond_spot_run_build aztec3-circuits-wasm-linux-clang 64
 
+  wasm-linux-clang-assert:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: 'Build'
+          command: cond_spot_run_build aztec3-circuits-wasm-linux-clang-assert 64
+
   x86_64-linux-clang:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -127,6 +138,18 @@ jobs:
       - run:
           name: 'Build'
           command: cond_spot_run_build aztec3-circuits-x86_64-linux-clang-assert 64
+
+  aztec3-circuits-wasm-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: 'Test'
+          command: cond_spot_run_tests aztec3-circuits-wasm-linux-clang-assert 1 a3-tests USE_WASM_TIME
+      - *save_logs
 
   aztec3-circuits-tests:
     docker:
@@ -157,6 +180,10 @@ tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
 tag_filter: &tag_filter
   tags:
     only: *tag_regex
+a3_wasm_test: &a3_wasm_test
+  requires:
+    - wasm-linux-clang-assert
+  filters: *tag_filter
 a3_test: &a3_test
   requires:
     - x86_64-linux-clang-assert
@@ -167,9 +194,12 @@ workflows:
     jobs:
       - wasm-linux-clang:
           filters: *tag_filter
+      - wasm-linux-clang-assert:
+          filters: *tag_filter
       - x86_64-linux-clang:
           filters: *tag_filter
       - x86_64-linux-clang-assert:
           filters: *tag_filter
+      - aztec3-circuits-wasm-tests: *a3_wasm_test
       - aztec3-circuits-tests: *a3_test
       #- aztec3-circuit-<individual>-tests: *a3_test

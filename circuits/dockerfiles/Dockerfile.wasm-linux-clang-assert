@@ -1,0 +1,13 @@
+FROM ubuntu:kinetic AS builder
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake curl binaryen
+RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v3.0.1
+WORKDIR /usr/src/aztec3-circuits/src
+RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
+WORKDIR /usr/src/aztec3-circuits
+COPY . .
+# Build both honk_tests barretenberg.wasm
+# This ensures that we aren't using features that would be incompatible with WASM for Honk
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && cmake --build . --parallel
+
+#FROM alpine:3.17
+#COPY --from=builder /usr/src/aztec3-circuits/build/bin/*_tests /usr/src/aztec3-circuits/build/bin/

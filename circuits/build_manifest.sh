@@ -8,6 +8,7 @@
 # If wanting to just see if docker images actually build, you can temporarily uncomment required projects.
 PROJECTS=(
   aztec3-circuits-wasm:./:./dockerfiles/Dockerfile.wasm-linux-clang:aztec3-circuits-wasm-linux-clang
+  aztec3-circuits-wasm-assert:./:./dockerfiles/Dockerfile.wasm-linux-clang-assert:aztec3-circuits-wasm-linux-clang-assert
   aztec3-circuits-x86_64-clang:./:./dockerfiles/Dockerfile.x86_64-linux-clang:aztec3-circuits-x86_64-linux-clang
   aztec3-circuits-x86_64-clang-assert:./:./dockerfiles/Dockerfile.x86_64-linux-clang-assert:aztec3-circuits-x86_64-linux-clang-assert
 )
