@@ -25,7 +25,6 @@ use super::{
 
 #[derive(Clone, Debug)]
 struct MemItem {
-    counter: u64,
     op: Expression,
     value: Expression,
     index: Expression,
@@ -37,28 +36,24 @@ pub struct ArrayHeap {
     memory_map: BTreeMap<u32, InternalVar>,
     trace: Vec<MemItem>,
     staged: BTreeMap<u32, (Expression, Expression)>,
-    counter: u64,
 }
 
 impl ArrayHeap {
     pub fn commit_staged(&mut self) {
         for (idx, (value, op)) in &self.staged {
             let item = MemItem {
-                counter: self.counter,
                 op: op.clone(),
                 value: value.clone(),
                 index: Expression::from_field(FieldElement::from(*idx as i128)),
             };
             self.trace.push(item);
-            self.counter += 1;
         }
         self.staged.clear();
     }
 
     pub fn push(&mut self, index: Expression, value: Expression, op: Expression) {
-        let item = MemItem { counter: self.counter, op, value, index };
+        let item = MemItem { op, value, index };
         self.trace.push(item);
-        self.counter += 1;
     }
 
     pub fn stage(&mut self, index: u32, value: Expression, op: Expression) {
@@ -81,8 +76,8 @@ impl ArrayHeap {
         let mut out_value = Vec::new();
         let mut out_op = Vec::new();
         let mut tuple_expressions = Vec::new();
-        for item in &self.trace {
-            let counter_expr = Expression::from_field(FieldElement::from(item.counter as i128));
+        for (counter, item) in self.trace.iter().enumerate() {
+            let counter_expr = Expression::from_field(FieldElement::from(counter as i128));
             in_counter.push(counter_expr.clone());
             in_index.push(item.index.clone());
             in_value.push(item.value.clone());
