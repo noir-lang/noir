@@ -1,5 +1,6 @@
 use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
+use noirc_driver::CompileOptionsBuilder;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -59,7 +60,12 @@ pub fn compile_circuit<P: AsRef<Path>>(
     let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| std::process::exit(1))
+    let config = CompileOptionsBuilder::default()
+        .allow_warnings(allow_warnings)
+        .show_ssa(show_ssa)
+        .build()
+        .unwrap();
+    driver.into_compiled_program(&config).map_err(|_| std::process::exit(1))
 }
 
 fn preprocess_with_path<P: AsRef<Path>>(

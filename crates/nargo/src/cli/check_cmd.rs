@@ -3,6 +3,7 @@ use acvm::ProofSystemCompiler;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiParameter, AbiType};
+use noirc_driver::CompileOptionsBuilder;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -29,10 +30,12 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
 pub fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
+    let config = CompileOptionsBuilder::default().allow_warnings(allow_warnings).build().unwrap();
+
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(allow_warnings).is_err() {
+    if driver.check_crate(&config).is_err() {
         std::process::exit(1);
     }
 
