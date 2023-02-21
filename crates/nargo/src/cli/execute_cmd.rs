@@ -57,7 +57,7 @@ fn execute_with_path<P: AsRef<Path>>(
     let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
 
     // Parse the initial witness values from Prover.toml
-    let inputs_map = read_inputs_from_file(
+    let (inputs_map, _) = read_inputs_from_file(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
