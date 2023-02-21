@@ -63,7 +63,7 @@ pub fn verify_with_path<P: AsRef<Path>>(
 ) -> Result<bool, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
     let (_, verification_key) =
-        fetch_pk_and_vk(compiled_program.circuit.clone(), circuit_build_path, false, true)?;
+        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();

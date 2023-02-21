@@ -73,12 +73,8 @@ pub fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError> {
     let compiled_program =
         super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (proving_key, verification_key) = fetch_pk_and_vk(
-        compiled_program.circuit.clone(),
-        circuit_build_path.as_ref(),
-        true,
-        check_proof,
-    )?;
+    let (proving_key, verification_key) =
+        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path.as_ref(), true, check_proof)?;
 
     // Parse the initial witness values from Prover.toml
     let inputs_map = read_inputs_from_file(
