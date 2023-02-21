@@ -155,13 +155,16 @@ pub fn write_inputs_to_file<P: AsRef<Path>>(
         dir_path
     };
 
-    // If it exists, insert return value into input map so it's written to file.
+    // We must insert the return value into the `InputMap` in order for it to be written to file.
     let serialized_output = match return_value {
+        // We don't want to modify the original map as this is an I/O implementation detail.
+        // We must then clone the map before insertion.
         Some(return_value) => {
             let mut input_map = input_map.clone();
             input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
             format.serialize(&input_map)?
         }
+        // If no return value exists then we can serialize the original map directly.
         None => format.serialize(input_map)?,
     };
 
