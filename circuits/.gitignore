@@ -1,4 +1,5 @@
 .cache/
+.vscode/
 build/
 build-wasm/
 src/wasi-sdk-*
