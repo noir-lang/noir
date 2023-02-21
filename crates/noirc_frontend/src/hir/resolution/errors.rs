@@ -238,8 +238,8 @@ impl From<ResolverError> for Diagnostic {
                 span,
             ),
             ResolverError::InvalidGlobal { span } => Diagnostic::simple_error(
-                "Invalid type found in global".into(),
-                "Valid types are: literal array, bool, integer or field".into(), 
+                "Invalid expression kind found in global".into(),
+                "Valid expression kinds are: literal array, bool, integer or field".into(), 
                 span,   
             ),
         }
