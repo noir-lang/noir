@@ -93,7 +93,7 @@ impl InputValue {
         let input_value = match value {
             TomlTypes::String(string) => match param_type {
                 AbiType::String { .. } => InputValue::String(string),
-                AbiType::Field | AbiType::Integer { .. } => {
+                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
                     InputValue::Field(parse_str_to_field(&string)?)
                 }
                 _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
