@@ -43,8 +43,27 @@ pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
     circuit.to_bytes()
 }
 
+// Deserializes bytes into ACIR structure
+#[wasm_bindgen]
+pub fn acir_read_bytes(bytes: Vec<u8>) -> JsValue {
+    console_error_panic_hook::set_once();
+    let circuit = Circuit::read(&*bytes).unwrap();
+    <JsValue as JsValueSerdeExt>::from_serde(&circuit).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn acir_write_bytes(acir: JsValue) -> Vec<u8> {
+    console_error_panic_hook::set_once();
+    let circuit: Circuit = JsValueSerdeExt::into_serde(&acir).unwrap();
+    let mut bytes = Vec::new();
+    circuit.write(&mut bytes).unwrap();
+    bytes
+}
+
 #[wasm_bindgen]
 pub fn build_info() -> JsValue {
     console_error_panic_hook::set_once();
     <JsValue as JsValueSerdeExt>::from_serde(&BUILD_INFO).unwrap()
 }
+
+
