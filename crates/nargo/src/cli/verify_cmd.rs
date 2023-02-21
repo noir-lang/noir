@@ -44,12 +44,15 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
 
     let result = verify_with_path(
         config.program_dir,
-        proof_path,
+        proof_path.clone(),
         circuit_build_path,
         false,
         args.allow_warnings,
     )?;
-    println!("Proof verified : {result}");
+
+    if !result {
+        return Err(CliError::ProvingFailed(proof_path));
+    }
 
     Ok(())
 }

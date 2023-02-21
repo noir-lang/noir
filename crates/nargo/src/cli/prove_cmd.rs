@@ -108,21 +108,17 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let proof =
         backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
 
-    println!("Proof successfully created");
     if check_proof {
         let valid_proof =
             verify_proof(compiled_program, public_inputs, return_value, &proof, verification_key)?;
-        println!("Proof verified : {valid_proof}");
+
         if !valid_proof {
             return Err(CliError::Generic("Could not verify generated proof".to_owned()));
         }
     }
 
     let proof_path = if let Some(proof_name) = proof_name {
-        let proof_path = save_proof_to_dir(&proof, &proof_name, proof_dir)?;
-
-        println!("Proof saved to {}", proof_path.display());
-        Some(proof_path)
+        Some(save_proof_to_dir(&proof, &proof_name, proof_dir)?)
     } else {
         println!("{}", hex::encode(&proof));
         None
