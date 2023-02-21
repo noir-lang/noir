@@ -55,3 +55,15 @@ mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN ..
 cmake --build . --parallel ${@/#/--target }
 cd ..
+
+# Install the webassembly toolchain.
+WASI_VERSION=12
+cd ./src
+curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -
+cd ..
+
+# Build WASM.
+mkdir -p build-wasm && cd build-wasm
+cmake -DTOOLCHAIN=wasm-linux-clang ..
+cmake --build . --parallel # --target aztec3.wasm
+cd ..
