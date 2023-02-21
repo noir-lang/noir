@@ -109,12 +109,15 @@ pub fn prove_with_path<P: AsRef<Path>>(
         backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
 
     if check_proof {
-        let valid_proof =
-            verify_proof(compiled_program, public_inputs, return_value, &proof, verification_key)?;
-
-        if !valid_proof {
-            return Err(CliError::Generic("Could not verify generated proof".to_owned()));
-        }
+        let no_proof_name = "".into();
+        verify_proof(
+            compiled_program,
+            public_inputs,
+            return_value,
+            &proof,
+            verification_key,
+            no_proof_name,
+        )?;
     }
 
     let proof_path = if let Some(proof_name) = proof_name {
