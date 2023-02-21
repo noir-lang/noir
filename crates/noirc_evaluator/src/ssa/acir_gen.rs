@@ -1,7 +1,11 @@
-use crate::ssa::{
-    builtin,
-    context::SsaContext,
-    node::{Instruction, Operation},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        block::BasicBlock,
+        builtin,
+        context::SsaContext,
+        node::{Instruction, Operation},
+    },
 };
 use crate::{Evaluator, RuntimeErrorKind};
 use acvm::{
@@ -29,6 +33,26 @@ pub struct Acir {
 }
 
 impl Acir {
+    pub fn acir_gen(
+        &mut self,
+        evaluator: &mut Evaluator,
+        ctx: &SsaContext,
+        root: &BasicBlock,
+        show_output: bool,
+    ) -> Result<(), RuntimeError> {
+        let mut current_block = Some(root);
+        while let Some(block) = current_block {
+            for iter in &block.instructions {
+                let ins = ctx.instruction(*iter);
+                self.acir_gen_instruction(ins, evaluator, ctx, show_output)?;
+            }
+            //TODO we should rather follow the jumps
+            current_block = block.left.map(|block_id| &ctx[block_id]);
+        }
+        self.memory.acir_gen(evaluator);
+        Ok(())
+    }
+
     /// Generate ACIR opcodes based on the given instruction
     pub fn acir_gen_instruction(
         &mut self,

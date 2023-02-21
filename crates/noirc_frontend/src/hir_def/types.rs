@@ -861,7 +861,7 @@ impl Type {
         }
     }
 
-    fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
+    pub fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
         use Type::*;
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),

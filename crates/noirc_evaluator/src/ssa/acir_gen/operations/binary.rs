@@ -63,8 +63,7 @@ pub(crate) fn evaluate(
                 } else {
                     //we need the type of rhs and its max value, then:
                     //lhs-rhs+k*2^bit_size where k=ceil(max_value/2^bit_size)
-                    // TODO: what is this code doing?
-                    let bit_size = r_size;
+                    let bit_size = ctx[binary.rhs].get_type().bits();
                     let r_big = BigUint::one() << bit_size;
                     let mut k = max_rhs_value / &r_big;
                     if max_rhs_value % &r_big != BigUint::zero() {

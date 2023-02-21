@@ -181,13 +181,13 @@ fn type_check_lvalue(
             let index_type = type_check_expression(interner, &index, errors);
             let expr_span = interner.expr_span(&index);
 
-            index_type.unify(&Type::comp_time(Some(expr_span)), expr_span, errors, || {
-                TypeCheckError::TypeMismatch {
-                    expected_typ: "comptime Field".to_owned(),
+            if index_type.is_subtype_of(&Type::field(Some(expr_span)), expr_span).is_err() {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: "Field".to_owned(),
                     expr_typ: index_type.to_string(),
                     expr_span,
-                }
-            });
+                });
+            }
 
             let (result, array) = type_check_lvalue(interner, *array, assign_span, errors);
             let array = Box::new(array);
