@@ -8,8 +8,7 @@ fn main(
     leaf: Field,
     index: Field,
     mimc_input: [Field; 4],
-) 
-{
+) {
     let old_leaf_exists = std::merkle::check_membership(old_root, old_leaf, index, old_hash_path);
     constrain old_leaf_exists == 1;
     constrain old_root == std::merkle::compute_root_from_leaf(old_leaf, index, old_hash_path);
