@@ -114,6 +114,13 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
+/// Returns the circuit's parameters and its return value, if one exists.
+/// # Examples
+///
+/// ```ignore
+/// let (input_map, return_value): (InputMap, Option<InputValue>) =
+///   read_inputs_from_file(path, "Verifier", Format::Toml, &abi)?;
+/// ```
 pub fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
