@@ -59,8 +59,12 @@ pub fn verify_with_path<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<bool, CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, verification_key) =
-        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
+    let (_, verification_key) = if let Some(circuit_build_path) = circuit_build_path {
+        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?
+    } else {
+        let backend = crate::backends::ConcreteBackend;
+        backend.preprocess(compiled_program.circuit.clone())
+    };
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();
