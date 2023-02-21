@@ -93,8 +93,8 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     std::vector<MLEOpeningClaim> claims_shift;
     std::vector<MLEOpeningClaim> claims_mock;
     std::vector<MLEOpeningClaim> claims_shift_mock;
-    std::vector<Params::Polynomial*> multivariate_polynomials;
-    std::vector<Params::Polynomial*> multivariate_polynomials_shifted;
+    std::vector<std::span<Params::Fr>> multivariate_polynomials;
+    std::vector<std::span<Params::Fr>> multivariate_polynomials_shifted;
 
     // Create genuine opening claims (for use by verifier) and mock opening claims (for prover)
     claims.emplace_back(commitment1, eval1);
@@ -105,9 +105,9 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     claims_mock.emplace_back(mock_commitment, eval2);
     claims_shift_mock.emplace_back(mock_commitment, eval2_shift);
 
-    multivariate_polynomials.emplace_back(&poly1);
-    multivariate_polynomials.emplace_back(&poly2);
-    multivariate_polynomials_shifted.emplace_back(&poly2);
+    multivariate_polynomials.emplace_back(poly1);
+    multivariate_polynomials.emplace_back(poly2);
+    multivariate_polynomials_shifted.emplace_back(poly2);
 
     // Run the full prover PCS protocol with mocked opening claims (mocked commitment, genuine evaluation)
 
@@ -184,11 +184,11 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgSimple)
 
     std::vector<MLEOpeningClaim> claims;
     std::vector<MLEOpeningClaim> claims_mock;
-    std::vector<Params::Polynomial*> multivariate_polynomials;
+    std::vector<std::span<Params::Fr>> multivariate_polynomials;
 
     claims.emplace_back(commitment1, eval1);
     claims_mock.emplace_back(mock_commitment, eval1);
-    multivariate_polynomials.emplace_back(&poly1);
+    multivariate_polynomials.emplace_back(poly1);
 
     // Run the full prover PCS protocol with mocked opening claims (mocked commitment, genuine evaluation)
 

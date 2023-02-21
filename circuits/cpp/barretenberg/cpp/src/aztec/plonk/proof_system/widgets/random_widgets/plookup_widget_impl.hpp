@@ -53,13 +53,10 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sorted_list_polynomial(
     transcript::StandardTranscript& transcript)
 {
-    barretenberg::polynomial s_1 = key->polynomial_cache.get("s_1_lagrange");
-    const fr* s_2 = key->polynomial_cache.get("s_2_lagrange").get_coefficients();
-    const fr* s_3 = key->polynomial_cache.get("s_3_lagrange").get_coefficients();
-    const fr* s_4 = key->polynomial_cache.get("s_4_lagrange").get_coefficients();
-
-    barretenberg::polynomial s_accum(key->circuit_size);
-    barretenberg::polynomial_arithmetic::copy_polynomial(&s_1[0], &s_accum[0], key->circuit_size, key->circuit_size);
+    barretenberg::polynomial s_accum(key->polynomial_cache.get("s_1_lagrange"));
+    std::span<const fr> s_2 = key->polynomial_cache.get("s_2_lagrange");
+    std::span<const fr> s_3 = key->polynomial_cache.get("s_3_lagrange");
+    std::span<const fr> s_4 = key->polynomial_cache.get("s_4_lagrange");
 
     // Get challenge η
     const auto eta = fr::serialize_from_buffer(transcript.get_challenge("eta", 0).begin());

@@ -30,7 +30,7 @@ Polynomial<Fr>::Polynomial(std::string const& filename)
 #ifndef __wasm__
     coefficients_ = (Fr*)mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
 #else
-    coefficients_ = (Fr*)aligned_alloc(32, len);
+    coefficients_ = allocate_aligned_memory(len);
     ::read(fd, (void*)coefficients_, len);
 #endif
     close(fd);
@@ -43,7 +43,7 @@ Polynomial<Fr>::Polynomial(const size_t size_)
     , mapped_(false)
 {
     if (capacity() > 0) {
-        coefficients_ = (Fr*)(aligned_alloc(32, sizeof(Fr) * capacity()));
+        coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
     }
     memset(static_cast<void*>(coefficients_), 0, sizeof(Fr) * capacity());
 }
@@ -53,7 +53,7 @@ Polynomial<Fr>::Polynomial(const Polynomial<Fr>& other, const size_t target_size
     : size_(std::max(target_size, other.size()))
     , mapped_(false)
 {
-    coefficients_ = (Fr*)(aligned_alloc(32, sizeof(Fr) * capacity()));
+    coefficients_ = allocate_aligned_memory(sizeof(Fr) * capacity());
 
     if (other.coefficients_ != nullptr) {
         memcpy(static_cast<void*>(coefficients_), static_cast<void*>(other.coefficients_), sizeof(Fr) * other.size_);
@@ -79,7 +79,7 @@ template <typename Fr> Polynomial<Fr>& Polynomial<Fr>::operator=(const Polynomia
 {
     if (is_empty()) {
         size_ = other.size();
-        coefficients_ = (Fr*)(aligned_alloc(32, sizeof(Fr) * other.capacity()));
+        coefficients_ = allocate_aligned_memory(sizeof(Fr) * other.capacity());
     }
 
     ASSERT(in_place_operation_viable(other.size_));
@@ -136,7 +136,7 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate(const Fr& z) const
  */
 template <typename Fr> void Polynomial<Fr>::zero_memory_beyond(const size_t start_position)
 {
-    size_t end = size();
+    size_t end = capacity();
     ASSERT(end >= start_position);
 
     size_t delta = end - start_position;
@@ -341,7 +341,7 @@ template <typename Fr> Fr Polynomial<Fr>::evaluate_mle(std::span<const Fr> evalu
     size_t n_l = 1 << (m - 1);
 
     // temporary buffer of half the size of the polynomial
-    Fr* tmp = static_cast<Fr*>(aligned_alloc(sizeof(Fr), sizeof(Fr) * n_l));
+    Fr* tmp = allocate_aligned_memory(sizeof(Fr) * n_l);
 
     Fr* prev = coefficients_;
     if (shift) {

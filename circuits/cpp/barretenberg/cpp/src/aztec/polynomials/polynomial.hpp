@@ -80,27 +80,19 @@ template <typename Fr> class Polynomial {
     Fr* get_coefficients() { return coefficients_; };
 
     // Const and non const versions of coefficient accessors
-    Fr const& operator[](const size_t i) const
-    {
-        ASSERT(i < size_);
-        return coefficients_[i];
-    }
+    Fr const& operator[](const size_t i) const { return coefficients_[i]; }
 
-    Fr& operator[](const size_t i)
-    {
-        ASSERT(i < size_);
-        return coefficients_[i];
-    }
+    Fr& operator[](const size_t i) { return coefficients_[i]; }
 
     Fr const& at(const size_t i) const
     {
-        ASSERT(i < size_);
+        ASSERT(i < capacity());
         return coefficients_[i];
     };
 
     Fr& at(const size_t i)
     {
-        ASSERT(i < size_);
+        ASSERT(i < capacity());
         return coefficients_[i];
     };
 
@@ -135,6 +127,8 @@ template <typename Fr> class Polynomial {
     {
         return !is_empty() && !mapped() && (size() >= domain_size);
     }
+
+    Fr* allocate_aligned_memory(const size_t size) const { return static_cast<Fr*>(aligned_alloc(sizeof(Fr), size)); }
 
     /**
      * @brief Returns an std::span of the left-shift of self.

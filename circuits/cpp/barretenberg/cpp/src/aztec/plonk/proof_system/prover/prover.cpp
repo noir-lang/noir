@@ -290,7 +290,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
     if (settings::is_plookup) {
         add_plookup_memory_records_to_w_4();
         std::string wire_tag = "w_4";
-        barretenberg::polynomial& w_4_lagrange = key->polynomial_cache.get(wire_tag + "_lagrange");
+        barretenberg::polynomial& w_4_lagrange(key->polynomial_cache.get(wire_tag + "_lagrange"));
 
         // add randomness to w_4_lagrange
         const size_t w_randomness = 3;
@@ -665,16 +665,11 @@ template <typename settings> void ProverBase<settings>::add_plookup_memory_recor
 
     const fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     const fr eta_sqr = eta.sqr();
-    // At this point in the algorithm, the w_1, w_2, w_3 polynomials have been copied into
-    // the wire_fft map, and inverse fourier transforms have been applied to the original polynomials.
-    // We need their lagrange-base forms, so we tap into the wire_fft map.
-    // fr* w_1 = key->polynomial_cache.get("w_1_fft").get_coefficients();
-    // fr* w_2 = key->polynomial_cache.get("w_2_fft").get_coefficients();
-    // fr* w_3 = key->polynomial_cache.get("w_3_fft").get_coefficients();
-    fr* w_1 = key->polynomial_cache.get("w_1_lagrange").get_coefficients();
-    fr* w_2 = key->polynomial_cache.get("w_2_lagrange").get_coefficients();
-    fr* w_3 = key->polynomial_cache.get("w_3_lagrange").get_coefficients();
-    fr* w_4 = key->polynomial_cache.get("w_4_lagrange").get_coefficients();
+
+    std::span<const fr> w_1 = key->polynomial_cache.get("w_1_lagrange");
+    std::span<const fr> w_2 = key->polynomial_cache.get("w_2_lagrange");
+    std::span<const fr> w_3 = key->polynomial_cache.get("w_3_lagrange");
+    std::span<fr> w_4 = key->polynomial_cache.get("w_4_lagrange");
     for (const auto& gate_idx : key->memory_records) {
         w_4[gate_idx] = w_1[gate_idx] + w_2[gate_idx] * eta + w_3[gate_idx] * eta_sqr;
     }

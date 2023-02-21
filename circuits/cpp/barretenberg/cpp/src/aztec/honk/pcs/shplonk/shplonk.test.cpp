@@ -165,7 +165,7 @@ TYPED_TEST(ShplonkTest, Gemini)
     transcript->mock_inputs_prior_to_challenge("rho");
 
     const auto [gemini_prover_claim, gemini_witness, gemini_proof] =
-        Gemini::reduce_prove(this->ck(), u, claims, {}, { &poly }, {}, transcript);
+        Gemini::reduce_prove(this->ck(), u, claims, {}, { poly }, {}, transcript);
 
     const auto gemini_verifier_claim = Gemini::reduce_verify(u, claims, {}, gemini_proof, transcript);
 

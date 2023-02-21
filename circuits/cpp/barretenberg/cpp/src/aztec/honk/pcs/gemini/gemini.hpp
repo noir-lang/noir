@@ -156,8 +156,8 @@ template <typename Params> class MultilinearReductionScheme {
                                              std::span<const Fr> mle_opening_point,
                                              std::span<const MLEOpeningClaim<Params>> claims,
                                              std::span<const MLEOpeningClaim<Params>> claims_shifted,
-                                             const std::vector<Polynomial*>& mle_witness_polynomials,
-                                             const std::vector<Polynomial*>& mle_witness_polynomials_shifted,
+                                             const std::vector<std::span<Fr>>& mle_witness_polynomials,
+                                             const std::vector<std::span<Fr>>& mle_witness_polynomials_shifted,
                                              const auto& transcript)
     {
         // Relabel inputs to be consistent with the comments
@@ -203,19 +203,19 @@ template <typename Params> class MultilinearReductionScheme {
         //  F(X) = ∑ⱼ ρʲ fⱼ(X)
         Polynomial& batched_F = witness_polynomials.emplace_back(Polynomial(n));
         for (size_t j = 0; j < num_polys_f; ++j) {
-            const size_t n_j = polys_f[j]->size();
+            const size_t n_j = polys_f[j].size();
             ASSERT(n_j <= n);
             // F(X) += ρʲ fⱼ(X)
-            batched_F.add_scaled(*polys_f[j], rhos_f[j]);
+            batched_F.add_scaled(polys_f[j], rhos_f[j]);
         }
 
         //  G(X) = ∑ⱼ ρʲ gⱼ(X)
         Polynomial& batched_G = witness_polynomials.emplace_back(Polynomial(n));
         for (size_t j = 0; j < num_polys_g; ++j) {
-            const size_t n_j = polys_g[j]->size();
+            const size_t n_j = polys_g[j].size();
             ASSERT(n_j <= n);
             // G(X) += ρʲ gⱼ(X)
-            batched_G.add_scaled(*polys_g[j], rhos_g[j]);
+            batched_G.add_scaled(polys_g[j], rhos_g[j]);
         }
 
         // A₀(X) = F(X) + G↺(X) = F(X) + G(X)/X.
