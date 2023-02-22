@@ -42,6 +42,20 @@ template <typename NCT> struct TxRequest {
 
         return tx_request;
     };
+
+    fr hash() const
+    {
+        std::vector<fr> inputs;
+        inputs.push_back(fr(from));
+        inputs.push_back(fr(to));
+        inputs.push_back(function_signature.hash());
+        spread_arr_into_vec(args, inputs);
+        inputs.push_back(nonce);
+        inputs.push_back(tx_context.hash());
+        inputs.push_back(chain_id);
+
+        return NCT::compress(inputs, GeneratorIndex::TX_REQUEST);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, TxRequest<NCT>& tx_request)
