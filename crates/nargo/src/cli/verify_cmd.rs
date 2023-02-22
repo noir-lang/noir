@@ -9,12 +9,8 @@ use crate::{
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::MAIN_RETURN_NAME;
 use noirc_driver::CompiledProgram;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -43,13 +39,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         circuit_build_path
     });
 
-    verify_with_path(
-        config.program_dir,
-        proof_path.clone(),
-        circuit_build_path,
-        false,
-        args.allow_warnings,
-    )
+    verify_with_path(config.program_dir, proof_path, circuit_build_path, false, args.allow_warnings)
 }
 
 fn verify_with_path<P: AsRef<Path>>(
@@ -65,15 +55,8 @@ fn verify_with_path<P: AsRef<Path>>(
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();
-    let (public_inputs_map, return_value) = if public_abi.has_public_inputs() {
-        let current_dir = program_dir;
-        let mut public_inputs_map =
-            read_inputs_from_file(current_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
-        let return_value = public_inputs_map.remove(MAIN_RETURN_NAME);
-        (public_inputs_map, return_value)
-    } else {
-        (BTreeMap::new(), None)
-    };
+    let (public_inputs_map, return_value) =
+        read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
     verify_proof(
         compiled_program,

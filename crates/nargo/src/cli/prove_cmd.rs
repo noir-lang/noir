@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
 use clap::Args;
-use noirc_abi::{input_parser::Format, MAIN_RETURN_NAME};
+use noirc_abi::input_parser::Format;
 
 use super::{
     create_named_dir, fetch_pk_and_vk, read_inputs_from_file, write_inputs_to_file, write_to_file,
@@ -77,7 +77,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path.as_ref(), true, check_proof)?;
 
     // Parse the initial witness values from Prover.toml
-    let inputs_map = read_inputs_from_file(
+    let (inputs_map, _) = read_inputs_from_file(
         &program_dir,
         PROVER_INPUT_FILE,
         Format::Toml,
@@ -90,19 +90,13 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let public_abi = compiled_program.abi.clone().public_abi();
     let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
 
-    if let Some(return_value) = return_value.clone() {
-        // Insert return value into public inputs so it's written to file.
-        let mut public_inputs_with_return = public_inputs.clone();
-        public_inputs_with_return.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-        write_inputs_to_file(
-            &public_inputs_with_return,
-            &program_dir,
-            VERIFIER_INPUT_FILE,
-            Format::Toml,
-        )?;
-    } else {
-        write_inputs_to_file(&public_inputs, &program_dir, VERIFIER_INPUT_FILE, Format::Toml)?;
-    }
+    write_inputs_to_file(
+        &public_inputs,
+        &return_value,
+        &program_dir,
+        VERIFIER_INPUT_FILE,
+        Format::Toml,
+    )?;
 
     let backend = crate::backends::ConcreteBackend;
     let proof =

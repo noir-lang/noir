@@ -153,6 +153,11 @@ impl Abi {
         self.return_type.is_some() || self.parameters.iter().any(|param| param.is_public())
     }
 
+    /// Returns `true` if the ABI contains no parameters or return value.
+    pub fn is_empty(&self) -> bool {
+        self.return_type.is_none() && self.parameters.is_empty()
+    }
+
     pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
         let mut map = BTreeMap::new();
         for param in self.parameters.iter() {

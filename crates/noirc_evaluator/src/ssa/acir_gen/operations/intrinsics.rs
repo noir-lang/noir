@@ -289,18 +289,25 @@ fn evaluate_println(
                 log_string = format_field_string(field);
             }
             None => {
-                let var = var_cache.get(&node_id).unwrap_or_else(|| {
-                    panic!(
-                        "invalid input for print statement: {:?}",
-                        ctx.try_get_node(node_id).expect("node is missing from SSA")
-                    )
-                });
+                let mut var = var_cache
+                    .get(&node_id)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "invalid input for print statement: {:?}",
+                            ctx.try_get_node(node_id).expect("node is missing from SSA")
+                        )
+                    })
+                    .clone();
                 if let Some(field) = var.to_const() {
                     log_string = format_field_string(field);
-                } else if let Some(w) = var.cached_witness() {
-                    log_witnesses.push(*w);
+                } else if let Some(w) = var.get_or_compute_witness(evaluator, false) {
+                    // We check whether there has already been a cached witness for this node. If not, we generate a new witness and include it in the logs
+                    // TODO we need a witness because of the directive, but we should use an expression
+                    log_witnesses.push(w);
                 } else {
-                    unreachable!("array element to be logged is missing a witness");
+                    unreachable!(
+                        "a witness should have been computed for the non-constant expression"
+                    );
                 }
             }
         },

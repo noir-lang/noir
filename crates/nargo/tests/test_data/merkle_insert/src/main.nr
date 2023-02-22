@@ -16,6 +16,8 @@ fn main(
     constrain new_leaf_exists == 1;
 
     let h = std::hash::mimc_bn254(mimc_input);
+    // Regression test for PR #891
+    std::println(h);
     constrain h == 18226366069841799622585958305961373004333097209608110160936134895615261821931;
 }
     
