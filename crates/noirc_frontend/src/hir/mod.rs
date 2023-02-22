@@ -24,7 +24,7 @@ impl Default for Context {
         Context {
             def_interner: NodeInterner::default(),
             crate_graph: CrateGraph::default(),
-            file_manager: FileManager::new(),
+            file_manager: FileManager::default(),
             def_maps: HashMap::new(),
         }
     }

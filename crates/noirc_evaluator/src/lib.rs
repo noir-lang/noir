@@ -46,7 +46,7 @@ pub fn create_circuit(
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
-    let mut evaluator = Evaluator::new();
+    let mut evaluator = Evaluator::default();
 
     // First evaluate the main function
     evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
@@ -78,6 +78,7 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
+    // Evaluator::default()
     // current_witness_index: 0
     // XXX: Barretenberg, reserves the first index to have value 0.
     // When we increment, we do not use this index at all.
@@ -87,9 +88,6 @@ impl Evaluator {
     // We ideally want to not have this and have Barretenberg apply the
     // following transformation to the witness index : f(i) = i + 1
     //
-    fn new() -> Self {
-        Self::default()
-    }
 
     // Returns true if the `witness_index`
     // was created in the ABI as a private input.

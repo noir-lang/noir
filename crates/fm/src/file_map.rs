@@ -57,10 +57,6 @@ impl<'input> File<'input> {
 }
 
 impl FileMap {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
         let file_id = self.0.add(file_name, code);
         FileId(file_id)

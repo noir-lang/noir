@@ -98,7 +98,7 @@ impl<'a> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
-            scopes: ScopeForest::new(),
+            scopes: ScopeForest::default(),
             interner,
             self_type: None,
             generics: Vec::new(),
