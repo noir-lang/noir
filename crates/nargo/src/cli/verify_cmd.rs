@@ -1,7 +1,5 @@
-use super::{
-    compile_cmd::compile_circuit, fetch_pk_and_vk, load_hex_data, read_inputs_from_file, InputMap,
-    NargoConfig,
-};
+use super::fs::{inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data};
+use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -50,8 +48,15 @@ fn verify_with_path<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<(), CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, verification_key) =
-        fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
+    let (_, verification_key) = match circuit_build_path {
+        Some(circuit_build_path) => {
+            fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?
+        }
+        None => {
+            let backend = crate::backends::ConcreteBackend;
+            backend.preprocess(compiled_program.circuit.clone())
+        }
+    };
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();

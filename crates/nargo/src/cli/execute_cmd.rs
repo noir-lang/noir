@@ -1,17 +1,16 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::CompiledProgram;
 
+use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
-use super::{create_named_dir, read_inputs_from_file, write_to_file};
 use crate::{
     cli::compile_cmd::compile_circuit,
-    constants::{PROVER_INPUT_FILE, TARGET_DIR, WITNESS_EXT},
+    constants::{PROVER_INPUT_FILE, TARGET_DIR},
     errors::CliError,
 };
 
@@ -82,20 +81,4 @@ pub(crate) fn execute_program(
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
 
     Ok(solved_witness)
-}
-
-pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
-    witness: WitnessMap,
-    witness_name: &str,
-    witness_dir: P,
-) -> Result<PathBuf, CliError> {
-    let mut witness_path = create_named_dir(witness_dir.as_ref(), "witness");
-    witness_path.push(witness_name);
-    witness_path.set_extension(WITNESS_EXT);
-
-    let buf = Witness::to_bytes(&witness);
-
-    write_to_file(buf.as_slice(), &witness_path);
-
-    Ok(witness_path)
 }

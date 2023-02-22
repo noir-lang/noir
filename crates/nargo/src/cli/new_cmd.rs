@@ -3,7 +3,8 @@ use crate::{
     errors::CliError,
 };
 
-use super::{create_named_dir, write_to_file, NargoConfig};
+use super::fs::{create_named_dir, write_to_file};
+use super::NargoConfig;
 use clap::Args;
 use std::path::{Path, PathBuf};
 
