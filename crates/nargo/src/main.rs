@@ -3,7 +3,7 @@
 use color_eyre::config::HookBuilder;
 use nargo::cli::start_cli;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     // Register a panic hook to display more readable panic messages to end-users
     let (panic_hook, _) = HookBuilder::default()
         .display_env_section(false)
@@ -11,5 +11,5 @@ fn main() {
         .into_hooks();
     panic_hook.install();
 
-    start_cli();
+    start_cli()
 }

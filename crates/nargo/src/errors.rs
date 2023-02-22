@@ -1,8 +1,7 @@
 use acvm::OpcodeResolutionError;
 use hex::FromHexError;
 use noirc_abi::errors::{AbiError, InputParserError};
-use std::{io::Write, path::PathBuf};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -32,18 +31,6 @@ pub enum CliError {
 impl From<OpcodeResolutionError> for CliError {
     fn from(value: OpcodeResolutionError) -> Self {
         CliError::Generic(value.to_string())
-    }
-}
-
-impl CliError {
-    pub(crate) fn write(&self) -> ! {
-        let mut stderr = StandardStream::stderr(ColorChoice::Always);
-        stderr
-            .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
-            .expect("cannot set color for stderr in StandardStream");
-        writeln!(&mut stderr, "{self}").expect("cannot write to stderr");
-
-        std::process::exit(1)
     }
 }
 
