@@ -200,16 +200,11 @@ impl<'a> ModCollector<'a> {
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
 
-            // Create the corresponding module for the type aliases namespace
-            let id = match self.push_child_module(&name, self.file_id, false, errors) {
-                Some(local_id) => TyAliasId(ModuleId { krate, local_id }),
-                None => continue,
-            };
-
+            let ty_alias_id = TyAliasId(ModuleId { krate, local_id: self.module_id });
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .scope
-                .define_type_alias_def(name, id);
+                .define_type_alias_def(name, ty_alias_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -222,7 +217,7 @@ impl<'a> ModCollector<'a> {
                 module_id: self.module_id,
                 type_alias_def: type_alias,
             };
-            self.def_collector.collected_type_aliases.insert(id, unresolved);
+            self.def_collector.collected_type_aliases.insert(ty_alias_id, unresolved);
         }
     }
 

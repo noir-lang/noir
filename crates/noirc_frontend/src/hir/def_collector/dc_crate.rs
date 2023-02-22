@@ -347,7 +347,7 @@ fn resolve_struct_fields(
     (generics, fields)
 }
 
-/// Create the mappings from TyAliasId -> TypeAliasType
+/// Create the mappings from TyAliasId -> Type
 /// so that expressions can access the fields of structs
 fn resolve_type_aliases(
     context: &mut Context,

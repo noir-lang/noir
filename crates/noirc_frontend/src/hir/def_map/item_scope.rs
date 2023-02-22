@@ -81,7 +81,7 @@ impl ItemScope {
         name: Ident,
         local_id: TyAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_definition(name, ModuleDefId::TypeAliasId(local_id))
+        self.add_definition(name, local_id.into())
     }
 
     pub fn define_global(&mut self, name: Ident, stmt_id: StmtId) -> Result<(), (Ident, Ident)> {

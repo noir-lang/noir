@@ -65,6 +65,12 @@ impl From<FuncId> for ModuleDefId {
     }
 }
 
+impl From<TyAliasId> for ModuleDefId {
+    fn from(fid: TyAliasId) -> Self {
+        ModuleDefId::TypeAliasId(fid)
+    }
+}
+
 impl From<StmtId> for ModuleDefId {
     fn from(stmt_id: StmtId) -> Self {
         ModuleDefId::GlobalId(stmt_id)
