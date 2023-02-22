@@ -30,7 +30,7 @@
 
 | Value | Description |
 | -------- | -------- |
-| `signedTxObject`: [`SignedTxObject`](../contracts/transactions.md#signedtxobject) | Only required to validate permissions for the first call in the callstack. TODO: generalise for account abstraction. |
+| `signedTxRequest`: [`SignedTxRequest`](../contracts/transactions.md#signedTxRequest) | Only required to validate permissions for the first call in the callstack. TODO: generalise for account abstraction. |
 | `previousKernel`: [`PreviousKernelData`](#previouskerneldata) | Previous kernel data (empty if this is the first iteration). |
 | `privateCall`: [`PrivateCallData`](#privatecalldata) | Details about the next call which will be popped of the callstack during this kernel recursion. |
 
@@ -138,7 +138,7 @@ Base case:
             - Set `constants.recursionContext.isConstructor := true` - This public input will percolate to -- and be checked by -- the Contract Deployment Kernel Circuit which calls this constructor. This check is required to prevent a person from circumventing the ECDSA signature check by simply setting `isConstructor = true` when making a private call. If this aggregated kernel snark reaches the rollup circuit without this flag being reset to `false` by the Contract Deployment Kernel Circuit (to say "yes, this kernel was indeed a constructor for a Contract Deployment Kernel Circuit"), then the entire tx will be rejected by the rollup circuit.
         - Else:
             - Set `constants.recursionContext.isConstructor := false`
-            - Verify the ECDSA signature contained in `signedTxObject`.
+            - Verify the ECDSA signature contained in `signedTxRequest`.
             - Validate the `callContext`. Usually the correctness of a callContext is checked between the `privateCall` and all the new calls it makes (see later in this logic). That means for this 'Base case', those checks haven't been done for this `privateCall` (since there was no prior iteration of this kernel circuit to make those checks).
                 - If `privateCall.isDelegateCall == true || privateCall.isStaticCall == true`:
                     - Revert - a user cannot make a delegateCall or staticCall.

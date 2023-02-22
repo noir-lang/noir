@@ -9,7 +9,7 @@ Contracts can be deployed with a special type of call (a contractDeploymentCall)
 
 [^1]: Most transactions will likely begin with _two_ callstack items: one for the actual call, and one to pay the rollup provider a fee (by invoking some payment circuit). [Fee payments](../fees/fees.md) still need to be spec'd out.
 
-## `TxObject`
+## `TxRequest`
 
 | Value | Description |
 | --- | --- |
@@ -57,7 +57,7 @@ Currently, the fee model is inspired by EIP-1559.
 | `payFeeFromPublicL2`: `Bool` | Provides a way of paying for private L2 function execution from a public L2 circuit. This input being `true` will cause the rollup provider to look for an `isFeePayment` tx in the _public_ callStack. |
 | `feeAmount`: `Field` | |
 | `feeStandardId`: `Field` | |
-| `signedFeePaymentTxHash`: `Field` | Hash of a [SignedTxObject](#signedtxobject) |
+| `signedFeePaymentTxHash`: `Field` | Hash of a [SignedTxRequest](#signedTxRequest) |
 
 
 ## `TxContext`
@@ -73,11 +73,11 @@ Currently, the fee model is inspired by EIP-1559.
 | `referenceRollupNum`: `Field` | The rollup number which should be used if referring to any historic tree values. Useful if the proof needs to use a particular tree state snapshot of a particular historic rollup. |
 
 
-## `SignedTxObject`
+## `SignedTxRequest`
 
 | Value | Description |
 | --- | --- |
-| `txObject`: [`TxObject`](#txobject) | The TxObject being signed over. |
+| `TxRequest`: [`TxRequest`](#TxRequest) | The TxRequest being signed over. |
 | r, s, v | The usual ecdsa signature values. |
 
 ---

@@ -3,7 +3,7 @@
 #include "accumulated_data.hpp"
 #include "previous_kernel_data.hpp"
 #include "private_call_data.hpp"
-#include "../signed_tx_object.hpp"
+#include "../signed_tx_request.hpp"
 
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
@@ -21,7 +21,7 @@ template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
     // typedef typename NCT::signature Signature;
 
-    SignedTxObject<NCT> signed_tx_object;
+    SignedTxRequest<NCT> signed_tx_request;
     PreviousKernelData<NCT> previous_kernel;
     PrivateCallData<NCT> private_call;
 
@@ -31,7 +31,7 @@ template <typename NCT> struct PrivateInputs {
 
         PrivateInputs<CircuitTypes<Composer>> private_inputs = {
             // plonk::stdlib::schnorr::convert_signature(&composer, signature),
-            signed_tx_object.to_circuit_type(composer),
+            signed_tx_request.to_circuit_type(composer),
             previous_kernel.to_circuit_type(composer),
             private_call.to_circuit_type(composer),
         };

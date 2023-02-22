@@ -12,9 +12,9 @@
 #include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/circuits/abis/function_signature.hpp>
-#include <aztec3/circuits/abis/signed_tx_object.hpp>
+#include <aztec3/circuits/abis/signed_tx_request.hpp>
 #include <aztec3/circuits/abis/tx_context.hpp>
-#include <aztec3/circuits/abis/tx_object.hpp>
+#include <aztec3/circuits/abis/tx_request.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
@@ -47,9 +47,9 @@ using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionSignature;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
-using aztec3::circuits::abis::SignedTxObject;
+using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
-using aztec3::circuits::abis::TxObject;
+using aztec3::circuits::abis::TxRequest;
 
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
 using aztec3::circuits::abis::private_kernel::ConstantData;
@@ -125,11 +125,11 @@ TEST(private_kernel_tests, test_deposit)
     std::shared_ptr<NT::VK> deposit_vk = deposit_composer.compute_verification_key();
 
     //***************************************************************************
-    // We can create a TxObject from some of the above data. Users must sign a TxObject in order to give permission for
-    // a tx to take place - creating a SignedTxObject.
+    // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
+    // for a tx to take place - creating a SignedTxRequest.
     //***************************************************************************
 
-    TxObject<NT> deposit_tx_object = TxObject<NT>{
+    TxRequest<NT> deposit_tx_request = TxRequest<NT>{
         .from = tx_origin,
         .to = escrow_contract_address,
         .function_signature = function_signature,
@@ -146,10 +146,10 @@ TEST(private_kernel_tests, test_deposit)
         .chain_id = 1,
     };
 
-    SignedTxObject<NT> signed_deposit_tx_object = SignedTxObject<NT>{
-        .tx_object = deposit_tx_object,
+    SignedTxRequest<NT> signed_deposit_tx_request = SignedTxRequest<NT>{
+        .tx_request = deposit_tx_request,
 
-        //     .signature = TODO: need a method for signing a TxObject.
+        //     .signature = TODO: need a method for signing a TxRequest.
     };
 
     //***************************************************************************
@@ -165,9 +165,9 @@ TEST(private_kernel_tests, test_deposit)
     // certain checks if we're handling the 'base case' of the recursion.
     // I've chosen the former, for now.
     const CallStackItem<NT, CallType::Private> deposit_call_stack_item{
-        .contract_address = deposit_tx_object.to,
+        .contract_address = deposit_tx_request.to,
 
-        .function_signature = deposit_tx_object.function_signature,
+        .function_signature = deposit_tx_request.function_signature,
 
         .public_inputs = deposit_public_inputs,
     };
@@ -193,7 +193,7 @@ TEST(private_kernel_tests, test_deposit)
                         // .contract_tree_root =
                         // .private_kernel_vk_tree_root =
                     },
-                .tx_context = deposit_tx_object.tx_context,
+                .tx_context = deposit_tx_request.tx_context,
             },
 
         .is_private = true,
@@ -218,7 +218,7 @@ TEST(private_kernel_tests, test_deposit)
     Composer private_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
 
     PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
-        .signed_tx_object = signed_deposit_tx_object,
+        .signed_tx_request = signed_deposit_tx_request,
 
         .previous_kernel =
             PreviousKernelData<NT>{
