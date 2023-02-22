@@ -10,7 +10,7 @@ use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::CompiledProgram;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -32,34 +32,23 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
     proof_path.push(Path::new(&args.proof));
     proof_path.set_extension(PROOF_EXT);
 
-    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
+    let circuit_build_path = args.circuit_name.map(|circuit_name| {
         let mut circuit_build_path = config.program_dir.clone();
         circuit_build_path.push(TARGET_DIR);
         circuit_build_path.push(circuit_name);
-        Some(circuit_build_path)
-    } else {
-        None
-    };
+        circuit_build_path
+    });
 
-    let result = verify_with_path(
-        config.program_dir,
-        proof_path,
-        circuit_build_path,
-        false,
-        args.allow_warnings,
-    )?;
-    println!("Proof verified : {result}");
-
-    Ok(())
+    verify_with_path(config.program_dir, proof_path, circuit_build_path, false, args.allow_warnings)
 }
 
-pub fn verify_with_path<P: AsRef<Path>>(
+fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
-    proof_path: P,
+    proof_path: PathBuf,
     circuit_build_path: Option<P>,
     show_ssa: bool,
     allow_warnings: bool,
-) -> Result<bool, CliError> {
+) -> Result<(), CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
     let (_, verification_key) =
         fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
@@ -69,15 +58,14 @@ pub fn verify_with_path<P: AsRef<Path>>(
     let (public_inputs_map, return_value) =
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
-    let valid_proof = verify_proof(
+    verify_proof(
         compiled_program,
         public_inputs_map,
         return_value,
-        &load_hex_data(proof_path)?,
+        &load_hex_data(&proof_path)?,
         verification_key,
-    )?;
-
-    Ok(valid_proof)
+        proof_path,
+    )
 }
 
 pub(crate) fn verify_proof(
@@ -86,7 +74,8 @@ pub(crate) fn verify_proof(
     return_value: Option<InputValue>,
     proof: &[u8],
     verification_key: Vec<u8>,
-) -> Result<bool, CliError> {
+    proof_name: PathBuf,
+) -> Result<(), CliError> {
     let public_abi = compiled_program.abi.public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
@@ -100,5 +89,9 @@ pub(crate) fn verify_proof(
         verification_key,
     );
 
-    Ok(valid_proof)
+    if valid_proof {
+        Ok(())
+    } else {
+        Err(CliError::InvalidProof(proof_name))
+    }
 }
