@@ -28,7 +28,11 @@ pub fn compile(src: String) -> JsValue {
     let compiled_program = noirc_driver::Driver::compile_file(path, language);
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
+
 // Deserializes bytes into ACIR structure
+#[deprecated(
+    note = "we have moved away from this serialization strategy. Call `acir_read_bytes` instead"
+)]
 #[wasm_bindgen]
 pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
     console_error_panic_hook::set_once();
@@ -36,6 +40,9 @@ pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
     <JsValue as JsValueSerdeExt>::from_serde(&circuit).unwrap()
 }
 
+#[deprecated(
+    note = "we have moved away from this serialization strategy. Call `acir_write_bytes` instead"
+)]
 #[wasm_bindgen]
 pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
     console_error_panic_hook::set_once();
@@ -65,5 +72,3 @@ pub fn build_info() -> JsValue {
     console_error_panic_hook::set_once();
     <JsValue as JsValueSerdeExt>::from_serde(&BUILD_INFO).unwrap()
 }
-
-
