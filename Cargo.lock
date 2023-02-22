@@ -385,11 +385,11 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=d0e1257c22618f98f53781faba3c372ef91a0172#d0e1257c22618f98f53781faba3c372ef91a0172"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=kh/nix-connect#1dd146196538acd0ada0b15acb86a203f57eaf8c"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
- "common",
+ "common 0.1.0 (git+https://github.com/noir-lang/aztec_backend?branch=kh/nix-connect)",
  "dirs 3.0.2",
  "downloader",
  "hex",
@@ -408,7 +408,7 @@ version = "0.1.0"
 source = "git+https://github.com/noir-lang/aztec_backend?rev=d0e1257c22618f98f53781faba3c372ef91a0172#d0e1257c22618f98f53781faba3c372ef91a0172"
 dependencies = [
  "blake2",
- "common",
+ "common 0.1.0 (git+https://github.com/noir-lang/aztec_backend?rev=d0e1257c22618f98f53781faba3c372ef91a0172)",
  "sha2",
  "sled",
  "tempfile",
@@ -418,7 +418,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#225bb52f9f9831fae94d0bfbd2f3c554b92ed039"
+source = "git+https://github.com/kobyhallx/aztec-connect?branch=kh/nix-flake#ebbd586fba93b31e3c72cd082a8ca4bdb4a1706d"
 dependencies = [
  "bindgen",
  "cmake",
@@ -643,6 +643,20 @@ checksum = "6e0762455306b1ed42bc651ef6a2197aabda5e1d4a43c34d5eab5c1a3634e81d"
 dependencies = [
  "termcolor",
  "unicode-width",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=kh/nix-connect#1dd146196538acd0ada0b15acb86a203f57eaf8c"
+dependencies = [
+ "acvm 0.4.1",
+ "blake2",
+ "dirs 3.0.2",
+ "downloader",
+ "indicatif",
+ "regex",
+ "sled",
 ]
 
 [[package]]
