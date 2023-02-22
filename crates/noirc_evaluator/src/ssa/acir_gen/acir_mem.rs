@@ -15,19 +15,33 @@ use acvm::{
 };
 
 use iter_extended::vecmap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use super::{
+    const_from_expression,
     constraints::{self, mul_with_witness, subtract},
     expression_from_witness,
     operations::{self},
 };
 
 #[derive(Clone, Debug)]
-struct MemItem {
+pub struct MemItem {
     op: Expression,
     value: Expression,
     index: Expression,
+}
+
+enum ArrayType {
+    Init(HashSet<u32>, u32),
+    WriteOnly,
+    ReadOnly(Option<usize>),
+    ReadWrite(Option<usize>),
+}
+
+impl Default for ArrayType {
+    fn default() -> Self {
+        ArrayType::Init(HashSet::default(), 0)
+    }
 }
 
 #[derive(Default)]
@@ -36,11 +50,12 @@ pub struct ArrayHeap {
     memory_map: BTreeMap<u32, InternalVar>,
     trace: Vec<MemItem>,
     staged: BTreeMap<u32, (Expression, Expression)>,
+    typ: ArrayType,
 }
 
 impl ArrayHeap {
     pub fn commit_staged(&mut self) {
-        for (idx, (value, op)) in &self.staged {
+        for (idx, (value, op)) in &self.staged.clone() {
             let item = MemItem {
                 op: op.clone(),
                 value: value.clone(),
@@ -51,8 +66,49 @@ impl ArrayHeap {
         self.staged.clear();
     }
 
-    pub fn push(&mut self, index: Expression, value: Expression, op: Expression) {
-        let item = MemItem { op, value, index };
+    pub fn push(&mut self, item: MemItem) {
+        let is_load = item.op == Expression::zero();
+        let index_const = const_from_expression(&item.index);
+        self.typ = match &self.typ {
+            ArrayType::Init(init_idx, len) => match (is_load, index_const) {
+                (false, Some(idx)) => {
+                    let idx: u32 = idx.to_u128().try_into().unwrap();
+                    let mut init_idx2 = init_idx.clone();
+                    let mut len2 = *len;
+                    init_idx2.insert(idx);
+                    if idx + 1 > len2 {
+                        len2 = idx + 1;
+                    }
+                    ArrayType::Init(init_idx2, len2)
+                }
+                (false, None) => ArrayType::WriteOnly,
+                (true, _) => {
+                    if *len as usize == init_idx.len() {
+                        ArrayType::ReadOnly(None)
+                    } else {
+                        ArrayType::ReadWrite(None)
+                    }
+                }
+            },
+            ArrayType::WriteOnly => {
+                if is_load {
+                    ArrayType::ReadWrite(None)
+                } else {
+                    ArrayType::WriteOnly
+                }
+            }
+            ArrayType::ReadOnly(last) => match (is_load, last) {
+                (true, Some(_)) => ArrayType::ReadWrite(None),
+                (true, None) => ArrayType::ReadOnly(None),
+                (false, None) => ArrayType::ReadOnly(Some(self.trace.len())),
+                (false, Some(_)) => ArrayType::ReadOnly(*last),
+            },
+            ArrayType::ReadWrite(last) => match (is_load, last) {
+                (true, _) => ArrayType::ReadWrite(None),
+                (false, None) => ArrayType::ReadWrite(Some(self.trace.len())),
+                (false, Some(_)) => ArrayType::ReadWrite(*last),
+            },
+        };
         self.trace.push(item);
     }
 
@@ -61,7 +117,19 @@ impl ArrayHeap {
     }
 
     pub fn acir_gen(&self, evaluator: &mut Evaluator) {
-        let len = self.trace.len();
+        let mut len = self.trace.len();
+
+        let mut read_write = true;
+        match self.typ {
+            ArrayType::Init(_, _) | ArrayType::WriteOnly => len = 0,
+            ArrayType::ReadOnly(last) => {
+                len = last.unwrap_or(len);
+                read_write = false;
+            }
+            ArrayType::ReadWrite(last) => {
+                len = last.unwrap_or(len);
+            }
+        }
         if len == 0 {
             return;
         }
@@ -76,7 +144,7 @@ impl ArrayHeap {
         let mut out_value = Vec::new();
         let mut out_op = Vec::new();
         let mut tuple_expressions = Vec::new();
-        for (counter, item) in self.trace.iter().enumerate() {
+        for (counter, item) in self.trace.iter().take(len).enumerate() {
             let counter_expr = Expression::from_field(FieldElement::from(counter as i128));
             in_counter.push(counter_expr.clone());
             in_index.push(item.index.clone());
@@ -85,7 +153,9 @@ impl ArrayHeap {
             out_counter.push(expression_from_witness(evaluator.add_witness_to_cs()));
             out_index.push(expression_from_witness(evaluator.add_witness_to_cs()));
             out_value.push(expression_from_witness(evaluator.add_witness_to_cs()));
-            out_op.push(expression_from_witness(evaluator.add_witness_to_cs()));
+            if read_write {
+                out_op.push(expression_from_witness(evaluator.add_witness_to_cs()));
+            }
             tuple_expressions.push(vec![item.index.clone(), counter_expr.clone()]);
         }
         let bit_counter =
@@ -102,12 +172,15 @@ impl ArrayHeap {
             &bit_counter,
             evaluator,
         );
-        operations::sort::evaluate_permutation_with_witness(
-            &in_op,
-            &out_op,
-            &bit_counter,
-            evaluator,
-        );
+        if read_write {
+            operations::sort::evaluate_permutation_with_witness(
+                &in_op,
+                &out_op,
+                &bit_counter,
+                evaluator,
+            );
+        }
+
         // sort directive
         evaluator.opcodes.push(AcirOpcode::Directive(Directive::PermutationSort {
             inputs: tuple_expressions,
@@ -115,8 +188,10 @@ impl ArrayHeap {
             bits: bit_counter,
             sort_by: vec![0, 1],
         }));
-        let init = subtract(&out_op[0], FieldElement::one(), &Expression::one());
-        evaluator.opcodes.push(AcirOpcode::Arithmetic(init));
+        if read_write {
+            let init = subtract(&out_op[0], FieldElement::one(), &Expression::one());
+            evaluator.opcodes.push(AcirOpcode::Arithmetic(init));
+        }
         for i in 0..len - 1 {
             // index sort
             let index_sub = subtract(&out_index[i + 1], FieldElement::one(), &out_index[i]);
@@ -138,11 +213,19 @@ impl ArrayHeap {
             );
             evaluator.opcodes.push(AcirOpcode::Arithmetic(secondary_order));
             // consistency checks
-            let sub1 = subtract(&Expression::one(), FieldElement::one(), &out_op[i + 1]);
             let sub2 = subtract(&out_value[i + 1], FieldElement::one(), &out_value[i]);
-            let load_on_same_adr = mul_with_witness(evaluator, &sub1, &sub2);
-            let store_on_new_adr = mul_with_witness(evaluator, &index_sub, &sub1);
-            evaluator.opcodes.push(AcirOpcode::Arithmetic(store_on_new_adr));
+            let load_on_same_adr = if read_write {
+                let sub1 = subtract(&Expression::one(), FieldElement::one(), &out_op[i + 1]);
+                let store_on_new_adr = mul_with_witness(evaluator, &index_sub, &sub1);
+                evaluator.opcodes.push(AcirOpcode::Arithmetic(store_on_new_adr));
+                mul_with_witness(evaluator, &sub1, &sub2)
+            } else {
+                subtract(
+                    &mul_with_witness(evaluator, &index_sub, &sub2),
+                    FieldElement::one(),
+                    &sub2,
+                )
+            };
             evaluator.opcodes.push(AcirOpcode::Arithmetic(load_on_same_adr));
         }
     }
@@ -241,7 +324,8 @@ impl AcirMem {
         op: Expression,
     ) {
         self.commit(array_id, op != Expression::zero());
-        self.array_heap_mut(*array_id).push(index, value, op);
+        let item = MemItem { op, value, index };
+        self.array_heap_mut(*array_id).push(item);
     }
     pub fn acir_gen(&self, evaluator: &mut Evaluator) {
         for mem in &self.virtual_memory {
