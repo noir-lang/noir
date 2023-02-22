@@ -354,10 +354,6 @@ fn resolve_type_aliases(
     type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
     crate_id: CrateId,
 ) {
-    // We must first go through the struct list once to ensure all IDs are pushed to
-    // the def_interner map. This lets structs refer to each other regardless of declaration order
-    // without resolve_struct_fields non-deterministically unwrapping a value
-    // that isn't in the HashMap.
     for (type_id, unresolved_typ) in &type_aliases {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: unresolved_typ.module_id,
