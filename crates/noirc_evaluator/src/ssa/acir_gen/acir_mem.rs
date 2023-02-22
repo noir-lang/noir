@@ -23,9 +23,11 @@ use super::{
     operations::{self},
 };
 
+/// Represent a memory operation on the ArrayHeap, at the specified index
+/// Operation is one for a store and 0 for a load
 #[derive(Clone, Debug)]
-struct MemItem {
-    op: Expression,
+struct MemOp {
+    operation: Expression,
     value: Expression,
     index: Expression,
 }
@@ -34,15 +36,16 @@ struct MemItem {
 pub struct ArrayHeap {
     // maps memory address to InternalVar
     memory_map: BTreeMap<u32, InternalVar>,
-    trace: Vec<MemItem>,
+    trace: Vec<MemOp>,
+    // maps memory address to (values,operation) that must be committed to the trace
     staged: BTreeMap<u32, (Expression, Expression)>,
 }
 
 impl ArrayHeap {
     pub fn commit_staged(&mut self) {
         for (idx, (value, op)) in &self.staged {
-            let item = MemItem {
-                op: op.clone(),
+            let item = MemOp {
+                operation: op.clone(),
                 value: value.clone(),
                 index: Expression::from_field(FieldElement::from(*idx as i128)),
             };
@@ -52,7 +55,7 @@ impl ArrayHeap {
     }
 
     pub fn push(&mut self, index: Expression, value: Expression, op: Expression) {
-        let item = MemItem { op, value, index };
+        let item = MemOp { operation: op, value, index };
         self.trace.push(item);
     }
 
@@ -60,6 +63,20 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
+    fn generate_outputs(
+        inputs: Vec<Expression>,
+        bits: &mut Vec<Witness>,
+        evaluator: &mut Evaluator,
+    ) -> Vec<Expression> {
+        let outputs =
+            vecmap(0..inputs.len(), |_| expression_from_witness(evaluator.add_witness_to_cs()));
+        if bits.is_empty() {
+            *bits = operations::sort::evaluate_permutation(&inputs, &outputs, evaluator);
+        } else {
+            operations::sort::evaluate_permutation_with_witness(&inputs, &outputs, bits, evaluator);
+        }
+        outputs
+    }
     pub fn acir_gen(&self, evaluator: &mut Evaluator) {
         let len = self.trace.len();
         if len == 0 {
@@ -71,43 +88,22 @@ impl ArrayHeap {
         let mut in_index = Vec::new();
         let mut in_value = Vec::new();
         let mut in_op = Vec::new();
-        let mut out_counter = Vec::new();
-        let mut out_index = Vec::new();
-        let mut out_value = Vec::new();
-        let mut out_op = Vec::new();
+
         let mut tuple_expressions = Vec::new();
         for (counter, item) in self.trace.iter().enumerate() {
             let counter_expr = Expression::from_field(FieldElement::from(counter as i128));
             in_counter.push(counter_expr.clone());
             in_index.push(item.index.clone());
             in_value.push(item.value.clone());
-            in_op.push(item.op.clone());
-            out_counter.push(expression_from_witness(evaluator.add_witness_to_cs()));
-            out_index.push(expression_from_witness(evaluator.add_witness_to_cs()));
-            out_value.push(expression_from_witness(evaluator.add_witness_to_cs()));
-            out_op.push(expression_from_witness(evaluator.add_witness_to_cs()));
+            in_op.push(item.operation.clone());
             tuple_expressions.push(vec![item.index.clone(), counter_expr.clone()]);
         }
-        let bit_counter =
-            operations::sort::evaluate_permutation(&in_counter, &out_counter, evaluator);
-        operations::sort::evaluate_permutation_with_witness(
-            &in_index,
-            &out_index,
-            &bit_counter,
-            evaluator,
-        );
-        operations::sort::evaluate_permutation_with_witness(
-            &in_value,
-            &out_value,
-            &bit_counter,
-            evaluator,
-        );
-        operations::sort::evaluate_permutation_with_witness(
-            &in_op,
-            &out_op,
-            &bit_counter,
-            evaluator,
-        );
+        let mut bit_counter = Vec::new();
+        let out_counter = Self::generate_outputs(in_counter, &mut bit_counter, evaluator);
+        let out_index = Self::generate_outputs(in_index, &mut bit_counter, evaluator);
+        let out_value = Self::generate_outputs(in_value, &mut bit_counter, evaluator);
+        let out_op = Self::generate_outputs(in_op, &mut bit_counter, evaluator);
+
         // sort directive
         evaluator.opcodes.push(AcirOpcode::Directive(Directive::PermutationSort {
             inputs: tuple_expressions,
@@ -169,11 +165,11 @@ impl AcirMem {
 
     // Write the value to the array's VM at the specified index
     pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
-        let e = self.virtual_memory.entry(array_id).or_default();
+        let entry = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
-        e.memory_map.insert(index, value);
+        entry.memory_map.insert(index, value);
 
-        e.stage(index, value_expr, Expression::one());
+        entry.stage(index, value_expr, Expression::one());
     }
 
     //Map the outputs into the array
