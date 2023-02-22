@@ -50,6 +50,7 @@ enum GeneratorIndex {
     PRIVATE_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     CONTRACT_DEPLOYMENT_DATA,
+    TX_CONTEXT,
 };
 
 enum StorageSlotGeneratorIndex {

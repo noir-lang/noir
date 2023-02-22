@@ -55,6 +55,16 @@ template <typename NCT> struct TxContext {
         contract_deployment_data.set_public();
         reference_block_num.set_public();
     }
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            fr(is_fee_payment_tx),           fr(is_rebate_payment_tx), fr(is_contract_deployment_tx),
+            contract_deployment_data.hash(), reference_block_num,
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::TX_CONTEXT);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, TxContext<NCT>& tx_context)
