@@ -96,7 +96,10 @@ impl InputValue {
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
                     InputValue::Field(parse_str_to_field(&string)?)
                 }
-                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+
+                AbiType::Array { .. } | AbiType::Struct { .. } => {
+                    return Err(InputParserError::AbiTypeMismatch(param_type.clone()))
+                }
             },
             TomlTypes::Integer(integer) => {
                 let new_value = FieldElement::from(i128::from(integer));
