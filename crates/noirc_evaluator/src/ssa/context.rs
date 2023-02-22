@@ -65,10 +65,6 @@ impl Default for SsaContext {
 }
 
 impl SsaContext {
-    pub fn new() -> SsaContext {
-        Self::default()
-    }
-
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
     }
