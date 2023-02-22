@@ -27,24 +27,24 @@ TEST(stdlib_bool, test_basic_operations)
     d = (!f) & a;        // d = 1
     auto prover = composer.preprocess();
     // if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[3], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[3], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[3], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[4], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[4], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[4], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[5], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[5], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[5], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[6], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[7], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[7], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[7], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[8], fr(0));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[8], fr(1));
-    EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[8], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[0][3], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[1][3], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[2][3], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[0][4], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[1][4], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[2][4], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[0][5], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[1][5], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[2][5], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[0][6], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[1][6], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[2][6], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[0][7], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[1][7], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[2][7], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[0][8], fr(0));
+    EXPECT_EQ(prover.wire_polynomials[1][8], fr(1));
+    EXPECT_EQ(prover.wire_polynomials[2][8], fr(1));
     // } else {
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[1], fr(1));
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[1], fr(1));
@@ -65,7 +65,7 @@ TEST(stdlib_bool, test_basic_operations)
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(1));
     //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
     // }
-    EXPECT_EQ(prover.circuit_size, 16UL);
+    EXPECT_EQ(prover.key->circuit_size, 16UL);
 }
 
 TEST(stdlib_bool, xor)

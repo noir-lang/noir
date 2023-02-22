@@ -1,5 +1,6 @@
 #pragma once
-#include "proof_system/types/polynomial_manifest.hpp"
+#include <array>
+#include <string>
 #include <common/log.hpp>
 #include <transcript/manifest.hpp>
 
@@ -7,17 +8,22 @@
 // TODO(Cody): "bonk" is short for "both plonk and honk". Just need a short and non-vague temporary name.
 namespace bonk {
 struct StandardArithmetization {
+    /**
+     * @brief All of the multivariate polynomials used by the Standard Honk Prover.
+     * @details The polynomials are broken into three categories: precomputed, witness, and shifted.
+     * This separation must be maintained to allow for programmatic access, but the ordering of the
+     * polynomials can be permuted within each category if necessary. Polynomials can also be added
+     * or removed (assuming consistency with the prover algorithm) but the constants describing the
+     * number of poynomials in each category must be manually updated.
+     *
+     */
     enum POLYNOMIAL {
-        W_L,
-        W_R,
-        W_O,
-        Z_PERM,
-        Z_PERM_SHIFT,
-        Q_M,
+        /* --- PRECOMPUTED POLYNOMIALS --- */
+        Q_C,
         Q_L,
         Q_R,
         Q_O,
-        Q_C,
+        Q_M,
         SIGMA_1,
         SIGMA_2,
         SIGMA_3,
@@ -26,10 +32,32 @@ struct StandardArithmetization {
         ID_3,
         LAGRANGE_FIRST,
         LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
-        COUNT
+        /* --- WITNESS POLYNOMIALS --- */
+        W_L,
+        W_R,
+        W_O,
+        Z_PERM,
+        /* --- SHIFTED POLYNOMIALS --- */
+        Z_PERM_SHIFT,
+        /* --- --- */
+        COUNT // for programmatic determination of NUM_POLYNOMIALS
     };
 
     static constexpr size_t NUM_POLYNOMIALS = POLYNOMIAL::COUNT;
+    static constexpr size_t NUM_SHIFTED_POLYNOMIALS = 1;
+    static constexpr size_t NUM_PRECOMPUTED_POLYNOMIALS = 13;
+    static constexpr size_t NUM_UNSHIFTED_POLYNOMIALS = NUM_POLYNOMIALS - NUM_SHIFTED_POLYNOMIALS;
+
+    // *** WARNING: The order of this array must be manually updated to match POLYNOMIAL enum ***
+    // TODO(luke): This is a temporary measure to associate the above enum with sting tags. Its only needed because
+    // the
+    // polynomials/commitments in the prover/verifier are stored in maps. This storage could be converted to simple
+    // arrays at which point these string tags can be removed.
+    inline static const std::array<std::string, 18> ENUM_TO_COMM = {
+        "Q_C",           "Q_1",     "Q_2",  "Q_3",  "Q_M",    "SIGMA_1",
+        "SIGMA_2",       "SIGMA_3", "ID_1", "ID_2", "ID_3",   "LAGRANGE_FIRST",
+        "LAGRANGE_LAST", "W_1",     "W_2",  "W_3",  "Z_PERM", "Z_PERM_SHIFT"
+    };
 };
 } // namespace bonk
 
@@ -108,7 +136,7 @@ struct StandardHonk {
         // Round 5 + num_sumcheck_rounds
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(       
             {
-              { .name = "multivariate_evaluations",     .num_bytes = fr_size * bonk::STANDARD_HONK_TOTAL_NUM_POLYS, .derived_by_verifier = false, .challenge_map_index = 0 },
+              { .name = "multivariate_evaluations",     .num_bytes = fr_size * bonk::StandardArithmetization::NUM_POLYNOMIALS, .derived_by_verifier = false, .challenge_map_index = 0 },
             },
             /* challenge_name = */ "rho",
             /* num_challenges_in = */ 1)); /* TODO(Cody): magic number! Where should this be specified? */

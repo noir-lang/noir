@@ -1,4 +1,5 @@
 #include "prover.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <honk/sumcheck/sumcheck.hpp> // will need
 #include <array>
@@ -6,10 +7,12 @@
 #include <honk/utils/power_polynomial.hpp>
 #include <honk/pcs/commitment_key.hpp>
 #include <memory>
+#include <span>
+#include <utility>
 #include <vector>
+#include "common/assert.hpp"
 #include "ecc/curves/bn254/fr.hpp"
 #include "ecc/curves/bn254/g1.hpp"
-#include <honk/sumcheck/polynomials/multivariates.hpp>
 #include <honk/sumcheck/relations/arithmetic_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
@@ -25,6 +28,7 @@ namespace honk {
 using Fr = barretenberg::fr;
 using Commitment = barretenberg::g1::affine_element;
 using Polynomial = barretenberg::Polynomial<Fr>;
+using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
 
 /**
  * Create Prover from proving key, witness and manifest.
@@ -35,15 +39,36 @@ using Polynomial = barretenberg::Polynomial<Fr>;
  * @tparam settings Settings class.
  * */
 template <typename settings>
-Prover<settings>::Prover(std::shared_ptr<bonk::proving_key> input_key, const transcript::Manifest& input_manifest)
-    : circuit_size(input_key == nullptr ? 0 : input_key->circuit_size)
-    , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
+Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
+                         std::shared_ptr<bonk::proving_key> input_key,
+                         const transcript::Manifest& input_manifest)
+    : transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
+    , wire_polynomials(wire_polys) // TODO(luke): move these properly
     , key(input_key)
     , commitment_key(std::make_unique<pcs::kzg::CommitmentKey>(
           input_key->circuit_size,
           "../srs_db/ignition")) // TODO(Cody): Need better constructors for prover.
 // , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed
-{}
+{
+    // Note(luke): This could be done programmatically with some hacks but this isnt too bad and its nice to see the
+    // polys laid out explicitly.
+    prover_polynomials[POLYNOMIAL::Q_C] = key->polynomial_cache.get("q_c_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_L] = key->polynomial_cache.get("q_1_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_R] = key->polynomial_cache.get("q_2_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_O] = key->polynomial_cache.get("q_3_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_M] = key->polynomial_cache.get("q_m_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_1] = key->polynomial_cache.get("sigma_1_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_2] = key->polynomial_cache.get("sigma_2_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_3] = key->polynomial_cache.get("sigma_3_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_1] = key->polynomial_cache.get("id_1_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_2] = key->polynomial_cache.get("id_2_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_3] = key->polynomial_cache.get("id_3_lagrange");
+    prover_polynomials[POLYNOMIAL::LAGRANGE_FIRST] = key->polynomial_cache.get("L_first_lagrange");
+    prover_polynomials[POLYNOMIAL::LAGRANGE_LAST] = key->polynomial_cache.get("L_last_lagrange");
+    prover_polynomials[POLYNOMIAL::W_L] = wire_polynomials[0];
+    prover_polynomials[POLYNOMIAL::W_R] = wire_polynomials[1];
+    prover_polynomials[POLYNOMIAL::W_O] = wire_polynomials[2];
+}
 
 /**
  * For Plonk systems:
@@ -58,12 +83,9 @@ Prover<settings>::Prover(std::shared_ptr<bonk::proving_key> input_key, const tra
 template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
     for (size_t i = 0; i < settings::program_width; ++i) {
-        std::string wire_tag = "w_" + std::to_string(i + 1) + "_lagrange";
-        std::string commit_tag = "W_" + std::to_string(i + 1);
+        auto commitment = commitment_key->commit(wire_polynomials[i]);
 
-        auto commitment = commitment_key->commit(key->polynomial_cache.get(wire_tag));
-
-        transcript.add_element(commit_tag, commitment.to_buffer());
+        transcript.add_element("W_" + std::to_string(i + 1), commitment.to_buffer());
     }
 }
 
@@ -93,8 +115,7 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
  */
-template <typename settings>
-void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, barretenberg::fr gamma)
+template <typename settings> Polynomial Prover<settings>::compute_grand_product_polynomial(Fr beta, Fr gamma)
 {
     using barretenberg::polynomial_arithmetic::copy_polynomial;
     static const size_t program_width = settings::program_width;
@@ -111,9 +132,8 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
     std::array<std::span<const Fr>, program_width> wires;
     std::array<std::span<const Fr>, program_width> sigmas;
     for (size_t i = 0; i < program_width; ++i) {
-        std::string wire_id = "w_" + std::to_string(i + 1) + "_lagrange";
         std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
-        wires[i] = key->polynomial_cache.get(wire_id);
+        wires[i] = wire_polynomials[i];
         sigmas[i] = key->polynomial_cache.get(sigma_id);
     }
 
@@ -175,9 +195,7 @@ void Prover<settings>::compute_grand_product_polynomial(barretenberg::fr beta, b
         aligned_free(denominator_accumulator[k]);
     }
 
-    // Commit to z_perm here? This would match Plonk but maybe best to do separately?
-
-    key->polynomial_cache.put("z_perm_lagrange", std::move(z_perm));
+    return z_perm;
 }
 
 /**
@@ -197,10 +215,10 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(circuit_size >> 24),
-                             static_cast<uint8_t>(circuit_size >> 16),
-                             static_cast<uint8_t>(circuit_size >> 8),
-                             static_cast<uint8_t>(circuit_size) });
+                           { static_cast<uint8_t>(key->circuit_size >> 24),
+                             static_cast<uint8_t>(key->circuit_size >> 16),
+                             static_cast<uint8_t>(key->circuit_size >> 8),
+                             static_cast<uint8_t>(key->circuit_size) });
 
     transcript.add_element("public_input_size",
                            { static_cast<uint8_t>(key->num_public_inputs >> 24),
@@ -225,8 +243,9 @@ template <typename settings> void Prover<settings>::execute_wire_commitments_rou
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
     compute_wire_commitments();
 
-    // Add public inputs to transcript
-    const Polynomial& public_wires_source = key->polynomial_cache.get("w_2_lagrange");
+    // Add public inputs to transcript from the second wire polynomial
+    const Polynomial& public_wires_source = wire_polynomials[1];
+
     std::vector<Fr> public_wires;
     for (size_t i = 0; i < key->num_public_inputs; ++i) {
         public_wires.push_back(public_wires_source[i]);
@@ -267,10 +286,13 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
 
     auto beta = transcript.get_challenge_field_element("beta", 0);
     auto gamma = transcript.get_challenge_field_element("beta", 1);
-    compute_grand_product_polynomial(beta, gamma);
+    z_permutation = compute_grand_product_polynomial(beta, gamma);
     // The actual polynomial is of length n+1, but commitment key is just n, so we need to limit it
-    auto commitment = commitment_key->commit(key->polynomial_cache.get("z_perm_lagrange"));
+    auto commitment = commitment_key->commit(z_permutation);
     transcript.add_element("Z_PERM", commitment.to_buffer());
+
+    prover_polynomials[POLYNOMIAL::Z_PERM] = z_permutation;
+    prover_polynomials[POLYNOMIAL::Z_PERM_SHIFT] = z_permutation.shifted();
 }
 
 /**
@@ -289,21 +311,18 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    using Multivariates = sumcheck::Multivariates<barretenberg::fr, bonk::STANDARD_HONK_TOTAL_NUM_POLYS>;
     using Transcript = transcript::StandardTranscript;
-    using Sumcheck = sumcheck::Sumcheck<Multivariates,
+    using Sumcheck = sumcheck::Sumcheck<Fr,
                                         Transcript,
                                         sumcheck::ArithmeticRelation,
                                         sumcheck::GrandProductComputationRelation,
                                         sumcheck::GrandProductInitializationRelation>;
 
-    // Compute alpha challenge
     transcript.apply_fiat_shamir("alpha");
 
-    auto multivariates = Multivariates(key);
-    auto sumcheck = Sumcheck(multivariates, transcript);
+    auto sumcheck = Sumcheck(key->circuit_size, transcript);
 
-    sumcheck.execute_prover();
+    sumcheck.execute_prover(prover_polynomials);
 }
 
 /**
@@ -327,9 +346,6 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     std::vector<MLEOpeningClaim> opening_claims_shifted;
     std::vector<std::span<Fr>> multivariate_polynomials;
     std::vector<std::span<Fr>> multivariate_polynomials_shifted;
-    // TODO(luke): Currently feeding in mock commitments for non-WITNESS polynomials. This may be sufficient for simple
-    // proof verification since the other commitments are only needed to produce 'claims' in gemini.reduce_prove, they
-    // are not needed in the proof itself.
 
     // Construct MLE opening point
     // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
@@ -340,31 +356,19 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
 
     // Get vector of multivariate evaluations produced by Sumcheck
     auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-    std::unordered_map<std::string, barretenberg::fr> evals_map;
-    size_t eval_idx = 0;
-    for (auto& entry : key->polynomial_manifest.get()) {
-        std::string label(entry.polynomial_label);
-        evals_map[label] = multivariate_evaluations[eval_idx++];
-        if (entry.requires_shifted_evaluation) {
-            evals_map[label + "_shift"] = multivariate_evaluations[eval_idx++];
-        }
-    }
 
-    // Construct opening claims and polynomials
-    // Note: the prover does not require genuine commitments to produce genuine proofs so we mock them.
-    for (auto& entry : key->polynomial_manifest.get()) {
-        std::string label(entry.polynomial_label);
-
-        auto evaluation = evals_map[label];
-        auto commitment = Commitment::one();
-        opening_claims.emplace_back(commitment, evaluation);
-        multivariate_polynomials.emplace_back(key->polynomial_cache.get(label));
-        if (entry.requires_shifted_evaluation) {
-            // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
-            // evaluation p_shift(u), but the UNSHIFTED polynomial p and its UNSHIFTED commitment [p].
-            auto shifted_evaluation = evals_map[label + "_shift"];
-            opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
-            multivariate_polynomials_shifted.emplace_back(key->polynomial_cache.get(label));
+    // Collect NON-shifted and shifted polynomials and opening claims based on enum.
+    auto mock_commitment = Commitment::one(); // prover does not require genuine commitments
+    for (size_t i = 0; i < bonk::StandardArithmetization::NUM_POLYNOMIALS; ++i) {
+        if (i < bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS) {
+            multivariate_polynomials.push_back(prover_polynomials[i]);
+            opening_claims.emplace_back(mock_commitment, multivariate_evaluations[i]);
+        } else { // shifted polynomials/claims
+            // Note: we must provide the NON-shifted polynomial but the shifted evaluation.
+            // TODO(luke): This is a bit hard-coded for standard Honk right now. Can do away with this after changing
+            // Gemini interface to accept shifted polynomials.
+            multivariate_polynomials_shifted.push_back(prover_polynomials[POLYNOMIAL::Z_PERM]);
+            opening_claims_shifted.emplace_back(mock_commitment, multivariate_evaluations[i]);
         }
     }
 

@@ -4,7 +4,6 @@
 #include "../../proof_system/verification_key/verification_key.hpp"
 #include <transcript/manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/commitment_scheme.hpp>
-#include "../sumcheck/polynomials/multivariates.hpp"
 #include "../sumcheck/sumcheck.hpp"
 #include "../sumcheck/relations/arithmetic_relation.hpp"
 #include "honk/pcs/commitment_key.hpp"

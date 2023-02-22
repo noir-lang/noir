@@ -80,32 +80,27 @@ template <typename CircuitConstructor>
 std::shared_ptr<bonk::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
     std::shared_ptr<bonk::proving_key> const& proving_key, std::shared_ptr<bonk::VerifierReferenceString> const& vrs)
 {
-    auto circuit_verification_key = std::make_shared<bonk::verification_key>(
+    auto key = std::make_shared<bonk::verification_key>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
     // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
     auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
-    for (size_t i = 0; i < proving_key->polynomial_manifest.size(); ++i) {
-        const auto& poly_info = proving_key->polynomial_manifest[i];
+    // Compute and store commitments to all precomputed polynomials
+    key->commitments["Q_M"] = commitment_key.commit(proving_key->polynomial_cache.get("q_m_lagrange"));
+    key->commitments["Q_1"] = commitment_key.commit(proving_key->polynomial_cache.get("q_1_lagrange"));
+    key->commitments["Q_2"] = commitment_key.commit(proving_key->polynomial_cache.get("q_2_lagrange"));
+    key->commitments["Q_3"] = commitment_key.commit(proving_key->polynomial_cache.get("q_3_lagrange"));
+    key->commitments["Q_C"] = commitment_key.commit(proving_key->polynomial_cache.get("q_c_lagrange"));
+    key->commitments["SIGMA_1"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_1_lagrange"));
+    key->commitments["SIGMA_2"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_2_lagrange"));
+    key->commitments["SIGMA_3"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_3_lagrange"));
+    key->commitments["ID_1"] = commitment_key.commit(proving_key->polynomial_cache.get("id_1_lagrange"));
+    key->commitments["ID_2"] = commitment_key.commit(proving_key->polynomial_cache.get("id_2_lagrange"));
+    key->commitments["ID_3"] = commitment_key.commit(proving_key->polynomial_cache.get("id_3_lagrange"));
+    key->commitments["LAGRANGE_FIRST"] = commitment_key.commit(proving_key->polynomial_cache.get("L_first_lagrange"));
+    key->commitments["LAGRANGE_LAST"] = commitment_key.commit(proving_key->polynomial_cache.get("L_last_lagrange"));
 
-        const std::string poly_label(poly_info.polynomial_label);
-        const std::string selector_commitment_label(poly_info.commitment_label);
-
-        if (poly_info.source == bonk::PolynomialSource::SELECTOR ||
-            poly_info.source == bonk::PolynomialSource::PERMUTATION ||
-            poly_info.source == bonk::PolynomialSource::OTHER) {
-
-            // Commit to the constraint selector polynomial and insert the commitment in the verification key.
-
-            auto poly_commitment = commitment_key.commit(proving_key->polynomial_cache.get(poly_label));
-            circuit_verification_key->commitments.insert({ selector_commitment_label, poly_commitment });
-        }
-    }
-
-    // Set the polynomial manifest in verification key.
-    circuit_verification_key->polynomial_manifest = bonk::PolynomialManifest(proving_key->composer_type);
-
-    return circuit_verification_key;
+    return key;
 }
 
 /**
@@ -151,23 +146,22 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(const CircuitConst
     for (size_t j = 0; j < program_width; ++j) {
         // Initialize the polynomial with all the actual copies variable values
         // Expect all values to be set to 0 initially
-        polynomial w_lagrange(subgroup_size);
+        // Construct wire polynomials in place
+        auto& wire_lagrange = wire_polynomials.emplace_back(polynomial(subgroup_size));
 
         // Place all public inputs at the start of w_l and w_r.
         // All selectors at these indices are set to 0 so these values are not constrained at all.
         if ((j == 0) || (j == 1)) {
             for (size_t i = 0; i < num_public_inputs; ++i) {
-                w_lagrange[i] = circuit_constructor.get_variable(public_inputs[i]);
+                wire_lagrange[i] = circuit_constructor.get_variable(public_inputs[i]);
             }
         }
 
         // Assign the variable values (which are pointed-to by the `w_` wires) to the wire witness polynomials
         // `poly_w_`, shifted to make room for the public inputs at the beginning.
         for (size_t i = 0; i < num_gates; ++i) {
-            w_lagrange[num_public_inputs + i] = circuit_constructor.get_variable(w[j][i]);
+            wire_lagrange[num_public_inputs + i] = circuit_constructor.get_variable(w[j][i]);
         }
-        std::string index = std::to_string(j + 1);
-        circuit_proving_key->polynomial_cache.put("w_" + index + "_lagrange", std::move(w_lagrange));
     }
 
     computed_witness = true;
@@ -223,32 +217,6 @@ std::shared_ptr<bonk::verification_key> ComposerHelper<CircuitConstructor>::comp
     return circuit_verification_key;
 }
 
-/**
- * Create verifier: compute verification key,
- * initialize verifier with it and an initial manifest and initialize commitment_scheme.
- *
- * @return The verifier.
- * */
-// TODO(Cody): This should go away altogether.
-template <typename CircuitConstructor>
-StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(const CircuitConstructor& circuit_constructor)
-{
-    auto verification_key = compute_verification_key(circuit_constructor);
-    // TODO figure out types, actually
-    // circuit_verification_key->composer_type = type;
-
-    // TODO: initialize verifier according to manifest and key
-    // Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
-    StandardVerifier output_state;
-    // TODO: Do we need a commitment scheme defined here?
-    // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
-    //    std::make_unique<KateCommitmentScheme<standard_settings>>();
-
-    // output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
 template <typename CircuitConstructor>
 StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
     const CircuitConstructor& circuit_constructor)
@@ -278,52 +246,13 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
 
     size_t num_sumcheck_rounds(circuit_proving_key->log_circuit_size);
     auto manifest = Flavor::create_unrolled_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
-    StandardUnrolledProver output_state(circuit_proving_key, manifest);
+    StandardUnrolledProver output_state(std::move(wire_polynomials), circuit_proving_key, manifest);
 
     // TODO(Cody): This should be more generic
     std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
         std::make_unique<pcs::kzg::CommitmentKey>(circuit_proving_key->circuit_size, "../srs_db/ignition");
 
     output_state.commitment_key = std::move(kate_commitment_key);
-
-    return output_state;
-}
-/**
- * Create prover.
- *  1. Compute the starting polynomials (q_l, etc, sigma, witness polynomials).
- *  2. Initialize StandardProver with them.
- *  3. Add Permutation and arithmetic widgets to the prover.
- *  4. Add KateCommitmentScheme to the prover.
- *
- * @return Initialized prover.
- * */
-template <typename CircuitConstructor>
-StandardProver ComposerHelper<CircuitConstructor>::create_prover(const CircuitConstructor& circuit_constructor)
-{
-    // Compute q_l, etc. and sigma polynomials.
-    compute_proving_key(circuit_constructor);
-
-    // Compute witness polynomials.
-    compute_witness(circuit_constructor);
-    // TODO: Initialize prover properly
-    // Prover output_state(circuit_proving_key, create_manifest(public_inputs.size()));
-    StandardProver output_state(circuit_proving_key);
-    // Initialize constraints
-
-    // std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
-    //     std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
-
-    // std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
-    //     std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get());
-
-    // output_state.random_widgets.emplace_back(std::move(permutation_widget));
-    // output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
-
-    // Is commitment scheme going to stay a part of the prover? Why is it here?
-    // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
-    //    std::make_unique<KateCommitmentScheme<standard_settings>>();
-
-    // output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }

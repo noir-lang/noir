@@ -10,6 +10,7 @@
 #include "honk/pcs/gemini/gemini.hpp"
 #include "honk/pcs/kzg/kzg.hpp"
 #include "numeric/bitop/get_msb.hpp"
+#include "proof_system/flavor/flavor.hpp"
 #include "proof_system/polynomial_cache/polynomial_cache.hpp"
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
@@ -86,12 +87,15 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     using FF = typename program_settings::fr;
     using Commitment = barretenberg::g1::affine_element;
     using Transcript = typename program_settings::Transcript;
-    using Multivariates = Multivariates<FF, num_polys>;
     using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
     using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
     using MLEOpeningClaim = pcs::MLEOpeningClaim<pcs::kzg::Params>;
     using GeminiProof = pcs::gemini::Proof<pcs::kzg::Params>;
+    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+    const size_t NUM_UNSHIFTED = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
+    const size_t NUM_SHIFTED = bonk::StandardArithmetization::NUM_SHIFTED_POLYNOMIALS;
+    const size_t NUM_PRECOMPUTED = bonk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
 
     key->program_width = program_settings::program_width;
 
@@ -132,7 +136,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     // // TODO(Cody): Compute some basic public polys like id(X), pow(X), and any required Lagrange polys
 
     // Execute Sumcheck Verifier
-    auto sumcheck = Sumcheck<Multivariates,
+    auto sumcheck = Sumcheck<FF,
                              Transcript,
                              ArithmeticRelation,
                              GrandProductComputationRelation,
@@ -157,44 +161,22 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     // Get vector of multivariate evaluations produced by Sumcheck
     auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
-    std::unordered_map<std::string, barretenberg::fr> evals_map;
-    size_t eval_idx = 0;
-    for (auto& entry : key->polynomial_manifest.get()) {
-        std::string label(entry.polynomial_label);
-        evals_map[label] = multivariate_evaluations[eval_idx++];
-        if (entry.requires_shifted_evaluation) {
-            evals_map[label + "_shift"] = multivariate_evaluations[eval_idx++];
+
+    // Construct NON-shifted opening claims
+    for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+        if (i < NUM_PRECOMPUTED) { // if precomputed, commitment comes from verification key
+            Commitment commitment = key->commitments[bonk::StandardArithmetization::ENUM_TO_COMM[i]];
+            opening_claims.emplace_back(commitment, multivariate_evaluations[i]);
+        } else { // if witness, commitment comes from prover (via transcript)
+            Commitment commitment = transcript.get_group_element(bonk::StandardArithmetization::ENUM_TO_COMM[i]);
+            opening_claims.emplace_back(commitment, multivariate_evaluations[i]);
         }
     }
 
-    // Reconstruct Gemini opening claims and polynomials from the transcript/verification_key
-    for (auto& entry : key->polynomial_manifest.get()) {
-        std::string label(entry.polynomial_label);
-        std::string commitment_label(entry.commitment_label);
-        auto evaluation = evals_map[label];
-        Commitment commitment = Commitment::one(); // initialize to make gcc happy
-
-        switch (entry.source) {
-        case bonk::WITNESS: {
-            commitment = transcript.get_group_element(commitment_label);
-            break;
-        }
-        case bonk::SELECTOR:
-        case bonk::PERMUTATION:
-        case bonk::OTHER: {
-            commitment = key->commitments[commitment_label];
-            break;
-        }
-        }
-
-        opening_claims.emplace_back(commitment, evaluation);
-        if (entry.requires_shifted_evaluation) {
-            // Note: For a polynomial p for which we need the shift p_shift, we provide Gemini with the SHIFTED
-            // evaluation p_shift(u), but the UNSHIFTED commitment [p].
-            auto shifted_evaluation = evals_map[label + "_shift"];
-            opening_claims_shifted.emplace_back(commitment, shifted_evaluation);
-        }
-    }
+    // Constructed shifted opening claims
+    Commitment commitment = transcript.get_group_element("Z_PERM");
+    Fr evaluation = multivariate_evaluations[POLYNOMIAL::Z_PERM_SHIFT];
+    opening_claims_shifted.emplace_back(commitment, evaluation);
 
     // Reconstruct the Gemini Proof from the transcript
     GeminiProof gemini_proof;

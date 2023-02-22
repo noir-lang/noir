@@ -193,12 +193,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
         auto prover = composer.create_prover();
 
         if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[20], fr(expected));
+            EXPECT_EQ(prover.wire_polynomials[2][20], fr(expected));
         } else {
             EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[18], fr(expected));
         }
 
-        EXPECT_EQ(prover.circuit_size, 32UL);
+        EXPECT_EQ(prover.key->circuit_size, 32UL);
         auto verifier = composer.create_verifier();
         plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
@@ -250,12 +250,12 @@ template <typename Composer> class stdlib_field : public testing::Test {
         auto prover = composer.create_prover();
 
         if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
-            EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[19], fr(4181));
+            EXPECT_EQ(prover.wire_polynomials[2][19], fr(4181));
         } else {
             EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[17], fr(4181));
         }
 
-        EXPECT_EQ(prover.circuit_size, 32UL);
+        EXPECT_EQ(prover.key->circuit_size, 32UL);
         auto verifier = composer.create_verifier();
 
         plonk::proof proof = prover.construct_proof();
@@ -306,7 +306,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.circuit_size, 16UL);
+        EXPECT_EQ(prover.key->circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         plonk::proof proof = prover.construct_proof();
@@ -330,7 +330,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(0));
 
-        EXPECT_EQ(prover.circuit_size, 16UL);
+        EXPECT_EQ(prover.key->circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         plonk::proof proof = prover.construct_proof();
@@ -355,7 +355,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         fr x = composer.get_variable(r.witness_index);
         EXPECT_EQ(x, fr(1));
 
-        EXPECT_EQ(prover.circuit_size, 16UL);
+        EXPECT_EQ(prover.key->circuit_size, 16UL);
         auto verifier = composer.create_verifier();
 
         plonk::proof proof = prover.construct_proof();

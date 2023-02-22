@@ -1,4 +1,9 @@
 #pragma once
+#include "ecc/curves/bn254/fr.hpp"
+#include "polynomials/polynomial.hpp"
+#include "proof_system/flavor/flavor.hpp"
+#include "proof_system/polynomial_cache/polynomial_cache.hpp"
+#include <array>
 #include <proof_system/proving_key/proving_key.hpp>
 #include <honk/pcs/commitment_key.hpp>
 #include <plonk/proof_system/types/proof.hpp>
@@ -6,14 +11,20 @@
 #include <honk/pcs/gemini/gemini.hpp>
 #include <honk/pcs/shplonk/shplonk_single.hpp>
 #include <honk/pcs/kzg/kzg.hpp>
+#include <span>
+#include <unordered_map>
+#include <vector>
 
 namespace honk {
+
+using Fr = barretenberg::fr;
 
 template <typename settings> class Prover {
 
   public:
     // TODO(luke): update this appropriately to work with Honk Manifest
-    Prover(std::shared_ptr<bonk::proving_key> input_key = nullptr,
+    Prover(std::vector<barretenberg::polynomial>&& wire_polys,
+           std::shared_ptr<bonk::proving_key> input_key = nullptr,
            const transcript::Manifest& manifest = transcript::Manifest());
 
     void execute_preamble_round();
@@ -28,26 +39,24 @@ template <typename settings> class Prover {
 
     void compute_wire_commitments();
 
-    void compute_grand_product_polynomial(barretenberg::fr beta, barretenberg::fr gamma);
+    barretenberg::polynomial compute_grand_product_polynomial(Fr beta, Fr gamma);
+
+    void construct_prover_polynomials();
 
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    size_t get_circuit_size() const { return circuit_size; }
-
-    // TODO(luke): Eventually get rid of this but leave it for convenience for now
-    const size_t circuit_size;
-
-    // No more widgets. The new 'relations' may be owned by Sumcheck rather than Prover...
-    // std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;
-    // std::vector<std::unique_ptr<widget::TransitionWidgetBase<barretenberg::fr>>> transition_widgets;
-
-    // TODO(luke): maybe pointer instead?
     transcript::StandardTranscript transcript;
+
+    std::vector<barretenberg::polynomial> wire_polynomials;
+    barretenberg::polynomial z_permutation;
 
     std::shared_ptr<bonk::proving_key> key;
 
     std::shared_ptr<pcs::kzg::CommitmentKey> commitment_key;
+
+    // Container for spans of all polynomials required by the prover (i.e. all multivariates evaluated by Sumcheck).
+    std::array<std::span<Fr>, bonk::StandardArithmetization::POLYNOMIAL::COUNT> prover_polynomials;
 
     // Honk only needs a small portion of the functionality but may be fine to use existing work_queue
     // NOTE: this is not currently in use, but it may well be used in the future.

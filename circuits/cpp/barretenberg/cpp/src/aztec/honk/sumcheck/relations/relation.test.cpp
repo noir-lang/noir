@@ -3,7 +3,6 @@
 #include "arithmetic_relation.hpp"
 #include "grand_product_initialization_relation.hpp"
 #include "grand_product_computation_relation.hpp"
-#include "../polynomials/multivariates.hpp"
 #include "../polynomials/univariate.hpp"
 #include "../polynomials/barycentric_data.hpp"
 
@@ -20,9 +19,11 @@ template <class FF> class SumcheckRelation : public testing::Test {
   public:
     template <size_t t> using Univariate = Univariate<FF, t>;
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
+    static const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
 
     // TODO(luke): may want to make this more flexible/genericzs
-    static std::array<Univariate<5>, bonk::StandardArithmetization::NUM_POLYNOMIALS> compute_mock_extended_edges()
+    static std::array<Univariate<5>, NUM_POLYNOMIALS> compute_mock_extended_edges()
     {
         // TODO(Cody): build from Univariate<2>'s?
         // evaluation form, i.e. w_l(0) = 1, w_l(1) = 2,.. The poly is x+1.
@@ -48,10 +49,27 @@ template <class FF> class SumcheckRelation : public testing::Test {
         auto lagrange_first = Univariate<5>({ 1, 2, 3, 4, 5 });
         auto lagrange_last = Univariate<5>({ 1, 2, 3, 4, 5 });
 
-        std::array<Univariate<5>, bonk::StandardArithmetization::NUM_POLYNOMIALS> extended_edges = {
-            w_l,     w_r,  w_o,  z_perm, z_perm_shift,   q_m,          q_l, q_r, q_o, q_c, sigma_1, sigma_2,
-            sigma_3, id_1, id_2, id_3,   lagrange_first, lagrange_last
-        };
+        // Construct extended edges array in order determined by enum
+        std::array<Univariate<5>, bonk::StandardArithmetization::NUM_POLYNOMIALS> extended_edges;
+        extended_edges[POLYNOMIAL::W_L] = w_l;
+        extended_edges[POLYNOMIAL::W_R] = w_r;
+        extended_edges[POLYNOMIAL::W_O] = w_o;
+        extended_edges[POLYNOMIAL::Z_PERM] = z_perm;
+        extended_edges[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_shift;
+        extended_edges[POLYNOMIAL::Q_M] = q_m;
+        extended_edges[POLYNOMIAL::Q_L] = q_l;
+        extended_edges[POLYNOMIAL::Q_R] = q_r;
+        extended_edges[POLYNOMIAL::Q_O] = q_o;
+        extended_edges[POLYNOMIAL::Q_C] = q_c;
+        extended_edges[POLYNOMIAL::SIGMA_1] = sigma_1;
+        extended_edges[POLYNOMIAL::SIGMA_2] = sigma_2;
+        extended_edges[POLYNOMIAL::SIGMA_3] = sigma_3;
+        extended_edges[POLYNOMIAL::ID_1] = id_1;
+        extended_edges[POLYNOMIAL::ID_2] = id_2;
+        extended_edges[POLYNOMIAL::ID_3] = id_3;
+        extended_edges[POLYNOMIAL::LAGRANGE_FIRST] = lagrange_first;
+        extended_edges[POLYNOMIAL::LAGRANGE_LAST] = lagrange_last;
+
         return extended_edges;
     }
 };

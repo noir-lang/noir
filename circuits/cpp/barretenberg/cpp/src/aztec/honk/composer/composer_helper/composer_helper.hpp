@@ -1,5 +1,6 @@
 #pragma once
 
+#include "polynomials/polynomial.hpp"
 #include <srs/reference_string/file_reference_string.hpp>
 #include <proof_system/proving_key/proving_key.hpp>
 #include <honk/proof_system/prover.hpp>
@@ -20,6 +21,7 @@ template <typename CircuitConstructor> class ComposerHelper {
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<bonk::proving_key> circuit_proving_key;
+    std::vector<barretenberg::polynomial> wire_polynomials;
     std::shared_ptr<bonk::verification_key> circuit_verification_key;
     // TODO(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs at all
     std::shared_ptr<bonk::ReferenceStringFactory> crs_factory_;
@@ -52,18 +54,6 @@ template <typename CircuitConstructor> class ComposerHelper {
     {
         compute_witness_base<program_width>(circuit_constructor);
     }
-
-    StandardVerifier create_verifier(const CircuitConstructor& circuit_constructor);
-    /**
-     * Preprocess the circuit. Delegates to create_prover.
-     *
-     * @return A new initialized prover.
-     */
-    StandardProver preprocess(const CircuitConstructor& circuit_constructor)
-    {
-        return create_prover(circuit_constructor);
-    };
-    StandardProver create_prover(const CircuitConstructor& circuit_constructor);
 
     StandardUnrolledVerifier create_unrolled_verifier(const CircuitConstructor& circuit_constructor);
 

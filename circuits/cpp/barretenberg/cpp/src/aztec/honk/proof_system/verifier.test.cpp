@@ -1,5 +1,6 @@
 #include "numeric/bitop/get_msb.hpp"
 #include "plonk/proof_system/constants.hpp"
+#include "polynomials/polynomial.hpp"
 #include "proof_system/flavor/flavor.hpp"
 #include "prover.hpp"
 #include "proof_system/proving_key/proving_key.hpp"
@@ -11,6 +12,7 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 #include <honk/composer/composer_helper/permutation_helper.hpp>
+#include <vector>
 
 using namespace barretenberg;
 using namespace honk;
@@ -193,8 +195,9 @@ template <class FF> class VerifierTests : public testing::Test {
         proving_key->polynomial_cache.put("q_c_lagrange", std::move(q_c));
 
         // TODO(Cody): This should be more generic
-        StandardUnrolledProver prover =
-            StandardUnrolledProver(proving_key, create_manifest(0, proving_key->log_circuit_size));
+        std::vector<barretenberg::polynomial> witness_polynomials;
+        StandardUnrolledProver prover = StandardUnrolledProver(
+            std::move(witness_polynomials), proving_key, create_manifest(0, proving_key->log_circuit_size));
 
         std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
             std::make_unique<pcs::kzg::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
