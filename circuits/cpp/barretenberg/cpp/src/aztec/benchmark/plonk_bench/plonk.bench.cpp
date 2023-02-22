@@ -15,7 +15,7 @@ constexpr size_t START = (MAX_GATES) >> (NUM_CIRCUITS - 1);
 // constexpr size_t MAX_HASH_ROUNDS = 8192;
 // constexpr size_t START_HASH_ROUNDS = 64;
 
-void generate_test_plonk_circuit(waffle::StandardComposer& composer, size_t num_gates)
+void generate_test_plonk_circuit(plonk::StandardComposer& composer, size_t num_gates)
 {
     plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
     plonk::stdlib::field_t b(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
@@ -28,15 +28,15 @@ void generate_test_plonk_circuit(waffle::StandardComposer& composer, size_t num_
     }
 }
 
-waffle::Prover provers[NUM_CIRCUITS];
-waffle::Verifier verifiers[NUM_CIRCUITS];
-waffle::plonk_proof proofs[NUM_CIRCUITS];
+plonk::Prover provers[NUM_CIRCUITS];
+plonk::Verifier verifiers[NUM_CIRCUITS];
+plonk::proof proofs[NUM_CIRCUITS];
 
 void construct_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         composer.compute_proving_key();
         state.ResumeTiming();
@@ -49,7 +49,7 @@ BENCHMARK(construct_witnesses_bench)->RangeMultiplier(2)->Range(START, MAX_GATES
 void construct_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));
@@ -65,7 +65,7 @@ void construct_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));

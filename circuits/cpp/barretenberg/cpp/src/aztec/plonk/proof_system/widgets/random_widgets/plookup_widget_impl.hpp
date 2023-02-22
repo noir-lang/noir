@@ -7,7 +7,7 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <common/mem.hpp>
 
-namespace waffle {
+namespace plonk {
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key)
@@ -898,7 +898,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     T0 = numerator - denominator;
     r_0 += T0 * alpha_base;
     return alpha_base * alpha.sqr() * alpha;
-} // namespace waffle
+} // namespace plonk
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::
@@ -916,4 +916,4 @@ template class VerifierPlookupWidget<barretenberg::fr,
                                      barretenberg::g1::affine_element,
                                      transcript::StandardTranscript>;
 
-} // namespace waffle
+} // namespace plonk

@@ -94,7 +94,7 @@ TEST(standard_honk_composer, test_sigma_and_id_correctness)
         }
 
         // test correctness of the public input delta
-        auto delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
+        auto delta = honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
         EXPECT_EQ(left / right, delta);
 
         for (size_t i = 0; i < num_public_inputs; ++i) {
@@ -342,9 +342,9 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
 
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
-    auto public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
+    auto public_input_delta =
+        honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
 
-    constexpr size_t num_polynomials = bonk::StandardArithmetization::NUM_POLYNOMIALS;
     // Retrieve polynomials from proving key
     polynomial z_perm = prover.key->polynomial_cache.get("z_perm_lagrange");
     polynomial w_1 = prover.key->polynomial_cache.get("w_1_lagrange");
@@ -470,7 +470,7 @@ TEST(StandarHonkComposer, BaseCase)
     composer.circuit_constructor.add_variable(a);
 
     auto prover = composer.create_unrolled_prover();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     auto verifier = composer.create_unrolled_verifier();
     bool verified = verifier.verify_proof(proof);
     ASSERT_TRUE(verified);
@@ -500,7 +500,7 @@ TEST(StandardHonkComposer, TwoGates)
 
         auto prover = composer.create_unrolled_prover();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         auto verifier = composer.create_unrolled_verifier();
         bool verified = verifier.verify_proof(proof);
         EXPECT_EQ(verified, expect_verified);

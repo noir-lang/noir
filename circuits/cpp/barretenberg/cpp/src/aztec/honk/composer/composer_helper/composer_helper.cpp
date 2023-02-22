@@ -26,7 +26,7 @@ namespace honk {
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
+std::shared_ptr<bonk::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key_base(
     const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
 {
     const size_t num_gates = constructor.num_gates;
@@ -42,8 +42,8 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
 
     // Initialize circuit_proving_key
     // TODO: replace composer types.
-    circuit_proving_key = std::make_shared<waffle::proving_key>(
-        subgroup_size, num_public_inputs, crs, waffle::ComposerType::STANDARD_HONK);
+    circuit_proving_key =
+        std::make_shared<bonk::proving_key>(subgroup_size, num_public_inputs, crs, plonk::ComposerType::STANDARD_HONK);
 
     for (size_t j = 0; j < constructor.num_selectors; ++j) {
         std::span<const barretenberg::fr> selector_values = constructor.selectors[j];
@@ -77,11 +77,10 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
  */
 
 template <typename CircuitConstructor>
-std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
-    std::shared_ptr<waffle::proving_key> const& proving_key,
-    std::shared_ptr<waffle::VerifierReferenceString> const& vrs)
+std::shared_ptr<bonk::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key_base(
+    std::shared_ptr<bonk::proving_key> const& proving_key, std::shared_ptr<bonk::VerifierReferenceString> const& vrs)
 {
-    auto circuit_verification_key = std::make_shared<waffle::verification_key>(
+    auto circuit_verification_key = std::make_shared<bonk::verification_key>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs, proving_key->composer_type);
     // TODO(kesha): Dirty hack for now. Need to actually make commitment-agnositc
     auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
@@ -92,9 +91,9 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
         const std::string poly_label(poly_info.polynomial_label);
         const std::string selector_commitment_label(poly_info.commitment_label);
 
-        if (poly_info.source == waffle::PolynomialSource::SELECTOR ||
-            poly_info.source == waffle::PolynomialSource::PERMUTATION ||
-            poly_info.source == waffle::PolynomialSource::OTHER) {
+        if (poly_info.source == bonk::PolynomialSource::SELECTOR ||
+            poly_info.source == bonk::PolynomialSource::PERMUTATION ||
+            poly_info.source == bonk::PolynomialSource::OTHER) {
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
 
@@ -104,7 +103,7 @@ std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::co
     }
 
     // Set the polynomial manifest in verification key.
-    circuit_verification_key->polynomial_manifest = waffle::PolynomialManifest(proving_key->composer_type);
+    circuit_verification_key->polynomial_manifest = bonk::PolynomialManifest(proving_key->composer_type);
 
     return circuit_verification_key;
 }
@@ -182,14 +181,14 @@ void ComposerHelper<CircuitConstructor>::compute_witness_base(const CircuitConst
  * */
 
 template <typename CircuitConstructor>
-std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<bonk::proving_key> ComposerHelper<CircuitConstructor>::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
     // Compute q_l, q_r, q_o, etc polynomials
-    ComposerHelper::compute_proving_key_base(circuit_constructor, waffle::ComposerType::STANDARD_HONK);
+    ComposerHelper::compute_proving_key_base(circuit_constructor, plonk::ComposerType::STANDARD_HONK);
 
     // Compute sigma polynomials (we should update that late)
     compute_standard_honk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
@@ -207,7 +206,7 @@ std::shared_ptr<waffle::proving_key> ComposerHelper<CircuitConstructor>::compute
  * @return Pointer to created circuit verification key.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<waffle::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<bonk::verification_key> ComposerHelper<CircuitConstructor>::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {

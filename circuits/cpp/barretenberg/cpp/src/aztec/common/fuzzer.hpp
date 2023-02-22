@@ -590,9 +590,9 @@ template <template <typename> class Fuzzer, uint64_t Composers>
 constexpr void RunWithComposers(const uint8_t* Data, const size_t Size, FastRandom& VarianceRNG)
 {
     if (Composers & 1) {
-        RunWithComposer<Fuzzer, waffle::StandardComposer>(Data, Size, VarianceRNG);
+        RunWithComposer<Fuzzer, plonk::StandardComposer>(Data, Size, VarianceRNG);
     }
     if (Composers & 2) {
-        RunWithComposer<Fuzzer, waffle::TurboComposer>(Data, Size, VarianceRNG);
+        RunWithComposer<Fuzzer, plonk::TurboComposer>(Data, Size, VarianceRNG);
     }
 }

@@ -16,7 +16,7 @@ using namespace plonk;
 using namespace plookup;
 
 // Defining ultra-specific types for local testing.
-using Composer = waffle::UltraComposer;
+using Composer = plonk::UltraComposer;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;
 

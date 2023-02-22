@@ -1,13 +1,13 @@
 #pragma once
 #include <cstdint>
 
-namespace waffle {
+namespace plonk {
 
 enum ComposerType {
     STANDARD,
     TURBO,
     PLOOKUP,
-    STANDARD_HONK,
+    STANDARD_HONK, // Todo(Arijit): We should replace STANDARD_HONK outside plonk or the namespace should be bonk
 };
 
 // This variable sets the composer (TURBO or ULTRA) of the entire stdlib and rollup modules.
@@ -25,4 +25,4 @@ enum MerkleHashType {
 static constexpr uint64_t NUM_LIMB_BITS_IN_FIELD_SIMULATION = 68;
 
 static constexpr uint32_t NUM_QUOTIENT_PARTS = 4;
-} // namespace waffle
+} // namespace plonk

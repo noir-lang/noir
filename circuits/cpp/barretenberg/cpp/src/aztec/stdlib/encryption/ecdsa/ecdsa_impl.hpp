@@ -33,8 +33,8 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     Fr u2 = r / s;
 
     G1 result;
-    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
-        ASSERT(Curve::type == waffle::CurveType::SECP256K1);
+    if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        ASSERT(Curve::type == bonk::CurveType::SECP256K1);
         public_key.validate_on_curve();
         result = G1::secp256k1_ecdsa_mul(public_key, u1, u2);
     } else {

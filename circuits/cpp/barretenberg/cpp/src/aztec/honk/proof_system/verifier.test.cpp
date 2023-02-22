@@ -25,7 +25,7 @@ template <class FF> class VerifierTests : public testing::Test {
         return honk::StandardHonk::create_unrolled_manifest(num_public_inputs, num_sumcheck_rounds);
     }
 
-    static StandardVerifier generate_verifier(std::shared_ptr<waffle::proving_key> circuit_proving_key)
+    static StandardVerifier generate_verifier(std::shared_ptr<bonk::proving_key> circuit_proving_key)
     {
         std::array<fr*, 8> poly_coefficients;
         poly_coefficients[0] = circuit_proving_key->polynomial_cache.get("q_1_lagrange").get_coefficients();
@@ -49,12 +49,11 @@ template <class FF> class VerifierTests : public testing::Test {
                                                  prover));
         }
 
-        auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");
-        auto circuit_verification_key =
-            std::make_shared<waffle::verification_key>(circuit_proving_key->circuit_size,
-                                                       circuit_proving_key->num_public_inputs,
-                                                       crs,
-                                                       circuit_proving_key->composer_type);
+        auto crs = std::make_shared<bonk::VerifierFileReferenceString>("../srs_db/ignition");
+        auto circuit_verification_key = std::make_shared<bonk::verification_key>(circuit_proving_key->circuit_size,
+                                                                                 circuit_proving_key->num_public_inputs,
+                                                                                 crs,
+                                                                                 circuit_proving_key->composer_type);
 
         circuit_verification_key->commitments.insert({ "Q_1", commitments[0] });
         circuit_verification_key->commitments.insert({ "Q_2", commitments[1] });
@@ -83,9 +82,9 @@ template <class FF> class VerifierTests : public testing::Test {
         // Create some constraints that satisfy our arithmetic circuit relation
         // even indices = mul gates, odd incides = add gates
 
-        auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
-        std::shared_ptr<waffle::proving_key> proving_key =
-            std::make_shared<waffle::proving_key>(n, 0, crs, waffle::STANDARD_HONK);
+        auto crs = std::make_shared<bonk::FileReferenceString>(n + 1, "../srs_db/ignition");
+        std::shared_ptr<bonk::proving_key> proving_key =
+            std::make_shared<bonk::proving_key>(n, 0, crs, plonk::STANDARD_HONK);
 
         polynomial w_l(n);
         polynomial w_r(n);
@@ -166,10 +165,10 @@ template <class FF> class VerifierTests : public testing::Test {
         polynomial sigma_3(proving_key->circuit_size);
 
         // TODO(luke): This is part of the permutation functionality that needs to be updated for honk
-        // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping,
-        // proving_key->small_domain); waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2,
+        // plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping,
+        // proving_key->small_domain); plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_2,
         // sigma_2_mapping, proving_key->small_domain);
-        // waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping,
+        // plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping,
         // proving_key->small_domain);
 
         polynomial sigma_1_lagrange_base(sigma_1, proving_key->circuit_size);
@@ -221,7 +220,7 @@ TYPED_TEST(VerifierTests, VerifyArithmeticProofSmall)
     StandardVerifier verifier = TestFixture::generate_verifier(prover.key);
 
     // construct proof
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     // verify proof
     bool result = verifier.verify_proof(proof);

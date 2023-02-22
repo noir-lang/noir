@@ -15,7 +15,7 @@ namespace honk {
  */
 class StandardHonkComposer {
   public:
-    static constexpr waffle::ComposerType type = waffle::ComposerType::STANDARD_HONK;
+    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
@@ -39,17 +39,17 @@ class StandardHonkComposer {
 
     StandardHonkComposer(std::string const& crs_path, const size_t size_hint = 0)
         : StandardHonkComposer(
-              std::unique_ptr<waffle::ReferenceStringFactory>(new waffle::FileReferenceStringFactory(crs_path)),
+              std::unique_ptr<bonk::ReferenceStringFactory>(new bonk::FileReferenceStringFactory(crs_path)),
               size_hint){};
 
-    StandardHonkComposer(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+    StandardHonkComposer(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
 
     {}
-    StandardHonkComposer(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
+    StandardHonkComposer(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(std::move(crs_factory))
         , num_gates(circuit_constructor.num_gates)
@@ -57,8 +57,8 @@ class StandardHonkComposer {
 
     {}
 
-    StandardHonkComposer(std::shared_ptr<waffle::proving_key> const& p_key,
-                         std::shared_ptr<waffle::verification_key> const& v_key,
+    StandardHonkComposer(std::shared_ptr<bonk::proving_key> const& p_key,
+                         std::shared_ptr<bonk::verification_key> const& v_key,
                          size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
@@ -174,12 +174,12 @@ class StandardHonkComposer {
 
     /**Proof and verification-related methods*/
 
-    std::shared_ptr<waffle::proving_key> compute_proving_key()
+    std::shared_ptr<bonk::proving_key> compute_proving_key()
     {
         return composer_helper.compute_proving_key(circuit_constructor);
     }
 
-    std::shared_ptr<waffle::verification_key> compute_verification_key()
+    std::shared_ptr<bonk::verification_key> compute_verification_key()
     {
         return composer_helper.compute_verification_key(circuit_constructor);
     }
@@ -221,6 +221,5 @@ class StandardHonkComposer {
     bool failed() const { return circuit_constructor.failed(); };
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
-
-}; // namespace waffle
+};
 } // namespace honk

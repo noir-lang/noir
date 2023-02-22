@@ -14,7 +14,7 @@
 using namespace barretenberg;
 using namespace bonk;
 
-namespace waffle {
+namespace plonk {
 
 #define TURBO_SELECTOR_REFS                                                                                            \
     auto& q_m = selectors[TurboSelectors::QM];                                                                         \
@@ -858,16 +858,16 @@ bool TurboComposer::check_circuit()
     TurboFixedBaseChecker fixed_base_checker;
 
     // Create various challenge_arrays
-    waffle::widget::containers::challenge_array<barretenberg::fr, TurboArithmeticChecker::num_independent_relations>
+    plonk::widget::containers::challenge_array<barretenberg::fr, TurboArithmeticChecker::num_independent_relations>
         arithmetic_challenges;
-    waffle::widget::containers::challenge_array<barretenberg::fr, TurboRangeChecker::num_independent_relations>
+    plonk::widget::containers::challenge_array<barretenberg::fr, TurboRangeChecker::num_independent_relations>
         range_challenges;
-    waffle::widget::containers::challenge_array<barretenberg::fr, TurboLogicChecker::num_independent_relations>
+    plonk::widget::containers::challenge_array<barretenberg::fr, TurboLogicChecker::num_independent_relations>
         logic_challenges;
-    waffle::widget::containers::challenge_array<barretenberg::fr, TurboFixedBaseChecker::num_independent_relations>
+    plonk::widget::containers::challenge_array<barretenberg::fr, TurboFixedBaseChecker::num_independent_relations>
         fixed_base_challenges;
 
-    waffle::widget::containers::coefficient_array<barretenberg::fr> linear_parts;
+    plonk::widget::containers::coefficient_array<barretenberg::fr> linear_parts;
     barretenberg::fr result_nonlinear_part;
     barretenberg::fr result_linear_part;
 
@@ -1088,4 +1088,4 @@ UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
 
     return output_state;
 }
-} // namespace waffle
+} // namespace plonk

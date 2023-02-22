@@ -6,26 +6,26 @@
 #include <filesystem>
 
 using namespace barretenberg;
-using namespace waffle;
+using namespace bonk;
 
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    plonk::StandardComposer composer = plonk::StandardComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    waffle::proving_key& p_key = *composer.compute_proving_key();
+    bonk::proving_key& p_key = *composer.compute_proving_key();
     auto pk_buf = to_buffer(p_key);
-    auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+    auto pk_data = from_buffer<bonk::proving_key_data>(pk_buf);
+    auto crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
     auto proving_key =
-        std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
+        std::make_shared<bonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
     // serialized/deserialized from buffer
-    waffle::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
+    bonk::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
@@ -47,7 +47,7 @@ TEST(proving_key, proving_key_from_serialized_key)
 // Test that a proving key can be serialized/deserialized using mmap
 TEST(proving_key, proving_key_from_mmaped_key)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    plonk::StandardComposer composer = plonk::StandardComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
@@ -74,7 +74,7 @@ TEST(proving_key, proving_key_from_mmaped_key)
     if (!os.good()) {
         std::cerr << "OS failed in composer_from_mmap_keys! \n";
     }
-    waffle::proving_key& p_key = *composer.compute_proving_key();
+    bonk::proving_key& p_key = *composer.compute_proving_key();
     write_mmap(os, pk_dir, p_key);
     os.close();
 
@@ -84,14 +84,14 @@ TEST(proving_key, proving_key_from_mmaped_key)
     if (!pk_stream.good()) {
         std::cerr << "IS failed in composer_from_mmap_keys! \n";
     }
-    waffle::proving_key_data pk_data;
+    bonk::proving_key_data pk_data;
     read_mmap(pk_stream, pk_dir, pk_data);
     pk_stream.close();
 
     // Loop over all pre-computed polys for the given composer type and ensure equality
     // between original proving key polynomial store and the polynomial store that was
     // serialized/deserialized via mmap
-    waffle::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
+    bonk::PrecomputedPolyList precomputed_poly_list(p_key.composer_type);
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];

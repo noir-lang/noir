@@ -1,12 +1,13 @@
 #pragma once
 #include "../../../proof_system/proving_key/proving_key.hpp"
-#include "../types/plonk_proof.hpp"
+#include "../types/proof.hpp"
 #include "../types/program_settings.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../widgets/transition_widgets/transition_widget.hpp"
 #include "../commitment_scheme/commitment_scheme.hpp"
-namespace waffle {
+using namespace plonk;
+namespace plonk {
 
 template <typename settings> class ProverBase {
 
@@ -37,8 +38,8 @@ template <typename settings> class ProverBase {
     void compute_linearisation_coefficients();
     void add_blinding_to_quotient_polynomial_parts();
     void compute_lagrange_1_fft();
-    waffle::plonk_proof& export_proof();
-    waffle::plonk_proof& construct_proof();
+    plonk::proof& export_proof();
+    plonk::proof& construct_proof();
 
     size_t get_circuit_size() const { return circuit_size; }
 
@@ -100,7 +101,7 @@ template <typename settings> class ProverBase {
     work_queue queue;
 
   private:
-    waffle::plonk_proof proof;
+    plonk::proof proof;
 };
 extern template class ProverBase<unrolled_standard_settings>;
 extern template class ProverBase<unrolled_turbo_settings>;
@@ -121,4 +122,4 @@ typedef ProverBase<turbo_settings> TurboProver;
 typedef ProverBase<ultra_settings> UltraProver;
 typedef ProverBase<turbo_settings> GenPermProver;
 
-} // namespace waffle
+} // namespace plonk

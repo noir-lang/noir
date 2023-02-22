@@ -4,8 +4,8 @@
 #include <vector>
 #include <string>
 #include <plonk/proof_system/constants.hpp>
-
-namespace waffle {
+// ToDo(Arijit): The below namespace should be plonk once all the honk related stuffs are moved out
+namespace bonk {
 
 enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION, OTHER };
 
@@ -61,7 +61,7 @@ struct PolynomialDescriptor {
                                    bool c = false,
                                    bool d = false,
                                    PolynomialSource e = WITNESS,
-                                   PolynomialIndex f = Q_1)
+                                   bonk::PolynomialIndex f = Q_1)
         : commitment_label(a)
         , polynomial_label(b)
         , is_linearised(c)
@@ -93,7 +93,7 @@ struct PolynomialDescriptor {
     bool is_linearised;
     bool requires_shifted_evaluation;
     PolynomialSource source;
-    PolynomialIndex index;
+    bonk::PolynomialIndex index;
 };
 
 static constexpr size_t STANDARD_UNROLLED_MANIFEST_SIZE = 12;
@@ -208,25 +208,25 @@ class PolynomialManifest {
     PolynomialManifest(uint32_t composer_type)
     {
         switch (composer_type) {
-        case ComposerType::STANDARD: {
+        case plonk::ComposerType::STANDARD: {
             std::copy(standard_polynomial_manifest,
                       standard_polynomial_manifest + STANDARD_UNROLLED_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
-        case ComposerType::TURBO: {
+        case plonk::ComposerType::TURBO: {
             std::copy(turbo_polynomial_manifest,
                       turbo_polynomial_manifest + TURBO_UNROLLED_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
-        case ComposerType::PLOOKUP: {
+        case plonk::ComposerType::PLOOKUP: {
             std::copy(ultra_polynomial_manifest,
                       ultra_polynomial_manifest + ULTRA_UNROLLED_MANIFEST_SIZE,
                       std::back_inserter(manifest));
             break;
         };
-        case ComposerType::STANDARD_HONK: {
+        case plonk::ComposerType::STANDARD_HONK: {
             std::copy(standard_honk_polynomial_manifest,
                       standard_honk_polynomial_manifest + STANDARD_HONK_MANIFEST_SIZE,
                       std::back_inserter(manifest));
@@ -290,4 +290,4 @@ class PrecomputedPolyList {
     std::string operator[](size_t index) const { return precomputed_poly_ids[index]; }
 };
 
-} // namespace waffle
+} // namespace bonk

@@ -4,7 +4,7 @@
 #include <common/throw_or_abort.hpp>
 #include <common/serialize.hpp>
 
-namespace waffle {
+namespace bonk {
 
 // Read the pre-computed polynomials
 template <typename B> inline void read(B& any, proving_key_data& key)
@@ -111,4 +111,4 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
     write(os, key.memory_records);
 }
 
-} // namespace waffle
+} // namespace bonk

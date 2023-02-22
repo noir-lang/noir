@@ -33,7 +33,7 @@ TEST(stdlib_merkle_tree, test_check_membership)
 
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(is_member.get_value(), true);
@@ -65,7 +65,7 @@ TEST(stdlib_merkle_tree, test_batch_update_membership)
     auto prover = composer.create_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
@@ -86,7 +86,7 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
 
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -109,7 +109,7 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
@@ -141,7 +141,7 @@ TEST(stdlib_merkle_tree, test_update_members)
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -170,7 +170,7 @@ TEST(stdlib_merkle_tree, test_update_members)
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -198,7 +198,7 @@ TEST(stdlib_merkle_tree, test_tree)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);

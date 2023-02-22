@@ -223,8 +223,8 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         if (i > 0) {
             ctx->create_fixed_group_add_gate(round_quad);
         } else {
-            if constexpr (C::type == waffle::PLOOKUP &&
-                          C::merkle_hash_type == waffle::MerkleHashType::FIXED_BASE_PEDERSEN) {
+            if constexpr (C::type == plonk::PLOOKUP &&
+                          C::merkle_hash_type == plonk::MerkleHashType::FIXED_BASE_PEDERSEN) {
                 /* In TurboComposer, the selector q_5 is used to show that w_1 and w_2 are properly initialized to the
                  * coordinates of P_s = (-s + 4^n)[g]. In UltraPlonK, we have removed q_5 for overall efficiency (it
                  * would only be used here in this gate), but this presents us a cost in the present circuit: we must
@@ -461,7 +461,7 @@ template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const 
     field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (r_lo + shift), is_even);
 
     field_t y_overlap;
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+    if constexpr (C::type == ComposerType::PLOOKUP) {
         // carve out the 2 high bits from y_lo and instantiate as y_overlap
         const uint256_t y_lo_value = y_lo.get_value();
         const uint256_t y_overlap_value = y_lo_value >> 126;
@@ -516,8 +516,7 @@ field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
                                         const size_t hash_index,
                                         const bool validate_input_is_in_field)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
-                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == ComposerType::PLOOKUP && C::merkle_hash_type == plonk::MerkleHashType::LOOKUP_PEDERSEN) {
         return pedersen_plookup<C>::compress({ in_left, in_right });
     }
 
@@ -531,8 +530,7 @@ field_t<C> pedersen<C>::compress_unsafe(const field_t& in_left,
 
 template <typename C> point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
-                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == ComposerType::PLOOKUP && C::merkle_hash_type == plonk::MerkleHashType::LOOKUP_PEDERSEN) {
         return pedersen_plookup<C>::commit(inputs, hash_index);
     }
 
@@ -546,8 +544,7 @@ template <typename C> point<C> pedersen<C>::commit(const std::vector<field_t>& i
 
 template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP &&
-                  C::merkle_hash_type == waffle::MerkleHashType::LOOKUP_PEDERSEN) {
+    if constexpr (C::type == ComposerType::PLOOKUP && C::merkle_hash_type == plonk::MerkleHashType::LOOKUP_PEDERSEN) {
         return pedersen_plookup<C>::compress(inputs, hash_index);
     }
 
@@ -585,9 +582,9 @@ template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
     return output;
 }
 
-template class pedersen<waffle::StandardComposer>;
-template class pedersen<waffle::TurboComposer>;
-template class pedersen<waffle::UltraComposer>;
+template class pedersen<plonk::StandardComposer>;
+template class pedersen<plonk::TurboComposer>;
+template class pedersen<plonk::UltraComposer>;
 
 } // namespace stdlib
 } // namespace plonk

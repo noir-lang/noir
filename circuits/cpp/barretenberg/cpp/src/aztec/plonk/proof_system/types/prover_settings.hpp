@@ -1,6 +1,6 @@
 #pragma once
 #include "../../../transcript/transcript.hpp"
-namespace waffle {
+namespace plonk {
 class settings_base {
   public:
     static constexpr bool requires_shifted_wire(const uint64_t wire_shift_settings, const uint64_t wire_index)
@@ -99,4 +99,4 @@ class unrolled_turbo_settings : public settings_base {
     static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
     static constexpr bool is_plookup = false;
 };
-} // namespace waffle
+} // namespace plonk

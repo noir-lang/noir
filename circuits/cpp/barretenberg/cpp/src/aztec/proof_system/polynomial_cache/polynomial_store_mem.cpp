@@ -1,7 +1,7 @@
 #include "polynomial_store.hpp"
 #include "polynomials/polynomial.hpp"
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -36,4 +36,4 @@ polynomial PolynomialStoreMem::get(std::string const& key) const
     return polynomial();
 }
 
-} // namespace waffle
+} // namespace bonk

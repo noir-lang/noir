@@ -10,13 +10,13 @@ using namespace plonk;
 
 // ULTRATODO: Add tests for other composers too (make tests modular?)
 
-typedef stdlib::field_t<waffle::TurboComposer> field_t;
-typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
-typedef stdlib::uint<waffle::TurboComposer, uint32_t> uint32;
-typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
-typedef stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FqParams> fq_t;
-typedef stdlib::element<waffle::TurboComposer, fq_t, field_t, barretenberg::g1> group_t;
+typedef stdlib::field_t<plonk::TurboComposer> field_t;
+typedef stdlib::bool_t<plonk::TurboComposer> bool_t;
+typedef stdlib::uint<plonk::TurboComposer, uint32_t> uint32;
+typedef stdlib::witness_t<plonk::TurboComposer> witness_t;
+typedef stdlib::byte_array<plonk::TurboComposer> byte_array;
+typedef stdlib::bigfield<plonk::TurboComposer, barretenberg::Bn254FqParams> fq_t;
+typedef stdlib::element<plonk::TurboComposer, fq_t, field_t, barretenberg::g1> group_t;
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)
@@ -127,11 +127,11 @@ transcript::Transcript get_test_base_transcript(const TestData& data)
     return transcript;
 }
 
-plonk::stdlib::recursion::Transcript<waffle::TurboComposer> get_circuit_transcript(waffle::TurboComposer* context,
-                                                                                   const TestData& data)
+plonk::stdlib::recursion::Transcript<plonk::TurboComposer> get_circuit_transcript(plonk::TurboComposer* context,
+                                                                                  const TestData& data)
 {
-    plonk::stdlib::recursion::Transcript<waffle::TurboComposer> transcript(context,
-                                                                           create_manifest(data.num_public_inputs));
+    plonk::stdlib::recursion::Transcript<plonk::TurboComposer> transcript(context,
+                                                                          create_manifest(data.num_public_inputs));
     uint256_t circuit_size_value = uint256_t(4) + (uint256_t(3) << 8) + (uint256_t(2) << 16) + (uint256_t(1) << 24);
     field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(circuit_size_value)));
     field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(data.num_public_inputs)));
@@ -146,26 +146,25 @@ plonk::stdlib::recursion::Transcript<waffle::TurboComposer> get_circuit_transcri
     }
     transcript.add_field_element_vector("public_inputs", public_inputs);
     transcript.add_group_element(
-        "W_1", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[0]));
+        "W_1", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[0]));
     transcript.add_group_element(
-        "W_2", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[1]));
+        "W_2", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[1]));
     transcript.add_group_element(
-        "W_3", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[2]));
+        "W_3", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[2]));
 
     transcript.apply_fiat_shamir("beta");
 
     transcript.add_group_element(
-        "Z_PERM",
-        plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[3]));
+        "Z_PERM", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[3]));
 
     transcript.apply_fiat_shamir("alpha");
 
     transcript.add_group_element(
-        "T_1", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[4]));
+        "T_1", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[4]));
     transcript.add_group_element(
-        "T_2", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[5]));
+        "T_2", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[5]));
     transcript.add_group_element(
-        "T_3", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[6]));
+        "T_3", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[6]));
 
     transcript.apply_fiat_shamir("z");
 
@@ -182,10 +181,10 @@ plonk::stdlib::recursion::Transcript<waffle::TurboComposer> get_circuit_transcri
     transcript.apply_fiat_shamir("nu");
 
     transcript.add_group_element(
-        "PI_Z", plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[7]));
+        "PI_Z", plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[7]));
     transcript.add_group_element(
         "PI_Z_OMEGA",
-        plonk::stdlib::recursion::Transcript<waffle::TurboComposer>::convert_g1(context, data.g1_elements[8]));
+        plonk::stdlib::recursion::Transcript<plonk::TurboComposer>::convert_g1(context, data.g1_elements[8]));
 
     transcript.apply_fiat_shamir("separator");
     return transcript;
@@ -196,9 +195,9 @@ TEST(stdlib_transcript, validate_transcript)
     TestData data = get_test_data();
     transcript::Transcript normal_transcript = get_test_base_transcript(data);
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    plonk::TurboComposer composer = plonk::TurboComposer();
 
-    plonk::stdlib::recursion::Transcript<waffle::TurboComposer> recursive_transcript =
+    plonk::stdlib::recursion::Transcript<plonk::TurboComposer> recursive_transcript =
         get_circuit_transcript(&composer, data);
 
     const auto check_challenge = [&normal_transcript, &recursive_transcript](const std::string& challenge_name,
@@ -283,11 +282,11 @@ TEST(stdlib_transcript, validate_transcript)
     check_group_element("PI_Z_OMEGA");
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    waffle::TurboProver prover = composer.create_prover();
+    plonk::TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    plonk::TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);

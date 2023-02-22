@@ -12,7 +12,7 @@
 using namespace plonk;
 
 template <typename OuterComposer> class stdlib_verifier_turbo : public testing::Test {
-    using InnerComposer = waffle::TurboComposer;
+    using InnerComposer = plonk::TurboComposer;
 
     typedef stdlib::bn254<InnerComposer> inner_curve;
     typedef stdlib::bn254<OuterComposer> outer_curve;
@@ -58,7 +58,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
         const auto verification_key_raw = inner_composer.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key =
             verification_key_pt::from_witness(&outer_composer, verification_key_raw);
-        waffle::plonk_proof recursive_proof = prover.construct_proof();
+        plonk::proof recursive_proof = prover.construct_proof();
         transcript::Manifest recursive_manifest =
             InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
         stdlib::recursion::recursion_output<outer_curve> output =
@@ -77,7 +77,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
         const auto verification_key_raw = inner_composer_a.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key =
             verification_key_pt::from_witness(&outer_composer, verification_key_raw);
-        waffle::plonk_proof recursive_proof_a = prover.construct_proof();
+        plonk::proof recursive_proof_a = prover.construct_proof();
 
         transcript::Manifest recursive_manifest =
             InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
@@ -91,7 +91,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
         const auto verification_key_b_raw = inner_composer_b.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key_b =
             verification_key_pt::from_witness(&outer_composer, verification_key_b_raw);
-        waffle::plonk_proof recursive_proof_b = prover_b.construct_proof();
+        plonk::proof recursive_proof_b = prover_b.construct_proof();
 
         stdlib::recursion::recursion_output<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, recursive_settings>(
@@ -156,7 +156,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
                 verification_key->validate_key_is_in_set({ verification_key_raw_a, verification_key_raw_b });
             }
         }
-        waffle::plonk_proof recursive_proof = proof_type ? prover_a.construct_proof() : prover_b.construct_proof();
+        plonk::proof recursive_proof = proof_type ? prover_a.construct_proof() : prover_b.construct_proof();
         transcript::Manifest recursive_manifest =
             InnerComposer::create_unrolled_manifest(prover_a.key->num_public_inputs);
         stdlib::recursion::recursion_output<outer_curve> output =
@@ -203,7 +203,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
         auto verifier = outer_composer.create_verifier();
 
         std::cout << "validated. creating proof" << std::endl;
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         std::cout << "created proof" << std::endl;
 
         bool result = verifier.verify_proof(proof);
@@ -212,7 +212,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
     static void test_double_verification()
     {
-        if constexpr (std::is_same<OuterComposer, waffle::StandardComposer>::value)
+        if constexpr (std::is_same<OuterComposer, plonk::StandardComposer>::value)
             return; // We only care about running this test for turbo and ultra outer circuits, since in practice the
                     // only circuits which verify >1 proof are ultra or turbo circuits. Standard uses so many gates
                     // (16m) that it's a waste of time testing it.
@@ -254,7 +254,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
         auto verifier = outer_composer.create_verifier();
 
         std::cout << "validated. creating proof" << std::endl;
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         std::cout << "created proof" << std::endl;
 
         bool result = verifier.verify_proof(proof);
@@ -302,7 +302,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         auto verifier = outer_composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -349,7 +349,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         auto verifier = outer_composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -394,7 +394,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         auto verifier = outer_composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
@@ -439,7 +439,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         auto verifier = outer_composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -447,7 +447,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
     static void test_inner_circuit()
     {
-        if constexpr (!std::is_same<OuterComposer, waffle::StandardComposer>::value)
+        if constexpr (!std::is_same<OuterComposer, plonk::StandardComposer>::value)
             return; // We only want to run this test once (since it's not actually dependent on the typed test
                     // parameter; which is the outer composer). We've only made it a typed test so that it can be
                     // included in this test suite. So to avoid running this test identically 3 times, we escape all but
@@ -468,7 +468,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
     }
 };
 
-typedef testing::Types<waffle::TurboComposer, waffle::StandardComposer> OuterComposerTypes;
+typedef testing::Types<plonk::TurboComposer, plonk::StandardComposer> OuterComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_verifier_turbo, OuterComposerTypes);
 

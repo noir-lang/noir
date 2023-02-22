@@ -11,7 +11,7 @@
 
 using namespace barretenberg;
 
-namespace waffle {
+namespace plonk {
 template <typename program_settings>
 VerifierBase<program_settings>::VerifierBase(std::shared_ptr<verification_key> verifier_key,
                                              const transcript::Manifest& input_manifest)
@@ -37,7 +37,7 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
     return *this;
 }
 
-template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const waffle::plonk_proof& proof)
+template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const plonk::proof& proof)
 {
     // This function verifies a PLONK proof for given program settings.
     // A PLONK proof for standard PLONK with linearisation as on page 31 in the paper is of the form:
@@ -254,4 +254,4 @@ template class VerifierBase<turbo_verifier_settings>;
 template class VerifierBase<ultra_verifier_settings>;
 template class VerifierBase<generalized_permutation_verifier_settings>;
 
-} // namespace waffle
+} // namespace plonk

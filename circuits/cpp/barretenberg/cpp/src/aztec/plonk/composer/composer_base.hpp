@@ -6,14 +6,8 @@
 #include <plonk/proof_system/types/prover_settings.hpp>
 #include <srs/reference_string/file_reference_string.hpp>
 
-using namespace bonk;
-
-namespace waffle {
+namespace plonk {
 static constexpr uint32_t DUMMY_TAG = 0;
-
-struct proving_key;
-struct verification_key;
-
 class ComposerBase {
   public:
     struct SelectorProperties {
@@ -115,7 +109,7 @@ class ComposerBase {
     virtual size_t get_num_gates() const { return num_gates; }
     virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key_base(const waffle::ComposerType type = waffle::STANDARD,
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const ComposerType type = STANDARD,
                                                                   const size_t minimum_ciricut_size = 0,
                                                                   const size_t num_reserved_gates = NUM_RESERVED_GATES);
     // This needs to be static as it may be used only to compute the selector commitments.
@@ -356,7 +350,7 @@ extern template void ComposerBase::compute_witness_base<turbo_settings>(const si
 extern template void ComposerBase::compute_witness_base<ultra_settings>(const size_t);
 extern template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
 
-} // namespace waffle
+} // namespace plonk
 
 /**
  * Composer Example: Pythagorean triples.

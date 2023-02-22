@@ -39,7 +39,7 @@ class Transcript {
     };
 
   public:
-    typedef waffle::verification_key Key;
+    typedef bonk::verification_key Key;
 
     /**
      * Create a new transcript for Prover based on the manifest.

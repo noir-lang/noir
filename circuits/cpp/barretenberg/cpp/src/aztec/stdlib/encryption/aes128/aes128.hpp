@@ -13,9 +13,9 @@ namespace stdlib {
 
 namespace aes128 {
 
-std::vector<field_t<waffle::UltraComposer>> encrypt_buffer_cbc(const std::vector<field_t<waffle::UltraComposer>>& input,
-                                                               const field_t<waffle::UltraComposer>& iv,
-                                                               const field_t<waffle::UltraComposer>& key);
+std::vector<field_t<plonk::UltraComposer>> encrypt_buffer_cbc(const std::vector<field_t<plonk::UltraComposer>>& input,
+                                                              const field_t<plonk::UltraComposer>& iv,
+                                                              const field_t<plonk::UltraComposer>& key);
 
 } // namespace aes128
 } // namespace stdlib

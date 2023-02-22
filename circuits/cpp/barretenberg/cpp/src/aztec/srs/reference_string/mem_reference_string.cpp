@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-namespace waffle {
+namespace bonk {
 
 VerifierMemReferenceString::VerifierMemReferenceString(uint8_t const* g2x)
     : precomputed_g2_lines(
@@ -23,4 +23,4 @@ VerifierMemReferenceString::~VerifierMemReferenceString()
     aligned_free(precomputed_g2_lines);
 }
 
-} // namespace waffle
+} // namespace bonk

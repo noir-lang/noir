@@ -9,8 +9,8 @@
 #include "../../types/prover_settings.hpp"
 #include "../../../../proof_system/proving_key/proving_key.hpp"
 #include "../../../../proof_system/work_queue/work_queue.hpp"
-
-namespace waffle {
+using namespace bonk;
+namespace plonk {
 
 namespace widget {
 enum ChallengeIndex {
@@ -460,4 +460,4 @@ class GenericVerifierWidget {
     }
 };
 } // namespace widget
-} // namespace waffle
+} // namespace plonk

@@ -194,19 +194,19 @@ template <typename T, typename w> inline std::ostream& operator<<(std::ostream& 
 }
 
 template <typename ComposerContext>
-using uint8 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+using uint8 = typename std::conditional<ComposerContext::type == ComposerType::PLOOKUP,
                                         uint_plookup<ComposerContext, uint8_t>,
                                         uint<ComposerContext, uint8_t>>::type;
 template <typename ComposerContext>
-using uint16 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+using uint16 = typename std::conditional<ComposerContext::type == ComposerType::PLOOKUP,
                                          uint_plookup<ComposerContext, uint16_t>,
                                          uint<ComposerContext, uint16_t>>::type;
 template <typename ComposerContext>
-using uint32 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+using uint32 = typename std::conditional<ComposerContext::type == ComposerType::PLOOKUP,
                                          uint_plookup<ComposerContext, uint32_t>,
                                          uint<ComposerContext, uint32_t>>::type;
 template <typename ComposerContext>
-using uint64 = typename std::conditional<ComposerContext::type == waffle::ComposerType::PLOOKUP,
+using uint64 = typename std::conditional<ComposerContext::type == ComposerType::PLOOKUP,
                                          uint_plookup<ComposerContext, uint64_t>,
                                          uint<ComposerContext, uint64_t>>::type;
 

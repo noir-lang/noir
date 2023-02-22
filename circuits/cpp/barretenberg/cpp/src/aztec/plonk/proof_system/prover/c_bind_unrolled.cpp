@@ -7,7 +7,7 @@ using namespace barretenberg;
 extern "C" {
 
 typedef std::
-    conditional_t<waffle::SYSTEM_COMPOSER == waffle::TURBO, waffle::UnrolledTurboProver, waffle::UnrolledUltraProver>
+    conditional_t<plonk::SYSTEM_COMPOSER == plonk::TURBO, plonk::UnrolledTurboProver, plonk::UnrolledUltraProver>
         WasmUnrolledProver;
 
 WASM_EXPORT void unrolled_prover_process_queue(WasmUnrolledProver* prover)

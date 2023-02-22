@@ -37,7 +37,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul_with_generator
             break;
         }
     }
-    if constexpr (C::type != waffle::ComposerType::PLOOKUP) {
+    if constexpr (C::type != ComposerType::PLOOKUP) {
         // MERGENOTE: these four lines don't have an equivalent in d-b-p
         std::vector<element> modified_big_points = big_points;
         std::vector<Fr> modified_big_scalars = big_scalars;

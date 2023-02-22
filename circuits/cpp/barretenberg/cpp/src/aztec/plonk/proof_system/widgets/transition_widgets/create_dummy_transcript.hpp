@@ -1,7 +1,7 @@
 #include <plonk/composer/standard_composer.hpp>
 #include <transcript/transcript.hpp>
 
-namespace waffle {
+namespace plonk {
 inline transcript::StandardTranscript create_dummy_standard_transcript()
 {
     std::vector<uint8_t> g1_vector(64);
@@ -15,7 +15,7 @@ inline transcript::StandardTranscript create_dummy_standard_transcript()
         fr_vector[i] = 1;
     }
     transcript::StandardTranscript transcript =
-        transcript::StandardTranscript(waffle::StandardComposer::create_manifest(0));
+        transcript::StandardTranscript(plonk::StandardComposer::create_manifest(0));
     transcript.add_element("circuit_size", { 1, 2, 3, 4 });
     transcript.add_element("public_input_size", { 0, 0, 0, 0 });
     transcript.apply_fiat_shamir("init");
@@ -106,4 +106,4 @@ inline transcript::StandardTranscript create_dummy_ultra_transcript()
     transcript.apply_fiat_shamir("alpha");
     return transcript;
 }
-} // namespace waffle
+} // namespace plonk

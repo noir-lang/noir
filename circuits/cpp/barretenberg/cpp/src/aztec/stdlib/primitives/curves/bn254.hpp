@@ -8,7 +8,7 @@ namespace plonk {
 namespace stdlib {
 
 template <typename ComposerType> struct bn254 {
-    static constexpr waffle::CurveType type = waffle::CurveType::BN254;
+    static constexpr bonk::CurveType type = bonk::CurveType::BN254;
 
     typedef barretenberg::fq fq;
     typedef barretenberg::fr fr;

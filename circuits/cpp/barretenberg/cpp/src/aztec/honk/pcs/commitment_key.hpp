@@ -82,7 +82,7 @@ class CommitmentKey {
 
   private:
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
-    waffle::FileReferenceString srs;
+    bonk::FileReferenceString srs;
 };
 
 class VerificationKey {
@@ -124,7 +124,7 @@ class VerificationKey {
     }
 
   private:
-    waffle::VerifierFileReferenceString verifier_srs;
+    bonk::VerifierFileReferenceString verifier_srs;
 };
 
 struct Params {

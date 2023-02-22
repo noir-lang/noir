@@ -35,7 +35,7 @@ using Polynomial = barretenberg::Polynomial<Fr>;
  * @tparam settings Settings class.
  * */
 template <typename settings>
-Prover<settings>::Prover(std::shared_ptr<waffle::proving_key> input_key, const transcript::Manifest& input_manifest)
+Prover<settings>::Prover(std::shared_ptr<bonk::proving_key> input_key, const transcript::Manifest& input_manifest)
     : circuit_size(input_key == nullptr ? 0 : input_key->circuit_size)
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
@@ -289,7 +289,7 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    using Multivariates = sumcheck::Multivariates<barretenberg::fr, waffle::STANDARD_HONK_TOTAL_NUM_POLYS>;
+    using Multivariates = sumcheck::Multivariates<barretenberg::fr, bonk::STANDARD_HONK_TOTAL_NUM_POLYS>;
     using Transcript = transcript::StandardTranscript;
     using Sumcheck = sumcheck::Sumcheck<Multivariates,
                                         Transcript,
@@ -429,13 +429,13 @@ template <typename settings> void Prover<settings>::execute_kzg_round()
     transcript.add_element("W", W_commitment);
 }
 
-template <typename settings> waffle::plonk_proof& Prover<settings>::export_proof()
+template <typename settings> plonk::proof& Prover<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();
     return proof;
 }
 
-template <typename settings> waffle::plonk_proof& Prover<settings>::construct_proof()
+template <typename settings> plonk::proof& Prover<settings>::construct_proof()
 {
     // Add circuit size and public input size to transcript.
     execute_preamble_round();
@@ -488,6 +488,6 @@ template <typename settings> waffle::plonk_proof& Prover<settings>::construct_pr
 }
 
 // TODO(luke): Need to define a 'standard_settings' analog for Standard Honk
-template class Prover<waffle::standard_settings>;
+template class Prover<plonk::standard_settings>;
 
 } // namespace honk

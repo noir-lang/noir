@@ -15,7 +15,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::wnaf_batch_mul(const std::vector<el
 {
     constexpr size_t WNAF_SIZE = 4;
     ASSERT(points.size() == scalars.size());
-    if constexpr (C::type != waffle::ComposerType::PLOOKUP) {
+    if constexpr (C::type != ComposerType::PLOOKUP) {
         return batch_mul(points, scalars, max_num_bits);
     }
 

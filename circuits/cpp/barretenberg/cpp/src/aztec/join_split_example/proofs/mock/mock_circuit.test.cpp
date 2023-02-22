@@ -21,7 +21,7 @@ TEST(mock_circuit_tests, test_simple_circuit)
     mock_circuit(composer, public_inputs);
 
     UnrolledProver prover = composer.create_unrolled_prover();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     std::cout << "gates: " << composer.get_num_gates() << std::endl;
     std::cout << "proof size: " << proof.proof_data.size() << std::endl;

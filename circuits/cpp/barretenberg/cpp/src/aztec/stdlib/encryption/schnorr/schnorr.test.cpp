@@ -33,12 +33,12 @@ auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
         EXPECT_EQ(output.y.get_value(), expected.y);
     };
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, expect_verify);
@@ -152,12 +152,12 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
     field_ct input(&composer, scalar);
     convert_field_into_wnaf(&composer, input);
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -208,10 +208,10 @@ TEST(stdlib_schnorr, verify_signature)
         byte_array_ct message(&composer, message_string);
         stdlib::schnorr::verify_signature(message, pub_key, sig);
 
-        Prover prover = composer.create_prover();
+        plonk::stdlib::types::Prover prover = composer.create_prover();
         printf("composer gates = %zu\n", composer.get_num_gates());
-        Verifier verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -252,12 +252,12 @@ TEST(stdlib_schnorr, verify_signature_failure)
     byte_array_ct message(&composer, message_string);
     stdlib::schnorr::verify_signature(message, pub_key2_ct, sig);
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool verification_result = verifier.verify_proof(proof);
     EXPECT_EQ(verification_result, false);

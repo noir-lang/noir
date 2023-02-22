@@ -39,7 +39,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -58,7 +58,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul_zero_fails)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, false);
@@ -88,7 +88,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul_with_two_limbs)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

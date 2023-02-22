@@ -25,9 +25,9 @@ class join_split_js_parity_tests : public ::testing::Test {
   protected:
     static void SetUpTestCase()
     {
-        auto null_crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
+        auto null_crs_factory = std::make_shared<bonk::ReferenceStringFactory>();
         init_proving_key(null_crs_factory, false);
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+        auto crs_factory = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
         info("vk hash: ", get_verification_key()->sha256_hash());
     }
@@ -45,7 +45,7 @@ class join_split_js_parity_tests : public ::testing::Test {
         }
     }
 
-    waffle::plonk_proof sign_and_create_proof(join_split_tx& tx, key_pair const& signing_key)
+    plonk::proof sign_and_create_proof(join_split_tx& tx, key_pair const& signing_key)
     {
         tx.signature = sign_join_split_tx(tx, signing_key);
 

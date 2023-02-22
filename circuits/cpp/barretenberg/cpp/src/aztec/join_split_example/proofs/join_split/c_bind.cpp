@@ -23,14 +23,14 @@ WASM_EXPORT void join_split__init_proving_key(bool mock)
 {
     // We know that we don't actually need any CRS to create a proving key, so just feed in a nothing.
     // Hacky, but, right now it needs *something*.
-    auto crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
+    auto crs_factory = std::make_shared<bonk::ReferenceStringFactory>();
     init_proving_key(crs_factory, mock);
 }
 
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
 {
-    std::shared_ptr<waffle::ProverReferenceString> crs;
-    waffle::proving_key_data pk_data;
+    std::shared_ptr<bonk::ProverReferenceString> crs;
+    bonk::proving_key_data pk_data;
     read(pk_buf, pk_data);
     init_proving_key(crs, std::move(pk_data));
 }
@@ -60,7 +60,7 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, void* pippenger_lagrange, uint8_t const* g2x)
 {
-    auto crs_factory = std::make_unique<waffle::PippengerReferenceStringFactory>(
+    auto crs_factory = std::make_unique<bonk::PippengerReferenceStringFactory>(
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger),
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger_lagrange),
         g2x);
@@ -69,8 +69,8 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, void* pippen
 
 WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x)
 {
-    auto crs = std::make_shared<waffle::VerifierMemReferenceString>(g2x);
-    waffle::verification_key_data vk_data;
+    auto crs = std::make_shared<bonk::VerifierMemReferenceString>(g2x);
+    bonk::verification_key_data vk_data;
     read(vk_buf, vk_data);
     init_verification_key(crs, std::move(vk_data));
 }
@@ -95,18 +95,18 @@ WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool moc
 {
     auto tx = from_buffer<join_split_tx>(join_split_buf);
     auto prover = new_join_split_prover(tx, mock);
-    auto heapProver = new UnrolledProver(std::move(prover));
+    auto heapProver = new plonk::stdlib::types::UnrolledProver(std::move(prover));
     return heapProver;
 }
 
 WASM_EXPORT void join_split__delete_prover(void* prover)
 {
-    delete reinterpret_cast<Prover*>(prover);
+    delete reinterpret_cast<plonk::stdlib::types::Prover*>(prover);
 }
 
 WASM_EXPORT bool join_split__verify_proof(uint8_t* proof, uint32_t length)
 {
-    waffle::plonk_proof pp = { std::vector<uint8_t>(proof, proof + length) };
+    plonk::proof pp = { std::vector<uint8_t>(proof, proof + length) };
     return verify_proof(pp);
 }
 }

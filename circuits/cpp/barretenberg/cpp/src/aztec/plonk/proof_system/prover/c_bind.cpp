@@ -30,8 +30,7 @@ WASM_EXPORT void* test_async_func(size_t size, int val)
     }
 }
 
-typedef std::conditional_t<waffle::SYSTEM_COMPOSER == waffle::TURBO, waffle::TurboProver, waffle::UltraProver>
-    WasmProver;
+typedef std::conditional_t<plonk::SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver> WasmProver;
 
 WASM_EXPORT void prover_process_queue(WasmProver* prover)
 {

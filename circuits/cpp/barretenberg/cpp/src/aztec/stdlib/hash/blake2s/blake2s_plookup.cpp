@@ -166,7 +166,7 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
     return result;
 }
 
-template byte_array<waffle::UltraComposer> blake2s(const byte_array<waffle::UltraComposer>& input);
+template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk::UltraComposer>& input);
 
 } // namespace blake2s_plookup
 

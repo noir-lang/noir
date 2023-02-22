@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <vector>
 
-namespace waffle {
+namespace plonk {
 
 struct commitment_open_proof {
     std::vector<uint8_t> proof_data;
 };
 
-} // namespace waffle
+} // namespace plonk

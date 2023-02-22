@@ -161,7 +161,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -206,7 +206,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -274,7 +274,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -307,7 +307,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_unrolled_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -337,7 +337,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -393,7 +393,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_unrolled_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -442,7 +442,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     }
 };
 
-typedef testing::Types<waffle::UltraComposer, waffle::TurboComposer, waffle::StandardComposer> ComposerTypes;
+typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer> ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_pedersen, ComposerTypes);
 
@@ -488,11 +488,11 @@ TYPED_TEST(stdlib_pedersen, compress_constants)
 
 // Tests of Plookup-based Pedersen hash
 namespace plookup_pedersen_tests {
-typedef stdlib::field_t<waffle::UltraComposer> field_ct;
-typedef stdlib::witness_t<waffle::UltraComposer> witness_ct;
+typedef stdlib::field_t<plonk::UltraComposer> field_ct;
+typedef stdlib::witness_t<plonk::UltraComposer> witness_ct;
 TEST(stdlib_pedersen, test_pedersen_plookup)
 {
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     fr left_in = fr::random_element();
     fr right_in = fr::random_element();
@@ -500,7 +500,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
     field_ct left = witness_ct(&composer, left_in);
     field_ct right = witness_ct(&composer, right_in);
 
-    field_ct result = stdlib::pedersen_plookup<waffle::UltraComposer>::compress(left, right);
+    field_ct result = stdlib::pedersen_plookup<plonk::UltraComposer>::compress(left, right);
 
     fr expected = crypto::pedersen::lookup::hash_pair(left_in, right_in);
 
@@ -511,7 +511,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -519,7 +519,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
 
 TEST(stdlib_pedersen, test_compress_many_plookup)
 {
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     std::vector<fr> input_values{
         fr::random_element(), fr::random_element(), fr::random_element(),
@@ -532,7 +532,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
 
     const size_t hash_idx = 20;
 
-    field_ct result = stdlib::pedersen_plookup<waffle::UltraComposer>::compress(inputs, hash_idx);
+    field_ct result = stdlib::pedersen_plookup<plonk::UltraComposer>::compress(inputs, hash_idx);
 
     auto expected = crypto::pedersen::lookup::compress_native(input_values, hash_idx);
 
@@ -543,7 +543,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -551,7 +551,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
 
 TEST(stdlib_pedersen, test_merkle_damgard_compress_plookup)
 {
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     std::vector<fr> input_values{
         fr::random_element(), fr::random_element(), fr::random_element(),
@@ -563,7 +563,7 @@ TEST(stdlib_pedersen, test_merkle_damgard_compress_plookup)
     }
     field_ct iv = witness_ct(&composer, fr(10));
 
-    field_ct result = stdlib::pedersen_plookup<waffle::UltraComposer>::merkle_damgard_compress(inputs, iv).x;
+    field_ct result = stdlib::pedersen_plookup<plonk::UltraComposer>::merkle_damgard_compress(inputs, iv).x;
 
     auto expected = crypto::pedersen::lookup::merkle_damgard_compress(input_values, 10);
 
@@ -574,7 +574,7 @@ TEST(stdlib_pedersen, test_merkle_damgard_compress_plookup)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

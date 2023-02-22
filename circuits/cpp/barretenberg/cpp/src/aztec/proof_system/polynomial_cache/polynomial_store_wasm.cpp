@@ -1,7 +1,7 @@
 #include "polynomial_store.hpp"
 #include <env/data_store.hpp>
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -27,4 +27,4 @@ polynomial PolynomialStoreWasm::get(std::string const& key) const
     return length_out ? polynomial((fr*)buf, length_out / sizeof(fr)) : polynomial();
 }
 
-} // namespace waffle
+} // namespace bonk

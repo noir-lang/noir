@@ -24,36 +24,35 @@
 namespace plonk::stdlib::types {
 
 using namespace plonk;
-static constexpr size_t SYSTEM_COMPOSER = waffle::SYSTEM_COMPOSER;
+static constexpr size_t SYSTEM_COMPOSER = plonk::SYSTEM_COMPOSER;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == waffle::STANDARD,
-    waffle::StandardComposer,
-    std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO, waffle::TurboComposer, waffle::UltraComposer>>
+    SYSTEM_COMPOSER == plonk::STANDARD,
+    plonk::StandardComposer,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboComposer, plonk::UltraComposer>>
     Composer;
 
-typedef std::conditional_t<
-    SYSTEM_COMPOSER == waffle::STANDARD,
-    waffle::Prover,
-    std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO, waffle::TurboProver, waffle::UltraProver>>
+typedef std::conditional_t<SYSTEM_COMPOSER == plonk::STANDARD,
+                           plonk::Prover,
+                           std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver>>
     Prover;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == waffle::STANDARD,
-    waffle::Verifier,
-    std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO, waffle::TurboVerifier, waffle::UltraVerifier>>
+    SYSTEM_COMPOSER == plonk::STANDARD,
+    plonk::Verifier,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
     Verifier;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == waffle::STANDARD,
-    waffle::UnrolledProver,
-    std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO, waffle::UnrolledTurboProver, waffle::UnrolledUltraProver>>
+    SYSTEM_COMPOSER == plonk::STANDARD,
+    plonk::UnrolledProver,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::UnrolledTurboProver, plonk::UnrolledUltraProver>>
     UnrolledProver;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == waffle::STANDARD,
-    waffle::UnrolledVerifier,
-    std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO, waffle::UnrolledTurboVerifier, waffle::UnrolledUltraVerifier>>
+    SYSTEM_COMPOSER == plonk::STANDARD,
+    plonk::UnrolledVerifier,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::UnrolledTurboVerifier, plonk::UnrolledUltraVerifier>>
     UnrolledVerifier;
 
 typedef stdlib::witness_t<Composer> witness_ct;
@@ -86,9 +85,9 @@ typedef stdlib::schnorr::signature_bits<Composer> signature_bits;
 } // namespace schnorr
 
 // Ultra-composer specific types
-typedef stdlib::rom_table<waffle::UltraComposer> rom_table_ct;
+typedef stdlib::rom_table<plonk::UltraComposer> rom_table_ct;
 
-typedef std::conditional_t<SYSTEM_COMPOSER == waffle::TURBO,
+typedef std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO,
                            recursion::recursive_turbo_verifier_settings<bn254>,
                            recursion::recursive_ultra_verifier_settings<bn254>>
     recursive_inner_verifier_settings;

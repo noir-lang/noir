@@ -63,7 +63,7 @@ TEST(stdlib_safeuint, test_constructor_with_value_in_range)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
@@ -156,7 +156,7 @@ TEST(stdlib_safeuint, test_subtract_method)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
@@ -207,7 +207,7 @@ TEST(stdlib_safeuint, test_minus_operator)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
@@ -251,7 +251,7 @@ TEST(stdlib_safeuint, test_divide_method)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
@@ -325,7 +325,7 @@ TEST(stdlib_safeuint, test_div_operator)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     EXPECT_TRUE(verifier.verify_proof(proof));
 }
 
@@ -351,7 +351,7 @@ TEST(stdlib_safeuint, test_divide_operator)
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -365,7 +365,7 @@ TEST(stdlib_safeuint, test_divide_operator)
         d = d / c;
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
@@ -379,7 +379,7 @@ TEST(stdlib_safeuint, test_divide_operator)
         d = d / c;
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
@@ -393,7 +393,7 @@ TEST(stdlib_safeuint, test_divide_operator)
         d = d / c;
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
@@ -407,7 +407,7 @@ TEST(stdlib_safeuint, test_divide_operator)
         d = d / c;
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
@@ -433,7 +433,7 @@ TEST(stdlib_safeuint, test_slice)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_TRUE(result);
@@ -457,7 +457,7 @@ TEST(stdlib_safeuint, test_slice_equal_msb_lsb)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_TRUE(result);
@@ -483,7 +483,7 @@ TEST(stdlib_safeuint, test_slice_random)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_TRUE(result);
@@ -540,7 +540,7 @@ TEST(stdlib_safeuint, operator_div_remainder_constraint)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
 }
@@ -568,7 +568,7 @@ TEST(stdlib_safeuint, div_remainder_constraint)
 
     auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, false);
 }

@@ -35,21 +35,21 @@ constexpr size_t get_index(const size_t target_count_base)
     }
     return 0;
 }
-void generate_test_pedersen_circuit(waffle::TurboComposer& turbo_composer, size_t num_repetitions)
+void generate_test_pedersen_circuit(plonk::TurboComposer& turbo_composer, size_t num_repetitions)
 {
-    plonk::stdlib::field_t<waffle::TurboComposer> left(
+    plonk::stdlib::field_t<plonk::TurboComposer> left(
         plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
-    plonk::stdlib::field_t<waffle::TurboComposer> out(
+    plonk::stdlib::field_t<plonk::TurboComposer> out(
         plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = plonk::stdlib::pedersen<waffle::TurboComposer>::compress(left, out);
+        out = plonk::stdlib::pedersen<plonk::TurboComposer>::compress(left, out);
     }
 }
 
-waffle::TurboProver pedersen_provers[NUM_CIRCUITS];
-waffle::TurboVerifier pedersen_verifiers[NUM_CIRCUITS];
-waffle::plonk_proof pedersen_proofs[NUM_CIRCUITS];
+plonk::TurboProver pedersen_provers[NUM_CIRCUITS];
+plonk::TurboVerifier pedersen_verifiers[NUM_CIRCUITS];
+plonk::proof pedersen_proofs[NUM_CIRCUITS];
 
 grumpkin::fq pedersen_function(const size_t count)
 {
@@ -94,8 +94,8 @@ BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);
 void construct_pedersen_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        waffle::TurboComposer composer =
-            waffle::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboComposer composer =
+            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         std::cout << "composer gates = " << composer.num_gates << std::endl;
         composer.compute_witness();
@@ -116,8 +116,8 @@ BENCHMARK(construct_pedersen_witnesses_bench)
 void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        waffle::TurboComposer composer =
-            waffle::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboComposer composer =
+            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         composer.compute_proving_key();
@@ -142,8 +142,8 @@ void construct_pedersen_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        waffle::TurboComposer composer =
-            waffle::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
+        plonk::TurboComposer composer =
+            plonk::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = get_index(static_cast<size_t>(state.range(0)));
         composer.create_prover();

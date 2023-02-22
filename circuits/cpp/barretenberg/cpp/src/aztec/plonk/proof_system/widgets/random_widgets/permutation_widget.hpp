@@ -1,7 +1,7 @@
 #pragma once
 #include "random_widget.hpp"
 
-namespace waffle {
+namespace plonk {
 template <typename Field,
           typename Group,
           typename Transcript,
@@ -49,6 +49,6 @@ class ProverPermutationWidget : public ProverRandomWidget {
                                                  barretenberg::polynomial& r) override;
 };
 
-} // namespace waffle
+} // namespace plonk
 
 #include "./permutation_widget_impl.hpp"

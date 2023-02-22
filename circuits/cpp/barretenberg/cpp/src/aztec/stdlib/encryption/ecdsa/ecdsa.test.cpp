@@ -10,7 +10,7 @@ using namespace barretenberg;
 using namespace plonk;
 
 namespace test_stdlib_ecdsa {
-using Composer = waffle::UltraComposer;
+using Composer = plonk::UltraComposer;
 using curve = stdlib::secp256k1<Composer>;
 
 TEST(stdlib_ecdsa, verify_signature)

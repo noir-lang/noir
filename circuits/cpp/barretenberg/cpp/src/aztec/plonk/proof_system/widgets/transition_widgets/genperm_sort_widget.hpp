@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace waffle {
+namespace plonk {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class GenPermSortKernel {
@@ -18,11 +18,11 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
+    inline static std::set<bonk::PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<PolynomialIndex> required_polynomial_ids = {
-            PolynomialIndex::Q_SORT, PolynomialIndex::W_1, PolynomialIndex::W_2,
-            PolynomialIndex::W_3,    PolynomialIndex::W_4, PolynomialIndex::Z
+        static const std::set<bonk::PolynomialIndex> required_polynomial_ids = {
+            bonk::PolynomialIndex::Q_SORT, bonk::PolynomialIndex::W_1, bonk::PolynomialIndex::W_2,
+            bonk::PolynomialIndex::W_3,    bonk::PolynomialIndex::W_4, bonk::PolynomialIndex::Z
         };
         return required_polynomial_ids;
     }
@@ -38,15 +38,15 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
         const Field& alpha_base = challenges.alpha_powers[0];
         const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
         const Field& w_1 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_3>(polynomials, i);
         const Field& w_4 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_4>(polynomials, i);
         const Field& w_1_omega =
-            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::SHIFTED, bonk::PolynomialIndex::W_1>(polynomials, i);
 
         Field alpha_a = alpha_base;
         Field alpha_b = alpha_a * alpha;
@@ -105,7 +105,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                          const size_t i = 0)
     {
         const Field& q_sort =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_SORT>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_SORT>(polynomials, i);
 
         return linear_terms[0] * q_sort;
     }
@@ -126,4 +126,4 @@ using ProverGenPermSortWidget = widget::TransitionWidget<barretenberg::fr, Setti
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierGenPermSortWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::GenPermSortKernel>;
 
-} // namespace waffle
+} // namespace plonk

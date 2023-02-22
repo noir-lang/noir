@@ -1,4 +1,4 @@
-namespace waffle {
+namespace bonk {
 
 /**
  * Write a solidity file containing the vk params to the given stream.
@@ -57,4 +57,4 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
 
     os << std::flush;
 }
-} // namespace waffle
+} // namespace bonk

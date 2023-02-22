@@ -63,7 +63,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         const std::string label(item.commitment_label);
         const std::string poly_label(item.polynomial_label);
         switch (item.source) {
-        case waffle::PolynomialSource::WITNESS: {
+        case bonk::PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
             ASSERT(element.on_curve());
             if (element.is_point_at_infinity()) {
@@ -74,8 +74,8 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
         }
-        case waffle::PolynomialSource::SELECTOR:
-        case waffle::PolynomialSource::PERMUTATION: {
+        case bonk::PolynomialSource::SELECTOR:
+        case bonk::PolynomialSource::PERMUTATION: {
             const auto element = key->commitments.at(label);
             // TODO: with user-defined circuits, we will need verify that the point
             // lies on the curve with constraints
@@ -89,7 +89,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, element });
             break;
         }
-        case waffle::PolynomialSource::OTHER: {
+        case bonk::PolynomialSource::OTHER: {
             break;
         }
         }
@@ -120,8 +120,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
 
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
-    fr_ct batch_evaluation =
-        waffle::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
+    fr_ct batch_evaluation = plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
     batch_opening_scalar = -batch_evaluation;
 
     kate_g1_elements.insert({ "PI_Z_OMEGA", g1_ct::from_witness(ctx, PI_Z_OMEGA) });
@@ -199,7 +198,7 @@ template <typename Curve, typename program_settings>
 recursion_output<Curve> verify_proof(typename Curve::Composer* context,
                                      std::shared_ptr<verification_key<Curve>> key,
                                      const transcript::Manifest& manifest,
-                                     const waffle::plonk_proof& proof,
+                                     const plonk::proof& proof,
                                      const recursion_output<Curve> previous_output = recursion_output<Curve>())
 {
     using fr_ct = typename Curve::fr_ct;

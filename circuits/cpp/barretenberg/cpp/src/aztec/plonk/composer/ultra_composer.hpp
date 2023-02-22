@@ -5,7 +5,7 @@
 
 using namespace bonk;
 
-namespace waffle {
+namespace plonk {
 
 class UltraComposer : public ComposerBase {
 
@@ -588,4 +588,4 @@ class UltraComposer : public ComposerBase {
         return output;
     }
 };
-} // namespace waffle
+} // namespace plonk

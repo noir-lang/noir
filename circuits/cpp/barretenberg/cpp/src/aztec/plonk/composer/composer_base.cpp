@@ -2,7 +2,7 @@
 #include <proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/utils/permutation.hpp>
 
-namespace waffle {
+namespace plonk {
 
 /**
  * Join variable class b to variable class a.
@@ -229,7 +229,7 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
  * @param num_reserved_gates The number of reserved gates.
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
-std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const waffle::ComposerType composer_type,
+std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const ComposerType composer_type,
                                                                     const size_t minimum_circuit_size,
                                                                     const size_t num_reserved_gates)
 {
@@ -421,4 +421,4 @@ template void ComposerBase::compute_witness_base<ultra_settings>(const size_t);
 template void ComposerBase::compute_wire_copy_cycles<3>();
 template void ComposerBase::compute_wire_copy_cycles<4>();
 
-} // namespace waffle
+} // namespace plonk

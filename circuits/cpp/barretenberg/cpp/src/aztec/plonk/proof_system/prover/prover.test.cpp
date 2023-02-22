@@ -65,7 +65,7 @@ sigma_3 = [39, 23, 4, 40, 41, 25, 33, 36, 37, 42, 43, 44, 45, 46, 47, 48]
 ```
 */
 using namespace barretenberg;
-using namespace waffle;
+using namespace plonk;
 
 namespace prover_helpers {
 
@@ -103,17 +103,17 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
     return output;
 }
 
-waffle::Prover generate_test_data(const size_t n)
+plonk::Prover generate_test_data(const size_t n)
 {
-    // state.random_widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
+    // state.random_widgets.emplace_back(std::make_unique<plonk::ProverArithmeticWidget>(n));
 
     // create some constraints that satisfy our arithmetic circuit relation
     fr T0;
 
     // even indices = mul gates, odd incides = add gates
 
-    auto reference_string = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string, waffle::STANDARD);
+    auto reference_string = std::make_shared<bonk::FileReferenceString>(n + 1, "../srs_db/ignition");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string, plonk::STANDARD);
 
     polynomial w_l(n);
     polynomial w_r(n);
@@ -187,9 +187,9 @@ waffle::Prover generate_test_data(const size_t n)
     polynomial sigma_2(key->circuit_size);
     polynomial sigma_3(key->circuit_size);
 
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping, key->small_domain);
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2, sigma_2_mapping, key->small_domain);
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_2, sigma_2_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping, key->small_domain);
 
     polynomial sigma_1_lagrange_base(sigma_1, key->circuit_size);
     polynomial sigma_2_lagrange_base(sigma_2, key->circuit_size);
@@ -267,16 +267,16 @@ waffle::Prover generate_test_data(const size_t n)
     key->polynomial_cache.put("q_m_fft", std::move(q_m_fft));
     key->polynomial_cache.put("q_c_fft", std::move(q_c_fft));
 
-    std::unique_ptr<waffle::ProverPermutationWidget<3, false>> permutation_widget =
-        std::make_unique<waffle::ProverPermutationWidget<3, false>>(key.get());
+    std::unique_ptr<plonk::ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<plonk::ProverPermutationWidget<3, false>>(key.get());
 
-    std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
-        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get());
+    std::unique_ptr<plonk::ProverArithmeticWidget<plonk::standard_settings>> widget =
+        std::make_unique<plonk::ProverArithmeticWidget<plonk::standard_settings>>(key.get());
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    waffle::Prover state = waffle::Prover(key, create_manifest());
+    plonk::Prover state = plonk::Prover(key, create_manifest());
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -287,7 +287,7 @@ waffle::Prover generate_test_data(const size_t n)
 TEST(prover, compute_quotient_polynomial)
 {
     size_t n = 1 << 10;
-    waffle::Prover state = prover_helpers::generate_test_data(n);
+    plonk::Prover state = prover_helpers::generate_test_data(n);
     state.execute_preamble_round();
     state.queue.process_queue();
     state.execute_first_round();

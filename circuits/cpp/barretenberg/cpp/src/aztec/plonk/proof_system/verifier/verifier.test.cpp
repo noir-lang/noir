@@ -49,9 +49,9 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
 }
 
 using namespace barretenberg;
-using namespace waffle;
+using namespace plonk;
 
-waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_key)
+plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_key)
 {
     std::array<fr*, 8> poly_coefficients;
     poly_coefficients[0] = circuit_proving_key->polynomial_cache.get("q_1").get_coefficients();
@@ -75,7 +75,7 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
                                              state));
     }
 
-    auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db/ignition");
+    auto crs = std::make_shared<bonk::VerifierFileReferenceString>("../srs_db/ignition");
     std::shared_ptr<verification_key> circuit_verification_key =
         std::make_shared<verification_key>(circuit_proving_key->circuit_size,
                                            circuit_proving_key->num_public_inputs,
@@ -98,21 +98,21 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
         std::make_unique<KateCommitmentScheme<standard_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 
-    // std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
+    // std::unique_ptr<plonk::VerifierArithmeticWidget> widget = std::make_unique<plonk::VerifierArithmeticWidget>();
     // verifier.verifier_widgets.emplace_back(std::move(widget));
     return verifier;
 }
 
-waffle::Prover generate_test_data(const size_t n)
+plonk::Prover generate_test_data(const size_t n)
 {
-    // state.random_widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
+    // state.random_widgets.emplace_back(std::make_unique<plonk::ProverArithmeticWidget>(n));
 
     // create some constraints that satisfy our arithmetic circuit relation
 
     // even indices = mul gates, odd incides = add gates
 
-    auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db/ignition");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
+    auto crs = std::make_shared<bonk::FileReferenceString>(n + 1, "../srs_db/ignition");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, plonk::STANDARD);
 
     polynomial w_l(n);
     polynomial w_r(n);
@@ -192,9 +192,9 @@ waffle::Prover generate_test_data(const size_t n)
     polynomial sigma_2(key->circuit_size);
     polynomial sigma_3(key->circuit_size);
 
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping, key->small_domain);
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_2, sigma_2_mapping, key->small_domain);
-    waffle::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_1, sigma_1_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_2, sigma_2_mapping, key->small_domain);
+    plonk::compute_permutation_lagrange_base_single<standard_settings>(sigma_3, sigma_3_mapping, key->small_domain);
 
     polynomial sigma_1_lagrange_base(sigma_1, key->circuit_size);
     polynomial sigma_2_lagrange_base(sigma_2, key->circuit_size);
@@ -258,16 +258,16 @@ waffle::Prover generate_test_data(const size_t n)
     key->polynomial_cache.put("q_m_fft", std::move(q_m_fft));
     key->polynomial_cache.put("q_c_fft", std::move(q_c_fft));
 
-    std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get());
+    std::unique_ptr<plonk::ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<plonk::ProverPermutationWidget<3>>(key.get());
 
-    std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
-        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get());
+    std::unique_ptr<plonk::ProverArithmeticWidget<plonk::standard_settings>> widget =
+        std::make_unique<plonk::ProverArithmeticWidget<plonk::standard_settings>>(key.get());
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    waffle::Prover state = waffle::Prover(std::move(key), create_manifest());
+    plonk::Prover state = plonk::Prover(std::move(key), create_manifest());
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -279,12 +279,12 @@ TEST(verifier, verify_arithmetic_proof_small)
 {
     size_t n = 8;
 
-    waffle::Prover state = verifier_helpers::generate_test_data(n);
+    plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    waffle::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
 
     // construct proof
-    waffle::plonk_proof proof = state.construct_proof();
+    plonk::proof proof = state.construct_proof();
 
     // verify proof
     bool result = verifier.verify_proof(proof);
@@ -297,12 +297,12 @@ TEST(verifier, verify_arithmetic_proof)
 {
     size_t n = 1 << 14;
 
-    waffle::Prover state = verifier_helpers::generate_test_data(n);
+    plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    waffle::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
 
     // construct proof
-    waffle::plonk_proof proof = state.construct_proof();
+    plonk::proof proof = state.construct_proof();
 
     // verify proof
     bool result = verifier.verify_proof(proof);
@@ -315,12 +315,12 @@ TEST(verifier, verify_damaged_proof)
 {
     size_t n = 8;
 
-    waffle::Prover state = verifier_helpers::generate_test_data(n);
+    plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    waffle::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
 
     // Create empty proof
-    waffle::plonk_proof proof = {};
+    plonk::proof proof = {};
 
     // verify proof
     EXPECT_ANY_THROW(verifier.verify_proof(proof));

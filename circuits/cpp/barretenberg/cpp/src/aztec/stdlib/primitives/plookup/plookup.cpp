@@ -3,9 +3,9 @@
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
 #include <plonk/composer/plookup_tables/types.hpp>
 
-namespace waffle {
+namespace plonk {
 class UltraComposer;
-} // namespace waffle
+} // namespace plonk
 
 namespace plonk {
 namespace stdlib {
@@ -89,6 +89,6 @@ field_t<Composer> plookup_<Composer>::read_from_1_to_2_table(const MultiTableId 
     return lookup[ColumnIdx::C2][0];
 }
 
-template class plookup_<waffle::UltraComposer>;
+template class plookup_<plonk::UltraComposer>;
 } // namespace stdlib
 } // namespace plonk

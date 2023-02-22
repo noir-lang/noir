@@ -5,7 +5,7 @@
 #include <crypto/sha256/sha256.hpp>
 #include "../../proof_system/types/polynomial_manifest.hpp"
 
-namespace waffle {
+namespace bonk {
 
 struct verification_key_data {
     uint32_t composer_type;
@@ -91,4 +91,4 @@ template <typename B> inline void write(B& buf, verification_key const& key)
     write(buf, key.recursive_proof_public_input_indices);
 }
 
-} // namespace waffle
+} // namespace bonk

@@ -17,7 +17,7 @@
 #include "../widgets/random_widgets/plookup_widget.hpp"
 #include "./prover_settings.hpp"
 
-namespace waffle {
+namespace plonk {
 
 class standard_verifier_settings : public standard_settings {
   public:
@@ -422,4 +422,4 @@ class generalized_permutation_verifier_settings : public turbo_settings {
     }
 };
 
-} // namespace waffle
+} // namespace plonk

@@ -4,7 +4,7 @@
 
 #include "polynomial_cache.hpp"
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -130,4 +130,4 @@ TEST(polynomial_cache, no_store)
     EXPECT_EQ(got.size(), 1024);
 }
 
-} // namespace waffle
+} // namespace bonk

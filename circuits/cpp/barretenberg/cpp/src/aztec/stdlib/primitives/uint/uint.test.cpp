@@ -76,7 +76,7 @@ uint_native rotate(uint_native value, size_t rotation)
                     : value;
 }
 template <typename Composer> class stdlib_uint : public testing::Test {
-    typedef typename std::conditional<Composer::type == waffle::ComposerType::PLOOKUP,
+    typedef typename std::conditional<Composer::type == ComposerType::PLOOKUP,
                                       stdlib::uint_plookup<Composer, uint_native>,
                                       stdlib::uint<Composer, uint_native>>::type uint_ct;
     typedef stdlib::bool_t<Composer> bool_ct;
@@ -125,7 +125,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             EXPECT_EQ(expected, a.get_value());
             auto prover = composer.create_prover();
             auto verifier = composer.create_verifier();
-            waffle::plonk_proof proof = prover.construct_proof();
+            plonk::proof proof = prover.construct_proof();
             bool verified = verifier.verify_proof(proof);
             EXPECT_EQ(verified, true);
         };
@@ -240,7 +240,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -277,7 +277,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool verified = verifier.verify_proof(proof);
 
         EXPECT_EQ(verified, true);
@@ -317,7 +317,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool proof_valid = verifier.verify_proof(proof);
         EXPECT_EQ(proof_valid, true);
     }
@@ -369,7 +369,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -386,7 +386,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -426,7 +426,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -483,7 +483,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -526,7 +526,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -566,7 +566,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -606,7 +606,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -665,7 +665,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
             auto verifier = composer.create_verifier();
 
-            waffle::plonk_proof proof = prover.construct_proof();
+            plonk::proof proof = prover.construct_proof();
 
             bool result = verifier.verify_proof(proof);
             EXPECT_EQ(result, true);
@@ -726,7 +726,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -887,7 +887,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -926,7 +926,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -963,7 +963,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1004,7 +1004,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1065,7 +1065,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1121,7 +1121,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1155,7 +1155,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
             auto verifier = composer.create_verifier();
 
-            waffle::plonk_proof proof = prover.construct_proof();
+            plonk::proof proof = prover.construct_proof();
 
             bool proof_result = verifier.verify_proof(proof);
             EXPECT_EQ(proof_result, false);
@@ -1197,7 +1197,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
     }
@@ -1280,7 +1280,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
@@ -1319,7 +1319,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1359,7 +1359,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1403,7 +1403,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1438,7 +1438,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1482,7 +1482,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1528,7 +1528,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1573,7 +1573,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1619,7 +1619,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1665,7 +1665,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1711,7 +1711,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1744,7 +1744,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1777,7 +1777,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1810,7 +1810,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1847,7 +1847,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1884,7 +1884,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
@@ -1922,16 +1922,15 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         printf("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
 
-        waffle::plonk_proof proof = prover.construct_proof();
+        plonk::proof proof = prover.construct_proof();
 
         bool proof_result = verifier.verify_proof(proof);
         EXPECT_EQ(proof_result, true);
     }
 };
 
-typedef testing::
-    Types<waffle::UltraComposer, waffle::TurboComposer, waffle::StandardComposer, honk::StandardHonkComposer>
-        ComposerTypes;
+typedef testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>
+    ComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_uint, ComposerTypes);
 
@@ -2108,10 +2107,10 @@ TYPED_TEST(stdlib_uint, test_at)
 // There was one plookup-specific test in the ./plookup/uint_plookup.test.cpp
 TEST(stdlib_uint32, test_accumulators_plookup_uint32)
 {
-    using uint32_ct = plonk::stdlib::uint32<waffle::UltraComposer>;
-    using witness_ct = plonk::stdlib::witness_t<waffle::UltraComposer>;
+    using uint32_ct = plonk::stdlib::uint32<plonk::UltraComposer>;
+    using witness_ct = plonk::stdlib::witness_t<plonk::UltraComposer>;
 
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     uint32_t a_val = engine.get_random_uint32();
     uint32_t b_val = engine.get_random_uint32();

@@ -8,23 +8,23 @@ namespace plonk {
 namespace stdlib {
 namespace recursion {
 
-template <typename Curve> class recursive_ultra_verifier_settings : public waffle::unrolled_ultra_verifier_settings {
+template <typename Curve> class recursive_ultra_verifier_settings : public plonk::unrolled_ultra_verifier_settings {
   public:
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::g1::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
-    typedef waffle::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
-    typedef waffle::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
+    typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
+    typedef plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef waffle::unrolled_ultra_settings base_settings;
+    typedef plonk::unrolled_ultra_settings base_settings;
 
-    typedef waffle::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
-    typedef waffle::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
-    typedef waffle::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
-    typedef waffle::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
-    typedef waffle::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
-    typedef waffle::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
+    typedef plonk::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
+    typedef plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
+    typedef plonk::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
+    typedef plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
+    typedef plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
+    typedef plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PlookupPedersenBlake3s;
@@ -101,35 +101,35 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
     typedef typename Curve::g1::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
-    typedef waffle::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
-    typedef waffle::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
+    typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
+    typedef plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef waffle::unrolled_ultra_to_standard_settings base_settings;
+    typedef plonk::unrolled_ultra_to_standard_settings base_settings;
 
-    typedef waffle::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
-    typedef waffle::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
-    typedef waffle::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
-    typedef waffle::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
-    typedef waffle::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
-    typedef waffle::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
+    typedef plonk::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
+    typedef plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
+    typedef plonk::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
+    typedef plonk::VerifierGenPermSortWidget<fr_ct, g1, Transcript_pt, base_settings> GenPermSortWidget;
+    typedef plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings> EllipticWidget;
+    typedef plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupAuxiliaryWidget;
 
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
 };
 
-template <typename Curve> class recursive_turbo_verifier_settings : public waffle::unrolled_turbo_settings {
+template <typename Curve> class recursive_turbo_verifier_settings : public plonk::unrolled_turbo_settings {
   public:
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::g1::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef Transcript<Composer> Transcript_pt;
-    typedef waffle::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
+    typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
 
-    typedef waffle::unrolled_turbo_settings base_settings;
+    typedef plonk::unrolled_turbo_settings base_settings;
 
-    typedef waffle::VerifierTurboFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> TurboFixedBaseWidget;
-    typedef waffle::VerifierTurboArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> TurboArithmeticWidget;
-    typedef waffle::VerifierTurboRangeWidget<fr_ct, g1, Transcript_pt, base_settings> TurboRangeWidget;
-    typedef waffle::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
+    typedef plonk::VerifierTurboFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> TurboFixedBaseWidget;
+    typedef plonk::VerifierTurboArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> TurboArithmeticWidget;
+    typedef plonk::VerifierTurboRangeWidget<fr_ct, g1, Transcript_pt, base_settings> TurboRangeWidget;
+    typedef plonk::VerifierTurboLogicWidget<fr_ct, g1, Transcript_pt, base_settings> TurboLogicWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;

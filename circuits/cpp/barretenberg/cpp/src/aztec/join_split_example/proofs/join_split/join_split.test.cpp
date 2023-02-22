@@ -69,7 +69,7 @@ template <typename Composer> class join_split : public testing::Test {
 };
 
 using ComposerTypes =
-    testing::Types<waffle::UltraComposer, waffle::TurboComposer, waffle::StandardComposer, honk::StandardHonkComposer>;
+    testing::Types<plonk::UltraComposer, plonk::TurboComposer, plonk::StandardComposer, honk::StandardHonkComposer>;
 
 TYPED_TEST_SUITE(join_split, ComposerTypes);
 
@@ -139,9 +139,9 @@ class join_split_tests : public ::testing::Test {
     static constexpr size_t ACCOUNT_INDEX = 14;
     static void SetUpTestCase()
     {
-        auto null_crs_factory = std::make_shared<waffle::ReferenceStringFactory>();
+        auto null_crs_factory = std::make_shared<bonk::ReferenceStringFactory>();
         init_proving_key(null_crs_factory, false);
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+        auto crs_factory = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
         info("vk hash: ", get_verification_key()->sha256_hash());
     }
@@ -360,7 +360,7 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
-    waffle::plonk_proof sign_and_create_proof(join_split_tx& tx, key_pair const& signing_key)
+    plonk::proof sign_and_create_proof(join_split_tx& tx, key_pair const& signing_key)
     {
         tx.signature = sign_join_split_tx(tx, signing_key);
 
@@ -817,7 +817,7 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 
     // For the next power of two limit, we need to consider that we reserve four gates for adding
     // randomness/zero-knowledge
-    EXPECT_LE(number_of_gates_js, GATES_NEXT_POWER_OF_TWO - waffle::ComposerBase::NUM_RESERVED_GATES)
+    EXPECT_LE(number_of_gates_js, GATES_NEXT_POWER_OF_TWO - plonk::ComposerBase::NUM_RESERVED_GATES)
         << "You have exceeded the next power of two limit for the join_split circuit.";
 }
 

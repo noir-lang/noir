@@ -8,7 +8,7 @@
 
 namespace honk {
 
-class standard_verifier_settings : public waffle::standard_settings {
+class standard_verifier_settings : public plonk::standard_settings {
   public:
     typedef barretenberg::fr fr;
     typedef transcript::StandardTranscript Transcript;

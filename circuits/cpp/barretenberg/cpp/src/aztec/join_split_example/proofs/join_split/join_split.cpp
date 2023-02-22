@@ -10,10 +10,10 @@ namespace join_split {
 using namespace plonk;
 using namespace plonk::stdlib::merkle_tree;
 
-static std::shared_ptr<waffle::proving_key> proving_key;
-static std::shared_ptr<waffle::verification_key> verification_key;
+static std::shared_ptr<bonk::proving_key> proving_key;
+static std::shared_ptr<bonk::verification_key> verification_key;
 
-void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory, bool mock)
+void init_proving_key(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, bool mock)
 {
     if (proving_key) {
         return;
@@ -35,10 +35,10 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
     }
 }
 
-void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data)
+void init_proving_key(std::shared_ptr<bonk::ProverReferenceString> const& crs, bonk::proving_key_data&& pk_data)
 {
     release_key();
-    proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs);
+    proving_key = std::make_shared<bonk::proving_key>(std::move(pk_data), crs);
 }
 
 void release_key()
@@ -46,7 +46,7 @@ void release_key()
     proving_key.reset();
 }
 
-void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+void init_verification_key(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory)
 {
     if (!proving_key) {
         std::abort();
@@ -58,13 +58,13 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
         plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 }
 
-void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
-                           waffle::verification_key_data&& vk_data)
+void init_verification_key(std::shared_ptr<bonk::VerifierMemReferenceString> const& crs,
+                           bonk::verification_key_data&& vk_data)
 {
-    verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
+    verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
 }
 
-UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
+plonk::stdlib::types::UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -87,24 +87,24 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
     }
 }
 
-bool verify_proof(waffle::plonk_proof const& proof)
+bool verify_proof(plonk::proof const& proof)
 {
-    UnrolledVerifier verifier(verification_key,
-                              Composer::create_unrolled_manifest(verification_key->num_public_inputs));
+    plonk::stdlib::types::UnrolledVerifier verifier(
+        verification_key, Composer::create_unrolled_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>>();
+    std::unique_ptr<plonk::KateCommitmentScheme<plonk::unrolled_turbo_settings>> kate_commitment_scheme =
+        std::make_unique<plonk::KateCommitmentScheme<plonk::unrolled_turbo_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 
     return verifier.verify_proof(proof);
 }
 
-std::shared_ptr<waffle::proving_key> get_proving_key()
+std::shared_ptr<bonk::proving_key> get_proving_key()
 {
     return proving_key;
 }
 
-std::shared_ptr<waffle::verification_key> get_verification_key()
+std::shared_ptr<bonk::verification_key> get_verification_key()
 {
     return verification_key;
 }

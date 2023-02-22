@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include "../../polynomials/polynomial.hpp"
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -53,4 +53,4 @@ class PolynomialStoreWasm : public PolynomialStore {
     polynomial get(std::string const& key) const;
 };
 
-} // namespace waffle
+} // namespace bonk

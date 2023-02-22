@@ -10,7 +10,7 @@ namespace plonk {
 namespace stdlib {
 
 template <typename ComposerType> struct secp256k1 {
-    static constexpr waffle::CurveType type = waffle::CurveType::SECP256K1;
+    static constexpr bonk::CurveType type = bonk::CurveType::SECP256K1;
 
     typedef ::secp256k1::fq fq;
     typedef ::secp256k1::fr fr;

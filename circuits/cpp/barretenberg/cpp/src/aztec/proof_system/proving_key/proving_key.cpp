@@ -2,7 +2,7 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <common/throw_or_abort.hpp>
 #include <numeric/bitop/get_msb.hpp>
-namespace waffle {
+namespace bonk {
 
 // In all the constructors below, the pippenger_runtime_state takes (n + 1) as the input
 // as the degree of t_{high}(X) is (n + 1) for standard plonk. Refer to
@@ -24,7 +24,7 @@ namespace waffle {
 proving_key::proving_key(const size_t num_gates,
                          const size_t num_inputs,
                          std::shared_ptr<ProverReferenceString> const& crs,
-                         waffle::ComposerType type = waffle::STANDARD) // TODO(Cody): Don't use default for Honk
+                         plonk::ComposerType type = plonk::STANDARD) // TODO(Cody): Don't use default for Honk
     : composer_type(type)
     , circuit_size(num_gates)
     , log_circuit_size(numeric::get_msb(num_gates))
@@ -91,4 +91,4 @@ void proving_key::init()
     memset((void*)&quotient_polynomial_parts[3][0], 0x00, sizeof(barretenberg::fr) * circuit_size);
 }
 
-} // namespace waffle
+} // namespace bonk

@@ -8,11 +8,11 @@
 using namespace barretenberg;
 using namespace plonk;
 
-typedef waffle::TurboComposer Composer;
+typedef plonk::TurboComposer Composer;
 typedef stdlib::byte_array<Composer> byte_array;
-typedef stdlib::byte_array<waffle::UltraComposer> byte_array_plookup;
+typedef stdlib::byte_array<plonk::UltraComposer> byte_array_plookup;
 typedef stdlib::public_witness_t<Composer> public_witness_t;
-typedef stdlib::public_witness_t<waffle::UltraComposer> public_witness_t_plookup;
+typedef stdlib::public_witness_t<plonk::UltraComposer> public_witness_t_plookup;
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& t)
@@ -52,12 +52,12 @@ TEST(stdlib_blake3s, test_single_block)
 
 TEST(stdlib_blake3s, test_single_block_plookup)
 {
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
     byte_array_plookup input_arr(&composer, input_v);
-    byte_array_plookup output = stdlib::blake3s<waffle::UltraComposer>(input_arr);
+    byte_array_plookup output = stdlib::blake3s<plonk::UltraComposer>(input_arr);
 
     std::vector<uint8_t> expected = blake3::blake3s(input_v);
 
@@ -100,7 +100,7 @@ TEST(stdlib_blake3s, test_double_block)
 
 TEST(stdlib_blake3s, test_double_block_plookup)
 {
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 

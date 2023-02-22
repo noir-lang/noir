@@ -165,7 +165,7 @@ field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs, con
     return commit(inputs, hash_index).x;
 }
 
-template class pedersen_plookup<waffle::UltraComposer>;
+template class pedersen_plookup<plonk::UltraComposer>;
 
 } // namespace stdlib
 } // namespace plonk

@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace waffle {
+namespace plonk {
 namespace widget {
 
 /**
@@ -49,16 +49,18 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
     inline static bool gate_enabled(PolyContainer& polynomials, const size_t i = 0)
     {
         const Field& q_arith =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ARITHMETIC>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_ARITHMETIC>(polynomials,
+                                                                                                          i);
         return !q_arith.is_zero();
     }
 
-    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
+    inline static std::set<bonk::PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<PolynomialIndex> required_polynomial_ids = {
-            PolynomialIndex::Q_1, PolynomialIndex::Q_2, PolynomialIndex::Q_3, PolynomialIndex::Q_4,
-            PolynomialIndex::Q_5, PolynomialIndex::Q_M, PolynomialIndex::Q_C, PolynomialIndex::Q_ARITHMETIC,
-            PolynomialIndex::W_1, PolynomialIndex::W_2, PolynomialIndex::W_3, PolynomialIndex::W_4
+        static const std::set<bonk::PolynomialIndex> required_polynomial_ids = {
+            bonk::PolynomialIndex::Q_1, bonk::PolynomialIndex::Q_2,          bonk::PolynomialIndex::Q_3,
+            bonk::PolynomialIndex::Q_4, bonk::PolynomialIndex::Q_5,          bonk::PolynomialIndex::Q_M,
+            bonk::PolynomialIndex::Q_C, bonk::PolynomialIndex::Q_ARITHMETIC, bonk::PolynomialIndex::W_1,
+            bonk::PolynomialIndex::W_2, bonk::PolynomialIndex::W_3,          bonk::PolynomialIndex::W_4
         };
         return required_polynomial_ids;
     }
@@ -85,16 +87,17 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         constexpr barretenberg::fr minus_two(-2);
         const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
         const Field& w_1 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_3>(polynomials, i);
         const Field& w_4 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_4>(polynomials, i);
 
         const Field& q_arith =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ARITHMETIC>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_ARITHMETIC>(polynomials,
+                                                                                                          i);
 
         Field T0;
         Field T1;
@@ -144,11 +147,12 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         constexpr barretenberg::fr minus_seven(-7);
 
         const Field& w_3 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_3>(polynomials, i);
         const Field& w_4 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_4>(polynomials, i);
         const Field& q_arith =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_ARITHMETIC>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_ARITHMETIC>(polynomials,
+                                                                                                          i);
         const Field& alpha_base = challenges.alpha_powers[0];
 
         Field T1;
@@ -238,19 +242,19 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
     {
         const Field& alpha_base = challenges.alpha_powers[0];
         const Field& q_1 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_1>(polynomials, i);
         const Field& q_2 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_2>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_2>(polynomials, i);
         const Field& q_3 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_3>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_3>(polynomials, i);
         const Field& q_4 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_4>(polynomials, i);
         const Field& q_5 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_5>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_5>(polynomials, i);
         const Field& q_m =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_M>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_M>(polynomials, i);
         const Field& q_c =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_C>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_C>(polynomials, i);
 
         Field result = linear_terms[0] * q_m;
         result += (linear_terms[1] * q_1);
@@ -305,4 +309,4 @@ template <typename Field, typename Group, typename Transcript, typename Settings
 using VerifierTurboArithmeticWidget =
     widget::GenericVerifierWidget<Field, Transcript, Settings, widget::TurboArithmeticKernel>;
 
-} // namespace waffle
+} // namespace plonk

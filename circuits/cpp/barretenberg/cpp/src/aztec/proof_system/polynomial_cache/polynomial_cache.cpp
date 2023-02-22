@@ -2,7 +2,7 @@
 #include "polynomials/polynomial.hpp"
 #include <common/streams.hpp>
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -100,7 +100,7 @@ void PolynomialCache::flush(size_t target_bytes)
     info_togglable("flush: volume_bytes: ", get_volume());
 }
 
-size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type)
+size_t get_cache_capacity(size_t num_gates, plonk::ComposerType composer_type)
 {
     // Set capacity of polynomial store cache based on composer type: The idea
     // here is that we can limit the capacity of the polynomial store cache based
@@ -111,17 +111,17 @@ size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type)
     size_t MAX_NUM_SIMULTANEOUS_COSET_FFTS;
     // Set max number of coset FFTs needed at any one point in the prover algorithm
     switch (composer_type) {
-    case ComposerType::STANDARD: {
+    case plonk::ComposerType::STANDARD: {
         // Standard arithmetic widget requires 8 coset FFTs
         MAX_NUM_SIMULTANEOUS_COSET_FFTS = 8;
         break;
     };
-    case ComposerType::TURBO: {
+    case plonk::ComposerType::TURBO: {
         // Turbo arithmetic widget requires 12 coset FFTs
         MAX_NUM_SIMULTANEOUS_COSET_FFTS = 12;
         break;
     };
-    case ComposerType::PLOOKUP: {
+    case plonk::ComposerType::PLOOKUP: {
         // This number is TBD for UltraPlonk/Plookup
         MAX_NUM_SIMULTANEOUS_COSET_FFTS = 20; // TBD
         break;
@@ -144,4 +144,4 @@ size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type)
 
     return min_required_capacity;
 }
-} // namespace waffle
+} // namespace bonk

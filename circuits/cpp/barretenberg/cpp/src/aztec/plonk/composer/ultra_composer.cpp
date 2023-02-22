@@ -29,7 +29,7 @@
 
 using namespace barretenberg;
 
-namespace waffle {
+namespace plonk {
 
 #define ULTRA_SELECTOR_REFS                                                                                            \
     auto& q_m = selectors[UltraSelectors::QM];                                                                         \
@@ -2504,4 +2504,4 @@ void UltraComposer::process_ROM_arrays(const size_t gate_offset_from_public_inpu
         process_ROM_array(i, gate_offset_from_public_inputs);
     }
 }
-} // namespace waffle
+} // namespace plonk

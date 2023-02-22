@@ -6,7 +6,7 @@
 #include "../../proof_system/types/polynomial_manifest.hpp"
 #include <algorithm>
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -59,6 +59,6 @@ class PolynomialCache {
     void flush(size_t target_bytes);
 };
 
-size_t get_cache_capacity(size_t num_gates, waffle::ComposerType composer_type);
+size_t get_cache_capacity(size_t num_gates, plonk::ComposerType composer_type);
 
-} // namespace waffle
+} // namespace bonk

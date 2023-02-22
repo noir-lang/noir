@@ -4,7 +4,7 @@
 
 #include "polynomial_store.hpp"
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -38,4 +38,4 @@ TEST(polynomial_store, get_polynomial)
     EXPECT_EQ(store.get_stats()["id"].second, 1);
 }
 
-} // namespace waffle
+} // namespace bonk

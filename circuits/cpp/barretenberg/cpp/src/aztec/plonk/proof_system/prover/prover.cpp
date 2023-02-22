@@ -9,7 +9,7 @@
 
 using namespace barretenberg;
 
-namespace waffle {
+namespace plonk {
 
 /**
  * Create ProverBase from proving key, witness and manifest.
@@ -473,7 +473,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cerr << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
 #endif
-} // namespace waffle
+} // namespace plonk
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
@@ -613,13 +613,13 @@ template <typename settings> void ProverBase<settings>::compute_lagrange_1_fft()
     key->polynomial_cache.put("lagrange_1_fft", std::move(lagrange_1_fft));
 }
 
-template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_proof()
+template <typename settings> plonk::proof& ProverBase<settings>::export_proof()
 {
     proof.proof_data = transcript.export_transcript();
     return proof;
 }
 
-template <typename settings> waffle::plonk_proof& ProverBase<settings>::construct_proof()
+template <typename settings> plonk::proof& ProverBase<settings>::construct_proof()
 {
     // Execute init round. Randomize witness polynomials.
     execute_preamble_round();
@@ -683,4 +683,4 @@ template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
 template class ProverBase<ultra_settings>;
 
-} // namespace waffle
+} // namespace plonk

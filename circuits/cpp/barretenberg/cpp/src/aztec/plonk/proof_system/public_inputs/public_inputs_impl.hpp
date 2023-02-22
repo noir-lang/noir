@@ -1,6 +1,6 @@
 #pragma once
 
-namespace waffle {
+namespace plonk {
 
 /**
  * Public inputs!
@@ -137,4 +137,4 @@ Field compute_public_input_delta(const std::vector<Field>& public_inputs,
     T0 = numerator / denominator;
     return T0;
 }
-} // namespace waffle
+} // namespace plonk

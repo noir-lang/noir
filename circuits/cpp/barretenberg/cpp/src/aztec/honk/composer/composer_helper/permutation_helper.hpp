@@ -108,7 +108,7 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor
  * @param key
  */
 template <size_t program_width, typename CircuitConstructor>
-void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, waffle::proving_key* key)
+void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
 {
     // Compute wire copy cycles for public and private variables
     std::vector<CyclicPermutation> copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);

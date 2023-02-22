@@ -30,13 +30,13 @@ int main(int argc, char** argv)
     const std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
     const std::string lagrange_srs_path = (args.size() > 3) ? args[3] : "../srs_db/lagrange";
 
-    auto reference_string = std::make_shared<waffle::FileReferenceString>(subgroup_size, srs_path);
+    auto reference_string = std::make_shared<bonk::FileReferenceString>(subgroup_size, srs_path);
     std::vector<barretenberg::g1::affine_element> monomial_srs(subgroup_size);
     for (size_t i = 0; i < subgroup_size; ++i) {
         monomial_srs[i] = reference_string->get_monomial_points()[2 * i];
     }
 
-    auto verifier_ref_string = std::make_shared<waffle::VerifierFileReferenceString>(srs_path);
+    auto verifier_ref_string = std::make_shared<bonk::VerifierFileReferenceString>(srs_path);
 
     std::vector<barretenberg::g1::affine_element> lagrange_base_srs(subgroup_size);
     barretenberg::lagrange_base::transform_srs(&monomial_srs[0], &lagrange_base_srs[0], subgroup_size);

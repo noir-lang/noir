@@ -297,32 +297,31 @@ void verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     output_hi.assert_equal(sig.e_hi, "verify signature failed");
 }
 
-template wnaf_record<waffle::TurboComposer> convert_field_into_wnaf<waffle::TurboComposer>(
-    waffle::TurboComposer* context, const field_t<waffle::TurboComposer>& limb);
+template wnaf_record<plonk::TurboComposer> convert_field_into_wnaf<plonk::TurboComposer>(
+    plonk::TurboComposer* context, const field_t<plonk::TurboComposer>& limb);
 
-template wnaf_record<waffle::UltraComposer> convert_field_into_wnaf<waffle::UltraComposer>(
-    waffle::UltraComposer* context, const field_t<waffle::UltraComposer>& limb);
+template wnaf_record<plonk::UltraComposer> convert_field_into_wnaf<plonk::UltraComposer>(
+    plonk::UltraComposer* context, const field_t<plonk::UltraComposer>& limb);
 
-template point<waffle::TurboComposer> variable_base_mul(const point<waffle::TurboComposer>& pub_key,
-                                                        const field_t<waffle::TurboComposer>& low_bits,
-                                                        const field_t<waffle::TurboComposer>& high_bits);
+template point<plonk::TurboComposer> variable_base_mul(const point<plonk::TurboComposer>& pub_key,
+                                                       const field_t<plonk::TurboComposer>& low_bits,
+                                                       const field_t<plonk::TurboComposer>& high_bits);
 
-template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(
-    const point<waffle::TurboComposer>&,
-    const point<waffle::TurboComposer>&,
-    const wnaf_record<waffle::TurboComposer>&);
+template point<plonk::TurboComposer> variable_base_mul<plonk::TurboComposer>(const point<plonk::TurboComposer>&,
+                                                                             const point<plonk::TurboComposer>&,
+                                                                             const wnaf_record<plonk::TurboComposer>&);
 
-template void verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
-                                                      const point<waffle::TurboComposer>&,
-                                                      const signature_bits<waffle::TurboComposer>&);
-template void verify_signature<waffle::UltraComposer>(const byte_array<waffle::UltraComposer>&,
-                                                      const point<waffle::UltraComposer>&,
-                                                      const signature_bits<waffle::UltraComposer>&);
+template void verify_signature<plonk::TurboComposer>(const byte_array<plonk::TurboComposer>&,
+                                                     const point<plonk::TurboComposer>&,
+                                                     const signature_bits<plonk::TurboComposer>&);
+template void verify_signature<plonk::UltraComposer>(const byte_array<plonk::UltraComposer>&,
+                                                     const point<plonk::UltraComposer>&,
+                                                     const signature_bits<plonk::UltraComposer>&);
 
-template signature_bits<waffle::TurboComposer> convert_signature<waffle::TurboComposer>(
-    waffle::TurboComposer*, const crypto::schnorr::signature&);
-template signature_bits<waffle::UltraComposer> convert_signature<waffle::UltraComposer>(
-    waffle::UltraComposer*, const crypto::schnorr::signature&);
+template signature_bits<plonk::TurboComposer> convert_signature<plonk::TurboComposer>(
+    plonk::TurboComposer*, const crypto::schnorr::signature&);
+template signature_bits<plonk::UltraComposer> convert_signature<plonk::UltraComposer>(
+    plonk::UltraComposer*, const crypto::schnorr::signature&);
 } // namespace schnorr
 } // namespace stdlib
 } // namespace plonk

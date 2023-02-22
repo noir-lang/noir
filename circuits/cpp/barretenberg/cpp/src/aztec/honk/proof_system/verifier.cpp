@@ -29,7 +29,7 @@ using namespace honk::sumcheck;
 
 namespace honk {
 template <typename program_settings>
-Verifier<program_settings>::Verifier(std::shared_ptr<waffle::verification_key> verifier_key,
+Verifier<program_settings>::Verifier(std::shared_ptr<bonk::verification_key> verifier_key,
                                      const transcript::Manifest& input_manifest)
     : manifest(input_manifest)
     , key(verifier_key)
@@ -79,7 +79,7 @@ template <typename program_settings> Verifier<program_settings>& Verifier<progra
         [Q]_1,
         [W]_1
 */
-template <typename program_settings> bool Verifier<program_settings>::verify_proof(const waffle::plonk_proof& proof)
+template <typename program_settings> bool Verifier<program_settings>::verify_proof(const plonk::proof& proof)
 {
 
     const size_t num_polys = program_settings::num_polys;
@@ -175,13 +175,13 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
         Commitment commitment = Commitment::one(); // initialize to make gcc happy
 
         switch (entry.source) {
-        case waffle::WITNESS: {
+        case bonk::WITNESS: {
             commitment = transcript.get_group_element(commitment_label);
             break;
         }
-        case waffle::SELECTOR:
-        case waffle::PERMUTATION:
-        case waffle::OTHER: {
+        case bonk::SELECTOR:
+        case bonk::PERMUTATION:
+        case bonk::OTHER: {
             commitment = key->commitments[commitment_label];
             break;
         }

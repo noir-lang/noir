@@ -246,8 +246,8 @@ using namespace blake3_internal;
 
 template <typename Composer> byte_array<Composer> blake3s(const byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
-        return blake3s_plookup::blake3s<waffle::UltraComposer>(input);
+    if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        return blake3s_plookup::blake3s<plonk::UltraComposer>(input);
     }
 
     blake3_hasher<Composer> hasher = {};
@@ -259,9 +259,9 @@ template <typename Composer> byte_array<Composer> blake3s(const byte_array<Compo
     return result;
 }
 
-template byte_array<waffle::StandardComposer> blake3s(const byte_array<waffle::StandardComposer>& input);
-template byte_array<waffle::TurboComposer> blake3s(const byte_array<waffle::TurboComposer>& input);
-template byte_array<waffle::UltraComposer> blake3s(const byte_array<waffle::UltraComposer>& input);
+template byte_array<plonk::StandardComposer> blake3s(const byte_array<plonk::StandardComposer>& input);
+template byte_array<plonk::TurboComposer> blake3s(const byte_array<plonk::TurboComposer>& input);
+template byte_array<plonk::UltraComposer> blake3s(const byte_array<plonk::UltraComposer>& input);
 
 } // namespace stdlib
 } // namespace plonk

@@ -29,9 +29,9 @@ void generate_test_plonk_circuit(Composer& composer, size_t num_bytes)
 }
 
 Composer composers[NUM_HASHES];
-Prover provers[NUM_HASHES];
-Verifier verifiers[NUM_HASHES];
-waffle::plonk_proof proofs[NUM_HASHES];
+plonk::stdlib::types::Prover provers[NUM_HASHES];
+plonk::stdlib::types::Verifier verifiers[NUM_HASHES];
+plonk::proof proofs[NUM_HASHES];
 
 void construct_witnesses_bench(State& state) noexcept
 {

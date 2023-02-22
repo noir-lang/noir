@@ -4,7 +4,7 @@
 #include <polynomials/iterate_over_domain.hpp>
 #include <polynomials/polynomial.hpp>
 
-namespace waffle {
+namespace plonk {
 
 struct permutation_subgroup_element {
     uint32_t subgroup_index = 0;
@@ -107,4 +107,4 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     }
     ITERATE_OVER_DOMAIN_END;
 }
-} // namespace waffle
+} // namespace plonk

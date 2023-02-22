@@ -246,7 +246,7 @@ template <typename Composer> class Transcript {
         }
 
         field_pt T0;
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             T0 = stdlib::pedersen_plookup<Composer>::compress(compression_buffer);
         } else {
             T0 = stdlib::pedersen<Composer>::compress(compression_buffer);

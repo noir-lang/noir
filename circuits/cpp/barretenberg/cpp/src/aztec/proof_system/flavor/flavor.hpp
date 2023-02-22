@@ -108,7 +108,7 @@ struct StandardHonk {
         // Round 5 + num_sumcheck_rounds
         manifest_rounds.emplace_back(transcript::Manifest::RoundManifest(       
             {
-              { .name = "multivariate_evaluations",     .num_bytes = fr_size * waffle::STANDARD_HONK_TOTAL_NUM_POLYS, .derived_by_verifier = false, .challenge_map_index = 0 },
+              { .name = "multivariate_evaluations",     .num_bytes = fr_size * bonk::STANDARD_HONK_TOTAL_NUM_POLYS, .derived_by_verifier = false, .challenge_map_index = 0 },
             },
             /* challenge_name = */ "rho",
             /* num_challenges_in = */ 1)); /* TODO(Cody): magic number! Where should this be specified? */

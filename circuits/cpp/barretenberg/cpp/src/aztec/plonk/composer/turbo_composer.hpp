@@ -3,7 +3,7 @@
 
 using namespace bonk;
 
-namespace waffle {
+namespace plonk {
 class TurboComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::TURBO;
@@ -290,8 +290,8 @@ class CheckGetter {
     }
 };
 
-using TurboArithmeticChecker = waffle::widget::TurboArithmeticKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboRangeChecker = waffle::widget::TurboRangeKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboLogicChecker = waffle::widget::TurboLogicKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboFixedBaseChecker = waffle::widget::TurboFixedBaseKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-} // namespace waffle
+using TurboArithmeticChecker = plonk::widget::TurboArithmeticKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboRangeChecker = plonk::widget::TurboRangeKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboLogicChecker = plonk::widget::TurboLogicKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboFixedBaseChecker = plonk::widget::TurboFixedBaseKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+} // namespace plonk

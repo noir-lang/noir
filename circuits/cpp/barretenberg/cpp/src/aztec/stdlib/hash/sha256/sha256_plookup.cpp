@@ -24,7 +24,7 @@ constexpr size_t get_num_blocks(const size_t num_bits)
 }
 } // namespace internal
 
-void prepare_constants(std::array<field_t<waffle::UltraComposer>, 8>& input)
+void prepare_constants(std::array<field_t<plonk::UltraComposer>, 8>& input)
 {
     constexpr uint64_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                           0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
@@ -39,9 +39,9 @@ void prepare_constants(std::array<field_t<waffle::UltraComposer>, 8>& input)
     input[7] = init_constants[7];
 }
 
-sparse_witness_limbs convert_witness(const field_t<waffle::UltraComposer>& w)
+sparse_witness_limbs convert_witness(const field_t<plonk::UltraComposer>& w)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
     sparse_witness_limbs result(w);
 
@@ -64,12 +64,11 @@ sparse_witness_limbs convert_witness(const field_t<waffle::UltraComposer>& w)
     return result;
 }
 
-std::array<field_t<waffle::UltraComposer>, 64> extend_witness(
-    const std::array<field_t<waffle::UltraComposer>, 16>& w_in)
+std::array<field_t<plonk::UltraComposer>, 64> extend_witness(const std::array<field_t<plonk::UltraComposer>, 16>& w_in)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
-    waffle::UltraComposer* ctx = w_in[0].get_context();
+    plonk::UltraComposer* ctx = w_in[0].get_context();
 
     std::array<sparse_witness_limbs, 64> w_sparse;
     for (size_t i = 0; i < 16; ++i) {
@@ -138,7 +137,7 @@ std::array<field_t<waffle::UltraComposer>, 64> extend_witness(
             w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
 
         } else {
-            w_out = witness_t<waffle::UltraComposer>(
+            w_out = witness_t<plonk::UltraComposer>(
                 ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
         }
         w_sparse[i] = sparse_witness_limbs(w_out);
@@ -152,7 +151,7 @@ std::array<field_t<waffle::UltraComposer>, 64> extend_witness(
     return w_extended;
 }
 
-sparse_value map_into_choose_sparse_form(const field_t<waffle::UltraComposer>& e)
+sparse_value map_into_choose_sparse_form(const field_t<plonk::UltraComposer>& e)
 {
     sparse_value result;
     result.normal = e;
@@ -161,7 +160,7 @@ sparse_value map_into_choose_sparse_form(const field_t<waffle::UltraComposer>& e
     return result;
 }
 
-sparse_value map_into_maj_sparse_form(const field_t<waffle::UltraComposer>& e)
+sparse_value map_into_maj_sparse_form(const field_t<plonk::UltraComposer>& e)
 {
     sparse_value result;
     result.normal = e;
@@ -170,9 +169,9 @@ sparse_value map_into_maj_sparse_form(const field_t<waffle::UltraComposer>& e)
     return result;
 }
 
-field_t<waffle::UltraComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g)
+field_t<plonk::UltraComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
     const auto lookup = plookup_read::get_lookup_accumulators(SHA256_CH_INPUT, e.normal);
     const auto rotation_coefficients = sha256_tables::get_choose_rotation_multipliers();
@@ -195,9 +194,9 @@ field_t<waffle::UltraComposer> choose(sparse_value& e, const sparse_value& f, co
     return choose_result;
 }
 
-field_t<waffle::UltraComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c)
+field_t<plonk::UltraComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
     const auto lookup = plookup_read::get_lookup_accumulators(SHA256_MAJ_INPUT, a.normal);
     const auto rotation_coefficients = sha256_tables::get_majority_rotation_multipliers();
@@ -219,13 +218,13 @@ field_t<waffle::UltraComposer> majority(sparse_value& a, const sparse_value& b, 
     return majority_result;
 }
 
-field_t<waffle::UltraComposer> add_normalize(const field_t<waffle::UltraComposer>& a,
-                                             const field_t<waffle::UltraComposer>& b)
+field_t<plonk::UltraComposer> add_normalize(const field_t<plonk::UltraComposer>& a,
+                                            const field_t<plonk::UltraComposer>& b)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
-    typedef witness_t<waffle::UltraComposer> witness_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
+    typedef witness_t<plonk::UltraComposer> witness_pt;
 
-    waffle::UltraComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
+    plonk::UltraComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
 
     uint256_t sum = a.get_value() + b.get_value();
 
@@ -243,10 +242,10 @@ field_t<waffle::UltraComposer> add_normalize(const field_t<waffle::UltraComposer
     return result;
 }
 
-std::array<field_t<waffle::UltraComposer>, 8> sha256_block(const std::array<field_t<waffle::UltraComposer>, 8>& h_init,
-                                                           const std::array<field_t<waffle::UltraComposer>, 16>& input)
+std::array<field_t<plonk::UltraComposer>, 8> sha256_block(const std::array<field_t<plonk::UltraComposer>, 8>& h_init,
+                                                          const std::array<field_t<plonk::UltraComposer>, 16>& input)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
     constexpr uint64_t round_constants[64]{
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -320,11 +319,11 @@ std::array<field_t<waffle::UltraComposer>, 8> sha256_block(const std::array<fiel
     return output;
 }
 
-packed_byte_array<waffle::UltraComposer> sha256(const packed_byte_array<waffle::UltraComposer>& input)
+packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::UltraComposer>& input)
 {
-    typedef field_t<waffle::UltraComposer> field_pt;
+    typedef field_t<plonk::UltraComposer> field_pt;
 
-    waffle::UltraComposer* ctx = input.get_context();
+    plonk::UltraComposer* ctx = input.get_context();
 
     auto message_schedule(input);
 
@@ -357,7 +356,7 @@ packed_byte_array<waffle::UltraComposer> sha256(const packed_byte_array<waffle::
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
-    return packed_byte_array<waffle::UltraComposer>(output, 4);
+    return packed_byte_array<plonk::UltraComposer>(output, 4);
 }
 
 } // namespace sha256_plookup

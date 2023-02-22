@@ -10,7 +10,7 @@ namespace barretenberg::pairing {
 struct miller_lines;
 } // namespace barretenberg::pairing
 
-namespace waffle {
+namespace bonk {
 
 class VerifierReferenceString {
   public:
@@ -42,4 +42,4 @@ class ReferenceStringFactory {
     virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() { return nullptr; }
 };
 
-} // namespace waffle
+} // namespace bonk

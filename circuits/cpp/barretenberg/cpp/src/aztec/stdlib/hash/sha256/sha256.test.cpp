@@ -111,12 +111,12 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 TEST(stdlib_sha256, test_duplicate_proving_key)
 {
 
-    waffle::StandardComposer first_composer = waffle::StandardComposer();
+    plonk::StandardComposer first_composer = plonk::StandardComposer();
     stdlib::packed_byte_array input(&first_composer, "An 8 character password? Snow White and the 7 Dwarves..");
     plonk::stdlib::sha256(input);
     auto prover = first_composer.create_prover();
     auto verifier = first_composer.create_verifier();
-    waffle::plonk_proof proof_one = prover.construct_proof();
+    plonk::proof proof_one = prover.construct_proof();
     bool proof_result_one = verifier.verify_proof(proof_one);
     EXPECT_EQ(proof_result_one, true);
     auto proving_key = prover.key;
@@ -124,12 +124,12 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
     auto circuit_size = prover.circuit_size;
 
     // Test a second time with same keys and different input.
-    waffle::StandardComposer second_composer = waffle::StandardComposer(proving_key, verification_key, circuit_size);
+    plonk::StandardComposer second_composer = plonk::StandardComposer(proving_key, verification_key, circuit_size);
     stdlib::packed_byte_array input2(&second_composer, "An 8 character password? Snow White and the 9 Dwarves..");
     plonk::stdlib::sha256(input2);
     auto second_prover = second_composer.create_prover();
     auto second_verifier = second_composer.create_verifier();
-    waffle::plonk_proof proof_two = second_prover.construct_proof();
+    plonk::proof proof_two = second_prover.construct_proof();
     bool proof_result_two = second_verifier.verify_proof(proof_two);
     EXPECT_EQ(proof_result_two, true);
 }
@@ -137,19 +137,19 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
 // TEST(stdlib_sha256_plookup, test_round)
 // {
 
-//     waffle::UltraComposer composer = waffle::UltraComposer();
+//     plonk::UltraComposer composer = plonk::UltraComposer();
 
 //     std::array<uint64_t, 64> w_inputs;
-//     std::array<plonk::stdlib::field_t<waffle::UltraComposer>, 64> w_elements;
+//     std::array<plonk::stdlib::field_t<plonk::UltraComposer>, 64> w_elements;
 
 //     for (size_t i = 0; i < 64; ++i) {
 //         w_inputs[i] = engine.get_random_uint32();
-//         w_elements[i] = plonk::stdlib::witness_t<waffle::UltraComposer>(&composer, barretenberg::fr(w_inputs[i]));
+//         w_elements[i] = plonk::stdlib::witness_t<plonk::UltraComposer>(&composer, barretenberg::fr(w_inputs[i]));
 //     }
 
 //     const auto expected = inner_block(w_inputs);
 
-//     const std::array<plonk::stdlib::field_t<waffle::UltraComposer>, 8> result =
+//     const std::array<plonk::stdlib::field_t<plonk::UltraComposer>, 8> result =
 //         plonk::stdlib::sha256_inner_block(w_elements);
 //     for (size_t i = 0; i < 8; ++i) {
 //         EXPECT_EQ(uint256_t(result[i].get_value()).data[0] & 0xffffffffUL,
@@ -160,19 +160,19 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
 //     auto prover = composer.create_prover();
 
 //     auto verifier = composer.create_verifier();
-//     waffle::plonk_proof proof = prover.construct_proof();
+//     plonk::proof proof = prover.construct_proof();
 //     bool proof_result = verifier.verify_proof(proof);
 //     EXPECT_EQ(proof_result, true);
 // }
 
 TEST(stdlib_sha256, test_plookup_55_bytes)
 {
-    typedef plonk::stdlib::field_t<waffle::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<waffle::UltraComposer> packed_byte_array_pt;
+    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
     packed_byte_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
     packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
@@ -193,7 +193,7 @@ TEST(stdlib_sha256, test_plookup_55_bytes)
 
     auto verifier = composer.create_unrolled_verifier();
     printf("constructing proof \n");
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -220,11 +220,11 @@ TEST(stdlib_sha256, test_55_bytes)
     EXPECT_EQ(output[7].get_value(), fr(0x93791fc7ULL));
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
     printf("constructing proof \n");
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -232,10 +232,10 @@ TEST(stdlib_sha256, test_55_bytes)
 
 TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 {
-    typedef plonk::stdlib::field_t<waffle::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<waffle::UltraComposer> packed_byte_array_pt;
+    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     packed_byte_array_pt input(&composer, "abc");
     packed_byte_array_pt output_bytes = plonk::stdlib::sha256(input);
@@ -254,7 +254,7 @@ TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 
     auto verifier = composer.create_verifier();
     printf("constructing proof \n");
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
 
     bool proof_result = verifier.verify_proof(proof);
@@ -263,10 +263,10 @@ TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 
 TEST(stdlib_sha256, test_NIST_vector_one)
 {
-    typedef plonk::stdlib::field_t<waffle::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<waffle::UltraComposer> packed_byte_array_pt;
+    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     packed_byte_array_pt input(&composer, "abc");
 
@@ -288,7 +288,7 @@ TEST(stdlib_sha256, test_NIST_vector_one)
 
     auto verifier = composer.create_verifier();
     printf("constructing proof \n");
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
 
     bool proof_result = verifier.verify_proof(proof);
@@ -315,11 +315,11 @@ TEST(stdlib_sha256, test_NIST_vector_two)
     EXPECT_EQ(output[7].get_value(), 0x19DB06C1ULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
     printf("constructing proof \n");
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
 
     bool proof_result = verifier.verify_proof(proof);
@@ -347,11 +347,11 @@ TEST(stdlib_sha256, test_NIST_vector_three)
     EXPECT_EQ(output[7].get_value(), 0x8ffe732bULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -377,12 +377,12 @@ TEST(stdlib_sha256, test_NIST_vector_four)
     EXPECT_EQ(output[6].get_value(), 0xbd56c61cULL);
     EXPECT_EQ(output[7].get_value(), 0xcccd9504ULL);
 
-    Prover prover = composer.create_prover();
+    plonk::stdlib::types::Prover prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -390,10 +390,10 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 
 HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
-    typedef plonk::stdlib::field_t<waffle::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<waffle::UltraComposer> packed_byte_array_pt;
+    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    waffle::UltraComposer composer = waffle::UltraComposer();
+    plonk::UltraComposer composer = plonk::UltraComposer();
 
     packed_byte_array_pt input(
         &composer,
@@ -408,7 +408,7 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAA");
 
-    packed_byte_array_pt output_bits = plonk::stdlib::sha256<waffle::UltraComposer>(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256<plonk::UltraComposer>(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -426,7 +426,7 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
     printf("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

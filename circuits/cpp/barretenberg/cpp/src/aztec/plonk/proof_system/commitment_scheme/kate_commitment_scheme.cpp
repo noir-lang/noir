@@ -2,7 +2,7 @@
 #include "kate_commitment_scheme.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 
-namespace waffle {
+namespace plonk {
 
 // Constructors for KateCommitmentScheme
 template <typename settings>
@@ -133,7 +133,7 @@ void KateCommitmentScheme<settings>::generic_batch_open(const fr* src,
 template <typename settings>
 void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTranscript& transcript,
                                                 work_queue& queue,
-                                                std::shared_ptr<proving_key> input_key)
+                                                std::shared_ptr<bonk::proving_key> input_key)
 {
     /*
     Compute batch opening polynomials according to the Kate commitment scheme.
@@ -243,7 +243,7 @@ template <typename settings>
 void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTranscript& transcript,
                                                   std::map<std::string, g1::affine_element>& kate_g1_elements,
                                                   std::map<std::string, fr>& kate_fr_elements,
-                                                  std::shared_ptr<verification_key> input_key,
+                                                  std::shared_ptr<bonk::verification_key> input_key,
                                                   const barretenberg::fr& r_0)
 {
     // Compute batch evaluation commitment [F]_1
@@ -374,7 +374,7 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
 
 template <typename settings>
 void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(transcript::StandardTranscript& transcript,
-                                                                           std::shared_ptr<proving_key> input_key,
+                                                                           std::shared_ptr<bonk::proving_key> input_key,
                                                                            bool in_lagrange_form)
 {
     // In this function, we compute the evaluations of the polynomials which would be a part of the
@@ -429,4 +429,4 @@ template class KateCommitmentScheme<unrolled_ultra_to_standard_settings>;
 template class KateCommitmentScheme<standard_settings>;
 template class KateCommitmentScheme<turbo_settings>;
 template class KateCommitmentScheme<ultra_settings>;
-} // namespace waffle
+} // namespace plonk

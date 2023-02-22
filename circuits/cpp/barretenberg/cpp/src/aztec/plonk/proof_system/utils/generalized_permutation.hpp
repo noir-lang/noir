@@ -3,7 +3,7 @@
 #include <polynomials/iterate_over_domain.hpp>
 #include <polynomials/polynomial.hpp>
 
-namespace waffle {
+namespace plonk {
 template <typename program_settings>
 inline void compute_gen_permutation_lagrange_base_single(barretenberg::polynomial& output,
                                                          const std::vector<uint32_t>& permutation,
@@ -63,4 +63,4 @@ inline void compute_gen_permutation_lagrange_base_single(barretenberg::polynomia
     }
     ITERATE_OVER_DOMAIN_END;
 }
-} // namespace waffle
+} // namespace plonk

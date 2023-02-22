@@ -10,11 +10,11 @@
 #define BENCHMARK_INFO_SUFFIX "##BENCHMARK_INFO_SUFFIX##"
 
 #define GET_COMPOSER_NAME_STRING(composer)                                                                             \
-    (typeid(composer) == typeid(waffle::StandardComposer)                                                              \
+    (typeid(composer) == typeid(plonk::StandardComposer)                                                               \
          ? "StandardPlonk"                                                                                             \
-         : typeid(composer) == typeid(waffle::TurboComposer)                                                           \
+         : typeid(composer) == typeid(plonk::TurboComposer)                                                            \
                ? "TurboPlonk"                                                                                          \
-               : typeid(composer) == typeid(waffle::UltraComposer)                                                     \
+               : typeid(composer) == typeid(plonk::UltraComposer)                                                      \
                      ? "UltraPlonk"                                                                                    \
                      : typeid(composer) == typeid(honk::StandardHonkComposer) ? "StandardHonk" : "NULLPlonk")
 

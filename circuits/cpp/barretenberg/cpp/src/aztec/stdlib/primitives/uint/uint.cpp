@@ -16,7 +16,7 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
                                                                      const size_t num_bits,
                                                                      std::string const& msg) const
 {
-    if constexpr (Composer::type == waffle::PLOOKUP) {
+    if constexpr (Composer::type == plonk::PLOOKUP) {
         // TODO: manage higher bit ranges
         const auto sequence =
             plookup_read::get_lookup_accumulators(plookup::MultiTableId::UINT32_XOR,
@@ -317,7 +317,7 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
     uint256_t quad =
         uint256_t(context->get_variable(right_idx)) - uint256_t(context->get_variable(left_idx)) * uint256_t(4);
 
-    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+    if constexpr (Composer::type == ComposerType::PLOOKUP) {
         uint256_t lo_bit = quad & 1;
         uint256_t hi_bit = (quad & 2) >> 1;
         // difference in quads = 0, 1, 2, 3 = delta

@@ -10,7 +10,7 @@
 using namespace barretenberg;
 using namespace bonk;
 
-namespace waffle {
+namespace plonk {
 #define STANDARD_SELECTOR_REFS                                                                                         \
     auto& q_m = selectors[StandardSelectors::QM];                                                                      \
     auto& q_c = selectors[StandardSelectors::QC];                                                                      \
@@ -896,4 +896,4 @@ bool StandardComposer::check_circuit()
     }
     return true;
 }
-} // namespace waffle
+} // namespace plonk

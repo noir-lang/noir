@@ -2,7 +2,7 @@
 
 #include <map>
 
-namespace waffle {
+namespace plonk {
 
 template <typename Field, typename Transcript, typename program_settings>
 Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcript& transcript)
@@ -155,4 +155,4 @@ inline void print_turbo_verification_key(verification_key* key)
     print_fr("permutation_non_residues[1]", 6);
     print_fr("permutation_non_residues[2]", 7);
 }
-} // namespace waffle
+} // namespace plonk

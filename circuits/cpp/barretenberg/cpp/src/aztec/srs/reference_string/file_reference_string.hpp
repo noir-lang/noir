@@ -15,7 +15,7 @@ namespace barretenberg::pairing {
 struct miller_lines;
 } // namespace barretenberg::pairing
 
-namespace waffle {
+namespace bonk {
 
 using namespace barretenberg;
 
@@ -105,4 +105,4 @@ class DynamicFileReferenceStringFactory : public ReferenceStringFactory {
     std::shared_ptr<VerifierFileReferenceString> verifier_crs_;
 };
 
-} // namespace waffle
+} // namespace bonk

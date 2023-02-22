@@ -3,7 +3,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 
-namespace waffle {
+namespace bonk {
 
 work_queue::work_queue(proving_key* prover_key, transcript::StandardTranscript* prover_transcript)
     : key(prover_key)
@@ -325,4 +325,4 @@ std::vector<work_queue::work_item> work_queue::get_queue() const
     return work_item_queue;
 }
 
-} // namespace waffle
+} // namespace bonk

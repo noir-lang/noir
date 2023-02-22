@@ -10,17 +10,17 @@ using namespace crypto::pedersen;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-
+namespace plonk {
 TEST(turbo_composer, base_case)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboProver prover = composer.create_prover();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -28,14 +28,14 @@ TEST(turbo_composer, base_case)
 
 TEST(turbo_composer, base_case_unrolled)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
-    waffle::UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
+    UnrolledTurboProver prover = composer.create_unrolled_prover();
+    UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -43,27 +43,27 @@ TEST(turbo_composer, base_case_unrolled)
 
 TEST(turbo_composer, composer_from_serialized_keys)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
     auto pk_buf = to_buffer(*composer.compute_proving_key());
     auto vk_buf = to_buffer(*composer.compute_verification_key());
-    auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
-    auto vk_data = from_buffer<waffle::verification_key_data>(vk_buf);
+    auto pk_data = from_buffer<bonk::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<bonk::verification_key_data>(vk_buf);
 
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+    auto crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
     auto proving_key =
-        std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
-    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+        std::make_shared<bonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
+    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
-    waffle::TurboComposer composer2 = waffle::TurboComposer(proving_key, verification_key);
+    TurboComposer composer2 = TurboComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
-    waffle::TurboProver prover = composer2.create_prover();
-    waffle::TurboVerifier verifier = composer2.create_verifier();
+    TurboProver prover = composer2.create_prover();
+    TurboVerifier verifier = composer2.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -71,7 +71,7 @@ TEST(turbo_composer, composer_from_serialized_keys)
 
 TEST(turbo_composer, test_add_gate_proofs)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -122,11 +122,11 @@ TEST(turbo_composer, test_add_gate_proofs)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, a_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -134,7 +134,7 @@ TEST(turbo_composer, test_add_gate_proofs)
 
 TEST(turbo_composer, test_mul_gate_proofs)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -208,11 +208,11 @@ TEST(turbo_composer, test_mul_gate_proofs)
 
     uint32_t e_idx = composer.add_variable(a - fr::one());
     composer.create_add_gate({ e_idx, b_idx, c_idx, q[0], q[1], q[2], (q[3] + q[0]) });
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -288,7 +288,7 @@ TEST(turbo_composer, small_scalar_multipliers)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -334,11 +334,11 @@ TEST(turbo_composer, small_scalar_multipliers)
     uint64_t expected_accumulator = scalar_multiplier.data[0];
     EXPECT_EQ(result_accumulator, expected_accumulator);
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -418,7 +418,7 @@ TEST(turbo_composer, large_scalar_multipliers)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -466,11 +466,11 @@ TEST(turbo_composer, large_scalar_multipliers)
             .to_montgomery_form();
     EXPECT_EQ((result_accumulator == expected_accumulator), true);
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -482,7 +482,7 @@ TEST(turbo_composer, large_scalar_multipliers)
 
 TEST(turbo_composer, range_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -513,11 +513,11 @@ TEST(turbo_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -526,18 +526,18 @@ TEST(turbo_composer, range_constraint)
 
 TEST(turbo_composer, range_constraint_fail)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
     composer.decompose_into_base4_accumulators(witness_index, 23, "yay, range constraint fails");
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -550,7 +550,7 @@ TEST(turbo_composer, range_constraint_fail)
  */
 TEST(turbo_composer, and_constraint_failure)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     uint32_t left_value = 4;
     fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
@@ -563,11 +563,11 @@ TEST(turbo_composer, and_constraint_failure)
     // 4 && 5 is 4, so 3 bits are needed, but we only constrain 2
     accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -580,7 +580,7 @@ TEST(turbo_composer, and_constraint_failure)
 
 TEST(turbo_composer, and_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -638,11 +638,11 @@ TEST(turbo_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -655,7 +655,7 @@ TEST(turbo_composer, and_constraint)
  */
 TEST(turbo_composer, xor_constraint_failure)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     uint32_t left_value = 4;
     fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
@@ -668,11 +668,11 @@ TEST(turbo_composer, xor_constraint_failure)
     // 4 && 1 is 5, so 3 bits are needed, but we only constrain 2
     accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -685,7 +685,7 @@ TEST(turbo_composer, xor_constraint_failure)
 
 TEST(turbo_composer, xor_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -742,11 +742,11 @@ TEST(turbo_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -755,7 +755,7 @@ TEST(turbo_composer, xor_constraint)
 
 TEST(turbo_composer, big_add_gate_with_bit_extract)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -786,11 +786,11 @@ TEST(turbo_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    waffle::TurboProver prover = composer.create_prover();
+    TurboProver prover = composer.create_prover();
 
-    waffle::TurboVerifier verifier = composer.create_verifier();
+    TurboVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -805,7 +805,7 @@ TEST(turbo_composer, validate_copy_constraints)
                 if (m == 0 && (j > 0 || k > 0)) {
                     continue;
                 }
-                waffle::TurboComposer composer = waffle::TurboComposer();
+                TurboComposer composer = TurboComposer();
 
                 barretenberg::fr variables[4]{
                     barretenberg::fr::random_element(),
@@ -847,16 +847,16 @@ TEST(turbo_composer, validate_copy_constraints)
                     });
                 }
 
-                waffle::TurboProver prover = composer.create_prover();
+                TurboProver prover = composer.create_prover();
 
                 if (m > 0) {
                     ((barretenberg::polynomial&)prover.key->polynomial_cache.get(
                         "w_" + std::to_string(k + 1) + "_lagrange"))[j] = barretenberg::fr::random_element();
                 }
 
-                waffle::TurboVerifier verifier = composer.create_verifier();
+                TurboVerifier verifier = composer.create_verifier();
 
-                waffle::plonk_proof proof = prover.construct_proof();
+                proof proof = prover.construct_proof();
 
                 bool result = verifier.verify_proof(proof);
 
@@ -869,7 +869,7 @@ TEST(turbo_composer, validate_copy_constraints)
 
 TEST(turbo_composer, test_check_circuit_add_gate_proofs_correct)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -894,7 +894,7 @@ TEST(turbo_composer, test_check_circuit_add_gate_proofs_correct)
 
 TEST(turbo_composer, test_check_circuit_add_gate_proofs_broken)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr a = fr::one();
     fr b = fr::one();
     fr c = a + b;
@@ -918,7 +918,7 @@ TEST(turbo_composer, test_check_circuit_add_gate_proofs_broken)
 }
 TEST(turbo_composer, test_check_circuit_mul_gate_proofs_correct)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -953,7 +953,7 @@ TEST(turbo_composer, test_check_circuit_mul_gate_proofs_correct)
 
 TEST(turbo_composer, test_check_circuit_mul_gate_proofs_broken)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -1055,7 +1055,7 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
                                      origin_points[0].y,
                                      (origin_points[0].y - origin_points[1].y) };
 
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
@@ -1113,7 +1113,7 @@ TEST(turbo_composer, test_check_circuit_fixed_group)
 
 TEST(turbo_composer, test_check_circuit_range_constraint)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -1139,7 +1139,7 @@ TEST(turbo_composer, test_check_circuit_range_constraint)
 
 TEST(turbo_composer, test_check_circuit_xor)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    TurboComposer composer = TurboComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -1167,3 +1167,4 @@ TEST(turbo_composer, test_check_circuit_xor)
 
     EXPECT_EQ(result, true);
 }
+} // namespace plonk

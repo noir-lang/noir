@@ -50,9 +50,9 @@ template <typename ComposerContext> class pedersen {
     static point commit(const std::vector<field_t>& inputs, const size_t hash_index = 0);
 };
 
-extern template class pedersen<waffle::StandardComposer>;
-extern template class pedersen<waffle::TurboComposer>;
-extern template class pedersen<waffle::UltraComposer>;
+extern template class pedersen<plonk::StandardComposer>;
+extern template class pedersen<plonk::TurboComposer>;
+extern template class pedersen<plonk::UltraComposer>;
 
 } // namespace stdlib
 } // namespace plonk

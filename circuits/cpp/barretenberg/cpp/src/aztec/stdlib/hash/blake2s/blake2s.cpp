@@ -119,8 +119,8 @@ template <typename Composer> void blake2s(blake2s_state<Composer>& S, byte_array
 
 template <typename Composer> byte_array<Composer> blake2s(const byte_array<Composer>& input)
 {
-    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
-        return blake2s_plookup::blake2s<waffle::UltraComposer>(input);
+    if constexpr (Composer::type == ComposerType::PLOOKUP) {
+        return blake2s_plookup::blake2s<plonk::UltraComposer>(input);
     }
 
     blake2s_state<Composer> S;
@@ -139,9 +139,9 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
     return result;
 }
 
-template byte_array<waffle::StandardComposer> blake2s(const byte_array<waffle::StandardComposer>& input);
-template byte_array<waffle::TurboComposer> blake2s(const byte_array<waffle::TurboComposer>& input);
-template byte_array<waffle::UltraComposer> blake2s(const byte_array<waffle::UltraComposer>& input);
+template byte_array<plonk::StandardComposer> blake2s(const byte_array<plonk::StandardComposer>& input);
+template byte_array<plonk::TurboComposer> blake2s(const byte_array<plonk::TurboComposer>& input);
+template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk::UltraComposer>& input);
 
 } // namespace stdlib
 } // namespace plonk

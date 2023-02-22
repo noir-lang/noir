@@ -2,7 +2,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <transcript/transcript.hpp>
 
-namespace waffle {
+namespace plonk {
 template <typename Field> struct plonk_linear_terms {
     Field z_1;
     Field sigma_last;
@@ -61,4 +61,4 @@ inline plonk_linear_terms<Field> compute_linear_terms(const Transcript& transcri
 
     return result;
 }
-} // namespace waffle
+} // namespace plonk

@@ -84,7 +84,7 @@ template <class FF_, size_t num_polys> class Multivariates {
         }
     };
 
-    explicit Multivariates(const std::shared_ptr<waffle::proving_key>& proving_key)
+    explicit Multivariates(const std::shared_ptr<bonk::proving_key>& proving_key)
         : multivariate_n(proving_key->circuit_size)
         , multivariate_d(proving_key->log_circuit_size)
     {

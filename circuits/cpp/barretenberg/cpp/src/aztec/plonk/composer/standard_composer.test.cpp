@@ -10,17 +10,17 @@ using namespace bonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-
+namespace plonk {
 TEST(standard_composer, base_case)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    waffle::Prover prover = composer.create_prover();
-    waffle::Verifier verifier = composer.create_verifier();
+    Prover prover = composer.create_prover();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -28,14 +28,14 @@ TEST(standard_composer, base_case)
 
 TEST(standard_composer, base_case_unrolled)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    waffle::UnrolledProver prover = composer.create_unrolled_prover();
-    waffle::UnrolledVerifier verifier = composer.create_unrolled_verifier();
+    UnrolledProver prover = composer.create_unrolled_prover();
+    UnrolledVerifier verifier = composer.create_unrolled_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -43,27 +43,27 @@ TEST(standard_composer, base_case_unrolled)
 
 TEST(standard_composer, composer_from_serialized_keys)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
 
     auto pk_buf = to_buffer(*composer.compute_proving_key());
     auto vk_buf = to_buffer(*composer.compute_verification_key());
-    auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
-    auto vk_data = from_buffer<waffle::verification_key_data>(vk_buf);
+    auto pk_data = from_buffer<bonk::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<bonk::verification_key_data>(vk_buf);
 
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+    auto crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
     auto proving_key =
-        std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
-    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+        std::make_shared<bonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
+    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
-    waffle::StandardComposer composer2 = waffle::StandardComposer(proving_key, verification_key);
+    StandardComposer composer2 = StandardComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
-    waffle::Prover prover = composer2.create_prover();
-    waffle::Verifier verifier = composer2.create_verifier();
+    Prover prover = composer2.create_prover();
+    Verifier verifier = composer2.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -71,7 +71,7 @@ TEST(standard_composer, composer_from_serialized_keys)
 
 TEST(standard_composer, test_add_gate_proofs)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -118,11 +118,11 @@ TEST(standard_composer, test_add_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
@@ -130,7 +130,7 @@ TEST(standard_composer, test_add_gate_proofs)
 
 TEST(standard_composer, test_mul_gate_proofs)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -197,11 +197,11 @@ TEST(standard_composer, test_mul_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, q[0], q[1], q[2], q[3] });
     composer.create_mul_gate({ a_idx, b_idx, d_idx, q[4], q[5], q[6] });
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -209,7 +209,7 @@ TEST(standard_composer, test_mul_gate_proofs)
 
 TEST(standard_composer, range_constraint)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     for (size_t i = 0; i < 10; ++i) {
         uint32_t value = engine.get_random_uint32();
@@ -239,11 +239,11 @@ TEST(standard_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -252,18 +252,18 @@ TEST(standard_composer, range_constraint)
 
 TEST(standard_composer, range_constraint_fail)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
     composer.decompose_into_base4_accumulators(witness_index, 23);
 
-    waffle::Prover prover = composer.create_prover();
+    Prover prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -272,7 +272,7 @@ TEST(standard_composer, range_constraint_fail)
 
 TEST(standard_composer, and_constraint)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -330,11 +330,11 @@ TEST(standard_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -343,7 +343,7 @@ TEST(standard_composer, and_constraint)
 
 TEST(standard_composer, xor_constraint)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -400,11 +400,11 @@ TEST(standard_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -413,7 +413,7 @@ TEST(standard_composer, xor_constraint)
 
 TEST(standard_composer, big_add_gate_with_bit_extract)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -444,11 +444,11 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -457,7 +457,7 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
 
 TEST(standard_composer, test_unrolled_composer)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -488,11 +488,11 @@ TEST(standard_composer, test_unrolled_composer)
     generate_constraints(2);
     generate_constraints(3);
 
-    waffle::UnrolledProver prover = composer.create_unrolled_prover();
+    UnrolledProver prover = composer.create_unrolled_prover();
 
-    waffle::UnrolledVerifier verifier = composer.create_unrolled_verifier();
+    UnrolledVerifier verifier = composer.create_unrolled_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -501,15 +501,15 @@ TEST(standard_composer, test_unrolled_composer)
 
 TEST(standard_composer, test_range_constraint_fail)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
     composer.decompose_into_base4_accumulators(witness_index, 32);
 
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -518,7 +518,7 @@ TEST(standard_composer, test_range_constraint_fail)
 
 TEST(standard_composer, test_check_circuit_correct)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -538,7 +538,7 @@ TEST(standard_composer, test_check_circuit_correct)
 
 TEST(standard_composer, test_check_circuit_broken)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -558,7 +558,7 @@ TEST(standard_composer, test_check_circuit_broken)
 
 TEST(standard_composer, test_fixed_group_add_gate_with_init)
 {
-    waffle::StandardComposer composer = waffle::StandardComposer();
+    StandardComposer composer = StandardComposer();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
 
     // 1. generate two origin points P, Q
@@ -601,11 +601,11 @@ TEST(standard_composer, test_fixed_group_add_gate_with_init)
         };
         composer.create_fixed_group_add_gate_with_init(round_quad, init_quad);
     }
-    waffle::Prover prover = composer.preprocess();
+    Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -614,7 +614,7 @@ TEST(standard_composer, test_fixed_group_add_gate_with_init)
 
 TEST(standard_composer, test_fixed_group_add_gate)
 {
-    auto composer = waffle::StandardComposer();
+    auto composer = StandardComposer();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
 
     constexpr size_t num_bits = 63;
@@ -724,13 +724,14 @@ TEST(standard_composer, test_fixed_group_add_gate)
                        fr::zero(),
                        fr::zero() };
     composer.create_fixed_group_add_gate_final(add_quad);
-    waffle::Prover prover = composer.create_prover();
+    Prover prover = composer.create_prover();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    Verifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+    proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
+} // namespace plonk

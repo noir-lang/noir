@@ -56,7 +56,7 @@ template <typename Composer> struct evaluation_domain {
 
     field_t<Composer> compress() const
     {
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             field_t<Composer> out = pedersen_plookup<Composer>::compress({
                 root,
                 domain,
@@ -76,7 +76,7 @@ template <typename Composer> struct evaluation_domain {
     static barretenberg::fr compress_native(const barretenberg::evaluation_domain& input)
     {
         barretenberg::fr out;
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             out = crypto::pedersen::lookup::compress_native({
                 input.root,
                 input.domain,
@@ -109,7 +109,7 @@ template <typename Composer> struct evaluation_domain {
 template <typename Curve> struct verification_key {
     using Composer = typename Curve::Composer;
     static std::shared_ptr<verification_key> from_witness(Composer* ctx,
-                                                          const std::shared_ptr<waffle::verification_key>& input_key)
+                                                          const std::shared_ptr<bonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         // Native data:
@@ -131,7 +131,7 @@ template <typename Curve> struct verification_key {
     }
 
     static std::shared_ptr<verification_key> from_constants(Composer* ctx,
-                                                            const std::shared_ptr<waffle::verification_key>& input_key)
+                                                            const std::shared_ptr<bonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
@@ -152,12 +152,12 @@ template <typename Curve> struct verification_key {
         return key;
     }
 
-    void validate_key_is_in_set(const std::vector<std::shared_ptr<waffle::verification_key>>& keys_in_set)
+    void validate_key_is_in_set(const std::vector<std::shared_ptr<bonk::verification_key>>& keys_in_set)
     {
         const auto circuit_key_compressed = compress();
         bool found = false;
         // if we're using Plookup, use a ROM table to index the keys
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             field_t<Composer> key_index(witness_t<Composer>(context, 0));
             std::vector<field_t<Composer>> compressed_keys;
             for (size_t i = 0; i < keys_in_set.size(); ++i) {
@@ -207,7 +207,7 @@ template <typename Curve> struct verification_key {
         }
 
         field_t<Composer> compressed_key;
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             compressed_key = pedersen_plookup<Composer>::compress(key_witnesses);
         } else {
             compressed_key = pedersen<Composer>::compress(key_witnesses);
@@ -215,11 +215,11 @@ template <typename Curve> struct verification_key {
         return compressed_key;
     }
 
-    barretenberg::fr compress_native(const std::shared_ptr<waffle::verification_key>& key)
+    barretenberg::fr compress_native(const std::shared_ptr<bonk::verification_key>& key)
     {
         barretenberg::fr compressed_domain = evaluation_domain<Composer>::compress_native(key->domain);
 
-        constexpr size_t num_limb_bits = bn254<waffle::UltraComposer>::fq_ct::NUM_LIMB_BITS;
+        constexpr size_t num_limb_bits = bn254<plonk::UltraComposer>::fq_ct::NUM_LIMB_BITS;
         const auto split_bigfield_limbs = [](const uint256_t& element) {
             std::vector<barretenberg::fr> limbs;
             limbs.push_back(element.slice(0, num_limb_bits));
@@ -247,7 +247,7 @@ template <typename Curve> struct verification_key {
             key_witnesses.push_back(y_limbs[3]);
         }
         barretenberg::fr compressed_key;
-        if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        if constexpr (Composer::type == ComposerType::PLOOKUP) {
             compressed_key = crypto::pedersen::lookup::compress_native(key_witnesses);
         } else {
             compressed_key = crypto::pedersen::compress_native(key_witnesses);
@@ -267,13 +267,13 @@ template <typename Curve> struct verification_key {
 
     // Native data:
 
-    std::shared_ptr<waffle::VerifierReferenceString> reference_string;
+    std::shared_ptr<bonk::VerifierReferenceString> reference_string;
 
-    waffle::PolynomialManifest polynomial_manifest;
+    bonk::PolynomialManifest polynomial_manifest;
 
     size_t program_width = 4;
 
-    std::shared_ptr<waffle::verification_key> base_key;
+    std::shared_ptr<bonk::verification_key> base_key;
     Composer* context;
 };
 

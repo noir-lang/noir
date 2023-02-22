@@ -20,13 +20,13 @@ template <typename Composer> struct verify_result {
 
     std::vector<uint8_t> proof_data;
     bool verified;
-    std::shared_ptr<waffle::verification_key> verification_key;
+    std::shared_ptr<bonk::verification_key> verification_key;
     size_t number_of_gates;
 };
 
 template <typename Composer>
 inline bool pairing_check(plonk::stdlib::recursion::recursion_output<plonk::stdlib::bn254<Composer>> recursion_output,
-                          std::shared_ptr<waffle::VerifierReferenceString> const& srs)
+                          std::shared_ptr<bonk::VerifierReferenceString> const& srs)
 {
     g1::affine_element P[2];
     P[0].x = barretenberg::fq(recursion_output.P0.x.get_value().lo);
@@ -85,7 +85,7 @@ auto verify_internal(
 
     if (!cd.mock) {
         if (unrolled) {
-            if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+            if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
                 if (std::string(name) == "root rollup") {
                     auto prover = composer.create_unrolled_ultra_to_standard_prover();
                     auto proof = prover.construct_proof();
@@ -109,7 +109,7 @@ auto verify_internal(
         Composer mock_proof_composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
         ::join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
         if (unrolled) {
-            if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+            if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
                 if (std::string(name) == "root rollup") {
                     auto prover = mock_proof_composer.create_unrolled_ultra_to_standard_prover();
                     auto proof = prover.construct_proof();
@@ -134,7 +134,7 @@ auto verify_internal(
     info(name, ": Proof created in ", proof_timer.toString(), "s");
     info(name, ": Total time taken: ", timer.toString(), "s");
     if (unrolled) {
-        if constexpr (std::is_same<Composer, waffle::UltraComposer>::value) {
+        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
             if (std::string(name) == "root rollup") {
                 auto verifier = composer.create_unrolled_ultra_to_standard_verifier();
                 result.verified = verifier.verify_proof({ result.proof_data });

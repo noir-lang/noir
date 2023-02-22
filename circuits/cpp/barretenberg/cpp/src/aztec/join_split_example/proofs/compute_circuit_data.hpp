@@ -16,9 +16,9 @@ struct circuit_data {
         : num_gates(0)
     {}
 
-    std::shared_ptr<waffle::ReferenceStringFactory> srs;
-    std::shared_ptr<waffle::proving_key> proving_key;
-    std::shared_ptr<waffle::verification_key> verification_key;
+    std::shared_ptr<bonk::ReferenceStringFactory> srs;
+    std::shared_ptr<bonk::proving_key> proving_key;
+    std::shared_ptr<bonk::verification_key> verification_key;
     size_t num_gates;
     std::vector<uint8_t> padding_proof;
     bool mock;
@@ -35,7 +35,7 @@ inline bool exists(std::string const& path)
 template <typename ComposerType, typename F>
 circuit_data get_circuit_data(std::string const& name,
                               std::string const& path_name,
-                              std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
+                              std::shared_ptr<bonk::ReferenceStringFactory> const& srs,
                               std::string const& key_path,
                               bool compute,
                               bool save,
@@ -102,10 +102,10 @@ circuit_data get_circuit_data(std::string const& name,
         if (exists(pk_path) && load) {
             info(name, ": Loading proving key: ", pk_path);
             auto pk_stream = std::ifstream(pk_path);
-            waffle::proving_key_data pk_data;
+            bonk::proving_key_data pk_data;
             read_mmap(pk_stream, pk_dir, pk_data);
-            data.proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data),
-                                                                     srs->get_prover_crs(pk_data.circuit_size + 1));
+            data.proving_key =
+                std::make_shared<bonk::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.circuit_size + 1));
             data.num_gates = pk_data.circuit_size;
             info(name, ": Circuit size 2^n: ", data.num_gates);
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
@@ -163,10 +163,10 @@ circuit_data get_circuit_data(std::string const& name,
         if (exists(vk_path) && load) {
             info(name, ": Loading verification key from: ", vk_path);
             auto vk_stream = std::ifstream(vk_path);
-            waffle::verification_key_data vk_data;
+            bonk::verification_key_data vk_data;
             read(vk_stream, vk_data);
             data.verification_key =
-                std::make_shared<waffle::verification_key>(std::move(vk_data), data.srs->get_verifier_crs());
+                std::make_shared<bonk::verification_key>(std::move(vk_data), data.srs->get_verifier_crs());
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());
             benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
                                                        "Core",

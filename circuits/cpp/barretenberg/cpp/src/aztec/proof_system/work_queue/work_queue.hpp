@@ -3,7 +3,7 @@
 #include "../../transcript/transcript_wrappers.hpp"
 #include "../proving_key/proving_key.hpp"
 
-namespace waffle {
+namespace bonk {
 class work_queue {
 
   public:
@@ -67,4 +67,4 @@ class work_queue {
     transcript::StandardTranscript* transcript;
     std::vector<work_item> work_item_queue;
 };
-} // namespace waffle
+} // namespace bonk

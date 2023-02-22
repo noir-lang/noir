@@ -110,7 +110,7 @@ template <class Multivariates, class Transcript, template <class> class... Relat
         // Final round
         transcript.add_element("multivariate_evaluations",
                                // TODO(Cody): will need to do this programatically.
-                               to_buffer(std::array<FF, waffle::STANDARD_HONK_TOTAL_NUM_POLYS>(
+                               to_buffer(std::array<FF, bonk::STANDARD_HONK_TOTAL_NUM_POLYS>(
                                    { multivariates.folded_polynomials[0][0],
                                      multivariates.folded_polynomials[1][0],
                                      multivariates.folded_polynomials[2][0],

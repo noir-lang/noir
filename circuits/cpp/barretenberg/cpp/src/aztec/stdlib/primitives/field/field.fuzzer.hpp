@@ -1025,7 +1025,7 @@ template <typename Composer> class FieldBase {
                  *
                  * TEST(stdlib_field, test_construct_via_bool_t)
                  * {
-                 *     waffle::StandardComposer composer = waffle::StandardComposer();
+                 *     plonk::StandardComposer composer = plonk::StandardComposer();
                  *     field_t a(witness_t(&composer, fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b,
                  * 0xdf185a29c65fbf80, 0x1d18b2de99e48308}))); field_t b = a - a; field_t c(static_cast<bool_t>(b));
                  *     std::cout << c.get_value() << std::endl;
@@ -1977,7 +1977,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
  */
 extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<waffle::StandardComposer>;
+    using FuzzerClass = FieldBase<plonk::StandardComposer>;
     auto fast_random = FastRandom(Seed);
     auto size_occupied = ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
     if ((fast_random.next() % 200) < fuzzer_havoc_settings.GEN_LLVM_POST_MUTATION_PROB) {
@@ -1998,7 +1998,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
                                             size_t MaxOutSize,
                                             unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<waffle::StandardComposer>;
+    using FuzzerClass = FieldBase<plonk::StandardComposer>;
     auto fast_random = FastRandom(Seed);
     auto vecA = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data1, Size1);
     auto vecB = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data2, Size2);

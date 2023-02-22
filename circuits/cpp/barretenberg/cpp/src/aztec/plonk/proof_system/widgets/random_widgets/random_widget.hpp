@@ -8,7 +8,7 @@ namespace transcript {
 class Transcript;
 }
 
-namespace waffle {
+namespace bonk {
 
 struct proving_key;
 
@@ -55,4 +55,4 @@ class ProverRandomWidget {
     proving_key* key;
 };
 
-} // namespace waffle
+} // namespace bonk

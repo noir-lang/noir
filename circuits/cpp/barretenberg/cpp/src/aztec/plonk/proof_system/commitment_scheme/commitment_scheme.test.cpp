@@ -15,7 +15,7 @@
 #include <ecc/curves/bn254/pairing.hpp>
 
 using namespace barretenberg;
-using namespace waffle;
+using namespace plonk;
 
 TEST(commitment_scheme, kate_open)
 {
@@ -33,12 +33,12 @@ TEST(commitment_scheme, kate_open)
 
     // compute opening polynomial W(X), and evaluation f = F(z)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
-    waffle::KateCommitmentScheme<turbo_settings> newKate;
+    plonk::KateCommitmentScheme<turbo_settings> newKate;
 
     // std::shared_ptr<ReferenceStringFactory> crs_factory = (new FileReferenceStringFactory("../srs_db/ignition"));
-    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_shared<bonk::FileReferenceStringFactory>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
-    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
+    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, plonk::STANDARD);
     work_queue queue(circuit_proving_key.get(), &inp_tx);
 
     newKate.commit(&coeffs[0], "F_COMM", 0, queue);
@@ -91,11 +91,11 @@ TEST(commitment_scheme, kate_batch_open)
 
     // setting up the Kate commitment scheme class
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
-    waffle::KateCommitmentScheme<turbo_settings> newKate;
+    plonk::KateCommitmentScheme<turbo_settings> newKate;
 
-    auto file_crs = std::make_shared<waffle::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_shared<bonk::FileReferenceStringFactory>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
-    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, waffle::STANDARD);
+    auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, plonk::STANDARD);
     work_queue queue(circuit_proving_key.get(), &inp_tx);
 
     // commit to individual polynomials

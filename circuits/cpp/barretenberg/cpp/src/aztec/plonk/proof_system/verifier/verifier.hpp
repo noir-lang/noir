@@ -1,11 +1,11 @@
 #pragma once
-#include "../types/plonk_proof.hpp"
+#include "../types/proof.hpp"
 #include "../types/program_settings.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include <transcript/manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/commitment_scheme.hpp>
 
-namespace waffle {
+namespace plonk {
 template <typename program_settings> class VerifierBase {
 
   public:
@@ -19,7 +19,7 @@ template <typename program_settings> class VerifierBase {
     bool validate_commitments();
     bool validate_scalars();
 
-    bool verify_proof(const waffle::plonk_proof& proof);
+    bool verify_proof(const plonk::proof& proof);
     transcript::Manifest manifest;
 
     std::shared_ptr<verification_key> key;
@@ -48,4 +48,4 @@ typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 typedef VerifierBase<ultra_verifier_settings> UltraVerifier;
 typedef VerifierBase<generalized_permutation_verifier_settings> GenPermVerifier;
 
-} // namespace waffle
+} // namespace plonk

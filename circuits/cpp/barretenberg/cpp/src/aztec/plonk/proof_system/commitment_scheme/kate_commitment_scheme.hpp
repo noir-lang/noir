@@ -1,7 +1,7 @@
 #pragma once
 #include "commitment_scheme.hpp"
 
-namespace waffle {
+namespace plonk {
 
 template <typename settings> class KateCommitmentScheme : public CommitmentScheme {
   public:
@@ -24,20 +24,20 @@ template <typename settings> class KateCommitmentScheme : public CommitmentSchem
 
     void batch_open(const transcript::StandardTranscript& transcript,
                     work_queue& queue,
-                    std::shared_ptr<proving_key> input_key = nullptr) override;
+                    std::shared_ptr<bonk::proving_key> input_key = nullptr) override;
 
     void batch_verify(const transcript::StandardTranscript& transcript,
                       std::map<std::string, g1::affine_element>& kate_g1_elements,
                       std::map<std::string, fr>& kate_fr_elements,
-                      std::shared_ptr<verification_key> input_key = nullptr,
+                      std::shared_ptr<bonk::verification_key> input_key = nullptr,
                       const barretenberg::fr& r_0 = 0) override;
 
     void add_opening_evaluations_to_transcript(transcript::StandardTranscript& transcript,
-                                               std::shared_ptr<proving_key> input_key = nullptr,
+                                               std::shared_ptr<bonk::proving_key> input_key = nullptr,
                                                bool in_lagrange_form = false) override;
 
   private:
-    waffle::commitment_open_proof kate_open_proof;
+    plonk::commitment_open_proof kate_open_proof;
 };
 
 extern template class KateCommitmentScheme<unrolled_standard_settings>;
@@ -48,4 +48,4 @@ extern template class KateCommitmentScheme<standard_settings>;
 extern template class KateCommitmentScheme<turbo_settings>;
 extern template class KateCommitmentScheme<ultra_settings>;
 
-} // namespace waffle
+} // namespace plonk

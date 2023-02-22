@@ -26,8 +26,8 @@ template <typename Composer> class plookup_ {
                                                       const bool is_2_to_1_lookup = false);
 };
 
-extern template class plookup_<waffle::UltraComposer>;
+extern template class plookup_<plonk::UltraComposer>;
 
-typedef plookup_<waffle::UltraComposer> plookup_read;
+typedef plookup_<plonk::UltraComposer> plookup_read;
 } // namespace stdlib
 } // namespace plonk

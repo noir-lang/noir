@@ -23,11 +23,11 @@ template <class Fscalar> class ProverTests : public testing::Test {
         // Define some mock inputs for ProvingKey constructor
         size_t num_gates = 8;
         size_t num_public_inputs = 0;
-        auto reference_string = std::make_shared<waffle::FileReferenceString>(num_gates + 1, "../srs_db/ignition");
+        auto reference_string = std::make_shared<bonk::FileReferenceString>(num_gates + 1, "../srs_db/ignition");
 
         // Instatiate a proving_key and make a pointer to it
         auto proving_key =
-            std::make_shared<waffle::proving_key>(num_gates, num_public_inputs, reference_string, waffle::STANDARD);
+            std::make_shared<bonk::proving_key>(num_gates, num_public_inputs, reference_string, plonk::STANDARD);
 
         // Instantiate a Prover with the proving_key pointer
         auto honk_prover = StandardProver(proving_key);
@@ -46,11 +46,11 @@ template <class Fscalar> class ProverTests : public testing::Test {
         // Define some mock inputs for proving key constructor
         static const size_t num_gates = 8;
         static const size_t num_public_inputs = 0;
-        auto reference_string = std::make_shared<waffle::FileReferenceString>(num_gates + 1, "../srs_db/ignition");
+        auto reference_string = std::make_shared<bonk::FileReferenceString>(num_gates + 1, "../srs_db/ignition");
 
         // Instatiate a proving_key and make a pointer to it. This will be used to instantiate a Prover.
         auto proving_key =
-            std::make_shared<waffle::proving_key>(num_gates, num_public_inputs, reference_string, waffle::STANDARD);
+            std::make_shared<bonk::proving_key>(num_gates, num_public_inputs, reference_string, plonk::STANDARD);
 
         static const size_t program_width = StandardProver::settings_::program_width;
 
