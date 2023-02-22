@@ -5,7 +5,6 @@
 
 namespace aztec3::circuits::recursion {
 
-using Aggregator = TurboAggregator;
 using plonk::stdlib::types::Composer;
 using CT = plonk::stdlib::types::CircuitTypes<Composer>;
 using NT = plonk::stdlib::types::NativeTypes;

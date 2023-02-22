@@ -9,7 +9,7 @@ namespace aztec3::circuits::recursion {
 
 // These are all Circuit Types!
 // using plonk::stdlib::recursion::recursion_output;
-using plonk::stdlib::recursion::recursive_turbo_verifier_settings;
+using plonk::stdlib::types::recursive_inner_verifier_settings;
 // using plonk::stdlib::recursion::verification_key;
 using plonk::stdlib::recursion::verify_proof;
 // using plonk::stdlib::types::bn254;
@@ -18,7 +18,7 @@ using CT = plonk::stdlib::types::CircuitTypes<Composer>;
 using NT = plonk::stdlib::types::NativeTypes;
 using transcript::Manifest;
 
-// class TurboAggregator {
+// class Aggregator {
 //   public:
 //     // Circuit Types:
 //     using AggregationObject = recursion_output<bn254>;
@@ -35,14 +35,14 @@ using transcript::Manifest;
 //         std::shared_ptr<verification_key<bn254>> recursive_vk = verification_key<bn254>::from_witness(composer, vk);
 //         const transcript::Manifest recursive_manifest = Composer::create_unrolled_manifest(vk->num_public_inputs);
 
-//         AggregationObject result = verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(
+//         AggregationObject result = verify_proof<bn254, recursive_inner_verifier_settings<bn254>>(
 //             composer, recursive_vk, recursive_manifest, proof, recursion_output);
 
 //         return result;
 //     }
 // };
 
-class TurboAggregator {
+class Aggregator {
   public:
     static CT::AggregationObject aggregate(Composer* composer,
                                            const std::shared_ptr<CT::VK>& vk,
@@ -52,7 +52,7 @@ class TurboAggregator {
     {
         const Manifest recursive_manifest = Composer::create_unrolled_manifest(num_public_inputs);
 
-        CT::AggregationObject result = verify_proof<CT::bn254, recursive_turbo_verifier_settings<CT::bn254>>(
+        CT::AggregationObject result = verify_proof<CT::bn254, recursive_inner_verifier_settings>(
             composer, vk, recursive_manifest, proof, recursion_output);
 
         return result;

@@ -18,7 +18,7 @@ namespace aztec3::circuits::kernel::private_kernel {
 using Composer = plonk::stdlib::types::Composer;
 using plonk::stdlib::types::UnrolledProver;
 
-using Aggregator = aztec3::circuits::recursion::TurboAggregator;
+using Aggregator = aztec3::circuits::recursion::Aggregator;
 
 // Generic:
 using CT = plonk::stdlib::types::CircuitTypes<Composer>;
