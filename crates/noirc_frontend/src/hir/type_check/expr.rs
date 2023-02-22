@@ -256,13 +256,13 @@ fn type_check_index_expression(
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.expr_span(&index_expr.index);
-    if index_type.is_subtype_of(&Type::field(Some(span)), span).is_err() {
-        errors.push(TypeCheckError::TypeMismatch {
+    index_type.make_subtype_of(&Type::field(Some(span)), span, errors, || {
+        TypeCheckError::TypeMismatch {
             expected_typ: "Field".to_owned(),
             expr_typ: index_type.to_string(),
             expr_span: span,
-        });
-    }
+        }
+    });
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
     match lhs_type {

@@ -37,7 +37,7 @@ pub fn evaluate_permutation_with_witness(
 ) {
     let (w, b) = permutation_layer(in_expr, bits, false, evaluator);
     debug_assert_eq!(w, *bits);
-    // we contrain the network output to out_expr
+    // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
