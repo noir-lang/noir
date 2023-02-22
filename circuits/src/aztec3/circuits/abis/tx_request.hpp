@@ -56,6 +56,11 @@ template <typename NCT> struct TxRequest {
 
         return NCT::compress(inputs, GeneratorIndex::TX_REQUEST);
     }
+    template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const
+    {
+        const auto arr_size = sizeof(arr) / sizeof(fr);
+        vec.insert(vec.end(), &arr[0], &arr[0] + arr_size);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, TxRequest<NCT>& tx_request)
