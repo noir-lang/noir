@@ -78,8 +78,6 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
-    // Evaluator::default()
-    // current_witness_index: 0
     // XXX: Barretenberg, reserves the first index to have value 0.
     // When we increment, we do not use this index at all.
     // This means that every constraint system at the moment, will either need
