@@ -12,22 +12,12 @@ use fm::FileManager;
 use std::collections::HashMap;
 
 /// Global context that is accessible during each stage
+#[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Context {
-            def_interner: NodeInterner::default(),
-            crate_graph: CrateGraph::default(),
-            file_manager: FileManager::default(),
-            def_maps: HashMap::new(),
-        }
-    }
 }
 
 impl Context {
