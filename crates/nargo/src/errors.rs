@@ -25,6 +25,8 @@ pub enum CliError {
     MissingVerificationkey(PathBuf),
     #[error("Error: the circuit you are trying to prove differs from the build artifact at {}\nYou must call `nargo compile` to generate the correct proving and verification keys for this circuit", .0.display())]
     MismatchedAcir(PathBuf),
+    #[error("Failed to verify proof {}", .0.display())]
+    InvalidProof(PathBuf),
 }
 
 impl From<OpcodeResolutionError> for CliError {
