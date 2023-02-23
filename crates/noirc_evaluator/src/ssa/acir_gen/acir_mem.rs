@@ -165,11 +165,10 @@ impl AcirMem {
 
     // Write the value to the array's VM at the specified index
     pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
-        let entry = self.virtual_memory.entry(array_id).or_default();
+        let heap = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
-        entry.memory_map.insert(index, value);
-
-        entry.stage(index, value_expr, Expression::one());
+        heap.memory_map.insert(index, value);
+        heap.stage(index, value_expr, Expression::one());
     }
 
     //Map the outputs into the array
@@ -195,13 +194,12 @@ impl AcirMem {
     }
 
     // number of bits required to store the input
-    fn bits(mut t: usize) -> u32 {
-        let mut r = 0;
-        while t != 0 {
-            t >>= 1;
-            r += 1;
+    fn bits(t: usize) -> u32 {
+        if t > 0 {
+            t.ilog2() + 1
+        } else {
+            1
         }
-        r
     }
 
     // Loads the associated `InternalVar` for the element
