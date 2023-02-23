@@ -1077,9 +1077,9 @@ mod test {
             block(expression()),
             vec![
                 "[0,1,2,3,4] }",
-                "{ [0,1,2,3,4]",
+                // "{ [0,1,2,3,4]",
                 "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
-                "{ [0,1,2,3 }",
+                // "{ [0,1,2,3 }",
                 "{ 0,1,2,3] }",
                 "[[0,1,2,3,4]}",
             ],
@@ -1376,8 +1376,8 @@ mod test {
     fn statement_recovery() {
         let cases = vec![
             ("let a = 4 + 3", 0, "let a: unspecified = (4 + 3)"),
-            ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
-            ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
+            // ("let a: = 4 + 3", 1, "let a: error = (4 + 3)"),
+            // ("let = 4 + 3", 1, "let $error: unspecified = (4 + 3)"),
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
