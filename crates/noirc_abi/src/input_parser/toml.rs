@@ -60,6 +60,8 @@ enum TomlTypes {
     ArrayNum(Vec<u64>),
     // Array of hexadecimal integers
     ArrayString(Vec<String>),
+    // Array of booleans
+    ArrayBool(Vec<bool>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
 }
@@ -122,6 +124,18 @@ impl InputValue {
 
                 InputValue::Vec(array_elements)
             }
+            TomlTypes::ArrayBool(arr_bool) => {
+                let array_elements = vecmap(arr_bool, |elem_bool| {
+                    if elem_bool {
+                        FieldElement::one()
+                    } else {
+                        FieldElement::zero()
+                    }
+                });
+
+                InputValue::Vec(array_elements)
+            }
+
             TomlTypes::Table(table) => {
                 let fields = match param_type {
                     AbiType::Struct { fields } => fields,
