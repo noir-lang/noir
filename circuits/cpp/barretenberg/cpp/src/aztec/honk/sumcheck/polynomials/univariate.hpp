@@ -22,13 +22,10 @@ template <class Fr, size_t _length> class Univariate {
     explicit Univariate(std::array<Fr, _length> evaluations)
         : evaluations(evaluations)
     {}
-    Univariate(const Univariate& other)
-        : evaluations(other.evaluations)
-    {}
-    Univariate(Univariate&& other) noexcept
-        : evaluations(std::move(other.evaluations))
-    {}
-
+    Univariate(const Univariate& other) = default;
+    Univariate(Univariate&& other) noexcept = default;
+    Univariate& operator=(const Univariate& other) = default;
+    Univariate& operator=(Univariate&& other) noexcept = default;
     // Construct Univariate from scalar
     explicit Univariate(Fr value)
         : evaluations{}
@@ -47,6 +44,7 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     Fr& value_at(size_t i) { return evaluations[i]; };
+    const Fr& value_at(size_t i) const { return evaluations[i]; };
 
     // Write the Univariate evaluations to a buffer
     std::vector<uint8_t> to_buffer() const { return ::to_buffer(evaluations); }
@@ -62,35 +60,23 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     // Operations between Univariate and other Univariate
-    Univariate operator=(const Univariate& other)
-    {
-        evaluations = other.evaluations;
-        return *this;
-    }
-
-    Univariate operator=(Univariate&& other)
-    {
-        evaluations = std::move(other.evaluations);
-        return *this;
-    }
-
     bool operator==(const Univariate& other) const = default;
 
-    Univariate operator+=(const Univariate& other)
+    Univariate& operator+=(const Univariate& other)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] += other.evaluations[i];
         }
         return *this;
     }
-    Univariate operator-=(const Univariate& other)
+    Univariate& operator-=(const Univariate& other)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] -= other.evaluations[i];
         }
         return *this;
     }
-    Univariate operator*=(const Univariate& other)
+    Univariate& operator*=(const Univariate& other)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] *= other.evaluations[i];
@@ -118,7 +104,7 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     // Operations between Univariate and scalar
-    Univariate operator+=(const Fr& scalar)
+    Univariate& operator+=(const Fr& scalar)
     {
         for (auto& eval : evaluations) {
             eval += scalar;
@@ -126,14 +112,14 @@ template <class Fr, size_t _length> class Univariate {
         return *this;
     }
 
-    Univariate operator-=(const Fr& scalar)
+    Univariate& operator-=(const Fr& scalar)
     {
         for (auto& eval : evaluations) {
             eval -= scalar;
         }
         return *this;
     }
-    Univariate operator*=(const Fr& scalar)
+    Univariate& operator*=(const Fr& scalar)
     {
         for (auto& eval : evaluations) {
             eval *= scalar;
@@ -141,21 +127,21 @@ template <class Fr, size_t _length> class Univariate {
         return *this;
     }
 
-    Univariate operator+(const Fr& scalar)
+    Univariate operator+(const Fr& scalar) const
     {
         Univariate res(*this);
         res += scalar;
         return res;
     }
 
-    Univariate operator-(const Fr& scalar)
+    Univariate operator-(const Fr& scalar) const
     {
         Univariate res(*this);
         res -= scalar;
         return res;
     }
 
-    Univariate operator*(const Fr& scalar)
+    Univariate operator*(const Fr& scalar) const
     {
         Univariate res(*this);
         res *= scalar;
@@ -163,7 +149,7 @@ template <class Fr, size_t _length> class Univariate {
     }
 
     // Operations between Univariate and UnivariateView
-    Univariate operator+=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator+=(const UnivariateView<Fr, _length>& view)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] += view.evaluations[i];
@@ -171,7 +157,7 @@ template <class Fr, size_t _length> class Univariate {
         return *this;
     }
 
-    Univariate operator-=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator-=(const UnivariateView<Fr, _length>& view)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] -= view.evaluations[i];
@@ -179,7 +165,7 @@ template <class Fr, size_t _length> class Univariate {
         return *this;
     }
 
-    Univariate operator*=(const UnivariateView<Fr, _length>& view)
+    Univariate& operator*=(const UnivariateView<Fr, _length>& view)
     {
         for (size_t i = 0; i < _length; ++i) {
             evaluations[i] *= view.evaluations[i];
@@ -187,21 +173,21 @@ template <class Fr, size_t _length> class Univariate {
         return *this;
     }
 
-    Univariate operator+(const UnivariateView<Fr, _length>& view)
+    Univariate operator+(const UnivariateView<Fr, _length>& view) const
     {
         Univariate res(*this);
         res += view;
         return res;
     }
 
-    Univariate operator-(const UnivariateView<Fr, _length>& view)
+    Univariate operator-(const UnivariateView<Fr, _length>& view) const
     {
         Univariate res(*this);
         res -= view;
         return res;
     }
 
-    Univariate operator*(const UnivariateView<Fr, _length>& view)
+    Univariate operator*(const UnivariateView<Fr, _length>& view) const
     {
         Univariate res(*this);
         res *= view;
@@ -227,15 +213,15 @@ template <class Fr, size_t _length> class Univariate {
 
 template <class Fr, size_t view_length> class UnivariateView {
   public:
-    std::span<Fr, view_length> evaluations;
+    std::span<const Fr, view_length> evaluations;
 
     UnivariateView() = default;
 
-    Fr& value_at(size_t i) { return evaluations[i]; };
+    const Fr& value_at(size_t i) const { return evaluations[i]; };
 
     template <size_t full_length>
-    explicit UnivariateView(Univariate<Fr, full_length>& univariate_in)
-        : evaluations(std::span<Fr>(univariate_in.evaluations.begin(), view_length)){};
+    explicit UnivariateView(const Univariate<Fr, full_length>& univariate_in)
+        : evaluations(std::span<const Fr>(univariate_in.evaluations.data(), view_length)){};
 
     Univariate<Fr, view_length> operator+(const UnivariateView& other) const
     {
@@ -309,4 +295,46 @@ template <class Fr, size_t view_length> class UnivariateView {
         return os;
     }
 };
+
+/**
+ * @brief Create a sub-array of `elements` at the indices given in the template pack `Is`, converting them to the new
+ * type T.
+ *
+ * @tparam T type to convert to
+ * @tparam U type to convert from
+ * @tparam N number (deduced by `elements`)
+ * @tparam Is list of indices we want in the returned array. When the second argument is called with
+ * `std::make_index_sequence<N>`, these will be `0, 1, ..., N-1`.
+ * @param elements array to convert from
+ * @return std::array<T, sizeof...(Is)> result array s.t. result[i] = T(elements[Is[i]]). By default, Is[i] = i when
+ * called with `std::make_index_sequence<N>`.
+ */
+template <typename T, typename U, std::size_t N, std::size_t... Is>
+std::array<T, sizeof...(Is)> array_to_array_aux(const std::array<U, N>& elements, std::index_sequence<Is...>)
+{
+    return { { T{ elements[Is] }... } };
+};
+
+/**
+ * @brief Given an std::array<U,N>, returns an std::array<T,N>, by calling the (explicit) constructor T(U).
+ *
+ * @details https://stackoverflow.com/a/32175958
+ * The main use case is to convert an array of `Univariate` into `UnivariateView`. The main use case would be to let
+ * Sumcheck decide the required degree of the relation evaluation, rather than hardcoding it inside the relation. The
+ * `_aux` version could also be used to create an array of only the polynomials required by the relation, and it could
+ * help us implement the optimization where we extend each edge only up to the maximum degree that is required over all
+ * relations (for example, `L_LAST` only needs degree 3).
+ *
+ * @tparam T Output type
+ * @tparam U Input type (deduced from `elements`)
+ * @tparam N Common array size (deduced from `elements`)
+ * @param elements array to be converted
+ * @return std::array<T, N> result s.t. result[i] = T(elements[i])
+ */
+template <typename T, typename U, std::size_t N> std::array<T, N> array_to_array(const std::array<U, N>& elements)
+{
+    // Calls the aux method that uses the index sequence to unpack all values in `elements`
+    return array_to_array_aux<T, U, N>(elements, std::make_index_sequence<N>());
+};
+
 } // namespace honk::sumcheck

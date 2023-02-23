@@ -4,7 +4,6 @@
 #include "grand_product_initialization_relation.hpp"
 #include "grand_product_computation_relation.hpp"
 #include "../polynomials/univariate.hpp"
-#include "../polynomials/barycentric_data.hpp"
 
 #include <ecc/curves/bn254/fr.hpp>
 #include <numeric/random/engine.hpp>
@@ -19,11 +18,15 @@ template <class FF> class SumcheckRelation : public testing::Test {
   public:
     template <size_t t> using Univariate = Univariate<FF, t>;
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
+    static constexpr size_t FULL_RELATION_LENGH = 5;
     static const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
     using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
 
     // TODO(luke): may want to make this more flexible/genericzs
-    static std::array<Univariate<5>, NUM_POLYNOMIALS> compute_mock_extended_edges()
+    // TODO(Adrian): Accept FULL_RELATION_LENGH as a template parameter for this function only, so that the test can
+    // decide to which degree the polynomials must be extended. Possible accept an existing list of "edges" and extend
+    // them to the degree.
+    static std::array<Univariate<FULL_RELATION_LENGH>, NUM_POLYNOMIALS> compute_mock_extended_edges()
     {
         // TODO(Cody): build from Univariate<2>'s?
         // evaluation form, i.e. w_l(0) = 1, w_l(1) = 2,.. The poly is x+1.
@@ -72,6 +75,85 @@ template <class FF> class SumcheckRelation : public testing::Test {
 
         return extended_edges;
     }
+
+    /**
+     * @brief Returns randomly sampled parameters to feed to the relations.
+     *
+     * @return RelationParameters<FF>
+     */
+    RelationParameters<FF> compute_mock_relation_parameters()
+    {
+        return { .zeta = FF::random_element(),
+                 .alpha = FF::random_element(),
+                 .beta = FF::random_element(),
+                 .gamma = FF::random_element(),
+                 .public_input_delta = FF::random_element() };
+    }
+
+    /**
+     * @brief Given an array of Univariates, create a new array containing only the i-th evaluations
+     * of all the univariates.
+     *
+     * @note Not really optimized, mainly used for testing that the relations evaluate to the same value when
+     * evaluated as Univariates, Expressions, or index-by-index
+     * @todo Maybe this is more helpful as part of a `check_logic` function.
+     *
+     * @tparam NUM_UNIVARIATES number of univariates in the input array (deduced from `univariates`)
+     * @tparam univariate_length number of evaluations (deduced from `univariates`)
+     * @param univariates array of Univariates
+     * @param i index of the evaluations we want to take from each univariate
+     * @return std::array<FF, NUM_UNIVARIATES> such that result[j] = univariates[j].value_at(i)
+     */
+    template <std::size_t NUM_UNIVARIATES, size_t univariate_length>
+    static std::array<FF, NUM_UNIVARIATES> transposed_univariate_array_at(
+        const std::array<Univariate<univariate_length>, NUM_UNIVARIATES>& univariates, size_t i)
+    {
+        ASSERT(i < univariate_length);
+        std::array<FF, NUM_UNIVARIATES> result;
+        for (size_t j = 0; j < NUM_UNIVARIATES; ++j) {
+            result[j] = univariates[j].value_at(i);
+        }
+        return result;
+    };
+
+    /**
+     * @brief Compute the evaluation of a `relation` in different ways, comparing it to the provided `expected_evals`
+     *
+     * @details Check both `add_full_relation_value_contribution` and `add_edge_contribution` by comparing the result to
+     * the `expected_evals` computed by the caller.
+     * Ensures that the relations compute the same result as the expression given in the tests.
+     *
+     * @param expected_evals Relation evaluation computed by the caller.
+     * @param relation being tested
+     * @param extended_edges
+     * @param relation_parameters
+     */
+    static void validate_evaluations(const Univariate<FULL_RELATION_LENGH>& expected_evals,
+                                     const auto relation,
+                                     const std::array<Univariate<FULL_RELATION_LENGH>, NUM_POLYNOMIALS>& extended_edges,
+                                     const RelationParameters<FF>& relation_parameters)
+    {
+
+        // Compute the expression index-by-index
+        Univariate<FULL_RELATION_LENGH> expected_evals_index{ 0 };
+        for (size_t i = 0; i < FULL_RELATION_LENGH; ++i) {
+            // Get an array of the same size as `extended_edges` with only the i-th element of each extended edge.
+            std::array evals_i = transposed_univariate_array_at(extended_edges, i);
+            // Evaluate the relation
+            relation.add_full_relation_value_contribution(
+                expected_evals_index.value_at(i), evals_i, relation_parameters);
+        }
+        EXPECT_EQ(expected_evals, expected_evals_index);
+
+        // Compute the expression using the class, that converts the extended edges to UnivariateView
+        auto expected_evals_view = Univariate<relation.RELATION_LENGTH>(0);
+        relation.add_edge_contribution(expected_evals_view, extended_edges, relation_parameters, 1);
+
+        // Tiny hack to reduce `expected_evals` to be of size `relation.RELATION_LENGTH`
+        Univariate<relation.RELATION_LENGTH> expected_evals_restricted{ UnivariateView<relation.RELATION_LENGTH>(
+            expected_evals) };
+        EXPECT_EQ(expected_evals_restricted, expected_evals_view);
+    };
 };
 
 using FieldTypes = testing::Types<barretenberg::fr>;
@@ -82,106 +164,93 @@ TYPED_TEST_SUITE(SumcheckRelation, FieldTypes);
 TYPED_TEST(SumcheckRelation, ArithmeticRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
-
-    auto extended_edges = TestFixture::compute_mock_extended_edges();
-
-    auto relation = ArithmeticRelation<FF>();
     using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
 
+    const auto extended_edges = TestFixture::compute_mock_extended_edges();
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+
+    auto relation = ArithmeticRelation<FF>();
     // Manually compute the expected edge contribution
-    auto w_l = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
-    auto w_r = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
-    auto w_o = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_O]);
-    auto q_m = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_M]);
-    auto q_l = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_L]);
-    auto q_r = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_R]);
-    auto q_o = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_O]);
-    auto q_c = UnivariateView<FF, relation.RELATION_LENGTH>(extended_edges[MULTIVARIATE::Q_C]);
+    const auto& w_l = extended_edges[MULTIVARIATE::W_L];
+    const auto& w_r = extended_edges[MULTIVARIATE::W_R];
+    const auto& w_o = extended_edges[MULTIVARIATE::W_O];
+    const auto& q_m = extended_edges[MULTIVARIATE::Q_M];
+    const auto& q_l = extended_edges[MULTIVARIATE::Q_L];
+    const auto& q_r = extended_edges[MULTIVARIATE::Q_R];
+    const auto& q_o = extended_edges[MULTIVARIATE::Q_O];
+    const auto& q_c = extended_edges[MULTIVARIATE::Q_C];
+
+    // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
+    // Ensure that expression changes are detected.
     // expected_evals, length 4, extends to { { 5, 22, 57, 116, 205} };
-    Univariate expected_evals = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + q_c;
-
-    auto evals = Univariate<FF, relation.RELATION_LENGTH>();
-    relation.add_edge_contribution(extended_edges, evals, 0, FF::one());
-
-    EXPECT_EQ(evals, expected_evals);
+    auto expected_evals = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + (q_c);
+    this->validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
 };
 
 TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
+    using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
 
+    const auto extended_edges = TestFixture::compute_mock_extended_edges();
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+
+    auto relation = GrandProductComputationRelation<FF>();
+
+    const auto& beta = relation_parameters.beta;
+    const auto& gamma = relation_parameters.gamma;
+    const auto& public_input_delta = relation_parameters.public_input_delta;
     // TODO(luke): Write a test that illustrates the following?
     // Note: the below z_perm_shift = X^2 will fail because it results in a relation of degree 2*1*1*1 = 5 which
     // cannot be represented by 5 points. Therefore when we do the calculation then barycentrically extend, we are
     // effectively exprapolating a 4th degree polynomial instead of the correct 5th degree poly
     // auto z_perm_shift = Univariate<FF, 5>({ 1, 4, 9, 16, 25 }); // X^2
 
-    auto extended_edges = TestFixture::compute_mock_extended_edges();
-    auto relation = GrandProductComputationRelation<FF>();
-    using UnivariateView = UnivariateView<FF, relation.RELATION_LENGTH>;
-    using Univariate = Univariate<FF, relation.RELATION_LENGTH>;
-
     // Manually compute the expected edge contribution
-    using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
+    const auto& w_1 = extended_edges[MULTIVARIATE::W_L];
+    const auto& w_2 = extended_edges[MULTIVARIATE::W_R];
+    const auto& w_3 = extended_edges[MULTIVARIATE::W_O];
+    const auto& sigma_1 = extended_edges[MULTIVARIATE::SIGMA_1];
+    const auto& sigma_2 = extended_edges[MULTIVARIATE::SIGMA_2];
+    const auto& sigma_3 = extended_edges[MULTIVARIATE::SIGMA_3];
+    const auto& id_1 = extended_edges[MULTIVARIATE::ID_1];
+    const auto& id_2 = extended_edges[MULTIVARIATE::ID_1];
+    const auto& id_3 = extended_edges[MULTIVARIATE::ID_1];
+    const auto& z_perm = extended_edges[MULTIVARIATE::Z_PERM];
+    const auto& z_perm_shift = extended_edges[MULTIVARIATE::Z_PERM_SHIFT];
+    const auto& lagrange_first = extended_edges[MULTIVARIATE::LAGRANGE_FIRST];
+    const auto& lagrange_last = extended_edges[MULTIVARIATE::LAGRANGE_LAST];
 
-    auto w_1 = UnivariateView(extended_edges[MULTIVARIATE::W_L]);
-    auto w_2 = UnivariateView(extended_edges[MULTIVARIATE::W_R]);
-    auto w_3 = UnivariateView(extended_edges[MULTIVARIATE::W_O]);
-    auto sigma_1 = UnivariateView(extended_edges[MULTIVARIATE::SIGMA_1]);
-    auto sigma_2 = UnivariateView(extended_edges[MULTIVARIATE::SIGMA_2]);
-    auto sigma_3 = UnivariateView(extended_edges[MULTIVARIATE::SIGMA_3]);
-    auto id_1 = UnivariateView(extended_edges[MULTIVARIATE::ID_1]);
-    auto id_2 = UnivariateView(extended_edges[MULTIVARIATE::ID_1]);
-    auto id_3 = UnivariateView(extended_edges[MULTIVARIATE::ID_1]);
-    auto z_perm = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM]);
-    auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-    auto lagrange_first = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_FIRST]);
-    auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+    // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
+    // Ensure that expression changes are detected.
+    // expected_evals in the below step { { 27, 250, 1029, 2916, 6655 } } - { { 27, 125, 343, 729, 1331 } }
+    auto expected_evals = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+                              (w_3 + id_3 * beta + gamma) -
+                          (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
+                              (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
 
-    // TODO(luke): use real transcript/challenges once manifest is done
-    FF zeta = FF::random_element();
-    FF beta = FF::random_element();
-    FF gamma = FF::random_element();
-    FF public_input_delta = FF::random_element();
-    const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
-        .zeta = zeta, .alpha = FF ::zero(), .beta = beta, .gamma = gamma, .public_input_delta = public_input_delta
-    };
-
-    auto expected_evals = Univariate();
-    // expected_evals in the below step { { 27, 250, 1029, 2916, 6655 } }
-    expected_evals += (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                      (w_3 + id_3 * beta + gamma);
-    // expected_evals below is { { 27, 125, 343, 729, 1331 } }
-    expected_evals -= (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                      (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
-
-    auto evals = Univariate();
-    relation.add_edge_contribution(extended_edges, evals, relation_parameters, FF::one());
-
-    EXPECT_EQ(evals, expected_evals);
+    this->validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
 };
 
 TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
-
-    auto extended_edges = TestFixture::compute_mock_extended_edges();
-    auto relation = GrandProductInitializationRelation<FF>();
-    using UnivariateView = UnivariateView<FF, relation.RELATION_LENGTH>;
-    using Univariate = Univariate<FF, relation.RELATION_LENGTH>;
-
-    // Manually compute the expected edge contribution
     using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
 
-    auto z_perm_shift = UnivariateView(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
-    auto lagrange_last = UnivariateView(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+    const auto extended_edges = TestFixture::compute_mock_extended_edges();
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+    auto relation = GrandProductInitializationRelation<FF>();
+
+    // Manually compute the expected edge contribution
+
+    const auto& z_perm_shift = extended_edges[MULTIVARIATE::Z_PERM_SHIFT];
+    const auto& lagrange_last = extended_edges[MULTIVARIATE::LAGRANGE_LAST];
+    // We first compute the evaluations using UnivariateViews, with the provided hard-coded formula.
+    // Ensure that expression changes are detected.
+    // expected_evals, lenght 3 (coeff form = x^2 + x), extends to { { 0, 2, 6, 12, 20 } }
     auto expected_evals = z_perm_shift * lagrange_last;
 
-    // Compute the edge contribution using add_edge_contribution
-    auto evals = Univariate();
-    relation.add_edge_contribution(extended_edges, evals, 0, FF::one());
-
-    EXPECT_EQ(evals, expected_evals);
+    this->validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
 };
 
 } // namespace honk_relation_tests

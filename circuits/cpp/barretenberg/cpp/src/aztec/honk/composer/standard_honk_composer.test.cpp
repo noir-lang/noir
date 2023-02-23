@@ -1,5 +1,5 @@
 #include "standard_honk_composer.hpp"
-#include "common/assert.hpp"
+#include "honk/sumcheck/relations/relation.hpp"
 #include "numeric/uint256/uint256.hpp"
 #include "proof_system/flavor/flavor.hpp"
 #include <cstdint>
@@ -9,7 +9,6 @@
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
 #include <honk/utils/public_inputs.hpp>
 
-#include <cstdint>
 #include <gtest/gtest.h>
 
 using namespace honk;
@@ -23,7 +22,7 @@ namespace test_standard_honk_composer {
  * 2) That if the permutation argument is computed with witness values, the values from the identity permutation and
  * sigma permutation are equal
  */
-TEST(standard_honk_composer, test_sigma_and_id_correctness)
+TEST(StandardHonkComposer, SigmaIDCorrectness)
 {
     auto test_permutation = [](StandardHonkComposer& composer) {
         auto proving_key = composer.compute_proving_key();
@@ -133,7 +132,7 @@ TEST(standard_honk_composer, test_sigma_and_id_correctness)
  * @brief Check the correctness of lagrange polynomials generated during proving key computation
  *
  */
-TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
+TEST(StandardHonkComposer, LagrangeCorrectness)
 {
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
@@ -181,7 +180,7 @@ TEST(standard_honk_composer, test_lagrange_polynomial_correctness)
  * merged.
  * In this test we create two almost identical circuits. They differ because one
  */
-TEST(standard_honk_composer, test_assert_equal)
+TEST(StandardHonkComposer, AssertEquals)
 {
     /**
      * @brief A function that creates a simple circuit with repeated gates, leading to large permutation cycles
@@ -281,7 +280,7 @@ TEST(standard_honk_composer, test_assert_equal)
     EXPECT_EQ(get_maximum_cycle(composer_with_assert_equal), get_maximum_cycle(composer_no_assert_equal) * 2);
 }
 
-TEST(standard_honk_composer, test_verification_key_creation)
+TEST(StandardHonkComposer, VerificationKeyCreation)
 {
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
@@ -313,7 +312,7 @@ TEST(standard_honk_composer, test_verification_key_creation)
  * indices
  *
  */
-TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
+TEST(StandardHonkComposer, SumcheckRelationCorrectness)
 {
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
@@ -336,136 +335,80 @@ TEST(standard_honk_composer, test_check_sumcheck_relations_correctness)
     // Generate beta and gamma
     fr beta = fr::random_element();
     fr gamma = fr::random_element();
-
-    // Compute grand product polynomial (now all the necessary polynomials are inside the proving key)
-    auto z_permutation = prover.compute_grand_product_polynomial(beta, gamma);
+    fr zeta = fr::random_element();
 
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
     auto public_input_delta =
         honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
 
-    // Retrieve polynomials from proving key
-    polynomial w_1 = prover.wire_polynomials[0];
-    polynomial w_2 = prover.wire_polynomials[1];
-    polynomial w_3 = prover.wire_polynomials[2];
-    polynomial q_m = prover.key->polynomial_cache.get("q_m_lagrange");
-    polynomial q_1 = prover.key->polynomial_cache.get("q_1_lagrange");
-    polynomial q_2 = prover.key->polynomial_cache.get("q_2_lagrange");
-    polynomial q_3 = prover.key->polynomial_cache.get("q_3_lagrange");
-    polynomial q_c = prover.key->polynomial_cache.get("q_c_lagrange");
-    polynomial sigma_1 = prover.key->polynomial_cache.get("sigma_1_lagrange");
-    polynomial sigma_2 = prover.key->polynomial_cache.get("sigma_2_lagrange");
-    polynomial sigma_3 = prover.key->polynomial_cache.get("sigma_3_lagrange");
-    polynomial id_1 = prover.key->polynomial_cache.get("id_1_lagrange");
-    polynomial id_2 = prover.key->polynomial_cache.get("id_2_lagrange");
-    polynomial id_3 = prover.key->polynomial_cache.get("id_3_lagrange");
-    polynomial L_first = prover.key->polynomial_cache.get("L_first_lagrange");
-    polynomial L_last = prover.key->polynomial_cache.get("L_last_lagrange");
+    sumcheck::RelationParameters<fr> params{
+        .zeta = zeta,
+        .alpha = fr::one(),
+        .beta = beta,
+        .gamma = gamma,
+        .public_input_delta = public_input_delta,
+    };
 
-    // Specify sumcheck configuration
-    using honk::sumcheck::Univariate;
-    using honk::sumcheck::UnivariateView;
-    using SumCheckRound = honk::sumcheck::SumcheckRound<fr,
-                                                        bonk::StandardArithmetization::NUM_POLYNOMIALS,
-                                                        honk::sumcheck::ArithmeticRelation,
-                                                        honk::sumcheck::GrandProductComputationRelation,
-                                                        honk::sumcheck::GrandProductInitializationRelation>;
-    using StandardUnivariate = Univariate<fr, SumCheckRound::MAX_RELATION_LENGTH>;
-    std::vector<
-        std::array<Univariate<fr, SumCheckRound::MAX_RELATION_LENGTH>, bonk::StandardArithmetization::NUM_POLYNOMIALS>>
-        sumcheck_typed_polynomial_vector;
-    using ArithmeticUnivariate = Univariate<fr, honk::sumcheck::ArithmeticRelation<fr>::RELATION_LENGTH>;
+    constexpr size_t num_polynomials = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    // Compute grand product polynomial (now all the necessary polynomials are inside the proving key)
+    polynomial z_perm_poly = prover.compute_grand_product_polynomial(beta, gamma);
 
-    using GrandProductComputationUnivariate =
-        Univariate<fr, honk::sumcheck::GrandProductComputationRelation<fr>::RELATION_LENGTH>;
-    using GrandProductInitializationUnivariate =
-        Univariate<fr, honk::sumcheck::GrandProductInitializationRelation<fr>::RELATION_LENGTH>;
+    // Create an array of spans to the underlying polynomials to more easily
+    // get the transposition.
+    // Ex: polynomial_spans[3][i] returns the i-th coefficient of the third polynomial
+    // in the list below
+    std::array<std::span<const fr>, num_polynomials> evaluations_array;
+
+    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+    evaluations_array[POLYNOMIAL::W_L] = prover.wire_polynomials[0];
+    evaluations_array[POLYNOMIAL::W_R] = prover.wire_polynomials[1];
+    evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];
+    evaluations_array[POLYNOMIAL::Z_PERM] = z_perm_poly;
+    evaluations_array[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_poly.shifted();
+    evaluations_array[POLYNOMIAL::Q_M] = prover.key->polynomial_cache.get("q_m_lagrange");
+    evaluations_array[POLYNOMIAL::Q_L] = prover.key->polynomial_cache.get("q_1_lagrange");
+    evaluations_array[POLYNOMIAL::Q_R] = prover.key->polynomial_cache.get("q_2_lagrange");
+    evaluations_array[POLYNOMIAL::Q_O] = prover.key->polynomial_cache.get("q_3_lagrange");
+    evaluations_array[POLYNOMIAL::Q_C] = prover.key->polynomial_cache.get("q_c_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_1] = prover.key->polynomial_cache.get("sigma_1_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_2] = prover.key->polynomial_cache.get("sigma_2_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_3] = prover.key->polynomial_cache.get("sigma_3_lagrange");
+    evaluations_array[POLYNOMIAL::ID_1] = prover.key->polynomial_cache.get("id_1_lagrange");
+    evaluations_array[POLYNOMIAL::ID_2] = prover.key->polynomial_cache.get("id_2_lagrange");
+    evaluations_array[POLYNOMIAL::ID_3] = prover.key->polynomial_cache.get("id_3_lagrange");
+    evaluations_array[POLYNOMIAL::LAGRANGE_FIRST] = prover.key->polynomial_cache.get("L_first_lagrange");
+    evaluations_array[POLYNOMIAL::LAGRANGE_LAST] = prover.key->polynomial_cache.get("L_last_lagrange");
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<fr>(),
                                 honk::sumcheck::GrandProductComputationRelation<fr>(),
                                 honk::sumcheck::GrandProductInitializationRelation<fr>());
-    auto round = SumCheckRound(relations);
-    auto results = std::make_tuple(
-        ArithmeticUnivariate(0), GrandProductComputationUnivariate(0), GrandProductInitializationUnivariate(0));
 
-    // Transpose the polynomials so that each entry of the vector contains an array of polynomial entries at that
-    // index
-    std::array<Univariate<fr, SumCheckRound::MAX_RELATION_LENGTH>, bonk::StandardArithmetization::NUM_POLYNOMIALS>
-        univariate_array;
+    fr result = 0;
     for (size_t i = 0; i < prover.key->circuit_size; i++) {
-        // We only fill in the first element of each univariate with the value of an entry from the original poynomial
-        StandardUnivariate w_1_univariate(0);
-        w_1_univariate.value_at(0) = w_1[i];
-        StandardUnivariate w_2_univariate(0);
-        w_2_univariate.value_at(0) = w_2[i];
-        StandardUnivariate w_3_univariate(0);
-        w_3_univariate.value_at(0) = w_3[i];
-        StandardUnivariate z_perm_univariate(0);
-        z_perm_univariate.value_at(0) = z_permutation[i];
-        StandardUnivariate z_perm_shift_univariate(0);
-        z_perm_shift_univariate.value_at(0) = (i < (prover.key->circuit_size - 1)) ? z_permutation[i + 1] : 0;
-        StandardUnivariate q_m_univariate(0);
-        q_m_univariate.value_at(0) = q_m[i];
-        StandardUnivariate q_1_univariate(0);
-        q_1_univariate.value_at(0) = q_1[i];
-        StandardUnivariate q_2_univariate(0);
-        q_2_univariate.value_at(0) = q_2[i];
-        StandardUnivariate q_3_univariate(0);
-        q_3_univariate.value_at(0) = q_3[i];
-        StandardUnivariate q_c_univariate(0);
-        q_c_univariate.value_at(0) = q_c[i];
-        StandardUnivariate sigma_1_univariate(0);
-        sigma_1_univariate.value_at(0) = sigma_1[i];
-        StandardUnivariate sigma_2_univariate(0);
-        sigma_2_univariate.value_at(0) = sigma_2[i];
-        StandardUnivariate sigma_3_univariate(0);
-        sigma_3_univariate.value_at(0) = sigma_3[i];
-        StandardUnivariate id_1_univariate(0);
-        id_1_univariate.value_at(0) = id_1[i];
-        StandardUnivariate id_2_univariate(0);
-        id_2_univariate.value_at(0) = id_2[i];
-        StandardUnivariate id_3_univariate(0);
-        id_3_univariate.value_at(0) = id_3[i];
-        StandardUnivariate L_first_univariate(0);
-        L_first_univariate.value_at(0) = L_first[i];
-        StandardUnivariate L_last_univariate(0);
-        L_last_univariate.value_at(0) = L_last[i];
+        // Compute an array containing all the evaluations at a given row i
+        std::array<fr, num_polynomials> evaluations_at_index_i;
+        for (size_t j = 0; j < num_polynomials; ++j) {
+            evaluations_at_index_i[j] = evaluations_array[j][i];
+        }
 
-        using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
-        univariate_array[POLYNOMIAL::W_L] = w_1_univariate;
-        univariate_array[POLYNOMIAL::W_R] = w_2_univariate;
-        univariate_array[POLYNOMIAL::W_O] = w_3_univariate;
-        univariate_array[POLYNOMIAL::Z_PERM] = z_perm_univariate;
-        univariate_array[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_shift_univariate;
-        univariate_array[POLYNOMIAL::Q_M] = q_m_univariate;
-        univariate_array[POLYNOMIAL::Q_L] = q_1_univariate;
-        univariate_array[POLYNOMIAL::Q_R] = q_2_univariate;
-        univariate_array[POLYNOMIAL::Q_O] = q_3_univariate;
-        univariate_array[POLYNOMIAL::Q_C] = q_c_univariate;
-        univariate_array[POLYNOMIAL::SIGMA_1] = sigma_1_univariate;
-        univariate_array[POLYNOMIAL::SIGMA_2] = sigma_2_univariate;
-        univariate_array[POLYNOMIAL::SIGMA_3] = sigma_3_univariate;
-        univariate_array[POLYNOMIAL::ID_1] = id_1_univariate;
-        univariate_array[POLYNOMIAL::ID_2] = id_2_univariate;
-        univariate_array[POLYNOMIAL::ID_3] = id_3_univariate;
-        univariate_array[POLYNOMIAL::LAGRANGE_FIRST] = L_first_univariate;
-        univariate_array[POLYNOMIAL::LAGRANGE_LAST] = L_last_univariate;
+        // For each relation, call the `accumulate_relation_evaluation` over all witness/selector values at the
+        // i-th row/vertex of the hypercube.
+        // We use ASSERT_EQ instead of EXPECT_EQ so that the tests stops at the first index at which the result is not
+        // 0, since result = 0 + C(transposed), which we expect will equal 0.
+        std::get<0>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
+        ASSERT_EQ(result, 0);
 
-        sumcheck_typed_polynomial_vector.push_back(univariate_array);
-    }
-    // Check all relations at all indices
-    for (size_t i = 0; i < prover.key->circuit_size; i++) {
-        round.accumulate_relation_univariates_testing(
-            sumcheck_typed_polynomial_vector[i], results, { beta, gamma, public_input_delta });
-        EXPECT_EQ(std::get<0>(results), ArithmeticUnivariate(0));
-        EXPECT_EQ(std::get<1>(results), GrandProductComputationUnivariate(0));
-        EXPECT_EQ(std::get<2>(results), GrandProductInitializationUnivariate(0));
+        std::get<1>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
+        ASSERT_EQ(result, 0);
+
+        std::get<2>(relations).add_full_relation_value_contribution(result, evaluations_at_index_i, params);
+        ASSERT_EQ(result, 0);
     }
 }
 
-TEST(StandarHonkComposer, BaseCase)
+TEST(StandardHonkComposer, BaseCase)
 {
     auto composer = StandardHonkComposer();
     fr a = 1;

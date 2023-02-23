@@ -23,8 +23,6 @@
 #include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 using namespace barretenberg;
 using namespace honk::sumcheck;
 
@@ -83,7 +81,6 @@ template <typename program_settings> Verifier<program_settings>& Verifier<progra
 template <typename program_settings> bool Verifier<program_settings>::verify_proof(const plonk::proof& proof)
 {
 
-    const size_t num_polys = program_settings::num_polys;
     using FF = typename program_settings::fr;
     using Commitment = barretenberg::g1::affine_element;
     using Transcript = typename program_settings::Transcript;
@@ -94,7 +91,6 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     using GeminiProof = pcs::gemini::Proof<pcs::kzg::Params>;
     using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
     const size_t NUM_UNSHIFTED = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
-    const size_t NUM_SHIFTED = bonk::StandardArithmetization::NUM_SHIFTED_POLYNOMIALS;
     const size_t NUM_PRECOMPUTED = bonk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
 
     key->program_width = program_settings::program_width;

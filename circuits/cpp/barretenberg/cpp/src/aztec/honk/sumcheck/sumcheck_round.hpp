@@ -151,32 +151,6 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         }
     }
 
-    /**
-     * @brief Function accumulating relations for testing
-     *
-     * @details Get univariates from input instead of internal state. Uses submitted challenges
-     *
-     * @tparam relation_idx
-     * @tparam challenge_size
-     * @param internal_extended_edges
-     * @param internal_univariate_accumulators
-     * @param challenges
-     */
-    template <size_t relation_idx = 0, size_t challenge_size = 3>
-    void accumulate_relation_univariates_testing(
-        std::array<Univariate<FF, MAX_RELATION_LENGTH>, num_multivariates>& internal_extended_edges,
-        std::tuple<Univariate<FF, Relations<FF>::RELATION_LENGTH>...>& internal_univariate_accumulators,
-        std::array<FF, challenge_size> challenges)
-    {
-        std::get<relation_idx>(relations).add_edge_contribution_testing(
-            internal_extended_edges, std::get<relation_idx>(internal_univariate_accumulators), challenges);
-
-        // Repeat for the next relation.
-        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            accumulate_relation_univariates_testing<relation_idx + 1, challenge_size>(
-                internal_extended_edges, internal_univariate_accumulators, challenges);
-        }
-    }
     // TODO(Cody): make private
     /**
      * @brief For a given edge, calculate the contribution of each relation to the prover round univariate (S_l in the
@@ -197,7 +171,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
     void accumulate_relation_univariates(const RelationParameters<FF>& relation_parameters, const FF& scaling_factor)
     {
         std::get<relation_idx>(relations).add_edge_contribution(
-            extended_edges, std::get<relation_idx>(univariate_accumulators), relation_parameters, scaling_factor);
+            std::get<relation_idx>(univariate_accumulators), extended_edges, relation_parameters, scaling_factor);
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
@@ -221,7 +195,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
                                          const RelationParameters<FF>& relation_parameters)
     {
         std::get<relation_idx>(relations).add_full_relation_value_contribution(
-            purported_evaluations, evaluations[relation_idx], relation_parameters);
+            evaluations[relation_idx], purported_evaluations, relation_parameters);
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {

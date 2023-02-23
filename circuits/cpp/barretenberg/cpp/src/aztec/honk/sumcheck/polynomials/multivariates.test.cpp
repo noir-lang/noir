@@ -5,8 +5,6 @@
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 using namespace honk::sumcheck;
 namespace test_sumcheck_polynomials {
 
@@ -43,7 +41,6 @@ TYPED_TEST(MultivariatesTests, FoldTwoRoundsSpecial)
     MULTIVARIATES_TESTS_TYPE_ALIASES
 
     // values here are chosen to check another test
-    const size_t num_polys(1);
     const size_t multivariate_d(2);
     const size_t multivariate_n(1 << multivariate_d);
 
@@ -79,7 +76,6 @@ TYPED_TEST(MultivariatesTests, FoldTwoRoundsGeneric)
 {
     MULTIVARIATES_TESTS_TYPE_ALIASES
 
-    const size_t num_polys(1);
     const size_t multivariate_d(2);
     const size_t multivariate_n(1 << multivariate_d);
 
@@ -128,7 +124,6 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsSpecial)
 {
     MULTIVARIATES_TESTS_TYPE_ALIASES
 
-    const size_t num_polys(1);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
 
@@ -178,7 +173,6 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsGeneric)
 {
     MULTIVARIATES_TESTS_TYPE_ALIASES
 
-    const size_t num_polys(1);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
 
@@ -227,7 +221,6 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsGeneric)
 TYPED_TEST(MultivariatesTests, FoldThreeRoundsGenericMultiplePolys)
 {
     MULTIVARIATES_TESTS_TYPE_ALIASES
-    const size_t num_polys(3);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
     std::array<FF, 3> v000;

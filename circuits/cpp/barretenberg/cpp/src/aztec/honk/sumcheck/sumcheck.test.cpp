@@ -18,8 +18,6 @@
 #include <sys/types.h>
 #include <vector>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 using namespace honk;
 using namespace honk::sumcheck;
 
@@ -136,13 +134,10 @@ Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_in
 TEST(Sumcheck, PolynomialNormalization)
 {
     // Todo(Cody): We should not use real constants like this in the tests, at least not in so many of them.
-    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
     ;
     const size_t num_public_inputs(1);
-
-    constexpr size_t fr_size = 32;
 
     // clang-format off
     std::array<FF, multivariate_n> w_l =            { 0, 1, 2, 3, 4, 5, 6, 7 };
@@ -233,7 +228,6 @@ TEST(Sumcheck, Prover)
     const size_t num_public_inputs(1);
 
     // const size_t max_relation_length = 4;
-    constexpr size_t fr_size = 32;
 
     // clang-format off
     std::array<FF, multivariate_n> w_l =            { 1, 2, 0, 0};
@@ -306,11 +300,8 @@ TEST(Sumcheck, Prover)
 // TODO(luke): test possibly made obsolete by test ProverAndVerifierLonger
 TEST(Sumcheck, ProverAndVerifier)
 {
-    const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
     const size_t multivariate_d(1);
     const size_t multivariate_n(1 << multivariate_d);
-    const size_t max_relation_length = 6;
-    constexpr size_t fr_size = 32;
     const size_t num_public_inputs(1);
 
     std::array<FF, 2> w_l = { 0, 1 };
@@ -375,13 +366,9 @@ TEST(Sumcheck, ProverAndVerifier)
 TEST(Sumcheck, ProverAndVerifierLonger)
 {
     auto run_test = [](bool expect_verified) {
-        const size_t num_polys(bonk::StandardArithmetization::NUM_POLYNOMIALS);
         const size_t multivariate_d(2);
         const size_t multivariate_n(1 << multivariate_d);
         const size_t num_public_inputs(0);
-
-        const size_t max_relation_length = honk::StandardHonk::MAX_RELATION_LENGTH;
-        constexpr size_t fr_size = 32;
 
         // clang-format off
     std::array<FF, multivariate_n> w_l;

@@ -3,8 +3,8 @@
 #include <tuple>
 
 #include <proof_system/flavor/flavor.hpp>
-#include "relation.hpp"
 #include "../polynomials/univariate.hpp"
+#include "relation.hpp"
 
 namespace honk::sumcheck {
 
@@ -14,54 +14,24 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
     static constexpr size_t RELATION_LENGTH = 4;
     using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
 
-    // FUTURE OPTIMIZATION: successively extend as needed?
-
-    // This relation takes no randomness, so it will not receive challenges.
-    ArithmeticRelation() = default;
-    explicit ArithmeticRelation(auto){}; // NOLINT(readability-named-parameter)
-
     /**
-     * @brief External function used by sumcheck round
+     * @brief Expression for the StandardArithmetic gate.
+     * @details The relation is defined as C(extended_edges(X)...) =
+     *    (q_m * w_r * w_l) + (q_l * w_l) + (q_r * w_r) + (q_o * w_o) + q_c
      *
-     * @param extended_edges Contain inputs for the relation
-     * @param evals Contains the resulting univariate polynomial
-     *
-     * The final parameter is left to conform to the general argument structure (input,output, challenges) even though
-     * we don't need challenges in this relation.
+     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
+     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param parameters contains beta, gamma, and public_input_delta, ....
+     * @param scaling_factor optional term to scale the evaluation before adding to evals.
      */
-    template <typename T>
-    void add_edge_contribution(auto& extended_edges,
-                               Univariate<FF, RELATION_LENGTH>& evals,
-                               T,
-                               const FF& scaling_factor )
+    void add_edge_contribution(Univariate<FF, RELATION_LENGTH>& evals,
+                               const auto& extended_edges,
+                               const RelationParameters<FF>&,
+                               const FF& scaling_factor) const
     {
-        add_edge_contribution_internal(extended_edges, evals, scaling_factor);
-    };
+        // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
+        //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
 
-    /**
-     * @brief Same as add_edge_contribution but is used for testing
-     *
-     * @details Arithmetic relation doesn't require challenges but it needs the same interface as those relations that
-     * do
-     *
-     * @tparam T
-     * @param extended_edges
-     * @param evals
-     * @param challenges
-     */
-    // TODO(kesha): Change once challenges are being supplied to regular contribution
-    template <typename T>
-    void add_edge_contribution_testing(auto& extended_edges, Univariate<FF, RELATION_LENGTH>& evals, T)
-    {
-        add_edge_contribution_internal(extended_edges, evals, FF::one());
-    };
-
-    // OPTIMIZATION?: Karatsuba in general, at least for some degrees?
-    //       See https://hackmd.io/xGLuj6biSsCjzQnYN-pEiA?both
-    void add_edge_contribution_internal(auto& extended_edges,
-                                        Univariate<FF, RELATION_LENGTH>& evals,
-                                        const FF& scaling_factor)
-    {
         auto w_l = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_L]);
         auto w_r = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_R]);
         auto w_o = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::W_O]);
@@ -79,8 +49,9 @@ template <typename FF> class ArithmeticRelation : public Relation<FF> {
         evals += tmp;
     };
 
-    template <typename T>
-    void add_full_relation_value_contribution(auto& purported_evaluations, FF& full_honk_relation_value, T)
+    void add_full_relation_value_contribution(FF& full_honk_relation_value,
+                                              const auto& purported_evaluations,
+                                              const RelationParameters<FF>&) const
     {
         auto w_l = purported_evaluations[MULTIVARIATE::W_L];
         auto w_r = purported_evaluations[MULTIVARIATE::W_R];
