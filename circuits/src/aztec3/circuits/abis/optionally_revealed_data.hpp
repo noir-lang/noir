@@ -43,6 +43,23 @@ template <typename NCT> struct OptionallyRevealedData {
         return data;
     };
 
+    template <typename Composer> OptionallyRevealedData<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        OptionallyRevealedData<NativeTypes> data = {
+            to_nt(call_stack_item_hash),    to_native_type(function_signature),
+            to_nt(emitted_events),          to_nt(vk_hash),
+            to_nt(portal_contract_address), to_nt(pay_fee_from_l1),
+            to_nt(pay_fee_from_public_l2),  to_nt(called_from_l1),
+            to_nt(called_from_public_l2),
+        };
+
+        return data;
+    };
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));

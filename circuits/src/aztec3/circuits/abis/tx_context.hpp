@@ -45,6 +45,21 @@ template <typename NCT> struct TxContext {
         return tx_context;
     };
 
+    template <typename Composer> TxContext<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        TxContext<NativeTypes> tx_context = {
+            to_nt(is_fee_payment_tx),         to_nt(is_rebate_payment_tx),
+            to_nt(is_contract_deployment_tx), to_native_type(contract_deployment_data),
+            to_nt(reference_block_num),
+        };
+
+        return tx_context;
+    };
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));

@@ -36,6 +36,21 @@ template <typename NCT> struct OldTreeRoots {
         return data;
     };
 
+    template <typename Composer> OldTreeRoots<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+
+        OldTreeRoots<NativeTypes> data = {
+            to_nt(private_data_tree_root),
+            to_nt(nullifier_tree_root),
+            to_nt(contract_tree_root),
+            to_nt(private_kernel_vk_tree_root),
+        };
+
+        return data;
+    };
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));

@@ -63,6 +63,36 @@ template <typename NCT> struct AccumulatedData {
         return acc_data;
     };
 
+    template <typename Composer> AccumulatedData<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        AccumulatedData<NativeTypes> acc_data = {
+            typename NativeTypes::AggregationObject{
+                to_nt(aggregation_object.P0),
+                to_nt(aggregation_object.P1),
+                to_nt(aggregation_object.public_inputs),
+                aggregation_object.proof_witness_indices,
+                aggregation_object.has_data,
+            },
+
+            to_nt(private_call_count),
+
+            to_nt(new_commitments),
+            to_nt(new_nullifiers),
+
+            to_nt(private_call_stack),
+            to_nt(public_call_stack),
+            to_nt(l1_msg_stack),
+
+            map(optionally_revealed_data, to_native_type),
+        };
+
+        return acc_data;
+    };
+
     void set_public()
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));

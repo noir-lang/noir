@@ -21,8 +21,6 @@ template <typename NCT> struct PublicInputs {
     ConstantData<NCT> constants;
 
     boolean is_private = true; // TODO: might need to instantiate from witness!
-    boolean is_public = false;
-    boolean is_contract_deployment = false;
 
     template <typename Composer> PublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -36,11 +34,25 @@ template <typename NCT> struct PublicInputs {
             constants.to_circuit_type(composer),
 
             to_ct(is_private),
-            to_ct(is_public),
-            to_ct(is_contract_deployment),
         };
 
         return private_inputs;
+    };
+
+    template <typename Composer> PublicInputs<NativeTypes> to_native_type() const
+    {
+        static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
+        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        PublicInputs<NativeTypes> pis = {
+            to_native_type(end),
+            to_native_type(constants),
+
+            to_nt(is_private),
+        };
+
+        return pis;
     };
 
     void set_public()
@@ -51,8 +63,6 @@ template <typename NCT> struct PublicInputs {
         constants.set_public();
 
         fr(is_private).set_public();
-        fr(is_public).set_public();
-        fr(is_contract_deployment).set_public();
     }
 };
 

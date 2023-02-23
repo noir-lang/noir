@@ -20,8 +20,8 @@ template <typename NCT> struct PreviousKernelData {
     NativeTypes::Proof proof;        // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
-    // TODO: this index and path are meant to be those of a tree of _kernel circuit_ vks; not the tree of functions
-    // within the contract tree.
+    // TODO: this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
+    // of functions within the contract tree.
     fr vk_index;
     std::array<fr, VK_TREE_HEIGHT> vk_path;
 
