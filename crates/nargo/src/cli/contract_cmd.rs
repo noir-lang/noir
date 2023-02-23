@@ -1,4 +1,5 @@
-use super::{create_named_dir, write_to_file, NargoConfig};
+use super::fs::{create_named_dir, write_to_file};
+use super::NargoConfig;
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::Args;

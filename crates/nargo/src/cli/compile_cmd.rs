@@ -1,16 +1,13 @@
+use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
-use acvm::{acir::circuit::Circuit, hash_constraint_system};
 use std::path::{Path, PathBuf};
 
 use clap::Args;
 
-use crate::{
-    constants::{ACIR_EXT, PK_EXT, TARGET_DIR, VK_EXT},
-    errors::CliError,
-    resolver::Resolver,
-};
+use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, create_named_dir, write_to_file, NargoConfig};
+use super::fs::{acir::save_acir_to_dir, keys::save_key_to_dir};
+use super::{add_std_lib, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -80,42 +77,4 @@ fn preprocess_with_path<P: AsRef<Path>>(
     println!("Verification key saved to {}", vk_path.display());
 
     Ok((pk_path, vk_path))
-}
-
-fn save_acir_to_dir<P: AsRef<Path>>(
-    circuit: &Circuit,
-    circuit_name: &str,
-    circuit_dir: P,
-) -> PathBuf {
-    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
-    circuit_path.push(circuit_name);
-
-    // Save a checksum of the circuit to compare against during proving and verification
-    let acir_hash = hash_constraint_system(circuit);
-    circuit_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
-    write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
-
-    let mut serialized = Vec::new();
-    circuit.write(&mut serialized).expect("could not serialize circuit");
-
-    circuit_path.set_extension(ACIR_EXT);
-    write_to_file(serialized.as_slice(), &circuit_path);
-
-    circuit_path
-}
-
-fn save_key_to_dir<P: AsRef<Path>>(
-    key: Vec<u8>,
-    key_name: &str,
-    key_dir: P,
-    is_proving_key: bool,
-) -> Result<PathBuf, CliError> {
-    let mut key_path = create_named_dir(key_dir.as_ref(), key_name);
-    key_path.push(key_name);
-    let extension = if is_proving_key { PK_EXT } else { VK_EXT };
-    key_path.set_extension(extension);
-
-    write_to_file(hex::encode(key).as_bytes(), &key_path);
-
-    Ok(key_path)
 }

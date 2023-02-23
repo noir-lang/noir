@@ -21,7 +21,7 @@ pub fn evaluate_permutation(
 ) -> Vec<Witness> {
     let bits = Vec::new();
     let (w, b) = permutation_layer(in_expr, &bits, true, evaluator);
-    // we contrain the network output to out_expr
+    // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
