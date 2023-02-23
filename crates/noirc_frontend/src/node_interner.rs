@@ -25,7 +25,7 @@ use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 /// extra information about the Hir, such as the type of each node, information about
 /// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
 /// useful in passes where the Hir is used - name resolution, type checking, and
-/// monomorphisation - and it is not useful afterward.
+/// monomorphization - and it is not useful afterward.
 pub struct NodeInterner {
     nodes: Arena<Node>,
     func_meta: HashMap<FuncId, FuncMeta>,
