@@ -231,7 +231,6 @@ impl ArrayHeap {
 #[derive(Default)]
 pub struct AcirMem {
     virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
-    pub dummy: Witness,
 }
 
 impl AcirMem {
@@ -247,11 +246,12 @@ impl AcirMem {
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
+    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar, op: Expression) {
         let heap = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
         heap.memory_map.insert(index, value);
-        heap.stage(index, value_expr, Expression::one());
+        assert_ne!(op, Expression::zero());
+        heap.stage(index, value_expr, op);
     }
 
     //Map the outputs into the array
@@ -271,7 +271,7 @@ impl AcirMem {
     // If create_witness is true, we create witnesses for values that do not have witness
     pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
         vecmap(0..array.len, |offset| {
-            self.load_array_element_constant_index(array, offset)
+            self.load_array_element_constant_index(array.id, offset)
                 .expect("infallible: array out of bounds error")
         })
     }
@@ -295,11 +295,11 @@ impl AcirMem {
     // Returns `None` if not found
     pub(crate) fn load_array_element_constant_index(
         &mut self,
-        array: &MemArray,
+        array_id: ArrayId,
         offset: u32,
     ) -> Option<InternalVar> {
         // Check the memory_map to see if the element is there
-        self.array_map_mut(array.id).get(&offset).cloned()
+        self.array_map_mut(array_id).get(&offset).cloned()
     }
 
     // Apply staged stores to the memory trace

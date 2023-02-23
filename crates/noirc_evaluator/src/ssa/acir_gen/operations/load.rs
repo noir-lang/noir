@@ -34,7 +34,7 @@ pub(crate) fn evaluate(
             return None; // IndexOutOfBoundsError
         }
 
-        let array_element = acir_mem.load_array_element_constant_index(mem_array, idx);
+        let array_element = acir_mem.load_array_element_constant_index(array_id, idx);
         if array_element.is_some() {
             return array_element;
         }

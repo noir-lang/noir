@@ -97,7 +97,10 @@ pub(crate) fn evaluate(
             let num_bits = array.element_type.bits();
             for i in 0..array.len {
                 in_expr.push(
-                    memory_map.load_array_element_constant_index(array, i).unwrap().to_expression(),
+                    memory_map
+                        .load_array_element_constant_index(array_id, i)
+                        .unwrap()
+                        .to_expression(),
                 );
             }
             outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
@@ -205,7 +208,7 @@ fn resolve_array(
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
         let mut arr_element = acir_mem
-            .load_array_element_constant_index(array, i)
+            .load_array_element_constant_index(array_id, i)
             .expect("array index out of bounds");
 
         let witness = arr_element.get_or_compute_witness(evaluator, true).expect(
@@ -213,7 +216,7 @@ fn resolve_array(
         );
         let func_input = FunctionInput { witness, num_bits };
 
-        acir_mem.insert(array.id, i, arr_element);
+        acir_mem.insert(array_id, i, arr_element, Expression::one());
 
         inputs.push(func_input)
     }
@@ -259,7 +262,7 @@ fn evaluate_println(
             let mut field_elements = Vec::new();
             for idx in 0..mem_array.len {
                 let var = memory_map
-                    .load_array_element_constant_index(mem_array, idx)
+                    .load_array_element_constant_index(array_id, idx)
                     .expect("array element being logged does not exist in memory");
                 let array_elem_expr = var.expression();
                 if array_elem_expr.is_const() {
