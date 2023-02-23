@@ -4,6 +4,97 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::lexer::errors::LexerErrorKind;
 
+/// Represents a token in noir's grammar - a word, number,
+/// or symbol that can be used in noir's syntax. This is the
+/// smallest unit of grammar. A parser may (will) decide to parse
+/// items differently depending on the Tokens present but will
+/// never parse the same ordering of identical tokens differently.
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum Token {
+    Ident(String),
+    Int(FieldElement),
+    Bool(bool),
+    Str(String),
+    Keyword(Keyword),
+    IntType(IntType),
+    Attribute(Attribute),
+    /// <
+    Less,
+    /// <=
+    LessEqual,
+    /// >
+    Greater,
+    /// >=
+    GreaterEqual,
+    /// ==
+    Equal,
+    /// !=
+    NotEqual,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// /
+    Slash,
+    /// %
+    Percent,
+    /// &
+    Ampersand,
+    /// ^
+    Caret,
+    /// <<
+    ShiftLeft,
+    /// >>
+    ShiftRight,
+    /// .
+    Dot,
+    /// ..
+    DoubleDot,
+    /// (
+    LeftParen,
+    /// )
+    RightParen,
+    /// {
+    LeftBrace,
+    /// }
+    RightBrace,
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
+    /// ->
+    Arrow,
+    /// |
+    Pipe,
+    /// #
+    Pound,
+    /// ,
+    Comma,
+    /// :
+    Colon,
+    /// ::
+    DoubleColon,
+    /// ;
+    Semicolon,
+    /// !
+    Bang,
+    /// _
+    Underscore,
+    /// =
+    Assign,
+    #[allow(clippy::upper_case_acronyms)]
+    EOF,
+
+    /// An invalid character is one that is not in noir's language or grammar.
+    /// Delaying reporting these as errors until parsing improves error messages
+    Invalid(char),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SpannedToken(Spanned<Token>);
+
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
         self == &other.0.contents
@@ -14,9 +105,6 @@ impl PartialEq<Token> for SpannedToken {
         &self.0.contents == other
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SpannedToken(Spanned<Token>);
 
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
@@ -46,92 +134,6 @@ impl std::fmt::Display for SpannedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
-}
-
-// XXX(low): Add a Comment Token to force users to have documentation on public functions
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-/// All possible tokens allowed in the target language
-pub enum Token {
-    Ident(String),
-    Int(FieldElement),
-    Bool(bool),
-    Str(String),
-    Keyword(Keyword),
-    IntType(IntType),
-    Attribute(Attribute),
-    // <
-    Less,
-    // <=
-    LessEqual,
-    // >
-    Greater,
-    // >=
-    GreaterEqual,
-    // ==
-    Equal,
-    // !=
-    NotEqual,
-    // +
-    Plus,
-    // -
-    Minus,
-    // *
-    Star,
-    // /
-    Slash,
-    // %
-    Percent,
-    // &
-    Ampersand,
-    // ^
-    Caret,
-    // <<
-    ShiftLeft,
-    // >>
-    ShiftRight,
-    // .
-    Dot,
-    // ..
-    DoubleDot,
-    // (
-    LeftParen,
-    // )
-    RightParen,
-    // {
-    LeftBrace,
-    // }
-    RightBrace,
-    // [
-    LeftBracket,
-    // ]
-    RightBracket,
-    // ->
-    Arrow,
-    // |
-    Pipe,
-    // #
-    Pound,
-    // ,
-    Comma,
-    // :
-    Colon,
-    // ::
-    DoubleColon,
-    // ;
-    Semicolon,
-    // !
-    Bang,
-    // _
-    Underscore,
-    // =
-    Assign,
-    #[allow(clippy::upper_case_acronyms)]
-    EOF,
-
-    // An invalid character is one that is not in noir's language or grammar.
-    // Delaying reporting these as errors until parsing improves error messages
-    Invalid(char),
 }
 
 impl fmt::Display for Token {
@@ -401,8 +403,12 @@ impl AsRef<str> for Attribute {
     }
 }
 
+/// All keywords in Noir.
+/// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
+/// only special within `impl`s. Otherwise `self` functions as a normal identifier.
+///
+/// To add a keyword, also make sure to add its string representation to Keyword::lookup_keyword.
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-// Special Keywords allowed in the target language
 pub enum Keyword {
     As,
     Bool,
@@ -462,9 +468,7 @@ impl fmt::Display for Keyword {
 }
 
 impl Keyword {
-    /// If the string is a keyword, return the associated token
-    /// else return None
-    /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
+    /// Looks up a word in the source program and returns the associated keyword, if found.
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         let keyword = match word {
             "as" => Keyword::As,
@@ -504,14 +508,9 @@ impl Keyword {
 
 pub struct Tokens(pub Vec<SpannedToken>);
 
-impl<'a> From<Tokens>
-    for chumsky::Stream<
-        'a,
-        Token,
-        Span,
-        Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>,
-    >
-{
+type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
+
+impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
     fn from(tokens: Tokens) -> Self {
         let end_of_input = match tokens.0.last() {
             Some(spanned_token) => spanned_token.to_span(),

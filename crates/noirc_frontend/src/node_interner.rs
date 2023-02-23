@@ -20,6 +20,66 @@ use crate::hir_def::{
 };
 use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
 
+/// The node interner is the central storage location of all nodes in Noir's Hir (the
+/// various node types can be found in hir_def). The interner is also used to collect
+/// extra information about the Hir, such as the type of each node, information about
+/// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
+/// useful in passes where the Hir is used - name resolution, type checking, and
+/// monomorphisation - and it is not useful afterward.
+pub struct NodeInterner {
+    nodes: Arena<Node>,
+    func_meta: HashMap<FuncId, FuncMeta>,
+    function_definition_ids: HashMap<FuncId, DefinitionId>,
+
+    // Map each `Index` to it's own location
+    id_to_location: HashMap<Index, Location>,
+
+    // Maps each DefinitionId to a DefinitionInfo.
+    definitions: Vec<DefinitionInfo>,
+
+    // Type checking map
+    //
+    // Notice that we use `Index` as the Key and not an ExprId or IdentId
+    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
+    // a Type, as not all Ids have types associated to them.
+    // Further note, that an ExprId and an IdentId will never have the same underlying Index
+    // Because we use one Arena to store all Definitions/Nodes
+    id_to_type: HashMap<Index, Type>,
+
+    // Struct map.
+    //
+    // Each struct definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    structs: HashMap<StructId, Shared<StructType>>,
+
+    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
+    /// filled out during type checking from instantiated variables. Used during monomorphization
+    /// to map call site types back onto function parameter types, and undo this binding as needed.
+    instantiation_bindings: HashMap<ExprId, TypeBindings>,
+
+    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
+    /// checking.
+    field_indices: HashMap<ExprId, usize>,
+
+    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+
+    next_type_variable_id: usize,
+
+    //used for fallback mechanism
+    language: Language,
+
+    delayed_type_checks: Vec<TypeCheckFn>,
+
+    /// A map from a struct type and method name to a function id for the method.
+    struct_methods: HashMap<(StructId, String), FuncId>,
+
+    /// Methods on primitive types defined in the stdlib.
+    primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+}
+
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
 
@@ -123,60 +183,6 @@ enum Node {
     Statement(HirStatement),
     Expression(HirExpression),
 }
-
-pub struct NodeInterner {
-    nodes: Arena<Node>,
-    func_meta: HashMap<FuncId, FuncMeta>,
-    function_definition_ids: HashMap<FuncId, DefinitionId>,
-
-    // Map each `Index` to it's own location
-    id_to_location: HashMap<Index, Location>,
-
-    // Maps each DefinitionId to a DefinitionInfo.
-    definitions: Vec<DefinitionInfo>,
-
-    // Type checking map
-    //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
-    id_to_type: HashMap<Index, Type>,
-
-    // Struct map.
-    //
-    // Each struct definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
-    // methods from impls to the type.
-    structs: HashMap<StructId, Shared<StructType>>,
-
-    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
-    /// filled out during type checking from instantiated variables. Used during monomorphization
-    /// to map call site types back onto function parameter types, and undo this binding as needed.
-    instantiation_bindings: HashMap<ExprId, TypeBindings>,
-
-    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
-    /// checking.
-    field_indices: HashMap<ExprId, usize>,
-
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
-
-    next_type_variable_id: usize,
-
-    //used for fallback mechanism
-    language: Language,
-
-    delayed_type_checks: Vec<TypeCheckFn>,
-
-    /// A map from a struct type and method name to a function id for the method.
-    struct_methods: HashMap<(StructId, String), FuncId>,
-
-    /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
-}
-
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone)]
 pub struct DefinitionInfo {
