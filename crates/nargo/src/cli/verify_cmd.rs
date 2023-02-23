@@ -4,7 +4,7 @@ use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::{FieldElement, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::CompiledProgram;
@@ -54,7 +54,7 @@ fn verify_with_path<P: AsRef<Path>>(
         }
         None => {
             let backend = crate::backends::ConcreteBackend;
-            backend.preprocess(compiled_program.circuit.clone())
+            backend.preprocess(&compiled_program.circuit)
         }
     };
 
@@ -64,35 +64,29 @@ fn verify_with_path<P: AsRef<Path>>(
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
     verify_proof(
-        compiled_program,
+        &compiled_program,
         public_inputs_map,
         return_value,
         &load_hex_data(&proof_path)?,
-        verification_key,
+        &verification_key,
         proof_path,
     )
 }
 
 pub(crate) fn verify_proof(
-    compiled_program: CompiledProgram,
+    compiled_program: &CompiledProgram,
     public_inputs_map: InputMap,
     return_value: Option<InputValue>,
     proof: &[u8],
-    verification_key: Vec<u8>,
+    verification_key: &[u8],
     proof_name: PathBuf,
 ) -> Result<(), CliError> {
-    let public_abi = compiled_program.abi.public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
-    let public_inputs_vec: Vec<FieldElement> = public_inputs.values().copied().collect();
-
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_with_vk(
-        proof,
-        public_inputs_vec,
-        compiled_program.circuit,
-        verification_key,
-    );
+    let valid_proof =
+        backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
 
     if valid_proof {
         Ok(())

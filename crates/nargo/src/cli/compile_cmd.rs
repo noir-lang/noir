@@ -45,7 +45,7 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
     let circuit_path = save_acir_to_dir(&compiled_program.circuit, circuit_name, &circuit_dir);
 
-    preprocess_with_path(circuit_name, circuit_dir, compiled_program.circuit)?;
+    preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
 
     Ok(circuit_path)
 }
@@ -65,7 +65,7 @@ pub fn compile_circuit<P: AsRef<Path>>(
 fn preprocess_with_path<P: AsRef<Path>>(
     key_name: &str,
     preprocess_dir: P,
-    circuit: Circuit,
+    circuit: &Circuit,
 ) -> Result<(PathBuf, PathBuf), CliError> {
     let backend = crate::backends::ConcreteBackend;
 

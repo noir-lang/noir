@@ -16,6 +16,7 @@ pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliE
     let compiled_program = compile_circuit(config.program_dir.clone(), false, args.allow_warnings)?;
 
     let backend = crate::backends::ConcreteBackend;
+    #[allow(deprecated)]
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
     let mut contract_dir = config.program_dir;

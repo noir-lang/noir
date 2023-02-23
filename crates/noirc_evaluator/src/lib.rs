@@ -5,7 +5,7 @@ mod ssa;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::fallback::IsBlackBoxSupported,
+    compiler::transformers::IsBlackBoxSupported,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
