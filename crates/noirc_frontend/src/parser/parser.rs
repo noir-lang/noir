@@ -107,7 +107,7 @@ fn top_level_statement(
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
-    .recover_via(top_level_statement_recovery())
+    .recover_with(skip_parser(top_level_statement_recovery()))
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
@@ -259,11 +259,11 @@ fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
 }
 
 fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = parse_type().recover_with(skip_parser(parameter_recovery()));
     let typ = just(Token::Colon).ignore_then(typ);
 
     let parameter = pattern()
-        .recover_via(parameter_name_recovery())
+        .recover_with(skip_parser(parameter_name_recovery()))
         .then(typ.or_not().map(|typ| typ.unwrap_or(UnresolvedType::Unspecified)));
 
     parameter.separated_by(just(Token::Comma)).allow_trailing().labelled("parameter")
@@ -272,10 +272,10 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
 fn function_parameters<'a>(
     allow_self: bool,
 ) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiVisibility)>> + 'a {
-    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = parse_type().recover_with(skip_parser(parameter_recovery()));
 
     let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
+        .recover_with(skip_parser(parameter_name_recovery()))
         .then_ignore(just(Token::Colon))
         .then(optional_visibility())
         .then(typ)
@@ -330,7 +330,7 @@ where
 {
     use Token::*;
     statement(expr_parser)
-        .recover_via(statement_recovery())
+        .recover_with(skip_parser(statement_recovery()))
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
         .repeated()
         .validate(check_statements_require_semicolon)

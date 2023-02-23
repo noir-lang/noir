@@ -172,14 +172,10 @@ where
 {
     chumsky::prelude::none_of(targets)
         .repeated()
-        .ignore_then(one_of(too_far.clone()).rewind())
-        .try_map(move |peek, span| {
-            if too_far.get_iter().any(|t| t == peek) {
-                // This error will never be shown to the user
-                Err(ParserError::with_reason(String::new(), span))
-            } else {
-                Ok(Recoverable::error(span))
-            }
+        .ignore_then(one_of(too_far).or_not().rewind())
+        .try_map(move |output, span| match output {
+            Some(_) => Err(ParserError::with_reason(String::new(), span)),
+            None => Ok(Recoverable::error(span)),
         })
 }
 
@@ -209,7 +205,7 @@ fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
 
 /// Force the given parser to succeed, logging any errors it had
 fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T>> + 'a {
-    parser.map(Some).recover_via(empty().map(|_| None))
+    parser.map(Some).recover_with(skip_parser(empty().map(|_| None)))
 }
 
 /// A ParsedModule contains an entire Ast for one file.
