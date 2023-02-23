@@ -1077,7 +1077,7 @@ mod test {
             block(expression()),
             vec![
                 "[0,1,2,3,4] }",
-                // "{ [0,1,2,3,4]",
+                "{ [0,1,2,3,4]",
                 "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
                 // "{ [0,1,2,3 }",
                 "{ 0,1,2,3] }",

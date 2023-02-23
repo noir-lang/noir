@@ -176,7 +176,7 @@ where
 /// if we find a '}' first.
 fn statement_recovery() -> impl NoirParser<Statement> {
     use Token::*;
-    try_skip_until([Semicolon, RightBrace], RightBrace)
+    try_skip_until([Semicolon, RightBrace, EOF], [RightBrace, EOF])
 }
 
 fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
