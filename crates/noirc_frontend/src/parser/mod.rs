@@ -174,6 +174,7 @@ where
         .repeated()
         .ignore_then(one_of(too_far).or_not().rewind())
         .try_map(move |output, span| match output {
+            // This error will never be shown to the user
             Some(_) => Err(ParserError::with_reason(String::new(), span)),
             None => Ok(Recoverable::error(span)),
         })
