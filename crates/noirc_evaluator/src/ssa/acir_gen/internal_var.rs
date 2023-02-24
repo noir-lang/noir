@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn internal_var_const_expression() {
-        let mut evaluator = Evaluator::new();
+        let mut evaluator = Evaluator::default();
 
         let expected_constant = FieldElement::from(123456789u128);
 
@@ -216,7 +216,7 @@ mod tests {
     }
     #[test]
     fn internal_var_from_witness() {
-        let mut evaluator = Evaluator::new();
+        let mut evaluator = Evaluator::default();
 
         let expected_witness = Witness(1234);
         // Initialize an InternalVar with a `Witness`

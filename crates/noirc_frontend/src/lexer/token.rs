@@ -406,8 +406,6 @@ impl AsRef<str> for Attribute {
 /// All keywords in Noir.
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
-///
-/// To add a keyword, also make sure to add its string representation to Keyword::lookup_keyword.
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
 pub enum Keyword {
     As,
@@ -503,6 +501,29 @@ impl Keyword {
         };
 
         Some(Token::Keyword(keyword))
+    }
+}
+
+#[cfg(test)]
+mod keywords {
+    use strum::IntoEnumIterator;
+
+    use super::{Keyword, Token};
+
+    #[test]
+    fn lookup_consistency() {
+        for keyword in Keyword::iter() {
+            let resolved_token =
+                Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                });
+
+            assert_eq!(
+                resolved_token,
+                Token::Keyword(keyword),
+                "Keyword::lookup_keyword returns unexpected Keyword"
+            )
+        }
     }
 }
 
