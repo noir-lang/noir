@@ -34,6 +34,11 @@ pub(crate) fn evaluate_neq(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Expression {
+    // Check whether the `lhs` and `rhs` are trivially equal
+    if lhs == rhs {
+        return Expression::zero();
+    }
+
     // Check whether the `lhs` and `rhs` are Arrays
     if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
         let array_a = &ctx.mem[a];
@@ -64,28 +69,30 @@ pub(crate) fn evaluate_neq(
 
         return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
     }
+
+    // Arriving here means that `lhs` and `rhs` are not Arrays
     let l_c = l_c.expect("ICE: unexpected array pointer");
     let r_c = r_c.expect("ICE: unexpected array pointer");
-    // Arriving here means that `lhs` and `rhs` are not Arrays
-    //
-    // Check if `lhs` and `rhs` are constants. If so, we can evaluate whether
-    // they are equal at compile time.
-    if let (Some(l), Some(r)) = (l_c.to_const(), r_c.to_const()) {
-        if l == r {
-            return Expression::default();
-        } else {
-            return Expression::one();
-        }
-    }
     let mut x = InternalVar::from(constraints::subtract(
         l_c.expression(),
         FieldElement::one(),
         r_c.expression(),
     ));
-    //todo we need a witness because of the directive, but we should use an expression
-    let x_witness =
-        x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
-    Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+
+    // Check if `x` is constant. If so, we can evaluate whether
+    // it is zero at compile time.
+    if let Some(x_const) = x.to_const() {
+        if x_const.is_zero() {
+            Expression::zero()
+        } else {
+            Expression::one()
+        }
+    } else {
+        //todo we need a witness because of the directive, but we should use an expression
+        let x_witness =
+            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+        Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+    }
 }
 
 pub(crate) fn evaluate_eq(
