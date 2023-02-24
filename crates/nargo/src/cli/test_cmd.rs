@@ -33,7 +33,7 @@ fn run_tests(
     let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(&compile_options).is_err() {
+    if driver.check_crate(compile_options).is_err() {
         std::process::exit(1);
     }
 
@@ -49,7 +49,7 @@ fn run_tests(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, &compile_options) {
+        match run_test(test_name, test_function, &driver, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
