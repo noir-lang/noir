@@ -50,7 +50,7 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     Ok(circuit_path)
 }
 
-pub fn compile_circuit<P: AsRef<Path>>(
+pub(crate) fn compile_circuit<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
     allow_warnings: bool,

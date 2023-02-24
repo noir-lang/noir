@@ -6,7 +6,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum CliError {
+pub(crate) enum CliError {
     #[error("{0}")]
     Generic(String),
     #[error("Error: destination {} already exists", .0.display())]

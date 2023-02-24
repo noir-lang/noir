@@ -64,7 +64,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     Ok(())
 }
 
-pub fn prove_with_path<P: AsRef<Path>>(
+pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
