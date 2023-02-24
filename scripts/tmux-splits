@@ -1,0 +1,40 @@
+#!/bin/bash
+# Launches tmux with 1 window running contracts, and a second window with 5 panes running, from top to bottom:
+# - kebab
+# - halloumi
+# - falafel
+# - hummus
+# - a shell in end-to-end. If a test is given as an argument, the test will be run here automatically.
+TEST=$1
+SESSION_NAME=work
+
+cd $(git rev-parse --show-toplevel)
+
+if tmux has-session -t $SESSION_NAME > /dev/null 2>&1; then
+  tmux attach -t $SESSION_NAME
+else
+  tmux new-session -s $SESSION_NAME -d
+  tmux send-keys 'cd contracts && bash scripts/start_e2e.sh' C-m \; \
+  new-window \; \
+  split-window \; \
+  select-layout even-vertical \; \
+  split-window \; \
+  select-layout even-vertical \; \
+  split-window \; \
+  select-layout even-vertical \; \
+  split-window \;  \
+  select-layout even-vertical \; \
+  # Give a chance for terminals to start (avoids double command echo).
+  sleep 3
+  tmux select-pane -t 0 \; \
+  send-keys 'cd yarn-project/kebab && yarn start:e2e' C-m \; \
+  select-pane -t 1 \; \
+  send-keys 'cd yarn-project/halloumi && yarn start:e2e' C-m \; \
+  select-pane -t 2 \; \
+  send-keys 'cd yarn-project/falafel && yarn start:e2e' C-m \; \
+  select-pane -t 3 \; \
+  send-keys 'cd yarn-project/hummus && yarn start:dev' C-m \; \
+  select-pane -t 4 \; \
+  send-keys "cd yarn-project/end-to-end && ([ -z \"$TEST\" ] || (yarn test $TEST))" C-m \; \
+  attach \;
+fi

@@ -1,0 +1,122 @@
+{
+  "circuits-wasm-linux-clang": {
+    "buildDir": "circuits",
+    "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
+    "rebuildPatterns": ["^circuits/"],
+    "dependencies": []
+  },
+  "circuits-x86_64-linux-clang": {
+    "buildDir": "circuits",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
+    "rebuildPatterns": ["^circuits/"],
+    "dependencies": []
+  },
+  "circuits-x86_64-linux-clang-assert": {
+    "buildDir": "circuits",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
+    "rebuildPatterns": ["^circuits/"],
+    "dependencies": []
+  },
+  "circuits-x86_64-linux-gcc": {
+    "buildDir": "circuits",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
+    "rebuildPatterns": ["^circuits/"],
+    "dependencies": []
+  },
+  "l1-contracts": {
+    "buildDir": "l1-contracts",
+    "dockerfile": "Dockerfile",
+    "rebuildPatterns": ["^l1-contracts/"],
+    "dependencies": []
+  },
+  "yarn-project-base": {
+    "buildDir": "yarn-project",
+    "dockerfile": "yarn-project-base/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/yarn-project-base/", "^yarn-project/yarn.lock"],
+    "dependencies": ["circuits-x86_64-linux-clang", "circuits-wasm-linux-clang", "contracts"]
+  },
+  "acir-simulator": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/acir-simulator",
+    "dockerfile": "acir-simulator/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/acir-simulator/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "aztec-cli": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/aztec-cli",
+    "dockerfile": "aztec-cli/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/aztec-cli/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "aztec.js": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/aztec.js",
+    "dockerfile": "aztec.js/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/aztec.js/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "data-archiver": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/data-archiver",
+    "dockerfile": "data-archiver/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/data-archiver/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "ethereum.js": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/ethereum.js",
+    "dockerfile": "ethereum.js/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/ethereum.js/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "kernel-simulator": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/kernel-simulator",
+    "dockerfile": "kernel-simulator/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/kernel-simulator/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "p2p": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/p2p",
+    "dockerfile": "p2p/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/p2p/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "private-client": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/private-client",
+    "dockerfile": "private-client/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/private-client/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "prover-client": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/prover-client",
+    "dockerfile": "prover-client/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/prover-client/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "public-client": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/public-client",
+    "dockerfile": "public-client/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/public-client/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "sequencer-client": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/sequencer-client",
+    "dockerfile": "sequencer-client/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/sequencer-client/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "wallet": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/wallet",
+    "dockerfile": "wallet/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/wallet/"],
+    "dependencies": ["yarn-project-base"]
+  }
+}

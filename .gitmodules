@@ -1,0 +1,9 @@
+[submodule "build-system"]
+	path = build-system
+	url = git@github.com:AztecProtocol/build-system.git
+[submodule "circuits"]
+	path = circuits
+	url = git@github.com:AztecProtocol/aztec3-circuits.git
+[submodule "l1-contracts"]
+	path = l1-contracts
+	url = git@github.com:AztecProtocol/aztec3-l1-contracts.git

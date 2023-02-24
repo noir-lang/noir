@@ -1,0 +1,27 @@
+{
+  "name": "@aztec/aztec3-packages",
+  "packageManager": "yarn@3.4.1",
+  "private": true,
+  "workspaces": [
+    "acir-simulator",
+    "aztec-cli",
+    "aztec.js",
+    "data-archiver",
+    "eslint-config",
+    "ethereum.js",
+    "kernel-simulator",
+    "p2p",
+    "prettier-config",
+    "private-client",
+    "prover-client",
+    "public-client",
+    "sequencer-client",
+    "wallet"
+  ],
+  "prettier": "./prettier-config",
+  "devDependencies": {
+    "eslint": "^8.21.0",
+    "prettier": "^2.7.1",
+    "typescript": "^4.9.5"
+  }
+}

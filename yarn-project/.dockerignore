@@ -1,0 +1,13 @@
+.yarn
+!/.yarn/cache
+!/.yarn/patches
+!/.yarn/plugins
+!/.yarn/releases
+!/.yarn/sdks
+!/.yarn/versions
+
+*/data*
+*/dest
+*/.tsbuildinfo
+**/Dockerfile*
+**/node_modules
