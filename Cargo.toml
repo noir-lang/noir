@@ -23,7 +23,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = { git="https://github.com/noir-lang/acvm", rev = "f57ba57c2bb2597edf2b02fb1321c69cf11993ee", features = ["bn254"] }
+acvm = "0.5.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

@@ -16,10 +16,11 @@ dependencies = [
 
 [[package]]
 name = "acir"
-version = "0.4.1"
-source = "git+https://github.com/noir-lang/acvm?rev=f57ba57c2bb2597edf2b02fb1321c69cf11993ee#f57ba57c2bb2597edf2b02fb1321c69cf11993ee"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "104242ac56c936464e3ac9618e1f635151e83334d8d4138f9a39490ca11acaa9"
 dependencies = [
- "acir_field 0.4.1",
+ "acir_field 0.5.0",
  "flate2",
  "rmp-serde",
  "serde",
@@ -44,8 +45,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.4.1"
-source = "git+https://github.com/noir-lang/acvm?rev=f57ba57c2bb2597edf2b02fb1321c69cf11993ee#f57ba57c2bb2597edf2b02fb1321c69cf11993ee"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebd6cc7ebc948cde55bf10a8c4f3e1479e03f34e00ee8ab83e86891b693dd503"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.1",
@@ -79,11 +81,12 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.4.1"
-source = "git+https://github.com/noir-lang/acvm?rev=f57ba57c2bb2597edf2b02fb1321c69cf11993ee#f57ba57c2bb2597edf2b02fb1321c69cf11993ee"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6145438d6c89c208cae93e49b925b0e2ac1963048a8ee4e002ca0f0de87d789e"
 dependencies = [
- "acir 0.4.1",
- "acvm_stdlib 0.4.1",
+ "acir 0.5.0",
+ "acvm_stdlib 0.5.0",
  "blake2",
  "indexmap",
  "k256",
@@ -105,10 +108,11 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.4.1"
-source = "git+https://github.com/noir-lang/acvm?rev=f57ba57c2bb2597edf2b02fb1321c69cf11993ee#f57ba57c2bb2597edf2b02fb1321c69cf11993ee"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaabcf52a534df7ed591451cf5ac2a765416fee4e38e0c523cc29da8c244aa7c"
 dependencies = [
- "acir 0.4.1",
+ "acir 0.5.0",
 ]
 
 [[package]]
@@ -509,7 +513,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31#b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -529,7 +533,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31#b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
 dependencies = [
  "blake2",
  "common",
@@ -857,9 +861,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31#b6ef1f7aa6f4ae8535cc2817a0e90554ade1ac31"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -2137,7 +2141,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "barretenberg_static_lib",
  "barretenberg_wasm",
  "build-data",
@@ -2166,7 +2170,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "build-data",
  "console_error_panic_hook",
  "getrandom",
@@ -2182,7 +2186,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "iter-extended",
  "serde",
  "serde_json",
@@ -2194,7 +2198,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "dirs 4.0.0",
  "fm",
  "noirc_abi",
@@ -2218,7 +2222,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "arena",
  "fm",
  "iter-extended",
@@ -2235,7 +2239,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.2.0"
 dependencies = [
- "acvm 0.4.1",
+ "acvm 0.5.0",
  "arena",
  "chumsky",
  "fm",
