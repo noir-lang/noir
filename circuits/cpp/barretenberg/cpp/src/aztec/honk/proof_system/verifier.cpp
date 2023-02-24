@@ -121,7 +121,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     for (size_t idx = 0; idx < log_n; idx++) {
-        transcript.apply_fiat_shamir("u_" + std::to_string(log_n - idx));
+        transcript.apply_fiat_shamir("u_" + std::to_string(idx));
     }
     transcript.apply_fiat_shamir("rho");
     transcript.apply_fiat_shamir("r");
@@ -142,16 +142,16 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     // Execute Gemini/Shplonk verification:
 
     // Construct inputs for Gemini verifier:
-    // - Multivariate opening point u = (u_1, ..., u_d)
+    // - Multivariate opening point u = (u_0, ..., u_{d-1})
     // - MLE opening claim = {commitment, eval} for each multivariate and shifted multivariate polynomial
     std::vector<FF> opening_point;
     std::vector<MLEOpeningClaim> opening_claims;
     std::vector<MLEOpeningClaim> opening_claims_shifted;
 
     // Construct MLE opening point
-    // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
+    // Note: for consistency the evaluation point must be constructed as u = (u_0,...,u_{d-1})
     for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
-        std::string label = "u_" + std::to_string(key->log_circuit_size - round_idx);
+        std::string label = "u_" + std::to_string(round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 

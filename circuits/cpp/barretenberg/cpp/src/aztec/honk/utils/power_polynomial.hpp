@@ -65,7 +65,7 @@ template <typename Fr> Fr evaluate(Fr zeta, std::span<const Fr> variables)
 {
     Fr evaluation = Fr::one();
     for (size_t i = 0; i < variables.size(); i++) {
-        // evaulutaion *= b^{2^i} - 1) * x_i + 1
+        // evaluation *= (b^{2^i} - 1) * x_i + 1
         evaluation *= (zeta - 1) * variables[i] + 1;
         zeta *= zeta;
     }

@@ -31,7 +31,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
     * At initialization,
     * we think of these as lying in a two-dimensional array, where each column records the value of one P_i on H^d.
     * After the first round, the array will be updated ('folded'), so that the first n/2 rows will represent the
-    * evaluations P_i(X1, ..., X_{d-1}, u_d) as a low-degree extension on H^{d-1}. In reality, we elude copying all
+    * evaluations P_i(u0, X1, ..., X_{d-1}) as a low-degree extension on H^{d-1}. In reality, we elude copying all
     * of the polynomial-defining data by only populating folded_multivariates after the first round. I.e.:
 
         We imagine all of the defining polynomial data in a matrix like this:
@@ -127,10 +127,9 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         const auto relation_parameters = retrieve_proof_parameters();
         PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
 
-        // round.pow_univariate = PowUnivariate(relation_parameters.zeta);
         auto round_univariate = round.compute_univariate(full_polynomials, relation_parameters, pow_univariate);
-        transcript.add_element("univariate_" + std::to_string(multivariate_d), round_univariate.to_buffer());
-        std::string challenge_label = "u_" + std::to_string(multivariate_d);
+        transcript.add_element("univariate_0", round_univariate.to_buffer());
+        std::string challenge_label = "u_0";
         transcript.apply_fiat_shamir(challenge_label);
         FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
         fold(full_polynomials, multivariate_n, round_challenge);
@@ -142,9 +141,8 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         for (size_t round_idx = 1; round_idx < multivariate_d; round_idx++) {
             // Write the round univariate to the transcript
             round_univariate = round.compute_univariate(folded_polynomials, relation_parameters, pow_univariate);
-            transcript.add_element("univariate_" + std::to_string(multivariate_d - round_idx),
-                                   round_univariate.to_buffer());
-            challenge_label = "u_" + std::to_string(multivariate_d - round_idx);
+            transcript.add_element("univariate_" + std::to_string(round_idx), round_univariate.to_buffer());
+            challenge_label = "u_" + std::to_string(round_idx);
             transcript.apply_fiat_shamir(challenge_label);
             FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
             fold(folded_polynomials, round.round_size, round_challenge);
@@ -181,11 +179,11 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         for (size_t round_idx = 0; round_idx < multivariate_d; round_idx++) {
             // Obtain the round univariate from the transcript
             auto round_univariate = Univariate<FF, MAX_RELATION_LENGTH>::serialize_from_buffer(
-                &transcript.get_element("univariate_" + std::to_string(multivariate_d - round_idx))[0]);
+                &transcript.get_element("univariate_" + std::to_string(round_idx))[0]);
             bool checked = round.check_sum(round_univariate, pow_univariate);
             verified = verified && checked;
-            FF round_challenge = FF::serialize_from_buffer(
-                transcript.get_challenge("u_" + std::to_string(multivariate_d - round_idx)).begin());
+            FF round_challenge =
+                FF::serialize_from_buffer(transcript.get_challenge("u_" + std::to_string(round_idx)).begin());
 
             round.compute_next_target_sum(round_univariate, round_challenge, pow_univariate);
             pow_univariate.partially_evaluate(round_challenge);
@@ -211,14 +209,14 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
      * i.e., what happens in just one column of our two-dimensional array):
      *
      * groups    vertex terms              collected vertex terms               groups after folding
-     *     g0 -- v0 (1-X1)(1-X2)(1-X3) --- (v0(1-X3) + v1 X3) (1-X1)(1-X2) ---- (v0(1-u3) + v1 u3) (1-X1)(1-X2)
-     *        \- v1 (1-X1)(1-X2)  X3   --/                                  --- (v2(1-u3) + v3 u3) (1-X1)  X2
-     *     g1 -- v2 (1-X1)  X2  (1-X3) --- (v2(1-X3) + v3 X3) (1-X1)  X2  -/ -- (v4(1-u3) + v5 u3)   X1  (1-X2)
-     *        \- v3 (1-X1)  X2    X3   --/                                  / - (v6(1-u3) + v7 u3)   X1    X2
-     *     g2 -- v4   X1  (1-X2)(1-X3) --- (v4(1-X3) + v5 X3)   X1  (1-X2)-/ /
-     *        \- v5   X1  (1-X2)  X3   --/                                  /
-     *     g3 -- v6   X1    X2  (1-X3) --- (v6(1-X3) + v7 X3)   X1    X2  -/
-     *        \- v7   X1    X2    X3   --/
+     *     g0 -- v0 (1-X0)(1-X1)(1-X2) --- (v0(1-X0) + v1 X0) (1-X1)(1-X2) ---- (v0(1-u0) + v1 u0) (1-X1)(1-X2)
+     *        \- v1   X0  (1-X1)(1-X2) --/                                  --- (v2(1-u0) + v3 u0)   X1  (1-X2)
+     *     g1 -- v2 (1-X0)  X1  (1-X2) --- (v2(1-X0) + v3 X0)   X1  (1-X2)-/ -- (v4(1-u0) + v5 u0) (1-X1)  X2
+     *        \- v3   X0    X1  (1-X2) --/                                  / - (v6(1-u0) + v7 u0)   X1    X2
+     *     g2 -- v4 (1-X0)(1-X1)  X2   --- (v4(1-X0) + v5 X0) (1-X1)  X2  -/ /
+     *        \- v5   X0  (1-X1)  X2   --/                                  /
+     *     g3 -- v6 (1-X0)  X1    X2   --- (v6(1-X0) + v7 X0)   X1    X2  -/
+     *        \- v7   X0    X1    X2   --/
      *
      * @param challenge
      */

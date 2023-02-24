@@ -11,31 +11,33 @@
 namespace honk::sumcheck {
 
 /*
- Notation: The polynomial P(X1, X2) that is the low-degree extension of its values vij = P(i,j)
+ Notation: The polynomial P(X0, X1) that is the low-degree extension of its values vij = P(i,j)
  for i,j ∈ H = {0,1} is conveniently recorded as follows:
      (0,1)-----(1,1)   v01 ------ v11
-       |          |     |          |  P(X1,X2) =   (v01 * (1-X1) + v11 * X1) *   X2
-       |   H^2    |     | P(X1,X2) |             + (v00 * (1-X1) + v10 * X1) * (1-X2)
+       |          |     |          |  P(X0,X1) =   (v00 * (1-X0) + v10 * X0) * (1-X1)
+   X1  |   H^2    |     | P(X0,X1) |             + (v01 * (1-X0) + v11 * X0) *   X1
        |          |     |          |
      (0,0) ---- (1,0)  v00 -------v10
+            X0
 */
 
 /*
  Example: There are two low-degree extensions Y1, Y2 over the square H^2 in the Cartesian plane.
 
     3 -------- 7   4 -------- 8
-    |          |   |          | Let F(X1, X2) = G(Y1, Y2) =     G0(Y1(X1, X2) + Y2(X1, X2))
-    |    Y1    |   |    Y2    |                             + α G1(Y1(X1, X2) + Y2(X1, X2)),
+    |          |   |          | Let F(X0, X1) = G(Y1, Y2) =     G0(Y1(X0, X1), Y2(X0, X1))
+    |    Y1    |   |    Y2    |                             + α G1(Y1(X0, X1), Y2(X0, X1)),
     |          |   |          |  where the relations are G0(Y1, Y2) = Y1 * Y2
     1 -------- 5   2 -------- 6                      and G1(Y1, Y2) = Y1 + Y2.
 
  G1, G2 together comprise the Relations.
 
- In the first round, the computations will relate elements along veritcal lines. As a mnemonic, we
+ In the first round, the computations will relate elements along horizontal lines. As a mnemonic, we
  use the term "edge" for the linear, univariate polynomials corresponding to the four lines
-  3   4   7   8
-  | , | , | , | .
-  1   2   5   6
+  1 - 5
+  2 - 6
+  3 - 7
+  4 - 8
 
  The polynomials Y1, Y2 are stored in an array in Multivariates. In the first round, these are arrays
  of spans living outside of the Multivariates object, and in sebsequent rounds these are arrays of field
@@ -236,10 +238,10 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
             extend_edges(polynomials, edge_idx);
 
             // Compute the i-th edge's univariate contribution,
-            // scale it by the pow polynomial's constant and zeta power "cₗ ⋅ ζₗ₋₁ⁱ"
+            // scale it by the pow polynomial's constant and zeta power "c_l ⋅ ζ_{l+1}ⁱ"
             // and add it to the accumulators for Sˡ(Xₗ)
             accumulate_relation_univariates<>(relation_parameters, pow_challenge);
-            // Update the pow polynomial's contribution ζₗ₋₁ⁱ for the next edge.
+            // Update the pow polynomial's contribution c_l ⋅ ζ_{l+1}ⁱ for the next edge.
             pow_challenge *= pow_univariate.zeta_pow_sqr;
         }
 
@@ -256,7 +258,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
      * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
      * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
-     * checked against the final value of the target total sum (called sigma_0 in the thesis).
+     * checked against the final value of the target total sum, defined as sigma_d.
      */
     // TODO(Cody): Input should be an array? Then challenge container has to know array length.
     FF compute_full_honk_relation_purported_value(std::vector<FF>& purported_evaluations,
@@ -278,15 +280,16 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
     }
 
     /**
-     * @brief check if S^{l}(0) + S^{l}(1) = S^{l+1}(u_{l+1})
+     * @brief check if S^{l}(0) + S^{l}(1) = S^{l-1}(u_{l-1}) = sigma_{l} (or 0 if l=0)
      *
-     * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^{d-l-1} } )
+     * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
      */
     bool check_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate, const PowUnivariate<FF>& pow_univariate)
     {
-        // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^{d-l-1} } ) ⋅ T^{l}(0) = T^{l}(0)
-        // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^{d-l-1} } ) ⋅ T^{l}(1) = ζ^{ 2^{d-l-1} } ⋅ T^{l}(1)
+        // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
+        // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
         FF total_sum = univariate.value_at(0) + (pow_univariate.zeta_pow * univariate.value_at(1));
+        // target_total_sum = sigma_{l} = 
         bool sumcheck_round_failed = (target_total_sum != total_sum);
         round_failed = round_failed || sumcheck_round_failed;
         return !sumcheck_round_failed;
@@ -296,9 +299,9 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      * @brief After checking that the univariate is good for this round, compute the next target sum.
      *
      * @param univariate T^l(X), given by its evaluations over {0,1,2,...},
-     * equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^{d-l-1} } )
+     * equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
      * @param round_challenge u_l
-     * @return FF sigma_{l} = S^l(u_l)
+     * @return FF sigma_{l+1} = S^l(u_l)
      */
     FF compute_next_target_sum(Univariate<FF, MAX_RELATION_LENGTH>& univariate,
                                FF& round_challenge,
@@ -309,9 +312,9 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         auto barycentric = BarycentricData<FF, MAX_RELATION_LENGTH, MAX_RELATION_LENGTH>();
         // Evaluate T^{l}(u_{l})
         target_total_sum = barycentric.evaluate(univariate, round_challenge);
-        // Evaluate (1−u_{l}) + u_{l}⋅ζ^{2^{d-l-1}} )
+        // Evaluate (1−u_l) + u_l ⋅ ζ^{2^l} )
         FF pow_monomial_eval = pow_univariate.univariate_eval(round_challenge);
-        // sigma_{l} = S^l(u_l) = (1−u_{l}) + u_{l}⋅ζ^{2^{d-l-1}} ) ⋅ T^{l}(u_{l})
+        // sigma_{l+1} = S^l(u_l) = (1−u_l) + u_l⋅ζ^{2^l} ) ⋅ T^{l}(u_l)
         target_total_sum *= pow_monomial_eval;
         return target_total_sum;
     }

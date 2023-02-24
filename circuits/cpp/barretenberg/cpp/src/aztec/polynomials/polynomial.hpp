@@ -174,14 +174,14 @@ template <typename Fr> class Polynomial {
     Polynomial& operator*=(const Fr scaling_facor);
 
     /**
-     * @brief evaluates p(X) = ∑ᵢ aᵢ⋅Xⁱ considered as multi-linear extension p(X₁,…,Xₘ) = ∑ᵢ aᵢ⋅Lᵢ(X₁,…,Xₘ)
-     * at u = (u₁,…,uₘ)
+     * @brief evaluates p(X) = ∑ᵢ aᵢ⋅Xⁱ considered as multi-linear extension p(X₀,…,Xₘ₋₁) = ∑ᵢ aᵢ⋅Lᵢ(X₀,…,Xₘ₋₁)
+     * at u = (u₀,…,uₘ₋₁)
      *
      * @details this function allocates a temporary buffer of size n/2
      *
-     * @param evaluation_points an MLE evaluation point u = (u₁,…,uₘ)
-     * @param shift evaluates p'(X₁,…,Xₘ) = 1⋅L₀(X₁,…,Xₘ) + ∑ᵢ˲₁ aᵢ₋₁⋅Lᵢ(X₁,…,Xₘ) if true
-     * @return Fr p(u₁,…,uₘ)
+     * @param evaluation_points an MLE evaluation point u = (u₀,…,uₘ₋₁)
+     * @param shift evaluates p'(X₀,…,Xₘ₋₁) = 1⋅L₀(X₀,…,Xₘ₋₁) + ∑ᵢ˲₁ aᵢ₋₁⋅Lᵢ(X₀,…,Xₘ₋₁) if true
+     * @return Fr p(u₀,…,uₘ₋₁)
      */
     Fr evaluate_mle(std::span<const Fr> evaluation_points, bool shift = false) const;
 

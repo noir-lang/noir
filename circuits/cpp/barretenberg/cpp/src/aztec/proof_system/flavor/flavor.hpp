@@ -123,7 +123,7 @@ struct StandardHonk {
 
         // Rounds 4, ... 4 + num_sumcheck_rounds-1
         for (size_t i = 0; i < num_sumcheck_rounds; i++) {
-            auto label = std::to_string(num_sumcheck_rounds - i);
+            auto label = std::to_string(i);
             manifest_rounds.emplace_back(
                 transcript::Manifest::RoundManifest(
             { 

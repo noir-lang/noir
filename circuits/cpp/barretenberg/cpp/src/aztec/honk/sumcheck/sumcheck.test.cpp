@@ -98,7 +98,7 @@ Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_in
     );
 
     for (size_t i = 0; i < multivariate_d; i++) {
-        auto label = std::to_string(multivariate_d - i);
+        auto label = std::to_string(i);
         manifest_rounds.emplace_back(
             transcript::Manifest::RoundManifest({ { .name = "univariate_" + label,
                                                     .num_bytes = fr_size * honk::StandardHonk::MAX_RELATION_LENGTH,
@@ -189,29 +189,30 @@ TEST(Sumcheck, PolynomialNormalization)
 
     sumcheck.execute_prover(full_polynomials);
 
+    FF u_0 = transcript.get_challenge_field_element("u_0");
     FF u_1 = transcript.get_challenge_field_element("u_1");
     FF u_2 = transcript.get_challenge_field_element("u_2");
-    FF u_3 = transcript.get_challenge_field_element("u_3");
 
     /* sumcheck.execute_prover() terminates with sumcheck.multivariates.folded_polynoimals as an array such that
      * sumcheck.multivariates.folded_polynoimals[i][0] is the evaluatioin of the i'th multivariate at the vector of
      challenges u_i. What does this mean?
 
-     Here we show that if the multivariate is F(X1, X2, X3) defined as above, then what we get is F(u1, u2, u3) and not,
+     Here we show that if the multivariate is F(X0, X1, X2) defined as above, then what we get is F(u0, u1, u2) and not,
      say F(u3,u2,u1). This is in accordance with Adrian's thesis (cf page 9).
       */
 
     // Get the values of the Lagrange basis polys L_i defined
     // by: L_i(v) = 1 if i = v, 0 otherwise, for v from 0 to 7.
+    FF one{ 1 };
     // clang-format off
-    FF l_0 = (FF(1) - u_1) * (FF(1) - u_2) * (FF(1) - u_3);
-    FF l_1 = (FF(1) - u_1) * (FF(1) - u_2) * (        u_3);
-    FF l_2 = (FF(1) - u_1) * (        u_2) * (FF(1) - u_3);
-    FF l_3 = (FF(1) - u_1) * (        u_2) * (        u_3);
-    FF l_4 = (        u_1) * (FF(1) - u_2) * (FF(1) - u_3);
-    FF l_5 = (        u_1) * (FF(1) - u_2) * (        u_3);
-    FF l_6 = (        u_1) * (        u_2) * (FF(1) - u_3);
-    FF l_7 = (        u_1) * (        u_2) * (        u_3);
+    FF l_0 = (one - u_0) * (one - u_1) * (one - u_2);
+    FF l_1 = (      u_0) * (one - u_1) * (one - u_2);
+    FF l_2 = (one - u_0) * (      u_1) * (one - u_2);
+    FF l_3 = (      u_0) * (      u_1) * (one - u_2);
+    FF l_4 = (one - u_0) * (one - u_1) * (      u_2);
+    FF l_5 = (      u_0) * (one - u_1) * (      u_2);
+    FF l_6 = (one - u_0) * (      u_1) * (      u_2);
+    FF l_7 = (      u_0) * (      u_1) * (      u_2);
     // clang-format on
 
     FF hand_computed_value = l_0 * w_l[0] + l_1 * w_l[1] + l_2 * w_l[2] + l_3 * w_l[3] + l_4 * w_l[4] + l_5 * w_l[5] +
@@ -279,12 +280,12 @@ TEST(Sumcheck, Prover)
 
     sumcheck.execute_prover(full_polynomials);
 
+    FF u_0 = transcript.get_challenge_field_element("u_0");
     FF u_1 = transcript.get_challenge_field_element("u_1");
-    FF u_2 = transcript.get_challenge_field_element("u_2");
     std::vector<FF> expected_values;
     for (auto& polynomial : full_polynomials) {
         // using knowledge of inputs here to derive the evaluation
-        FF expected = polynomial[0] * (FF(1) - u_2) + polynomial[1] * u_2;
+        FF expected = polynomial[0] * (FF(1) - u_0) + polynomial[1] * u_0;
         expected *= (FF(1) - u_1);
         expected_values.emplace_back(expected);
     }

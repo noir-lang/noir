@@ -338,7 +338,7 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     using MLEOpeningClaim = pcs::MLEOpeningClaim<pcs::kzg::Params>;
 
     // Construct inputs for Gemini:
-    // - Multivariate opening point u = (u_1, ..., u_d)
+    // - Multivariate opening point u = (u_0, ..., u_{d-1})
     // - MLE opening claim = {commitment, eval} for each multivariate and shifted multivariate polynomial
     // - Pointers to multivariate and shifted multivariate polynomials
     std::vector<Fr> opening_point;
@@ -348,9 +348,8 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     std::vector<std::span<Fr>> multivariate_polynomials_shifted;
 
     // Construct MLE opening point
-    // Note: for consistency the evaluation point must be constructed as u = (u_d,...,u_1)
     for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
-        std::string label = "u_" + std::to_string(key->log_circuit_size - round_idx);
+        std::string label = "u_" + std::to_string(round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
