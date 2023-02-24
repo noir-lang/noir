@@ -38,7 +38,7 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
         num_opcodes
     );
 
-    let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
+    let exact_circuit_size = backend.get_exact_circuit_size(&compiled_program.circuit);
     println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())
