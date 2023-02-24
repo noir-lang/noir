@@ -7,6 +7,7 @@ use noirc_abi::input_parser::Format;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     keys::fetch_pk_and_vk,
+    program::read_program_from_file,
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
@@ -68,20 +69,29 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
-    circuit_build_path: Option<P>,
+    circuit_build_path: Option<PathBuf>,
     check_proof: bool,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let compiled_program =
-        super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (proving_key, verification_key) = match circuit_build_path {
+    let (compiled_program, proving_key, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
-            fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?
+            let compiled_program = read_program_from_file(&circuit_build_path);
+
+            let (proving_key, verification_key) =
+                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?;
+            (compiled_program, proving_key, verification_key)
         }
         None => {
+            let compiled_program = super::compile_cmd::compile_circuit(
+                program_dir.as_ref(),
+                show_ssa,
+                allow_warnings,
+            )?;
+
             let backend = crate::backends::ConcreteBackend;
-            backend.preprocess(&compiled_program.circuit)
+            let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
+            (compiled_program, proving_key, verification_key)
         }
     };
 
