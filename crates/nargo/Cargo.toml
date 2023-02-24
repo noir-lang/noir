@@ -32,8 +32,8 @@ termcolor = "1.1.2"
 tempdir = "0.3.7"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "74b4d8d8b118e4477880c04149e5e9d93d388384" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "74b4d8d8b118e4477880c04149e5e9d93d388384" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 color-eyre = "0.6.2"
 

@@ -513,7 +513,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
 dependencies = [
  "barretenberg_wrapper",
  "blake2",
@@ -533,7 +533,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
 dependencies = [
  "blake2",
  "common",
@@ -861,7 +861,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d#cdd33dfd443ce607c9f6f3e0a00b28105ecbd54d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
 dependencies = [
  "acvm 0.5.0",
  "blake2",
