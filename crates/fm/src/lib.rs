@@ -26,7 +26,7 @@ pub enum FileType {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FileManager {
     file_map: file_map::FileMap,
     id_to_path: HashMap<FileId, VirtualPath>,
@@ -34,14 +34,6 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    pub fn new() -> Self {
-        Self {
-            file_map: file_map::FileMap::new(),
-            id_to_path: HashMap::new(),
-            path_to_id: HashMap::new(),
-        }
-    }
-
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
         let source = file_reader::read_file_to_string(path_to_file).ok()?;
@@ -90,12 +82,6 @@ impl FileManager {
     }
 }
 
-impl Default for FileManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Takes a path to a noir file. This will panic on paths to directories
 /// Returns
 /// For Normal filetypes, given "src/mod.nr" this method returns "src/mod"
@@ -133,7 +119,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let file_path = dummy_file_path(&dir, "my_dummy_file.nr");
 
-        let mut fm = FileManager::new();
+        let mut fm = FileManager::default();
 
         let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
 
@@ -145,7 +131,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let file_path = dummy_file_path(&dir, "foo.noir");
 
-        let mut fm = FileManager::new();
+        let mut fm = FileManager::default();
 
         let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
 
@@ -153,7 +139,7 @@ mod tests {
     }
     #[test]
     fn path_resolve_sub_module() {
-        let mut fm = FileManager::new();
+        let mut fm = FileManager::default();
 
         let dir = tempdir().unwrap();
         // Create a lib.nr file at the root.

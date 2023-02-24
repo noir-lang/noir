@@ -8,7 +8,7 @@ use noirc_frontend::hir::{self, def_map::ModuleDefId};
 // XXX: This is another sandbox test
 fn main() {
     // File Manager
-    let mut fm = FileManager::new();
+    let mut fm = FileManager::default();
     //
     // Add root file to file manager
     let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");
