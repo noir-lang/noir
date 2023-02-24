@@ -35,7 +35,7 @@ pub struct IrGenerator {
 impl IrGenerator {
     pub fn new(program: Program) -> IrGenerator {
         IrGenerator {
-            context: SsaContext::new(),
+            context: SsaContext::default(),
             variable_values: HashMap::new(),
             function_context: None,
             program,
