@@ -35,7 +35,7 @@ struct CachedDep {
 /// or it uses the repo on the cache.
 /// Downloading will be recursive, so if a package contains packages
 /// We need to download those too
-pub struct Resolver<'a> {
+pub(crate) struct Resolver<'a> {
     cached_packages: HashMap<PathBuf, (CrateId, CachedDep)>,
     driver: &'a mut Driver,
 }

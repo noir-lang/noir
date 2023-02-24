@@ -56,7 +56,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     Ok(())
 }
 
-pub fn prove_with_path<P: AsRef<Path>>(
+pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
@@ -72,7 +72,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         }
         None => {
             let backend = crate::backends::ConcreteBackend;
-            backend.preprocess(compiled_program.circuit.clone())
+            backend.preprocess(&compiled_program.circuit)
         }
     };
 
@@ -99,17 +99,16 @@ pub fn prove_with_path<P: AsRef<Path>>(
     )?;
 
     let backend = crate::backends::ConcreteBackend;
-    let proof =
-        backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
+    let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
 
     if check_proof {
         let no_proof_name = "".into();
         verify_proof(
-            compiled_program,
+            &compiled_program,
             public_inputs,
             return_value,
             &proof,
-            verification_key,
+            &verification_key,
             no_proof_name,
         )?;
     }

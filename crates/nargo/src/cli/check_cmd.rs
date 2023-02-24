@@ -22,11 +22,8 @@ pub(crate) fn run(_args: CheckCommand, config: NargoConfig) -> Result<(), CliErr
     println!("Constraint system successfully built!");
     Ok(())
 }
-// This is exposed so that we can run the examples and verify that they pass
-pub(crate) fn check_from_path<P: AsRef<Path>>(
-    p: P,
-    compile_options: &CompileOptions,
-) -> Result<(), CliError> {
+
+fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
