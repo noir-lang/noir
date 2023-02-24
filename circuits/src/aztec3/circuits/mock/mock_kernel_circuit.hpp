@@ -1,5 +1,6 @@
 #pragma once
 #include <common/map.hpp>
+#include <numeric/random/engine.hpp>
 #include <stdlib/primitives/field/field.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/commitment/pedersen/pedersen.hpp>
@@ -9,6 +10,10 @@
 // #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
 namespace aztec3::circuits::mock {
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 using NT = plonk::stdlib::types::NativeTypes;
@@ -27,7 +32,7 @@ template <typename Composer> void mock_kernel_circuit(Composer& composer, Public
         std::vector<uint32_t> dummy_witness_indices;
         // 16 is the number of values added to `proof_witness_indices` at the end of `verify_proof`.
         for (size_t i = 0; i < 16; ++i) {
-            fr witness = fr(witness_t(&composer, 0));
+            fr witness = fr(witness_t(&composer, engine.get_random_uint32()));
             uint32_t witness_index = witness.get_witness_index();
             dummy_witness_indices.push_back(witness_index);
         }
