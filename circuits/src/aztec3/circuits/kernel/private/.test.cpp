@@ -140,7 +140,7 @@ TEST(private_kernel_tests, test_deposit)
                 .is_fee_payment_tx = false,
                 .is_rebate_payment_tx = false,
                 .is_contract_deployment_tx = false,
-                .contract_deployment_data = ContractDeploymentData<NT>{},
+                .contract_deployment_data = ContractDeploymentData<NT>(),
                 .reference_block_num = 0,
             },
         .chain_id = 1,
