@@ -1,6 +1,6 @@
 use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
-use noirc_driver::CompileOptionsBuilder;
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -15,10 +15,6 @@ use super::{add_std_lib, NargoConfig};
 pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
-
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -29,7 +25,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &args.circuit_name,
         config.program_dir,
         circuit_path,
-        args.allow_warnings,
+        &CompileOptions::from(config.compile_options),
     )?;
 
     println!("Generated ACIR code into {}", circuit_path.display());
@@ -41,9 +37,9 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,
     circuit_dir: P,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<PathBuf, CliError> {
-    let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir, compile_options)?;
     let circuit_path = save_acir_to_dir(&compiled_program.circuit, circuit_name, &circuit_dir);
 
     preprocess_with_path(circuit_name, circuit_dir, compiled_program.circuit)?;
@@ -53,19 +49,13 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
 
 pub fn compile_circuit<P: AsRef<Path>>(
     program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
     let backend = crate::backends::ConcreteBackend;
     let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    let config = CompileOptionsBuilder::default()
-        .allow_warnings(allow_warnings)
-        .show_ssa(show_ssa)
-        .build()
-        .unwrap();
-    driver.into_compiled_program(&config).map_err(|_| std::process::exit(1))
+    driver.into_compiled_program(compile_options).map_err(|_| std::process::exit(1))
 }
 
 fn preprocess_with_path<P: AsRef<Path>>(

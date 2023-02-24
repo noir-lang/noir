@@ -3,7 +3,7 @@ use acvm::ProofSystemCompiler;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiParameter, AbiType};
-use noirc_driver::CompileOptionsBuilder;
+use noirc_driver::CompileOptions;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -15,27 +15,24 @@ use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CheckCommand {
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-}
+pub(crate) struct CheckCommand {}
 
-pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, args.allow_warnings)?;
+pub(crate) fn run(_args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
+    check_from_path(config.program_dir, &CompileOptions::from(config.compile_options))?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 // This is exposed so that we can run the examples and verify that they pass
-pub fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), CliError> {
+pub(crate) fn check_from_path<P: AsRef<Path>>(
+    p: P,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
-
-    let config = CompileOptionsBuilder::default().allow_warnings(allow_warnings).build().unwrap();
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(&config).is_err() {
+    if driver.check_crate(compile_options).is_err() {
         std::process::exit(1);
     }
 
@@ -75,6 +72,8 @@ fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
 
 #[cfg(test)]
 mod tests {
+    use noirc_driver::CompileOptions;
+
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
@@ -82,11 +81,12 @@ mod tests {
         let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
 
+        let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), false).is_ok(),
+                super::check_from_path(path.clone(), &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -99,11 +99,12 @@ mod tests {
         let mut fail_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
 
+        let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), false).is_err(),
+                super::check_from_path(path.clone(), &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -115,10 +116,17 @@ mod tests {
         let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
+        let mut config = CompileOptions::default();
+        config.allow_warnings = true;
+
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(super::check_from_path(path.clone(), true).is_ok(), "path: {}", path.display());
+            assert!(
+                super::check_from_path(path.clone(), &config).is_ok(),
+                "path: {}",
+                path.display()
+            );
         }
     }
 }

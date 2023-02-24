@@ -7,7 +7,7 @@ use crate::{
 use acvm::{FieldElement, ProofSystemCompiler};
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
-use noirc_driver::CompiledProgram;
+use noirc_driver::{CompileOptions, CompiledProgram};
 use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid
@@ -18,10 +18,6 @@ pub(crate) struct VerifyCommand {
 
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
-
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
 }
 
 pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -37,17 +33,21 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         circuit_build_path
     });
 
-    verify_with_path(config.program_dir, proof_path, circuit_build_path, false, args.allow_warnings)
+    verify_with_path(
+        config.program_dir,
+        proof_path,
+        circuit_build_path,
+        CompileOptions::from(config.compile_options),
+    )
 }
 
 fn verify_with_path<P: AsRef<Path>>(
     program_dir: P,
     proof_path: PathBuf,
     circuit_build_path: Option<P>,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: CompileOptions,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
     let (_, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
             fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?

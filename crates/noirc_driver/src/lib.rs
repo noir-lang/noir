@@ -2,7 +2,6 @@
 use acvm::acir::circuit::Circuit;
 
 use acvm::Language;
-use derive_builder::Builder;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::{reporter, ReportedError};
@@ -21,8 +20,7 @@ pub struct Driver {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Default, Builder)]
-#[builder(default)]
+#[derive(Debug, Default)]
 pub struct CompileOptions {
     pub show_ssa: bool,
     pub allow_warnings: bool,

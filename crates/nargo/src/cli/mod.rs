@@ -1,8 +1,7 @@
-pub use check_cmd::check_from_path;
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 extern crate tempdir;
@@ -42,6 +41,34 @@ struct NargoCli {
 pub(crate) struct NargoConfig {
     #[arg(short, long, hide=true, default_value_os_t = std::env::current_dir().unwrap())]
     program_dir: PathBuf,
+
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
+}
+
+#[derive(Args, Clone, Debug, Default)]
+pub(crate) struct NargoCompileOptions {
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    pub show_ssa: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    pub allow_warnings: bool,
+
+    /// Display output of println statements during tests
+    #[arg(long)]
+    pub show_output: bool,
+}
+
+impl From<NargoCompileOptions> for CompileOptions {
+    fn from(value: NargoCompileOptions) -> Self {
+        let mut options = CompileOptions::default();
+        options.show_ssa = value.show_ssa;
+        options.allow_warnings = value.allow_warnings;
+        options.show_output = value.show_output;
+        options
+    }
 }
 
 #[non_exhaustive]
@@ -80,14 +107,19 @@ pub fn start_cli() {
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+    let compile_options = CompileOptions::from(NargoCompileOptions {
+        show_ssa,
+        allow_warnings: false,
+        show_output: false,
+    });
+
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         None,
         true,
-        show_ssa,
-        false,
+        &compile_options,
     ) {
         Ok(_) => true,
         Err(error) => {
