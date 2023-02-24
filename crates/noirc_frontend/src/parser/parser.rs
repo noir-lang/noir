@@ -1,13 +1,13 @@
 //! This file contains the bulk of the implementation of noir's parser.
 //!
-//! Noir's parser is built off the chumsky library for parser combinators. In this technique,
-//! parsers are built from smaller parsers that parse e.g. only a single token. Then there
-//! are functions which can combine multiple parsers together to create a larger one (these
-//! functions are called parser combinators). For example, `a.then(b)` combines two parsers
-//! a and b and returns one that parses a then parses b and fails if either fails. Other
-//! combinators like `a.or(b)` exist as well and are used extensively. Note that these form
-//! a PEG grammar so if there are multiple options as in `a.or(b)` the first matching parse
-//! will be chosen.
+//! Noir's parser is built off the [chumsky library](https://docs.rs/chumsky/latest/chumsky/)
+//! for parser combinators. In this technique, parsers are built from smaller parsers that
+//! parse e.g. only a single token. Then there are functions which can combine multiple
+//! parsers together to create a larger one. These functions are called parser combinators.
+//! For example, `a.then(b)` combines two parsers a and b and returns one that parses a
+//! then parses b and fails if either fails. Other combinators like `a.or(b)` exist as well
+//! and are used extensively. Note that these form a PEG grammar so if there are multiple
+//! options as in `a.or(b)` the first matching parse will be chosen.
 //!
 //! Noir's grammar is not formally specified but can be estimated by inspecting each function.
 //! For example, a function `f` parsing `choice((a, b, c))` can be roughly translated to
