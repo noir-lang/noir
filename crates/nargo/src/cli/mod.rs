@@ -1,4 +1,3 @@
-pub use check_cmd::check_from_path;
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
