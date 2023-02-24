@@ -19,10 +19,6 @@ pub(crate) enum CliError {
         " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."
     )]
     MissingTomlFile(String, PathBuf),
-    #[error("Error: cannot find proving key located at {}\nEither run `nargo compile` to generate the missing proving key or check that the correct file name has been provided", .0.display())]
-    MissingProvingKey(PathBuf),
-    #[error("Error: cannot find verification key located at {}\nEither run `nargo compile` to generate the missing verification key or check that the correct file name has been provided", .0.display())]
-    MissingVerificationkey(PathBuf),
     #[error("Error: the circuit you are trying to prove differs from the build artifact at {}\nYou must call `nargo compile` to generate the correct proving and verification keys for this circuit", .0.display())]
     MismatchedAcir(PathBuf),
     #[error("Failed to verify proof {}", .0.display())]
