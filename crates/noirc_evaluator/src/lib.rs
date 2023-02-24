@@ -86,7 +86,6 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
-
     // Returns true if the `witness_index`
     // was created in the ABI as a private input.
     //
