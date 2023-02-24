@@ -25,7 +25,7 @@ impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
     pub fn lex(source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
-        let mut lexer = Lexer::new(source);
+        let lexer = Lexer::new(source);
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in lexer {
