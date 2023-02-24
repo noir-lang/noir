@@ -37,7 +37,7 @@ pub(crate) fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
-pub fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
+pub(crate) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
     let hex_data: Vec<_> =
         std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
 
