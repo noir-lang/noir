@@ -15,12 +15,21 @@ use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Default)]
 pub struct Evaluator {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
     // so it is safer to use a u32, at least until clang is changed
     // to compile wasm64.
+    //
+    // XXX: Barretenberg, reserves the first index to have value 0.
+    // When we increment, we do not use this index at all.
+    // This means that every constraint system at the moment, will either need
+    // to decrease each index by 1, or create a dummy witness.
+    //
+    // We ideally want to not have this and have Barretenberg apply the
+    // following transformation to the witness index : f(i) = i + 1
     current_witness_index: u32,
     // This is the number of witnesses indices used when
     // creating the private/public inputs of the ABI.
@@ -45,7 +54,7 @@ pub fn create_circuit(
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
-    let mut evaluator = Evaluator::new();
+    let mut evaluator = Evaluator::default();
 
     // First evaluate the main function
     evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
@@ -77,24 +86,6 @@ pub fn create_circuit(
 }
 
 impl Evaluator {
-    fn new() -> Self {
-        Evaluator {
-            num_witnesses_abi_len: 0,
-            public_inputs: BTreeSet::new(),
-            param_witnesses: BTreeMap::new(),
-            // XXX: Barretenberg, reserves the first index to have value 0.
-            // When we increment, we do not use this index at all.
-            // This means that every constraint system at the moment, will either need
-            // to decrease each index by 1, or create a dummy witness.
-            //
-            // We ideally want to not have this and have Barretenberg apply the
-            // following transformation to the witness index : f(i) = i + 1
-            //
-            current_witness_index: 0,
-            opcodes: Vec::new(),
-        }
-    }
-
     // Returns true if the `witness_index`
     // was created in the ABI as a private input.
     //

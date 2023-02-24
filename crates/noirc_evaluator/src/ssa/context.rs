@@ -41,8 +41,8 @@ pub struct SsaContext {
     dummy_load: HashMap<ArrayId, NodeId>,
 }
 
-impl SsaContext {
-    pub fn new() -> SsaContext {
+impl Default for SsaContext {
+    fn default() -> Self {
         let mut pc = SsaContext {
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
@@ -62,7 +62,9 @@ impl SsaContext {
         pc.zero_with_type(node::ObjectType::Boolean);
         pc
     }
+}
 
+impl SsaContext {
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
     }

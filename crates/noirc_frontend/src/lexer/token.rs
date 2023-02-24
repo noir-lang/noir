@@ -402,6 +402,7 @@ impl AsRef<str> for Attribute {
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 // Special Keywords allowed in the target language
 pub enum Keyword {
     As,
@@ -499,6 +500,29 @@ impl Keyword {
         };
 
         Some(Token::Keyword(keyword))
+    }
+}
+
+#[cfg(test)]
+mod keywords {
+    use strum::IntoEnumIterator;
+
+    use super::{Keyword, Token};
+
+    #[test]
+    fn lookup_consistency() {
+        for keyword in Keyword::iter() {
+            let resolved_token =
+                Keyword::lookup_keyword(&format!("{keyword}")).unwrap_or_else(|| {
+                    panic!("Keyword::lookup_keyword couldn't find Keyword {}", keyword)
+                });
+
+            assert_eq!(
+                resolved_token,
+                Token::Keyword(keyword),
+                "Keyword::lookup_keyword returns unexpected Keyword"
+            )
+        }
     }
 }
 
