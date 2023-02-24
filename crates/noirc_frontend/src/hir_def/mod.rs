@@ -1,9 +1,9 @@
 //! Noir's Hir is the result of the name resolution step (defined in the
 //! hir module) and is essentially identical to the Ast with some small transformations.
-//! The Hir is the input to the name resolution pass, the type checking pass, and the
+//! The HIR is the input to the name resolution pass, the type checking pass, and the
 //! monomorphisation pass.
 //!
-//! Name Resolution takes the Ast as input and produces the initial Hir which strongly
+//! Name Resolution takes the AST as input and produces the initial Hir which strongly
 //! resembles the Ast except:
 //! - Variables now have DefinitionIDs that can be used to reference the definition that defines them.
 //! - Modules & imports are removed in favor of these direct links to definitions
