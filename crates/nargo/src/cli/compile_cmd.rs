@@ -1,12 +1,12 @@
-use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::Args;
 
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
+use super::fs::program::save_program_to_file;
+use super::preprocess_cmd::preprocess_with_path;
 use super::{add_std_lib, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -24,30 +24,13 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     let mut circuit_path = config.program_dir.clone();
     circuit_path.push(TARGET_DIR);
 
-    let circuit_path = compile_and_preprocess_circuit(
-        &args.circuit_name,
-        config.program_dir,
-        circuit_path,
-        args.allow_warnings,
-    )?;
+    let compiled_program = compile_circuit(config.program_dir, false, args.allow_warnings)?;
 
-    println!("Generated ACIR code into {}", circuit_path.display());
+    save_program_to_file(&compiled_program, &args.circuit_name, &circuit_path);
+
+    preprocess_with_path(&args.circuit_name, circuit_path, &compiled_program.circuit)?;
 
     Ok(())
-}
-
-fn compile_and_preprocess_circuit<P: AsRef<Path>>(
-    circuit_name: &str,
-    program_dir: P,
-    circuit_dir: P,
-    allow_warnings: bool,
-) -> Result<PathBuf, CliError> {
-    let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
-    let circuit_path = save_program_to_file(&compiled_program, circuit_name, &circuit_dir);
-
-    preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
-
-    Ok(circuit_path)
 }
 
 pub(crate) fn compile_circuit<P: AsRef<Path>>(
@@ -60,21 +43,4 @@ pub(crate) fn compile_circuit<P: AsRef<Path>>(
     add_std_lib(&mut driver);
 
     driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| std::process::exit(1))
-}
-
-fn preprocess_with_path<P: AsRef<Path>>(
-    key_name: &str,
-    preprocess_dir: P,
-    circuit: &Circuit,
-) -> Result<(PathBuf, PathBuf), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-
-    let (proving_key, verification_key) = backend.preprocess(circuit);
-
-    let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
-    println!("Proving key saved to {}", pk_path.display());
-    let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
-    println!("Verification key saved to {}", vk_path.display());
-
-    Ok((pk_path, vk_path))
 }
