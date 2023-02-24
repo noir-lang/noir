@@ -13,8 +13,8 @@
 //! - Tags each DefinitionId with its type
 //! - Replaces MethodCall nodes with FunctionCalls
 //!
-//! Finally, monomorphisation takes the Hir and converts it to a monomorphised Ir
-//! (monomorphisation::ast::Expression).
+//! Finally, monomorphization takes the Hir and converts it to a monomorphized Ir
+//! (monomorphization::ast::Expression).
 pub mod expr;
 pub mod function;
 pub mod stmt;
