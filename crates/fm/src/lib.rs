@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies)]
+
 mod file_map;
 mod file_reader;
 

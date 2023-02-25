@@ -1,4 +1,9 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies)]
+
+// Necessary as we use `color_eyre` in `main.rs`.
+use color_eyre as _;
+
 use noirc_frontend::graph::CrateType;
 use std::path::{Path, PathBuf};
 

@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies)]
+
 mod position;
 pub mod reporter;
 pub use position::{Location, Position, Span, Spanned};

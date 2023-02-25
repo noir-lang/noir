@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies)]
+
 use std::{collections::BTreeMap, str};
 
 use acvm::{acir::native_types::Witness, FieldElement};

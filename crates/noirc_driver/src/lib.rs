@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies)]
+
 use acvm::acir::circuit::Circuit;
 
 use acvm::Language;
