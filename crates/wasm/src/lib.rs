@@ -33,6 +33,7 @@ pub fn compile(src: String) -> JsValue {
 #[deprecated(
     note = "we have moved away from this serialization strategy. Call `acir_read_bytes` instead"
 )]
+#[allow(deprecated)]
 #[wasm_bindgen]
 pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
     console_error_panic_hook::set_once();
@@ -43,6 +44,7 @@ pub fn acir_from_bytes(bytes: Vec<u8>) -> JsValue {
 #[deprecated(
     note = "we have moved away from this serialization strategy. Call `acir_write_bytes` instead"
 )]
+#[allow(deprecated)]
 #[wasm_bindgen]
 pub fn acir_to_bytes(acir: JsValue) -> Vec<u8> {
     console_error_panic_hook::set_once();
