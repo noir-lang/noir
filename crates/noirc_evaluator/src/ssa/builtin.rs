@@ -13,8 +13,8 @@ use num_traits::{One, Zero};
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum Opcode {
     LowLevel(BlackBoxFunc),
-    ToBits(Endianness),
-    ToRadix(Endianness),
+    ToBits(Endian),
+    ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
 }
@@ -33,10 +33,10 @@ impl Opcode {
     /// corresponds to any of the opcodes.
     pub fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_le_bits" => Some(Opcode::ToBits(Endianness::SMALLENDIAN)),
-            "to_be_bits" => Some(Opcode::ToBits(Endianness::BIGENDIAN)),
-            "to_le_radix" => Some(Opcode::ToRadix(Endianness::SMALLENDIAN)),
-            "to_be_radix" => Some(Opcode::ToRadix(Endianness::BIGENDIAN)),
+            "to_le_bits" => Some(Opcode::ToBits(Endian::Small)),
+            "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
+            "to_le_radix" => Some(Opcode::ToRadix(Endian::Small)),
+            "to_be_radix" => Some(Opcode::ToRadix(Endian::Big)),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -49,14 +49,14 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => op.name(),
             Opcode::ToBits(endianness) => {
-                if *endianness == Endianness::SMALLENDIAN {
+                if *endianness == Endian::Small {
                     "to_le_bits"
                 } else {
                     "to_be_bits"
                 }
             }
             Opcode::ToRadix(endianness) => {
-                if *endianness == Endianness::SMALLENDIAN {
+                if *endianness == Endian::Small {
                     "to_le_radix"
                 } else {
                     "to_be_radix"
@@ -142,7 +142,7 @@ pub struct PrintlnInfo {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Endianness {
-    BIGENDIAN,
-    SMALLENDIAN,
+pub enum Endian {
+    Big,
+    Small,
 }
