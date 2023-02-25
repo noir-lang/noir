@@ -411,7 +411,7 @@ pub(crate) fn to_radix_base(
         a: lhs.clone(),
         b: result.clone(),
         radix,
-        is_little_endian: endianness == Endian::Small,
+        is_little_endian: endianness == Endian::Little,
     }));
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
@@ -469,7 +469,7 @@ pub(crate) fn evaluate_cmp(
         let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Small, evaluator);
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Little, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
         let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));

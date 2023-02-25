@@ -33,9 +33,9 @@ impl Opcode {
     /// corresponds to any of the opcodes.
     pub fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_le_bits" => Some(Opcode::ToBits(Endian::Small)),
+            "to_le_bits" => Some(Opcode::ToBits(Endian::Little)),
             "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
-            "to_le_radix" => Some(Opcode::ToRadix(Endian::Small)),
+            "to_le_radix" => Some(Opcode::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Opcode::ToRadix(Endian::Big)),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
@@ -49,14 +49,14 @@ impl Opcode {
         match self {
             Opcode::LowLevel(op) => op.name(),
             Opcode::ToBits(endianness) => {
-                if *endianness == Endian::Small {
+                if *endianness == Endian::Little {
                     "to_le_bits"
                 } else {
                     "to_be_bits"
                 }
             }
             Opcode::ToRadix(endianness) => {
-                if *endianness == Endian::Small {
+                if *endianness == Endian::Little {
                     "to_le_radix"
                 } else {
                     "to_be_radix"
@@ -144,5 +144,5 @@ pub struct PrintlnInfo {
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Endian {
     Big,
-    Small,
+    Little,
 }
