@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
 use serde::{Deserialize, Serialize};
