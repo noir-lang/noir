@@ -2199,7 +2199,6 @@ name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
  "acvm 0.5.0",
- "dirs 4.0.0",
  "fm",
  "noirc_abi",
  "noirc_errors",
@@ -2224,7 +2223,6 @@ version = "0.2.0"
 dependencies = [
  "acvm 0.5.0",
  "arena",
- "fm",
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
