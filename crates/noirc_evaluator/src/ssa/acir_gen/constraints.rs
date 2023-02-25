@@ -406,7 +406,7 @@ pub(crate) fn to_radix_base(
     max = max.pow(limb_size) - BigUint::one();
     assert!(max < FieldElement::modulus());
 
-    let (result, bytes) = to_radix(radix, limb_size, evaluator);
+    let (result, bytes) = to_radix(radix, limb_size, endianness, evaluator);
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
         a: lhs.clone(),
         b: result.clone(),
@@ -426,6 +426,7 @@ pub(crate) fn to_radix_base(
 pub(crate) fn to_radix(
     radix: u32,
     num_limbs: u32,
+    endianness: Endian,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Expression) {
     let mut digits = Expression::default();
@@ -434,25 +435,60 @@ pub(crate) fn to_radix(
     let shift = FieldElement::from(radix as i128);
     let mut result = Vec::new();
     let bit_size = bit_size_u32(radix);
-    for _ in 0..num_limbs {
-        let limb_witness = evaluator.add_witness_to_cs();
-        result.push(limb_witness);
-        let limb_expr = expression_from_witness(limb_witness);
-        digits = add(&digits, radix_pow, &limb_expr);
-        radix_pow = radix_pow.mul(shift);
+    if endianness == Endian::Little {
+        for _ in 0..num_limbs {
+            let limb_witness = evaluator.add_witness_to_cs();
+            result.push(limb_witness);
+            let limb_expr = expression_from_witness(limb_witness);
+            digits = add(&digits, radix_pow, &limb_expr);
+            radix_pow = radix_pow.mul(shift);
 
-        if 1_u128 << (bit_size - 1) != radix as u128 {
-            try_range_constraint(limb_witness, bit_size, evaluator);
+            if 1_u128 << (bit_size - 1) != radix as u128 {
+                try_range_constraint(limb_witness, bit_size, evaluator);
+            }
+            bound_constraint_with_offset(
+                &expression_from_witness(limb_witness),
+                &Expression::from_field(shift),
+                &Expression::one(),
+                bit_size,
+                evaluator,
+            );
         }
-        bound_constraint_with_offset(
-            &expression_from_witness(limb_witness),
-            &Expression::from_field(shift),
-            &Expression::one(),
-            bit_size,
-            evaluator,
-        );
-    }
+    } else {
+        // This is probably not a good solution.
+        // It could be changed to something that result in the same output
+        // but with better code.
+        // for little endian we want
+        // [(1, Witness(2)), (2⁸, Witness(3)), (2¹⁶, Witness(4)), (2²⁴, Witness(5)),
+        // (2³², Witness(6)), (2⁴⁰, Witness(7)), (2⁴⁸, Witness(8)), (2⁵⁶, Witness(9)), (2⁶⁴, Witness(10))]
+        // for big endian we want
+        // [(1, Witness(10)), (2⁸, Witness(9)), (2¹⁶, Witness(8)), (2²⁴, Witness(7)),
+        // (2³², Witness(6)), (2⁴⁰, Witness(5)), (2⁴⁸, Witness(4)), (2⁵⁶, Witness(3)), (2⁶⁴, Witness(2))]
+        for _ in 0..num_limbs {
+            let limb_witness = evaluator.add_witness_to_cs();
+            result.push(limb_witness);
+        }
+        let mut result_rev = result.clone();
+        result_rev.reverse();
+        println!("{:?}", result_rev);
+        for i in 0..num_limbs {
+            let limb_witness = *result_rev.get(i as usize).unwrap();
+            let limb_expr = expression_from_witness(limb_witness);
+            digits = add(&digits, radix_pow, &limb_expr);
+            radix_pow = radix_pow.mul(shift);
 
+            if 1_u128 << (bit_size - 1) != radix as u128 {
+                try_range_constraint(limb_witness, bit_size, evaluator);
+            }
+            bound_constraint_with_offset(
+                &expression_from_witness(limb_witness),
+                &Expression::from_field(shift),
+                &Expression::one(),
+                bit_size,
+                evaluator,
+            );
+        }
+    }
     (result, digits)
 }
 
