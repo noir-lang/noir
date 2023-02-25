@@ -1,6 +1,9 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+    ssa::{
+        acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+        builtin::Endianness,
+    },
     Evaluator,
 };
 use acvm::{
@@ -395,6 +398,7 @@ pub(crate) fn to_radix_base(
     lhs: &Expression,
     radix: u32,
     limb_size: u32,
+    endianness: Endianness,
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // ensure there is no overflow
@@ -407,7 +411,7 @@ pub(crate) fn to_radix_base(
         a: lhs.clone(),
         b: result.clone(),
         radix,
-        is_little_endian: true,
+        is_little_endian: if endianness == Endianness::SMALLENDIAN { true } else { false },
     }));
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
@@ -465,7 +469,7 @@ pub(crate) fn evaluate_cmp(
         let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, evaluator);
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endianness::SMALLENDIAN, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
         let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));

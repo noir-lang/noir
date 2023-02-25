@@ -13,8 +13,8 @@ use num_traits::{One, Zero};
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
 pub enum Opcode {
     LowLevel(BlackBoxFunc),
-    ToBits,
-    ToRadix,
+    ToBits(Endianness),
+    ToRadix(Endianness),
     Println(PrintlnInfo),
     Sort,
 }
@@ -33,8 +33,10 @@ impl Opcode {
     /// corresponds to any of the opcodes.
     pub fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_le_bits" => Some(Opcode::ToBits),
-            "to_radix" => Some(Opcode::ToRadix),
+            "to_le_bits" => Some(Opcode::ToBits(Endianness::SMALLENDIAN)),
+            "to_be_bits" => Some(Opcode::ToBits(Endianness::BIGENDIAN)),
+            "to_le_radix" => Some(Opcode::ToRadix(Endianness::SMALLENDIAN)),
+            "to_be_radix" => Some(Opcode::ToRadix(Endianness::BIGENDIAN)),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -46,8 +48,20 @@ impl Opcode {
     fn name(&self) -> &str {
         match self {
             Opcode::LowLevel(op) => op.name(),
-            Opcode::ToBits => "to_le_bits",
-            Opcode::ToRadix => "to_radix",
+            Opcode::ToBits(endianness) => {
+                if *endianness == Endianness::SMALLENDIAN {
+                    "to_le_bits"
+                } else {
+                    "to_be_bits"
+                }
+            }
+            Opcode::ToRadix(endianness) => {
+                if *endianness == Endianness::SMALLENDIAN {
+                    "to_le_radix"
+                } else {
+                    "to_be_radix"
+                }
+            }
             Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
         }
@@ -78,7 +92,9 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) | Opcode::Sort => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
+                BigUint::zero()
+            } //pointers do not overflow
         }
     }
 
@@ -105,8 +121,8 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::Boolean),
-            Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::NativeField),
+            Opcode::ToBits(_) => (FieldElement::max_num_bits(), ObjectType::Boolean),
+            Opcode::ToRadix(_) => (FieldElement::max_num_bits(), ObjectType::NativeField),
             Opcode::Println(_) => (0, ObjectType::NotAnObject),
             Opcode::Sort => {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
@@ -123,4 +139,10 @@ pub struct PrintlnInfo {
     pub is_string_output: bool,
     // This is a flag used during `nargo test` to determine whether to display println output.
     pub show_output: bool,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum Endianness {
+    BIGENDIAN,
+    SMALLENDIAN,
 }
