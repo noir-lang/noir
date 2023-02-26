@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
 
 // Necessary as we use `color_eyre` in `main.rs`.
 use color_eyre as _;
