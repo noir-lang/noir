@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 
-use color_eyre::config::HookBuilder;
+use color_eyre::{config::HookBuilder, eyre};
 use nargo::cli::start_cli;
 
-fn main() -> anyhow::Result<()> {
+fn main() -> eyre::Result<()> {
     // Register a panic hook to display more readable panic messages to end-users
     let (panic_hook, _) = HookBuilder::default()
         .display_env_section(false)

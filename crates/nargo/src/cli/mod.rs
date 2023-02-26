@@ -5,6 +5,8 @@ use noirc_abi::InputMap;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
+
+use color_eyre::eyre;
 extern crate tempdir;
 use tempdir::TempDir;
 
@@ -58,7 +60,7 @@ enum NargoCommand {
     Gates(gates_cmd::GatesCommand),
 }
 
-pub fn start_cli() -> anyhow::Result<()> {
+pub fn start_cli() -> eyre::Result<()> {
     let matches = NargoCli::parse();
 
     match matches.command {
