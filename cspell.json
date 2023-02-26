@@ -4,6 +4,7 @@
         // In code
         //
         "aeiou",
+        "arraysort",
         "arithmetization",
         "arity",
         "barretenberg",
@@ -22,6 +23,7 @@
         "injective",
         "interner",
         "intrinsics",
+        "keccak",
         "krate",
         "lvalue",
         "merkle",
