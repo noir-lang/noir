@@ -11,7 +11,7 @@ use crate::{
     Evaluator,
 };
 
-pub fn evaluate(
+pub(crate) fn evaluate(
     value: &NodeId,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
