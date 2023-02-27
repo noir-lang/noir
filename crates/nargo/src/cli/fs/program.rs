@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use acvm::hash_constraint_system;
 use noirc_driver::CompiledProgram;
 
+use crate::errors::CliError;
+
 use super::{create_named_dir, write_to_file};
 
 pub(crate) fn save_program_to_file<P: AsRef<Path>>(
@@ -24,10 +26,14 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
     circuit_path
 }
 
-pub(crate) fn read_program_from_file<P: AsRef<Path>>(circuit_path: P) -> CompiledProgram {
+pub(crate) fn read_program_from_file<P: AsRef<Path>>(
+    circuit_path: P,
+) -> Result<CompiledProgram, CliError> {
     let file_path = circuit_path.as_ref().with_extension("json");
 
-    let input_string = std::fs::read(file_path).unwrap();
+    let input_string = std::fs::read(&file_path).map_err(|_| CliError::PathNotValid(file_path))?;
 
-    serde_json::from_slice(&input_string).unwrap()
+    let program = serde_json::from_slice(&input_string).expect("could not deserialize program");
+
+    Ok(program)
 }

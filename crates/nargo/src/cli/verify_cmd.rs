@@ -52,7 +52,7 @@ fn verify_with_path<P: AsRef<Path>>(
 ) -> Result<(), CliError> {
     let (compiled_program, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path);
+            let compiled_program = read_program_from_file(&circuit_build_path)?;
 
             let (_, verification_key) =
                 fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;

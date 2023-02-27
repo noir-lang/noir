@@ -76,7 +76,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError> {
     let (compiled_program, proving_key, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path);
+            let compiled_program = read_program_from_file(&circuit_build_path)?;
 
             let (proving_key, verification_key) =
                 fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?;
