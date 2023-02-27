@@ -263,8 +263,8 @@ pub enum CompTime {
     Yes(Option<Span>),
     No(Option<Span>),
 
-    /// Maybe has an id and shared inner rebindable reference. Similar to type variables rebinding
-    /// to other types, this variant can be bound later to another specific CompTime variant.
+    /// Maybe has an id and shared inner reference that can be rebound later to
+    /// another specific CompTime variant.
     Maybe(TypeVariableId, Shared<Option<CompTime>>),
 }
 
