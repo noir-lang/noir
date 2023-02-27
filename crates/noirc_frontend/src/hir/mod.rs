@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
-/// def_interner is required for type inference and monomorphisation.
+/// def_interner is required for type inference and monomorphization.
 #[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,

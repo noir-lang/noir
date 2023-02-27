@@ -47,7 +47,7 @@ pub enum Type {
     ///
     /// TypeVariables are often created when a generic function is instantiated. This
     /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
-    /// Doing this at each callsite of a generic function is how they can be called with
+    /// Doing this at each call site of a generic function is how they can be called with
     /// different argument types each time.
     TypeVariable(TypeVariable),
 
