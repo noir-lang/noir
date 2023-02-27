@@ -17,6 +17,7 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
+
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
@@ -35,6 +36,9 @@ pub struct ModuleId {
     pub local_id: LocalModuleId,
 }
 
+/// Map of all modules and scopes defined within a crate.
+///
+/// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
     pub(crate) root: LocalModuleId,

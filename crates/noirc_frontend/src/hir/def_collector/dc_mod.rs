@@ -21,7 +21,9 @@ struct ModCollector<'a> {
     pub(crate) module_id: LocalModuleId,
 }
 
-/// Walk a module and collect it's definitions
+/// Walk a module and collect its definitions.
+///
+/// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: ParsedModule,

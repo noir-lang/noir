@@ -11,12 +11,6 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
-#[derive(Debug, PartialEq, Eq)]
-struct ResolverMeta {
-    num_times_used: usize,
-    ident: HirIdent,
-}
-
 use crate::hir_def::expr::{
     HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
     HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
@@ -63,6 +57,12 @@ type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
+/// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
+/// definition in scope, and to convert the AST into the HIR.
+///
+/// A Resolver is a short-lived struct created to resolve a top-level definition.
+/// One of these is created for each function definition and struct definition.
+/// This isn't strictly necessary to its function, it could be refactored out in the future.
 pub struct Resolver<'a> {
     scopes: ScopeForest,
     path_resolver: &'a dyn PathResolver,
@@ -86,6 +86,13 @@ pub struct Resolver<'a> {
     /// is declared we push a scope and set this lambda_index to the scope index.
     /// Any variable from a scope less than that must be from the parent function.
     lambda_index: usize,
+}
+
+/// ResolverMetas are tagged onto each definition to track how many times they are used
+#[derive(Debug, PartialEq, Eq)]
+struct ResolverMeta {
+    num_times_used: usize,
+    ident: HirIdent,
 }
 
 impl<'a> Resolver<'a> {
