@@ -27,8 +27,7 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(circuit_path: P) -> CompiledProgram {
     let file_path = circuit_path.as_ref().with_extension("json");
 
-    let input_string = std::fs::read_to_string(file_path).unwrap();
-    let compiled_program = serde_json::from_str(&input_string).unwrap();
+    let input_string = std::fs::read(file_path).unwrap();
 
-    compiled_program
+    serde_json::from_slice(&input_string).unwrap()
 }
