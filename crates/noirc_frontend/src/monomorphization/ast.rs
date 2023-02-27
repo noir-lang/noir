@@ -5,6 +5,16 @@ use noirc_errors::Location;
 
 use crate::{BinaryOpKind, Signedness};
 
+/// The monomorphized AST is expression-based, all statements are also
+/// folded into this expression enum. Compared to the HIR, the monomorphized
+/// AST has several differences:
+/// - It is self-contained and does not require referencing an external interner
+/// - All Types used within are monomorphized and no longer contain any generic types
+/// - All Patterns are expanded into multiple variables. This means each definition now
+///   defines only 1 variable `let a = 1;`, and any that previously defined multiple,
+///   e.g. `let (a, b) = (1, 2)` have been split up: `let tmp = (1, 2); let a = tmp.0; let b = tmp.1;`.
+///   This also affects function parameters: `fn foo((a, b): (i32, i32)` => `fn foo(a: i32, b: i32)`.
+/// - All structs are replaced with tuples
 #[derive(Debug, Clone)]
 pub enum Expression {
     Ident(Ident),
@@ -26,6 +36,8 @@ pub enum Expression {
     Semi(Box<Expression>),
 }
 
+/// A definition is either a local (variable), function, or is a built-in
+/// function that will be generated or referenced by the compiler later.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Definition {
     Local(LocalId),
@@ -39,6 +51,7 @@ pub enum Definition {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
+/// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
@@ -120,6 +133,18 @@ pub struct Index {
     pub index: Box<Expression>,
 }
 
+/// Rather than a Pattern containing possibly several variables, Let now
+/// defines a single variable with the given LocalId. By the time this
+/// is produced in monomorphization, let-statements with tuple and struct patterns:
+/// ```
+/// let MyStruct { field1, field2 } = get_struct();
+/// ```
+/// Have been desugared into multiple let statements for simplicity:
+/// ```
+/// let tmp = get_struct();
+/// let field1 = tmp.0; // the struct has been translated to a tuple as well
+/// let field2 = tmp.1;
+/// ```
 #[derive(Debug, Clone)]
 pub struct Let {
     pub id: LocalId,
@@ -160,7 +185,12 @@ pub struct Function {
     pub return_type: Type,
 }
 
-/// A monomorphized Type has all type variables removed
+/// Compared to hir_def::types::Type, this monomorphized Type has:
+/// - All type variables and generics removed
+/// - Concrete lengths for each array and string
+/// - Several other variants removed (such as Type::Constant)
+/// - No CompTime
+/// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Field,
