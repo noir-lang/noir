@@ -88,7 +88,11 @@ pub enum Token {
     EOF,
 
     /// An invalid character is one that is not in noir's language or grammar.
-    /// Delaying reporting these as errors until parsing improves error messages
+    ///
+    /// We don't report invalid tokens in the source as errors until parsing to
+    /// avoid reporting the error twice (once while lexing, again when it is encountered
+    /// during parsing). Reporting during lexing then removing these from the token stream
+    /// would not be equivalent as it would change the resulting parse.
     Invalid(char),
 }
 

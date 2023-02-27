@@ -106,7 +106,8 @@ impl<'a> Lexer<'a> {
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
-                // Invalid tokens are reported during parsing for better error messages
+                // We don't report invalid tokens in the source as errors until parsing to
+                // avoid reporting the error twice. See the note on Token::Invalid's documentation for details.
                 Ok(Token::Invalid(ch).into_single_span(self.position))
             }
             None => {
