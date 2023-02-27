@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+
 mod position;
 pub mod reporter;
 pub use position::{Location, Position, Span, Spanned};

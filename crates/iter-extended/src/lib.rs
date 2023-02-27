@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+
 use std::collections::BTreeMap;
 
 /// Equivalent to .into_iter().map(f).collect::<Vec<_>>()

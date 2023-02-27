@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+
 use acvm::acir::circuit::Circuit;
 
 use acvm::Language;

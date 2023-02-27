@@ -18,7 +18,7 @@ struct StructField {
     typ: AbiType,
 }
 
-pub fn serialize_struct_fields<S>(
+pub(crate) fn serialize_struct_fields<S>(
     fields: &BTreeMap<String, AbiType>,
     s: S,
 ) -> Result<S::Ok, S::Error>
@@ -32,7 +32,7 @@ where
     fields_vector.serialize(s)
 }
 
-pub fn deserialize_struct_fields<'de, D>(
+pub(crate) fn deserialize_struct_fields<'de, D>(
     deserializer: D,
 ) -> Result<BTreeMap<String, AbiType>, D::Error>
 where
