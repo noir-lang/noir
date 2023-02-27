@@ -49,7 +49,7 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(
+    pub(crate) fn resolve_root_config(
         dir_path: &std::path::Path,
         np_language: Language,
     ) -> Result<Driver, CliError> {
@@ -134,7 +134,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_git_dep(url: &str, tag: &str) -> Result<PathBuf, CliError> {
+    fn resolve_git_dep(url: &str, tag: &str) -> Result<PathBuf, CliError> {
         match super::git::clone_git_repo(url, tag) {
             Ok(path) => Ok(path),
             Err(msg) => Err(CliError::Generic(msg)),

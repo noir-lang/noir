@@ -6,11 +6,11 @@ use std::{
 
 use crate::errors::CliError;
 
-pub mod acir;
-pub mod inputs;
-pub mod keys;
-pub mod proof;
-pub mod witness;
+pub(super) mod acir;
+pub(super) mod inputs;
+pub(super) mod keys;
+pub(super) mod proof;
+pub(super) mod witness;
 
 fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
     let mut dir = std::path::PathBuf::new();
@@ -19,11 +19,11 @@ fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
     Ok(dir)
 }
 
-pub(crate) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+pub(super) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
     create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
 }
 
-pub(crate) fn write_to_file(bytes: &[u8], path: &Path) -> String {
+pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
     let mut file = match File::create(path) {
@@ -37,7 +37,7 @@ pub(crate) fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
-pub(crate) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
+pub(super) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
     let hex_data: Vec<_> =
         std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
 

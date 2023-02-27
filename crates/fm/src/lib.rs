@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
 
 mod file_map;
 mod file_reader;
