@@ -9,11 +9,11 @@
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 // #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
-namespace aztec3::circuits::mock {
-
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
+
+namespace aztec3::circuits::mock {
 
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 using NT = plonk::stdlib::types::NativeTypes;
