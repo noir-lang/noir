@@ -406,7 +406,32 @@ pub(crate) fn to_radix_base(
     max = max.pow(limb_size) - BigUint::one();
     assert!(max < FieldElement::modulus());
 
-    let (result, bytes) = to_radix(radix, limb_size, endianness, evaluator);
+    let (result, mut bytes) = to_radix_little(radix, limb_size, evaluator);
+
+    // This is probably not a good solution.
+    // It could be changed to something that result in the same output
+    // but with better code.
+    // for little endian we want
+    // [(1, Witness(2)), (2⁸, Witness(3)), (2¹⁶, Witness(4)), (2²⁴, Witness(5)),
+    // (2³², Witness(6)), (2⁴⁰, Witness(7)), (2⁴⁸, Witness(8)), (2⁵⁶, Witness(9)), (2⁶⁴, Witness(10))]
+    // for big endian we want
+    // [(1, Witness(10)), (2⁸, Witness(9)), (2¹⁶, Witness(8)), (2²⁴, Witness(7)),
+    // (2³², Witness(6)), (2⁴⁰, Witness(5)), (2⁴⁸, Witness(4)), (2⁵⁶, Witness(3)), (2⁶⁴, Witness(2))]
+    if endianness == Endian::Big {
+        let linear_combinations = bytes.linear_combinations.to_vec();
+        let mut radix_pow: Vec<FieldElement> =
+            linear_combinations.iter().map(|(radix_pow, _)| *radix_pow).collect();
+        radix_pow.reverse();
+        let witnesses: Vec<Witness> =
+            linear_combinations.iter().map(|(_, witness)| *witness).collect();
+        let new_linear_combination = radix_pow.into_iter().zip(witnesses.into_iter()).collect();
+        bytes = Expression {
+            mul_terms: bytes.mul_terms,
+            linear_combinations: new_linear_combination,
+            q_c: bytes.q_c,
+        };
+    }
+
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
         a: lhs.clone(),
         b: result.clone(),
@@ -423,39 +448,6 @@ pub(crate) fn to_radix_base(
 // radix: the base, (it is a constant, not a witness)
 // num_limbs: the number of elements in the decomposition
 // output: (the elements of the decomposition as witness, the sum expression)
-pub(crate) fn to_radix(
-    radix: u32,
-    num_limbs: u32,
-    endianness: Endian,
-    evaluator: &mut Evaluator,
-) -> (Vec<Witness>, Expression) {
-    let (result, mut digits) = to_radix_little(radix, num_limbs, evaluator);
-    // This is probably not a good solution.
-    // It could be changed to something that result in the same output
-    // but with better code.
-    // for little endian we want
-    // [(1, Witness(2)), (2⁸, Witness(3)), (2¹⁶, Witness(4)), (2²⁴, Witness(5)),
-    // (2³², Witness(6)), (2⁴⁰, Witness(7)), (2⁴⁸, Witness(8)), (2⁵⁶, Witness(9)), (2⁶⁴, Witness(10))]
-    // for big endian we want
-    // [(1, Witness(10)), (2⁸, Witness(9)), (2¹⁶, Witness(8)), (2²⁴, Witness(7)),
-    // (2³², Witness(6)), (2⁴⁰, Witness(5)), (2⁴⁸, Witness(4)), (2⁵⁶, Witness(3)), (2⁶⁴, Witness(2))]
-    if endianness == Endian::Big {
-        let linear_combinations = digits.linear_combinations.to_vec();
-        let mut radix_pow: Vec<FieldElement> =
-            linear_combinations.iter().map(|(radix_pow, _)| *radix_pow).collect();
-        radix_pow.reverse();
-        let witnesses: Vec<Witness> =
-            linear_combinations.iter().map(|(_, witness)| *witness).collect();
-        let new_linear_combination = radix_pow.into_iter().zip(witnesses.into_iter()).collect();
-        digits = Expression {
-            mul_terms: digits.mul_terms,
-            linear_combinations: new_linear_combination,
-            q_c: digits.q_c,
-        };
-    }
-    (result, digits)
-}
-
 pub(crate) fn to_radix_little(
     radix: u32,
     num_limbs: u32,
