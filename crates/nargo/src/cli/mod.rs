@@ -4,8 +4,6 @@ use noirc_abi::InputMap;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
-extern crate tempdir;
-use tempdir::TempDir;
 
 mod fs;
 
@@ -78,6 +76,8 @@ pub fn start_cli() {
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    use tempdir::TempDir;
+
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),

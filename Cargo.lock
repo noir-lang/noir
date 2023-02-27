@@ -1590,10 +1590,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if 1.0.0",
- "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2173,9 +2171,7 @@ dependencies = [
  "acvm 0.5.0",
  "build-data",
  "console_error_panic_hook",
- "getrandom",
  "gloo-utils",
- "js-sys",
  "noirc_driver",
  "serde",
  "wasm-bindgen",
@@ -2199,7 +2195,6 @@ name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
  "acvm 0.5.0",
- "dirs 4.0.0",
  "fm",
  "noirc_abi",
  "noirc_errors",
@@ -2224,7 +2219,6 @@ version = "0.2.0"
 dependencies = [
  "acvm 0.5.0",
  "arena",
- "fm",
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
