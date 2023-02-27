@@ -23,7 +23,7 @@ pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliErro
     count_gates_with_path(config.program_dir, args.show_ssa, args.allow_warnings)
 }
 
-pub fn count_gates_with_path<P: AsRef<Path>>(
+fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
     allow_warnings: bool,
@@ -38,7 +38,7 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
         num_opcodes
     );
 
-    let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
+    let exact_circuit_size = backend.get_exact_circuit_size(&compiled_program.circuit);
     println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())

@@ -1,4 +1,3 @@
-pub use check_cmd::check_from_path;
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
@@ -7,8 +6,6 @@ use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
-extern crate tempdir;
-use tempdir::TempDir;
 
 mod fs;
 
@@ -80,6 +77,8 @@ pub fn start_cli() -> eyre::Result<()> {
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    use tempdir::TempDir;
+
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
@@ -122,7 +121,7 @@ mod tests {
     /// Compiles a file and returns true if compilation was successful
     ///
     /// This is used for tests.
-    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
+    fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut driver = Driver::new(&acvm::Language::R1CS);
         driver.create_local_crate(&root_file, CrateType::Binary);
         super::add_std_lib(&mut driver);

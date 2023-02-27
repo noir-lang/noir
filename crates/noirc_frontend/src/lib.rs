@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+
 pub mod ast;
 pub mod graph;
 pub mod lexer;

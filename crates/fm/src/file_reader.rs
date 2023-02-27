@@ -13,7 +13,7 @@ cfg_if::cfg_if! {
             fn read_file(path: &str) -> Result<String, JsValue>;
         }
 
-        pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
+        pub(crate) fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             use std::io::ErrorKind;
             let path_str = path_to_file.as_os_str().to_str().unwrap();
             match read_file(path_str) {
@@ -22,7 +22,7 @@ cfg_if::cfg_if! {
             }
         }
     } else {
-        pub fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
+        pub(crate) fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             std::fs::read_to_string(path_to_file)
         }
     }

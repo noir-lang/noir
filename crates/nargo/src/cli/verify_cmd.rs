@@ -1,10 +1,13 @@
-use super::fs::{inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data};
+use super::fs::{
+    inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
+    program::read_program_from_file,
+};
 use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::{FieldElement, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::CompiledProgram;
@@ -47,14 +50,20 @@ fn verify_with_path<P: AsRef<Path>>(
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (_, verification_key) = match circuit_build_path {
+    let (compiled_program, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
-            fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?
+            let compiled_program = read_program_from_file(&circuit_build_path)?;
+
+            let (_, verification_key) =
+                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
+            (compiled_program, verification_key)
         }
         None => {
+            let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+
             let backend = crate::backends::ConcreteBackend;
-            backend.preprocess(compiled_program.circuit.clone())
+            let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
+            (compiled_program, verification_key)
         }
     };
 
@@ -64,35 +73,29 @@ fn verify_with_path<P: AsRef<Path>>(
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
     verify_proof(
-        compiled_program,
+        &compiled_program,
         public_inputs_map,
         return_value,
         &load_hex_data(&proof_path)?,
-        verification_key,
+        &verification_key,
         proof_path,
     )
 }
 
 pub(crate) fn verify_proof(
-    compiled_program: CompiledProgram,
+    compiled_program: &CompiledProgram,
     public_inputs_map: InputMap,
     return_value: Option<InputValue>,
     proof: &[u8],
-    verification_key: Vec<u8>,
+    verification_key: &[u8],
     proof_name: PathBuf,
 ) -> Result<(), CliError> {
-    let public_abi = compiled_program.abi.public_abi();
+    let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
-    let public_inputs_vec: Vec<FieldElement> = public_inputs.values().copied().collect();
-
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof = backend.verify_with_vk(
-        proof,
-        public_inputs_vec,
-        compiled_program.circuit,
-        verification_key,
-    );
+    let valid_proof =
+        backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
 
     if valid_proof {
         Ok(())

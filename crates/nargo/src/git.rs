@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-pub fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
+pub(crate) fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = super::resolver::resolve_folder_name(base, tag);
 
     super::nargo_crates().join(folder_name)
@@ -12,7 +12,7 @@ pub fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
 /// github-rs looks promising, however it seems to require an API token
 ///
 /// One advantage of using "git clone" is that there is effectively no rate limit
-pub fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
+pub(crate) fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
     use std::process::Command;
 
     let base = match url::Url::parse(url) {
