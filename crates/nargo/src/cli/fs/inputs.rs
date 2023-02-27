@@ -15,7 +15,7 @@ use super::write_to_file;
 /// let (input_map, return_value): (InputMap, Option<InputValue>) =
 ///   read_inputs_from_file(path, "Verifier", Format::Toml, &abi)?;
 /// ```
-pub fn read_inputs_from_file<P: AsRef<Path>>(
+pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     path: P,
     file_name: &str,
     format: Format,
@@ -42,7 +42,7 @@ pub fn read_inputs_from_file<P: AsRef<Path>>(
     Ok((input_map, return_value))
 }
 
-pub fn write_inputs_to_file<P: AsRef<Path>>(
+pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     input_map: &InputMap,
     return_value: &Option<InputValue>,
     path: P,

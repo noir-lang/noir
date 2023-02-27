@@ -70,6 +70,9 @@ impl Opcode {
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
                     }
+                    BlackBoxFunc::Keccak256 => {
+                        todo!("ICE: Keccak256 is unimplemented")
+                    }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
@@ -86,6 +89,9 @@ impl Opcode {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
+                    BlackBoxFunc::Keccak256 => {
+                        todo!("ICE: Keccak256 is unimplemented")
+                    }
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => (32, ObjectType::Unsigned(8)),
                     BlackBoxFunc::HashToField128Security => (1, ObjectType::NativeField),
                     // See issue #775 on changing this to return a boolean
