@@ -20,7 +20,7 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
 
     // Save a checksum of the circuit to compare against during proving and verification
     let acir_hash = hash_constraint_system(&compiled_program.circuit);
-    circuit_path.set_extension("json.sha256");
+    circuit_path.set_extension("json.checksum");
     write_to_file(hex::encode(acir_hash).as_bytes(), &circuit_path);
 
     circuit_path
