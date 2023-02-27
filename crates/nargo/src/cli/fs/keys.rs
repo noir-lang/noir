@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::{acir::circuit::Circuit, hash_constraint_system};
 
 use crate::{
-    constants::{ACIR_EXT, PK_EXT, VK_EXT},
+    constants::{PK_EXT, VK_EXT},
     errors::CliError,
 };
 
@@ -31,9 +31,9 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
     prove_circuit: bool,
     check_proof: bool,
 ) -> Result<(Vec<u8>, Vec<u8>), CliError> {
-    let mut acir_hash_path = PathBuf::new();
-    acir_hash_path.push(circuit_build_path.as_ref());
-    acir_hash_path.set_extension(ACIR_EXT.to_owned() + ".sha256");
+    let mut acir_hash_path = PathBuf::from(circuit_build_path.as_ref());
+    acir_hash_path.set_extension("json.checksum");
+
     let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
     let new_acir_hash = hash_constraint_system(circuit);

@@ -2157,6 +2157,7 @@ dependencies = [
  "noirc_frontend",
  "rustc_version 0.4.0",
  "serde",
+ "serde_json",
  "tempdir",
  "termcolor",
  "thiserror",
