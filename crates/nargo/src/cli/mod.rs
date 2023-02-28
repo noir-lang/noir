@@ -51,7 +51,7 @@ pub(crate) struct NargoCompileOptions {
     #[arg(short, long)]
     pub(crate) allow_warnings: bool,
 
-    /// Display output of println statements during tests
+    /// Display output of `println` statements during tests
     #[arg(long)]
     pub(crate) show_output: bool,
 }

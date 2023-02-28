@@ -25,9 +25,13 @@ pub struct Driver {
 #[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct CompileOptions {
+    /// Emit debug information for the intermediate SSA IR
     pub show_ssa: bool,
+
+    /// Issue a warning for each unused variable instead of an error
     pub allow_warnings: bool,
 
+    /// Display output of `println` statements during tests
     pub show_output: bool,
 }
 
