@@ -4,8 +4,6 @@ use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
-extern crate tempdir;
-use tempdir::TempDir;
 
 mod fs;
 
@@ -50,15 +48,15 @@ pub(crate) struct NargoConfig {
 pub(crate) struct NargoCompileOptions {
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
-    pub show_ssa: bool,
+    pub(crate) show_ssa: bool,
 
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
-    pub allow_warnings: bool,
+    pub(crate) allow_warnings: bool,
 
     /// Display output of println statements during tests
     #[arg(long)]
-    pub show_output: bool,
+    pub(crate) show_output: bool,
 }
 
 impl From<NargoCompileOptions> for CompileOptions {
@@ -106,6 +104,8 @@ pub fn start_cli() {
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    use tempdir::TempDir;
+
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let compile_options = CompileOptions::from(NargoCompileOptions {
         show_ssa,
@@ -153,7 +153,7 @@ mod tests {
     /// Compiles a file and returns true if compilation was successful
     ///
     /// This is used for tests.
-    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
+    fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut driver = Driver::new(&acvm::Language::R1CS);
         driver.create_local_crate(&root_file, CrateType::Binary);
         super::add_std_lib(&mut driver);

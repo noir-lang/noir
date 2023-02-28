@@ -5,15 +5,16 @@ use std::path::Path;
 use crate::errors::CliError;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    pub package: Package,
-    pub dependencies: BTreeMap<String, Dependency>,
+pub(crate) struct Config {
+    #[allow(dead_code)]
+    pub(crate) package: Package,
+    pub(crate) dependencies: BTreeMap<String, Dependency>,
 }
 
 impl Config {
     // Local paths are usually relative and are discouraged when sharing libraries
     // It is better to separate these into different packages.
-    pub fn has_local_path(&self) -> bool {
+    pub(crate) fn has_local_path(&self) -> bool {
         let mut has_local_path = false;
         for dep in self.dependencies.values() {
             if let Dependency::Path { .. } = dep {
@@ -25,25 +26,26 @@ impl Config {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
-pub struct Package {
+pub(crate) struct Package {
     // Note: a package name is not needed unless there is a registry
-    pub authors: Vec<String>,
+    authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
-    pub compiler_version: Option<String>,
-    pub backend: Option<String>,
-    pub license: Option<String>,
+    compiler_version: Option<String>,
+    backend: Option<String>,
+    license: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
-pub enum Dependency {
+pub(crate) enum Dependency {
     Github { git: String, tag: String },
     Path { path: String },
 }
