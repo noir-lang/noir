@@ -8,19 +8,22 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, NargoConfig};
+use super::{add_std_lib, NargoCompileOptions, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
 pub(crate) struct TestCommand {
     /// If given, only tests with names containing this string will be run
     test_name: Option<String>,
+
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(&config.program_dir, &test_name, &CompileOptions::from(config.compile_options))
+    run_tests(&config.program_dir, &test_name, &CompileOptions::from(args.compile_options))
 }
 
 fn run_tests(

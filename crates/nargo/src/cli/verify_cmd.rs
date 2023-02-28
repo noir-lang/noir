@@ -2,7 +2,7 @@ use super::fs::{
     inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
     program::read_program_from_file,
 };
-use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
+use super::{compile_cmd::compile_circuit, InputMap, NargoCompileOptions, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -21,6 +21,9 @@ pub(crate) struct VerifyCommand {
 
     /// The name of the circuit build files (ACIR, proving and verification keys)
     circuit_name: Option<String>,
+
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
 }
 
 pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -40,7 +43,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         config.program_dir,
         proof_path,
         circuit_build_path,
-        CompileOptions::from(config.compile_options),
+        CompileOptions::from(args.compile_options),
     )
 }
 

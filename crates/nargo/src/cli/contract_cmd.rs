@@ -1,5 +1,5 @@
 use super::fs::{create_named_dir, write_to_file};
-use super::NargoConfig;
+use super::{NargoCompileOptions, NargoConfig};
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::Args;
@@ -7,11 +7,14 @@ use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ContractCommand {}
+pub(crate) struct ContractCommand {
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
+}
 
-pub(crate) fn run(_args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
     let compiled_program =
-        compile_circuit(config.program_dir.clone(), &CompileOptions::from(config.compile_options))?;
+        compile_circuit(config.program_dir.clone(), &CompileOptions::from(args.compile_options))?;
 
     let backend = crate::backends::ConcreteBackend;
     #[allow(deprecated)]

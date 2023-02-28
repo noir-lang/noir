@@ -10,15 +10,18 @@ use std::{
 };
 
 use super::fs::write_to_file;
-use super::{add_std_lib, NargoConfig};
+use super::{add_std_lib, NargoCompileOptions, NargoConfig};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CheckCommand {}
+pub(crate) struct CheckCommand {
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
+}
 
-pub(crate) fn run(_args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, &CompileOptions::from(config.compile_options))?;
+pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
+    check_from_path(config.program_dir, &CompileOptions::from(args.compile_options))?;
     println!("Constraint system successfully built!");
     Ok(())
 }

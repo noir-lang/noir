@@ -8,13 +8,16 @@ use clap::Args;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
-use super::{add_std_lib, NargoConfig};
+use super::{add_std_lib, NargoCompileOptions, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
+
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -25,7 +28,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &args.circuit_name,
         config.program_dir,
         circuit_path,
-        &CompileOptions::from(config.compile_options),
+        &CompileOptions::from(args.compile_options),
     )?;
 
     println!("Generated ACIR code into {}", circuit_path.display());

@@ -7,7 +7,7 @@ use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
-use super::NargoConfig;
+use super::{NargoCompileOptions, NargoConfig};
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR},
@@ -19,11 +19,14 @@ use crate::{
 pub(crate) struct ExecuteCommand {
     /// Write the execution witness to named file
     witness_name: Option<String>,
+
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let (return_value, solved_witness) =
-        execute_with_path(&config.program_dir, &CompileOptions::from(config.compile_options))?;
+        execute_with_path(&config.program_dir, &CompileOptions::from(args.compile_options))?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {

@@ -39,9 +39,6 @@ struct NargoCli {
 pub(crate) struct NargoConfig {
     #[arg(short, long, hide=true, default_value_os_t = std::env::current_dir().unwrap())]
     program_dir: PathBuf,
-
-    #[clap(flatten)]
-    compile_options: NargoCompileOptions,
 }
 
 #[derive(Args, Clone, Debug, Default)]

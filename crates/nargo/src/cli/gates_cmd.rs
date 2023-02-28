@@ -6,14 +6,17 @@ use std::path::Path;
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
 
-use super::NargoConfig;
+use super::{NargoCompileOptions, NargoConfig};
 
 /// Counts the occurrences of different gates in circuit
 #[derive(Debug, Clone, Args)]
-pub(crate) struct GatesCommand {}
+pub(crate) struct GatesCommand {
+    #[clap(flatten)]
+    compile_options: NargoCompileOptions,
+}
 
-pub(crate) fn run(_args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
-    count_gates_with_path(config.program_dir, &CompileOptions::from(config.compile_options))
+pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
+    count_gates_with_path(config.program_dir, &CompileOptions::from(args.compile_options))
 }
 
 fn count_gates_with_path<P: AsRef<Path>>(
