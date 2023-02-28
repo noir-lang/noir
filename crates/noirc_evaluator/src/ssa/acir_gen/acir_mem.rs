@@ -32,13 +32,15 @@ struct MemOp {
     index: Expression,
 }
 
+type MemAddress = u32;
+
 #[derive(Default)]
 pub struct ArrayHeap {
     // maps memory address to InternalVar
-    memory_map: BTreeMap<u32, InternalVar>,
+    memory_map: BTreeMap<MemAddress, InternalVar>,
     trace: Vec<MemOp>,
     // maps memory address to (values,operation) that must be committed to the trace
-    staged: BTreeMap<u32, (Expression, Expression)>,
+    staged: BTreeMap<MemAddress, (Expression, Expression)>,
 }
 
 impl ArrayHeap {
@@ -164,7 +166,7 @@ impl AcirMem {
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
+    pub fn insert(&mut self, array_id: ArrayId, index: MemAddress, value: InternalVar) {
         let heap = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
         heap.memory_map.insert(index, value);
@@ -213,7 +215,7 @@ impl AcirMem {
     pub(crate) fn load_array_element_constant_index(
         &mut self,
         array: &MemArray,
-        offset: u32,
+        offset: MemAddress,
     ) -> Option<InternalVar> {
         // Check the memory_map to see if the element is there
         self.array_map_mut(array.id).get(&offset).cloned()
