@@ -101,7 +101,7 @@ pub(crate) fn evaluate(
                 r_c.expression(),
             ))
             },
-            BinaryOp::Udiv => {
+            BinaryOp::Udiv(_) => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let predicate = get_predicate(var_cache,binary, evaluator, ctx);
@@ -114,14 +114,14 @@ pub(crate) fn evaluate(
                 );
                 InternalVar::from(q_wit)
             }
-            BinaryOp::Sdiv => {
+            BinaryOp::Sdiv(_) => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).0,
             )
         },
-            BinaryOp::Urem => {
+            BinaryOp::Urem(_) => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let predicate = get_predicate(var_cache,binary, evaluator, ctx);
@@ -134,14 +134,14 @@ pub(crate) fn evaluate(
                 );
                 InternalVar::from(r_wit)
             }
-            BinaryOp::Srem => {
+            BinaryOp::Srem(_) => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 InternalVar::from(
                 // TODO: we should use variable naming here instead of .1
                 constraints::evaluate_sdiv(l_c.expression(), r_c.expression(), evaluator).1,
             )},
-            BinaryOp::Div => {
+            BinaryOp::Div(_) => {
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let mut r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let predicate = get_predicate(var_cache,binary, evaluator, ctx).expression().clone();

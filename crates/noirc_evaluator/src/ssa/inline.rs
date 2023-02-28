@@ -302,18 +302,18 @@ pub fn inline_in_block(
                     let new_ins = new_cloned_instruction(clone, stack_frame.block);
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Load { array_id, index } => {
+                Operation::Load { array_id, index, location } => {
                     //Compute the new address:
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
-                        Operation::Load { array_id: b, index: *index },
+                        Operation::Load { array_id: b, index: *index, location: *location },
                         clone.res_type,
                         Some(stack_frame.block),
                     );
                     new_ins.id = clone.id;
                     push_instruction(ctx, new_ins, stack_frame, inline_map);
                 }
-                Operation::Store { array_id, index, value, predicate } => {
+                Operation::Store { array_id, index, value, predicate, location } => {
                     let b = stack_frame.get_or_default(*array_id);
                     let mut new_ins = Instruction::new(
                         Operation::Store {
@@ -321,6 +321,7 @@ pub fn inline_in_block(
                             index: *index,
                             value: *value,
                             predicate: *predicate,
+                            location: *location,
                         },
                         clone.res_type,
                         Some(stack_frame.block),

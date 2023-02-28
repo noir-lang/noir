@@ -21,6 +21,16 @@ impl RuntimeError {
     pub fn new(kind: RuntimeErrorKind, location: Option<Location>) -> RuntimeError {
         RuntimeError { location, kind }
     }
+
+    pub fn merge_location(
+        location1: Option<Location>,
+        location2: Option<Location>,
+    ) -> Option<Location> {
+        match (location1, location2) {
+            (Some(loc), _) | (_, Some(loc)) => Some(loc),
+            (None, None) => None,
+        }
+    }
 }
 
 impl From<RuntimeErrorKind> for RuntimeError {

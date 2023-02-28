@@ -516,12 +516,14 @@ pub enum Operation {
     Load {
         array_id: ArrayId,
         index: NodeId,
+        location: Option<Location>,
     },
     Store {
         array_id: ArrayId,
         index: NodeId,
         value: NodeId,
         predicate: Option<NodeId>,
+        location: Option<Location>,
     },
 
     Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
@@ -602,11 +604,11 @@ pub enum BinaryOp {
     Mul, //(*)
     #[allow(dead_code)]
     SafeMul, //(*) safe multiplication
-    Udiv, //(/) unsigned division
-    Sdiv, //(/) signed division
-    Urem, //(%) modulo; remainder of unsigned division
-    Srem, //(%) remainder of signed division
-    Div, //(/) field division
+    Udiv(Option<Location>), //(/) unsigned division
+    Sdiv(Location), //(/) signed division
+    Urem(Location), //(%) modulo; remainder of unsigned division
+    Srem(Location), //(%) remainder of signed division
+    Div(Location), //(/) field division
     Eq,  //(==) equal
     Ne,  //(!=) not equal
     Ult, //(<) unsigned less than
@@ -633,11 +635,11 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::SafeSub { .. } => "safe_sub",
             BinaryOp::Mul => "mul",
             BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
+            BinaryOp::Udiv(_) => "udiv",
+            BinaryOp::Sdiv(_) => "sdiv",
+            BinaryOp::Urem(_) => "urem",
+            BinaryOp::Srem(_) => "srem",
+            BinaryOp::Div(_) => "div",
             BinaryOp::Eq => "eq",
             BinaryOp::Ne => "ne",
             BinaryOp::Ult => "ult",
@@ -667,6 +669,7 @@ impl Binary {
         op_type: ObjectType,
         lhs: NodeId,
         rhs: NodeId,
+        location: Location,
     ) -> Binary {
         let operator = match op_kind {
             BinaryOpKind::Add => BinaryOp::Add,
@@ -680,9 +683,9 @@ impl Binary {
             BinaryOpKind::Divide => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
-                    NumericType::Signed(_) => BinaryOp::Sdiv,
-                    NumericType::Unsigned(_) => BinaryOp::Udiv,
-                    NumericType::NativeField => BinaryOp::Div,
+                    NumericType::Signed(_) => BinaryOp::Sdiv(location),
+                    NumericType::Unsigned(_) => BinaryOp::Udiv(Some(location)),
+                    NumericType::NativeField => BinaryOp::Div(location),
                 }
             }
             BinaryOpKind::Less => {
@@ -722,8 +725,12 @@ impl Binary {
             BinaryOpKind::Modulo => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
-                    NumericType::Signed(_) => return Binary::new(BinaryOp::Srem, lhs, rhs),
-                    NumericType::Unsigned(_) => return Binary::new(BinaryOp::Urem, lhs, rhs),
+                    NumericType::Signed(_) => {
+                        return Binary::new(BinaryOp::Srem(location), lhs, rhs)
+                    }
+                    NumericType::Unsigned(_) => {
+                        return Binary::new(BinaryOp::Urem(location), lhs, rhs)
+                    }
                     NumericType::NativeField => {
                         unimplemented!("Modulo operation with Field elements is not supported")
                     }
@@ -734,9 +741,14 @@ impl Binary {
         Binary::new(operator, lhs, rhs)
     }
 
-    fn zero_div_error(&self) -> Result<(), RuntimeError> {
+    fn zero_div_error(&self, location: &Location) -> Result<(), RuntimeError> {
         if self.predicate.is_none() {
-            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+            Err(RuntimeError {
+                location: Some(*location),
+                kind: RuntimeErrorKind::UnstructuredError {
+                    message: "Panic - division by zero".to_string(),
+                },
+            })
         } else {
             Ok(())
         }
@@ -805,9 +817,9 @@ impl Binary {
                 //so it is probably not worth it.
             }
 
-            BinaryOp::Udiv => {
+            BinaryOp::Udiv(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(&loc.unwrap())?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -818,18 +830,18 @@ impl Binary {
                     return Ok(NodeEval::Const(FieldElement::from(lhs / rhs), res_type));
                 }
             }
-            BinaryOp::Div => {
+            BinaryOp::Div(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs / rhs, res_type));
                 }
             }
-            BinaryOp::Sdiv => {
+            BinaryOp::Sdiv(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -838,18 +850,18 @@ impl Binary {
                     return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits())?, res_type));
                 }
             }
-            BinaryOp::Urem => {
+            BinaryOp::Urem(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
                 }
             }
-            BinaryOp::Srem => {
+            BinaryOp::Srem(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -1003,11 +1015,11 @@ impl Binary {
             BinaryOp::SafeSub { .. } => false,
             BinaryOp::Mul => false,
             BinaryOp::SafeMul => false,
-            BinaryOp::Udiv => true,
-            BinaryOp::Sdiv => true,
-            BinaryOp::Urem => true,
-            BinaryOp::Srem => true,
-            BinaryOp::Div => false,
+            BinaryOp::Udiv(_) => true,
+            BinaryOp::Sdiv(_) => true,
+            BinaryOp::Urem(_) => true,
+            BinaryOp::Srem(_) => true,
+            BinaryOp::Div(_) => false,
             BinaryOp::Eq => true,
             BinaryOp::Ne => true,
             BinaryOp::Ult => true,
@@ -1033,11 +1045,11 @@ impl Binary {
             BinaryOp::SafeSub { .. } => Opcode::SafeSub,
             BinaryOp::Mul => Opcode::Mul,
             BinaryOp::SafeMul => Opcode::SafeMul,
-            BinaryOp::Udiv => Opcode::Udiv,
-            BinaryOp::Sdiv => Opcode::Sdiv,
-            BinaryOp::Urem => Opcode::Urem,
-            BinaryOp::Srem => Opcode::Srem,
-            BinaryOp::Div => Opcode::Div,
+            BinaryOp::Udiv(_) => Opcode::Udiv,
+            BinaryOp::Sdiv(_) => Opcode::Sdiv,
+            BinaryOp::Urem(_) => Opcode::Urem,
+            BinaryOp::Srem(_) => Opcode::Srem,
+            BinaryOp::Div(_) => Opcode::Div,
             BinaryOp::Eq => Opcode::Eq,
             BinaryOp::Ne => Opcode::Ne,
             BinaryOp::Ult => Opcode::Ult,
@@ -1120,12 +1132,15 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
-            Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value, predicate } => Store {
+            Load { array_id: array, index, location } => {
+                Load { array_id: *array, index: f(*index), location: *location }
+            }
+            Store { array_id: array, index, value, predicate, location } => Store {
                 array_id: *array,
                 index: f(*index),
                 value: f(*value),
                 predicate: predicate.as_ref().map(|pred| f(*pred)),
+                location: *location,
             },
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
