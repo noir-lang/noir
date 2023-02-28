@@ -144,17 +144,24 @@ pub(crate) fn evaluate(
                 let l_c = var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let mut r_c = var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
                 let predicate = get_predicate(var_cache,binary, evaluator, ctx).expression().clone();
-                //TODO avoid creating witnesses here.
-                let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
-
-                let inverse = Expression::from(&constraints::evaluate_inverse(
-                    x_witness, &predicate, evaluator,
-                ));
-                InternalVar::from(constraints::mul_with_witness(
-                    evaluator,
-                    l_c.expression(),
-                    &inverse,
-                ))
+                if let Some(r_value) = r_c.to_const() {
+                    if r_value.is_zero() {
+                        panic!("Panic - division by zero");
+                    } else {
+                        constraints::add(&Expression::zero(), r_value.inverse(), l_c.expression()).into()
+                    }
+                } else {
+                    //TODO avoid creating witnesses here.
+                    let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
+                    let inverse = Expression::from(&constraints::evaluate_inverse(
+                        x_witness, &predicate, evaluator,
+                    ));
+                    InternalVar::from(constraints::mul_with_witness(
+                        evaluator,
+                        l_c.expression(),
+                        &inverse,
+                    ))
+                }
             }
             BinaryOp::Eq => {
                 let l_c = var_cache.get_or_compute_internal_var(binary.lhs, evaluator, ctx);
