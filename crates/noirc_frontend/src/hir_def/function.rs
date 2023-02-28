@@ -115,14 +115,22 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
+/// A FuncMeta contains the signature of the function and any associated meta data like
+/// the function's Location, FunctionKind, and attributes. If the function's body is
+/// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: HirIdent,
 
     pub kind: FunctionKind,
 
+    /// A function's attributes are the `#[...]` items above the function
+    /// definition, if any. Currently, this is limited to a maximum of only one
+    /// Attribute per function.
     pub attributes: Option<Attribute>,
+
     pub parameters: Parameters,
+
     pub return_visibility: AbiVisibility,
 
     /// The type of this function. Either a Type::Function

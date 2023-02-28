@@ -6,7 +6,7 @@ use clap::Args;
 
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::fs::{acir::save_acir_to_dir, keys::save_key_to_dir};
+use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
 use super::{add_std_lib, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -43,14 +43,14 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
-    let circuit_path = save_acir_to_dir(&compiled_program.circuit, circuit_name, &circuit_dir);
+    let circuit_path = save_program_to_file(&compiled_program, circuit_name, &circuit_dir);
 
-    preprocess_with_path(circuit_name, circuit_dir, compiled_program.circuit)?;
+    preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
 
     Ok(circuit_path)
 }
 
-pub fn compile_circuit<P: AsRef<Path>>(
+pub(crate) fn compile_circuit<P: AsRef<Path>>(
     program_dir: P,
     show_ssa: bool,
     allow_warnings: bool,
@@ -65,7 +65,7 @@ pub fn compile_circuit<P: AsRef<Path>>(
 fn preprocess_with_path<P: AsRef<Path>>(
     key_name: &str,
     preprocess_dir: P,
-    circuit: Circuit,
+    circuit: &Circuit,
 ) -> Result<(PathBuf, PathBuf), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
