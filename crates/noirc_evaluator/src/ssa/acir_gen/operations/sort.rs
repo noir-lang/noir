@@ -60,17 +60,15 @@ fn permutation_layer(
         return (Vec::new(), in_expr.clone());
     }
     let n1 = n / 2;
-    let mut conf = Vec::new();
 
     // witness for the input switches
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..n1 {
+    let mut conf = iter_extended::vecmap(0..n1, |i| {
         if generate_witness {
-            conf.push(evaluator.add_witness_to_cs());
+            evaluator.add_witness_to_cs()
         } else {
-            conf.push(bits[i]);
+            bits[i]
         }
-    }
+    });
 
     // compute expressions after the input switches
     // If inputs are a1,a2, and the switch value is c, then we compute expressions b1,b2 where
