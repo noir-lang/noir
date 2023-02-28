@@ -363,7 +363,7 @@ pub fn inline_in_block(
 
                         if replacement != new_ins.id {
                             inline_map.insert(i_id, replacement);
-                            debug_assert!(stack_frame.stack.contains(&replacement));
+                            assert!(stack_frame.stack.contains(&replacement));
                         }
                     } else {
                         push_instruction(ctx, new_ins, stack_frame, inline_map);
