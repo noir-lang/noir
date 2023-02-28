@@ -55,11 +55,10 @@ pub(crate) fn mul_with_witness(
 
 //a*b
 pub(crate) fn mul(a: &Expression, b: &Expression) -> Expression {
-    let zero = Expression::zero();
     if a.is_const() {
-        return add(&zero, a.q_c, b);
+        return b * &a.q_c;
     } else if b.is_const() {
-        return add(&zero, b.q_c, a);
+        return a * &b.q_c;
     } else if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
