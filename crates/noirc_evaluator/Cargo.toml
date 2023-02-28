@@ -12,7 +12,6 @@ noirc_errors.workspace = true
 noirc_abi.workspace = true
 acvm.workspace = true
 arena.workspace = true
-fm.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
