@@ -1,3 +1,4 @@
+pub mod cli;
 mod toml;
 
 use std::{collections::BTreeMap, path::Path};
@@ -104,5 +105,16 @@ impl Format {
         match self {
             Format::Toml => toml::serialize_to_toml(w_map),
         }
+    }
+}
+
+pub fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).ok_or_else(|| InputParserError::ParseHexStr(value.to_owned()))
+    } else {
+        value
+            .parse::<i128>()
+            .map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string()))
+            .map(FieldElement::from)
     }
 }

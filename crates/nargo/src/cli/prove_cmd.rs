@@ -58,30 +58,16 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
         None
     };
 
-    prove_with_path(
-        args.proof_name,
-        config.program_dir,
-        proof_dir,
-        circuit_build_path,
-        args.verify,
-        args.show_ssa,
-        args.allow_warnings,
-        args.inputs,
-    )?;
+    prove_with_path(config.program_dir, proof_dir, circuit_build_path, args)?;
 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_with_path<P: AsRef<Path>>(
-    proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
-    check_proof: bool,
-    show_ssa: bool,
-    allow_warnings: bool,
-    inputs: Option<Vec<(String, String)>>,
+    args: ProveCommand,
 ) -> Result<Option<PathBuf>, CliError> {
     let (compiled_program, proving_key, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
@@ -94,8 +80,8 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         None => {
             let compiled_program = super::compile_cmd::compile_circuit(
                 program_dir.as_ref(),
-                show_ssa,
-                allow_warnings,
+                args.show_ssa,
+                args.allow_warnings,
             )?;
 
             let backend = crate::backends::ConcreteBackend;
@@ -105,7 +91,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     };
 
     // Parse the initial witness values from Prover.toml
-    let inputs_map = if let Some(inputs) = inputs {
+    let inputs_map = if let Some(inputs) = args.inputs {
         let (map, _) = read_inputs_from_cli(inputs, &compiled_program.abi)?;
         map
     } else {
@@ -135,7 +121,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
 
-    if check_proof {
+    if args.verify {
         let no_proof_name = "".into();
         verify_proof(
             &compiled_program,
@@ -147,7 +133,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         )?;
     }
 
-    let proof_path = if let Some(proof_name) = proof_name {
+    let proof_path = if let Some(proof_name) = args.proof_name {
         Some(save_proof_to_dir(&proof, &proof_name, proof_dir)?)
     } else {
         println!("{}", hex::encode(&proof));

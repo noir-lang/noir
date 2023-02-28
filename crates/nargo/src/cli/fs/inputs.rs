@@ -43,6 +43,13 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     Ok((input_map, return_value))
 }
 
+/// Returns the circuit's parameters and the return value, when the inputs
+/// come from the command line.
+///
+/// ```ignore
+/// let (input_map, return_value): (InputMap, Option<InputValue>) =
+///  read_inputs_from_cli(inputs, &abi)?;
+/// ```
 pub(crate) fn read_inputs_from_cli(
     inputs: Vec<(String, String)>,
     abi: &Abi,
