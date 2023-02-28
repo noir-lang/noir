@@ -50,7 +50,7 @@ PROJECTS=(
   # "yarn-project/ethereum.js:yarn build"
   # "yarn-project/kernel-simulator:yarn build"
   # "yarn-project/p2p:yarn build"
-  # "yarn-project/private-client:yarn build"
+  "yarn-project/private-client:yarn build"
   # "yarn-project/prover-client:yarn build"
   # "yarn-project/public-client:yarn build"
   # "yarn-project/sequencer-client:yarn build"
@@ -68,4 +68,4 @@ for E in "${PROJECTS[@]}"; do
 done
 
 echo
-echo "Success!"
+echo "Success! You could now run e.g.: ./scripts/tmux-splits e2e_deploy_contract"
