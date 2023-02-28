@@ -72,6 +72,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
