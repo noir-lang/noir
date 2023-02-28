@@ -1,22 +1,19 @@
-use std::{
-    error::Error,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use acvm::ProofSystemCompiler;
 use clap::Args;
-use iter_extended::try_btree_map;
-use noirc_abi::{
-    input_parser::{Format, InputValue},
-};
+use noirc_abi::input_parser::Format;
 
-use super::fs::{
-    inputs::{read_inputs_from_file, write_inputs_to_file},
-    keys::fetch_pk_and_vk,
-    program::read_program_from_file,
-    proof::save_proof_to_dir,
+use super::{fs::inputs::read_inputs_from_cli, NargoConfig};
+use super::{
+    fs::{
+        inputs::{read_inputs_from_file, write_inputs_to_file},
+        keys::fetch_pk_and_vk,
+        program::read_program_from_file,
+        proof::save_proof_to_dir,
+    },
+    parse_key_val,
 };
-use super::NargoConfig;
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
     constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
@@ -46,18 +43,6 @@ pub(crate) struct ProveCommand {
 
     #[arg(short, long, value_parser = parse_key_val::<String, String>)]
     inputs: Option<Vec<(String, String)>>,
-}
-
-/// Parse a single key-value pair
-fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
-where
-    T: std::str::FromStr,
-    T::Err: Error + Send + Sync + 'static,
-    U: std::str::FromStr,
-    U::Err: Error + Send + Sync + 'static,
-{
-    let pos = s.find('=').ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
-    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -120,14 +105,15 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
 
     // Parse the initial witness values from Prover.toml
     let inputs_map = if let Some(inputs) = inputs {
-        // TODO: move this to an appropiate place
-        try_btree_map(inputs, |(key, value)| {
-            let abi_map = &compiled_program.abi.to_btree_map();
-            InputValue::try_from_cli_args(value, &abi_map[&key])
-                .map(|input_value| (key, input_value))
-        })?
+        let (map, _) = read_inputs_from_cli(inputs, &compiled_program.abi)?;
+        map
     } else {
-        let (map, _) = read_inputs_from_file(&program_dir, PROVER_INPUT_FILE, Format::Toml, &compiled_program.abi)?
+        let (map, _) = read_inputs_from_file(
+            &program_dir,
+            PROVER_INPUT_FILE,
+            Format::Toml,
+            &compiled_program.abi,
+        )?;
         map
     };
 

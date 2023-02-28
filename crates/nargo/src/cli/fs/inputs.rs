@@ -1,3 +1,4 @@
+use iter_extended::try_btree_map;
 use noirc_abi::{
     input_parser::{Format, InputValue},
     Abi, InputMap, MAIN_RETURN_NAME,
@@ -37,6 +38,23 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
     let mut input_map = format.parse(&input_string, abi)?;
+    let return_value = input_map.remove(MAIN_RETURN_NAME);
+
+    Ok((input_map, return_value))
+}
+
+pub(crate) fn read_inputs_from_cli(
+    inputs: Vec<(String, String)>,
+    abi: &Abi,
+) -> Result<(InputMap, Option<InputValue>), CliError> {
+    if abi.is_empty() {
+        return Ok((BTreeMap::new(), None));
+    }
+
+    let abi_map = &abi.to_btree_map();
+    let mut input_map = try_btree_map(inputs, |(key, value)| {
+        InputValue::try_from_cli_args(value, &abi_map[&key]).map(|input_value| (key, input_value))
+    })?;
     let return_value = input_map.remove(MAIN_RETURN_NAME);
 
     Ok((input_map, return_value))

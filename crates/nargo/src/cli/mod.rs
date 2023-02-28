@@ -3,7 +3,10 @@ use const_format::formatcp;
 use noirc_abi::InputMap;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
-use std::path::{Path, PathBuf};
+use std::{
+    error::Error,
+    path::{Path, PathBuf},
+};
 
 mod fs;
 
@@ -106,6 +109,18 @@ fn add_std_lib(driver: &mut Driver) {
 
 fn path_to_stdlib() -> PathBuf {
     dirs::config_dir().unwrap().join("noir-lang").join("std/src")
+}
+
+/// Clap custom parser a single key-value pair
+pub fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
+{
+    let pos = s.find('=').ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
 // FIXME: I not sure that this is the right place for this tests.
