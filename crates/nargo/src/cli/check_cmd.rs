@@ -49,13 +49,15 @@ fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), Cli
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&build_empty_map(parameters.clone(), None)).unwrap();
+            let toml =
+                toml::to_string(&build_placeholder_input_map(parameters.clone(), None)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
             let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
 
-            let toml = toml::to_string(&build_empty_map(public_inputs, return_type)).unwrap();
+            let toml =
+                toml::to_string(&build_placeholder_input_map(public_inputs, return_type)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
@@ -64,7 +66,7 @@ fn check_from_path<P: AsRef<Path>>(p: P, allow_warnings: bool) -> Result<(), Cli
     Ok(())
 }
 
-fn build_empty_map(
+fn build_placeholder_input_map(
     parameters: Vec<AbiParameter>,
     return_type: Option<AbiType>,
 ) -> BTreeMap<String, &'static str> {
