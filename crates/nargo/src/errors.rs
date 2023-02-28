@@ -22,6 +22,10 @@ pub(crate) enum CliError {
     MismatchedAcir(PathBuf),
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
+
+    /// Error while compiling Noir into ACIR.
+    #[error("Failed to compile circuit")]
+    CompilationError,
 }
 
 impl From<OpcodeResolutionError> for CliError {
