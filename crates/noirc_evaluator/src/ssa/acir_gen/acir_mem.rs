@@ -33,8 +33,10 @@ pub struct MemOp {
     index: Expression,
 }
 
+type MemAddress = u32;
+
 enum ArrayType {
-    Init(HashSet<u32>, u32),
+    Init(HashSet<MemAddress>, u32),
     WriteOnly,
     ReadOnly(Option<usize>),
     ReadWrite(Option<usize>),
@@ -46,13 +48,14 @@ impl Default for ArrayType {
     }
 }
 
+
 #[derive(Default)]
 pub struct ArrayHeap {
     // maps memory address to InternalVar
-    memory_map: BTreeMap<u32, InternalVar>,
+    memory_map: BTreeMap<MemAddress, InternalVar>,
     trace: Vec<MemOp>,
     // maps memory address to (values,operation) that must be committed to the trace
-    staged: BTreeMap<u32, (Expression, Expression)>,
+    staged: BTreeMap<MemAddress, (Expression, Expression)>,
     typ: ArrayType,
 }
 
@@ -75,7 +78,7 @@ impl ArrayHeap {
         self.typ = match &self.typ {
             ArrayType::Init(init_idx, len) => match (is_load, index_const) {
                 (false, Some(idx)) => {
-                    let idx: u32 = idx.to_u128().try_into().unwrap();
+                    let idx: MemAddress = idx.to_u128().try_into().unwrap();
                     let mut init_idx2 = init_idx.clone();
                     let mut len2 = *len;
                     init_idx2.insert(idx);
@@ -115,7 +118,7 @@ impl ArrayHeap {
         self.trace.push(item);
     }
 
-    pub fn stage(&mut self, index: u32, value: Expression, op: Expression) {
+    pub fn stage(&mut self, index: MemAddress, value: Expression, op: Expression) {
         self.staged.insert(index, (value, op));
     }
 
@@ -235,7 +238,7 @@ pub struct AcirMem {
 
 impl AcirMem {
     // Returns the memory_map for the array
-    fn array_map_mut(&mut self, array_id: ArrayId) -> &mut BTreeMap<u32, InternalVar> {
+    fn array_map_mut(&mut self, array_id: ArrayId) -> &mut BTreeMap<MemAddress, InternalVar> {
         &mut self.virtual_memory.entry(array_id).or_default().memory_map
     }
 
@@ -246,7 +249,7 @@ impl AcirMem {
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar, op: Expression) {
+    pub fn insert(&mut self, array_id: ArrayId, index: MemAddress, value: InternalVar, op: Expression) {
         let heap = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
         heap.memory_map.insert(index, value);
@@ -296,7 +299,7 @@ impl AcirMem {
     pub(crate) fn load_array_element_constant_index(
         &mut self,
         array_id: ArrayId,
-        offset: u32,
+        offset: MemAddress,
     ) -> Option<InternalVar> {
         // Check the memory_map to see if the element is there
         self.array_map_mut(array_id).get(&offset).cloned()
