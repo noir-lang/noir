@@ -136,11 +136,11 @@ pub struct Index {
 /// Rather than a Pattern containing possibly several variables, Let now
 /// defines a single variable with the given LocalId. By the time this
 /// is produced in monomorphization, let-statements with tuple and struct patterns:
-/// ```
+/// ```nr
 /// let MyStruct { field1, field2 } = get_struct();
 /// ```
 /// Have been desugared into multiple let statements for simplicity:
-/// ```
+/// ```nr
 /// let tmp = get_struct();
 /// let field1 = tmp.0; // the struct has been translated to a tuple as well
 /// let field2 = tmp.1;
