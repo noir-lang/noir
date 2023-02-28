@@ -7,6 +7,7 @@ use noirc_abi::input_parser::Format;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     keys::fetch_pk_and_vk,
+    program::read_program_from_file,
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
@@ -64,24 +65,33 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
     Ok(())
 }
 
-pub fn prove_with_path<P: AsRef<Path>>(
+pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_name: Option<String>,
     program_dir: P,
     proof_dir: P,
-    circuit_build_path: Option<P>,
+    circuit_build_path: Option<PathBuf>,
     check_proof: bool,
     show_ssa: bool,
     allow_warnings: bool,
 ) -> Result<Option<PathBuf>, CliError> {
-    let compiled_program =
-        super::compile_cmd::compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
-    let (proving_key, verification_key) = match circuit_build_path {
+    let (compiled_program, proving_key, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
-            fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?
+            let compiled_program = read_program_from_file(&circuit_build_path)?;
+
+            let (proving_key, verification_key) =
+                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?;
+            (compiled_program, proving_key, verification_key)
         }
         None => {
+            let compiled_program = super::compile_cmd::compile_circuit(
+                program_dir.as_ref(),
+                show_ssa,
+                allow_warnings,
+            )?;
+
             let backend = crate::backends::ConcreteBackend;
-            backend.preprocess(compiled_program.circuit.clone())
+            let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
+            (compiled_program, proving_key, verification_key)
         }
     };
 
@@ -108,17 +118,16 @@ pub fn prove_with_path<P: AsRef<Path>>(
     )?;
 
     let backend = crate::backends::ConcreteBackend;
-    let proof =
-        backend.prove_with_pk(compiled_program.circuit.clone(), solved_witness, proving_key);
+    let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
 
     if check_proof {
         let no_proof_name = "".into();
         verify_proof(
-            compiled_program,
+            &compiled_program,
             public_inputs,
             return_value,
             &proof,
-            verification_key,
+            &verification_key,
             no_proof_name,
         )?;
     }

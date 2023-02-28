@@ -1,11 +1,13 @@
 #![forbid(unsafe_code)]
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+
 mod errors;
 mod ssa;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::fallback::IsBlackBoxSupported,
+    compiler::transformers::IsBlackBoxSupported,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -70,12 +72,11 @@ pub fn create_circuit(
     abi.param_witnesses = param_witnesses;
     abi.return_witnesses = return_witnesses;
 
-    let public_inputs = evaluator.public_inputs.into_iter().collect();
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(public_inputs),
+            public_inputs: PublicInputs(evaluator.public_inputs),
         },
         np_language,
         is_blackbox_supported,
