@@ -18,7 +18,7 @@ namespace honk::sumcheck {
  *   ζ^{i} = ζ^{ ∑_{0≤l<d} i_l ⋅ 2^l }
  *         =     ∏_{0≤l<d} ζ^{ i_l ⋅ 2^l }
  *         =     ∏_{0≤l<d} ζ_l^{ i_l }
- *         =     ∏_{0≤l<d} { ( 1-i_l ) + i_l ⋅ ζ_l }
+ *         =     ∏_{0≤l<d} { ( 1-i_l ) + i_l ⋅ ζ_l } // As i_{l} \in \{0, 1\}
  *   Note that
  *   - ζ_{0} = ζ,
  *   - ζ_{l+1} = ζ_{l}^2,
