@@ -6,7 +6,7 @@ use clap::Args;
 
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::fs::{acir::save_acir_to_dir, keys::save_key_to_dir};
+use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
 use super::{add_std_lib, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -43,7 +43,7 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     allow_warnings: bool,
 ) -> Result<PathBuf, CliError> {
     let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
-    let circuit_path = save_acir_to_dir(&compiled_program.circuit, circuit_name, &circuit_dir);
+    let circuit_path = save_program_to_file(&compiled_program, circuit_name, &circuit_dir);
 
     preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
 
@@ -59,7 +59,7 @@ pub(crate) fn compile_circuit<P: AsRef<Path>>(
     let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| std::process::exit(1))
+    driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| CliError::CompilationError)
 }
 
 fn preprocess_with_path<P: AsRef<Path>>(
