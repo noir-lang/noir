@@ -10,13 +10,11 @@
 #include <span>
 #include <utility>
 #include <vector>
-#include "common/assert.hpp"
 #include "ecc/curves/bn254/fr.hpp"
 #include "ecc/curves/bn254/g1.hpp"
 #include <honk/sumcheck/relations/arithmetic_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_computation_relation.hpp>
 #include <honk/sumcheck/relations/grand_product_initialization_relation.hpp>
-#include "honk/pcs/gemini/gemini.hpp"
 #include "polynomials/polynomial.hpp"
 #include "proof_system/flavor/flavor.hpp"
 #include "transcript/transcript_wrappers.hpp"
@@ -71,11 +69,6 @@ Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
 }
 
 /**
- * For Plonk systems:
- * - Compute commitments to wires 1,2,3
- * - Get public inputs (which were stored in w_2_lagrange) and add to transcript
- *
- * For Honk, we should
  * - Commit to wires 1,2,3
  * - Add PI to transcript (I guess PI will stay in w_2 for now?)
  *
@@ -199,13 +192,7 @@ template <typename settings> Polynomial Prover<settings>::compute_grand_product_
 }
 
 /**
- * For Plonk systems:
- * - added some initial data to transcript: circuit size and PI size
- * - added randomness to lagrange wires
- * - performed ifft to get monomial wires
- *
- * For Honk:
- * - Add circuit size and PI size to transcript. That's it?
+ * - Add circuit size and PI size to transcript
  *
  * */
 template <typename settings> void Prover<settings>::execute_preamble_round()
@@ -230,11 +217,6 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
 }
 
 /**
- * For Plonk systems:
- * - compute wire commitments
- * - add public inputs to transcript (done in compute_wire_commitments() for some reason)
- *
- * For Honk:
  * - compute wire commitments
  * - add public inputs to transcript (done explicitly in execute_first_round())
  * */
@@ -254,10 +236,6 @@ template <typename settings> void Prover<settings>::execute_wire_commitments_rou
 }
 
 /**
- * For Plonk systems:
- * - Do Fiat-Shamir to get "eta" challenge (done regardless of arithmetization but only required for Ultra)
- * - does stuff related only to lookups (compute 's' etc and do some RAM/ROM stuff with w_4).
- *
  * For Standard Honk, this is a non-op (just like for Standard/Turbo Plonk).
  * */
 template <typename settings> void Prover<settings>::execute_tables_round()
@@ -269,12 +247,6 @@ template <typename settings> void Prover<settings>::execute_tables_round()
 }
 
 /**
- * For Plonk systems:
- * - Do Fiat-Shamir to get "beta" challenge
- * - Compute grand product polynomials (permutation and lookup) and commitments
- * - Compute wire polynomial coset FFTs
- *
- * For Honk:
  * - Do Fiat-Shamir to get "beta" challenge (Note: gamma = beta^2)
  * - Compute grand product polynomial (permutation only) and commitment
  * */
@@ -296,13 +268,6 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
 }
 
 /**
- * For Plonk systems:
- * - Do Fiat-Shamir to get "alpha" challenge
- * - Compute coset_fft(L_1)
- * - Compute quotient polynomial (with blinding)
- * - Compute quotient polynomial commitment
- *
- * For Honk
  * - Do Fiat-Shamir to get "alpha" challenge
  * - Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all
  *   evaluations at u being calculated.
@@ -311,7 +276,6 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 {
     // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
 
-    using Transcript = transcript::StandardTranscript;
     using Sumcheck = sumcheck::Sumcheck<Fr,
                                         Transcript,
                                         sumcheck::ArithmeticRelation,
@@ -326,66 +290,47 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
 }
 
 /**
- * For Plonk: the polynomials are univariate, so this is a no-op.
- * For Honk:
  * - Get rho challenge
- * - Compute Fold polynomials and commitments.
+ * - Compute d+1 Fold polynomials and their evaluations.
  *
  * */
 template <typename settings> void Prover<settings>::execute_univariatization_round()
 {
-    using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
-    using MLEOpeningClaim = pcs::MLEOpeningClaim<pcs::kzg::Params>;
+    const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    const size_t NUM_UNSHIFTED_POLYS = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
 
-    // Construct inputs for Gemini:
-    // - Multivariate opening point u = (u_0, ..., u_{d-1})
-    // - MLE opening claim = {commitment, eval} for each multivariate and shifted multivariate polynomial
-    // - Pointers to multivariate and shifted multivariate polynomials
-    std::vector<Fr> opening_point;
-    std::vector<MLEOpeningClaim> opening_claims;
-    std::vector<MLEOpeningClaim> opening_claims_shifted;
-    std::vector<std::span<Fr>> multivariate_polynomials;
-    std::vector<std::span<Fr>> multivariate_polynomials_shifted;
-
-    // Construct MLE opening point
+    // Construct MLE opening point u = (u_0, ..., u_{d-1})
+    std::vector<Fr> opening_point; // u
     for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
         std::string label = "u_" + std::to_string(round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
+    // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
+    transcript.apply_fiat_shamir("rho");
+    Fr rho = Fr::serialize_from_buffer(transcript.get_challenge("rho").begin());
+    std::vector<Fr> rhos = Gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
+
     // Get vector of multivariate evaluations produced by Sumcheck
     auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
 
-    // Collect NON-shifted and shifted polynomials and opening claims based on enum.
-    auto mock_commitment = Commitment::one(); // prover does not require genuine commitments
-    for (size_t i = 0; i < bonk::StandardArithmetization::NUM_POLYNOMIALS; ++i) {
-        if (i < bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS) {
-            multivariate_polynomials.push_back(prover_polynomials[i]);
-            opening_claims.emplace_back(mock_commitment, multivariate_evaluations[i]);
-        } else { // shifted polynomials/claims
-            // Note: we must provide the NON-shifted polynomial but the shifted evaluation.
-            // TODO(luke): This is a bit hard-coded for standard Honk right now. Can do away with this after changing
-            // Gemini interface to accept shifted polynomials.
-            multivariate_polynomials_shifted.push_back(prover_polynomials[POLYNOMIAL::Z_PERM]);
-            opening_claims_shifted.emplace_back(mock_commitment, multivariate_evaluations[i]);
-        }
+    // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
+    Polynomial batched_poly_unshifted(key->circuit_size); // batched unshifted polynomials
+    for (size_t i = 0; i < NUM_UNSHIFTED_POLYS; ++i) {
+        batched_poly_unshifted.add_scaled(prover_polynomials[i], rhos[i]);
     }
+    Polynomial batched_poly_to_be_shifted(key->circuit_size); // batched to-be-shifted polynomials
+    batched_poly_to_be_shifted.add_scaled(prover_polynomials[POLYNOMIAL::Z_PERM], rhos[NUM_UNSHIFTED_POLYS]);
 
+    // Compute d+1 Fold polynomials and their evaluations
     gemini_output = Gemini::reduce_prove(commitment_key,
                                          opening_point,
-                                         opening_claims,
-                                         opening_claims_shifted,
-                                         multivariate_polynomials,
-                                         multivariate_polynomials_shifted,
+                                         std::move(batched_poly_unshifted),
+                                         std::move(batched_poly_to_be_shifted),
                                          &transcript);
 }
 
 /**
- * For Plonk systems:
- * - Do Fiat-Shamir to get "frak-z" challenge
- * - Compute linearization or evaluation of quotient polynomial.
- *
- * For Honk:
  * - Do Fiat-Shamir to get "r" challenge
  * - Compute evaluations of folded polynomials.
  * */
@@ -397,39 +342,24 @@ template <typename settings> void Prover<settings>::execute_pcs_evaluation_round
 }
 
 /**
- * For Plonk: Batching is combined with generation of opening proof polynomial commitments.
- *
- * For Honk:
  * - Do Fiat-Shamir to get "nu" challenge.
- * - Compute Shplonk batched quotient commitment [Q]_1.
+ * - Compute commitment [Q]_1
+ * - Do Fiat-Shamir to get "z" challenge.
+ * - Compute polynomial Q(X) - Q_z(X)
  * */
 template <typename settings> void Prover<settings>::execute_shplonk_round()
 {
-    using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
-    shplonk_output = Shplonk::reduce_prove(commitment_key, gemini_output.claim, gemini_output.witness, &transcript);
+    shplonk_output =
+        Shplonk::reduce_prove(commitment_key, gemini_output.opening_pairs, gemini_output.witnesses, &transcript);
 }
 
 /**
- * For Plonk systems:
- * - Do Fiat-Shamir to get "nu" challenge
- * - Compute KZG batch opening polynomial commitments.
- *
- * For Honk:
- * - Get "z" challenge.
- * - Compute KZG quotient [W]_1.
+ * - Compute KZG quotient commitment [W]_1.
  *
  * */
 template <typename settings> void Prover<settings>::execute_kzg_round()
 {
-    // Note(luke): Fiat-Shamir to get "z" challenge is done in Shplonk::reduce_prove
-    // TODO(luke): Get KZG opening point [W]_1
-    using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
-    using KzgOutput = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>::Output;
-    KzgOutput kzg_output = KZG::reduce_prove(commitment_key, shplonk_output.claim, shplonk_output.witness);
-
-    auto W_commitment = static_cast<Commitment>(kzg_output.proof).to_buffer();
-
-    transcript.add_element("W", W_commitment);
+    KZG::reduce_prove(commitment_key, shplonk_output.opening_pair, shplonk_output.witness, &transcript);
 }
 
 template <typename settings> plonk::proof& Prover<settings>::export_proof()

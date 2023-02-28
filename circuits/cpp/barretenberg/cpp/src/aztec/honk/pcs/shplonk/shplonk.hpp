@@ -26,13 +26,6 @@ namespace honk::pcs::shplonk {
 template <typename Params> using Proof = typename Params::Commitment;
 
 /**
- * @brief Single opening claim ([G], r, 0) so that G(r) = 0
- *
- * @tparam Params CommitmentScheme parameters
- */
-template <typename Params> using OutputClaim = OpeningClaim<Params>;
-
-/**
  * @brief Polynomial G(X) = Q(X) - ∑ₖ ẑₖ(r)⋅( Bₖ(X) − Tₖ(z) )
  *
  * @tparam Params CommitmentScheme parameters
@@ -46,9 +39,8 @@ template <typename Params> using OutputWitness = barretenberg::Polynomial<typena
  * @tparam Params CommitmentScheme parameters
  */
 template <typename Params> struct ProverOutput {
-    OutputClaim<Params> claim;
-    OutputWitness<Params> witness;
-    Proof<Params> proof;
+    OpeningPair<Params> opening_pair; // single opening pair (query, G(query) = 0)
+    OutputWitness<Params> witness;    // single polynomial G(X)
 };
 
 } // namespace honk::pcs::shplonk

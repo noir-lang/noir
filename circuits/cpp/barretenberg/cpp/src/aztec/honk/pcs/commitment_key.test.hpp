@@ -38,17 +38,17 @@ template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
     return std::make_shared<CK>();
 }
 
-template <class VK> inline VK* CreateVerificationKey();
+template <class VK> inline std::shared_ptr<VK> CreateVerificationKey();
 
-template <> inline kzg::VerificationKey* CreateVerificationKey<kzg::VerificationKey>()
+template <> inline std::shared_ptr<kzg::VerificationKey> CreateVerificationKey<kzg::VerificationKey>()
 {
-    return new kzg::VerificationKey(kzg_srs_path);
+    return std::make_shared<kzg::VerificationKey>(kzg_srs_path);
 }
 
-template <typename VK> inline VK* CreateVerificationKey()
+template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
 // requires std::default_initializable<VK>
 {
-    return new VK();
+    return std::make_shared<VK>();
 }
 
 template <typename Params> class CommitmentTest : public ::testing::Test {
@@ -66,7 +66,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     {}
 
     std::shared_ptr<CK> ck() { return commitment_key; }
-    VK* vk() { return verification_key; }
+    std::shared_ptr<VK> vk() { return verification_key; }
 
     Commitment commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
 
@@ -81,7 +81,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 
     Fr random_element() { return Fr::random_element(engine); }
 
-    std::pair<Fr, Fr> random_eval(const Polynomial& polynomial)
+    OpeningPair<Params> random_eval(const Polynomial& polynomial)
     {
         Fr x{ random_element() };
         Fr y{ polynomial.evaluate(x) };
@@ -90,10 +90,11 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 
     std::pair<OpeningClaim<Params>, Polynomial> random_claim(const size_t n)
     {
-        auto p = random_polynomial(n);
-        auto [x, y] = random_eval(p);
-        auto c = commit(p);
-        return { { c, x, y }, p };
+        auto polynomial = random_polynomial(n);
+        auto opening_pair = random_eval(polynomial);
+        auto commitment = commit(polynomial);
+        auto opening_claim = OpeningClaim<Params>{ opening_pair, commitment };
+        return { opening_claim, polynomial };
     };
 
     std::vector<Fr> random_evaluation_point(const size_t num_variables)
@@ -107,48 +108,19 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 
     void verify_opening_claim(const OpeningClaim<Params>& claim, const Polynomial& witness)
     {
-        auto& [c, x, y] = claim;
+        auto& commitment = claim.commitment;
+        auto& [x, y] = claim.opening_pair;
         Fr y_expected = witness.evaluate(x);
         EXPECT_EQ(y, y_expected) << "OpeningClaim: evaluations mismatch";
-        Commitment c_expected = commit(witness);
-        EXPECT_EQ(c, c_expected) << "OpeningClaim: commitment mismatch";
+        Commitment commitment_expected = commit(witness);
+        EXPECT_EQ(commitment, commitment_expected) << "OpeningClaim: commitment mismatch";
     }
 
-    /**
-     * @brief Ensures that a 'BatchOpeningClaim' is correct by checking that
-     * - all evaluations are correct by recomputing them from each witness polynomial.
-     * - commitments are correct by recomputing a commitment from each witness polynomial.
-     * - each 'queries' is a subset of 'all_queries' and 'all_queries' is the union of all 'queries'
-     * - each 'commitment' of each 'SubClaim' appears only once.
-     */
-    void verify_batch_opening_claim(std::span<const MultiOpeningClaim<Params>> multi_claims,
-                                    std::span<const Polynomial> witnesses)
+    void verify_opening_pair(const OpeningPair<Params>& opening_pair, const Polynomial& witness)
     {
-        size_t idx = 0;
-
-        for (const auto& [queries, openings] : multi_claims) {
-            const size_t num_queries = queries.size();
-
-            for (const auto& [commitment, evals] : openings) {
-                // compare commitment against recomputed commitment from witness
-                Commitment commitment_expected = commit(witnesses[idx]);
-                EXPECT_EQ(commitment, commitment_expected)
-                    << "BatchOpeningClaim idx=" << idx << ": commitment mismatch";
-                EXPECT_EQ(evals.size(), num_queries)
-                    << "BatchOpeningClaim idx=" << idx << ": evaluation/query size mismatch";
-
-                // check evaluations for each point in queries
-                for (size_t i = 0; i < num_queries; ++i) {
-
-                    // check evaluation
-                    Fr eval_expected = witnesses[idx].evaluate(queries[i]);
-                    EXPECT_EQ(evals[i], eval_expected)
-                        << "BatchOpeningClaim idx=" << idx << ": evaluation " << i << " mismatch";
-                }
-
-                ++idx;
-            }
-        }
+        auto& [x, y] = opening_pair;
+        Fr y_expected = witness.evaluate(x);
+        EXPECT_EQ(y, y_expected) << "OpeningPair: evaluations mismatch";
     }
 
     /**
@@ -166,6 +138,21 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
 
         for (size_t j = 0; j < num_claims; ++j) {
             this->verify_opening_claim(multi_claims[j], witnesses[j]);
+        }
+    }
+
+    /**
+     * @brief Ensures that a set of opening pairs is correct by checking that evaluations are
+     * correct by recomputing them from each witness polynomial.
+     */
+    void verify_batch_opening_pair(std::span<const OpeningPair<Params>> opening_pairs,
+                                   std::span<const Polynomial> witnesses)
+    {
+        const size_t num_pairs = opening_pairs.size();
+        ASSERT_EQ(witnesses.size(), num_pairs);
+
+        for (size_t j = 0; j < num_pairs; ++j) {
+            this->verify_opening_pair(opening_pairs[j], witnesses[j]);
         }
     }
 
@@ -188,19 +175,16 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     // Per-test-suite tear-down.
     // Called after the last test in this test suite.
     // Can be omitted if not needed.
-    static void TearDownTestSuite()
-    {
-        delete verification_key;
-        verification_key = nullptr;
-    }
+    static void TearDownTestSuite() {}
 
     static typename std::shared_ptr<typename Params::CK> commitment_key;
-    static typename Params::VK* verification_key;
+    static typename std::shared_ptr<typename Params::VK> verification_key;
 };
 
 template <typename Params>
 typename std::shared_ptr<typename Params::CK> CommitmentTest<Params>::commitment_key = nullptr;
-template <typename Params> typename Params::VK* CommitmentTest<Params>::verification_key = nullptr;
+template <typename Params>
+typename std::shared_ptr<typename Params::VK> CommitmentTest<Params>::verification_key = nullptr;
 
 using CommitmentSchemeParams = ::testing::Types<kzg::Params>;
 // IMPROVEMENT: reinstate typed-tests for multiple field types, i.e.:

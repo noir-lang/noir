@@ -54,8 +54,7 @@ template <typename program_settings> Verifier<program_settings>& Verifier<progra
 /**
 * @brief This function verifies a Honk proof for given program settings.
 *
-* TODO(luke): Complete this description
-* @detail A Standard Honk proof contains the following:
+* @details A Standard Honk proof contains the following:
     Multilinear evaluations:
         w_i(X),        i = 1,2,3
         sigma_i(X),    i = 1,2,3
@@ -80,16 +79,13 @@ template <typename program_settings> Verifier<program_settings>& Verifier<progra
 */
 template <typename program_settings> bool Verifier<program_settings>::verify_proof(const plonk::proof& proof)
 {
-
     using FF = typename program_settings::fr;
-    using Commitment = barretenberg::g1::affine_element;
+    using Commitment = barretenberg::g1::element;
     using Transcript = typename program_settings::Transcript;
     using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
     using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
-    using MLEOpeningClaim = pcs::MLEOpeningClaim<pcs::kzg::Params>;
-    using GeminiProof = pcs::gemini::Proof<pcs::kzg::Params>;
-    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+    const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
     const size_t NUM_UNSHIFTED = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
     const size_t NUM_PRECOMPUTED = bonk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
 
@@ -143,55 +139,56 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     // Construct inputs for Gemini verifier:
     // - Multivariate opening point u = (u_0, ..., u_{d-1})
-    // - MLE opening claim = {commitment, eval} for each multivariate and shifted multivariate polynomial
-    std::vector<FF> opening_point;
-    std::vector<MLEOpeningClaim> opening_claims;
-    std::vector<MLEOpeningClaim> opening_claims_shifted;
+    // - batched unshifted and to-be-shifted polynomial commitments
+    std::vector<FF> opening_point; // u = (u_0,...,u_{d-1})
+    auto batched_commitment_unshifted = Commitment::zero();
+    auto batched_commitment_to_be_shifted = Commitment::zero();
 
     // Construct MLE opening point
-    // Note: for consistency the evaluation point must be constructed as u = (u_0,...,u_{d-1})
     for (size_t round_idx = 0; round_idx < key->log_circuit_size; round_idx++) {
         std::string label = "u_" + std::to_string(round_idx);
         opening_point.emplace_back(transcript.get_challenge_field_element(label));
     }
 
+    // Compute powers of batching challenge rho
+    Fr rho = Fr::serialize_from_buffer(transcript.get_challenge("rho").begin());
+    std::vector<Fr> rhos = Gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
+
     // Get vector of multivariate evaluations produced by Sumcheck
     auto multivariate_evaluations = transcript.get_field_element_vector("multivariate_evaluations");
 
-    // Construct NON-shifted opening claims
-    for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-        if (i < NUM_PRECOMPUTED) { // if precomputed, commitment comes from verification key
-            Commitment commitment = key->commitments[bonk::StandardArithmetization::ENUM_TO_COMM[i]];
-            opening_claims.emplace_back(commitment, multivariate_evaluations[i]);
-        } else { // if witness, commitment comes from prover (via transcript)
-            Commitment commitment = transcript.get_group_element(bonk::StandardArithmetization::ENUM_TO_COMM[i]);
-            opening_claims.emplace_back(commitment, multivariate_evaluations[i]);
-        }
+    // Compute batched multivariate evaluation
+    Fr batched_evaluation = Fr::zero();
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        batched_evaluation += multivariate_evaluations[i] * rhos[i];
     }
 
-    // Constructed shifted opening claims
-    Commitment commitment = transcript.get_group_element("Z_PERM");
-    Fr evaluation = multivariate_evaluations[POLYNOMIAL::Z_PERM_SHIFT];
-    opening_claims_shifted.emplace_back(commitment, evaluation);
+    // Construct batched commitment for NON-shifted polynomials
+    for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
+        Commitment commitment;
+        if (i < NUM_PRECOMPUTED) { // if precomputed, commitment comes from verification key
+            commitment = key->commitments[bonk::StandardArithmetization::ENUM_TO_COMM[i]];
+        } else { // if witness, commitment comes from prover (via transcript)
+            commitment = transcript.get_group_element(bonk::StandardArithmetization::ENUM_TO_COMM[i]);
+        }
+        batched_commitment_unshifted += commitment * rhos[i];
+    }
+
+    // Construct batched commitment for to-be-shifted polynomials
+    batched_commitment_to_be_shifted = transcript.get_group_element("Z_PERM") * rhos[NUM_UNSHIFTED];
 
     // Reconstruct the Gemini Proof from the transcript
-    GeminiProof gemini_proof;
-
-    for (size_t i = 1; i < key->log_circuit_size; i++) {
-        std::string label = "FOLD_" + std::to_string(i);
-        gemini_proof.commitments.emplace_back(transcript.get_group_element(label));
-    };
-
-    for (size_t i = 0; i < key->log_circuit_size; i++) {
-        std::string label = "a_" + std::to_string(i);
-        gemini_proof.evals.emplace_back(transcript.get_field_element(label));
-    };
+    auto gemini_proof = Gemini::reconstruct_proof_from_transcript(&transcript, key->log_circuit_size);
 
     // Produce a Gemini claim consisting of:
     // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
     // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto gemini_claim =
-        Gemini::reduce_verify(opening_point, opening_claims, opening_claims_shifted, gemini_proof, &transcript);
+    auto gemini_claim = Gemini::reduce_verify(opening_point,
+                                              batched_evaluation,
+                                              batched_commitment_unshifted,
+                                              batched_commitment_to_be_shifted,
+                                              gemini_proof,
+                                              &transcript);
 
     // Reconstruct the Shplonk Proof (commitment [Q]) from the transcript
     auto shplonk_proof = transcript.get_group_element("Q");
@@ -206,7 +203,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     auto kzg_claim = KZG::reduce_verify(shplonk_claim, kzg_proof);
 
     // Do final pairing check
-    bool pairing_result = kzg_claim.verify(kate_verification_key.get());
+    bool pairing_result = kzg_claim.verify(kate_verification_key);
 
     bool result = sumcheck_result && pairing_result;
 
