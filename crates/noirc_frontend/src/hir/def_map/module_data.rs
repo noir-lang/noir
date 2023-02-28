@@ -6,6 +6,8 @@ use crate::Ident;
 
 use super::{ItemScope, LocalModuleId};
 
+/// Contains the actual contents of a module: its parent (if one exists),
+/// children, and scope with all definitions defined within the scope.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ModuleData {
     pub parent: Option<LocalModuleId>,

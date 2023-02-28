@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
-use acvm::acir::circuit::Circuit;
+#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
 
 use acvm::Language;
 use fm::FileType;
@@ -11,18 +12,14 @@ use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+mod program;
+pub use program::CompiledProgram;
 
 pub struct Driver {
     context: Context,
     language: Language,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CompiledProgram {
-    pub circuit: Circuit,
-    pub abi: noirc_abi::Abi,
 }
 
 impl Driver {
