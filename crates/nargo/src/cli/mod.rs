@@ -87,6 +87,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
         true,
         show_ssa,
         false,
+        None,
     ) {
         Ok(_) => true,
         Err(error) => {
