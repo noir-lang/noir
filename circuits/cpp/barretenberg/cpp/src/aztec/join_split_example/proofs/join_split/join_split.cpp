@@ -64,7 +64,7 @@ void init_verification_key(std::shared_ptr<bonk::VerifierMemReferenceString> con
     verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
 }
 
-plonk::stdlib::types::UnrolledProver new_join_split_prover(join_split_tx const& tx, bool mock)
+plonk::TurboProver new_join_split_prover(join_split_tx const& tx, bool mock)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -78,22 +78,21 @@ plonk::stdlib::types::UnrolledProver new_join_split_prover(join_split_tx const& 
 
     if (!mock) {
         info("composer gates: ", composer.get_num_gates());
-        return composer.create_unrolled_prover();
+        return composer.create_prover();
     } else {
         Composer mock_proof_composer(proving_key, nullptr);
         join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
         info("mock composer gates: ", mock_proof_composer.get_num_gates());
-        return mock_proof_composer.create_unrolled_prover();
+        return mock_proof_composer.create_prover();
     }
 }
 
 bool verify_proof(plonk::proof const& proof)
 {
-    plonk::stdlib::types::UnrolledVerifier verifier(
-        verification_key, Composer::create_unrolled_manifest(verification_key->num_public_inputs));
+    plonk::TurboVerifier verifier(verification_key, Composer::create_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<plonk::KateCommitmentScheme<plonk::unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<plonk::KateCommitmentScheme<plonk::unrolled_turbo_settings>>();
+    std::unique_ptr<plonk::KateCommitmentScheme<plonk::turbo_settings>> kate_commitment_scheme =
+        std::make_unique<plonk::KateCommitmentScheme<plonk::turbo_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 
     return verifier.verify_proof(proof);

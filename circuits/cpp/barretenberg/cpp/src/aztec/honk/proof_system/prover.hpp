@@ -95,7 +95,6 @@ template <typename settings> class Prover {
 // TODO(luke): need equivalent notion of settings for Honk
 extern template class Prover<plonk::standard_settings>;
 
-using StandardProver = Prover<plonk::standard_settings>; // TODO(Cody): Delete?
-using StandardUnrolledProver = Prover<plonk::standard_settings>;
+using StandardProver = Prover<plonk::standard_settings>;
 
 } // namespace honk

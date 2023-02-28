@@ -17,27 +17,12 @@ TEST(standard_composer, base_case)
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    Prover prover = composer.create_prover();
-    Verifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
-    EXPECT_EQ(result, true);
-}
-
-TEST(standard_composer, base_case_unrolled)
-{
-    StandardComposer composer = StandardComposer();
-    fr a = fr::one();
-    composer.add_public_variable(a);
-
-    UnrolledProver prover = composer.create_unrolled_prover();
-    UnrolledVerifier verifier = composer.create_unrolled_verifier();
-
-    proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
@@ -60,8 +45,8 @@ TEST(standard_composer, composer_from_serialized_keys)
     StandardComposer composer2 = StandardComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
-    Prover prover = composer2.create_prover();
-    Verifier verifier = composer2.create_verifier();
+    auto prover = composer2.create_prover();
+    auto verifier = composer2.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -118,9 +103,9 @@ TEST(standard_composer, test_add_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -197,9 +182,9 @@ TEST(standard_composer, test_mul_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, q[0], q[1], q[2], q[3] });
     composer.create_mul_gate({ a_idx, b_idx, d_idx, q[4], q[5], q[6] });
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -239,9 +224,9 @@ TEST(standard_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -259,9 +244,9 @@ TEST(standard_composer, range_constraint_fail)
 
     composer.decompose_into_base4_accumulators(witness_index, 23);
 
-    Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -330,9 +315,9 @@ TEST(standard_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -400,9 +385,9 @@ TEST(standard_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -444,9 +429,9 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -455,7 +440,7 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_unrolled_composer)
+TEST(standard_composer, test_composer)
 {
     StandardComposer composer = StandardComposer();
 
@@ -488,9 +473,9 @@ TEST(standard_composer, test_unrolled_composer)
     generate_constraints(2);
     generate_constraints(3);
 
-    UnrolledProver prover = composer.create_unrolled_prover();
+    auto prover = composer.create_prover();
 
-    UnrolledVerifier verifier = composer.create_unrolled_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -505,9 +490,9 @@ TEST(standard_composer, test_range_constraint_fail)
     uint32_t witness_index = composer.add_variable(fr::neg_one());
     composer.decompose_into_base4_accumulators(witness_index, 32);
 
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -601,9 +586,9 @@ TEST(standard_composer, test_fixed_group_add_gate_with_init)
         };
         composer.create_fixed_group_add_gate_with_init(round_quad, init_quad);
     }
-    Prover prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -724,9 +709,9 @@ TEST(standard_composer, test_fixed_group_add_gate)
                        fr::zero(),
                        fr::zero() };
     composer.create_fixed_group_add_gate_final(add_quad);
-    Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 

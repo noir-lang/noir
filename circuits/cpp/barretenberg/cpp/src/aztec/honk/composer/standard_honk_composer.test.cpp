@@ -414,9 +414,9 @@ TEST(StandardHonkComposer, BaseCase)
     fr a = 1;
     composer.circuit_constructor.add_variable(a);
 
-    auto prover = composer.create_unrolled_prover();
+    auto prover = composer.create_prover();
     plonk::proof proof = prover.construct_proof();
-    auto verifier = composer.create_unrolled_verifier();
+    auto verifier = composer.create_verifier();
     bool verified = verifier.verify_proof(proof);
     ASSERT_TRUE(verified);
 }
@@ -443,10 +443,10 @@ TEST(StandardHonkComposer, TwoGates)
         uint32_t w_o_2_idx = composer.circuit_constructor.add_variable(4);
         composer.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
 
-        auto prover = composer.create_unrolled_prover();
+        auto prover = composer.create_prover();
 
         plonk::proof proof = prover.construct_proof();
-        auto verifier = composer.create_unrolled_verifier();
+        auto verifier = composer.create_verifier();
         bool verified = verifier.verify_proof(proof);
         EXPECT_EQ(verified, expect_verified);
     };

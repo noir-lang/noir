@@ -1,9 +1,9 @@
 #include "../prover/prover.hpp"
 #include "../../../proof_system/proving_key/proving_key.hpp"
-#include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "../../../transcript/transcript.hpp"
+#include "plonk/composer/standard_composer.hpp"
 #include "verifier.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <gtest/gtest.h>
@@ -12,41 +12,6 @@
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace verifier_helpers {
-
-transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
-{
-    constexpr size_t g1_size = 64;
-    constexpr size_t fr_size = 32;
-    const size_t public_input_size = fr_size * num_public_inputs;
-    const transcript::Manifest output = transcript::Manifest(
-        { transcript::Manifest::RoundManifest(
-              { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
-          transcript::Manifest::RoundManifest({}, "eta", 0),
-          transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
-                                                { "W_1", g1_size, false },
-                                                { "W_2", g1_size, false },
-                                                { "W_3", g1_size, false } },
-                                              "beta",
-                                              2),
-          transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
-          transcript::Manifest::RoundManifest(
-              { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
-          transcript::Manifest::RoundManifest(
-              {
-                  { "w_1", fr_size, false, 0 },
-                  { "w_2", fr_size, false, 1 },
-                  { "w_3", fr_size, false, 2 },
-                  { "sigma_1", fr_size, false, 3 },
-                  { "sigma_2", fr_size, false, 4 },
-                  { "z_perm_omega", fr_size, false, -1 },
-              },
-              "nu",
-              7,
-              true),
-          transcript::Manifest::RoundManifest(
-              { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
-    return output;
-}
 
 using namespace barretenberg;
 using namespace plonk;
@@ -92,7 +57,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
     circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
-    Verifier verifier(circuit_verification_key, create_manifest());
+    Verifier verifier(circuit_verification_key, plonk::StandardComposer::create_manifest(0));
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -267,7 +232,7 @@ plonk::Prover generate_test_data(const size_t n)
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<standard_settings>>();
 
-    plonk::Prover state = plonk::Prover(std::move(key), create_manifest());
+    plonk::Prover state = plonk::Prover(std::move(key), plonk::StandardComposer::create_manifest(0));
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
     state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -281,7 +246,7 @@ TEST(verifier, verify_arithmetic_proof_small)
 
     plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    auto verifier = verifier_helpers::generate_verifier(state.key);
 
     // construct proof
     plonk::proof proof = state.construct_proof();
@@ -299,7 +264,7 @@ TEST(verifier, verify_arithmetic_proof)
 
     plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    auto verifier = verifier_helpers::generate_verifier(state.key);
 
     // construct proof
     plonk::proof proof = state.construct_proof();
@@ -317,7 +282,7 @@ TEST(verifier, verify_damaged_proof)
 
     plonk::Prover state = verifier_helpers::generate_test_data(n);
 
-    plonk::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+    auto verifier = verifier_helpers::generate_verifier(state.key);
 
     // Create empty proof
     plonk::proof proof = {};

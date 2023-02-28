@@ -2,7 +2,6 @@
 #include <plonk/proof_system/constants.hpp>
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
-#include "../utils/linearizer.hpp"
 #include "../utils/kate_verification.hpp"
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
@@ -40,10 +39,11 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
 template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const plonk::proof& proof)
 {
     // This function verifies a PLONK proof for given program settings.
-    // A PLONK proof for standard PLONK with linearisation as on page 31 in the paper is of the form:
+    // A PLONK proof for standard PLONK is of the form:
     //
     // π_SNARK =   { [a]_1,[b]_1,[c]_1,[z]_1,[t_{low}]_1,[t_{mid}]_1,[t_{high}]_1,[W_z]_1,[W_zω]_1 \in G,
-    //              a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, z_eval_omega \in F }
+    //                a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, sigma3_eval,
+    //                  q_l_eval, q_r_eval, q_o_eval, q_m_eval, q_c_eval, z_eval_omega \in F }
     //
     // Proof π_SNARK must first be added to the transcript with the other program_settings.
 
@@ -99,18 +99,11 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // Compute ʓ^n.
     key->z_pow_n = zeta.pow(key->domain.size);
 
-    // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval and also r_0 (for
-    // the simplified version) according to the program settings for standard/turbo/ultra PLONK.
-    // When use_linearisation = true, r_0 is the constant term of r(X).
-    // When use_linearisation = false, r_0 is the evaluation of the numerator of quotient polynomial t(X).
-    fr r_0(0);
-    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, r_0);
-
-    // We want to include t_eval in the transcript only when use_linearisation = false.
-    if (!program_settings::use_linearisation) {
-        fr t_eval = r_0 * lagrange_evals.vanishing_poly.invert();
-        transcript.add_element("t", t_eval.to_buffer());
-    }
+    // compute the quotient polynomial numerator contribution
+    fr t_numerator_eval(0);
+    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, t_numerator_eval);
+    fr t_eval = t_numerator_eval * lagrange_evals.vanishing_poly.invert();
+    transcript.add_element("t", t_eval.to_buffer());
 
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
@@ -135,7 +128,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // Note that we do not actually compute the scalar multiplications but just accumulate the scalars
     // and the group elements in different vectors.
     //
-    commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key, r_0);
+    commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key);
 
     // Step 9: Compute the partial opening batch commitment [D]_1:
     //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α
@@ -244,14 +237,9 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     return (result == barretenberg::fq12::one());
 }
 
-template class VerifierBase<unrolled_standard_verifier_settings>;
-template class VerifierBase<unrolled_turbo_verifier_settings>;
-template class VerifierBase<unrolled_ultra_verifier_settings>;
-template class VerifierBase<unrolled_ultra_to_standard_verifier_settings>;
-
 template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;
 template class VerifierBase<ultra_verifier_settings>;
-template class VerifierBase<generalized_permutation_verifier_settings>;
+template class VerifierBase<ultra_to_standard_verifier_settings>;
 
 } // namespace plonk

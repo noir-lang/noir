@@ -25,7 +25,7 @@ TEST(stdlib_bool, test_basic_operations)
     bool_t e = a | d;    // e = 1 = a
     bool_t f = e ^ b;    // f = 0
     d = (!f) & a;        // d = 1
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     // if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
     EXPECT_EQ(prover.wire_polynomials[0][3], fr(1));
     EXPECT_EQ(prover.wire_polynomials[1][3], fr(1));
@@ -84,7 +84,7 @@ TEST(stdlib_bool, xor)
             EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -112,7 +112,7 @@ TEST(stdlib_bool, xor_constants)
             a ^ b;
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -142,7 +142,7 @@ TEST(stdlib_bool, xor_twin_constants)
             c = c ^ a ^ b;
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -158,7 +158,7 @@ TEST(stdlib_bool, xor_twin_constants)
 //     bool_t b = witness_t(&composer, 1);
 //     (!a) && (!b);
 
-//     auto prover = composer.preprocess();
+//     auto prover = composer.create_prover();
 //     auto verifier = composer.create_verifier();
 
 //     plonk::proof proof = prover.construct_proof();
@@ -175,7 +175,7 @@ TEST(stdlib_bool, and)
         bool_t b = witness_t(&composer, (bool)(i % 2 == 1));
         a& b;
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -203,7 +203,7 @@ TEST(stdlib_bool, and_constants)
             a& b;
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -220,7 +220,7 @@ TEST(stdlib_bool, or)
         bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
         a | b;
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -248,7 +248,7 @@ TEST(stdlib_bool, or_constants)
             a | b;
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -300,7 +300,7 @@ TEST(stdlib_bool, eq)
         EXPECT_EQ(c[i].get_value(), c_alt[i]);
         EXPECT_EQ(d[i].get_value(), d_alt[i]);
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -325,7 +325,7 @@ TEST(stdlib_bool, implies)
             EXPECT_EQ(c.get_value(), !a.get_value() || b.get_value());
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -350,7 +350,7 @@ TEST(stdlib_bool, implies_both_ways)
             EXPECT_EQ(c.get_value(), !(a.get_value() ^ b.get_value()));
         }
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -384,7 +384,7 @@ TEST(stdlib_bool, test_simple_proof)
         a = b;
         f = b;
     }
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -413,7 +413,7 @@ TEST(stdlib_bool, normalize)
     generate_constraints(true, true, false);
     generate_constraints(true, true, true);
 
-    auto prover = composer.preprocess();
+    auto prover = composer.create_prover();
 
     auto verifier = composer.create_verifier();
 

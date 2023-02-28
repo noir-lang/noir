@@ -118,7 +118,7 @@ class ComposerBase {
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual void compute_witness() = 0;
-    template <class program_settings> void compute_witness_base(const size_t minimum_circuit_size = 0);
+    template <size_t program_width> void compute_witness_base(const size_t minimum_circuit_size = 0);
     uint32_t zero_idx = 0;
 
     virtual void create_add_gate(const add_triple& in) = 0;
@@ -345,9 +345,8 @@ extern template void ComposerBase::compute_wire_copy_cycles<3>();
 extern template void ComposerBase::compute_wire_copy_cycles<4>();
 extern template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
 extern template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
-extern template void ComposerBase::compute_witness_base<standard_settings>(const size_t);
-extern template void ComposerBase::compute_witness_base<turbo_settings>(const size_t);
-extern template void ComposerBase::compute_witness_base<ultra_settings>(const size_t);
+extern template void ComposerBase::compute_witness_base<3>(const size_t); // standard
+extern template void ComposerBase::compute_witness_base<4>(const size_t); // turbo and ultra
 extern template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
 
 } // namespace plonk

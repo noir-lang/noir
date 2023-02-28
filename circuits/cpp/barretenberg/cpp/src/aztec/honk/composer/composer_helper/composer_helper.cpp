@@ -218,14 +218,13 @@ std::shared_ptr<bonk::verification_key> ComposerHelper<CircuitConstructor>::comp
 }
 
 template <typename CircuitConstructor>
-StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_verifier(
-    const CircuitConstructor& circuit_constructor)
+StandardVerifier ComposerHelper<CircuitConstructor>::create_verifier(const CircuitConstructor& circuit_constructor)
 {
     compute_verification_key(circuit_constructor);
-    StandardUnrolledVerifier output_state(
+    StandardVerifier output_state(
         circuit_verification_key,
-        honk::StandardHonk::create_unrolled_manifest(circuit_constructor.public_inputs.size(),
-                                                     numeric::get_msb(circuit_verification_key->circuit_size)));
+        honk::StandardHonk::create_manifest(circuit_constructor.public_inputs.size(),
+                                            numeric::get_msb(circuit_verification_key->circuit_size)));
 
     // TODO(Cody): This should be more generic
     auto kate_verification_key = std::make_unique<pcs::kzg::VerificationKey>("../srs_db/ignition");
@@ -238,15 +237,14 @@ StandardUnrolledVerifier ComposerHelper<CircuitConstructor>::create_unrolled_ver
 template <typename CircuitConstructor>
 template <typename Flavor>
 // TODO(Cody): this file should be generic with regard to flavor/arithmetization/whatever.
-StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prover(
-    const CircuitConstructor& circuit_constructor)
+StandardProver ComposerHelper<CircuitConstructor>::create_prover(const CircuitConstructor& circuit_constructor)
 {
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
     size_t num_sumcheck_rounds(circuit_proving_key->log_circuit_size);
-    auto manifest = Flavor::create_unrolled_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
-    StandardUnrolledProver output_state(std::move(wire_polynomials), circuit_proving_key, manifest);
+    auto manifest = Flavor::create_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
+    StandardProver output_state(std::move(wire_polynomials), circuit_proving_key, manifest);
 
     // TODO(Cody): This should be more generic
     std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
@@ -258,6 +256,6 @@ StandardUnrolledProver ComposerHelper<CircuitConstructor>::create_unrolled_prove
 }
 
 template class ComposerHelper<StandardCircuitConstructor>;
-template StandardUnrolledProver ComposerHelper<StandardCircuitConstructor>::create_unrolled_prover<StandardHonk>(
+template StandardProver ComposerHelper<StandardCircuitConstructor>::create_prover<StandardHonk>(
     const StandardCircuitConstructor& circuit_constructor);
 } // namespace honk

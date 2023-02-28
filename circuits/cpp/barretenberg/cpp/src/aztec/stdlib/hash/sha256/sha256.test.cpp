@@ -189,9 +189,9 @@ TEST(stdlib_sha256, test_plookup_55_bytes)
     EXPECT_EQ(uint256_t(output[7].get_value()), 0x93791fc7U);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto prover = composer.create_unrolled_prover();
+    auto prover = composer.create_prover();
 
-    auto verifier = composer.create_unrolled_verifier();
+    auto verifier = composer.create_verifier();
     printf("constructing proof \n");
     plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
@@ -220,9 +220,9 @@ TEST(stdlib_sha256, test_55_bytes)
     EXPECT_EQ(output[7].get_value(), fr(0x93791fc7ULL));
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    plonk::stdlib::types::Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
     printf("constructing proof \n");
     plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
@@ -315,9 +315,9 @@ TEST(stdlib_sha256, test_NIST_vector_two)
     EXPECT_EQ(output[7].get_value(), 0x19DB06C1ULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    plonk::stdlib::types::Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
     printf("constructing proof \n");
     plonk::proof proof = prover.construct_proof();
     printf("constructed proof \n");
@@ -347,9 +347,9 @@ TEST(stdlib_sha256, test_NIST_vector_three)
     EXPECT_EQ(output[7].get_value(), 0x8ffe732bULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    plonk::stdlib::types::Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -377,10 +377,10 @@ TEST(stdlib_sha256, test_NIST_vector_four)
     EXPECT_EQ(output[6].get_value(), 0xbd56c61cULL);
     EXPECT_EQ(output[7].get_value(), 0xcccd9504ULL);
 
-    plonk::stdlib::types::Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 

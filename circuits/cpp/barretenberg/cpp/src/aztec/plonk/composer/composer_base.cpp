@@ -352,7 +352,7 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
  *
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
-template <class program_settings> void ComposerBase::compute_witness_base(const size_t minimum_circuit_size)
+template <size_t program_width> void ComposerBase::compute_witness_base(const size_t minimum_circuit_size)
 {
     if (computed_witness) {
         return;
@@ -368,7 +368,7 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
     }
-    if (program_settings::program_width > 3) {
+    if (program_width > 3) {
         for (size_t i = total_num_gates; i < subgroup_size; ++i) {
             w_4.emplace_back(zero_idx);
         }
@@ -378,7 +378,7 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
     polynomial w_3_lagrange = polynomial(subgroup_size);
     polynomial w_4_lagrange;
 
-    if (program_settings::program_width > 3)
+    if (program_width > 3)
         w_4_lagrange = polynomial(subgroup_size);
 
     // Push the public inputs' values to the beginning of the wire witness polynomials.
@@ -388,7 +388,7 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
         fr::__copy(get_variable(public_inputs[i]), w_1_lagrange[i]);
         fr::__copy(get_variable(public_inputs[i]), w_2_lagrange[i]);
         fr::__copy(fr::zero(), w_3_lagrange[i]);
-        if (program_settings::program_width > 3)
+        if (program_width > 3)
             fr::__copy(fr::zero(), w_4_lagrange[i]);
     }
 
@@ -398,14 +398,14 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
         fr::__copy(get_variable(w_l[i - public_inputs.size()]), w_1_lagrange.at(i));
         fr::__copy(get_variable(w_r[i - public_inputs.size()]), w_2_lagrange.at(i));
         fr::__copy(get_variable(w_o[i - public_inputs.size()]), w_3_lagrange.at(i));
-        if (program_settings::program_width > 3)
+        if (program_width > 3)
             fr::__copy(get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
     }
 
     circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_1_lagrange));
     circuit_proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_2_lagrange));
     circuit_proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_3_lagrange));
-    if (program_settings::program_width > 3) {
+    if (program_width > 3) {
         circuit_proving_key->polynomial_cache.put("w_4_lagrange", std::move(w_4_lagrange));
     }
 
@@ -415,9 +415,8 @@ template <class program_settings> void ComposerBase::compute_witness_base(const 
 template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
 template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
 template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
-template void ComposerBase::compute_witness_base<standard_settings>(const size_t);
-template void ComposerBase::compute_witness_base<turbo_settings>(const size_t);
-template void ComposerBase::compute_witness_base<ultra_settings>(const size_t);
+template void ComposerBase::compute_witness_base<3>(const size_t); // standard
+template void ComposerBase::compute_witness_base<4>(const size_t); // turbo and ultra
 template void ComposerBase::compute_wire_copy_cycles<3>();
 template void ComposerBase::compute_wire_copy_cycles<4>();
 

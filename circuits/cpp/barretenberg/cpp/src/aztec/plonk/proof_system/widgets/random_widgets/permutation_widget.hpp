@@ -13,16 +13,12 @@ class VerifierPermutationWidget {
     static Field compute_quotient_evaluation_contribution(typename Transcript::Key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
-                                                          Field& r_0,
-                                                          const bool use_linearisation,
+                                                          Field& quotient_numerator_eval,
                                                           const bool idpolys = false);
 
     static Field append_scalar_multiplication_inputs(typename Transcript::Key*,
                                                      const Field& alpha_base,
-                                                     const Transcript& transcript,
-                                                     std::map<std::string, Field>& scalars,
-                                                     const bool use_linearisation,
-                                                     const bool idpolys = false);
+                                                     const Transcript& transcript);
 };
 
 extern template class VerifierPermutationWidget<barretenberg::fr,
@@ -44,9 +40,6 @@ class ProverPermutationWidget : public ProverRandomWidget {
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                    const transcript::StandardTranscript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                 const transcript::StandardTranscript& transcript,
-                                                 barretenberg::polynomial& r) override;
 };
 
 } // namespace plonk

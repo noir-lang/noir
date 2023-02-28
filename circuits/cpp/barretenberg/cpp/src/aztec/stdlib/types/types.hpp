@@ -45,15 +45,15 @@ typedef std::conditional_t<
 
 typedef std::conditional_t<
     SYSTEM_COMPOSER == plonk::STANDARD,
-    plonk::UnrolledProver,
-    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::UnrolledTurboProver, plonk::UnrolledUltraProver>>
-    UnrolledProver;
+    plonk::Prover,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver>>
+    Prover;
 
 typedef std::conditional_t<
     SYSTEM_COMPOSER == plonk::STANDARD,
-    plonk::UnrolledVerifier,
-    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::UnrolledTurboVerifier, plonk::UnrolledUltraVerifier>>
-    UnrolledVerifier;
+    plonk::Verifier,
+    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
+    Verifier;
 
 typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;

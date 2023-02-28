@@ -161,10 +161,9 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
         fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
 
-        if (!info.is_linearised || !settings::use_linearisation) {
-            const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
-        }
+        const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+        opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
+
         if (info.requires_shifted_evaluation) {
             const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
             opened_polynomials_at_zeta_omega.push_back({ poly, nu_challenge });
@@ -178,23 +177,19 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     polynomial opening_poly(input_key->circuit_size + 1);
     polynomial shifted_opening_poly(input_key->circuit_size);
 
-    const polynomial& linear_poly = input_key->polynomial_cache.get("linear_poly");
-
-    if constexpr (!settings::use_linearisation) {
-        // Add the tuples [t_{mid}(X), \zeta^{n}], [t_{high}(X), \zeta^{2n}]
-        // Note: We don't need to include the t_{low}(X) since it is multiplied by 1 for combining with other witness
-        // polynomials.
-        //
-        for (size_t i = 1; i < settings::program_width; ++i) {
-            const size_t offset = i * input_key->small_domain.size;
-            const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
-            opened_polynomials_at_zeta.push_back({ &input_key->quotient_polynomial_parts[i][0], scalar });
-        }
+    // Add the tuples [t_{mid}(X), \zeta^{n}], [t_{high}(X), \zeta^{2n}]
+    // Note: We don't need to include the t_{low}(X) since it is multiplied by 1 for combining with other witness
+    // polynomials.
+    //
+    for (size_t i = 1; i < settings::program_width; ++i) {
+        const size_t offset = i * input_key->small_domain.size;
+        const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
+        opened_polynomials_at_zeta.push_back({ &input_key->quotient_polynomial_parts[i][0], scalar });
     }
 
     // Add up things to get coefficients of opening polynomials.
     ITERATE_OVER_DOMAIN_START(input_key->small_domain);
-    opening_poly[i] = settings::use_linearisation ? linear_poly[i] : input_key->quotient_polynomial_parts[0][i];
+    opening_poly[i] = input_key->quotient_polynomial_parts[0][i];
     for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
         opening_poly[i] += poly[i] * challenge;
     }
@@ -205,20 +200,15 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     ITERATE_OVER_DOMAIN_END;
 
     // Adjust the (n + 1)th coefficient of t_{0,1,2}(X) or r(X) (Note: t_4 (Turbo/Ultra) has only n coefficients)
-    if (!settings::use_linearisation) {
-        opening_poly[input_key->circuit_size] = 0;
-        const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->circuit_size));
+    opening_poly[input_key->circuit_size] = 0;
+    const fr zeta_pow_n = zeta.pow(static_cast<uint64_t>(input_key->circuit_size));
 
-        const size_t num_deg_n_poly =
-            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
-        fr scalar_mult = 1;
-        for (size_t i = 0; i < num_deg_n_poly; i++) {
-            opening_poly[input_key->circuit_size] +=
-                input_key->quotient_polynomial_parts[i][input_key->circuit_size] * scalar_mult;
-            scalar_mult *= zeta_pow_n;
-        }
-    } else {
-        opening_poly[input_key->circuit_size] = linear_poly[input_key->circuit_size];
+    const size_t num_deg_n_poly = settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
+    fr scalar_mult = 1;
+    for (size_t i = 0; i < num_deg_n_poly; i++) {
+        opening_poly[input_key->circuit_size] +=
+            input_key->quotient_polynomial_parts[i][input_key->circuit_size] * scalar_mult;
+        scalar_mult *= zeta_pow_n;
     }
 
     // compute the shifted evaluation point \frak{z}*omega
@@ -243,8 +233,7 @@ template <typename settings>
 void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTranscript& transcript,
                                                   std::map<std::string, g1::affine_element>& kate_g1_elements,
                                                   std::map<std::string, fr>& kate_fr_elements,
-                                                  std::shared_ptr<bonk::verification_key> input_key,
-                                                  const barretenberg::fr& r_0)
+                                                  std::shared_ptr<bonk::verification_key> input_key)
 {
     // Compute batch evaluation commitment [F]_1
     // In this method, we accumulate scalars and corresponding group elements for the multi-scalar
@@ -304,13 +293,7 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
 
         // We iterate over the polynomials in polynomial_manifest to add their commitments,
         // their scalar multiplicands and their evaluations in the respective vector maps.
-        //
-        // If we have a polynomial such that `is_linearised` and `use_linearisation` is true
-        // and `requires_shifted_evaluation` being false, then the polynomial would either be
-        // a selector polynomial or a permutation polynomial. In that case, we do not want them
-        // to be included in the batch evaluation or the part of the batch opening commitment.
-        //
-        bool has_evaluation = !item.is_linearised || !settings::use_linearisation;
+
         bool has_shifted_evaluation = item.requires_shifted_evaluation;
 
         fr kate_fr_scalar(0);
@@ -325,30 +308,24 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
             const auto poly_at_zeta_omega = transcript.get_field_element(poly_label + "_omega");
             batch_eval += separator_challenge * challenge * poly_at_zeta_omega;
         }
-        if (has_evaluation) {
 
-            // compute scalar additively for the batch opening commitment [F]_1
-            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            kate_fr_scalar += challenge;
+        // compute scalar additively for the batch opening commitment [F]_1
+        const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+        kate_fr_scalar += challenge;
 
-            // compute the batch evaluation scalar additively for the batch evaluation commitment [E]_1
-            const auto poly_at_zeta = transcript.get_field_element(poly_label);
-            batch_eval += challenge * poly_at_zeta;
-        }
+        // compute the batch evaluation scalar additively for the batch evaluation commitment [E]_1
+        const auto poly_at_zeta = transcript.get_field_element(poly_label);
+        batch_eval += challenge * poly_at_zeta;
+
         kate_fr_elements.insert({ label, kate_fr_scalar });
     }
 
     const auto zeta = transcript.get_challenge_field_element("z");
-    // t_eval is not a part of the transcript when use_linearisation is true. That is why
-    // we need to hardcode quotient_challenge
-    barretenberg::fr quotient_challenge =
-        (settings::use_linearisation) ? 1 : transcript.get_challenge_field_element_from_map("nu", "t");
-    barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
-        barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, input_key->domain);
+    barretenberg::fr quotient_challenge = transcript.get_challenge_field_element_from_map("nu", "t");
 
     // append the commitments to the parts of quotient polynomial and their scalar multiplicands
     fr z_pow_n = zeta.pow(input_key->circuit_size);
-    fr z_power = settings::use_linearisation ? -lagrange_evals.vanishing_poly : 1;
+    fr z_power = 1;
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
         const auto element = transcript.get_group_element(quotient_label);
@@ -358,14 +335,9 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
         z_power *= z_pow_n;
     }
 
-    if (settings::use_linearisation) {
-        // add the r0 term to batch_eval
-        batch_eval -= r_0;
-    } else {
-        // add the quotient eval t_eval term to batch evaluation
-        const auto quotient_eval = transcript.get_field_element("t");
-        batch_eval += (quotient_eval * quotient_challenge);
-    }
+    // add the quotient eval t_eval term to batch evaluation
+    const auto quotient_eval = transcript.get_field_element("t");
+    batch_eval += (quotient_eval * quotient_challenge);
 
     // append batch evaluation in the scalar element vector map
     kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
@@ -377,14 +349,8 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
                                                                            std::shared_ptr<bonk::proving_key> input_key,
                                                                            bool in_lagrange_form)
 {
-    // In this function, we compute the evaluations of the polynomials which would be a part of the
-    // opening polynomial W_{zeta}(X), viz.
-    //     1. a(X), b(X), c(X), S_{sigma1}(X), S_{sigma2}(X), t(X) at zeta
-    //     2. z(X) at zeta.omega
-    // We add these evaluations to the transcript, which would be used by the prover to compute linearisation
-    // polynomial r(X) and the verifier would use them to compute the batch evaluation and partial opening
-    // commitments. We refer to these as opening evaluations following the nomenclature in round 4 of the PLONK
-    // paper.
+    // In this function, we compute the evaluations of all polynomials in the polynomial manifest at the
+    // evaluation challenge "zeta", as well as the needed evaluations at shifts.
     //
     // We also allow this evaluation computation for lagrange (evaluation) forms of polynomials instead of
     // the usual coefficient forms.
@@ -393,7 +359,6 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
     fr shifted_z = zeta * input_key->small_domain.root;
     size_t n = input_key->small_domain.size;
 
-    // Add evaluations for all polynomials in the manifest
     for (size_t i = 0; i < input_key->polynomial_manifest.size(); ++i) {
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
@@ -401,15 +366,15 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
         fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
 
         fr poly_evaluation(0);
-        if (!info.is_linearised || !settings::use_linearisation) {
-            if (in_lagrange_form) {
-                poly_evaluation =
-                    polynomial_arithmetic::compute_barycentric_evaluation(poly, n, zeta, input_key->small_domain);
-            } else {
-                poly_evaluation = polynomial_arithmetic::evaluate(poly, zeta, n);
-            }
-            transcript.add_element(poly_label, poly_evaluation.to_buffer());
+
+        if (in_lagrange_form) {
+            poly_evaluation =
+                polynomial_arithmetic::compute_barycentric_evaluation(poly, n, zeta, input_key->small_domain);
+        } else {
+            poly_evaluation = polynomial_arithmetic::evaluate(poly, zeta, n);
         }
+        transcript.add_element(poly_label, poly_evaluation.to_buffer());
+
         if (info.requires_shifted_evaluation) {
             if (in_lagrange_form) {
                 poly_evaluation =
@@ -422,11 +387,8 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
     }
 }
 
-template class KateCommitmentScheme<unrolled_standard_settings>;
-template class KateCommitmentScheme<unrolled_turbo_settings>;
-template class KateCommitmentScheme<unrolled_ultra_settings>;
-template class KateCommitmentScheme<unrolled_ultra_to_standard_settings>;
 template class KateCommitmentScheme<standard_settings>;
 template class KateCommitmentScheme<turbo_settings>;
 template class KateCommitmentScheme<ultra_settings>;
+template class KateCommitmentScheme<ultra_to_standard_settings>;
 } // namespace plonk

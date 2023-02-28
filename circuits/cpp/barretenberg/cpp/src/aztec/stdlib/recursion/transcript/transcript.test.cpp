@@ -282,9 +282,9 @@ TEST(stdlib_transcript, validate_transcript)
     check_group_element("PI_Z_OMEGA");
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    plonk::TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    plonk::TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 

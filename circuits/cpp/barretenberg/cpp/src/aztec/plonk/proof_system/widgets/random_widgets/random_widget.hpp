@@ -48,9 +48,6 @@ class ProverRandomWidget {
 
     virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                            const transcript::StandardTranscript& transcript) = 0;
-    virtual barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                         const transcript::StandardTranscript& transcript,
-                                                         barretenberg::polynomial& r) = 0;
 
     proving_key* key;
 };

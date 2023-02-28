@@ -54,13 +54,13 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
     static circuit_outputs create_outer_circuit(InnerComposer& inner_composer, OuterComposer& outer_composer)
     {
-        auto prover = inner_composer.create_unrolled_prover();
+        auto prover = inner_composer.create_prover();
         const auto verification_key_raw = inner_composer.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key =
             verification_key_pt::from_witness(&outer_composer, verification_key_raw);
         plonk::proof recursive_proof = prover.construct_proof();
         transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
+            InnerComposer::create_manifest(prover.key->num_public_inputs);
         stdlib::recursion::recursion_output<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, recursive_settings>(
                 &outer_composer, verification_key, recursive_manifest, recursive_proof);
@@ -72,21 +72,20 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
                                                        OuterComposer& outer_composer)
     {
 
-        auto prover = inner_composer_a.create_unrolled_prover();
+        auto prover = inner_composer_a.create_prover();
 
         const auto verification_key_raw = inner_composer_a.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key =
             verification_key_pt::from_witness(&outer_composer, verification_key_raw);
         plonk::proof recursive_proof_a = prover.construct_proof();
 
-        transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
+        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         stdlib::recursion::recursion_output<outer_curve> previous_output =
             stdlib::recursion::verify_proof<outer_curve, recursive_settings>(
                 &outer_composer, verification_key, recursive_manifest, recursive_proof_a);
 
-        auto prover_b = inner_composer_b.create_unrolled_prover();
+        auto prover_b = inner_composer_b.create_prover();
 
         const auto verification_key_b_raw = inner_composer_b.compute_verification_key();
         std::shared_ptr<verification_key_pt> verification_key_b =
@@ -134,8 +133,8 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
                                                                             const bool create_failing_proof = false,
                                                                             const bool use_constant_key = false)
     {
-        auto prover_a = inner_composer_a.create_unrolled_prover();
-        auto prover_b = inner_composer_b.create_unrolled_prover();
+        auto prover_a = inner_composer_a.create_prover();
+        auto prover_b = inner_composer_b.create_prover();
         const auto verification_key_raw_a = inner_composer_a.compute_verification_key();
         const auto verification_key_raw_b = inner_composer_b.compute_verification_key();
 
@@ -157,8 +156,7 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
             }
         }
         plonk::proof recursive_proof = proof_type ? prover_a.construct_proof() : prover_b.construct_proof();
-        transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover_a.key->num_public_inputs);
+        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover_a.key->num_public_inputs);
         stdlib::recursion::recursion_output<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, recursive_settings>(
                 &outer_composer, verification_key, recursive_manifest, recursive_proof);
@@ -460,8 +458,8 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
 
         create_inner_circuit(inner_composer, inner_inputs);
 
-        auto prover = inner_composer.create_unrolled_prover();
-        auto verifier = inner_composer.create_unrolled_verifier();
+        auto prover = inner_composer.create_prover();
+        auto verifier = inner_composer.create_verifier();
         auto proof = prover.construct_proof();
         auto verified = verifier.verify_proof(proof);
         EXPECT_EQ(verified, true);

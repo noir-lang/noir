@@ -1,4 +1,5 @@
 #include "standard_composer.hpp"
+#include "plonk/proof_system/types/prover_settings.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
@@ -772,19 +773,12 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
  * */
 void StandardComposer::compute_witness()
 {
-    ComposerBase::compute_witness_base<standard_settings>();
+    ComposerBase::compute_witness_base<standard_settings::program_width>();
 }
 
-/**
- * Create verifier: compute verification key,
- * initialize verifier with it and an initial manifest and initialize commitment_scheme.
- *
- * @return The verifier.
- * */
 Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
-    circuit_verification_key->composer_type = type;
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
@@ -795,40 +789,6 @@ Verifier StandardComposer::create_verifier()
     return output_state;
 }
 
-UnrolledVerifier StandardComposer::create_unrolled_verifier()
-{
-    compute_verification_key();
-    UnrolledVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
-
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
-UnrolledProver StandardComposer::create_unrolled_prover()
-{
-    compute_proving_key();
-    compute_witness();
-    UnrolledProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
-
-    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get());
-    std::unique_ptr<ProverArithmeticWidget<unrolled_standard_settings>> arithmetic_widget =
-        std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get());
-
-    output_state.random_widgets.emplace_back(std::move(permutation_widget));
-    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
-
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
 /**
  * Create prover.
  *  1. Compute the starting polynomials (q_l, etc, sigma, witness polynomials).

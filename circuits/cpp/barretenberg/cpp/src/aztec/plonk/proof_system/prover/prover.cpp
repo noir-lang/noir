@@ -1,6 +1,5 @@
 #include "prover.hpp"
 #include "../public_inputs/public_inputs.hpp"
-#include "../utils/linearizer.hpp"
 #include "polynomials/polynomial.hpp"
 #include <chrono>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
@@ -482,11 +481,11 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    compute_linearisation_coefficients();
+    compute_quotient_evaluation();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cerr << "compute linearisation coefficients: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute quotient evaluation: " << diff.count() << "ms" << std::endl;
 #endif
 }
 
@@ -497,82 +496,31 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
     commitment_scheme->batch_open(transcript, queue, key);
 }
 
-template <typename settings> void ProverBase<settings>::compute_linearisation_coefficients()
+template <typename settings> void ProverBase<settings>::compute_quotient_evaluation()
 {
 
     fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
-    polynomial linear_poly(key->circuit_size + 1);
-
     commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, false);
-    if constexpr (settings::use_linearisation) {
-        fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
-        for (auto& widget : random_widgets) {
-            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, linear_poly);
-        }
-        for (auto& widget : transition_widgets) {
-            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &linear_poly[0]);
-        }
-        // The below code adds −Z_H(z) * (t_lo(X) + z^n * t_mid(X) + z^2n * t_hi(X)) term to r(X)
-        // (Plus an additional term −Z_H(z) * z^3n * t_highest(X) for Turbo/Ultra)
-        barretenberg::fr z_pow_n = zeta.pow(key->circuit_size);
-        barretenberg::fr z_pow_two_n = z_pow_n.sqr();
-        barretenberg::fr z_pow_three_n = z_pow_two_n * z_pow_n;
-        std::vector<fr> quotient_multipliers{ 1, z_pow_n, z_pow_two_n, z_pow_three_n };
-        //  We access Z_H(z) from lagrange_evals
-        barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
-            barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->small_domain);
+    fr t_eval = polynomial_arithmetic::evaluate({ &key->quotient_polynomial_parts[0][0],
+                                                  &key->quotient_polynomial_parts[1][0],
+                                                  &key->quotient_polynomial_parts[2][0],
+                                                  &key->quotient_polynomial_parts[3][0] },
+                                                zeta,
+                                                4 * circuit_size);
 
-        // First, add to r(X) the contribution associated with the first n coefficients of the quotient
-        // polynomial parts. This allows multi-threading. The n+1th coefficients are handled separately below.
-        ITERATE_OVER_DOMAIN_START(key->small_domain);
-        fr quotient_sum = 0;
-        for (size_t j = 0; j < settings::program_width; ++j) {
-            quotient_sum += key->quotient_polynomial_parts[j][i] * quotient_multipliers[j];
-        }
-        linear_poly[i] += -lagrange_evals.vanishing_poly * quotient_sum;
-        ITERATE_OVER_DOMAIN_END;
-
-        // Each t_i for i = 1,2,3 has an n+1th coefficient that must be accounted for in r(X) here.
-        // Note that t_4 (Turbo/Ultra) always has only n coefficients.
-        linear_poly[key->circuit_size] = 0;
-        const size_t num_deg_n_poly =
-            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
-        for (size_t j = 0; j < num_deg_n_poly; ++j) {
-            linear_poly[key->circuit_size] += -lagrange_evals.vanishing_poly *
-                                              key->quotient_polynomial_parts[j][key->circuit_size] *
-                                              quotient_multipliers[j];
-        }
-
-        // Assert that r(X) at X = zeta is 0
-        const auto size = key->circuit_size + 1;
-        fr linear_eval = linear_poly.evaluate(zeta, size);
-        // This condition checks if r(z) = 0 but does not abort.
-        if (linear_eval != fr(0)) {
-            info("linear_eval is not 0.");
-        }
-    } else {
-        fr t_eval = polynomial_arithmetic::evaluate({ &key->quotient_polynomial_parts[0][0],
-                                                      &key->quotient_polynomial_parts[1][0],
-                                                      &key->quotient_polynomial_parts[2][0],
-                                                      &key->quotient_polynomial_parts[3][0] },
-                                                    zeta,
-                                                    4 * circuit_size);
-
-        // Adjust the evaluation to consider the (n + 1)th coeff.
-        fr zeta_pow_n = zeta.pow(key->circuit_size);
-        fr scalar = zeta_pow_n;
-        const size_t num_deg_n_poly =
-            settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
-        for (size_t j = 0; j < num_deg_n_poly; j++) {
-            t_eval += key->quotient_polynomial_parts[j][key->circuit_size] * scalar;
-            scalar *= zeta_pow_n;
-        }
-
-        transcript.add_element("t", t_eval.to_buffer());
+    fr zeta_pow_n = zeta.pow(key->circuit_size);
+    fr scalar = zeta_pow_n;
+    // Adjust the evaluation to consider the (n + 1)th coefficient when needed (note that width 3 is just an avatar for
+    // StandardComposer here)
+    const size_t num_deg_n_poly = settings::program_width == 3 ? settings::program_width : settings::program_width - 1;
+    for (size_t j = 0; j < num_deg_n_poly; j++) {
+        t_eval += key->quotient_polynomial_parts[j][key->circuit_size] * scalar;
+        scalar *= zeta_pow_n;
     }
-    key->polynomial_cache.put("linear_poly", std::move(linear_poly));
+
+    transcript.add_element("t", t_eval.to_buffer());
 }
 
 // Add blinding to the components in such a way that the full quotient would be unchanged if reconstructed
@@ -675,12 +623,9 @@ template <typename settings> void ProverBase<settings>::add_plookup_memory_recor
     }
 }
 
-template class ProverBase<unrolled_standard_settings>;
-template class ProverBase<unrolled_turbo_settings>;
-template class ProverBase<unrolled_ultra_settings>;
-template class ProverBase<unrolled_ultra_to_standard_settings>;
 template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
 template class ProverBase<ultra_settings>;
+template class ProverBase<ultra_to_standard_settings>;
 
 } // namespace plonk

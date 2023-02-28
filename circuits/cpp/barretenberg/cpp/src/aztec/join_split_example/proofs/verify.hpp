@@ -70,8 +70,7 @@ auto verify_logic_internal(Composer& composer, Tx& tx, CircuitData const& cd, ch
 }
 
 template <typename Composer, typename Tx, typename CircuitData, typename F>
-auto verify_internal(
-    Composer& composer, Tx& tx, CircuitData const& cd, char const* name, bool unrolled, F const& build_circuit)
+auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char const* name, F const& build_circuit)
 {
     Timer timer;
     auto result = verify_logic_internal(composer, tx, cd, name, build_circuit);
@@ -84,19 +83,13 @@ auto verify_internal(
     info(name, ": Creating proof...");
 
     if (!cd.mock) {
-        if (unrolled) {
-            if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
-                if (std::string(name) == "root rollup") {
-                    auto prover = composer.create_unrolled_ultra_to_standard_prover();
-                    auto proof = prover.construct_proof();
-                    result.proof_data = proof.proof_data;
-                } else {
-                    auto prover = composer.create_unrolled_prover();
-                    auto proof = prover.construct_proof();
-                    result.proof_data = proof.proof_data;
-                }
+        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+            if (std::string(name) == "root rollup") {
+                auto prover = composer.create_ultra_to_standard_prover();
+                auto proof = prover.construct_proof();
+                result.proof_data = proof.proof_data;
             } else {
-                auto prover = composer.create_unrolled_prover();
+                auto prover = composer.create_prover();
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             }
@@ -108,19 +101,13 @@ auto verify_internal(
     } else {
         Composer mock_proof_composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
         ::join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
-        if (unrolled) {
-            if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
-                if (std::string(name) == "root rollup") {
-                    auto prover = mock_proof_composer.create_unrolled_ultra_to_standard_prover();
-                    auto proof = prover.construct_proof();
-                    result.proof_data = proof.proof_data;
-                } else {
-                    auto prover = mock_proof_composer.create_unrolled_prover();
-                    auto proof = prover.construct_proof();
-                    result.proof_data = proof.proof_data;
-                }
+        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+            if (std::string(name) == "root rollup") {
+                auto prover = mock_proof_composer.create_ultra_to_standard_prover();
+                auto proof = prover.construct_proof();
+                result.proof_data = proof.proof_data;
             } else {
-                auto prover = mock_proof_composer.create_unrolled_prover();
+                auto prover = mock_proof_composer.create_prover();
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             }
@@ -133,17 +120,12 @@ auto verify_internal(
 
     info(name, ": Proof created in ", proof_timer.toString(), "s");
     info(name, ": Total time taken: ", timer.toString(), "s");
-    if (unrolled) {
-        if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
-            if (std::string(name) == "root rollup") {
-                auto verifier = composer.create_unrolled_ultra_to_standard_verifier();
-                result.verified = verifier.verify_proof({ result.proof_data });
-            } else {
-                auto verifier = composer.create_unrolled_verifier();
-                result.verified = verifier.verify_proof({ result.proof_data });
-            }
+    if constexpr (std::is_same<Composer, plonk::UltraComposer>::value) {
+        if (std::string(name) == "root rollup") {
+            auto verifier = composer.create_ultra_to_standard_verifier();
+            result.verified = verifier.verify_proof({ result.proof_data });
         } else {
-            auto verifier = composer.create_unrolled_verifier();
+            auto verifier = composer.create_verifier();
             result.verified = verifier.verify_proof({ result.proof_data });
         }
     } else {

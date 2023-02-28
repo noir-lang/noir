@@ -35,7 +35,7 @@ template <typename settings> class ProverBase {
     void compute_opening_elements();
     void add_plookup_memory_records_to_w_4();
 
-    void compute_linearisation_coefficients();
+    void compute_quotient_evaluation();
     void add_blinding_to_quotient_polynomial_parts();
     void compute_lagrange_1_fft();
     plonk::proof& export_proof();
@@ -103,23 +103,16 @@ template <typename settings> class ProverBase {
   private:
     plonk::proof proof;
 };
-extern template class ProverBase<unrolled_standard_settings>;
-extern template class ProverBase<unrolled_turbo_settings>;
 extern template class ProverBase<standard_settings>;
 extern template class ProverBase<turbo_settings>;
 extern template class ProverBase<ultra_settings>;
-
-typedef ProverBase<unrolled_standard_settings> UnrolledProver;
-typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
-typedef ProverBase<unrolled_ultra_settings>
-    UnrolledUltraProver; // TODO: maybe just return a templated proverbase so that I don't need separate casees for
-                         // ultra vs ultra_to_standard...???
-typedef ProverBase<unrolled_ultra_to_standard_settings> UnrolledUltraToStandardProver;
-typedef ProverBase<unrolled_turbo_settings> UnrolledGenPermProver;
+extern template class ProverBase<ultra_to_standard_settings>;
 
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
-typedef ProverBase<ultra_settings> UltraProver;
-typedef ProverBase<turbo_settings> GenPermProver;
+typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return a templated proverbase so that I don't
+                                                // need separate casees for ultra vs ultra_to_standard...???
+                                                // TODO(Cody): Make this into an issue?
+typedef ProverBase<ultra_to_standard_settings> UltraToStandardProver;
 
 } // namespace plonk

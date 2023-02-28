@@ -76,8 +76,7 @@ struct StandardHonk {
     // TODO(Cody): should extract this from the parameter pack. Maybe that should be done here?
 
     // num_sumcheck_rounds = 1 if using quotient polynomials, otherwise = number of sumcheck rounds
-    static transcript::Manifest create_unrolled_manifest(const size_t num_public_inputs,
-                                                         const size_t num_sumcheck_rounds = 1)
+    static transcript::Manifest create_manifest(const size_t num_public_inputs, const size_t num_sumcheck_rounds = 1)
     {
         constexpr size_t g1_size = 64;
         constexpr size_t fr_size = 32;

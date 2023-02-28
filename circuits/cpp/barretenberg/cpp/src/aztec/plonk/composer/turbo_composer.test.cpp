@@ -17,27 +17,12 @@ TEST(turbo_composer, base_case)
     fr a = fr::one();
     composer.add_public_variable(a);
 
-    TurboProver prover = composer.create_prover();
-    TurboVerifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
-    EXPECT_EQ(result, true);
-}
-
-TEST(turbo_composer, base_case_unrolled)
-{
-    TurboComposer composer = TurboComposer();
-    fr a = fr::one();
-    composer.add_public_variable(a);
-
-    UnrolledTurboProver prover = composer.create_unrolled_prover();
-    UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
-
-    proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
@@ -60,8 +45,8 @@ TEST(turbo_composer, composer_from_serialized_keys)
     TurboComposer composer2 = TurboComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
 
-    TurboProver prover = composer2.create_prover();
-    TurboVerifier verifier = composer2.create_verifier();
+    auto prover = composer2.create_prover();
+    auto verifier = composer2.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -122,9 +107,9 @@ TEST(turbo_composer, test_add_gate_proofs)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, a_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -208,9 +193,9 @@ TEST(turbo_composer, test_mul_gate_proofs)
 
     uint32_t e_idx = composer.add_variable(a - fr::one());
     composer.create_add_gate({ e_idx, b_idx, c_idx, q[0], q[1], q[2], (q[3] + q[0]) });
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -334,9 +319,9 @@ TEST(turbo_composer, small_scalar_multipliers)
     uint64_t expected_accumulator = scalar_multiplier.data[0];
     EXPECT_EQ(result_accumulator, expected_accumulator);
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -466,9 +451,9 @@ TEST(turbo_composer, large_scalar_multipliers)
             .to_montgomery_form();
     EXPECT_EQ((result_accumulator == expected_accumulator), true);
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -513,9 +498,9 @@ TEST(turbo_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -533,11 +518,11 @@ TEST(turbo_composer, range_constraint_fail)
 
     composer.decompose_into_base4_accumulators(witness_index, 23, "yay, range constraint fails");
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
-    proof proof = prover.construct_proof();
+    plonk::proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);
 
@@ -563,9 +548,9 @@ TEST(turbo_composer, and_constraint_failure)
     // 4 && 5 is 4, so 3 bits are needed, but we only constrain 2
     accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -638,9 +623,9 @@ TEST(turbo_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -668,9 +653,9 @@ TEST(turbo_composer, xor_constraint_failure)
     // 4 && 1 is 5, so 3 bits are needed, but we only constrain 2
     accumulator_triple accumulators = composer.create_and_constraint(left_witness_index, right_witness_index, 2);
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -742,9 +727,9 @@ TEST(turbo_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -786,9 +771,9 @@ TEST(turbo_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    TurboProver prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    TurboVerifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     proof proof = prover.construct_proof();
 
@@ -847,14 +832,14 @@ TEST(turbo_composer, validate_copy_constraints)
                     });
                 }
 
-                TurboProver prover = composer.create_prover();
+                auto prover = composer.create_prover();
 
                 if (m > 0) {
                     ((barretenberg::polynomial&)prover.key->polynomial_cache.get(
                         "w_" + std::to_string(k + 1) + "_lagrange"))[j] = barretenberg::fr::random_element();
                 }
 
-                TurboVerifier verifier = composer.create_verifier();
+                auto verifier = composer.create_verifier();
 
                 proof proof = prover.construct_proof();
 

@@ -58,8 +58,8 @@ TEST(stdlib_aes128, encrypt_64_bytes)
 
     std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
 
-    plonk::UltraProver prover = composer.create_prover();
-    plonk::UltraVerifier verifier = composer.create_verifier();
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
     plonk::proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

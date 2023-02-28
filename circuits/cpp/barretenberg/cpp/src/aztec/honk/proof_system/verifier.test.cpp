@@ -24,7 +24,7 @@ template <class FF> class VerifierTests : public testing::Test {
     // TODO(luke): replace this with an appropriate mock honk manifest
     static transcript::Manifest create_manifest(const size_t num_public_inputs, const size_t num_sumcheck_rounds)
     {
-        return honk::StandardHonk::create_unrolled_manifest(num_public_inputs, num_sumcheck_rounds);
+        return honk::StandardHonk::create_manifest(num_public_inputs, num_sumcheck_rounds);
     }
 
     static StandardVerifier generate_verifier(std::shared_ptr<bonk::proving_key> circuit_proving_key)
@@ -79,7 +79,7 @@ template <class FF> class VerifierTests : public testing::Test {
 
     // TODO: this example is adapted from a corresponding PlonK verifier test. Needs to be
     // updated further as the Honk PoC comes together.
-    static StandardUnrolledProver generate_test_data(const size_t n)
+    static StandardProver generate_test_data(const size_t n)
     {
         // Create some constraints that satisfy our arithmetic circuit relation
         // even indices = mul gates, odd incides = add gates
@@ -196,7 +196,7 @@ template <class FF> class VerifierTests : public testing::Test {
 
         // TODO(Cody): This should be more generic
         std::vector<barretenberg::polynomial> witness_polynomials;
-        StandardUnrolledProver prover = StandardUnrolledProver(
+        auto prover = StandardProver(
             std::move(witness_polynomials), proving_key, create_manifest(0, proving_key->log_circuit_size));
 
         std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
@@ -218,7 +218,7 @@ TYPED_TEST(VerifierTests, VerifyArithmeticProofSmall)
     GTEST_SKIP() << "It's good to have a standalone test, but for now we just rely on composer tests.";
     size_t n = 8;
 
-    StandardUnrolledProver prover = TestFixture::generate_test_data(n);
+    StandardProver prover = TestFixture::generate_test_data(n);
 
     StandardVerifier verifier = TestFixture::generate_verifier(prover.key);
 

@@ -765,7 +765,7 @@ void UltraComposer::compute_witness()
     }
 
     // Create and store polynomials which interpolate the wire values (variable values pointed-to by the `w_`s).
-    ComposerBase::compute_witness_base<ultra_settings>(total_num_gates);
+    ComposerBase::compute_witness_base<ultra_settings::program_width>(total_num_gates);
 
     polynomial s_1(subgroup_size);
     polynomial s_2(subgroup_size);
@@ -854,10 +854,12 @@ UltraProver UltraComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
+
     UltraProver output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
+
     std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
         std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
 
@@ -894,14 +896,14 @@ UltraProver UltraComposer::create_prover()
 }
 
 /**
- * @note 'unrolled' means 'don't use linearisation techniques from the plonk paper'.
+ * @brief Uses slightly different settings from the UltraProver.
  */
-UnrolledUltraProver UltraComposer::create_unrolled_prover()
+UltraToStandardProver UltraComposer::create_ultra_to_standard_prover()
 {
     compute_proving_key();
     compute_witness();
 
-    UnrolledUltraProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
+    UltraToStandardProver output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
@@ -909,20 +911,20 @@ UnrolledUltraProver UltraComposer::create_unrolled_prover()
     std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
         std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
 
-    std::unique_ptr<ProverPlookupArithmeticWidget<unrolled_ultra_settings>> arithmetic_widget =
-        std::make_unique<ProverPlookupArithmeticWidget<unrolled_ultra_settings>>(circuit_proving_key.get());
+    std::unique_ptr<ProverPlookupArithmeticWidget<ultra_to_standard_settings>> arithmetic_widget =
+        std::make_unique<ProverPlookupArithmeticWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
 
-    std::unique_ptr<ProverUltraFixedBaseWidget<unrolled_ultra_settings>> fixed_base_widget =
-        std::make_unique<ProverUltraFixedBaseWidget<unrolled_ultra_settings>>(circuit_proving_key.get());
+    std::unique_ptr<ProverUltraFixedBaseWidget<ultra_to_standard_settings>> fixed_base_widget =
+        std::make_unique<ProverUltraFixedBaseWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
 
-    std::unique_ptr<ProverGenPermSortWidget<unrolled_ultra_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<unrolled_ultra_settings>>(circuit_proving_key.get());
+    std::unique_ptr<ProverGenPermSortWidget<ultra_to_standard_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
 
-    std::unique_ptr<ProverEllipticWidget<unrolled_ultra_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<unrolled_ultra_settings>>(circuit_proving_key.get());
+    std::unique_ptr<ProverEllipticWidget<ultra_to_standard_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
 
-    std::unique_ptr<ProverPlookupAuxiliaryWidget<unrolled_ultra_settings>> auxiliary_widget =
-        std::make_unique<ProverPlookupAuxiliaryWidget<unrolled_ultra_settings>>(circuit_proving_key.get());
+    std::unique_ptr<ProverPlookupAuxiliaryWidget<ultra_to_standard_settings>> auxiliary_widget =
+        std::make_unique<ProverPlookupAuxiliaryWidget<ultra_to_standard_settings>>(circuit_proving_key.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.random_widgets.emplace_back(std::move(plookup_widget));
@@ -933,57 +935,8 @@ UnrolledUltraProver UltraComposer::create_unrolled_prover()
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
     output_state.transition_widgets.emplace_back(std::move(auxiliary_widget));
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_ultra_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_ultra_settings>>();
-
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
-/**
- * @brief Uses slightly different settings from the UnrolledUltraProver.
- * @note 'unrolled' means 'don't use linearisation techniques from the plonk paper'.
- */
-UnrolledUltraToStandardProver UltraComposer::create_unrolled_ultra_to_standard_prover()
-{
-    compute_proving_key();
-    compute_witness();
-
-    UnrolledUltraToStandardProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
-
-    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
-        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupArithmeticWidget<unrolled_ultra_to_standard_settings>> arithmetic_widget =
-        std::make_unique<ProverPlookupArithmeticWidget<unrolled_ultra_to_standard_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverUltraFixedBaseWidget<unrolled_ultra_to_standard_settings>> fixed_base_widget =
-        std::make_unique<ProverUltraFixedBaseWidget<unrolled_ultra_to_standard_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverGenPermSortWidget<unrolled_ultra_to_standard_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<unrolled_ultra_to_standard_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverEllipticWidget<unrolled_ultra_to_standard_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<unrolled_ultra_to_standard_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverPlookupAuxiliaryWidget<unrolled_ultra_to_standard_settings>> auxiliary_widget =
-        std::make_unique<ProverPlookupAuxiliaryWidget<unrolled_ultra_to_standard_settings>>(circuit_proving_key.get());
-
-    output_state.random_widgets.emplace_back(std::move(permutation_widget));
-    output_state.random_widgets.emplace_back(std::move(plookup_widget));
-
-    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
-    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.transition_widgets.emplace_back(std::move(sort_widget));
-    output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
-    output_state.transition_widgets.emplace_back(std::move(auxiliary_widget));
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_ultra_to_standard_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_ultra_to_standard_settings>>();
+    std::unique_ptr<KateCommitmentScheme<ultra_to_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_to_standard_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
@@ -996,37 +949,22 @@ UltraVerifier UltraComposer::create_verifier()
 
     UltraVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<turbo_settings>>();
+    std::unique_ptr<KateCommitmentScheme<ultra_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }
 
-UnrolledUltraVerifier UltraComposer::create_unrolled_verifier()
+UltraToStandardVerifier UltraComposer::create_ultra_to_standard_verifier()
 {
     compute_verification_key();
 
-    UnrolledUltraVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+    UltraToStandardVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_ultra_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_ultra_settings>>();
-
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
-UnrolledUltraToStandardVerifier UltraComposer::create_unrolled_ultra_to_standard_verifier()
-{
-    compute_verification_key();
-
-    UnrolledUltraToStandardVerifier output_state(circuit_verification_key,
-                                                 create_unrolled_manifest(public_inputs.size()));
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_ultra_to_standard_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_ultra_to_standard_settings>>();
+    std::unique_ptr<KateCommitmentScheme<ultra_to_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<ultra_to_standard_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 

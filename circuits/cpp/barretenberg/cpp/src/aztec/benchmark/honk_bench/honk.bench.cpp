@@ -28,9 +28,9 @@ void generate_test_plonk_circuit(auto& composer, size_t num_gates)
 }
 
 /**
- * @brief Benchmark: Creation of an unrolled standard Honk prover
+ * @brief Benchmark: Creation of a Standard Honk prover
  */
-void create_unrolled_prover_bench(State& state) noexcept
+void create_prover_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
@@ -39,17 +39,15 @@ void create_unrolled_prover_bench(State& state) noexcept
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         state.ResumeTiming();
 
-        composer.create_unrolled_prover();
+        composer.create_prover();
     }
 }
-BENCHMARK(create_unrolled_prover_bench)
-    ->DenseRange(MIN_LOG_NUM_GATES, MAX_LOG_NUM_GATES, 1)
-    ->Repetitions(NUM_REPETITIONS);
+BENCHMARK(create_prover_bench)->DenseRange(MIN_LOG_NUM_GATES, MAX_LOG_NUM_GATES, 1)->Repetitions(NUM_REPETITIONS);
 
 /**
- * @brief Benchmark: Creation of an unrolled standard Honk verifier
+ * @brief Benchmark: Creation of a Standard Honk verifier
  */
-void create_unrolled_verifier_bench(State& state) noexcept
+void create_verifier_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
@@ -58,15 +56,13 @@ void create_unrolled_verifier_bench(State& state) noexcept
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         state.ResumeTiming();
 
-        composer.create_unrolled_verifier();
+        composer.create_verifier();
     }
 }
-BENCHMARK(create_unrolled_verifier_bench)
-    ->DenseRange(MIN_LOG_NUM_GATES, MAX_LOG_NUM_GATES, 1)
-    ->Repetitions(NUM_REPETITIONS);
+BENCHMARK(create_verifier_bench)->DenseRange(MIN_LOG_NUM_GATES, MAX_LOG_NUM_GATES, 1)->Repetitions(NUM_REPETITIONS);
 
 /**
- * @brief Benchmark: Construction of an unrolled standard Honk proof
+ * @brief Benchmark: Construction of a Standard Honk proof
  */
 void construct_proof_bench(State& state) noexcept
 {
@@ -75,7 +71,7 @@ void construct_proof_bench(State& state) noexcept
         state.PauseTiming();
         auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
-        auto ext_prover = composer.create_unrolled_prover();
+        auto ext_prover = composer.create_prover();
         state.ResumeTiming();
 
         auto proof = ext_prover.construct_proof();
@@ -88,7 +84,7 @@ BENCHMARK(construct_proof_bench)
     ->Complexity(oN);
 
 /**
- * @brief Benchmark: Verification of an unrolled standard Honk proof
+ * @brief Benchmark: Verification of a Standard Honk proof
  */
 void verify_proof_bench(State& state) noexcept
 {
@@ -97,9 +93,9 @@ void verify_proof_bench(State& state) noexcept
         auto num_gates = (size_t)state.range(0);
         auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
-        auto prover = composer.create_unrolled_prover();
+        auto prover = composer.create_prover();
         auto proof = prover.construct_proof();
-        auto verifier = composer.create_unrolled_verifier();
+        auto verifier = composer.create_verifier();
         state.ResumeTiming();
 
         verifier.verify_proof(proof);

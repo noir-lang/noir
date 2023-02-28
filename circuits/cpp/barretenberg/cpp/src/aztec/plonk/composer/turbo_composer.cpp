@@ -988,19 +988,19 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
 void TurboComposer::compute_witness()
 {
 
-    ComposerBase::compute_witness_base<turbo_settings>();
+    ComposerBase::compute_witness_base<turbo_settings::program_width>();
 }
 
 TurboProver TurboComposer::create_prover()
 {
     compute_proving_key();
-
     compute_witness();
 
     TurboProver output_state(circuit_proving_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get());
+
     std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
         std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get());
     std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
@@ -1026,63 +1026,14 @@ TurboProver TurboComposer::create_prover()
     return output_state;
 }
 
-UnrolledTurboProver TurboComposer::create_unrolled_prover()
-{
-    compute_proving_key();
-    compute_witness();
-
-    UnrolledTurboProver output_state(circuit_proving_key, create_unrolled_manifest(public_inputs.size()));
-
-    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
-        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
-    std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
-
-    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get());
-
-    output_state.random_widgets.emplace_back(std::move(permutation_widget));
-
-    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
-    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.transition_widgets.emplace_back(std::move(range_widget));
-    output_state.transition_widgets.emplace_back(std::move(logic_widget));
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
-
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
 TurboVerifier TurboComposer::create_verifier()
 {
     compute_verification_key();
 
-    TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
-
     std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<turbo_settings>>();
 
-    output_state.commitment_scheme = std::move(kate_commitment_scheme);
-
-    return output_state;
-}
-
-UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
-{
-    compute_verification_key();
-
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
-
-    UnrolledTurboVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+    TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 

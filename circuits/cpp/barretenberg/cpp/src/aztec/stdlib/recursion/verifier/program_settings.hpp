@@ -8,7 +8,7 @@ namespace plonk {
 namespace stdlib {
 namespace recursion {
 
-template <typename Curve> class recursive_ultra_verifier_settings : public plonk::unrolled_ultra_verifier_settings {
+template <typename Curve> class recursive_ultra_verifier_settings : public plonk::ultra_verifier_settings {
   public:
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::g1::affine_element g1;
@@ -17,7 +17,7 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
     typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
     typedef plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef plonk::unrolled_ultra_settings base_settings;
+    typedef plonk::ultra_settings base_settings;
 
     typedef plonk::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
     typedef plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
@@ -28,8 +28,6 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PlookupPedersenBlake3s;
-    static constexpr bool use_linearisation =
-        false; // We don't compute a linearisation polynomial when verifying within a circuit.
     // idpolys is a flag that describes whether we're using Vitalik's trick of using trivial identity permutation
     // polynomials (id_poly = false); OR whether the identity permutation polynomials are circuit-specific and stored in
     // the proving/verification key (id_poly = true).
@@ -40,11 +38,9 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
                                                      const Transcript_pt& transcript,
                                                      std::map<std::string, fr_ct>& scalars)
     {
-        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, scalars, use_linearisation, idpolys);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(key, alpha_base, transcript);
 
-        updated_alpha = PlookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = PlookupWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
 
         updated_alpha =
             PlookupArithmeticWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
@@ -65,28 +61,28 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
     static fr_ct compute_quotient_evaluation_contribution(typename Transcript_pt::Key* key,
                                                           const fr_ct& alpha_base,
                                                           const Transcript_pt& transcript,
-                                                          fr_ct& r_0)
+                                                          fr_ct& quotient_numerator_eval)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, r_0, use_linearisation, idpolys);
+            key, alpha_base, transcript, quotient_numerator_eval, idpolys);
 
         updated_alpha_base = PlookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, r_0, use_linearisation);
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
-        updated_alpha_base =
-            PlookupArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base = PlookupArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
-        updated_alpha_base =
-            UltraFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base = UltraFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
-        updated_alpha_base =
-            GenPermSortWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
-        updated_alpha_base =
-            EllipticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base = EllipticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
-        updated_alpha_base =
-            PlookupAuxiliaryWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base = PlookupAuxiliaryWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
 
         return updated_alpha_base;
     }
@@ -104,7 +100,7 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
     typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
     typedef plonk::VerifierPlookupWidget<fr_ct, g1, Transcript_pt> PlookupWidget;
 
-    typedef plonk::unrolled_ultra_to_standard_settings base_settings;
+    typedef plonk::ultra_to_standard_settings base_settings;
 
     typedef plonk::VerifierUltraFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> UltraFixedBaseWidget;
     typedef plonk::VerifierPlookupArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> PlookupArithmeticWidget;
@@ -116,7 +112,7 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
 };
 
-template <typename Curve> class recursive_turbo_verifier_settings : public plonk::unrolled_turbo_settings {
+template <typename Curve> class recursive_turbo_verifier_settings : public plonk::turbo_settings {
   public:
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::g1::affine_element g1;
@@ -124,7 +120,7 @@ template <typename Curve> class recursive_turbo_verifier_settings : public plonk
     typedef Transcript<Composer> Transcript_pt;
     typedef plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
 
-    typedef plonk::unrolled_turbo_settings base_settings;
+    typedef plonk::turbo_settings base_settings;
 
     typedef plonk::VerifierTurboFixedBaseWidget<fr_ct, g1, Transcript_pt, base_settings> TurboFixedBaseWidget;
     typedef plonk::VerifierTurboArithmeticWidget<fr_ct, g1, Transcript_pt, base_settings> TurboArithmeticWidget;
@@ -133,45 +129,41 @@ template <typename Curve> class recursive_turbo_verifier_settings : public plonk
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
-    static constexpr bool use_linearisation = false;
 
     static fr_ct append_scalar_multiplication_inputs(typename Transcript_pt::Key* key,
                                                      const fr_ct& alpha_base,
                                                      const Transcript_pt& transcript,
                                                      std::map<std::string, fr_ct>& scalars)
     {
-        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, scalars, use_linearisation);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(key, alpha_base, transcript);
 
-        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha =
+            TurboArithmeticWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
 
-        updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha =
+            TurboFixedBaseWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
 
-        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
 
-        updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
         return updated_alpha;
     }
 
     static fr_ct compute_quotient_evaluation_contribution(typename Transcript_pt::Key* key,
                                                           const fr_ct& alpha_base,
                                                           const Transcript_pt& transcript,
-                                                          fr_ct& r_0)
+                                                          fr_ct& quotient_numerator_eval)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, r_0, use_linearisation);
-        updated_alpha_base =
-            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
-        updated_alpha_base =
-            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
-        updated_alpha_base =
-            TurboRangeWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
-        updated_alpha_base =
-            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+            key, alpha_base, transcript, quotient_numerator_eval);
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
+        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
+        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
+        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, quotient_numerator_eval);
         return updated_alpha_base;
     }
 };

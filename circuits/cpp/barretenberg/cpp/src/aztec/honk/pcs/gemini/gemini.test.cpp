@@ -24,7 +24,7 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
                                           std::vector<Commitment> multilinear_commitments_to_be_shifted)
     {
         using Transcript = transcript::StandardTranscript;
-        auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+        auto transcript = std::make_shared<Transcript>(StandardHonk::create_manifest(0, log_n));
         transcript->mock_inputs_prior_to_challenge("rho");
         transcript->apply_fiat_shamir("rho");
         const Fr rho = Fr::serialize_from_buffer(transcript->get_challenge("rho").begin());

@@ -563,172 +563,6 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
     return alpha_base * alpha.sqr() * alpha;
 }
 
-/**
- * @brief Computes the evaluation at challenge point 'z' of the terms in the linearization polynomial
- * associated with z_lookup.
- *
- * @tparam num_roots_cut_out_of_vanishing_polynomial
- * @param alpha_base
- * @param transcript
- * @param r
- * @return barretenberg::fr
- *
- * @details This is used in computation of the 'linearization' polynomial r(X).
- * Note, however, that the components computed here are not 'linearized'; all terms are
- * simply evaluated at 'z'. More on this function can be found in
- * https://hackmd.io/vUGG8CO_Rk2iEjruBL_gGw?view#Note-A-Mind-Boggling-Issue-with-Ultra-Plonk
- */
-template <const size_t num_roots_cut_out_of_vanishing_polynomial>
-barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_linear_contribution(
-    const fr& alpha_base, const transcript::StandardTranscript& transcript, polynomial& r)
-
-{
-    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    std::array<fr, 3> wire_evaluations{
-        transcript.get_field_element("w_1"),
-        transcript.get_field_element("w_2"),
-        transcript.get_field_element("w_3"),
-    };
-    std::array<fr, 3> shifted_wire_evaluations{
-        transcript.get_field_element("w_1_omega"),
-        transcript.get_field_element("w_2_omega"),
-        transcript.get_field_element("w_3_omega"),
-    };
-
-    std::array<fr, 4> table_evaluations{
-        transcript.get_field_element("table_value_1"),
-        transcript.get_field_element("table_value_2"),
-        transcript.get_field_element("table_value_3"),
-        transcript.get_field_element("table_value_4"),
-    };
-
-    std::array<fr, 4> shifted_table_evaluations{
-        transcript.get_field_element("table_value_1_omega"),
-        transcript.get_field_element("table_value_2_omega"),
-        transcript.get_field_element("table_value_3_omega"),
-        transcript.get_field_element("table_value_4_omega"),
-    };
-
-    fr column_1_step_size = transcript.get_field_element("q_2");
-    fr column_2_step_size = transcript.get_field_element("q_m");
-    fr column_3_step_size = transcript.get_field_element("q_c");
-    fr table_type_eval = transcript.get_field_element("table_type");
-    fr table_index_eval = transcript.get_field_element("q_3");
-
-    fr s_eval = transcript.get_field_element("s");
-    fr shifted_s_eval = transcript.get_field_element("s_omega");
-
-    fr z_eval = transcript.get_field_element("z_lookup");
-    fr shifted_z_eval = transcript.get_field_element("z_lookup_omega");
-
-    fr z = transcript.get_challenge_field_element("z");
-    fr beta = transcript.get_challenge_field_element("beta", 0);
-    fr gamma = transcript.get_challenge_field_element("beta", 1);
-    fr eta = transcript.get_challenge_field_element("eta", 0);
-    fr l_numerator = z.pow(key->circuit_size) - fr(1);
-
-    // Compute evaluation L_1(z)
-    l_numerator *= key->small_domain.domain_inverse;
-    fr l_1 = l_numerator / (z - fr(1));
-
-    // Compute evaluation L_end(z) = L_{n-k}(z) using ω^{-(n - k) + 1} = ω^{k + 1} where
-    // k = num roots cut out of Z_H
-    fr l_end_root =
-        (num_roots_cut_out_of_vanishing_polynomial & 1) ? key->small_domain.root.sqr() : key->small_domain.root;
-    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
-        l_end_root *= key->small_domain.root.sqr();
-    }
-    fr l_end = l_numerator / ((z * l_end_root) - fr(1));
-
-    const fr one(1);
-    const fr gamma_beta_constant = gamma * (one + beta); // γ(β + 1)
-
-    // delta_factor = γ(β + 1)^{n-k}
-    const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - num_roots_cut_out_of_vanishing_polynomial);
-    const fr alpha_sqr = alpha.sqr();
-
-    const fr beta_constant = beta + one;
-
-    fr T0;
-    fr T1;
-    fr denominator;
-    fr numerator;
-
-    // Set f_eval = f(z) := (w_1(z) + q_2*w_1(zω)) + η(w_2(z) + q_m*w_2(zω)) + η²(w_3(z) + q_c*w_3(zω)) + η³q_index(z)
-    fr f_eval = table_index_eval;
-    f_eval *= eta;
-    f_eval += shifted_wire_evaluations[2] * column_3_step_size;
-    f_eval += wire_evaluations[2];
-    f_eval *= eta;
-    f_eval += shifted_wire_evaluations[1] * column_2_step_size;
-    f_eval += wire_evaluations[1];
-    f_eval *= eta;
-    f_eval += shifted_wire_evaluations[0] * column_1_step_size;
-    f_eval += wire_evaluations[0];
-
-    // Set table_eval = t(z)
-    fr table_eval = table_evaluations[3];
-    table_eval *= eta;
-    table_eval += table_evaluations[2];
-    table_eval *= eta;
-    table_eval += table_evaluations[1];
-    table_eval *= eta;
-    table_eval += table_evaluations[0];
-
-    // Set numerator = q_index(z)*f(z) + γ
-    numerator = f_eval * table_type_eval;
-    numerator += gamma;
-
-    // Set T0 = t(zω)
-    T0 = shifted_table_evaluations[3];
-    T0 *= eta;
-    T0 += shifted_table_evaluations[2];
-    T0 *= eta;
-    T0 += shifted_table_evaluations[1];
-    T0 *= eta;
-    T0 += shifted_table_evaluations[0];
-
-    // Set T1 = t(z) + βt(zω) + γ(β + 1)
-    T1 = beta;
-    T1 *= T0;
-    T1 += table_eval;
-    T1 += gamma_beta_constant;
-
-    // Set numerator = (q_index*f(z) + γ) * (t(z) + βt(zω) + γ(β + 1)) * (β + 1)
-    numerator *= T1;
-    numerator *= beta_constant;
-
-    // Set denominator = s(z) + βs(zω) + γ(β + 1)
-    denominator = shifted_s_eval;
-    denominator *= beta;
-    denominator += s_eval;
-    denominator += gamma_beta_constant;
-
-    // Set T0 = αL_1(z), T1 = α²L_end(z)
-    T0 = l_1 * alpha;
-    T1 = l_end * alpha_sqr;
-
-    // Set numerator = z_lookup(z)*[(q_index*f(z) + γ) * (t(z) + βt(zω) + γ(β + 1)) * (β + 1)] + (z_lookup(z) -
-    // 1)*αL_1(z)
-    numerator += T0;
-    numerator *= z_eval;
-    numerator -= T0;
-
-    // Set denominator = z_lookup(zω)*[s(z) + βs(zω) + γ(1 + β)] - [z_lookup(zω) - [γ(1 + β)]^{n-k}]*α²L_end(z)
-    denominator -= T1;
-    denominator *= shifted_z_eval;
-    denominator += T1 * delta_factor;
-
-    // Set T0 = z_lookup(z)*[(q_index*f(z) + γ) * (t(z) + βt(zω) + γ(β + 1)) * (β + 1)] + (z_lookup(z) - 1)*αL_1(z) ...
-    //      - z_lookup(zω)*[s(z) + βs(zω) + γ(1 + β)] + [z_lookup(zω) - [γ(1 + β)]^{n-k}]*α²L_end(z)
-    T0 = numerator - denominator;
-    // We need to add the constant term of plookup permutation polynomial in the linearisation
-    // polynomial to ensure that r(z) = 0.
-    r[0] += T0 * alpha_base;
-
-    return alpha_base * alpha.sqr() * alpha;
-}
-
 // ###
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
@@ -746,7 +580,7 @@ VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_p
  * @param key
  * @param alpha_base
  * @param transcript
- * @param r_0
+ * @param  quotient_numerator_eval
  * @return Field
  *
  * @brief Used by verifier in computation of quotient polynomial evaluation at challenge point 'z'.
@@ -754,8 +588,10 @@ VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_p
  */
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::
-    compute_quotient_evaluation_contribution(
-        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& r_0, const bool)
+    compute_quotient_evaluation_contribution(typename Transcript::Key* key,
+                                             const Field& alpha_base,
+                                             const Transcript& transcript,
+                                             Field& quotient_numerator_eval)
 {
 
     std::array<Field, 3> wire_evaluations{
@@ -896,7 +732,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     // Set T0 = z_lookup(z)*[(q_index*f(z) + γ) * (t(z) + βt(zω) + γ(β + 1)) * (β + 1)] + (z_lookup(z) - 1)*αL_1(z) ...
     //      - z_lookup(zω)*[s(z) + βs(zω) + γ(1 + β)] + [z_lookup(zω) - [γ(1 + β)]^{n-k}]*α²L_end(z)
     T0 = numerator - denominator;
-    r_0 += T0 * alpha_base;
+    quotient_numerator_eval += T0 * alpha_base;
     return alpha_base * alpha.sqr() * alpha;
 } // namespace plonk
 
@@ -905,8 +741,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     append_scalar_multiplication_inputs(typename Transcript::Key*,
                                         const Field& alpha_base,
                                         const Transcript& transcript,
-                                        std::map<std::string, Field>&,
-                                        const bool)
+                                        std::map<std::string, Field>&)
 {
     Field alpha = transcript.get_challenge_field_element("alpha");
     return alpha_base * alpha.sqr() * alpha;

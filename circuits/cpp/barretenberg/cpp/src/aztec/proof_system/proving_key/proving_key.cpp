@@ -13,8 +13,8 @@ namespace bonk {
 // the degree of t_{mid}, etc could also increase. Thus, the size of pippenger multi-scalar
 // multiplications must be changed accordingly!
 //
-// After adding blinding to the quotient polynomial parts, the quotient polynomial parts, the
-// linearisation polynomial r(X) as well as opening polynomial W_z(X) are all degree-n (i.e. size n + 1).
+// After adding blinding to the quotient polynomial parts, the quotient polynomial parts and
+// the opening polynomial W_z(X) are all degree-n (i.e. size n + 1).
 //
 /**
  * proving_key constructor.

@@ -181,9 +181,8 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
  * @tparam program_width The number of witness polynomials
  * @param key Proving key where we will save the polynomials
  */
-// TODO(Cody): why not a shared pointer here?/s
 template <size_t program_width>
-void compute_standard_honk_id_polynomials(auto key) // proving_key* and share_ptr<proving_key>
+void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_ptr<proving_key>
 {
     const size_t n = key->circuit_size;
     // Fill id polynomials with default values

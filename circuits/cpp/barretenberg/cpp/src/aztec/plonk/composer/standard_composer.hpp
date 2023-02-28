@@ -87,15 +87,7 @@ class StandardComposer : public ComposerBase {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual void compute_witness() override;
     Verifier create_verifier();
-    /**
-     * Preprocess the circuit. Delegates to create_prover.
-     *
-     * @return A new initialized prover.
-     */
-    Prover preprocess() { return create_prover(); };
     Prover create_prover();
-    UnrolledVerifier create_unrolled_verifier();
-    UnrolledProver create_unrolled_prover();
 
     void create_add_gate(const add_triple& in) override;
     void create_mul_gate(const mul_triple& in) override;
@@ -155,58 +147,7 @@ class StandardComposer : public ComposerBase {
     // equal to a defined value.
     std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 
-    /**
-     * Create a manifest, which specifies proof rounds, elements and who supplies them.
-     *
-     * @param num_public_inputs The number of public inputs.
-     *
-     * @return Constructed manifest.
-     * */
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
-    {
-        // add public inputs....
-        constexpr size_t g1_size = 64;
-        constexpr size_t fr_size = 32;
-        const size_t public_input_size = fr_size * num_public_inputs;
-        const transcript::Manifest output = transcript::Manifest(
-
-            { transcript::Manifest::RoundManifest(
-                  { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
-
-              transcript::Manifest::RoundManifest({}, "eta", 0),
-
-              transcript::Manifest::RoundManifest(
-                  {
-                      { "public_inputs", public_input_size, false },
-                      { "W_1", g1_size, false },
-                      { "W_2", g1_size, false },
-                      { "W_3", g1_size, false },
-                  },
-                  "beta",
-                  2),
-              transcript::Manifest::RoundManifest({ { "Z_PERM", g1_size, false } }, "alpha", 1),
-              transcript::Manifest::RoundManifest(
-                  { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
-
-              transcript::Manifest::RoundManifest(
-                  {
-                      { "w_1", fr_size, false, 0 },
-                      { "w_2", fr_size, false, 1 },
-                      { "w_3", fr_size, false, 2 },
-                      { "sigma_1", fr_size, false, 3 },
-                      { "sigma_2", fr_size, false, 4 },
-                      { "z_perm_omega", fr_size, false, -1 },
-                  },
-                  "nu",
-                  STANDARD_UNROLLED_MANIFEST_SIZE - 6,
-                  true),
-
-              transcript::Manifest::RoundManifest(
-                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
-        return output;
-    }
-
-    static transcript::Manifest create_unrolled_manifest(const size_t num_public_inputs)
     {
         constexpr size_t g1_size = 64;
         constexpr size_t fr_size = 32;
@@ -275,7 +216,7 @@ class StandardComposer : public ComposerBase {
                     { .name = "z_perm_omega", .num_bytes = fr_size, .derived_by_verifier = false, .challenge_map_index = -1 },
                 },
                 /* challenge_name = */ "nu",
-                /* num_challenges_in = */ STANDARD_UNROLLED_MANIFEST_SIZE,
+                /* num_challenges_in = */ STANDARD_MANIFEST_SIZE,
                 /* map_challenges_in = */ true),
 
               // Round 6

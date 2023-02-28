@@ -5,10 +5,8 @@
 
 #include <proof_system/types/polynomial_manifest.hpp>
 
-#include <plonk/proof_system/utils/linearizer.hpp>
 #include <plonk/proof_system/utils/kate_verification.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
-#include <plonk/proof_system/utils/linearizer.hpp>
 
 #include <polynomials/polynomial_arithmetic.hpp>
 

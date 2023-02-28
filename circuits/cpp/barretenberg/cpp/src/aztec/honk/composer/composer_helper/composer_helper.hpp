@@ -55,10 +55,9 @@ template <typename CircuitConstructor> class ComposerHelper {
         compute_witness_base<program_width>(circuit_constructor);
     }
 
-    StandardUnrolledVerifier create_unrolled_verifier(const CircuitConstructor& circuit_constructor);
+    StandardVerifier create_verifier(const CircuitConstructor& circuit_constructor);
 
-    template <typename Flavor>
-    StandardUnrolledProver create_unrolled_prover(const CircuitConstructor& circuit_constructor);
+    template <typename Flavor> StandardProver create_prover(const CircuitConstructor& circuit_constructor);
 
     // TODO(Adrian): Seems error prone to provide the number of randomized gates
     // Cody: Where should this go? In the flavor (or whatever that becomes)?

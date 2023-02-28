@@ -113,22 +113,21 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         // template argument for the hashtype, and that would pervade the entire UltraComposer, which would be
         // horrendous.
         constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
-        typedef typename std::conditional<is_ultra_to_ultra,
-                                          plonk::UnrolledUltraProver,
-                                          plonk::UnrolledUltraToStandardProver>::type ProverOfInnerCircuit;
-        typedef typename std::conditional<is_ultra_to_ultra,
-                                          plonk::UnrolledUltraVerifier,
-                                          plonk::UnrolledUltraToStandardVerifier>::type VerifierOfInnerProof;
+        typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
+            ProverOfInnerCircuit;
+        typedef
+            typename std::conditional<is_ultra_to_ultra, plonk::UltraVerifier, plonk::UltraToStandardVerifier>::type
+                VerifierOfInnerProof;
         typedef
             typename std::conditional<is_ultra_to_ultra, recursive_settings, ultra_to_standard_recursive_settings>::type
                 RecursiveSettings;
 
-        info("Creating ultra (inner) unrolled prover...");
+        info("Creating ultra (inner) prover...");
         ProverOfInnerCircuit prover;
         if constexpr (is_ultra_to_ultra) {
-            prover = inner_composer.create_unrolled_prover();
+            prover = inner_composer.create_prover();
         } else {
-            prover = inner_composer.create_unrolled_ultra_to_standard_prover();
+            prover = inner_composer.create_ultra_to_standard_prover();
         }
 
         info("Computing verification key...");
@@ -146,9 +145,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             VerifierOfInnerProof native_verifier;
 
             if constexpr (is_ultra_to_ultra) {
-                native_verifier = inner_composer.create_unrolled_verifier();
+                native_verifier = inner_composer.create_verifier();
             } else {
-                native_verifier = inner_composer.create_unrolled_ultra_to_standard_verifier();
+                native_verifier = inner_composer.create_ultra_to_standard_verifier();
             }
 
             info("Verifying the ultra (inner) proof natively...");
@@ -157,8 +156,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             info("Native result: ", native_result);
         }
 
-        transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
+        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         info("Verifying the ultra (inner) proof with CIRCUIT TYPES (i.e. within a standard plonk arithmetic circuit):");
         stdlib::recursion::recursion_output<outer_curve> output =
@@ -174,18 +172,17 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     {
         // See create_outer_circuit for explanation of these constexpr definitions.
         constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
-        typedef typename std::conditional<is_ultra_to_ultra,
-                                          plonk::UnrolledUltraProver,
-                                          plonk::UnrolledUltraToStandardProver>::type ProverOfInnerCircuit;
+        typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
+            ProverOfInnerCircuit;
         typedef
             typename std::conditional<is_ultra_to_ultra, recursive_settings, ultra_to_standard_recursive_settings>::type
                 RecursiveSettings;
 
         ProverOfInnerCircuit prover;
         if constexpr (is_ultra_to_ultra) {
-            prover = inner_composer_a.create_unrolled_prover();
+            prover = inner_composer_a.create_prover();
         } else {
-            prover = inner_composer_a.create_unrolled_ultra_to_standard_prover();
+            prover = inner_composer_a.create_ultra_to_standard_prover();
         }
 
         const auto verification_key_native = inner_composer_a.compute_verification_key();
@@ -194,17 +191,16 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         plonk::proof recursive_proof_a = prover.construct_proof();
 
-        transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover.key->num_public_inputs);
+        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         stdlib::recursion::recursion_output<outer_curve> previous_output =
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
                 &outer_composer, verification_key, recursive_manifest, recursive_proof_a);
 
         if constexpr (is_ultra_to_ultra) {
-            prover = inner_composer_b.create_unrolled_prover();
+            prover = inner_composer_b.create_prover();
         } else {
-            prover = inner_composer_b.create_unrolled_ultra_to_standard_prover();
+            prover = inner_composer_b.create_ultra_to_standard_prover();
         }
 
         const auto verification_key_b_raw = inner_composer_b.compute_verification_key();
@@ -230,9 +226,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     {
         // See create_outer_circuit for explanation of these constexpr definitions.
         constexpr bool is_ultra_to_ultra = std::is_same<OuterComposer, plonk::UltraComposer>::value;
-        typedef typename std::conditional<is_ultra_to_ultra,
-                                          plonk::UnrolledUltraProver,
-                                          plonk::UnrolledUltraToStandardProver>::type ProverOfInnerCircuit;
+        typedef typename std::conditional<is_ultra_to_ultra, plonk::UltraProver, plonk::UltraToStandardProver>::type
+            ProverOfInnerCircuit;
         typedef
             typename std::conditional<is_ultra_to_ultra, recursive_settings, ultra_to_standard_recursive_settings>::type
                 RecursiveSettings;
@@ -240,11 +235,11 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
         ProverOfInnerCircuit prover_a;
         ProverOfInnerCircuit prover_b;
         if constexpr (is_ultra_to_ultra) {
-            prover_a = inner_composer_a.create_unrolled_prover();
-            prover_b = inner_composer_b.create_unrolled_prover();
+            prover_a = inner_composer_a.create_prover();
+            prover_b = inner_composer_b.create_prover();
         } else {
-            prover_a = inner_composer_a.create_unrolled_ultra_to_standard_prover();
-            prover_b = inner_composer_b.create_unrolled_ultra_to_standard_prover();
+            prover_a = inner_composer_a.create_ultra_to_standard_prover();
+            prover_b = inner_composer_b.create_ultra_to_standard_prover();
         }
 
         const auto verification_key_raw_a = inner_composer_a.compute_verification_key();
@@ -271,8 +266,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         plonk::proof recursive_proof = proof_type ? prover_a.construct_proof() : prover_b.construct_proof();
 
-        transcript::Manifest recursive_manifest =
-            InnerComposer::create_unrolled_manifest(prover_a.key->num_public_inputs);
+        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover_a.key->num_public_inputs);
 
         stdlib::recursion::recursion_output<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(
@@ -626,8 +620,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         create_inner_circuit(inner_composer, inner_inputs);
 
-        auto prover = inner_composer.create_unrolled_prover();
-        auto verifier = inner_composer.create_unrolled_verifier();
+        auto prover = inner_composer.create_prover();
+        auto verifier = inner_composer.create_verifier();
         auto proof = prover.construct_proof();
         auto verified = verifier.verify_proof(proof);
         EXPECT_EQ(verified, true);

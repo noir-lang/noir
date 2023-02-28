@@ -13,14 +13,12 @@ class VerifierPlookupWidget {
     static Field compute_quotient_evaluation_contribution(typename Transcript::Key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
-                                                          Field& r_0,
-                                                          const bool use_linearisation);
+                                                          Field& quotient_numerator_eval);
 
     static Field append_scalar_multiplication_inputs(typename Transcript::Key*,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
-                                                     std::map<std::string, Field>& scalars,
-                                                     const bool use_linearisation);
+                                                     std::map<std::string, Field>& scalars);
 };
 
 extern template class VerifierPlookupWidget<barretenberg::fr,
@@ -46,9 +44,6 @@ class ProverPlookupWidget : public ProverRandomWidget {
 
     inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                           const transcript::StandardTranscript& transcript) override;
-    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                        const transcript::StandardTranscript& transcript,
-                                                        barretenberg::polynomial& r) override;
 };
 
 } // namespace plonk

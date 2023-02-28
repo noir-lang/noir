@@ -34,7 +34,7 @@ TYPED_TEST(BilinearAccumulationTest, single)
 
     // Instantiate a transcript from the real Honk manifest, then mock the inputs prior to Gemini.
     using Transcript = transcript::StandardTranscript;
-    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_manifest(0, log_n));
     transcript->mock_inputs_prior_to_challenge("z");
 
     auto witness = this->random_polynomial(n);
@@ -77,7 +77,7 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     const size_t log_n = 4;
 
     // Instantiate a transcript from the real Honk manifest, then mock the inputs prior to Gemini.
-    auto transcript = std::make_shared<Transcript>(StandardHonk::create_unrolled_manifest(0, log_n));
+    auto transcript = std::make_shared<Transcript>(StandardHonk::create_manifest(0, log_n));
     transcript->mock_inputs_prior_to_challenge("rho");
     transcript->apply_fiat_shamir("rho");
     const Fr rho = Fr::serialize_from_buffer(transcript->get_challenge("rho").begin());

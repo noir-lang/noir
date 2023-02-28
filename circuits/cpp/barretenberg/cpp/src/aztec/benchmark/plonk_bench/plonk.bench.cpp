@@ -55,7 +55,7 @@ void construct_proving_keys_bench(State& state) noexcept
                      static_cast<size_t>(numeric::get_msb(START));
         composer.compute_proving_key();
         state.PauseTiming();
-        provers[idx] = composer.preprocess();
+        provers[idx] = composer.create_prover();
         state.ResumeTiming();
     }
 }
@@ -69,7 +69,7 @@ void construct_instances_bench(State& state) noexcept
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));
-        composer.preprocess();
+        composer.create_prover();
         state.ResumeTiming();
         verifiers[idx] = composer.create_verifier();
     }

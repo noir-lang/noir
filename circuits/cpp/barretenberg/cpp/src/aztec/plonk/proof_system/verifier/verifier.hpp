@@ -28,24 +28,14 @@ template <typename program_settings> class VerifierBase {
     std::unique_ptr<CommitmentScheme> commitment_scheme;
 };
 
-extern template class VerifierBase<unrolled_standard_verifier_settings>;
-extern template class VerifierBase<unrolled_turbo_verifier_settings>;
-extern template class VerifierBase<unrolled_ultra_verifier_settings>;
-extern template class VerifierBase<unrolled_ultra_to_standard_verifier_settings>;
-
 extern template class VerifierBase<standard_verifier_settings>;
 extern template class VerifierBase<turbo_verifier_settings>;
 extern template class VerifierBase<ultra_verifier_settings>;
-extern template class VerifierBase<generalized_permutation_verifier_settings>;
-
-typedef VerifierBase<unrolled_standard_verifier_settings> UnrolledVerifier;
-typedef VerifierBase<unrolled_turbo_verifier_settings> UnrolledTurboVerifier;
-typedef VerifierBase<unrolled_ultra_verifier_settings> UnrolledUltraVerifier;
-typedef VerifierBase<unrolled_ultra_to_standard_verifier_settings> UnrolledUltraToStandardVerifier;
+extern template class VerifierBase<ultra_to_standard_verifier_settings>;
 
 typedef VerifierBase<standard_verifier_settings> Verifier;
 typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 typedef VerifierBase<ultra_verifier_settings> UltraVerifier;
-typedef VerifierBase<generalized_permutation_verifier_settings> GenPermVerifier;
+typedef VerifierBase<ultra_to_standard_verifier_settings> UltraToStandardVerifier;
 
 } // namespace plonk

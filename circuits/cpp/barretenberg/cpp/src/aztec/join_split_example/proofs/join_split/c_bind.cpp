@@ -95,7 +95,7 @@ WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool moc
 {
     auto tx = from_buffer<join_split_tx>(join_split_buf);
     auto prover = new_join_split_prover(tx, mock);
-    auto heapProver = new plonk::stdlib::types::UnrolledProver(std::move(prover));
+    auto heapProver = new plonk::TurboProver(std::move(prover));
     return heapProver;
 }
 

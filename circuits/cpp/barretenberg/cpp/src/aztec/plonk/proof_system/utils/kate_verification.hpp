@@ -11,9 +11,12 @@ Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcr
     // described in step 11 of verifier's algorithm.
     //
     // Step 11: Compute batch evaluation commitment [E]_1
-    //          [E]_1  :=  (t_eval + \nu_{r}.r_eval + \nu_{a}.a_eval + \nu_{b}.b_eval
-    //                      \nu_{c}.c_eval + \nu_{\sigma1}.sigma1_eval + \nu_{\sigma2}.sigma2_eval +
-    //                      nu_z_omega.separator.z_eval_omega) . [1]_1
+    //          [E]_1  :=  (t_eval
+    //                      + \nu_{a}.a_eval + \nu_{b}.b_eval + \nu_{c}.c_eval
+    //                      + \nu_{\sigma1}.sigma1_eval + \nu_{\sigma2}.sigma2_eval + \nu_{\sigma3}.sigma3_eval
+    //                      + \nu_q_l.separator.q_l_eval + \nu_q_r.separator.q_r_eval + \nu_q_o.separator.q_o_eval
+    //                        + \nu_q_c.separator.q_c_eval + \nu_q_m.separator.q_m_eval
+    //                      + nu_z_omega.separator.z_eval_omega) . [1]_1
     //
     // The challenges nu_{string} depend on the scalar they are being multiplied to.
     //
@@ -24,31 +27,19 @@ Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcr
     for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
         const auto& item = polynomial_manifest[i];
 
-        if ((item.is_linearised && program_settings::use_linearisation) && !item.requires_shifted_evaluation) {
-            continue;
-        }
-
         const std::string poly_label(item.polynomial_label);
 
-        bool has_evaluation = !item.is_linearised || !program_settings::use_linearisation;
         bool has_shifted_evaluation = item.requires_shifted_evaluation;
 
-        if (has_evaluation) {
-            const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            const auto poly_at_zeta = transcript.get_field_element(poly_label);
-            batch_eval += nu_challenge * poly_at_zeta;
-        }
+        const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+        const auto poly_at_zeta = transcript.get_field_element(poly_label);
+        batch_eval += nu_challenge * poly_at_zeta;
+
         if (has_shifted_evaluation) {
             const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
             const auto poly_at_zeta_omega = transcript.get_field_element(poly_label + "_omega");
             batch_eval += separator_challenge * nu_challenge * poly_at_zeta_omega;
         }
-    }
-
-    if constexpr (program_settings::use_linearisation) {
-        const auto linear_eval = transcript.get_field_element("r");
-        const auto linear_challenge = transcript.get_challenge_field_element_from_map("nu", "r");
-        batch_eval += (linear_challenge * linear_eval);
     }
 
     const auto quotient_eval = transcript.get_field_element("t");
@@ -92,10 +83,10 @@ void populate_kate_element_map(verification_key* key,
             const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
             kate_fr_scalar += (separator_challenge * challenge);
         }
-        if (!item.is_linearised || !program_settings::use_linearisation) {
-            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            kate_fr_scalar += challenge;
-        }
+
+        const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+        kate_fr_scalar += challenge;
+
         kate_fr_elements.insert({ label, kate_fr_scalar });
     }
 

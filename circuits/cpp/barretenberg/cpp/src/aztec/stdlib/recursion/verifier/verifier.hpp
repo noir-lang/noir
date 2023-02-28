@@ -7,10 +7,8 @@
 
 #include "../transcript/transcript.hpp"
 
-#include <plonk/proof_system/utils/linearizer.hpp>
 #include <plonk/proof_system/utils/kate_verification.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
-#include <plonk/proof_system/utils/linearizer.hpp>
 
 #include <polynomials/polynomial_arithmetic.hpp>
 
@@ -238,12 +236,10 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     // reconstruct evaluation of quotient polynomial from prover messages
 
-    fr_ct r_0 = fr_ct(0);
-    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, r_0);
+    fr_ct quotient_numerator_eval = fr_ct(0);
+    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, quotient_numerator_eval);
 
-    // We want to include t_eval in the transcript only when use_linearisation = false. This is always the case when
-    // verifying within a circuit.
-    fr_ct t_eval = r_0 / lagrange_evals.vanishing_poly;
+    fr_ct t_eval = quotient_numerator_eval / lagrange_evals.vanishing_poly;
     transcript.add_field_element("t", t_eval);
 
     transcript.apply_fiat_shamir("nu");

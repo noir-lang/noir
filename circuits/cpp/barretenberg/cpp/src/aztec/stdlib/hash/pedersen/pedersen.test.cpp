@@ -280,39 +280,6 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
         EXPECT_EQ(result, true);
     }
 
-    static void test_pedersen_large_unrolled()
-    {
-        Composer composer = Composer("../srs_db/ignition/");
-
-        fr left_in = fr::random_element();
-        fr right_in = fr::random_element();
-        // ensure left has skew 1, right has skew 0
-        if ((left_in.from_montgomery_form().data[0] & 1) == 1) {
-            left_in += fr::one();
-        }
-        if ((right_in.from_montgomery_form().data[0] & 1) == 0) {
-            right_in += fr::one();
-        }
-        fr_ct left = witness_ct(&composer, left_in);
-        fr_ct right = witness_ct(&composer, right_in);
-
-        for (size_t i = 0; i < 256; ++i) {
-            left = pedersen::compress(left, right);
-        }
-
-        composer.set_public_input(left.witness_index);
-
-        auto prover = composer.create_unrolled_prover();
-
-        printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_unrolled_verifier();
-
-        plonk::proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
-        EXPECT_EQ(result, true);
-    }
-
     static void test_compress_byte_array()
     {
         const size_t num_input_bytes = 351;
@@ -388,10 +355,10 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
             EXPECT_EQ(result.get_value(), expected);
         }
 
-        auto prover = composer.create_unrolled_prover();
+        auto prover = composer.create_prover();
 
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_unrolled_verifier();
+        auto verifier = composer.create_verifier();
 
         plonk::proof proof = prover.construct_proof();
 
@@ -459,11 +426,6 @@ TYPED_TEST(stdlib_pedersen, edge_cases)
 HEAVY_TYPED_TEST(stdlib_pedersen, large)
 {
     TestFixture::test_pedersen_large();
-};
-
-HEAVY_TYPED_TEST(stdlib_pedersen, large_unrolled)
-{
-    TestFixture::test_pedersen_large_unrolled();
 };
 
 TYPED_TEST(stdlib_pedersen, compress_byte_array)

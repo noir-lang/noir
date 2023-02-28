@@ -112,11 +112,8 @@ class UltraComposer : public ComposerBase {
     UltraProver create_prover();
     UltraVerifier create_verifier();
 
-    UnrolledUltraProver create_unrolled_prover();
-    UnrolledUltraVerifier create_unrolled_verifier();
-
-    UnrolledUltraToStandardProver create_unrolled_ultra_to_standard_prover();
-    UnrolledUltraToStandardVerifier create_unrolled_ultra_to_standard_verifier();
+    UltraToStandardProver create_ultra_to_standard_prover();
+    UltraToStandardVerifier create_ultra_to_standard_verifier();
 
     void create_add_gate(const add_triple& in) override;
 
@@ -385,93 +382,7 @@ class UltraComposer : public ComposerBase {
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
-    /**
-     * Program Manifests
-     **/
-
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
-    {
-        // add public inputs....
-        constexpr size_t g1_size = 64;
-        constexpr size_t fr_size = 32;
-        const size_t public_input_size = fr_size * num_public_inputs;
-        const transcript::Manifest output = transcript::Manifest(
-
-            { transcript::Manifest::RoundManifest(
-                  { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
-
-              transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
-                                                    { "W_1", g1_size, false },
-                                                    { "W_2", g1_size, false },
-                                                    { "W_3", g1_size, false } },
-                                                  "eta",
-                                                  1),
-
-              transcript::Manifest::RoundManifest({ { "W_4", g1_size, false }, { "S", g1_size, false } }, "beta", 2),
-
-              transcript::Manifest::RoundManifest(
-                  { { "Z_PERM", g1_size, false }, { "Z_LOOKUP", g1_size, false } }, "alpha", 1),
-
-              transcript::Manifest::RoundManifest({ { "T_1", g1_size, false },
-                                                    { "T_2", g1_size, false },
-                                                    { "T_3", g1_size, false },
-                                                    { "T_4", g1_size, false } },
-                                                  "z",
-                                                  1),
-
-              transcript::Manifest::RoundManifest(
-                  {
-                      { "w_1", fr_size, false, 0 },
-                      { "w_2", fr_size, false, 1 },
-                      { "w_3", fr_size, false, 2 },
-                      { "w_4", fr_size, false, 3 },
-                      { "sigma_1", fr_size, false, 4 },
-                      { "sigma_2", fr_size, false, 5 },
-                      { "sigma_3", fr_size, false, 6 },
-                      { "q_arith", fr_size, false, 7 },
-                      { "q_fixed_base", fr_size, false, 27 },
-                      { "q_aux", fr_size, false, 26 },
-                      { "q_1", fr_size, false, 25 },
-                      { "q_2", fr_size, false, 8 },
-                      { "q_3", fr_size, false, 9 },
-                      { "q_4", fr_size, false, 10 },
-                      { "q_m", fr_size, false, 11 },
-                      { "q_c", fr_size, false, 12 },
-                      { "table_value_1", fr_size, false, 13 },
-                      { "table_value_2", fr_size, false, 14 },
-                      { "table_value_3", fr_size, false, 15 },
-                      { "table_value_4", fr_size, false, 16 },
-                      { "table_type", fr_size, false, 17 },
-                      { "s", fr_size, false, 18 },
-                      { "z_lookup", fr_size, false, 19 },
-                      { "id_1", fr_size, false, 21 },
-                      { "id_2", fr_size, false, 22 },
-                      { "id_3", fr_size, false, 23 },
-                      { "id_4", fr_size, false, 24 },
-                      { "z_perm_omega", fr_size, false, -1 },
-                      { "w_1_omega", fr_size, false, 0 },
-                      { "w_2_omega", fr_size, false, 1 },
-                      { "w_3_omega", fr_size, false, 2 },
-                      { "w_4_omega", fr_size, false, 3 },
-                      { "table_value_1_omega", fr_size, false, 4 },
-                      { "table_value_2_omega", fr_size, false, 5 },
-                      { "table_value_3_omega", fr_size, false, 6 },
-                      { "table_value_4_omega", fr_size, false, 7 },
-                      { "s_omega", fr_size, false, 8 },
-                      { "z_lookup_omega", fr_size, false, 9 },
-                  },
-                  "nu",
-                  ULTRA_UNROLLED_MANIFEST_SIZE - 3,
-                  true),
-
-              transcript::Manifest::RoundManifest(
-                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
-
-        return output;
-    }
-
-    // @note 'unrolled' means "don't use linearisation techniques from the plonk paper".
-    static transcript::Manifest create_unrolled_manifest(const size_t num_public_inputs)
     {
         // add public inputs....
         constexpr size_t g1_size = 64;
@@ -527,7 +438,6 @@ class UltraComposer : public ComposerBase {
               transcript::Manifest::RoundManifest(
                   {
                       // { name, num_bytes, derived_by_verifier, challenge_map_index }
-                      // * denotes values which aren't included in the non-unrolled manifest.
                       { "t", fr_size, true, -1 }, // *
                       { "w_1", fr_size, false, 0 },
                       { "w_2", fr_size, false, 1 },
@@ -572,9 +482,9 @@ class UltraComposer : public ComposerBase {
                       { "table_value_3_omega", fr_size, false, 23 },
                       { "table_value_4_omega", fr_size, false, 24 },
                   },
-                  "nu",                         // challenge_name
-                  ULTRA_UNROLLED_MANIFEST_SIZE, // num_challenges_in
-                  true                          // map_challenges_in
+                  "nu",                // challenge_name
+                  ULTRA_MANIFEST_SIZE, // num_challenges_in
+                  true                 // map_challenges_in
                   ),
 
               transcript::Manifest::RoundManifest(
