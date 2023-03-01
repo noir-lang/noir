@@ -24,6 +24,9 @@ pub type InputMap = BTreeMap<String, InputValue>;
 /// A map from the witnesses in a constraint system to the field element values
 pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
+/// A tuple of the arguments to a function along with its return value.
+pub type FunctionSignature = (Vec<AbiParameter>, Option<AbiType>);
+
 pub const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
