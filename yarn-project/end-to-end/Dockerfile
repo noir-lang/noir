@@ -11,6 +11,6 @@ RUN yarn cache clean
 RUN yarn workspaces focus --production > /dev/null
 
 FROM alpine:latest
-COPY --from=0 /usr/src /usr/src
+COPY --from=builder /usr/src/yarn-project /usr/src/yarn-project
 WORKDIR /usr/src/yarn-project/end-to-end
 ENTRYPOINT ["yarn", "test"]
