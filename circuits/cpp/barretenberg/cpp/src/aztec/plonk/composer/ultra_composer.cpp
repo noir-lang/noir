@@ -1102,6 +1102,20 @@ std::vector<uint32_t> UltraComposer::decompose_into_default_range(const uint32_t
     }
 
     const uint64_t sublimb_mask = (1ULL << target_range_bitnum) - 1;
+
+    /**
+     * TODO: Support this commented-out code!
+     * At the moment, `decompose_into_default_range` generates a minimum of 1 arithmetic gate.
+     * This is not strictly required iff num_bits <= target_range_bitnum.
+     * However, this produces an edge-case where a variable is range-constrained but NOT present in an arithmetic gate.
+     * This in turn produces an unsatisfiable circuit (see `create_new_range_constraint`). We would need to check for
+     * and accomodate/reject this edge case to support not adding addition gates here if not reqiured
+     * if (num_bits <= target_range_bitnum) {
+     *     const uint64_t expected_range = (1ULL << num_bits) - 1ULL;
+     *     create_new_range_constraint(variable_index, expected_range);
+     *     return { variable_index };
+     * }
+     **/
     std::vector<uint64_t> sublimbs;
     std::vector<uint32_t> sublimb_indices;
 

@@ -9,6 +9,12 @@
 #include "uint.hpp"
 #include "non_native_group_generator.hpp"
 #include "blake2s.hpp"
+#include "keccak/keccak_chi.hpp"
+#include "keccak/keccak_input.hpp"
+#include "keccak/keccak_output.hpp"
+#include "keccak/keccak_rho.hpp"
+#include "keccak/keccak_theta.hpp"
+
 namespace plookup {
 
 const MultiTable& create_table(const MultiTableId id);
@@ -235,6 +241,42 @@ inline BasicTable create_basic_table(const BasicTableId id, const size_t index)
     }
     case PEDERSEN_IV_BASE: {
         return pedersen_tables::basic::generate_pedersen_iv_table(PEDERSEN_IV_BASE);
+    }
+    case KECCAK_INPUT: {
+        return keccak_tables::KeccakInput::generate_keccak_input_table(KECCAK_INPUT, index);
+    }
+    case KECCAK_THETA: {
+        return keccak_tables::Theta::generate_theta_renormalization_table(KECCAK_THETA, index);
+    }
+    case KECCAK_CHI: {
+        return keccak_tables::Chi::generate_chi_renormalization_table(KECCAK_CHI, index);
+    }
+    case KECCAK_OUTPUT: {
+        return keccak_tables::KeccakOutput::generate_keccak_output_table(KECCAK_OUTPUT, index);
+    }
+    case KECCAK_RHO_1: {
+        return keccak_tables::Rho<1>::generate_rho_renormalization_table(KECCAK_RHO_1, index);
+    }
+    case KECCAK_RHO_2: {
+        return keccak_tables::Rho<2>::generate_rho_renormalization_table(KECCAK_RHO_2, index);
+    }
+    case KECCAK_RHO_3: {
+        return keccak_tables::Rho<3>::generate_rho_renormalization_table(KECCAK_RHO_3, index);
+    }
+    case KECCAK_RHO_4: {
+        return keccak_tables::Rho<4>::generate_rho_renormalization_table(KECCAK_RHO_4, index);
+    }
+    case KECCAK_RHO_5: {
+        return keccak_tables::Rho<5>::generate_rho_renormalization_table(KECCAK_RHO_5, index);
+    }
+    case KECCAK_RHO_6: {
+        return keccak_tables::Rho<6>::generate_rho_renormalization_table(KECCAK_RHO_6, index);
+    }
+    case KECCAK_RHO_7: {
+        return keccak_tables::Rho<7>::generate_rho_renormalization_table(KECCAK_RHO_7, index);
+    }
+    case KECCAK_RHO_8: {
+        return keccak_tables::Rho<8>::generate_rho_renormalization_table(KECCAK_RHO_8, index);
     }
     default: {
         throw_or_abort("table id does not exist");

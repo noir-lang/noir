@@ -1,4 +1,5 @@
 #include "plookup_tables.hpp"
+#include <common/constexpr_utils.hpp>
 
 namespace plookup {
 
@@ -82,6 +83,19 @@ void init_multi_tables()
         blake2s_tables::get_blake2s_xor_rotate_8_table(MultiTableId::BLAKE_XOR_ROTATE_8);
     MULTI_TABLES[MultiTableId::BLAKE_XOR_ROTATE_7] =
         blake2s_tables::get_blake2s_xor_rotate_7_table(MultiTableId::BLAKE_XOR_ROTATE_7);
+    MULTI_TABLES[MultiTableId::KECCAK_FORMAT_INPUT] =
+        keccak_tables::KeccakInput::get_keccak_input_table(MultiTableId::KECCAK_FORMAT_INPUT);
+    MULTI_TABLES[MultiTableId::KECCAK_THETA_OUTPUT] =
+        keccak_tables::Theta::get_theta_output_table(MultiTableId::KECCAK_THETA_OUTPUT);
+    MULTI_TABLES[MultiTableId::KECCAK_CHI_OUTPUT] =
+        keccak_tables::Chi::get_chi_output_table(MultiTableId::KECCAK_CHI_OUTPUT);
+    MULTI_TABLES[MultiTableId::KECCAK_FORMAT_OUTPUT] =
+        keccak_tables::KeccakOutput::get_keccak_output_table(MultiTableId::KECCAK_FORMAT_OUTPUT);
+
+    barretenberg::constexpr_for<0, 25, 1>([&]<size_t i>() {
+        MULTI_TABLES[(size_t)MultiTableId::KECCAK_NORMALIZE_AND_ROTATE + i] =
+            keccak_tables::Rho<8, i>::get_rho_output_table(MultiTableId::KECCAK_NORMALIZE_AND_ROTATE);
+    });
 }
 } // namespace
 

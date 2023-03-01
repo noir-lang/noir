@@ -150,6 +150,15 @@ class UltraComposer : public ComposerBase {
     void create_range_constraint(const uint32_t variable_index, const size_t num_bits, std::string const&)
     {
         if (num_bits <= DEFAULT_PLOOKUP_RANGE_BITNUM) {
+            /**
+             * N.B. if `variable_index` is not used in any arithmetic constraints, this will create an unsatisfiable
+             *      circuit!
+             *      this range constraint will increase the size of the 'sorted set' of range-constrained integers by 1.
+             *      The 'non-sorted set' of range-constrained integers is a subset of the wire indices of all arithmetic
+             *      gates. No arithemtic gate => size imbalance between sorted and non-sorted sets. Checking for this
+             *      and throwing an error would require a refactor of the Composer to catelog all 'orphan' variables not
+             *      assigned to gates.
+             **/
             create_new_range_constraint(variable_index, 1ULL << num_bits);
         } else {
             decompose_into_default_range(variable_index, num_bits);
@@ -178,6 +187,10 @@ class UltraComposer : public ComposerBase {
      */
     virtual size_t get_num_gates() const override
     {
+        // if circuit finalised already added extra gates
+        if (circuit_finalised) {
+            return num_gates;
+        }
         size_t count = num_gates;
         size_t rangecount = 0;
         size_t romcount = 0;
@@ -208,7 +221,13 @@ class UltraComposer : public ComposerBase {
     {
         size_t count = num_gates;
         size_t rangecount = 0;
+        size_t constant_rangecount = 0;
         size_t romcount = 0;
+        size_t plookupcount = 0;
+        for (auto& table : lookup_tables) {
+            plookupcount += table.lookup_gates.size();
+            count -= table.lookup_gates.size();
+        }
         for (size_t i = 0; i < rom_arrays.size(); ++i) {
             for (size_t j = 0; j < rom_arrays[i].state.size(); ++j) {
                 if (rom_arrays[i].state[j][0] == UNINITIALIZED_MEMORY_RECORD) {
@@ -228,9 +247,15 @@ class UltraComposer : public ComposerBase {
             list_size += padding;
             rangecount += (list_size / gate_width);
             rangecount += 1; // we need to add 1 extra addition gates for every distinct range list
+
+            // rough estimate
+            const size_t constant_cost = static_cast<size_t>(list.second.target_range / 6);
+            constant_rangecount += constant_cost;
+            rangecount -= constant_cost;
         }
-        size_t total = count + romcount + rangecount;
-        std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", range " << rangecount
+        size_t total = count + romcount + rangecount + constant_rangecount + plookupcount;
+        std::cout << "gates = " << total << " (arith " << count << ", plookup " << plookupcount << ", rom " << romcount
+                  << ", range " << rangecount << ", range table init cost = " << constant_rangecount
                   << "), pubinp = " << public_inputs.size() << std::endl;
     }
 
