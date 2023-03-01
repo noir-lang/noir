@@ -28,6 +28,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:aztec.js"\
       },\
       {\
+        "name": "@aztec/barretenberg.js",\
+        "reference": "workspace:barretenberg.js"\
+      },\
+      {\
         "name": "@aztec/data-archiver",\
         "reference": "workspace:data-archiver"\
       },\
@@ -83,6 +87,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ["@aztec/aztec-cli", ["workspace:aztec-cli"]],\
       ["@aztec/aztec.js", ["workspace:aztec.js"]],\
       ["@aztec/aztec3-packages", ["workspace:."]],\
+      ["@aztec/barretenberg.js", ["workspace:barretenberg.js"]],\
       ["@aztec/data-archiver", ["workspace:data-archiver"]],\
       ["@aztec/end-to-end", ["workspace:end-to-end"]],\
       ["@aztec/eslint-config", ["workspace:eslint-config"]],\
@@ -186,6 +191,25 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@aztec/aztec3-packages", "workspace:."],\
             ["eslint", "npm:8.35.0"],\
             ["prettier", "npm:2.8.4"],\
+            ["typescript", "patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=23ec76"]\
+          ],\
+          "linkType": "SOFT"\
+        }]\
+      ]],\
+      ["@aztec/barretenberg.js", [\
+        ["workspace:barretenberg.js", {\
+          "packageLocation": "./barretenberg.js/",\
+          "packageDependencies": [\
+            ["@aztec/barretenberg.js", "workspace:barretenberg.js"],\
+            ["@aztec/eslint-config", "workspace:eslint-config"],\
+            ["@jest/globals", "npm:29.4.3"],\
+            ["@rushstack/eslint-patch", "npm:1.2.0"],\
+            ["@types/jest", "npm:29.4.0"],\
+            ["@types/node", "npm:18.14.2"],\
+            ["jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.1.3"],\
+            ["ts-jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.0.8"],\
+            ["ts-node", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:10.9.1"],\
+            ["tslib", "npm:2.5.0"],\
             ["typescript", "patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=23ec76"]\
           ],\
           "linkType": "SOFT"\

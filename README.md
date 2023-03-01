@@ -5,6 +5,7 @@ The Aztec 3 system consists of the following sub projects.
 - `acir-simulator`
 - `aztec-cli`
 - `aztec.js`
+- `barretenberg.js`
 - `data-archiver`
 - `ethereum.js`
 - `kernel-simulator`

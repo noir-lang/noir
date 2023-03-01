@@ -32,8 +32,15 @@
   "yarn-project-base": {
     "buildDir": "yarn-project",
     "dockerfile": "yarn-project-base/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/yarn-project-base/", "^yarn-project/yarn.lock"],
-    "dependencies": ["circuits-x86_64-linux-clang", "circuits-wasm-linux-clang", "contracts"]
+    "rebuildPatterns": [
+      "^yarn-project/yarn-project-base/",
+      "^yarn-project/yarn.lock"
+    ],
+    "dependencies": [
+      "circuits-x86_64-linux-clang",
+      "circuits-wasm-linux-clang",
+      "contracts"
+    ]
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
@@ -56,11 +63,25 @@
     "rebuildPatterns": ["^yarn-project/aztec.js/"],
     "dependencies": ["yarn-project-base"]
   },
+  "barretenberg.js": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/barretenberg.js",
+    "dockerfile": "barretenberg.js/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/barretenberg.js/"],
+    "dependencies": ["yarn-project-base"]
+  },
   "data-archiver": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/data-archiver",
     "dockerfile": "data-archiver/Dockerfile",
     "rebuildPatterns": ["^yarn-project/data-archiver/"],
+    "dependencies": ["yarn-project-base"]
+  },
+  "end-to-end": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/end-to-end",
+    "dockerfile": "end-to-end/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/end-to-end/"],
     "dependencies": ["yarn-project-base"]
   },
   "ethereum.js": {

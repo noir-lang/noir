@@ -14,7 +14,9 @@ PROJECTS=(
   # acir-simulator:yarn-project
   # aztec-cli:yarn-project
   # aztec.js:yarn-project
+  # barretenberg.js:yarn-project
   # data-archiver:yarn-project
+  # end-to-end:yarn-project
   # ethereum.js:yarn-project
   # kernel-simulator:yarn-project
   # p2p:yarn-project

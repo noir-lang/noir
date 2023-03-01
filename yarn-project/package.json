@@ -6,6 +6,7 @@
     "acir-simulator",
     "aztec-cli",
     "aztec.js",
+    "barretenberg.js",
     "data-archiver",
     "end-to-end",
     "eslint-config",

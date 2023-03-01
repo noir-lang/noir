@@ -14,7 +14,9 @@ WORKDIR /usr/src/yarn-project
 COPY acir-simulator/package.json acir-simulator/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
 COPY aztec.js/package.json aztec.js/package.json
+COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY data-archiver/package.json data-archiver/package.json
+COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/package.json ethereum.js/package.json
 COPY kernel-simulator/package.json kernel-simulator/package.json
 COPY p2p/package.json p2p/package.json
