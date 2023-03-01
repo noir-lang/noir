@@ -31,7 +31,7 @@ pub(crate) fn serialize_to_toml(
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<String, InputParserError> {
     let to_map: BTreeMap<_, _> =
-        w_map.iter().map(|(key, value)| (key.to_owned(), TomlTypes::from(value.clone()))).collect();
+        w_map.iter().map(|(key, value)| (key, TomlTypes::from(value.clone()))).collect();
 
     let toml_string = toml::to_string(&to_map)?;
 
