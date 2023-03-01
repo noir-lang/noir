@@ -26,7 +26,7 @@ pub fn unroll_tree(
     }
     //clean-up
     for b in unroll_ctx.deprecated {
-        debug_assert!(b != ctx.first_block);
+        assert!(b != ctx.first_block);
         ctx.remove_block(b);
     }
     block::compute_dom(ctx);
@@ -195,7 +195,7 @@ pub fn unroll_join(
         unroll_ctx.to_unroll = body_id;
         from = unroll_until(ssa_ctx, unroll_ctx, end)?;
     }
-    debug_assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
+    assert!(ssa_ctx.current_block == unroll_ctx.unroll_into);
     let next_block = block::new_sealed_block(ssa_ctx, block::BlockType::Normal, true);
     unroll_ctx.deprecate(join_id);
     unroll_ctx.deprecate(r);

@@ -76,7 +76,7 @@ fn evaluate_intrinsic(
     block_id: BlockId,
 ) -> Vec<NodeId> {
     match op {
-        builtin::Opcode::ToBits => {
+        builtin::Opcode::ToBits(_) => {
             let bit_count = args[1] as u32;
             let mut result = Vec::new();
 

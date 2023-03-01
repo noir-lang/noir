@@ -1,6 +1,9 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+    ssa::{
+        acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+        builtin::Endian,
+    },
     Evaluator,
 };
 use acvm::{
@@ -395,6 +398,7 @@ pub(crate) fn to_radix_base(
     lhs: &Expression,
     radix: u32,
     limb_size: u32,
+    endianness: Endian,
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // ensure there is no overflow
@@ -402,13 +406,18 @@ pub(crate) fn to_radix_base(
     max = max.pow(limb_size) - BigUint::one();
     assert!(max < FieldElement::modulus());
 
-    let (result, bytes) = to_radix(radix, limb_size, evaluator);
+    let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
+
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
         a: lhs.clone(),
         b: result.clone(),
         radix,
         is_little_endian: true,
     }));
+
+    if endianness == Endian::Big {
+        result.reverse();
+    }
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
 
@@ -419,7 +428,7 @@ pub(crate) fn to_radix_base(
 // radix: the base, (it is a constant, not a witness)
 // num_limbs: the number of elements in the decomposition
 // output: (the elements of the decomposition as witness, the sum expression)
-pub(crate) fn to_radix(
+pub(crate) fn to_radix_little(
     radix: u32,
     num_limbs: u32,
     evaluator: &mut Evaluator,
@@ -448,7 +457,6 @@ pub(crate) fn to_radix(
             evaluator,
         );
     }
-
     (result, digits)
 }
 
@@ -465,7 +473,7 @@ pub(crate) fn evaluate_cmp(
         let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, evaluator);
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Little, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
         let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));
