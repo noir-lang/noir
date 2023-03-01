@@ -126,7 +126,13 @@ pub(crate) fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expre
 // TODO also check why we are doing all of this complicated logic with i1 and i2
 // TODO in either case, we can put this in ACIR, if its useful
 pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
-    let mut output = Expression::default();
+    if a.is_const() {
+        return (b * &k) + &a.q_c;
+    } else if b.is_const() {
+        return a.clone() + &(k * b.q_c);
+    }
+
+    let mut output = Expression::from_field(a.q_c + k * b.q_c);
 
     //linear combinations
     let mut i1 = 0; //a
@@ -207,7 +213,6 @@ pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression
         i2 += 1;
     }
 
-    output.q_c = a.q_c + k * b.q_c;
     output
 }
 
