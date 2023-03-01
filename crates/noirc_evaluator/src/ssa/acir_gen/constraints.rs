@@ -408,11 +408,10 @@ pub(crate) fn to_radix_base(
 
     let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
 
-    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadixLe {
         a: lhs.clone(),
         b: result.clone(),
         radix,
-        is_little_endian: true,
     }));
 
     if endianness == Endian::Big {
