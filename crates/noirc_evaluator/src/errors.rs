@@ -22,11 +22,10 @@ impl RuntimeError {
         RuntimeError { location, kind }
     }
 
-    pub fn merge_location(
-        location1: Option<Location>,
-        location2: Option<Location>,
-    ) -> Option<Location> {
-        match (location1, location2) {
+    // Keep one of the two location which is Some, if possible
+    // This is used when we optimise instructions so that we do not loose track of location
+    pub fn merge_location(a: Option<Location>, b: Option<Location>) -> Option<Location> {
+        match (a, b) {
             (Some(loc), _) | (_, Some(loc)) => Some(loc),
             (None, None) => None,
         }

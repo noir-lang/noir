@@ -819,7 +819,10 @@ impl Binary {
 
             BinaryOp::Udiv(loc) => {
                 if r_is_zero {
-                    self.zero_div_error(&loc.unwrap())?;
+                    // division by zero can only be a user error, so we must have a location. If not it is a bug.
+                    self.zero_div_error(
+                        &loc.expect("ICE - missing location for unsigned division"),
+                    )?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }

@@ -448,7 +448,7 @@ impl IrGenerator {
             }
             LValue::Index { array, index, location, .. } => {
                 let (lhs_id, array_idx, loc) =
-                    self.ssa_gen_indexed_value(array.as_ref(), index, *location)?; //todo lopcation qui vient de la LVaue::Index
+                    self.ssa_gen_indexed_value(array.as_ref(), index, *location)?;
                 let rhs_id = rhs.unwrap_id();
                 self.context.handle_assign(lhs_id, Some(array_idx), rhs_id, Some(loc))?;
             }
