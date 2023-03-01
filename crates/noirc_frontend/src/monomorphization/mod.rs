@@ -2,7 +2,7 @@
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
-//! Unlike the HIR which is stored within the NodeInterner, the monomorphized AST is
+//! Unlike the HIR, which is stored within the NodeInterner, the monomorphized AST is
 //! self-contained and does not need an external context struct. As a result, the NodeInterner
 //! can be safely discarded after monomorphization.
 //!
