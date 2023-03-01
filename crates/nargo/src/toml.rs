@@ -83,6 +83,7 @@ fn parse_toml_str(toml_as_string: &str) -> Result<Config, String> {
 
 #[test]
 fn parse_standard_toml() {
+    assert!(false);
     let src = r#"
 
         [package]
