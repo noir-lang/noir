@@ -25,7 +25,7 @@ body:
     id: bug
     attributes:
       label: Bug
-      description: Describe the bug. Supplement error codes / terminal logs if applicable.
+      description: Describe the bug. Supply error codes / terminal logs if applicable.
     validations:
       required: true
   - type: textarea
