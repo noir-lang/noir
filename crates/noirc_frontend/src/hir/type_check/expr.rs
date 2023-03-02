@@ -687,28 +687,36 @@ pub fn check_member_access(
     expr_id: ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    let lhs_type = type_check_expression(interner, &access.lhs, errors);
+    let lhs_type = type_check_expression(interner, &access.lhs, errors).follow_bindings();
 
-    if let Type::Struct(s, args) = &lhs_type {
-        let s = s.borrow();
-        if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
-            interner.set_field_index(expr_id, index);
-            return field;
-        }
-    } else if let Type::Tuple(elements) = &lhs_type {
-        if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
-            if index < elements.len() {
+    match &lhs_type {
+        Type::Struct(s, args) => {
+            let s = s.borrow();
+            if let Some((field, index)) = s.get_field(&access.rhs.0.contents, args) {
                 interner.set_field_index(expr_id, index);
-                return elements[index].clone();
+                return field;
             }
         }
-    }
-
-    if lhs_type != Type::Error {
-        errors.push(TypeCheckError::Unstructured {
-            msg: format!("Type {lhs_type} has no member named {}", access.rhs),
-            span: interner.expr_span(&access.lhs),
-        });
+        Type::Tuple(elements) => {
+            if let Ok(index) = access.rhs.0.contents.parse::<usize>() {
+                if index < elements.len() {
+                    interner.set_field_index(expr_id, index);
+                    return elements[index].clone();
+                }
+            }
+        }
+        Type::TypeVariable(..) => {
+            errors.push(TypeCheckError::TypeAnnotationsNeeded {
+                span: interner.expr_span(&access.lhs),
+            });
+        }
+        Type::Error => (),
+        other => {
+            errors.push(TypeCheckError::Unstructured {
+                msg: format!("Type {other} has no member named {}", access.rhs),
+                span: interner.expr_span(&access.lhs),
+            });
+        }
     }
 
     Type::Error
