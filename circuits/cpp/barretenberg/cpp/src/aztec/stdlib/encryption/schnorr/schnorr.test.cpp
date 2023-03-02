@@ -35,7 +35,7 @@ auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
 
     auto prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
+    info("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -154,7 +154,7 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
 
     auto prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
+    info("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
@@ -209,7 +209,7 @@ TEST(stdlib_schnorr, verify_signature)
         stdlib::schnorr::verify_signature(message, pub_key, sig);
 
         auto prover = composer.create_prover();
-        printf("composer gates = %zu\n", composer.get_num_gates());
+        info("composer gates = %zu\n", composer.get_num_gates());
         auto verifier = composer.create_verifier();
         plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
@@ -254,13 +254,93 @@ TEST(stdlib_schnorr, verify_signature_failure)
 
     auto prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
+    info("composer gates = %zu\n", composer.get_num_gates());
     auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
     bool verification_result = verifier.verify_proof(proof);
     EXPECT_EQ(verification_result, false);
+}
+
+/**
+ * @test Like stdlib_schnorr.verify_signature, but we use the function signature_verification that produces a
+ * boolean witness and does not require the prover to provide a valid signature.
+ */
+TEST(stdlib_schnorr, signature_verification_result)
+{
+    std::string longer_string = "This is a test string of length 34";
+
+    Composer composer = Composer();
+
+    crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account;
+    account.private_key = grumpkin::fr::random_element();
+    account.public_key = grumpkin::g1::one * account.private_key;
+
+    crypto::schnorr::signature signature =
+        crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(longer_string,
+                                                                                                      account);
+
+    bool first_result = crypto::schnorr::verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        longer_string, account.public_key, signature);
+    EXPECT_EQ(first_result, true);
+
+    point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
+    stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+    byte_array_ct message(&composer, longer_string);
+    bool_ct signature_result = stdlib::schnorr::signature_verification_result(message, pub_key, sig);
+    EXPECT_EQ(signature_result.witness_bool, true);
+
+    plonk::stdlib::types::Prover prover = composer.create_prover();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    plonk::proof proof = prover.construct_proof();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+/**
+ * @test Like stdlib_schnorr.verify_signature_failure, but we use the function signature_verification that produces a
+ * boolean witness and allow for proving that a signature verification fails.
+ */
+TEST(stdlib_schnorr, signature_verification_result_failure)
+{
+    Composer composer = Composer();
+    std::string message_string = "This is a test string of length 34";
+
+    // create key pair 1
+    crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account1;
+    account1.private_key = grumpkin::fr::random_element();
+    account1.public_key = grumpkin::g1::one * account1.private_key;
+
+    // create key pair 2
+    crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> account2;
+    account2.private_key = grumpkin::fr::random_element();
+    account2.public_key = grumpkin::g1::one * account2.private_key;
+
+    // sign the message with account 1 private key
+    crypto::schnorr::signature signature =
+        crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
+                                                                                                      account1);
+
+    // check native verification with account 2 public key fails
+    bool native_result = crypto::schnorr::verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message_string, account2.public_key, signature);
+    EXPECT_EQ(native_result, false);
+
+    // check stdlib verification with account 2 public key fails
+    point_ct pub_key2_ct{ witness_ct(&composer, account2.public_key.x), witness_ct(&composer, account2.public_key.y) };
+    stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+    byte_array_ct message(&composer, message_string);
+    bool_ct signature_result = stdlib::schnorr::signature_verification_result(message, pub_key2_ct, sig);
+    EXPECT_EQ(signature_result.witness_bool, false);
+
+    plonk::stdlib::types::Prover prover = composer.create_prover();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    plonk::stdlib::types::Verifier verifier = composer.create_verifier();
+    plonk::proof proof = prover.construct_proof();
+    bool verification_result = verifier.verify_proof(proof);
+    EXPECT_EQ(verification_result, true);
 }
 
 } // namespace test_stdlib_schnorr
