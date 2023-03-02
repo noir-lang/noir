@@ -4,3 +4,4 @@ src/wasi-sdk-*
 src/aztec/proof_system/proving_key/fixtures
 src/aztec/rollup/proofs/*/fixtures
 srs_db/*/*/transcript*
+CMakeUserPresets.json

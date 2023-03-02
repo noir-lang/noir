@@ -145,6 +145,11 @@
         ],
         "[cpp]": {
             "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-        }
+        },
+        "cmake.configureArgs": [
+            "--preset clang15",
+            "-G Ninja",
+        ],
+        "cmake.useCMakePresets": "auto",
     },
 }

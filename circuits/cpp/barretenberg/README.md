@@ -30,10 +30,6 @@ cd cpp
 ./bootstrap.sh
 ```
 
-### Parallelise the build
-
-Use the `--parallel` option to `cmake --build <path>` to parallelize builds. This is roughly equivalent to `make -j$(nproc)` but is more portable.
-
 ### Formatting
 
 Code is formatted using `clang-format` and the `./cpp/format.sh` script which is called via a git pre-commit hook.
@@ -43,21 +39,24 @@ If you've installed the C++ Vscode extension you should configure it to format o
 
 Each module has its own tests. e.g. To build and run `ecc` tests:
 
-```
-cmake --build . --parallel --target ecc_tests
+```bash
+# Replace the `default` preset with whichever preset you want to use
+cmake --build --preset default --target ecc_tests
+cd build
 ./bin/ecc_tests
 ```
 
 A shorthand for the above is:
 
-```
-cmake --build . --parallel --target run_ecc_tests
+```bash
+# Replace the `default` preset with whichever preset you want to use
+cmake --build --preset default --target run_ecc_tests
 ```
 
 Running the entire suite of tests using `ctest`:
 
-```
-cmake --build . --parallel --target test
+```bash
+cmake --build --preset default --target test
 ```
 
 You can run specific tests, e.g.
@@ -70,15 +69,18 @@ You can run specific tests, e.g.
 
 Some modules have benchmarks. The build targets are named `<module_name>_bench`. To build and run, for example `ecc` benchmarks.
 
-```
-cmake --build . --parallel --target ecc_bench
-./src/aztec/ecc/ecc_bench
+```bash
+# Replace the `default` preset with whichever preset you want to use
+cmake --build --preset default --target ecc_bench
+cd build
+./bin/ecc_bench
 ```
 
 A shorthand for the above is:
 
-```
-cmake --build . --parallel --target run_ecc_bench
+```bash
+# Replace the `default` preset with whichever preset you want to use
+cmake --build --preset default --target run_ecc_bench
 ```
 
 ### CMake Build Options
@@ -91,17 +93,19 @@ CMake can be passed various build options on its command line:
 - `-DMULTITHREADING=ON | OFF`: Enable/disable multithreading using OpenMP.
 - `-DTESTING=ON | OFF`: Enable/disable building of tests.
 - `-DBENCHMARK=ON | OFF`: Enable/disable building of benchmarks.
-- `-DTOOLCHAIN=<filename in ./cmake/toolchains>`: Use one of the preconfigured toolchains.
 - `-DFUZZING=ON | OFF`: Enable building various fuzzers.
+
+If you are cross-compiling, you can use a preconfigured toolchain file:
+
+- `-DCMAKE_TOOLCHAIN_FILE=<filename in ./cmake/toolchains>`: Use one of the preconfigured toolchains.
 
 ### WASM build
 
 To build:
 
-```
-mkdir build-wasm && cd build-wasm
-cmake -DTOOLCHAIN=wasm-linux-clang ..
-cmake --build . --parallel --target barretenberg.wasm
+```bash
+cmake --preset wasm
+cmake --build --preset wasm --target barretenberg.wasm
 ```
 
 The resulting wasm binary will be at `./build-wasm/bin/barretenberg.wasm`.
@@ -114,8 +118,8 @@ curl https://wasmtime.dev/install.sh -sSf | bash
 
 Tests can be built and run like:
 
-```
-cmake --build . --parallel --target ecc_tests
+```bash
+cmake --build --preset wasm --target ecc_tests
 wasmtime --dir=.. ./bin/ecc_tests
 ```
 
@@ -124,11 +128,12 @@ wasmtime --dir=.. ./bin/ecc_tests
 For detailed instructions look in cpp/docs/Fuzzing.md
 
 To build:
+
+```bash
+cmake --preset fuzzing
+cmake --build --preset fuzzing
 ```
-mkdir build-fuzzing && cd build-fuzzing
-cmake -DTOOLCHAIN=x86_64-linux-clang -DFUZZING=ON ..
-cmake --build . --parallel
-```
+
 Fuzzing build turns off building tests and benchmarks, since they are incompatible with libfuzzer interface.
 
 To turn on address sanitizer add `-DADDRESS_SANITIZER=ON`. Note that address sanitizer can be used to explore crashes.
@@ -139,10 +144,10 @@ Note that the fuzzer can be orders of magnitude slower with ASan (2-3x slower) o
 ### Test coverage build
 
 To build:
-```
-mkdir build-coverage && cd build-coverage
-cmake -DTOOLCHAIN=x86_64-linux-clang -DCOVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
-cmake --build . --parallel
+
+```bash
+cmake --preset coverage
+cmake --build --preset coverage
 ```
 
 Then run tests (on the mainframe always use taskset and nice to limit your influence on the server. Profiling instrumentation is very heavy):

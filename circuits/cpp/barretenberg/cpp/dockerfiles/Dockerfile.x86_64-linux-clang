@@ -6,6 +6,7 @@ RUN apk update \
         clang15 \
         openmp-dev \
         cmake \
+        ninja \
         git \
         curl \
         perl
@@ -14,7 +15,7 @@ WORKDIR /usr/src/barretenberg/cpp
 
 COPY . .
 # Build the entire project, as we want to check everything builds under clang
-RUN mkdir build && cd build && cmake .. && cmake --build . --parallel
+RUN cmake --preset default && cmake --build --preset default
 
 FROM alpine:3.17
 RUN apk update && apk add openmp

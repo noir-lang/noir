@@ -3,8 +3,6 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-include(cmake/toolchain.cmake)
-
 set(PROJECT_VERSION 0.1.0)
 project(Barretenberg
     DESCRIPTION "BN254 elliptic curve library, and PLONK SNARK prover"
@@ -20,8 +18,9 @@ option(DISABLE_TBB "Intel Thread Building Blocks" ON)
 option(COVERAGE "Enable collecting coverage from tests" OFF)
 option(ENABLE_HEAVY_TESTS "Enable heavy tests when collecting coverage" OFF)
 
-if(ARM)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     message(STATUS "Compiling for ARM.")
+    set(ARM ON)
     set(DISABLE_ASM ON)
     set(DISABLE_ADX ON)
     set(RUN_HAVE_STD_REGEX 0)
@@ -54,12 +53,14 @@ if(FUZZING)
     set(TESTING OFF)
 endif()
 
-if(WASM)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "wasm32")
     message(STATUS "Compiling for WebAssembly.")
+    set(WASM ON)
     set(DISABLE_ASM ON)
     set(MULTITHREADING OFF)
     set(BENCHMARKS OFF)
     set(DISABLE_TBB 1)
+    add_compile_definitions(_WASI_EMULATED_PROCESS_CLOCKS=1)
 endif()
 
 set(CMAKE_C_STANDARD 11)

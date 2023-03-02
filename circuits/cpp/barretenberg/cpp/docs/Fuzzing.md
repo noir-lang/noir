@@ -5,10 +5,9 @@ We are gradually introducing fuzzing of various primitives into barretenberg, fo
 ## Build
 
 To build with standard clang:
-```
-mkdir build-fuzzing && cd build-fuzzing
-cmake -DFUZZING=ON ..
-make
+```bash
+cmake --preset fuzzing
+cmake --build --preset fuzzing
 ```
 Fuzzing build turns off building tests and benchmarks, since they are incompatible with libfuzzer interface.
 
@@ -78,11 +77,9 @@ Also, both bigfield and safeuint fuzzer containt the SHOW_INFORMATION preprocess
 
 Build with coverage instrumentation:
 
-```cpp
-mkdir build-coverage/
-cd build-coverage/
-cmake -DFUZZING=ON -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" ..
-cmake --build . --parallel
+```bash
+cmake --preset coverage -DFUZZING=ON -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+cmake --build --preset coverage
 ```
 
 Then run the fuzzer on the corpus and generate the HTML coverage reports:

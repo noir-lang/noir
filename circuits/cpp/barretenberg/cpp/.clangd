@@ -1,3 +1,5 @@
+CompileFlags:                     # Tweak the parse settings
+  Remove: -fconstexpr-ops-limit=*
 ---
 # Applies all barretenberg source files
 If:

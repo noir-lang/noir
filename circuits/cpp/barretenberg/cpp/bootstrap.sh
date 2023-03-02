@@ -34,33 +34,35 @@ cd ..
 # Pick native toolchain file.
 ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then
-  export BREW_PREFIX=$(brew --prefix)
-  # Ensure we have toolchain.
-  if [ ! "$?" -eq 0 ] || [ ! -f "$BREW_PREFIX/opt/llvm/bin/clang++" ]; then
-    echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
-    exit 1
-  fi
-  if [ "$ARCH" = "arm64" ]; then
-    TOOLCHAIN=arm-apple-clang
-  else
-    TOOLCHAIN=x86_64-apple-clang
-  fi
+  if [ "$(which brew)" != "" ]; then
+    export BREW_PREFIX=$(brew --prefix)
 
-  export LDFLAGS="-L$BREW_PREFIX/opt/libomp/lib"
-  export CPPFLAGS="-I$BREW_PREFIX/opt/libomp/include"
-else
-  if [ "$ARCH" = "aarch64" ]; then
-      TOOLCHAIN=aarch64-linux-clang
+    # Ensure we have toolchain.
+    if [ ! "$?" -eq 0 ] || [ ! -f "$BREW_PREFIX/opt/llvm/bin/clang++" ]; then
+      echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
+      exit 1
+    fi
+
+    PRESET=homebrew
   else
-      TOOLCHAIN=x86_64-linux-clang
+    PRESET=default
+  fi
+else
+  if [ "$(which clang++-15)" != "" ]; then
+    PRESET=clang15
+  else
+    PRESET=default
   fi
 fi
 
+echo "#################################"
+echo "# Building with preset: $PRESET"
+echo "# When running cmake directly, remember to use: --build --preset $PRESET"
+echo "#################################"
+
 # Build native.
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN ..
-cmake --build . --parallel ${@/#/--target }
-cd ..
+cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
+cmake --build --preset $PRESET ${@/#/--target }
 
 # Install the webassembly toolchain.
 WASI_VERSION=12
@@ -69,7 +71,5 @@ curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$W
 cd ..
 
 # Build WASM.
-mkdir -p build-wasm && cd build-wasm
-cmake -DTOOLCHAIN=wasm-linux-clang ..
-cmake --build . --parallel --target barretenberg.wasm
-cd ..
+cmake --preset wasm
+cmake --build --preset wasm

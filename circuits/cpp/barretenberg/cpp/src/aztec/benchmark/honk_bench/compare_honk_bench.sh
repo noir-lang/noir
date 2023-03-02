@@ -7,7 +7,7 @@
 echo -e '\nComparing Honk benchmarks between master and current branch:'
 # Set some directories
 BASE_DIR="$HOME/barretenberg/cpp"
-BUILD_DIR="$BASE_DIR/build"
+BUILD_DIR="$BASE_DIR/build-bench"
 BENCH_RESULTS_DIR="$BASE_DIR/tmp_bench_results"
 BENCH_TOOLS_DIR="$BUILD_DIR/_deps/benchmark-src/tools"
 
@@ -22,8 +22,8 @@ mkdir $BENCH_RESULTS_DIR
 # Checkout master, run honk_bench, save results in json format
 echo -e '\nConfiguring and building honk_bench in master branch..'
 git checkout master > /dev/null
-rm -rf $BUILD_DIR && mkdir $BUILD_DIR && cd $BUILD_DIR
-cmake .. > /dev/null && make honk_bench > /dev/null
+rm -rf $BUILD_DIR
+cmake --preset bench > /dev/null && cmake --build --preset bench --target honk_bench > /dev/null
 MASTER_HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench_results_master.json"
 echo -e '\nRunning honk_bench in master..'
 bin/honk_bench --benchmark_format=json > $MASTER_HONK_BENCH_RESULTS
@@ -31,8 +31,8 @@ bin/honk_bench --benchmark_format=json > $MASTER_HONK_BENCH_RESULTS
 # Checkout working branch (-), run honk_bench, save results in json format
 echo -e '\nConfiguring and building honk_bench in current feature branch..'
 git checkout -
-rm -rf $BUILD_DIR && mkdir $BUILD_DIR && cd $BUILD_DIR
-cmake .. > /dev/null && make honk_bench > /dev/null
+rm -rf $BUILD_DIR
+cmake --preset bench > /dev/null && cmake --build --preset bench --target honk_bench > /dev/null
 BRANCH_HONK_BENCH_RESULTS="$BENCH_RESULTS_DIR/honk_bench_results_branch.json"
 echo -e '\nRunning honk_bench in feature branch..'
 bin/honk_bench --benchmark_format=json > $BRANCH_HONK_BENCH_RESULTS
