@@ -118,7 +118,7 @@ TEST(private_kernel_tests, test_deposit)
     OptionalPrivateCircuitPublicInputs<NT> opt_deposit_public_inputs = deposit(deposit_ctx, amount, asset_id, memo);
     PrivateCircuitPublicInputs<NT> deposit_public_inputs = opt_deposit_public_inputs.remove_optionality();
 
-    UnrolledProver deposit_prover = deposit_composer.create_unrolled_prover();
+    Prover deposit_prover = deposit_composer.create_prover();
     NT::Proof deposit_proof = deposit_prover.construct_proof();
     // info("\ndeposit_proof: ", deposit_proof.proof_data);
 
@@ -203,7 +203,7 @@ TEST(private_kernel_tests, test_deposit)
 
     mock_kernel_circuit(mock_kernel_composer, mock_kernel_public_inputs);
 
-    UnrolledProver mock_kernel_prover = mock_kernel_composer.create_unrolled_prover();
+    Prover mock_kernel_prover = mock_kernel_composer.create_prover();
     NT::Proof mock_kernel_proof = mock_kernel_prover.construct_proof();
     // info("\nmock_kernel_proof: ", mock_kernel_proof.proof_data);
 

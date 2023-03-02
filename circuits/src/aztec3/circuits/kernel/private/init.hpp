@@ -16,7 +16,7 @@ namespace aztec3::circuits::kernel::private_kernel {
 
 // Turbo specific, at the moment:
 using Composer = plonk::stdlib::types::Composer;
-using plonk::stdlib::types::UnrolledProver;
+using plonk::stdlib::types::Prover;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 

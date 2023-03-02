@@ -9,7 +9,7 @@ using namespace plonk::stdlib::types;
 using plonk::stdlib::recursion::recursion_output;
 
 // namespace {
-// std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
+// std::shared_ptr<bonk::DynamicFileReferenceStringFactory> srs;
 // private_kernel::circuit_data private_kernel_cd;
 // private_circuit::circuit_data private_circuit_cd;
 // } // namespace
@@ -19,7 +19,7 @@ class play_tests : public ::testing::Test {
     //     static void SetUpTestCase()
     //     {
     //         std::string CRS_PATH = "../srs_db/ignition";
-    //         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
+    //         srs = std::make_shared<bonk::DynamicFileReferenceStringFactory>(CRS_PATH);
     //         private_circuit_cd = join_split::get_circuit_data(srs);
     //         private_kernel_cd = claim::get_circuit_data(srs);
     //     }
@@ -40,8 +40,8 @@ TEST(play_tests, test_play_app_proof_gen)
         info("Play app circuit logic failed: ", app_composer.err());
     }
 
-    UnrolledProver app_prover = app_composer.create_unrolled_prover();
-    waffle::plonk_proof app_proof = app_prover.construct_proof();
+    stdlib::types::Prover app_prover = app_composer.create_prover();
+    proof app_proof = app_prover.construct_proof();
     info("app_proof: ", app_proof.proof_data);
 }
 
@@ -54,11 +54,11 @@ TEST(play_tests, test_play_recursive_proof_gen)
         info("Play app circuit logic failed: ", app_composer.err());
     }
 
-    UnrolledProver app_prover = app_composer.create_unrolled_prover();
-    waffle::plonk_proof app_proof = app_prover.construct_proof();
+    stdlib::types::Prover app_prover = app_composer.create_prover();
+    proof app_proof = app_prover.construct_proof();
     info("app_proof: ", app_proof.proof_data);
 
-    std::shared_ptr<waffle::verification_key> app_vk = app_composer.compute_verification_key();
+    std::shared_ptr<bonk::verification_key> app_vk = app_composer.compute_verification_key();
 
     Composer recursive_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     recursion_output<bn254> recursion_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
@@ -77,9 +77,9 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
         info("Play app circuit logic failed: ", app_composer.err());
     }
 
-    UnrolledProver app_prover = app_composer.create_unrolled_prover();
-    waffle::plonk_proof app_proof = app_prover.construct_proof();
-    std::shared_ptr<waffle::verification_key> app_vk = app_composer.compute_verification_key();
+    stdlib::types::Prover app_prover = app_composer.create_prover();
+    proof app_proof = app_prover.construct_proof();
+    std::shared_ptr<bonk::verification_key> app_vk = app_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -90,9 +90,9 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
         info("dummy_circuit logic failed: ", dummy_circuit_composer.err());
     }
 
-    UnrolledProver dummy_circuit_prover = dummy_circuit_composer.create_unrolled_prover();
-    waffle::plonk_proof dummy_circuit_proof = dummy_circuit_prover.construct_proof();
-    std::shared_ptr<waffle::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
+    stdlib::types::Prover dummy_circuit_prover = dummy_circuit_composer.create_prover();
+    proof dummy_circuit_proof = dummy_circuit_prover.construct_proof();
+    std::shared_ptr<bonk::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -104,11 +104,11 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
         info("recursion_1 circuit logic failed: ", recursion_1_composer.err());
     }
 
-    UnrolledProver recursion_1_prover = recursion_1_composer.create_unrolled_prover();
+    stdlib::types::Prover recursion_1_prover = recursion_1_composer.create_prover();
 
-    waffle::plonk_proof recursion_1_proof = recursion_1_prover.construct_proof();
+    proof recursion_1_proof = recursion_1_prover.construct_proof();
 
-    std::shared_ptr<waffle::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
+    std::shared_ptr<bonk::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -120,9 +120,9 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     //     info("recursion_2 circuit logic failed: ", recursion_2_composer.err());
     // }
 
-    // UnrolledProver recursion_2_prover = recursion_2_composer.create_unrolled_prover();
-    // waffle::plonk_proof recursion_2_proof = recursion_2_prover.construct_proof();
-    // std::shared_ptr<waffle::verification_key> recursion_2_vk = recursion_2_composer.compute_verification_key();
+    // Prover recursion_2_prover = recursion_2_composer.create_prover();
+    // proof recursion_2_proof = recursion_2_prover.construct_proof();
+    // std::shared_ptr<bonk::verification_key> recursion_2_vk = recursion_2_composer.compute_verification_key();
 }
 
 } // namespace aztec3::circuits::recursion

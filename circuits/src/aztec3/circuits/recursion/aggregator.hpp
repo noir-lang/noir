@@ -24,8 +24,8 @@ using transcript::Manifest;
 //     using AggregationObject = recursion_output<bn254>;
 
 //     // Native Types:
-//     using Proof = waffle::plonk_proof;
-//     using VK = std::shared_ptr<waffle::verification_key>;
+//     using Proof = plonk::proof;
+//     using VK = std::shared_ptr<bonk::verification_key>;
 
 //     static AggregationObject aggregate(Composer* composer,
 //                                        const VK& vk,
@@ -33,7 +33,7 @@ using transcript::Manifest;
 //                                        const AggregationObject recursion_output = AggregationObject())
 //     {
 //         std::shared_ptr<verification_key<bn254>> recursive_vk = verification_key<bn254>::from_witness(composer, vk);
-//         const transcript::Manifest recursive_manifest = Composer::create_unrolled_manifest(vk->num_public_inputs);
+//         const transcript::Manifest recursive_manifest = Composer::create_manifest(vk->num_public_inputs);
 
 //         AggregationObject result = verify_proof<bn254, recursive_inner_verifier_settings<bn254>>(
 //             composer, recursive_vk, recursive_manifest, proof, recursion_output);
@@ -50,7 +50,7 @@ class Aggregator {
                                            const size_t& num_public_inputs,
                                            const CT::AggregationObject recursion_output = CT::AggregationObject())
     {
-        const Manifest recursive_manifest = Composer::create_unrolled_manifest(num_public_inputs);
+        const Manifest recursive_manifest = Composer::create_manifest(num_public_inputs);
 
         CT::AggregationObject result = verify_proof<CT::bn254, recursive_inner_verifier_settings>(
             composer, vk, recursive_manifest, proof, recursion_output);
