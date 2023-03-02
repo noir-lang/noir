@@ -24,12 +24,16 @@ pub enum Type {
     /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
     Integer(CompTime, Signedness, u32),
 
+    /// The primitive `bool` type. Like other primitive types, whether bools are known at CompTime
+    /// is also tracked. Unlike the other primitives however, it isn't as useful since it is
+    /// primarily only used when converting between a bool and an integer type for indexing arrays.
     Bool(CompTime),
 
     /// String(N) is an array of characters of length N. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
 
+    /// The unit type `()`.
     Unit,
 
     /// A user-defined struct type. The `Shared<StructType>` field here refers to
@@ -37,6 +41,7 @@ pub enum Type {
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
 
+    /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
     /// TypeVariables are stand-in variables for some type which is not yet known.
