@@ -30,10 +30,6 @@ pub mod printer;
 
 /// The context struct for the monomorphization pass.
 ///
-/// This uses the NodeInterner internally to reference existing definitions in the HIR,
-/// but since the produced monomorphized AST uses fresh IDs and is self-contained, there
-/// is no more need for the NodeInterner after this pass.
-///
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
 struct Monomorphizer<'interner> {
@@ -57,6 +53,7 @@ struct Monomorphizer<'interner> {
     /// stored here along with its FuncId.
     finished_functions: BTreeMap<FuncId, Function>,
 
+    /// Used to reference existing definitions in the HIR
     interner: &'interner NodeInterner,
 
     next_local_id: u32,
