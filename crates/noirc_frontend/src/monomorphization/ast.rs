@@ -139,7 +139,7 @@ pub struct Index {
 /// ```nr
 /// let MyStruct { field1, field2 } = get_struct();
 /// ```
-/// Have been desugared into multiple let statements for simplicity:
+/// have been desugared into multiple let statements for simplicity:
 /// ```nr
 /// let tmp = get_struct();
 /// let field1 = tmp.0; // the struct has been translated to a tuple as well
