@@ -67,7 +67,7 @@ jobs:
   yarn-project-base:
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: small
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -78,7 +78,7 @@ jobs:
   aztec-js:
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: small
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
@@ -89,7 +89,7 @@ jobs:
   end-to-end:
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: small
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
