@@ -707,9 +707,8 @@ pub fn check_member_access(
     // If we get here the type has no field named 'access.rhs'.
     // Now we specialize the error message based on whether we know the object type in question yet.
     if let Type::TypeVariable(..) = &lhs_type {
-        errors.push(TypeCheckError::TypeAnnotationsNeeded {
-            span: interner.expr_span(&access.lhs),
-        });
+        errors
+            .push(TypeCheckError::TypeAnnotationsNeeded { span: interner.expr_span(&access.lhs) });
     } else if lhs_type != Type::Error {
         errors.push(TypeCheckError::Unstructured {
             msg: format!("Type {lhs_type} has no member named {}", access.rhs),
