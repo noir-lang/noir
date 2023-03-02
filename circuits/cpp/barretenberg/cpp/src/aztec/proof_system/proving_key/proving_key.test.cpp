@@ -3,7 +3,10 @@
 #include "proving_key.hpp"
 #include "serialize.hpp"
 #include "plonk/composer/standard_composer.hpp"
+
+#ifndef __wasm__
 #include <filesystem>
+#endif
 
 using namespace barretenberg;
 using namespace bonk;
@@ -45,6 +48,7 @@ TEST(proving_key, proving_key_from_serialized_key)
 }
 
 // Test that a proving key can be serialized/deserialized using mmap
+#ifndef __wasm__
 TEST(proving_key, proving_key_from_mmaped_key)
 {
     plonk::StandardComposer composer = plonk::StandardComposer();
@@ -109,3 +113,4 @@ TEST(proving_key, proving_key_from_mmaped_key)
     EXPECT_EQ(p_key.num_public_inputs, pk_data.num_public_inputs);
     EXPECT_EQ(p_key.contains_recursive_proof, pk_data.contains_recursive_proof);
 }
+#endif

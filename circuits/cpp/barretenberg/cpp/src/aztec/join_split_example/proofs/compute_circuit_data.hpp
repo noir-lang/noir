@@ -6,7 +6,10 @@
 #include <sys/stat.h>
 #include <common/timer.hpp>
 #include <proof_system/proving_key/serialize.hpp>
+
+#ifndef __wasm__
 #include <filesystem>
+#endif
 
 namespace join_split_example {
 namespace proofs {
@@ -91,11 +94,13 @@ circuit_data get_circuit_data(std::string const& name,
         }
     }
 
+#ifndef __wasm__
     // If we're saving data, create the circuit data directory.
     if (save) {
         std::filesystem::create_directories(key_path.c_str());
         std::filesystem::create_directories(circuit_key_path.c_str());
     }
+#endif
 
     if (pk) {
         auto pk_dir = circuit_key_path + "/proving_key";
@@ -145,6 +150,7 @@ circuit_data get_circuit_data(std::string const& name,
                                                        name + name_suffix_for_benchmarks,
                                                        "Proving key computed in",
                                                        timer.toString());
+#ifndef __wasm__
             if (save) {
                 info(name, ": Saving proving key...");
                 std::filesystem::create_directories(pk_dir.c_str());
@@ -156,6 +162,7 @@ circuit_data get_circuit_data(std::string const& name,
                 }
                 info(name, ": Saved in ", write_timer.toString(), "s");
             }
+#endif
         }
     }
 
