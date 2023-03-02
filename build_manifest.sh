@@ -15,12 +15,13 @@ PROJECTS=(
   # aztec-cli:yarn-project
   # aztec.js:yarn-project
   # barretenberg.js:yarn-project
+  # circuit.js:yarn-project
   # data-archiver:yarn-project
   # end-to-end:yarn-project
   # ethereum.js:yarn-project
   # kernel-simulator:yarn-project
+  # key-store:yarn-project
   # p2p:yarn-project
-  # private-client:yarn-project
   # prover-client:yarn-project
   # public-client:yarn-project
   # sequencer-client:yarn-project

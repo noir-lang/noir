@@ -1,5 +1,5 @@
 {
-  "name": "@aztec/private-client",
+  "name": "@aztec/key-store",
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",

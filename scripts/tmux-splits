@@ -1,6 +1,6 @@
 #!/bin/bash
 # Launches tmux with 1 window that has 2 panes running, from top to bottom:
-# - private-client
+# - aztec.js
 # - a shell in end-to-end. If a test is given as an argument, the test will be run here automatically.
 TEST=$1
 SESSION_NAME=work
@@ -16,7 +16,7 @@ else
   # Give a chance for terminals to start (avoids double command echo).
   sleep 3
   tmux select-pane -t 0 \; \
-  send-keys 'cd yarn-project/private-client' C-m \; \
+  send-keys 'cd yarn-project/aztec.js' C-m \; \
   select-pane -t 1 \; \
   send-keys "cd yarn-project/end-to-end && ([ -z \"$TEST\" ] || (yarn test $TEST))" C-m \; \
   attach \;

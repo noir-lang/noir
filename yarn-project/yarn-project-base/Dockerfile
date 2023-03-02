@@ -15,12 +15,13 @@ COPY acir-simulator/package.json acir-simulator/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json
+COPY circuit.js/package.json circuit.js/package.json
 COPY data-archiver/package.json data-archiver/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/package.json ethereum.js/package.json
 COPY kernel-simulator/package.json kernel-simulator/package.json
+COPY key-store/package.json key-store/package.json
 COPY p2p/package.json p2p/package.json
-COPY private-client/package.json private-client/package.json
 COPY prover-client/package.json prover-client/package.json
 COPY public-client/package.json public-client/package.json
 COPY sequencer-client/package.json sequencer-client/package.json

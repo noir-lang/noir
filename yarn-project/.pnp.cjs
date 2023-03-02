@@ -32,6 +32,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:barretenberg.js"\
       },\
       {\
+        "name": "@aztec/circuit.js",\
+        "reference": "workspace:circuit.js"\
+      },\
+      {\
         "name": "@aztec/data-archiver",\
         "reference": "workspace:data-archiver"\
       },\
@@ -52,16 +56,16 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:kernel-simulator"\
       },\
       {\
+        "name": "@aztec/key-store",\
+        "reference": "workspace:key-store"\
+      },\
+      {\
         "name": "@aztec/p2p",\
         "reference": "workspace:p2p"\
       },\
       {\
         "name": "@aztec/prettier-config",\
         "reference": "workspace:prettier-config"\
-      },\
-      {\
-        "name": "@aztec/private-client",\
-        "reference": "workspace:private-client"\
       },\
       {\
         "name": "@aztec/prover-client",\
@@ -88,14 +92,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ["@aztec/aztec.js", ["workspace:aztec.js"]],\
       ["@aztec/aztec3-packages", ["workspace:."]],\
       ["@aztec/barretenberg.js", ["workspace:barretenberg.js"]],\
+      ["@aztec/circuit.js", ["workspace:circuit.js"]],\
       ["@aztec/data-archiver", ["workspace:data-archiver"]],\
       ["@aztec/end-to-end", ["workspace:end-to-end"]],\
       ["@aztec/eslint-config", ["workspace:eslint-config"]],\
       ["@aztec/ethereum.js", ["workspace:ethereum.js"]],\
       ["@aztec/kernel-simulator", ["workspace:kernel-simulator"]],\
+      ["@aztec/key-store", ["workspace:key-store"]],\
       ["@aztec/p2p", ["workspace:p2p"]],\
       ["@aztec/prettier-config", ["workspace:prettier-config"]],\
-      ["@aztec/private-client", ["workspace:private-client"]],\
       ["@aztec/prover-client", ["workspace:prover-client"]],\
       ["@aztec/public-client", ["workspace:public-client"]],\
       ["@aztec/sequencer-client", ["workspace:sequencer-client"]],\
@@ -215,6 +220,25 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "SOFT"\
         }]\
       ]],\
+      ["@aztec/circuit.js", [\
+        ["workspace:circuit.js", {\
+          "packageLocation": "./circuit.js/",\
+          "packageDependencies": [\
+            ["@aztec/circuit.js", "workspace:circuit.js"],\
+            ["@aztec/eslint-config", "workspace:eslint-config"],\
+            ["@jest/globals", "npm:29.4.3"],\
+            ["@rushstack/eslint-patch", "npm:1.2.0"],\
+            ["@types/jest", "npm:29.4.0"],\
+            ["@types/node", "npm:18.14.2"],\
+            ["jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.1.3"],\
+            ["ts-jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.0.8"],\
+            ["ts-node", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:10.9.1"],\
+            ["tslib", "npm:2.5.0"],\
+            ["typescript", "patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=23ec76"]\
+          ],\
+          "linkType": "SOFT"\
+        }]\
+      ]],\
       ["@aztec/data-archiver", [\
         ["workspace:data-archiver", {\
           "packageLocation": "./data-archiver/",\
@@ -305,6 +329,25 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "SOFT"\
         }]\
       ]],\
+      ["@aztec/key-store", [\
+        ["workspace:key-store", {\
+          "packageLocation": "./key-store/",\
+          "packageDependencies": [\
+            ["@aztec/key-store", "workspace:key-store"],\
+            ["@aztec/eslint-config", "workspace:eslint-config"],\
+            ["@jest/globals", "npm:29.4.3"],\
+            ["@rushstack/eslint-patch", "npm:1.2.0"],\
+            ["@types/jest", "npm:29.4.0"],\
+            ["@types/node", "npm:18.14.2"],\
+            ["jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.1.3"],\
+            ["ts-jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.0.8"],\
+            ["ts-node", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:10.9.1"],\
+            ["tslib", "npm:2.5.0"],\
+            ["typescript", "patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=23ec76"]\
+          ],\
+          "linkType": "SOFT"\
+        }]\
+      ]],\
       ["@aztec/p2p", [\
         ["workspace:p2p", {\
           "packageLocation": "./p2p/",\
@@ -330,25 +373,6 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageDependencies": [\
             ["@aztec/prettier-config", "workspace:prettier-config"],\
             ["prettier", "npm:2.8.4"]\
-          ],\
-          "linkType": "SOFT"\
-        }]\
-      ]],\
-      ["@aztec/private-client", [\
-        ["workspace:private-client", {\
-          "packageLocation": "./private-client/",\
-          "packageDependencies": [\
-            ["@aztec/private-client", "workspace:private-client"],\
-            ["@aztec/eslint-config", "workspace:eslint-config"],\
-            ["@jest/globals", "npm:29.4.3"],\
-            ["@rushstack/eslint-patch", "npm:1.2.0"],\
-            ["@types/jest", "npm:29.4.0"],\
-            ["@types/node", "npm:18.14.2"],\
-            ["jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.1.3"],\
-            ["ts-jest", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:28.0.8"],\
-            ["ts-node", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:10.9.1"],\
-            ["tslib", "npm:2.5.0"],\
-            ["typescript", "patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=23ec76"]\
           ],\
           "linkType": "SOFT"\
         }]\
