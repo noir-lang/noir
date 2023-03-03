@@ -8,7 +8,7 @@ use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
-use noirc_frontend::hir::def_map::CrateDefMap;
+use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
@@ -34,8 +34,7 @@ impl Driver {
     pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
         let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
-
-        driver.into_compiled_program(false, false).unwrap_or_else(|_| std::process::exit(1))
+        driver.compile_main(false, false, true).unwrap_or_else(|_| std::process::exit(1))
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -139,13 +138,34 @@ impl Driver {
         Some(func_meta.into_function_signature(&self.context.def_interner))
     }
 
-    pub fn into_compiled_program(
-        mut self,
+    /// Run the frontend to check the crate for errors then compile the main function if there were none
+    pub fn compile_main(
+        &mut self,
         show_ssa: bool,
         allow_warnings: bool,
+        show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(allow_warnings)?;
-        self.compile_no_check(show_ssa, allow_warnings, None, true)
+        let main = self.main_function();
+        self.compile_no_check(show_ssa, allow_warnings, main, show_output)
+    }
+
+    /// Returns the FuncId of the 'main' funciton.
+    /// - Expects check_crate to be called beforehand
+    /// - Panics if no main function is found
+    pub fn main_function(&self) -> FuncId {
+        // Find the local crate, one should always be present
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
+
+        // Check the crate type
+        // We don't panic here to allow users to `evaluate` libraries which will do nothing
+        if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
+            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
+            std::process::exit(1);
+        };
+
+        // All Binaries should have a main function
+        local_crate.main_function().expect("cannot compile a program with no main function")
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -155,25 +175,9 @@ impl Driver {
         show_ssa: bool,
         allow_warnings: bool,
         // Optional override to provide a different `main` function to start execution
-        main_function: Option<FuncId>,
+        main_function: FuncId,
         show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
-        // Find the local crate, one should always be present
-        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
-
-        // If no override for the `main` function has been provided, attempt to find it.
-        let main_function = main_function.unwrap_or_else(|| {
-            // Check the crate type
-            // We don't panic here to allow users to `evaluate` libraries which will do nothing
-            if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
-                println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-                std::process::exit(1);
-            };
-
-            // All Binaries should have a main function
-            local_crate.main_function().expect("cannot compile a program with no main function")
-        });
-
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
@@ -204,6 +208,14 @@ impl Driver {
             .get_all_test_functions(interner)
             .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
             .collect()
+    }
+
+    /// Return a Vec of all `contract` declarations in the source code and the functions they contain
+    pub fn get_all_contracts(&self) -> Vec<Contract> {
+        self.context
+            .def_map(LOCAL_CRATE)
+            .expect("The local crate should be analyzed already")
+            .get_all_contracts()
     }
 
     pub fn function_name(&self, id: FuncId) -> &str {
