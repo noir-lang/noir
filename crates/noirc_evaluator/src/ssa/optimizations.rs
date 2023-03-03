@@ -448,6 +448,7 @@ fn cse_block_with_anchor(
                 match opcode {
                     // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
+                    // fixes https://github.com/noir-lang/noir/issues/915
                     builtin::Opcode::ToRadix(_) => (),
                     _ => {
                         let args = args.iter().map(|arg| {
