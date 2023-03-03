@@ -4,13 +4,10 @@
   "main": "dest/index.js",
   "type": "module",
   "scripts": {
-    "build": "rm -rf ./dest && tsc -b tsconfig.dest.json",
-    "clean": "rm -rf ./data ./dest",
-    "clean_db": "rm -rf ./data",
+    "build": "yarn clean && yarn formatting && tsc -b tsconfig.dest.json",
+    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
-    "start": "node ${NODE_ARGS:-} ./dest",
-    "start:debug": "node ${NODE_ARGS:-} --inspect-brk=0.0.0.0:9221 ./dest",
-    "start:e2e": "./scripts/start_e2e.sh",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
   },
   "jest": {
