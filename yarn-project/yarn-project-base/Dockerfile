@@ -26,7 +26,6 @@ COPY prover-client/package.json prover-client/package.json
 COPY public-client/package.json public-client/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
 COPY wallet/package.json wallet/package.json
-
 # All workspaces use the linting config, so always include it.
 COPY eslint-config eslint-config
 COPY prettier-config prettier-config
