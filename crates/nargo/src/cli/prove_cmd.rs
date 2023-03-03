@@ -24,32 +24,32 @@ use crate::{
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
     /// The name of the proof
-    proof_name: Option<String>,
+    pub proof_name: Option<String>,
 
     /// The name of the circuit build files (ACIR, proving and verification keys)
-    circuit_name: Option<String>,
+    pub circuit_name: Option<String>,
 
     /// Verify proof after proving
     #[arg(short, long)]
-    verify: bool,
+    pub verify: bool,
 
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
-    allow_warnings: bool,
+    pub allow_warnings: bool,
 
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
-    show_ssa: bool,
+    pub show_ssa: bool,
 
     #[arg(short, long, value_parser = parse_key_val::<String, String>)]
-    inputs: Option<Vec<(String, String)>>,
+    pub inputs: Option<Vec<(String, String)>>,
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
     let mut proof_dir = config.program_dir.clone();
     proof_dir.push(PROOFS_DIR);
 
-    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
+    let circuit_build_path = if let Some(circuit_name) = args.circuit_name.clone() {
         let mut circuit_build_path = config.program_dir.clone();
         circuit_build_path.push(TARGET_DIR);
         circuit_build_path.push(circuit_name);
