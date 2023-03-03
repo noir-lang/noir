@@ -24,25 +24,25 @@ use crate::{
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
     /// The name of the proof
-    pub proof_name: Option<String>,
+    pub(crate) proof_name: Option<String>,
 
     /// The name of the circuit build files (ACIR, proving and verification keys)
-    pub circuit_name: Option<String>,
+    pub(crate) circuit_name: Option<String>,
 
     /// Verify proof after proving
     #[arg(short, long)]
-    pub verify: bool,
+    pub(crate) verify: bool,
 
     /// Issue a warning for each unused variable instead of an error
     #[arg(short, long)]
-    pub allow_warnings: bool,
+    pub(crate) allow_warnings: bool,
 
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
-    pub show_ssa: bool,
+    pub(crate) show_ssa: bool,
 
     #[arg(short, long, value_parser = parse_key_val::<String, String>)]
-    pub inputs: Option<Vec<(String, String)>>,
+    pub(crate) inputs: Option<Vec<(String, String)>>,
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {

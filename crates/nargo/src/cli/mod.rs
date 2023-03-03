@@ -84,14 +84,16 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     use tempdir::TempDir;
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    
-    let args = ProveCommand { proof_name: Some(proof_name.to_owned()), circuit_name: None, verify: true, allow_warnings: false, show_ssa: show_ssa, inputs: None };
-    match prove_cmd::prove_with_path(
-        prg_dir,
-        &tmp_dir.into_path(),
-        None,
-        args
-    ) {
+
+    let args = ProveCommand {
+        proof_name: Some(proof_name.to_owned()),
+        circuit_name: None,
+        verify: true,
+        allow_warnings: false,
+        show_ssa,
+        inputs: None,
+    };
+    match prove_cmd::prove_with_path(prg_dir, &tmp_dir.into_path(), None, args) {
         Ok(_) => true,
         Err(error) => {
             println!("{error}");
