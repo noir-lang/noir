@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
+  "typedoc": {
+    "entryPoint": "./src/index.ts",
+    "displayName": "Private Client",
+    "tsconfig": "./tsconfig.dest.json"
+  },
   "scripts": {
     "build": "yarn clean && yarn formatting && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",

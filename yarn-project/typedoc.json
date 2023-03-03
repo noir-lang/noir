@@ -1,0 +1,19 @@
+{
+  "cleanOutputDir": true,
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "acir-simulator",
+    "aztec-cli",
+    "aztec.js",
+    "barretenberg.js",
+    "data-archiver",
+    "ethereum.js",
+    "kernel-simulator",
+    "p2p",
+    "private-client",
+    "prover-client",
+    "public-client",
+    "sequencer-client",
+    "wallet"
+  ]
+}

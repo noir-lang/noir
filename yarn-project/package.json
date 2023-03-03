@@ -2,6 +2,10 @@
   "name": "@aztec/aztec3-packages",
   "packageManager": "yarn@3.4.1",
   "private": true,
+  "scripts": {
+    "docs": "typedoc --out docs",
+    "formatting": "yarn workspaces foreach -pt run formatting"
+  },
   "workspaces": [
     "acir-simulator",
     "aztec-cli",
@@ -25,6 +29,7 @@
   "devDependencies": {
     "eslint": "^8.21.0",
     "prettier": "^2.7.1",
+    "typedoc": "^0.23.26",
     "typescript": "^4.9.5"
   }
 }
