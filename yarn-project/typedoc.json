@@ -1,5 +1,5 @@
 {
-  "cleanOutputDir": true,
+  "cleanOutputDir": false,
   "entryPointStrategy": "packages",
   "entryPoints": [
     "acir-simulator",
