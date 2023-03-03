@@ -1,0 +1,7 @@
+version: '3'
+services:
+  aztec.js:
+    image: aztecprotocol/aztec.js:latest
+
+  end-to-end:
+    image: aztecprotocol/end-to-end:latest
