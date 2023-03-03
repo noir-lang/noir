@@ -1,7 +1,5 @@
 version: '3'
 services:
-  aztec.js:
-    image: aztecprotocol/aztec.js:latest
-
   end-to-end:
     image: aztecprotocol/end-to-end:latest
+    command: ${TEST:-./src/e2e_deploy_contract.test.ts}

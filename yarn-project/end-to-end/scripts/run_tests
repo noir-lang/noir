@@ -15,9 +15,4 @@ if [ -n "$COMMIT_HASH" ]; then
 fi
 
 docker-compose rm -f
-
-if [[ "$TEST" == *int_* ]] ; then
-  docker-compose -f "docker-compose.integration.yml" up --exit-code-from end-to-end
-else 
-  docker-compose up --exit-code-from end-to-end
-fi
+docker-compose up --exit-code-from end-to-end
