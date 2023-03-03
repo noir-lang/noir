@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./dest/index.js",
   "scripts": {
-    "build": "yarn clean && yarn formatting && tsc -b tsconfig.dest.json",
+    "build": "yarn clean && yarn formatting && tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
