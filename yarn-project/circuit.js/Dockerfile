@@ -10,5 +10,3 @@ RUN yarn workspaces focus --production > /dev/null
 
 FROM alpine:latest
 COPY --from=builder /usr/src/yarn-project/circuit.js /usr/src/yarn-project/circuit.js
-WORKDIR /usr/src/yarn-project/circuit.js
-ENTRYPOINT ["yarn"]

@@ -10,5 +10,3 @@ RUN yarn workspaces focus --production > /dev/null
 
 FROM alpine:latest
 COPY --from=builder /usr/src/yarn-project/ethereum.js /usr/src/yarn-project/ethereum.js
-WORKDIR /usr/src/yarn-project/ethereum.js
-ENTRYPOINT ["yarn"]
