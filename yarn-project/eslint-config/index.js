@@ -1,9 +1,12 @@
 const contexts = [
+  'TSMethodDefinition',
+  'MethodDefinition',
+  'TSPropertyDefinition',
   'PropertyDefinition',
   'TSPropertySignature',
+  'PropertySignature',
   'TSInterfaceDeclaration',
   'InterfaceDeclaration',
-  'InterfaceExpression',
   'TSTypeAliasDeclaration',
   'TypeAliasDeclaration',
   'TSTypeDeclaration',
@@ -18,8 +21,9 @@ const contexts = [
   'ClassExpression',
   'TSFunctionExpression',
   'FunctionExpression',
-  'TSMethodDefinition',
-  'MethodDefinition',
+  'TSInterfaceExpression',
+  'InterfaceExpression',
+  'TSEnumExpression',
   'EnumExpression',
 ];
 
