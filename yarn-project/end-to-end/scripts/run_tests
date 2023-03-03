@@ -1,0 +1,23 @@
+#!/bin/bash
+# This script is used to run an e2e test in CI (see config.yml and cond_spot_run_tests).
+# It sets a few environment variables used inside the docker-compose.yml, pulls images, and runs docker-compose.
+set -e
+
+export TEST=$1
+
+if [ -n "$COMMIT_HASH" ]; then
+  $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
+
+  for REPO in aztec.js; do
+    docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH
+    docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH aztecprotocol/$REPO:latest
+  done
+fi
+
+docker-compose rm -f
+
+if [[ "$TEST" == *int_* ]] ; then
+  docker-compose -f "docker-compose.integration.yml" up --exit-code-from end-to-end
+else 
+  docker-compose up --exit-code-from end-to-end
+fi
