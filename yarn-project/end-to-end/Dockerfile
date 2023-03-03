@@ -10,7 +10,7 @@ RUN yarn build && yarn formatting
 RUN yarn cache clean
 RUN yarn workspaces focus --production > /dev/null
 
-FROM alpine:latest
+FROM node:18-alpine
 COPY --from=builder /usr/src/yarn-project /usr/src/yarn-project
 WORKDIR /usr/src/yarn-project/end-to-end
 ENTRYPOINT ["yarn", "test"]
