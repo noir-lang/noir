@@ -7,7 +7,7 @@
     "build": "yarn clean && yarn formatting && tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
-    "test": "ls && ls ./scripts && ./scripts/start_e2e.sh"
+    "test": "./scripts/start_e2e.sh"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
