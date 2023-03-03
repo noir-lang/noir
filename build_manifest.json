@@ -36,11 +36,7 @@
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
-    "dependencies": [
-      "circuits-x86_64-linux-clang",
-      "circuits-wasm-linux-clang",
-      "contracts"
-    ]
+    "dependencies": []
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
