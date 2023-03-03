@@ -34,8 +34,7 @@
     "dockerfile": "yarn-project-base/Dockerfile",
     "rebuildPatterns": [
       "^yarn-project/yarn-project-base/",
-      "^yarn-project/yarn.lock",
-      "^yarn-project/.pnp.cjs"
+      "^yarn-project/yarn.lock"
     ],
     "dependencies": []
   },
