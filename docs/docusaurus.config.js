@@ -104,11 +104,6 @@ const config = {
             position: "left",
             label: "Aztec Protocol",
           },
-          {
-            type: "doc",
-            docId: "zk-money/userguide",
-            label: "Zk.money",
-          },
         ],
       },
       footer: {

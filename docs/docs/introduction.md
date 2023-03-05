@@ -16,6 +16,10 @@ That’s why we’re building Aztec Network to deliver privacy without compromis
 
 > “When we started Aztec, the technology to scale blockchains privately didn’t exist. Since then, we’ve assembled a team of world-class cryptographers who continuously redefine the state-of-the-art. Inventing PLONK — the paradigm-defining universal zk-SNARK — showcases our ability to produce technology that matches our ambitions: unlocking an entire universe of blockchain applications that couldn’t exist without privacy.” _- Zac Williamson, CEO and Cofounder, Aztec_
 
+## Aztec 3
+
+...
+
 ## Zk.money
 
 Our first product is [zk.money](https://zk.money), a private transfer protocol built on Aztec. Since launch, zk.money has had over 75,000 registered users, 225,000+ transactions, and over $80 million in total transactions, all while being 96% cheaper than existing private transfer protocols.
