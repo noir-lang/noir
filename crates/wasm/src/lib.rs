@@ -4,6 +4,8 @@
 
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
+use noirc_driver::Driver;
+use noirc_frontend::graph::{CrateName, CrateType};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
@@ -21,14 +23,38 @@ const BUILD_INFO: BuildInfo = BuildInfo {
     dirty: env!("GIT_DIRTY"),
 };
 
+pub fn add_noir_lib(driver: &mut Driver, crate_name: String) {
+    let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
+    let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
+
+    driver.propagate_dep(library_crate, &CrateName::new(crate_name.as_str()).unwrap());
+}
+
 // Returns a compiled program which is the ACIR circuit along with the ABI
 #[wasm_bindgen]
-pub fn compile(src: String) -> JsValue {
+pub fn compile(src: String, optional_dependencies_set: js_sys::Set) -> JsValue {
     console_error_panic_hook::set_once();
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
     let path = PathBuf::from(src);
-    let compiled_program = noirc_driver::Driver::compile_file(path, language);
+    // let compiled_program = noirc_driver::Driver::compile_file(path, language);
+    let mut driver = noirc_driver::Driver::new(&language);
+
+    driver.create_local_crate(path, CrateType::Binary);
+
+    // add_noir_lib(&mut driver, &"std");
+    if !optional_dependencies_set.is_undefined() {
+        for optional_dependency in optional_dependencies_set.values() {
+            let dependency = optional_dependency.unwrap();
+            if dependency.is_string() {
+                add_noir_lib(&mut driver, dependency.as_string().unwrap());
+            }
+        }
+    }
+
+    let compiled_program =
+        driver.into_compiled_program(false, false).unwrap_or_else(|_| std::process::exit(1));
+
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
 

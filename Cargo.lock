@@ -2177,6 +2177,7 @@ dependencies = [
  "console_error_panic_hook",
  "gloo-utils",
  "noirc_driver",
+ "noirc_frontend",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-test",
