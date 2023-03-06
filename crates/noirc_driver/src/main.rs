@@ -18,6 +18,5 @@ fn main() {
     driver.add_dep(LOCAL_CRATE, crate_id1, "coo4");
     driver.add_dep(LOCAL_CRATE, crate_id2, "coo3");
 
-    let config = CompileOptions::default();
-    driver.into_compiled_program(&config).ok();
+    driver.compile_main(&CompileOptions::default()).ok();
 }

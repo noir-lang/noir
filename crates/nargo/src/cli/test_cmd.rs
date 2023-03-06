@@ -86,7 +86,7 @@ fn run_test(
     let backend = crate::backends::ConcreteBackend;
 
     let program = driver
-        .compile_no_check(config, Some(main))
+        .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();

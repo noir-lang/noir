@@ -43,19 +43,15 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
     Ok(())
 }
 
-fn execute_with_path<P: AsRef<Path>>(
-    program_dir: P,
+fn execute_with_path(
+    program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let compiled_program = compile_circuit(&program_dir, compile_options)?;
+    let compiled_program = compile_circuit(program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) = read_inputs_from_file(
-        &program_dir,
-        PROVER_INPUT_FILE,
-        Format::Toml,
-        &compiled_program.abi,
-    )?;
+    let (inputs_map, _) =
+        read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &compiled_program.abi)?;
 
     let solved_witness = execute_program(&compiled_program, &inputs_map)?;
 
