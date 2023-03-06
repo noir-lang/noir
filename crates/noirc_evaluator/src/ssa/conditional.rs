@@ -268,10 +268,20 @@ impl DecisionTree {
             self[block_assumption].val_false.push(right_assumption);
             ctx[left.unwrap()].assumption = left_assumption;
             ctx[right.unwrap()].assumption = right_assumption;
-        } else if let Some(left) = left {
-            ctx[left].assumption = block_assumption;
-            result = vec![left];
-            assert!(right.is_none()); //only IF block should have a right at this stage
+        } else {
+            match (left, right) {
+                (Some(l), None) => {
+                    ctx[l].assumption = block_assumption;
+                    result = vec![l];
+                }
+                (Some(l), Some(r)) => {
+                    ctx[l].assumption = block_assumption;
+                    ctx[r].assumption = block_assumption;
+                    result = vec![l, r];
+                }
+                (None, Some(_)) => unreachable!(),
+                (None, None) => (),
+            }
         }
 
         ctx[current].assumption = block_assumption;
@@ -293,7 +303,10 @@ impl DecisionTree {
 
             let mut test_and_push = |block_id: BlockId| {
                 if !block_id.is_dummy() && !queue.contains(&block_id) {
-                    queue.push(block_id);
+                    let block = &ctx[block_id];
+                    if !block.is_join() || block.dominator == Some(current) {
+                        queue.push(block_id);
+                    }
                 }
             };
 
