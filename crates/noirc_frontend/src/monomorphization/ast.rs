@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_abi::Abi;
+use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
 use crate::{BinaryOpKind, Signedness};
@@ -185,12 +185,12 @@ impl Type {
 #[derive(Debug, Clone)]
 pub struct Program {
     pub functions: Vec<Function>,
-    pub abi: Abi,
+    pub main_function_signature: FunctionSignature,
 }
 
 impl Program {
-    pub fn new(functions: Vec<Function>, abi: Abi) -> Program {
-        Program { functions, abi }
+    pub fn new(functions: Vec<Function>, main_function_signature: FunctionSignature) -> Program {
+        Program { functions, main_function_signature }
     }
 
     pub fn main(&mut self) -> &mut Function {
