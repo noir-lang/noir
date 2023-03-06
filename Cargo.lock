@@ -513,40 +513,25 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/fix-pk-write#1436abedc078fec05eff8dcc61f2ad5ebff18bdc"
 dependencies = [
  "barretenberg_wrapper",
- "blake2",
  "common",
- "dirs 3.0.2",
- "downloader",
- "hex",
- "indicatif",
- "num-bigint",
- "num-traits",
- "regex",
- "sha2",
- "sled",
- "tempfile",
 ]
 
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/fix-pk-write#1436abedc078fec05eff8dcc61f2ad5ebff18bdc"
 dependencies = [
- "blake2",
  "common",
- "sha2",
- "sled",
- "tempfile",
  "wasmer",
 ]
 
 [[package]]
 name = "barretenberg_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#b3abf261314b5ae5bc38e75eb8b40628b4d49fe8"
+source = "git+https://github.com/noir-lang/aztec-connect?branch=mv/fix-pk-write#6d3e1fb34f874eeafba415bc5f8c7565ee0bb4b5"
 dependencies = [
  "bindgen",
  "cmake",
@@ -861,7 +846,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/fix-pk-write#1436abedc078fec05eff8dcc61f2ad5ebff18bdc"
 dependencies = [
  "acvm 0.5.0",
  "blake2",
