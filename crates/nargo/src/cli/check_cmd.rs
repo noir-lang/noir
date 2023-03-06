@@ -21,7 +21,7 @@ pub(crate) struct CheckCommand {
 }
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, &CompileOptions::from(args.compile_options))?;
+    check_from_path(config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }

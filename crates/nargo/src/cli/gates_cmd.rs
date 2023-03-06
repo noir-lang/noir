@@ -16,7 +16,7 @@ pub(crate) struct GatesCommand {
 }
 
 pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
-    count_gates_with_path(config.program_dir, &CompileOptions::from(args.compile_options))
+    count_gates_with_path(config.program_dir, &args.compile_options)
 }
 
 fn count_gates_with_path<P: AsRef<Path>>(

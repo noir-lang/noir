@@ -13,8 +13,7 @@ pub(crate) struct ContractCommand {
 }
 
 pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
-    let compiled_program =
-        compile_circuit(config.program_dir.clone(), &CompileOptions::from(args.compile_options))?;
+    let compiled_program = compile_circuit(config.program_dir.clone(), &args.compile_options)?;
 
     let backend = crate::backends::ConcreteBackend;
     #[allow(deprecated)]

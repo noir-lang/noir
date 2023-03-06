@@ -23,7 +23,7 @@ pub(crate) struct TestCommand {
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(&config.program_dir, &test_name, &CompileOptions::from(args.compile_options))
+    run_tests(&config.program_dir, &test_name, &args.compile_options)
 }
 
 fn run_tests(

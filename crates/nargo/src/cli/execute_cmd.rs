@@ -26,7 +26,7 @@ pub(crate) struct ExecuteCommand {
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let (return_value, solved_witness) =
-        execute_with_path(&config.program_dir, &CompileOptions::from(args.compile_options))?;
+        execute_with_path(&config.program_dir, &args.compile_options)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {

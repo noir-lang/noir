@@ -39,12 +39,7 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
         circuit_build_path
     });
 
-    verify_with_path(
-        config.program_dir,
-        proof_path,
-        circuit_build_path,
-        CompileOptions::from(args.compile_options),
-    )
+    verify_with_path(config.program_dir, proof_path, circuit_build_path, args.compile_options)
 }
 
 fn verify_with_path<P: AsRef<Path>>(

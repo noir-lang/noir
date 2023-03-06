@@ -28,7 +28,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &args.circuit_name,
         config.program_dir,
         circuit_path,
-        &CompileOptions::from(args.compile_options),
+        &args.compile_options,
     )?;
 
     println!("Generated ACIR code into {}", circuit_path.display());

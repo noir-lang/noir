@@ -54,7 +54,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
         proof_dir,
         circuit_build_path,
         args.verify,
-        &CompileOptions::from(args.compile_options),
+        &args.compile_options,
     )?;
 
     Ok(())
