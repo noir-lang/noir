@@ -1,3 +1,28 @@
+//! This file contains the bulk of the implementation of noir's parser.
+//!
+//! Noir's parser is built off the [chumsky library](https://docs.rs/chumsky/latest/chumsky/)
+//! for parser combinators. In this technique, parsers are built from smaller parsers that
+//! parse e.g. only a single token. Then there are functions which can combine multiple
+//! parsers together to create a larger one. These functions are called parser combinators.
+//! For example, `a.then(b)` combines two parsers a and b and returns one that parses a
+//! then parses b and fails if either fails. Other combinators like `a.or(b)` exist as well
+//! and are used extensively. Note that these form a PEG grammar so if there are multiple
+//! options as in `a.or(b)` the first matching parse will be chosen.
+//!
+//! Noir's grammar is not formally specified but can be estimated by inspecting each function.
+//! For example, a function `f` parsing `choice((a, b, c))` can be roughly translated to
+//! BNF as `f: a | b | c`.
+//!
+//! Occasionally there will also be recovery strategies present, either via `recover_via(Parser)`
+//! or `recover_with(Strategy)`. The difference between the two functions isn't quite so important,
+//! but both allow the parser to recover from a parsing error, log the error, and return an error
+//! expression instead. These are used to parse cases such as `fn foo( { }` where we know the user
+//! meant to write a function and thus we should log the error and return a function with no parameters,
+//! rather than failing to parse a function and trying to subsequently parse a struct. Generally using
+//! recovery strategies improves parser errors but using them incorrectly can be problematic since they
+//! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
+//! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
+//! current parser to try alternative parsers in a `choice` expression.
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
@@ -18,9 +43,14 @@ use iter_extended::vecmap;
 use noirc_abi::AbiVisibility;
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
+/// Entry function for the parser - also handles lexing internally.
+///
+/// Given a source_program string, return the ParsedModule Ast representation
+/// of the program along with any parsing errors encountered. If the parsing errors
+/// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
+/// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
-    let lexer = Lexer::new(source_program);
-    let (tokens, lexing_errors) = lexer.lex();
+    let (tokens, lexing_errors) = Lexer::lex(source_program);
     let mut errors = vecmap(lexing_errors, Into::into);
 
     let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
@@ -29,10 +59,13 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     (module.unwrap(), errors)
 }
 
+/// program: module EOF
 fn program() -> impl NoirParser<ParsedModule> {
     module().then_ignore(force(just(Token::EOF)))
 }
 
+/// module: top_level_statement module
+///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
@@ -54,6 +87,13 @@ fn module() -> impl NoirParser<ParsedModule> {
     })
 }
 
+/// top_level_statement: function_definition
+///                    | struct_definition
+///                    | implementation
+///                    | submodule
+///                    | module_declaration
+///                    | use_statement
+///                    | global_declaration
 fn top_level_statement(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatement> {
@@ -69,6 +109,7 @@ fn top_level_statement(
     .recover_via(top_level_statement_recovery())
 }
 
+/// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
         keyword(Keyword::Global).labelled("global"),
@@ -80,6 +121,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
+/// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Mod)
         .ignore_then(ident())
@@ -89,6 +131,8 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
         .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
 }
 
+/// function_definition: attribute fn ident generics '(' function_parameters ')' function_return_type block
+///                      fn ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
@@ -118,6 +162,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
+/// non_empty_ident_list: ident ',' non_empty_ident_list
+///                     | ident
+///
+/// generics: '<' non_empty_ident_list '>'
+///         | %empty
 fn generics() -> impl NoirParser<Vec<Ident>> {
     ident()
         .separated_by(just(Token::Comma))
@@ -908,8 +957,7 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let lexer = Lexer::new(program);
-        let (tokens, lexer_errors) = lexer.lex();
+        let (tokens, lexer_errors) = Lexer::lex(program);
         if !lexer_errors.is_empty() {
             return Err(vecmap(lexer_errors, Into::into));
         }
@@ -923,8 +971,7 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let lexer = Lexer::new(program);
-        let (tokens, lexer_errors) = lexer.lex();
+        let (tokens, lexer_errors) = Lexer::lex(program);
         let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
         let mut errors = vecmap(lexer_errors, Into::into);

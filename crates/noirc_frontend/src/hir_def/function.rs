@@ -1,7 +1,5 @@
-use std::collections::BTreeMap;
-
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiParameter, AbiVisibility};
+use noirc_abi::{AbiParameter, AbiType, AbiVisibility};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -55,20 +53,14 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    fn into_abi(self, interner: &NodeInterner) -> Abi {
-        let parameters = vecmap(self.0, |param| {
+    fn into_abi_params(self, interner: &NodeInterner) -> Vec<AbiParameter> {
+        vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
             let as_abi = param.1.as_abi_type();
             AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
-        });
-        noirc_abi::Abi {
-            parameters,
-            param_witnesses: BTreeMap::new(),
-            return_type: None,
-            return_witnesses: Vec::new(),
-        }
+        })
     }
 
     pub fn span(&self) -> Span {
@@ -115,14 +107,22 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
+/// A FuncMeta contains the signature of the function and any associated meta data like
+/// the function's Location, FunctionKind, and attributes. If the function's body is
+/// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: HirIdent,
 
     pub kind: FunctionKind,
 
+    /// A function's attributes are the `#[...]` items above the function
+    /// definition, if any. Currently, this is limited to a maximum of only one
+    /// Attribute per function.
     pub attributes: Option<Attribute>,
+
     pub parameters: Parameters,
+
     pub return_visibility: AbiVisibility,
 
     /// The type of this function. Either a Type::Function
@@ -147,15 +147,18 @@ impl FuncMeta {
         }
     }
 
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
-        let return_type = self.return_type().clone();
-        let mut abi = self.parameters.into_abi(interner);
-        abi.return_type = match return_type {
+    pub fn into_function_signature(
+        self,
+        interner: &NodeInterner,
+    ) -> (Vec<AbiParameter>, Option<AbiType>) {
+        let return_type = match self.return_type() {
             Type::Unit => None,
-            _ => Some(return_type.as_abi_type()),
+            typ => Some(typ.as_abi_type()),
         };
 
-        abi
+        let params = self.parameters.into_abi_params(interner);
+
+        (params, return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

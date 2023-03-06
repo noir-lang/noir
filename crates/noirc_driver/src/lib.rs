@@ -5,7 +5,7 @@
 use acvm::Language;
 use clap::Args;
 use fm::FileType;
-use noirc_abi::Abi;
+use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
@@ -148,15 +148,14 @@ impl Driver {
         reporter::finish_report(error_count)
     }
 
-    pub fn compute_abi(&self) -> Option<Abi> {
+    pub fn compute_function_signature(&self) -> Option<FunctionSignature> {
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
 
-        let abi = func_meta.into_abi(&self.context.def_interner);
-        Some(abi)
+        Some(func_meta.into_function_signature(&self.context.def_interner))
     }
 
     pub fn into_compiled_program(

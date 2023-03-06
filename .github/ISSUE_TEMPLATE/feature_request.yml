@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an idea for this project.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Description
+        Thanks for taking the time to fill out this feature request to help us improve Noir!
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the problem your suggestion sets out to solve.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe your proposed solution.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternative solutions you have considered.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Please provide any additional context that may be applicable.

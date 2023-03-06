@@ -30,18 +30,10 @@ pub(crate) fn parse_toml(
 pub(crate) fn serialize_to_toml(
     w_map: &BTreeMap<String, InputValue>,
 ) -> Result<String, InputParserError> {
-    // Toml requires that values be emitted before tables. Thus, we must reorder our map in case a TomlTypes::Table comes before any other values in the toml map
-    // BTreeMap orders by key and we need the name of the input as our key, so we must split our maps in case a table type has a name that is alphanumerically less
-    // than any other value type
-    let (tables_map, to_map): (BTreeMap<String, TomlTypes>, BTreeMap<String, TomlTypes>) = w_map
-        .iter()
-        .map(|(key, value)| (key.to_owned(), TomlTypes::from(value.clone())))
-        .partition(|(_, v)| matches!(v, TomlTypes::Table(_)));
+    let to_map: BTreeMap<_, _> =
+        w_map.iter().map(|(key, value)| (key, TomlTypes::from(value.clone()))).collect();
 
-    let mut toml_string = toml::to_string(&to_map)?;
-    let toml_string_tables = toml::to_string(&tables_map)?;
-
-    toml_string.push_str(&toml_string_tables);
+    let toml_string = toml::to_string(&to_map)?;
 
     Ok(toml_string)
 }

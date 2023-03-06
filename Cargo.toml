@@ -44,7 +44,7 @@ dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 smol_str = "0.1.17"
 thiserror = "1.0.21"
-toml = "0.5.8"
+toml = "0.7.2"
 url = "2.2.0"
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"

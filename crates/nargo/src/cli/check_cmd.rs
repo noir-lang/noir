@@ -2,7 +2,7 @@ use crate::{errors::CliError, resolver::Resolver};
 use acvm::ProofSystemCompiler;
 use clap::Args;
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiParameter, AbiType};
+use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
 use std::{
     collections::BTreeMap,
@@ -37,7 +37,7 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     }
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some(abi) = driver.compute_abi() {
+    if let Some((parameters, return_type)) = driver.compute_function_signature() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
@@ -49,12 +49,15 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
         // If they are not available, then create them and
         // populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml = toml::to_string(&build_empty_map(abi.clone())).unwrap();
+            let toml =
+                toml::to_string(&build_placeholder_input_map(parameters.clone(), None)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
-            let public_abi = abi.public_abi();
-            let toml = toml::to_string(&build_empty_map(public_abi)).unwrap();
+            let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
+
+            let toml =
+                toml::to_string(&build_placeholder_input_map(public_inputs, return_type)).unwrap();
             write_to_file(toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
@@ -63,11 +66,26 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     Ok(())
 }
 
-fn build_empty_map(abi: Abi) -> BTreeMap<String, &'static str> {
-    btree_map(abi.parameters, |AbiParameter { name, typ, .. }| {
-        let default_value = if matches!(typ, AbiType::Array { .. }) { "[]" } else { "" };
-        (name, default_value)
-    })
+fn build_placeholder_input_map(
+    parameters: Vec<AbiParameter>,
+    return_type: Option<AbiType>,
+) -> BTreeMap<String, &'static str> {
+    let default_value = |typ: AbiType| {
+        if matches!(typ, AbiType::Array { .. }) {
+            "[]"
+        } else {
+            ""
+        }
+    };
+
+    let mut map =
+        btree_map(parameters, |AbiParameter { name, typ, .. }| (name, default_value(typ)));
+
+    if let Some(typ) = return_type {
+        map.insert(MAIN_RETURN_NAME.to_owned(), default_value(typ));
+    }
+
+    map
 }
 
 #[cfg(test)]
