@@ -1,4 +1,4 @@
-use crate::errors::RuntimeError;
+use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::builtin::Endian;
 use crate::ssa::{
     anchor::{Anchor, CseAction},
@@ -76,7 +76,7 @@ fn evaluate_intrinsic(
     args: Vec<u128>,
     res_type: &ObjectType,
     block_id: BlockId,
-) -> Vec<NodeId> {
+) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
         builtin::Opcode::ToBits(_) => {
             let bit_count = args[1] as u32;
@@ -96,22 +96,26 @@ fn evaluate_intrinsic(
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
-                return result;
+                return Ok(result);
             }
             unreachable!();
         }
         builtin::Opcode::ToRadix(endian) => {
-            let mut element = Vec::new();
+            let mut element: Vec<u8>;
             match args[0].to_biguint() {
-                Some(biguint) => element = biguint.to_radix_le(args[1] as u32),
+                Some(biguint) => {
+                    element = biguint.to_radix_le(args[1] as u32);
+                }
                 None => unreachable!(),
             }
             let byte_count = args[2] as u32;
             let diff = if byte_count > element.len() as u32 {
                 byte_count - element.len() as u32
             } else {
-                element.truncate(element.len() - byte_count as usize);
-                0
+                return Err(RuntimeErrorKind::NotEnoughSpace {
+                    need: element.len() as u128,
+                    provided: byte_count as u128,
+                });
             };
             element.extend(vec![0; diff as usize]);
             if endian == Endian::Big {
@@ -134,7 +138,7 @@ fn evaluate_intrinsic(
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
-                return result;
+                return Ok(result);
             }
             unreachable!();
         }
@@ -501,7 +505,7 @@ fn cse_block_with_anchor(
                                 args,
                                 &update2.res_type,
                                 block_id,
-                            ));
+                            )?);
                         }
                     }
                 }
