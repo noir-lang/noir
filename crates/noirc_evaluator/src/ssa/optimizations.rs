@@ -8,6 +8,7 @@ use crate::ssa::{
     node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
 };
 use acvm::FieldElement;
+use num_bigint::ToBigUint;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
@@ -100,15 +101,12 @@ fn evaluate_intrinsic(
             unreachable!();
         }
         builtin::Opcode::ToRadix(endian) => {
-            let mut element = if endian == Endian::Little {
-                args[0].to_le_bytes().to_vec()
-            } else {
-                args[0].to_be_bytes().to_vec()
-            };
+            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
             let byte_count = args[2] as u32;
             let diff = if byte_count > element.len() as u32 {
                 byte_count - element.len() as u32
             } else {
+                element.truncate(element.len() - byte_count as usize);
                 0
             };
             element.extend(vec![0; diff as usize]);
