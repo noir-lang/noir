@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 
 use acvm::Language;
+use clap::Args;
 use fm::FileType;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
@@ -22,6 +23,21 @@ pub struct Driver {
     language: Language,
 }
 
+#[derive(Args, Clone, Debug, Default)]
+pub struct CompileOptions {
+    /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
+    pub show_ssa: bool,
+
+    /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
+    pub allow_warnings: bool,
+
+    /// Display output of `println` statements during tests
+    #[arg(long)]
+    pub show_output: bool,
+}
+
 impl Driver {
     pub fn new(np_language: &Language) -> Self {
         let mut driver = Driver { context: Context::default(), language: np_language.clone() };
@@ -35,7 +51,9 @@ impl Driver {
         let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
 
-        driver.into_compiled_program(false, false).unwrap_or_else(|_| std::process::exit(1))
+        driver
+            .into_compiled_program(&CompileOptions::default())
+            .unwrap_or_else(|_| std::process::exit(1))
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -122,10 +140,11 @@ impl Driver {
 
     /// Run the lexing, parsing, name resolution, and type checking passes,
     /// returning Err(FrontendError) and printing any errors that were found.
-    pub fn check_crate(&mut self, allow_warnings: bool) -> Result<(), ReportedError> {
+    pub fn check_crate(&mut self, options: &CompileOptions) -> Result<(), ReportedError> {
         let mut errs = vec![];
         CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context, &mut errs);
-        let error_count = reporter::report_all(&self.context.file_manager, &errs, allow_warnings);
+        let error_count =
+            reporter::report_all(&self.context.file_manager, &errs, options.allow_warnings);
         reporter::finish_report(error_count)
     }
 
@@ -141,22 +160,19 @@ impl Driver {
 
     pub fn into_compiled_program(
         mut self,
-        show_ssa: bool,
-        allow_warnings: bool,
+        options: &CompileOptions,
     ) -> Result<CompiledProgram, ReportedError> {
-        self.check_crate(allow_warnings)?;
-        self.compile_no_check(show_ssa, allow_warnings, None, true)
+        self.check_crate(options)?;
+        self.compile_no_check(options, None)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
     #[allow(deprecated)]
     pub fn compile_no_check(
         &self,
-        show_ssa: bool,
-        allow_warnings: bool,
+        options: &CompileOptions,
         // Optional override to provide a different `main` function to start execution
         main_function: Option<FuncId>,
-        show_output: bool,
     ) -> Result<CompiledProgram, ReportedError> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
@@ -179,14 +195,20 @@ impl Driver {
         let np_language = self.language.clone();
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
 
-        match create_circuit(program, np_language, blackbox_supported, show_ssa, show_output) {
+        match create_circuit(
+            program,
+            np_language,
+            blackbox_supported,
+            options.show_ssa,
+            options.show_output,
+        ) {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the call site without a stacktrace
                 let file = err.location.map(|loc| loc.file);
                 let files = &self.context.file_manager;
-                let error = reporter::report(files, &err.into(), file, allow_warnings);
+                let error = reporter::report(files, &err.into(), file, options.allow_warnings);
                 reporter::finish_report(error as u32)?;
                 Err(ReportedError)
             }

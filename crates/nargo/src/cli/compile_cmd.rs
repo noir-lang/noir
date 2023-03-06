@@ -1,5 +1,6 @@
 use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -15,9 +16,8 @@ pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
 
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -28,7 +28,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &args.circuit_name,
         config.program_dir,
         circuit_path,
-        args.allow_warnings,
+        &args.compile_options,
     )?;
 
     println!("Generated ACIR code into {}", circuit_path.display());
@@ -40,9 +40,9 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
     circuit_name: &str,
     program_dir: P,
     circuit_dir: P,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<PathBuf, CliError> {
-    let compiled_program = compile_circuit(program_dir, false, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir, compile_options)?;
     let circuit_path = save_program_to_file(&compiled_program, circuit_name, &circuit_dir);
 
     preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
@@ -52,14 +52,13 @@ fn compile_and_preprocess_circuit<P: AsRef<Path>>(
 
 pub(crate) fn compile_circuit<P: AsRef<Path>>(
     program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
     let backend = crate::backends::ConcreteBackend;
     let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| CliError::CompilationError)
+    driver.into_compiled_program(compile_options).map_err(|_| CliError::CompilationError)
 }
 
 fn preprocess_with_path<P: AsRef<Path>>(

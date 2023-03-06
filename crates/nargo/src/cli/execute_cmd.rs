@@ -4,7 +4,7 @@ use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{InputMap, WitnessMap};
-use noirc_driver::CompiledProgram;
+use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
@@ -20,18 +20,13 @@ pub(crate) struct ExecuteCommand {
     /// Write the execution witness to named file
     witness_name: Option<String>,
 
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-
-    /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
-    show_ssa: bool,
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
     let (return_value, solved_witness) =
-        execute_with_path(&config.program_dir, args.show_ssa, args.allow_warnings)?;
+        execute_with_path(&config.program_dir, &args.compile_options)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
@@ -50,10 +45,9 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
 
 fn execute_with_path<P: AsRef<Path>>(
     program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let compiled_program = compile_circuit(&program_dir, show_ssa, allow_warnings)?;
+    let compiled_program = compile_circuit(&program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) = read_inputs_from_file(

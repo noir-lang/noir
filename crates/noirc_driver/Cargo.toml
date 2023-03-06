@@ -7,6 +7,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_evaluator.workspace = true
