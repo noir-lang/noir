@@ -43,6 +43,21 @@ impl AcirMem {
         }
     }
 
+    // pub(crate) fn map_array_swap_out(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
+    //     let array = &ctx.mem[a];
+    //     ctx.mem[a].len = outputs.len() as u32;
+    //     let mut new_mem_map: BTreeMap<u32, InternalVar> = BTreeMap::new();
+    //     for i in 0..outputs.len() {
+    //         let var = if i < outputs.len() {
+    //             InternalVar::from(outputs[i as usize])
+    //         } else {
+    //             InternalVar::zero_expr()
+    //         };
+    //         new_mem_map.insert(i as u32, var);
+    //     }
+    //     self.virtual_memory.entry(array.id).or_default().memory_map = new_mem_map;
+    // }
+
     // Load array values into InternalVars
     // If create_witness is true, we create witnesses for values that do not have witness
     pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {

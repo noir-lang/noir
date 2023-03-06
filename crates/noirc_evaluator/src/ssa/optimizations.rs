@@ -1,4 +1,5 @@
 use crate::errors::RuntimeError;
+use crate::ssa::builtin::Endian;
 use crate::ssa::{
     anchor::{Anchor, CseAction},
     block::BlockId,
@@ -91,6 +92,49 @@ fn evaluate_intrinsic(
                     } else {
                         Operation::Store { array_id: *a, index, value: ctx.zero(), predicate: None }
                     };
+                    let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
+                    result.push(ctx.add_instruction(i));
+                }
+                return result;
+            }
+            unreachable!();
+        }
+        builtin::Opcode::ToRadix(endian) => {
+            let mut element = args[0].to_le_bytes().to_vec();
+            if endian == Endian::Big {
+                element = args[0].to_be_bytes().to_vec();
+            }
+            let byte_count = args[2] as u32;
+            let diff = if byte_count > element.len() as u32 {
+                byte_count - element.len() as u32
+            } else {
+                0
+            };
+            if endian == Endian::Little {
+                element.extend(vec![0; diff as usize])
+            } else {
+                let mut new_element = vec![0; diff as usize];
+                new_element.extend(element);
+                element = new_element;
+            }
+            let mut result = Vec::new();
+
+            if let ObjectType::Pointer(a) = res_type {
+                for i in 0..element.len() {
+                    let index = ctx.get_or_create_const(
+                        FieldElement::from(i as i128),
+                        ObjectType::NativeField,
+                    );
+                    let op = if element[i] == 0 {
+                        Operation::Store { array_id: *a, index, value: ctx.zero(), predicate: None }
+                    } else {
+                        let value = ctx.get_or_create_const(
+                            FieldElement::from(element[i] as i128),
+                            ObjectType::NativeField,
+                        );
+                        Operation::Store { array_id: *a, index, value: value, predicate: None }
+                    };
+
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
@@ -448,8 +492,8 @@ fn cse_block_with_anchor(
                 match opcode {
                     // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
-                    // fixes https://github.com/noir-lang/noir/issues/915
-                    builtin::Opcode::ToRadix(_) => (),
+                    // // fixes https://github.com/noir-lang/noir/issues/915
+                    // builtin::Opcode::ToRadix(_) => (),
                     _ => {
                         let args = args.iter().map(|arg| {
                             NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())
