@@ -36,10 +36,12 @@ noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
+clap = { version = "4.1.4", features = ["derive"]}
 codespan = "0.9.5"
 codespan-reporting = "0.9.5"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
+hex = { version = "0.4.2", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }
 smol_str = "0.1.17"
 thiserror = "1.0.21"

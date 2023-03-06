@@ -1,3 +1,13 @@
+//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+//! It accepts the type checked HIR as input and produces a monomorphized AST as output.
+//! This file implements the pass itself, while the AST is defined in the ast module.
+//!
+//! Unlike the HIR, which is stored within the NodeInterner, the monomorphized AST is
+//! self-contained and does not need an external context struct. As a result, the NodeInterner
+//! can be safely discarded after monomorphization.
+//!
+//! The entry point to this pass is the `monomorphize` function which, starting from a given
+//! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::FunctionSignature;
@@ -18,18 +28,32 @@ use self::ast::{Definition, FuncId, Function, LocalId, Program};
 pub mod ast;
 pub mod printer;
 
+/// The context struct for the monomorphization pass.
+///
+/// This struct holds the FIFO queue of functions to monomorphize, which is added to
+/// whenever a new (function, type) combination is encountered.
 struct Monomorphizer<'interner> {
-    // Store monomorphized globals and locals separately,
-    // only locals are cleared on each function call and only globals are monomorphized.
-    // Nested HashMaps in globals lets us avoid cloning HirTypes when calling .get()
+    /// Globals are keyed by their unique ID and expected type so that we can monomorphize
+    /// a new version of the global for each type. Note that 'global' here means 'globally
+    /// visible' and thus includes both functions and global variables.
+    ///
+    /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
     globals: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
+
+    /// Unlike globals, locals are only keyed by their unique ID because they are never
+    /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
+    /// but would also cause them to be re-evaluated which is a performance trap that would
+    /// confuse users.
     locals: HashMap<node_interner::DefinitionId, LocalId>,
 
     /// Queue of functions to monomorphize next
     queue: VecDeque<(node_interner::FuncId, FuncId, TypeBindings)>,
 
+    /// When a function finishes being monomorphized, the monomorphized ast::Function is
+    /// stored here along with its FuncId.
     finished_functions: BTreeMap<FuncId, Function>,
 
+    /// Used to reference existing definitions in the HIR
     interner: &'interner NodeInterner,
 
     next_local_id: u32,
@@ -38,6 +62,17 @@ struct Monomorphizer<'interner> {
 
 type HirType = crate::Type;
 
+/// Starting from the given `main` function, monomorphize the entire program,
+/// replacing all references to type variables and NamedGenerics with concrete
+/// types, duplicating definitions as necessary to do so.
+///
+/// Instead of iterating over every function, this pass starts with the main function
+/// and monomorphizes every function reachable from it via function calls and references.
+/// Thus, if a function is not used in the program, it will not be monomorphized.
+///
+/// Note that there is no requirement on the `main` function that can be passed into
+/// this function. Typically, this is the function named "main" in the source project,
+/// but it can also be, for example, an arbitrary test function for running `nargo test`.
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
     let mut monomorphizer = Monomorphizer::new(interner);
     let function_sig = monomorphizer.compile_main(main);

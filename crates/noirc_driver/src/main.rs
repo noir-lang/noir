@@ -1,4 +1,4 @@
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateType, LOCAL_CRATE};
 fn main() {
     const EXTERNAL_DIR: &str = "dep_b/lib.nr";
@@ -18,5 +18,5 @@ fn main() {
     driver.add_dep(LOCAL_CRATE, crate_id1, "coo4");
     driver.add_dep(LOCAL_CRATE, crate_id2, "coo3");
 
-    driver.compile_main(false, false, true).ok();
+    driver.compile_main(&CompileOptions::default()).ok();
 }

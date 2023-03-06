@@ -1,5 +1,6 @@
 use acvm::acir::circuit::Circuit;
 use acvm::ProofSystemCompiler;
+use noirc_driver::CompileOptions;
 use noirc_driver::Driver;
 use noirc_frontend::node_interner::FuncId;
 use std::path::{Path, PathBuf};
@@ -17,17 +18,16 @@ pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
 
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-
     /// Compile each contract function used within the program
     #[arg(short, long)]
     contracts: bool,
+
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let driver = check_crate(&config.program_dir, args.allow_warnings)?;
+    let driver = check_crate(&config.program_dir, &args.compile_options)?;
 
     let mut circuit_dir = config.program_dir;
     circuit_dir.push(TARGET_DIR);
@@ -50,9 +50,9 @@ pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), C
     }
 }
 
-fn setup_driver(program_dir: impl AsRef<Path>) -> Result<Driver, CliError> {
+fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
     let backend = crate::backends::ConcreteBackend;
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
+    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
     Ok(driver)
 }
@@ -65,7 +65,7 @@ fn compile_and_save_program(
     circuit_dir: &Path,
 ) -> Result<(), CliError> {
     let compiled_program = driver
-        .compile_no_check(false, args.allow_warnings, main, true)
+        .compile_no_check(&args.compile_options, main)
         .map_err(|_| CliError::Generic(format!("'{}' failed to compile", args.circuit_name)))?;
 
     let circuit_path = save_program_to_file(&compiled_program, &args.circuit_name, circuit_dir);
@@ -76,18 +76,17 @@ fn compile_and_save_program(
     Ok(())
 }
 
-pub(crate) fn compile_circuit<P: AsRef<Path>>(
-    program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+pub(crate) fn compile_circuit(
+    program_dir: &Path,
+    compile_options: &CompileOptions,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
     let mut driver = setup_driver(program_dir)?;
-    driver.compile_main(show_ssa, allow_warnings, true).map_err(|_| CliError::CompilationError)
+    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }
 
-fn check_crate(program_dir: impl AsRef<Path>, allow_warnings: bool) -> Result<Driver, CliError> {
+fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {
     let mut driver = setup_driver(program_dir)?;
-    driver.check_crate(allow_warnings).map_err(|_| CliError::CompilationError)?;
+    driver.check_crate(options).map_err(|_| CliError::CompilationError)?;
     Ok(driver)
 }
 
