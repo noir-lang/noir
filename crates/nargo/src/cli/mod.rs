@@ -5,6 +5,8 @@ use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 
+use color_eyre::eyre;
+
 mod fs;
 
 mod check_cmd;
@@ -57,10 +59,10 @@ enum NargoCommand {
     Gates(gates_cmd::GatesCommand),
 }
 
-pub fn start_cli() {
+pub fn start_cli() -> eyre::Result<()> {
     let matches = NargoCli::parse();
 
-    let result = match matches.command {
+    match matches.command {
         NargoCommand::New(args) => new_cmd::run(args, matches.config),
         NargoCommand::Check(args) => check_cmd::run(args, matches.config),
         NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
@@ -71,10 +73,9 @@ pub fn start_cli() {
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
         NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
-    };
-    if let Err(err) = result {
-        err.write()
-    }
+    }?;
+
+    Ok(())
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it

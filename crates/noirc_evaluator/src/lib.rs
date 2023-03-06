@@ -63,14 +63,14 @@ pub fn create_circuit(
 
     let witness_index = evaluator.current_witness_index();
 
-    let mut abi = program.abi;
+    let (parameters, return_type) = program.main_function_signature;
 
     // TODO: remove return value from `param_witnesses` once we track public outputs
     // see https://github.com/noir-lang/acvm/pull/56
     let mut param_witnesses = evaluator.param_witnesses;
     let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
-    abi.param_witnesses = param_witnesses;
-    abi.return_witnesses = return_witnesses;
+
+    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
 
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
@@ -287,7 +287,7 @@ impl Evaluator {
         // The new grammar has been conceived, and will be implemented.
         let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
-        let abi_params = std::mem::take(&mut ir_gen.program.abi.parameters);
+        let abi_params = std::mem::take(&mut ir_gen.program.main_function_signature.0);
 
         assert_eq!(main_params.len(), abi_params.len());
 

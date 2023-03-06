@@ -11,6 +11,8 @@ array = [0, 1]
 message = "helld"
 
 [a]
+baz = 0
+
 [a.bar_struct]
 val = "1"
 array = [0, 1]

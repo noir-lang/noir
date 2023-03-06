@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::Abi;
+use noirc_abi::FunctionSignature;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -40,7 +40,7 @@ type HirType = crate::Type;
 
 pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Program {
     let mut monomorphizer = Monomorphizer::new(interner);
-    let abi = monomorphizer.compile_main(main);
+    let function_sig = monomorphizer.compile_main(main);
 
     while !monomorphizer.queue.is_empty() {
         let (next_fn_id, new_id, bindings) = monomorphizer.queue.pop_front().unwrap();
@@ -52,7 +52,7 @@ pub fn monomorphize(main: node_interner::FuncId, interner: &NodeInterner) -> Pro
     }
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    Program::new(functions, abi)
+    Program::new(functions, function_sig)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -129,13 +129,13 @@ impl<'interner> Monomorphizer<'interner> {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Abi {
+    fn compile_main(&mut self, main_id: node_interner::FuncId) -> FunctionSignature {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_abi(self.interner)
+        main_meta.into_function_signature(self.interner)
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {

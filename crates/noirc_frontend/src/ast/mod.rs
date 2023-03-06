@@ -1,5 +1,9 @@
-/// This module contains two Ident structures, due to the fact that an identifier may or may not return a value
-/// statement::Ident does not return a value, while Expression::Ident does.
+//! The submodules of this module define the various data types required to
+//! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
+//! which can be found in expression.rs and statement.rs respectively.
+//!
+//! Noir's Ast is produced by the parser and taken as input to name resolution,
+//! where it is converted into the Hir (defined in the hir_def module).
 mod expression;
 mod function;
 mod statement;

@@ -46,21 +46,21 @@ pub(crate) fn evaluate(
 
     let outputs;
     match opcode {
-        Opcode::ToBits => {
+        Opcode::ToBits(endianess) => {
             // TODO: document where `0` and `1` are coming from, for args[0], args[1]
             let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
+            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
                 memory_map.map_array(a, &outputs, ctx);
             }
         }
-        Opcode::ToRadix => {
+        Opcode::ToRadix(endianess) => {
             // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
             let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
             let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
+            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
                 memory_map.map_array(a, &outputs, ctx);
             }
