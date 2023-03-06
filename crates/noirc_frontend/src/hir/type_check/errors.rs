@@ -99,8 +99,8 @@ impl From<TypeCheckError> for Diagnostic {
                 span,
             ),
             TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
-                "Type annotations needed before this point.".to_string(),
-                "Try adding a type annotation for this value before it is used here".to_string(),
+                "Expression type is ambiguous".to_string(),
+                "Type must be known at this point".to_string(),
                 span,
             ),
         }
