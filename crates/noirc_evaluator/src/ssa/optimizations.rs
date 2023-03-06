@@ -132,7 +132,7 @@ fn evaluate_intrinsic(
                             FieldElement::from(*item as i128),
                             ObjectType::NativeField,
                         );
-                        Operation::Store { array_id: *a, index, value: value, predicate: None }
+                        Operation::Store { array_id: *a, index, value, predicate: None }
                     };
 
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
