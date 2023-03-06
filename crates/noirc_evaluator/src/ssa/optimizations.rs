@@ -101,7 +101,11 @@ fn evaluate_intrinsic(
             unreachable!();
         }
         builtin::Opcode::ToRadix(endian) => {
-            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
+            let mut element = Vec::new();
+            match args[0].to_biguint() {
+                Some(biguint) => element = biguint.to_radix_le(args[1] as u32),
+                None => unreachable!(),
+            }
             let byte_count = args[2] as u32;
             let diff = if byte_count > element.len() as u32 {
                 byte_count - element.len() as u32
