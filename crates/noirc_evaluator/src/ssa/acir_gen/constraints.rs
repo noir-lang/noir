@@ -1,7 +1,7 @@
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
-        acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+        acir_gen::{expression_from_witness, expression_to_witness},
         builtin::Endian,
     },
     Evaluator,
@@ -412,11 +412,10 @@ pub(crate) fn to_radix_base(
 
     let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
 
-    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
+    evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToLeRadix {
         a: lhs.clone(),
         b: result.clone(),
         radix,
-        is_little_endian: true,
     }));
 
     if endianness == Endian::Big {
@@ -495,7 +494,7 @@ pub(crate) fn evaluate_truncate(
     assert!(max_bits > rhs, "max_bits = {max_bits}, rhs = {rhs}");
 
     //0. Check for constant expression. This can happen through arithmetic simplifications
-    if let Some(a_c) = const_from_expression(lhs) {
+    if let Some(a_c) = lhs.to_const() {
         let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
         let two = BigUint::from(2_u32);
         a_big %= two.pow(rhs);

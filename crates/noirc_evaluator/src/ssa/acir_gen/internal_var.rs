@@ -1,8 +1,5 @@
 use crate::{
-    ssa::acir_gen::{
-        const_from_expression, expression_from_witness, expression_to_witness,
-        optional_expression_to_witness,
-    },
+    ssa::acir_gen::{expression_from_witness, expression_to_witness},
     ssa::node::NodeId,
     Evaluator,
 };
@@ -60,7 +57,7 @@ impl InternalVar {
     /// If the InternalVar holds a constant expression
     /// Return that constant.Otherwise, return None.
     pub(super) fn to_const(&self) -> Option<FieldElement> {
-        const_from_expression(&self.expression)
+        self.expression.to_const()
     }
 
     /// The expression term is degree-2 multi-variate polynomial, so
@@ -85,7 +82,7 @@ impl InternalVar {
     /// If `Expression` represents a degree-1 polynomial
     /// then we also assign it to the `cached_witness`
     pub(crate) fn from_expression(expression: Expression) -> InternalVar {
-        let witness = optional_expression_to_witness(&expression);
+        let witness = expression.to_witness();
         InternalVar { expression, cached_witness: witness, id: None }
     }
 
