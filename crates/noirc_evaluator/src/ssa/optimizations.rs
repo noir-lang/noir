@@ -106,7 +106,7 @@ fn evaluate_intrinsic(
                 Some(biguint) => {
                     element = biguint.to_radix_le(args[1] as u32);
                 }
-                None => unreachable!(),
+                None => return Ok(Vec::new()),
             }
             let byte_count = args[2] as u32;
             let diff = if byte_count > element.len() as u32 {
