@@ -120,16 +120,16 @@ fn evaluate_intrinsic(
             let mut result = Vec::new();
 
             if let ObjectType::Pointer(a) = res_type {
-                for i in 0..element.len() {
+                for (i, item) in element.iter().enumerate() {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
                         ObjectType::NativeField,
                     );
-                    let op = if element[i] == 0 {
+                    let op = if *item == 0 {
                         Operation::Store { array_id: *a, index, value: ctx.zero(), predicate: None }
                     } else {
                         let value = ctx.get_or_create_const(
-                            FieldElement::from(element[i] as i128),
+                            FieldElement::from(*item as i128),
                             ObjectType::NativeField,
                         );
                         Operation::Store { array_id: *a, index, value: value, predicate: None }
