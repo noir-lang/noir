@@ -2176,6 +2176,7 @@ dependencies = [
  "build-data",
  "console_error_panic_hook",
  "gloo-utils",
+ "js-sys",
  "noirc_driver",
  "noirc_frontend",
  "serde",
