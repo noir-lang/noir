@@ -612,14 +612,30 @@ template <typename settings> void ProverBase<settings>::add_plookup_memory_recor
     // due to the dependence on the `eta` challenge.
 
     const fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
-    const fr eta_sqr = eta.sqr();
 
+    // We need the lagrange-base forms of the first 3 wires to compute the plookup memory record
+    // value. w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
+    // a RAM write. See plookup_auxiliary_widget.hpp for details)
     std::span<const fr> w_1 = key->polynomial_cache.get("w_1_lagrange");
     std::span<const fr> w_2 = key->polynomial_cache.get("w_2_lagrange");
     std::span<const fr> w_3 = key->polynomial_cache.get("w_3_lagrange");
     std::span<fr> w_4 = key->polynomial_cache.get("w_4_lagrange");
-    for (const auto& gate_idx : key->memory_records) {
-        w_4[gate_idx] = w_1[gate_idx] + w_2[gate_idx] * eta + w_3[gate_idx] * eta_sqr;
+    for (const auto& gate_idx : key->memory_read_records) {
+        w_4[gate_idx] += w_3[gate_idx];
+        w_4[gate_idx] *= eta;
+        w_4[gate_idx] += w_2[gate_idx];
+        w_4[gate_idx] *= eta;
+        w_4[gate_idx] += w_1[gate_idx];
+        w_4[gate_idx] *= eta;
+    }
+    for (const auto& gate_idx : key->memory_write_records) {
+        w_4[gate_idx] += w_3[gate_idx];
+        w_4[gate_idx] *= eta;
+        w_4[gate_idx] += w_2[gate_idx];
+        w_4[gate_idx] *= eta;
+        w_4[gate_idx] += w_1[gate_idx];
+        w_4[gate_idx] *= eta;
+        w_4[gate_idx] += 1;
     }
 }
 

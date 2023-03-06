@@ -581,6 +581,27 @@ TEST(ultra_composer, range_with_gates)
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
+
+TEST(ultra_composer, range_with_gates_where_range_is_not_a_power_of_two)
+{
+    UltraComposer composer = UltraComposer();
+    auto idx = add_variables(composer, { 1, 2, 3, 4, 5, 6, 7, 8 });
+    for (size_t i = 0; i < idx.size(); i++) {
+        composer.create_new_range_constraint(idx[i], 12);
+    }
+
+    composer.create_add_gate({ idx[0], idx[1], composer.zero_idx, fr::one(), fr::one(), fr::zero(), -3 });
+    composer.create_add_gate({ idx[2], idx[3], composer.zero_idx, fr::one(), fr::one(), fr::zero(), -7 });
+    composer.create_add_gate({ idx[4], idx[5], composer.zero_idx, fr::one(), fr::one(), fr::zero(), -11 });
+    composer.create_add_gate({ idx[6], idx[7], composer.zero_idx, fr::one(), fr::one(), fr::zero(), -15 });
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+
+    proof proof = prover.construct_proof();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 TEST(ultra_composer, sort_widget_complex)
 {
     {
@@ -755,6 +776,77 @@ TEST(ultra_composer, rom)
 
     auto prover = composer.create_prover();
     info("composer.num_gates after constructing prover: ", composer.num_gates);
+
+    auto verifier = composer.create_verifier();
+
+    proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(ultra_composer, ram)
+{
+    UltraComposer composer = UltraComposer();
+
+    uint32_t ram_values[8]{
+        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
+        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
+        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
+        composer.add_variable(fr::random_element()), composer.add_variable(fr::random_element()),
+    };
+
+    size_t ram_id = composer.create_RAM_array(8);
+
+    for (size_t i = 0; i < 8; ++i) {
+        composer.init_RAM_element(ram_id, i, ram_values[i]);
+    }
+
+    uint32_t a_idx = composer.read_RAM_array(ram_id, composer.add_variable(5));
+    EXPECT_EQ(a_idx != ram_values[5], true);
+
+    uint32_t b_idx = composer.read_RAM_array(ram_id, composer.add_variable(4));
+    uint32_t c_idx = composer.read_RAM_array(ram_id, composer.add_variable(1));
+
+    composer.write_RAM_array(ram_id, composer.add_variable(4), composer.add_variable(500));
+    uint32_t d_idx = composer.read_RAM_array(ram_id, composer.add_variable(4));
+
+    EXPECT_EQ(composer.get_variable(d_idx), 500);
+
+    // ensure these vars get used in another arithmetic gate
+    const auto e_value = composer.get_variable(a_idx) + composer.get_variable(b_idx) + composer.get_variable(c_idx) +
+                         composer.get_variable(d_idx);
+    uint32_t e_idx = composer.add_variable(e_value);
+
+    composer.create_big_add_gate(
+        {
+            a_idx,
+            b_idx,
+            c_idx,
+            d_idx,
+            -1,
+            -1,
+            -1,
+            -1,
+            0,
+        },
+        true);
+    composer.create_big_add_gate(
+        {
+            composer.zero_idx,
+            composer.zero_idx,
+            composer.zero_idx,
+            e_idx,
+            0,
+            0,
+            0,
+            0,
+            0,
+        },
+        false);
+
+    auto prover = composer.create_prover();
+    std::cout << "prover num_gates = " << composer.num_gates << std::endl;
 
     auto verifier = composer.create_verifier();
 

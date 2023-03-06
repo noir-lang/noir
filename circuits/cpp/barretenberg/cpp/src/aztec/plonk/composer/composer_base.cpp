@@ -154,6 +154,8 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
                 }
                 if (last_node) {
                     sigma_mappings[current_column][current_row].is_tag = true;
+
+                    // TODO: yikes, std::maps are expensive. Can we find a way to get rid of this?
                     sigma_mappings[current_column][current_row].subgroup_index = tau.at(real_variable_tags[i]);
                 }
             }
