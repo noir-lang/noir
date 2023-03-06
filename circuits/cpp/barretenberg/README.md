@@ -30,6 +30,14 @@ cd cpp
 ./bootstrap.sh
 ```
 
+### Installing
+
+After the project has been built, such as with `./bootstrap.sh`, you can install the library on your system:
+
+```sh
+cmake --install build
+```
+
 ### Formatting
 
 Code is formatted using `clang-format` and the `./cpp/format.sh` script which is called via a git pre-commit hook.

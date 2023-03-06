@@ -11,6 +11,7 @@ if(TESTING)
     )
 
     set(BUILD_GMOCK OFF CACHE BOOL "Build with gMock disabled")
+    set(INSTALL_GTEST OFF CACHE BOOL "gTest installation disabled")
 
     FetchContent_MakeAvailable(GTest)
 

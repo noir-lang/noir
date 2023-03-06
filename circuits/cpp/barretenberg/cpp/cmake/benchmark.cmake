@@ -13,6 +13,7 @@ if(BENCHMARKS)
     )
 
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Benchmark tests off")
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "Benchmark installation off")
 
     FetchContent_MakeAvailable(benchmark)
     if(NOT benchmark_FOUND)
