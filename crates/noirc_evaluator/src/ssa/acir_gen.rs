@@ -101,19 +101,6 @@ impl Acir {
     }
 }
 
-// Creates an Expression from a Witness.
-//
-// This is infallible since an expression is
-// a multi-variate polynomial and a Witness
-// can be seen as a univariate polynomial
-//
-// TODO: Possibly remove this small shim.
-// TODO: Lets first see how the rest of the code looks after
-// TODO further refactor.
-fn expression_from_witness(witness: Witness) -> Expression {
-    Expression::from(&witness)
-}
-
 /// Converts an `Expression` into a `Witness`
 /// - If the `Expression` is a degree-1 univariate polynomial
 /// then this conversion is a simple coercion.

@@ -1,8 +1,4 @@
-use crate::{
-    ssa::acir_gen::{expression_from_witness, expression_to_witness},
-    ssa::node::NodeId,
-    Evaluator,
-};
+use crate::{ssa::acir_gen::expression_to_witness, ssa::node::NodeId, Evaluator};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -48,7 +44,7 @@ impl InternalVar {
 
     pub fn to_expression(&self) -> Expression {
         if let Some(w) = self.cached_witness {
-            expression_from_witness(w)
+            w.into()
         } else {
             self.expression().clone()
         }
