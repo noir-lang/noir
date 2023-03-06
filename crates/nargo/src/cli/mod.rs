@@ -41,31 +41,6 @@ pub(crate) struct NargoConfig {
     program_dir: PathBuf,
 }
 
-#[derive(Args, Clone, Debug, Default)]
-pub(crate) struct NargoCompileOptions {
-    /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
-    pub(crate) show_ssa: bool,
-
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    pub(crate) allow_warnings: bool,
-
-    /// Display output of `println` statements during tests
-    #[arg(long)]
-    pub(crate) show_output: bool,
-}
-
-impl From<NargoCompileOptions> for CompileOptions {
-    fn from(value: NargoCompileOptions) -> Self {
-        let mut options = CompileOptions::default();
-        options.show_ssa = value.show_ssa;
-        options.allow_warnings = value.allow_warnings;
-        options.show_output = value.show_output;
-        options
-    }
-}
-
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
@@ -104,11 +79,7 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     use tempdir::TempDir;
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let compile_options = CompileOptions::from(NargoCompileOptions {
-        show_ssa,
-        allow_warnings: false,
-        show_output: false,
-    });
+    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
 
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),

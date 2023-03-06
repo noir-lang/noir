@@ -2,7 +2,7 @@ use super::fs::{
     inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
     program::read_program_from_file,
 };
-use super::{compile_cmd::compile_circuit, InputMap, NargoCompileOptions, NargoConfig};
+use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -23,7 +23,7 @@ pub(crate) struct VerifyCommand {
     circuit_name: Option<String>,
 
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {

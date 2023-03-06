@@ -1,5 +1,5 @@
 use super::fs::{create_named_dir, write_to_file};
-use super::{NargoCompileOptions, NargoConfig};
+use super::NargoConfig;
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::Args;
@@ -9,7 +9,7 @@ use noirc_driver::CompileOptions;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ContractCommand {
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {

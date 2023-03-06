@@ -8,7 +8,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, NargoCompileOptions, NargoConfig};
+use super::{add_std_lib, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -17,7 +17,7 @@ pub(crate) struct TestCommand {
     test_name: Option<String>,
 
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {

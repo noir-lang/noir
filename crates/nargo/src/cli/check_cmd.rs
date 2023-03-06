@@ -10,14 +10,14 @@ use std::{
 };
 
 use super::fs::write_to_file;
-use super::{add_std_lib, NargoCompileOptions, NargoConfig};
+use super::{add_std_lib, NargoConfig};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CheckCommand {
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {

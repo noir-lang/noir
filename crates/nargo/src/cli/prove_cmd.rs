@@ -11,7 +11,7 @@ use super::fs::{
     program::read_program_from_file,
     proof::save_proof_to_dir,
 };
-use super::{NargoCompileOptions, NargoConfig};
+use super::NargoConfig;
 use crate::{
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
     constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
@@ -32,7 +32,7 @@ pub(crate) struct ProveCommand {
     verify: bool,
 
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {

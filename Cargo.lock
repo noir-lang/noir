@@ -2196,6 +2196,7 @@ name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
  "acvm 0.5.0",
+ "clap 4.1.4",
  "fm",
  "noirc_abi",
  "noirc_errors",

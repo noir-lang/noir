@@ -7,7 +7,7 @@ use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
-use super::{NargoCompileOptions, NargoConfig};
+use super::NargoConfig;
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR},
@@ -21,7 +21,7 @@ pub(crate) struct ExecuteCommand {
     witness_name: Option<String>,
 
     #[clap(flatten)]
-    compile_options: NargoCompileOptions,
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {

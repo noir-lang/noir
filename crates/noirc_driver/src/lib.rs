@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 
 use acvm::Language;
+use clap::Args;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::{reporter, ReportedError};
@@ -22,16 +23,18 @@ pub struct Driver {
     language: Language,
 }
 
-#[non_exhaustive]
-#[derive(Debug, Default)]
+#[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
+    #[arg(short, long)]
     pub show_ssa: bool,
 
     /// Issue a warning for each unused variable instead of an error
+    #[arg(short, long)]
     pub allow_warnings: bool,
 
     /// Display output of `println` statements during tests
+    #[arg(long)]
     pub show_output: bool,
 }
 
