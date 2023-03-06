@@ -17,7 +17,7 @@ use crate::{
     errors::CliError,
 };
 
-// Create proof for this program. The proof is returned as a hex encoded string.
+/// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
     /// The name of the proof
