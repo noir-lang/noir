@@ -175,7 +175,10 @@ impl CrateDefMap {
     }
 }
 
+/// A 'contract' in Noir source code with the given name and functions.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
 pub struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
     pub functions: Vec<FuncId>,
 }
