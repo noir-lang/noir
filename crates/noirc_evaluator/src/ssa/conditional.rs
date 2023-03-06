@@ -279,7 +279,9 @@ impl DecisionTree {
                     ctx[r].assumption = block_assumption;
                     result = vec![l, r];
                 }
-                (None, Some(_)) => unreachable!(),
+                (None, Some(_)) => {
+                    unreachable!("Infallible, only a split block can have right successor")
+                }
                 (None, None) => (),
             }
         }
