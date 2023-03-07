@@ -3,7 +3,7 @@
 #include <plonk/proof_system/constants.hpp>
 #include <proof_system/flavor/flavor.hpp>
 
-namespace honk {
+namespace bonk {
 enum StandardSelectors { QM, Q1, Q2, Q3, QC, NUM };
 inline std::vector<std::string> standard_selector_names()
 {
@@ -91,4 +91,4 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
 
     bool check_circuit();
 };
-} // namespace honk
+} // namespace bonk

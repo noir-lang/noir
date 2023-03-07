@@ -407,5 +407,10 @@ template class uint<honk::StandardHonkComposer, uint16_t>;
 template class uint<honk::StandardHonkComposer, uint32_t>;
 template class uint<honk::StandardHonkComposer, uint64_t>;
 
+template class uint<plonk::StandardPlonkComposer, uint8_t>;
+template class uint<plonk::StandardPlonkComposer, uint16_t>;
+template class uint<plonk::StandardPlonkComposer, uint32_t>;
+template class uint<plonk::StandardPlonkComposer, uint64_t>;
+
 } // namespace stdlib
 } // namespace plonk

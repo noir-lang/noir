@@ -1,7 +1,8 @@
-#include "standard_circuit_constructor.hpp"
+#include "standard_plonk_composer.hpp"
 #include <gtest/gtest.h>
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/pedersen/generator_data.hpp>
+#include <proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 using namespace bonk;
@@ -10,21 +11,51 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-namespace standard_circuit_constructor_tests {
-
-TEST(standard_circuit_constructor, base_case)
+TEST(standard_composer, base_case)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     composer.add_public_variable(a);
+    plonk::Prover prover = composer.create_prover();
+    plonk::Verifier verifier = composer.create_verifier();
 
-    bool result = composer.check_circuit();
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, test_add_gate)
+TEST(standard_composer, composer_from_serialized_keys)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    auto pk_buf = to_buffer(*composer.compute_proving_key());
+    auto vk_buf = to_buffer(*composer.compute_verification_key());
+    auto pk_data = from_buffer<bonk::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<bonk::verification_key_data>(vk_buf);
+
+    auto crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
+    auto proving_key =
+        std::make_shared<bonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
+    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+
+    plonk::StandardPlonkComposer composer2 = plonk::StandardPlonkComposer(proving_key, verification_key);
+    composer2.add_public_variable(a);
+
+    plonk::Prover prover = composer2.create_prover();
+    plonk::Verifier verifier = composer2.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(standard_composer, test_add_gate_proofs)
+{
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -71,13 +102,19 @@ TEST(standard_circuit_constructor, test_add_gate)
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    bool result = composer.check_circuit(); // instance, prover.reference_string.SRS_T2);
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, test_mul_gate_proofs)
+TEST(standard_composer, test_mul_gate_proofs)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
              fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
@@ -144,16 +181,21 @@ TEST(standard_circuit_constructor, test_mul_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, q[0], q[1], q[2], q[3] });
     composer.create_mul_gate({ a_idx, b_idx, d_idx, q[4], q[5], q[6] });
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, range_constraint)
+TEST(standard_composer, range_constraint)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < 10; ++i) {
-
         uint32_t value = engine.get_random_uint32();
         fr witness_value = fr{ value, 0, 0, 0 }.to_montgomery_form();
         uint32_t witness_index = composer.add_variable(witness_value);
@@ -181,28 +223,40 @@ TEST(standard_circuit_constructor, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, range_constraint_fail)
+TEST(standard_composer, range_constraint_fail)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
     composer.decompose_into_base4_accumulators(witness_index, 23);
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.create_prover();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_constructor, and_constraint)
+TEST(standard_composer, and_constraint)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -260,14 +314,20 @@ TEST(standard_circuit_constructor, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, xor_constraint)
+TEST(standard_composer, xor_constraint)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     for (size_t i = 0; i < /*10*/ 1; ++i) {
         uint32_t left_value = engine.get_random_uint32();
@@ -324,14 +384,20 @@ TEST(standard_circuit_constructor, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, big_add_gate_with_bit_extract)
+TEST(standard_composer, big_add_gate_with_bit_extract)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
     const auto generate_constraints = [&composer](uint32_t quad_value) {
         uint32_t quad_accumulator_left =
@@ -362,24 +428,37 @@ TEST(standard_circuit_constructor, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, test_range_constraint_fail)
+TEST(standard_composer, test_range_constraint_fail)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
     composer.decompose_into_base4_accumulators(witness_index, 32);
 
-    bool result = composer.check_circuit();
+    plonk::Prover prover = composer.preprocess();
+
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_constructor, test_check_circuit_correct)
+TEST(standard_composer, test_check_circuit_correct)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -397,9 +476,9 @@ TEST(standard_circuit_constructor, test_check_circuit_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, test_check_circuit_broken)
+TEST(standard_composer, test_check_circuit_broken)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
     uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
@@ -417,9 +496,9 @@ TEST(standard_circuit_constructor, test_check_circuit_broken)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_circuit_constructor, test_fixed_group_add_gate_with_init)
+TEST(standard_composer, test_fixed_group_add_gate_with_init)
 {
-    StandardCircuitConstructor composer = StandardCircuitConstructor();
+    plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
 
     // 1. generate two origin points P, Q
@@ -462,15 +541,20 @@ TEST(standard_circuit_constructor, test_fixed_group_add_gate_with_init)
         };
         composer.create_fixed_group_add_gate_with_init(round_quad, init_quad);
     }
+    plonk::Prover prover = composer.preprocess();
 
-    bool result = composer.check_circuit();
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_circuit_constructor, test_fixed_group_add_gate)
+TEST(standard_composer, test_fixed_group_add_gate)
 {
-    auto composer = StandardCircuitConstructor();
+    auto composer = plonk::StandardPlonkComposer();
     auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
 
     constexpr size_t num_bits = 63;
@@ -580,9 +664,13 @@ TEST(standard_circuit_constructor, test_fixed_group_add_gate)
                        fr::zero(),
                        fr::zero() };
     composer.create_fixed_group_add_gate_final(add_quad);
+    plonk::Prover prover = composer.create_prover();
 
-    bool result = composer.check_circuit();
+    plonk::Verifier verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
 }
-} // namespace standard_circuit_constructor_tests

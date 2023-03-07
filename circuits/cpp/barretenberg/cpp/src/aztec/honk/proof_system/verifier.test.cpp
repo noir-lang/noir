@@ -181,8 +181,8 @@ template <class FF> class VerifierTests : public testing::Test {
         proving_key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
         proving_key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
-        honk::compute_standard_honk_id_polynomials<3>(proving_key);
-        honk::compute_first_and_last_lagrange_polynomials(proving_key);
+        bonk::compute_standard_honk_id_polynomials<3>(proving_key);
+        bonk::compute_first_and_last_lagrange_polynomials(proving_key);
 
         proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
         proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_r));

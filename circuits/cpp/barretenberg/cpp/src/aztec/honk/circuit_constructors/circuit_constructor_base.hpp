@@ -4,7 +4,7 @@
 #include <utility>
 
 using namespace bonk;
-namespace honk {
+namespace bonk {
 static constexpr uint32_t DUMMY_TAG = 0;
 
 template <size_t program_width_> class CircuitConstructorBase {
@@ -236,7 +236,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     }
 };
 
-} // namespace honk
+} // namespace bonk
 
 // TODO(Cody): This may need updating, to deal with the new gate we used to ensure that non multivariate is zero?
 /**
@@ -453,11 +453,11 @@ template <size_t program_width_> class CircuitConstructorBase {
  * Note: `-pub->` denotes a sigma_mappings entry from a left-wire which is a public input.
  *
  * Eg: [i, j] -> [k, l] means sigma_mappings[j][i]
- *    has: subgroup_index = k, column_index = l, is_false = true and is_public_input = false
+ *    has: row_index = k, column_index = l, is_false = true and is_public_input = false
  * Eg: [i, j] -*> [[k, l]]    means sigma_mappings[j][i]
- *    has: subgroup_index = k, column_index = l, is_tag = true
+ *    has: row_index = k, column_index = l, is_tag = true
  * Eg: [i, j] -pub-> [[k, l]] means sigma_mappings[j][i]
- *    has: subgroup_index = k, column_index = l, is_public_input = true
+ *    has: row_index = k, column_index = l, is_public_input = true
  *
  *     [
  *         [1, 0] -> [1, 1] -> [1, 2] -> [1, 3] -> [2, 3] -> [3, 3] -> [4, 3] -> [5, 3] -*> [[0, 0]],
@@ -496,7 +496,7 @@ template <size_t program_width_> class CircuitConstructorBase {
  *
  * The (subgroup.size() * program_width) elements of sigma_mappings are of the form:
  * {
- *     subgroup_index: j, // iterates over all rows in the subgroup
+ *     row_index: j, // iterates over all rows in the subgroup
  *     column_index: i, // l,r,o,4
  *     is_public_input: false,
  *     is_tag: false,
@@ -504,9 +504,9 @@ template <size_t program_width_> class CircuitConstructorBase {
  *   - sigma_mappings = [
  *         // The i-th index of sigma_mappings is the "column" index (l,r,o,4).
  *         [
- *             // The j-th index of sigma_mappings[i] is the subgroup_index or "row"
+ *             // The j-th index of sigma_mappings[i] is the row_index or "row"
  *             {
- *                 subgroup_index: j,
+ *                 row_index: j,
  *                 column_index: i,
  *                 is_public_input: false,
  *                 is_tag: false,

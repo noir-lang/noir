@@ -1,21 +1,22 @@
 #pragma once
 
-#include "composer_helper/standard_honk_composer_helper.hpp"
+#include "composer_helper/standard_plonk_composer_helper.hpp"
 #include <honk/circuit_constructors/standard_circuit_constructor.hpp>
 #include <srs/reference_string/file_reference_string.hpp>
 #include <transcript/manifest.hpp>
 #include <proof_system/flavor/flavor.hpp>
 
-namespace honk {
+namespace plonk {
 /**
- * @brief Standard Honk Composer has everything required to construct a prover and verifier, just as the legacy classes.
+ * @brief Standard Plonk Composer has everything required to construct a prover and verifier, just as the legacy
+ * classes.
  *
  * @details However, it has a lot of its logic separated into subclasses and simply proxies the calls.
  *
  */
-class StandardHonkComposer {
+class StandardPlonkComposer {
   public:
-    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK;
+    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
@@ -24,7 +25,7 @@ class StandardHonkComposer {
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    StandardHonkComposerHelper<StandardCircuitConstructor> composer_helper;
+    StandardPlonkComposerHelper<StandardCircuitConstructor> composer_helper;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
@@ -32,24 +33,24 @@ class StandardHonkComposer {
 
     /**Standard methods*/
 
-    StandardHonkComposer(const size_t size_hint = 0)
+    StandardPlonkComposer(const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables){};
 
-    StandardHonkComposer(std::string const& crs_path, const size_t size_hint = 0)
-        : StandardHonkComposer(
+    StandardPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
+        : StandardPlonkComposer(
               std::unique_ptr<bonk::ReferenceStringFactory>(new bonk::FileReferenceStringFactory(crs_path)),
               size_hint){};
 
-    StandardHonkComposer(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+    StandardPlonkComposer(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
 
     {}
-    StandardHonkComposer(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
+    StandardPlonkComposer(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(std::move(crs_factory))
         , num_gates(circuit_constructor.num_gates)
@@ -57,23 +58,23 @@ class StandardHonkComposer {
 
     {}
 
-    StandardHonkComposer(std::shared_ptr<bonk::proving_key> const& p_key,
-                         std::shared_ptr<bonk::verification_key> const& v_key,
-                         size_t size_hint = 0)
+    StandardPlonkComposer(std::shared_ptr<bonk::proving_key> const& p_key,
+                          std::shared_ptr<bonk::verification_key> const& v_key,
+                          size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables)
     {}
 
-    StandardHonkComposer(const StandardHonkComposer& other) = delete;
-    StandardHonkComposer(StandardHonkComposer&& other) = default;
-    StandardHonkComposer& operator=(const StandardHonkComposer& other) = delete;
+    StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
+    StandardPlonkComposer(StandardPlonkComposer&& other) = default;
+    StandardPlonkComposer& operator=(const StandardPlonkComposer& other) = delete;
     // Todo(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members. This is a
     // temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of composer
     // methods, where appropriate.
-    // StandardHonkComposer& operator=(StandardHonkComposer&& other) = default;
-    ~StandardHonkComposer() = default;
+    // StandardPlonkComposer& operator=(StandardPlonkComposer&& other) = default;
+    ~StandardPlonkComposer() = default;
 
     size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
 
@@ -187,9 +188,25 @@ class StandardHonkComposer {
     uint32_t zero_idx = 0;
 
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
+    // TODO(Cody): This will not be needed, but maybe something is required for ComposerHelper to be generic?
+    plonk::Verifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
+    /**
+     * Preprocess the circuit. Delegates to create_prover.
+     *
+     * @return A new initialized prover.
+     */
+    /**
+     * Preprocess the circuit. Delegates to create_unrolled_prover.
+     *
+     * @return A new initialized prover.
+     */
+    plonk::Prover preprocess() { return composer_helper.create_prover(circuit_constructor); };
+    plonk::Prover create_prover() { return composer_helper.create_prover(circuit_constructor); };
 
-    StandardVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
-    StandardProver create_prover() { return composer_helper.create_prover<honk::StandardHonk>(circuit_constructor); };
+    static transcript::Manifest create_manifest(const size_t num_public_inputs)
+    {
+        return StandardPlonkComposerHelper<StandardCircuitConstructor>::create_manifest(num_public_inputs);
+    }
 
     size_t& num_gates;
     std::vector<barretenberg::fr>& variables;
@@ -197,4 +214,4 @@ class StandardHonkComposer {
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }
 };
-} // namespace honk
+} // namespace plonk

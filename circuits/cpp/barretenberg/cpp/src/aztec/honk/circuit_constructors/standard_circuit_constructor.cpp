@@ -4,7 +4,7 @@
 
 using namespace barretenberg;
 
-namespace honk {
+namespace bonk {
 #define STANDARD_SELECTOR_REFS                                                                                         \
     auto& q_m = selectors[StandardSelectors::QM];                                                                      \
     auto& q_c = selectors[StandardSelectors::QC];                                                                      \
@@ -749,4 +749,4 @@ bool StandardCircuitConstructor::check_circuit()
     }
     return true;
 }
-} // namespace honk
+} // namespace bonk

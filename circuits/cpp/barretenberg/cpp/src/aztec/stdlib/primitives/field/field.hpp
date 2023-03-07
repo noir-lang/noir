@@ -3,6 +3,7 @@
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
 #include "honk/composer/standard_honk_composer.hpp"
+#include "honk/composer/standard_plonk_composer.hpp"
 #include <common/assert.hpp>
 
 namespace plonk {
@@ -364,6 +365,5 @@ template <typename ComposerContext> inline std::ostream& operator<<(std::ostream
 
 EXTERN_STDLIB_TYPE(field_t);
 
-extern template class field_t<honk::StandardHonkComposer>;
 } // namespace stdlib
 } // namespace plonk

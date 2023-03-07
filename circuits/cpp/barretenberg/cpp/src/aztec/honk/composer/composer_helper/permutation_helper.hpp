@@ -1,3 +1,11 @@
+/**
+ * @file permutation_helper.hpp
+ * @brief Contains various functions that help construct Honk and Plonk Sigma and Id polynomials
+ *
+ * @details It is structured to reuse similar components in Honk and Plonk
+ *
+ */
+
 #pragma once
 
 #include <ecc/curves/bn254/fr.hpp>
@@ -12,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace honk {
+namespace bonk {
 
 /**
  * @brief cycle_node represents the index of a value of the circuit.
@@ -25,8 +33,22 @@ struct cycle_node {
     uint32_t wire_index;
     uint32_t gate_index;
 };
+
+/**
+ * @brief Permutations subgroup element structure is used to hold data necessary to construct permutation polynomials.
+ *
+ * @details All parameters define the evaluation of an id or sigma polynomial.
+ *
+ */
+struct permutation_subgroup_element {
+    uint32_t row_index = 0;
+    uint8_t column_index = 0;
+    bool is_public_input = false;
+    bool is_tag = false;
+};
 using CyclicPermutation = std::vector<cycle_node>;
 
+namespace {
 /**
  * Compute all CyclicPermutations of the circuit. Each CyclicPermutation represents the indices of the values in the
  * witness wires that must have the same value.
@@ -96,81 +118,247 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor
 }
 
 /**
- * @brief Compute sigma permutations for standard honk and put them into polynomial cache
+ * @brief Compute the permutation mapping for the basic no-tags case
  *
- * @details These permutations don't involve sets. We only care about equating one witness value to another. The
- * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based on
- * the witness vector and index within the vector. These values are permuted to account for wire copy cycles
+ * @details This function computes the permutation information in a commonf format that can then be used to generate
+ * either Plonk-style FFT-ready sigma polynomials or Honk-style indexed vectors
  *
- * @tparam program_width
- * @tparam CircuitConstructor
- * @param circuit_constructor
- * @param key
+ * @tparam program_width The number of wires
+ * @tparam CircuitConstructor The class that holds basic circuitl ogic
+ * @param circuit_constructor Circuit-containing object
+ * @param key Pointer to the proving key
  */
 template <size_t program_width, typename CircuitConstructor>
-void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+std::array<std::vector<permutation_subgroup_element>, program_width> compute_basic_bonk_sigma_permutations(
+    const CircuitConstructor& circuit_constructor, bonk::proving_key* key)
 {
-    // Compute wire copy cycles for public and private variables
-    std::vector<CyclicPermutation> copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
-    const size_t n = key->circuit_size;
+    // Compute wire copy cycles (cycles of permutations)
+    auto wire_copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
 
-    // Initialize sigma[0], sigma[1], ..., as the identity permutation
-    // at the end of the loop, sigma[j][i] = j*n + i
-    std::array<barretenberg::polynomial, program_width> sigma;
-    for (size_t j = 0; j < program_width; ++j) {
-        sigma[j] = barretenberg::polynomial(n);
-        for (size_t i = 0; i < n; i++) {
-            sigma[j][i] = (j * n + i);
+    // Initialize the table of permutations so that every element points to itself
+    std::array<std::vector<permutation_subgroup_element>, program_width> sigma_mappings;
+    for (size_t i = 0; i < program_width; ++i) {
+        sigma_mappings[i].reserve(key->circuit_size);
+
+        for (size_t j = 0; j < key->circuit_size; ++j) {
+            sigma_mappings[i].emplace_back(permutation_subgroup_element{
+                .row_index = (uint32_t)j, .column_index = (uint8_t)i, .is_public_input = false, .is_tag = false });
         }
     }
 
-    // Each cycle is a partition of the indexes
-    for (auto& single_copy_cycle : copy_cycles) {
-        const size_t cycle_size = single_copy_cycle.size();
+    // Go through each cycle
+    for (size_t i = 0; i < wire_copy_cycles.size(); ++i) {
+        for (size_t j = 0; j < wire_copy_cycles[i].size(); ++j) {
+            // Get the indices of the current node and next node int he cycle
+            cycle_node current_cycle_node = wire_copy_cycles[i][j];
+            // If current node is the last one in the cycle, then the next one is the first one
+            size_t next_cycle_node_index = j == wire_copy_cycles[i].size() - 1 ? 0 : j + 1;
+            cycle_node next_cycle_node = wire_copy_cycles[i][next_cycle_node_index];
+            const auto current_row = current_cycle_node.gate_index;
+            const auto next_row = next_cycle_node.gate_index;
 
-        // If we use assert equal, we lose a real variable index, which creates an empty cycle
-        if (cycle_size == 0) {
-            continue;
+            const uint32_t current_column = current_cycle_node.wire_index;
+            const uint32_t next_column = next_cycle_node.wire_index;
+            // Point current node to the next node
+            sigma_mappings[current_column][current_row] = {
+                .row_index = next_row, .column_index = (uint8_t)next_column, .is_public_input = false, .is_tag = false
+            };
         }
-
-        // next_index represents the index of the variable that the current node in the cycle should point to.
-        // We iterate over the cycle in reverse order, so the index of the last node should map to the index of the
-        // first one.
-        const auto [first_col, first_idx] = single_copy_cycle.front();
-        auto next_index = sigma[first_col][first_idx];
-
-        // The index of variable reference by the j-th node should map to the index of the (j+1)-th node.
-        // The last one points to the first, and the index of the latter is stored in `next_index`.
-        // When we get to the second node in the list, we replace it with the index of the third node, and save the
-        // index it currently points to into `next_index`
-        for (size_t j = cycle_size - 1; j != 0; --j) {
-            const auto [current_col, current_idx] = single_copy_cycle[j];
-            next_index = std::exchange(sigma[current_col][current_idx], next_index);
-        }
-        // After the loop ends, we make the first node point to the index of the second node,
-        // thereby completing the cycle.
-        sigma[first_col][first_idx] = next_index;
     }
 
-    // We intentionally want to break the cycles of the public input variables.
-    // During the witness generation, the left and right wire polynomials at index i contain the i-th public input.
-    // The CyclicPermutation created for these variables always start with (i) -> (n+i), followed by the indices of the
-    // variables in the "real" gates.
-    // We make i point to -(i+1), so that the only way of repairing the cycle is add the mapping
-    //  -(i+1) -> (n+i)
-    // These indices are chosen so they can easily be computed by the verifier. They can expect the running product
-    // to be equal to the "public input delta" that is computed in <honk/utils/public_inputs.hpp>
-    const auto num_public_inputs = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
+    // Add informationa about public inputs to the computation
+    const uint32_t num_public_inputs = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
+
     for (size_t i = 0; i < num_public_inputs; ++i) {
-        sigma[0][i] = -barretenberg::fr(i + 1);
+        sigma_mappings[0][i].row_index = static_cast<uint32_t>(i);
+        sigma_mappings[0][i].column_index = 0;
+        sigma_mappings[0][i].is_public_input = true;
     }
+    return sigma_mappings;
+}
 
+/**
+ * @brief Compute Sigma polynomials for Honk from a mapping and put into polynomial cache
+ *
+ * @details Given a mapping (effectively at table pointing witnesses to other witnesses) compute Sigma polynomials in
+ * lagrange form and put them into the cache. This version distinguishes betweenr regular elements and public inputs,
+ * but ignores tags
+ *
+ * @tparam program_width The number of wires
+ * @param sigma_mappings A table with information about permuting each element
+ * @param key Pointer to the proving key
+ */
+template <size_t program_width>
+void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
+    std::array<std::vector<permutation_subgroup_element>, program_width>& sigma_mappings, bonk::proving_key* key)
+{
+    const size_t num_gates = key->circuit_size;
+
+    std::array<barretenberg::polynomial, program_width> sigma;
+
+    for (size_t wire_index = 0; wire_index < program_width; wire_index++) {
+        sigma[wire_index] = barretenberg::polynomial(num_gates);
+        auto& current_sigma_polynomial = sigma[wire_index];
+        ITERATE_OVER_DOMAIN_START(key->small_domain)
+        const auto& current_mapping = sigma_mappings[wire_index][i];
+        if (current_mapping.is_public_input) {
+            // We intentionally want to break the cycles of the public input variables.
+            // During the witness generation, the left and right wire polynomials at index i contain the i-th public
+            // input. The CyclicPermutation created for these variables always start with (i) -> (n+i), followed by
+            // the indices of the variables in the "real" gates. We make i point to -(i+1), so that the only way of
+            // repairing the cycle is add the mapping
+            //  -(i+1) -> (n+i)
+            // These indices are chosen so they can easily be computed by the verifier. They can expect the running
+            // product to be equal to the "public input delta" that is computed in <honk/utils/public_inputs.hpp>
+            current_sigma_polynomial[i] =
+                -barretenberg::fr(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
+        } else {
+            ASSERT(!current_mapping.is_tag);
+            // For the regular permutation we simply point to the next location by setting the evaluation to its
+            // index
+            current_sigma_polynomial[i] =
+                barretenberg::fr(current_mapping.row_index + num_gates * current_mapping.column_index);
+        }
+        ITERATE_OVER_DOMAIN_END;
+    }
     // Save to polynomial cache
     for (size_t j = 0; j < program_width; j++) {
         std::string index = std::to_string(j + 1);
         key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
     }
+
+} // namespace honk
+
+/**
+ * Compute sigma permutation polynomial in lagrange base
+ *
+ * @param output Output polynomial.
+ * @param permuataion Input permutation.
+ * @param small_domain The domain we base our polynomial in.
+ *
+ * */
+inline void compute_standard_plonk_lagrange_polynomial(barretenberg::polynomial& output,
+                                                       const std::vector<permutation_subgroup_element>& permutation,
+                                                       const barretenberg::evaluation_domain& small_domain)
+{
+    if (output.size() < permutation.size()) {
+        throw_or_abort("Permutation polynomial size is insufficient to store permutations.");
+    }
+    // permutation encoding:
+    // low 28 bits defines the location in witness polynomial
+    // upper 2 bits defines the witness polynomial:
+    // 0 = left
+    // 1 = right
+    // 2 = output
+    ASSERT(small_domain.log2_size > 1);
+    const barretenberg::fr* roots = small_domain.get_round_roots()[small_domain.log2_size - 2];
+    const size_t root_size = small_domain.size >> 1UL;
+    const size_t log2_root_size = static_cast<size_t>(numeric::get_msb(root_size));
+
+    ITERATE_OVER_DOMAIN_START(small_domain);
+
+    // `permutation[i]` will specify the 'index' that this wire value will map to.
+    // Here, 'index' refers to an element of our subgroup H.
+    // We can almost use `permutation[i]` to directly index our `roots` array, which contains our subgroup elements.
+    // We first have to accomodate for the fact that `roots` only contains *half* of our subgroup elements. This is
+    // because ω^{n/2} = -ω and we don't want to perform redundant work computing roots of unity.
+
+    size_t raw_idx = permutation[i].row_index;
+
+    // Step 1: is `raw_idx` >= (n / 2)? if so, we will need to index `-roots[raw_idx - subgroup_size / 2]` instead
+    // of `roots[raw_idx]`
+    const bool negative_idx = raw_idx >= root_size;
+
+    // Step 2: compute the index of the subgroup element we'll be accessing.
+    // To avoid a conditional branch, we can subtract `negative_idx << log2_root_size` from `raw_idx`.
+    // Here, `log2_root_size = numeric::get_msb(subgroup_size / 2)` (we know our subgroup size will be a power of 2,
+    // so we lose no precision here)
+    const size_t idx = raw_idx - (static_cast<size_t>(negative_idx) << log2_root_size);
+
+    // Call `conditionally_subtract_double_modulus`, using `negative_idx` as our predicate.
+    // Our roots of unity table is partially 'overloaded' - we either store the root `w`, or `modulus + w`
+    // So to ensure we correctly compute `modulus - w`, we need to compute `2 * modulus - w`
+    // The output will similarly be overloaded (containing either 2 * modulus - w, or modulus - w)
+    output[i] = roots[idx].conditionally_subtract_from_double_modulus(static_cast<uint64_t>(negative_idx));
+
+    // Finally, if our permutation maps to an index in either the right wire vector, or the output wire vector, we
+    // need to multiply our result by one of two quadratic non-residues. (This ensures that mapping into the left
+    // wires gives unique values that are not repeated in the right or output wire permutations) (ditto for right
+    // wire and output wire mappings)
+
+    if (permutation[i].is_public_input) {
+        // As per the paper which modifies plonk to include the public inputs in a permutation argument, the permutation
+        // `σ` is modified to `σ'`, where `σ'` maps all public inputs to a set of l distinct ζ elements which are
+        // disjoint from H ∪ k1·H ∪ k2·H.
+        output[i] *= barretenberg::fr::external_coset_generator();
+    } else if (permutation[i].is_tag) {
+        output[i] *= barretenberg::fr::tag_coset_generator();
+    } else {
+        {
+            const uint32_t column_index = permutation[i].column_index;
+            if (column_index > 0) {
+                output[i] *= barretenberg::fr::coset_generator(column_index - 1);
+            }
+        }
+    }
+    ITERATE_OVER_DOMAIN_END;
 }
+
+/**
+ * @brief Given a permutation mapping, compute sigma permutations polynomials in lagrange form and put them in the
+ * polynomial cache
+ *
+ * @details Iterate over the mapping of each wire and calla  function, translating this mapping into lagrange
+ * evaluations.
+ *
+ * @tparam program_width The number of wires
+ * @param sigma_mappings At table with permutation information
+ * @param key Pointer to the proving key
+ */
+template <size_t program_width>
+void compute_standard_plonk_sigma_lagrange_polynomials_from_mapping(
+    std::array<std::vector<permutation_subgroup_element>, program_width>& sigma_mappings, bonk::proving_key* key)
+{
+    for (size_t i = 0; i < program_width; i++) {
+        std::string index = std::to_string(i + 1);
+        barretenberg::polynomial sigma_polynomial_lagrange(key->circuit_size);
+        compute_standard_plonk_lagrange_polynomial(sigma_polynomial_lagrange, sigma_mappings[i], key->small_domain);
+        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
+    }
+}
+
+/**
+ * @brief Compute the monomial and coset version of each sigma polynomial
+ *
+ * @details For Plonk we need the monomial and coset form of the polynomials, so we retrieve the lagrange form from
+ * polynomial cache, compute FFT versions and put them in the cache
+ *
+ * @tparam program_width Number of wires
+ * @param key Pointer to the proving key
+ */
+template <size_t program_width> void compute_sigma_polynomials_monomial_and_coset_fft(bonk::proving_key* key)
+{
+    for (size_t i = 0; i < program_width; ++i) {
+
+        // Construct permutation polynomials in lagrange base
+        std::string index = std::to_string(i + 1);
+
+        barretenberg::polynomial sigma_polynomial_lagrange = key->polynomial_cache.get("sigma_" + index + "_lagrange");
+        // Compute permutation polynomial monomial form
+        barretenberg::polynomial sigma_polynomial(key->circuit_size);
+        barretenberg::polynomial_arithmetic::ifft(
+            &sigma_polynomial_lagrange[0], &sigma_polynomial[0], key->small_domain);
+
+        // Compute permutation polynomial coset FFT form
+        barretenberg::polynomial sigma_fft(sigma_polynomial, key->large_domain.size);
+        sigma_fft.coset_fft(key->large_domain);
+
+        key->polynomial_cache.put("sigma_" + index, std::move(sigma_polynomial));
+        key->polynomial_cache.put("sigma_" + index + "_fft", std::move(sigma_fft));
+    }
+}
+
+} // namespace
 
 /**
  * @brief Compute standard honk id polynomials and put them into cache
@@ -198,6 +386,46 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
 }
 
 /**
+ * @brief Compute sigma permutations for standard honk and put them into polynomial cache
+ *
+ * @details These permutations don't involve sets. We only care about equating one witness value to another. The
+ * sequences don't use cosets unlike FFT-based Plonk, because there is no need for them. We simply use indices based on
+ * the witness vector and index within the vector. These values are permuted to account for wire copy cycles
+ *
+ * @tparam program_width
+ * @tparam CircuitConstructor
+ * @param circuit_constructor
+ * @param key
+ */
+template <size_t program_width, typename CircuitConstructor>
+void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+{
+    // Compute the permutation table specifying which element becomes which
+    auto sigma_mappings = compute_basic_bonk_sigma_permutations<program_width>(circuit_constructor, key);
+    // Compute Honk-style sigma polynomial fromt the permutation table
+    compute_honk_style_sigma_lagrange_polynomials_from_mapping(sigma_mappings, key);
+}
+
+/**
+ * @brief Compute sigma permutation polynomials for standard plonk and put them in the polynomial cache
+ *
+ * @tparam program_width Number of wires
+ * @tparam CircuitConstructor Class holding the circuit
+ * @param circuit_constructor An object holdingt he circuit
+ * @param key Pointer to a proving key
+ */
+template <size_t program_width, typename CircuitConstructor>
+void compute_standard_plonk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+{
+    // Compute the permutation table specifying which element becomes which
+    auto sigma_mappings = compute_basic_bonk_sigma_permutations<program_width>(circuit_constructor, key);
+    // Compute Plonk-style sigma polynomials from the mapping
+    compute_standard_plonk_sigma_lagrange_polynomials_from_mapping(sigma_mappings, key);
+    // Compute their monomial and coset versions
+    compute_sigma_polynomials_monomial_and_coset_fft<program_width>(key);
+}
+
+/**
  * @brief Compute Lagrange Polynomials L_0 and L_{n-1} and put them in the polynomial cache
  *
  * @param key Proving key where we will save the polynomials
@@ -214,4 +442,4 @@ inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key
     key->polynomial_cache.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
 }
 
-} // namespace honk
+} // namespace bonk
