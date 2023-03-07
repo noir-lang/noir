@@ -17,6 +17,7 @@ COPY aztec.js/package.json aztec.js/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuit.js/package.json circuit.js/package.json
 COPY data-archiver/package.json data-archiver/package.json
+COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/package.json ethereum.js/package.json
 COPY kernel-simulator/package.json kernel-simulator/package.json

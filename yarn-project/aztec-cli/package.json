@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
+  "typedoc": {
+    "entryPoint": "./src/index.ts",
+    "displayName": "Aztec cli",
+    "tsconfig": "./tsconfig.dest.json"
+  },
   "bin": {
     "aztec_cli": "index.js"
   },

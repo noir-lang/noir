@@ -2,6 +2,10 @@
   "name": "@aztec/aztec3-packages",
   "packageManager": "yarn@3.4.1",
   "private": true,
+  "scripts": {
+    "docs": "typedoc --out docs/dist && cd docs && yarn serve",
+    "formatting": "yarn workspaces foreach run formatting"
+  },
   "workspaces": [
     "acir-simulator",
     "aztec-cli",
@@ -9,6 +13,7 @@
     "barretenberg.js",
     "circuit.js",
     "data-archiver",
+    "docs",
     "end-to-end",
     "eslint-config",
     "ethereum.js",
@@ -25,6 +30,7 @@
   "devDependencies": {
     "eslint": "^8.21.0",
     "prettier": "^2.7.1",
+    "typedoc": "^0.23.26",
     "typescript": "^4.9.5"
   }
 }

@@ -3,6 +3,9 @@ import { Command } from 'commander';
 
 const program = new Command();
 
+/**
+ * A placeholder for the Aztec-cli.
+ */
 async function main() {
   program
     .command('run')
