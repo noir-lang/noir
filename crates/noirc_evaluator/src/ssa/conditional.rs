@@ -102,7 +102,7 @@ impl DecisionTree {
     pub fn is_true_branch(&self, assumption: AssumptionId) -> bool {
         assert_ne!(assumption, self.root);
         let parent_id = self[assumption].parent;
-        debug_assert!(
+        assert!(
             self[parent_id].val_true.contains(&assumption)
                 != self[parent_id].val_false.contains(&assumption)
         );
@@ -225,7 +225,7 @@ impl DecisionTree {
         let right = current_block.right;
         // is it an exit block?
         if data.join_to_process.contains(&current) {
-            debug_assert!(current == *data.join_to_process.last().unwrap());
+            assert!(current == *data.join_to_process.last().unwrap());
             block_assumption = assumption.parent;
             data.join_to_process.pop();
         }
@@ -249,7 +249,7 @@ impl DecisionTree {
 
             //find exit node:
             let exit = block::find_join(ctx, current_block.id);
-            debug_assert!(ctx[exit].kind == BlockType::IfJoin);
+            assert!(ctx[exit].kind == BlockType::IfJoin);
             if_decision.entry_block = current;
             if_decision.exit_block = exit;
             if_assumption = Some(if_decision);
@@ -271,10 +271,22 @@ impl DecisionTree {
             self[block_assumption].val_false.push(right_assumption);
             ctx[left.unwrap()].assumption = left_assumption;
             ctx[right.unwrap()].assumption = right_assumption;
-        } else if let Some(left) = left {
-            ctx[left].assumption = block_assumption;
-            result = vec![left];
-            debug_assert!(right.is_none()); //only IF block should have a right at this stage
+        } else {
+            match (left, right) {
+                (Some(l), None) => {
+                    ctx[l].assumption = block_assumption;
+                    result = vec![l];
+                }
+                (Some(l), Some(r)) => {
+                    ctx[l].assumption = block_assumption;
+                    ctx[r].assumption = block_assumption;
+                    result = vec![l, r];
+                }
+                (None, Some(_)) => {
+                    unreachable!("Infallible, only a split block can have right successor")
+                }
+                (None, None) => (),
+            }
         }
 
         ctx[current].assumption = block_assumption;
@@ -296,7 +308,10 @@ impl DecisionTree {
 
             let mut test_and_push = |block_id: BlockId| {
                 if !block_id.is_dummy() && !queue.contains(&block_id) {
-                    queue.push(block_id);
+                    let block = &ctx[block_id];
+                    if !block.is_join() || block.dominator == Some(current) {
+                        queue.push(block_id);
+                    }
                 }
             };
 
@@ -970,7 +985,7 @@ pub fn unroll_if(
     let if_block = &ctx[unroll_ctx.to_unroll];
     let left = if_block.left.unwrap();
     let right = if_block.right.unwrap();
-    debug_assert!(if_block.kind == BlockType::Normal);
+    assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.id);
 
     //2. create the IF subgraph

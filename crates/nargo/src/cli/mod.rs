@@ -1,17 +1,17 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
-extern crate tempdir;
-use tempdir::TempDir;
+
+use color_eyre::eyre;
 
 mod fs;
 
 mod check_cmd;
+mod codegen_verifier_cmd;
 mod compile_cmd;
-mod contract_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
@@ -47,7 +47,7 @@ pub(crate) struct NargoConfig {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    Contract(contract_cmd::ContractCommand),
+    CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -57,10 +57,10 @@ enum NargoCommand {
     Gates(gates_cmd::GatesCommand),
 }
 
-pub fn start_cli() {
+pub fn start_cli() -> eyre::Result<()> {
     let matches = NargoCli::parse();
 
-    let result = match matches.command {
+    match matches.command {
         NargoCommand::New(args) => new_cmd::run(args, matches.config),
         NargoCommand::Check(args) => check_cmd::run(args, matches.config),
         NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
@@ -69,24 +69,26 @@ pub fn start_cli() {
         NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
-        NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
-    };
-    if let Err(err) = result {
-        err.write()
-    }
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
+    }?;
+
+    Ok(())
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+    use tempdir::TempDir;
+
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         None,
         true,
-        show_ssa,
-        false,
+        &compile_options,
     ) {
         Ok(_) => true,
         Err(error) => {

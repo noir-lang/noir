@@ -1,6 +1,9 @@
 use crate::{
     errors::RuntimeErrorKind,
-    ssa::acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+    ssa::{
+        acir_gen::{const_from_expression, expression_from_witness, expression_to_witness},
+        builtin::Endian,
+    },
     Evaluator,
 };
 use acvm::{
@@ -55,11 +58,10 @@ pub(crate) fn mul_with_witness(
 
 //a*b
 pub(crate) fn mul(a: &Expression, b: &Expression) -> Expression {
-    let zero = Expression::zero();
     if a.is_const() {
-        return add(&zero, a.q_c, b);
+        return b * &a.q_c;
     } else if b.is_const() {
-        return add(&zero, b.q_c, a);
+        return a * &b.q_c;
     } else if !(a.is_linear() && b.is_linear()) {
         unreachable!("Can only multiply linear terms");
     }
@@ -127,7 +129,13 @@ pub(crate) fn subtract(a: &Expression, k: FieldElement, b: &Expression) -> Expre
 // TODO also check why we are doing all of this complicated logic with i1 and i2
 // TODO in either case, we can put this in ACIR, if its useful
 pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression {
-    let mut output = Expression::default();
+    if a.is_const() {
+        return (b * &k) + &a.q_c;
+    } else if b.is_const() {
+        return a.clone() + &(k * b.q_c);
+    }
+
+    let mut output = Expression::from_field(a.q_c + k * b.q_c);
 
     //linear combinations
     let mut i1 = 0; //a
@@ -208,7 +216,6 @@ pub(crate) fn add(a: &Expression, k: FieldElement, b: &Expression) -> Expression
         i2 += 1;
     }
 
-    output.q_c = a.q_c + k * b.q_c;
     output
 }
 
@@ -395,6 +402,7 @@ pub(crate) fn to_radix_base(
     lhs: &Expression,
     radix: u32,
     limb_size: u32,
+    endianness: Endian,
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     // ensure there is no overflow
@@ -402,13 +410,18 @@ pub(crate) fn to_radix_base(
     max = max.pow(limb_size) - BigUint::one();
     assert!(max < FieldElement::modulus());
 
-    let (result, bytes) = to_radix(radix, limb_size, evaluator);
+    let (mut result, bytes) = to_radix_little(radix, limb_size, evaluator);
+
     evaluator.opcodes.push(AcirOpcode::Directive(Directive::ToRadix {
         a: lhs.clone(),
         b: result.clone(),
         radix,
         is_little_endian: true,
     }));
+
+    if endianness == Endian::Big {
+        result.reverse();
+    }
 
     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(lhs, FieldElement::one(), &bytes)));
 
@@ -419,7 +432,7 @@ pub(crate) fn to_radix_base(
 // radix: the base, (it is a constant, not a witness)
 // num_limbs: the number of elements in the decomposition
 // output: (the elements of the decomposition as witness, the sum expression)
-pub(crate) fn to_radix(
+pub(crate) fn to_radix_little(
     radix: u32,
     num_limbs: u32,
     evaluator: &mut Evaluator,
@@ -448,7 +461,6 @@ pub(crate) fn to_radix(
             evaluator,
         );
     }
-
     (result, digits)
 }
 
@@ -465,7 +477,7 @@ pub(crate) fn evaluate_cmp(
         let mut sub_expr = subtract(lhs, FieldElement::one(), rhs);
         let two_pow = BigUint::one() << (bit_size + 1);
         sub_expr.q_c += FieldElement::from_be_bytes_reduce(&two_pow.to_bytes_be());
-        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, evaluator);
+        let bits = to_radix_base(&sub_expr, 2, bit_size + 2, Endian::Little, evaluator);
         expression_from_witness(bits[(bit_size - 1) as usize])
     } else {
         let is_greater = expression_from_witness(bound_check(lhs, rhs, bit_size, evaluator));

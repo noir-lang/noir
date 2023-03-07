@@ -8,6 +8,11 @@ use crate::{BinaryOp, BinaryOpKind, Ident, Shared, UnaryOp};
 use super::stmt::HirPattern;
 use super::types::{StructType, Type};
 
+/// A HirExpression is the result of an Expression in the AST undergoing
+/// name resolution. It is almost identical to the Expression AST node, but
+/// references other HIR nodes indirectly via IDs rather than directly via
+/// boxing. Variables in HirExpressions are tagged with their DefinitionId
+/// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(HirIdent),
@@ -35,6 +40,7 @@ impl HirExpression {
     }
 }
 
+/// Corresponds to a variable in the source code
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirIdent {
     pub location: Location,
@@ -89,6 +95,8 @@ pub struct HirInfixExpression {
     pub rhs: ExprId,
 }
 
+/// This is always a struct field access `mystruct.field`
+/// and never a method call. The later is represented by HirMethodCallExpression.
 #[derive(Debug, Clone)]
 pub struct HirMemberAccess {
     pub lhs: ExprId,
@@ -104,6 +112,7 @@ pub struct HirIfExpression {
     pub alternative: Option<ExprId>,
 }
 
+// `lhs as type` in the source code
 #[derive(Debug, Clone)]
 pub struct HirCastExpression {
     pub lhs: ExprId,
@@ -160,6 +169,7 @@ pub struct HirConstructorExpression {
     pub fields: Vec<(Ident, ExprId)>,
 }
 
+/// Indexing, as in `array[index]`
 #[derive(Debug, Clone)]
 pub struct HirIndexExpression {
     pub collection: ExprId,

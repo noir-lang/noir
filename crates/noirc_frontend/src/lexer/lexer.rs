@@ -3,62 +3,47 @@ use super::{
     token::{Attribute, IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::FieldElement;
-use fm::File;
 use noirc_errors::{Position, Span};
 use std::str::Chars;
 use std::{
     iter::{Peekable, Zip},
     ops::RangeFrom,
 };
-// XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
-// XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
-// XXX(low) : Possibly use &str instead of String when applicable
 
-pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
-
+/// The job of the lexer is to transform an iterator of characters (`char_iter`)
+/// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
+/// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
     char_iter: Peekable<Zip<Chars<'a>, RangeFrom<u32>>>,
     position: Position,
     done: bool,
 }
 
+pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
-        Lexer {
-            // We zip with the character index here to ensure the first char has index 0
-            char_iter: source.chars().zip(0..).peekable(),
-            position: 0,
-            done: false,
-        }
-    }
-
-    pub fn from_file(source: File<'a>) -> Self {
-        let source_file = source.source();
-        Lexer::new(source_file)
-    }
-
-    // This method uses size_hint and therefore should not be trusted 100%
-    pub fn approx_len(&self) -> usize {
-        let (lower, _upper) = self.char_iter.size_hint();
-        let mut size_hint = lower; // This is better than nothing, if we do not have an upper bound
-
-        if let Some(upper) = _upper {
-            size_hint = upper;
-        }
-
-        size_hint
-    }
-
-    pub fn lex(self) -> (Tokens, Vec<LexerErrorKind>) {
+    /// Given a source file of noir code, return all the tokens in the file
+    /// in order, along with any lexing errors that occurred.
+    pub fn lex(source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
+        let lexer = Lexer::new(source);
         let mut tokens = vec![];
         let mut errors = vec![];
-        for result in self {
+        for result in lexer {
             match result {
                 Ok(token) => tokens.push(token),
                 Err(error) => errors.push(error),
             }
         }
         (Tokens(tokens), errors)
+    }
+
+    fn new(source: &'a str) -> Self {
+        Lexer {
+            // We zip with the character index here to ensure the first char has index 0
+            char_iter: source.chars().zip(0..).peekable(),
+            position: 0,
+            done: false,
+        }
     }
 
     /// Iterates the cursor and returns the char at the new cursor position
@@ -89,7 +74,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> SpannedTokenResult {
+    fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
                 self.eat_whitespace();
@@ -121,7 +106,8 @@ impl<'a> Lexer<'a> {
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
-                // Invalid tokens are reported during parsing for better error messages
+                // We don't report invalid tokens in the source as errors until parsing to
+                // avoid reporting the error twice. See the note on Token::Invalid's documentation for details.
                 Ok(Token::Invalid(ch).into_single_span(self.position))
             }
             None => {
@@ -318,6 +304,7 @@ impl<'a> Lexer<'a> {
         let ident_token = Token::Ident(word);
         Ok(ident_token.into_span(start, end))
     }
+
     fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
         let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x')
@@ -336,16 +323,19 @@ impl<'a> Lexer<'a> {
         let integer_token = Token::Int(integer);
         Ok(integer_token.into_span(start, end))
     }
+
     fn eat_string_literal(&mut self) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
         let str_literal_token = Token::Str(str_literal);
         self.next_char(); // Advance past the closing quote
         str_literal_token.into_span(start_span, end_span)
     }
+
     fn parse_comment(&mut self) -> SpannedTokenResult {
         let _ = self.eat_while(None, |ch| ch != '\n');
         self.next_token()
     }
+
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self) {
         self.eat_while(None, |ch| ch.is_whitespace());
@@ -507,6 +497,7 @@ fn test_eat_string_literal() {
         assert_eq!(got, token);
     }
 }
+
 #[test]
 fn test_eat_hex_int() {
     let input = "0x05";
@@ -519,6 +510,7 @@ fn test_eat_hex_int() {
         assert_eq!(got, token);
     }
 }
+
 #[test]
 fn test_span() {
     let input = "let x = 5";
