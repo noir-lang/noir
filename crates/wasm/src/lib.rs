@@ -37,7 +37,6 @@ pub fn compile(src: String, optional_dependencies_set: js_sys::Set) -> JsValue {
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
     let path = PathBuf::from(src);
-    // let compiled_program = noirc_driver::Driver::compile_file(path, language);
     let mut driver = noirc_driver::Driver::new(&language);
 
     driver.create_local_crate(path, CrateType::Binary);
