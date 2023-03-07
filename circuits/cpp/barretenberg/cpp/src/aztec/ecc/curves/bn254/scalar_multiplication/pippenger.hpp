@@ -43,7 +43,7 @@ class Pippenger {
 
     Pippenger(uint8_t const* points, size_t num_points);
 
-    Pippenger(std::string const& path, size_t num_points, bool is_lagrange = false);
+    Pippenger(std::string const& path, size_t num_points);
 
     ~Pippenger();
 

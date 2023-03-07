@@ -37,22 +37,16 @@ class FileReferenceString : public ProverReferenceString {
   public:
     FileReferenceString(const size_t num_points, std::string const& path)
         : num_points(num_points)
-        , pippenger_(path, num_points, false)
-        , pippenger_lagrange_(path, num_points, true)
+        , pippenger_(path, num_points)
     {}
 
     g1::affine_element* get_monomial_points() override { return pippenger_.get_point_table(); }
 
-    g1::affine_element* get_lagrange_points() override { return pippenger_lagrange_.get_point_table(); }
-
     size_t get_monomial_size() const override { return num_points; }
-
-    size_t get_lagrange_size() const override { return 1UL << numeric::get_msb(num_points); }
 
   private:
     size_t num_points;
     scalar_multiplication::Pippenger pippenger_;
-    scalar_multiplication::Pippenger pippenger_lagrange_;
 };
 
 class FileReferenceStringFactory : public ReferenceStringFactory {

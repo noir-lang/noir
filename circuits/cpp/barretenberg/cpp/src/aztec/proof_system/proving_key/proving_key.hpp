@@ -63,9 +63,8 @@ struct proving_key {
     barretenberg::evaluation_domain small_domain;
     barretenberg::evaluation_domain large_domain;
 
-    // The reference_string object contains monomial as well as lagrange SRS. We can access them using:
+    // The reference_string object contains the monomial SRS. We can access it using:
     // Monomial SRS: reference_string->get_monomial_points()
-    // Lagrange SRS: reference_string->get_lagrange_points()
     std::shared_ptr<ProverReferenceString> reference_string;
 
     barretenberg::polynomial quotient_polynomial_parts[plonk::NUM_QUOTIENT_PARTS];

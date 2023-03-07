@@ -20,12 +20,12 @@ Pippenger::Pippenger(uint8_t const* points, size_t num_points)
     barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials_, monomials_, num_points);
 }
 
-Pippenger::Pippenger(std::string const& path, size_t num_points, bool is_lagrange)
+Pippenger::Pippenger(std::string const& path, size_t num_points)
     : num_points_(num_points)
 {
     monomials_ = point_table_alloc<g1::affine_element>(num_points);
 
-    barretenberg::io::read_transcript_g1(monomials_, num_points, path, is_lagrange);
+    barretenberg::io::read_transcript_g1(monomials_, num_points, path);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials_, monomials_, num_points);
 }
 

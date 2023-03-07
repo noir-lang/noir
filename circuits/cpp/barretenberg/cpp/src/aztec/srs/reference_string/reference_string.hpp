@@ -28,9 +28,7 @@ class ProverReferenceString {
     ;
 
     virtual barretenberg::g1::affine_element* get_monomial_points() = 0;
-    virtual barretenberg::g1::affine_element* get_lagrange_points() = 0;
     virtual size_t get_monomial_size() const = 0;
-    virtual size_t get_lagrange_size() const = 0;
 };
 
 class ReferenceStringFactory {

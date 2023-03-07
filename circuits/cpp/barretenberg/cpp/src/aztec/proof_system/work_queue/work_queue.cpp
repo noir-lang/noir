@@ -58,25 +58,6 @@ size_t work_queue::get_scalar_multiplication_size(const size_t work_item_number)
     return 0;
 }
 
-/**
- * Returns a boolean that denotes if the scalar multiplication is to be done with the Monomial SRS or Lagrange SRS.
- * 0: MSM with Monomial SRS (size n or n + 1)
- * 1: MSM with Lagrange SRS (size n)
- */
-bool work_queue::get_scalar_multiplication_type(const size_t work_item_number) const
-{
-    size_t count = 0;
-    for (const auto& item : work_item_queue) {
-        if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
-            if (count == work_item_number) {
-                return (item.constant == MSMType::LAGRANGE_N);
-            }
-            ++count;
-        }
-    }
-    return false;
-}
-
 barretenberg::fr* work_queue::get_ifft_data(const size_t work_item_number) const
 {
     size_t count = 0;
@@ -240,17 +221,6 @@ void work_queue::process_queue()
                 }
                 msm_size = key->small_domain.size + 1;
                 srs_points = key->reference_string->get_monomial_points();
-                break;
-            }
-            case MSMType::LAGRANGE_N: {
-                if (key->reference_string->get_lagrange_size() != key->small_domain.size) {
-                    info("MSM: Lagrange reference string size: ",
-                         key->reference_string->get_lagrange_size(),
-                         ", required size: ",
-                         key->small_domain.size);
-                }
-                msm_size = key->small_domain.size;
-                srs_points = key->reference_string->get_lagrange_points();
                 break;
             }
             default: {
