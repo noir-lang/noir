@@ -5,6 +5,7 @@
 ### Dependencies
 
 - cmake >= 3.24
+- Ninja (used by the presets as the default generator)
 - clang >= 10 or gcc >= 10
 - clang-format
 - libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)

@@ -106,7 +106,7 @@ extern template class ProverBase<ultra_to_standard_settings>;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
 typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return a templated proverbase so that I don't
-                                                // need separate casees for ultra vs ultra_to_standard...???
+                                                // need separate cases for ultra vs ultra_to_standard...???
                                                 // TODO(Cody): Make this into an issue?
 typedef ProverBase<ultra_to_standard_settings> UltraToStandardProver;
 

@@ -93,6 +93,7 @@
       "displayName": "Build for WASM",
       "description": "Build with a specific wasm-sdk to create wasm",
       "binaryDir": "build-wasm",
+      "generator": "Ninja",
       "toolchainFile": "cmake/toolchains/wasm32-wasi.cmake",
       "environment": {
         "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-12.0",
