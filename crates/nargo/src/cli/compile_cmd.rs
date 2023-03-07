@@ -1,4 +1,7 @@
 use acvm::ProofSystemCompiler;
+use noirc_driver::CompileOptions;
+use noirc_driver::Driver;
+use noirc_frontend::node_interner::FuncId;
 use std::path::Path;
 
 use clap::Args;
@@ -15,32 +18,74 @@ pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
 
-    /// Issue a warning for each unused variable instead of an error
+    /// Compile each contract function used within the program
     #[arg(short, long)]
-    allow_warnings: bool,
+    contracts: bool,
+
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let mut circuit_path = config.program_dir.clone();
-    circuit_path.push(TARGET_DIR);
+pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+    let driver = check_crate(&config.program_dir, &args.compile_options)?;
 
-    let compiled_program = compile_circuit(config.program_dir, false, args.allow_warnings)?;
+    let mut circuit_dir = config.program_dir;
+    circuit_dir.push(TARGET_DIR);
 
-    save_program_to_file(&compiled_program, &args.circuit_name, &circuit_path);
+    // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
+    if args.contracts {
+        let circuit_name = args.circuit_name.clone();
 
-    preprocess_with_path(&args.circuit_name, circuit_path, &compiled_program.circuit)?;
+        for contract in driver.get_all_contracts() {
+            for function in contract.functions {
+                let name = driver.function_name(function);
+                args.circuit_name = format!("{}-{}-{name}", circuit_name, &contract.name);
+                compile_and_save_program(&driver, function, &args, &circuit_dir)?;
+            }
+        }
+        Ok(())
+    } else {
+        let main = driver.main_function();
+        compile_and_save_program(&driver, main, &args, &circuit_dir)
+    }
+}
 
+fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
+    let backend = crate::backends::ConcreteBackend;
+    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
+    add_std_lib(&mut driver);
+    Ok(driver)
+}
+
+/// Compile and save a program to disk with the given main function.
+fn compile_and_save_program(
+    driver: &Driver,
+    main: FuncId,
+    args: &CompileCommand,
+    circuit_dir: &Path,
+) -> Result<(), CliError> {
+    let compiled_program = driver
+        .compile_no_check(&args.compile_options, main)
+        .map_err(|_| CliError::Generic(format!("'{}' failed to compile", args.circuit_name)))?;
+
+    let circuit_path = save_program_to_file(&compiled_program, &args.circuit_name, circuit_dir);
+
+    preprocess_with_path(&args.circuit_name, circuit_dir, &compiled_program.circuit)?;
+
+    println!("Generated ACIR code into {}", circuit_path.display());
     Ok(())
 }
 
-pub(crate) fn compile_circuit<P: AsRef<Path>>(
-    program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+pub(crate) fn compile_circuit(
+    program_dir: &Path,
+    compile_options: &CompileOptions,
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
-    let backend = crate::backends::ConcreteBackend;
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
-    add_std_lib(&mut driver);
+    let mut driver = setup_driver(program_dir)?;
+    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
+}
 
-    driver.into_compiled_program(show_ssa, allow_warnings).map_err(|_| CliError::CompilationError)
+fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {
+    let mut driver = setup_driver(program_dir)?;
+    driver.check_crate(options).map_err(|_| CliError::CompilationError)?;
+    Ok(driver)
 }

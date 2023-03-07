@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 
@@ -83,14 +83,15 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     use tempdir::TempDir;
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         None,
         true,
-        show_ssa,
-        false,
+        &compile_options,
     ) {
         Ok(_) => true,
         Err(error) => {
