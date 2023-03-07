@@ -5,7 +5,7 @@
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "Private Client",
+    "displayName": "Circuit.js",
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
