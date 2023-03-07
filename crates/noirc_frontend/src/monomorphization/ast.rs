@@ -81,7 +81,6 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
-    Unit,
 }
 
 #[derive(Debug, Clone)]
