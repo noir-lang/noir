@@ -9,6 +9,7 @@
     "data-archiver",
     "ethereum.js",
     "kernel-simulator",
+    "key-store",
     "p2p",
     "private-client",
     "prover-client",
