@@ -7,12 +7,12 @@ use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ContractCommand {
+pub(crate) struct CodegenVerifierCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
     let compiled_program = compile_circuit(&config.program_dir, &args.compile_options)?;
 
     let backend = crate::backends::ConcreteBackend;
