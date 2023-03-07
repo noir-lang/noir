@@ -38,7 +38,7 @@ AztecSdk.createAddSpendingKeyController(
 
 ## Usage
 
-The follow code is an example of how you could set up and use the `AddSpendingKeyController`. Obviously, you'll want to save the the spending key private keys to use them later or generate them using a different method.
+The follow code is an example of how you could set up and use the `AddSpendingKeyController`. Obviously, you'll want to save the spending key private keys to use them later or generate them using a different method.
 
 ```ts
 const newSpendingKey1 = await sdk.createSchnorrSigner(randomBytes(32));
