@@ -101,20 +101,14 @@ fn evaluate_intrinsic(
             unreachable!();
         }
         builtin::Opcode::ToRadix(endian) => {
-            let mut element: Vec<u8>;
-            match args[0].to_biguint() {
-                Some(biguint) => {
-                    element = biguint.to_radix_le(args[1] as u32);
-                }
-                None => return Ok(Vec::new()),
-            }
+            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
             let byte_count = args[2] as u32;
             let diff = if byte_count > element.len() as u32 {
                 byte_count - element.len() as u32
             } else {
-                return Err(RuntimeErrorKind::NotEnoughSpace {
-                    need: element.len() as u128,
-                    provided: byte_count as u128,
+                return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                    index: element.len() as u128,
+                    bound: byte_count as u128,
                 });
             };
             element.extend(vec![0; diff as usize]);

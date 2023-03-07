@@ -35,10 +35,6 @@ pub enum RuntimeErrorKind {
     #[error("Out of bounds")]
     ArrayOutOfBounds { index: u128, bound: u128 },
 
-    // ToRadix errors
-    #[error("to radix(bytes) needs more result_len(byte_size) than provided")]
-    NotEnoughSpace { need: u128, provided: u128 },
-
     #[error("cannot call {func_name} function in non main function")]
     FunctionNonMainContext { func_name: String },
 
@@ -98,11 +94,6 @@ impl From<RuntimeError> for Diagnostic {
             RuntimeErrorKind::FunctionNonMainContext { func_name } => Diagnostic::simple_error(
                 "cannot call function outside of main".to_owned(),
                 format!("function {func_name} can only be called in main"),
-                span,
-            ),
-            RuntimeErrorKind::NotEnoughSpace { need, provided } => Diagnostic::simple_error(
-                "to radix(bytes) needs more result_len(byte_size) than provided".to_owned(),
-                format!("not enough space: need {need} but provided {provided}."),
                 span,
             ),
         }
