@@ -12,7 +12,7 @@ namespace widget {
  * without alpha scaling is:
  *
  * q_arith * ( ( (-1/2) * (q_arith - 3) * q_m * w_1 * w_2 + q_1 * w_1 + q_2 * w_2 + q_3 * w_3 + q_4 * w_4 + q_c ) +
- * (q_arith - 1)*( α² * (q_arith - 2) * (w_1 + w_4 - w_1_omega + q_m) + w_4_omega) ) = 0
+ * (q_arith - 1)*( α * (q_arith - 2) * (w_1 + w_4 - w_1_omega + q_m) + w_4_omega) ) = 0
  *
  * This formula results in several cases depending on q_arith:
  * 1. q_arith == 0: Arithmetic gate is completely disabled
