@@ -3,10 +3,12 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-set(PROJECT_VERSION 0.1.0)
-project(Barretenberg
+project(
+    Barretenberg
     DESCRIPTION "BN254 elliptic curve library, and PLONK SNARK prover"
-    LANGUAGES CXX C)
+    VERSION 0.1.0
+    LANGUAGES CXX C
+)
 
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)

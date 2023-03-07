@@ -168,11 +168,31 @@ else()
     )
 
     if(INSTALL_BARRETENBERG)
+        # The `install` function takes targets to install in different destinations on the system.
         install(
             TARGETS barretenberg barretenberg_headers
+            # We also give it an optional export name in case something wants to target the install.
             EXPORT barretenbergTargets
+            # The ARCHIVE output signifies static libraries that should be installed
+            # and we use the GNUInstallDirs location to install into the standard system library location
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            # The FILE_SET output is used instead of PUBLIC_HEADER & PRIVATE_HEADER outputs because
+            # our headers don't have a clear delineation between public & private, but we still use
+            # the GNUInstallDirs location to install into the standard system header location
             FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+
+        set(pkg_config "${PROJECT_BINARY_DIR}/barretenberg.pc")
+
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/cmake/barretenberg.pc.in"
+            "${pkg_config}"
+            @ONLY
+        )
+
+        install(
+            FILES "${pkg_config}"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
         )
     endif()
 endif()
