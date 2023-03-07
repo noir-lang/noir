@@ -98,7 +98,9 @@ fn evaluate_intrinsic(
                 }
                 return Ok(result);
             }
-            unreachable!();
+            unreachable!(
+                "compiler error: to bits should have a Pointer result type and be decomposed."
+            );
         }
         builtin::Opcode::ToRadix(endian) => {
             let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
@@ -134,7 +136,9 @@ fn evaluate_intrinsic(
                 }
                 return Ok(result);
             }
-            unreachable!();
+            unreachable!(
+                "compiler error: to radix should have a Pointer result type and be decomposed."
+            );
         }
         _ => todo!(),
     }
