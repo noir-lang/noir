@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::ProofSystemCompiler;
 use clap::Args;
 use noirc_abi::input_parser::Format;
+use noirc_driver::CompileOptions;
 
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
@@ -17,7 +18,7 @@ use crate::{
     errors::CliError,
 };
 
-// Create proof for this program. The proof is returned as a hex encoded string.
+/// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
     /// The name of the proof
@@ -30,13 +31,8 @@ pub(crate) struct ProveCommand {
     #[arg(short, long)]
     verify: bool,
 
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-
-    /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
-    show_ssa: bool,
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -58,8 +54,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
         proof_dir,
         circuit_build_path,
         args.verify,
-        args.show_ssa,
-        args.allow_warnings,
+        &args.compile_options,
     )?;
 
     Ok(())
@@ -71,8 +66,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
     check_proof: bool,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError> {
     let (compiled_program, proving_key, verification_key) = match circuit_build_path {
         Some(circuit_build_path) => {
@@ -83,11 +77,8 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
             (compiled_program, proving_key, verification_key)
         }
         None => {
-            let compiled_program = super::compile_cmd::compile_circuit(
-                program_dir.as_ref(),
-                show_ssa,
-                allow_warnings,
-            )?;
+            let compiled_program =
+                super::compile_cmd::compile_circuit(program_dir.as_ref(), compile_options)?;
 
             let backend = crate::backends::ConcreteBackend;
             let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
