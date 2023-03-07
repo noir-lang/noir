@@ -389,9 +389,10 @@ fn cse_block_with_anchor(
                 Operation::Intrinsic(opcode, args) => {
                     //Add dummy load for function arguments and enable CSE only if no array in argument
                     let mut activate_cse = true;
-                    // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
-                    if let builtin::Opcode::Println(_) = opcode {
-                        activate_cse = false
+                    // We do not want to replace any intrinsics built upon the log directive as we want them to remain in order and unchanged
+                    match opcode {
+                        builtin::Opcode::Println | builtin::Opcode::Trace => activate_cse = false,
+                        _ => (),
                     }
 
                     for arg in args {
@@ -446,8 +447,8 @@ fn cse_block_with_anchor(
             //cannot simplify to_le_bits() in the previous call because it get replaced with multiple instructions
             if let Operation::Intrinsic(opcode, args) = &update2.operation {
                 match opcode {
-                    // We do not simplify print statements
-                    builtin::Opcode::Println(_) => (),
+                    // We do not simplify any opcode built upon the log directive
+                    builtin::Opcode::Println | builtin::Opcode::Trace => (),
                     _ => {
                         let args = args.iter().map(|arg| {
                             NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())

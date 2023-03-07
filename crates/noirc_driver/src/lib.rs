@@ -201,13 +201,7 @@ impl Driver {
         let np_language = self.language.clone();
         let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
 
-        match create_circuit(
-            program,
-            np_language,
-            blackbox_supported,
-            options.show_ssa,
-            options.show_output,
-        ) {
+        match create_circuit(program, np_language, blackbox_supported, options.show_ssa) {
             Ok((circuit, abi)) => Ok(CompiledProgram { circuit, abi }),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

@@ -154,7 +154,7 @@ mod test {
             // compute the network output by solving the constraints
             let backend = MockBackend {};
             backend
-                .solve(&mut solved_witness, eval.opcodes.clone())
+                .solve(&mut solved_witness, eval.opcodes.clone(), &mut vec![])
                 .expect("Could not solve permutation constraints");
             let mut b_val = Vec::new();
             for i in 0..output.len() {

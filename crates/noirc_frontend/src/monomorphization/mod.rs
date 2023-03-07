@@ -560,10 +560,38 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::ExprId,
     ) -> ast::Expression {
         let func = Box::new(self.expr_infer(call.func));
-        let arguments = vecmap(&call.arguments, |id| self.expr_infer(*id));
+        let mut arguments = vecmap(&call.arguments, |id| self.expr_infer(*id));
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
+
+        if let ast::Expression::Ident(ident) = func.as_ref() {
+            match &ident.definition {
+                Definition::Builtin(opcode) => match opcode.as_str() {
+                    "println" | "trace" => {
+                        let is_string = match &arguments[0] {
+                            ast::Expression::Ident(ident) => match ident.typ {
+                                ast::Type::String(_) => true,
+                                ast::Type::Tuple(_) => {
+                                    unreachable!("logging structs/tuples is not supported")
+                                }
+                                ast::Type::Function { .. } => {
+                                    unreachable!("logging functions is not supported")
+                                }
+                                _ => false,
+                            },
+                            ast::Expression::Literal(literal) => {
+                                matches!(literal, ast::Literal::Str(_))
+                            }
+                            _ => unreachable!("logging this expression type is not supported"),
+                        };
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_string)));
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
+        }
 
         self.try_evaluate_call(&func, &call.arguments).unwrap_or(ast::Expression::Call(ast::Call {
             func,

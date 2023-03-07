@@ -6,7 +6,7 @@ use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{errors::CliError, resolver::Resolver};
+use crate::{errors::CliError, logs::handle_logs, resolver::Resolver};
 
 use super::{add_std_lib, NargoConfig};
 
@@ -90,10 +90,13 @@ fn run_test(
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();
+    let mut logs = Vec::new();
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes) {
+    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes, &mut logs) {
+        handle_logs(logs)?;
+
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
@@ -101,5 +104,9 @@ fn run_test(
         writer.reset().ok();
         return Err(error.into());
     }
+    if config.show_output {
+        handle_logs(logs)?;
+    }
+
     Ok(())
 }

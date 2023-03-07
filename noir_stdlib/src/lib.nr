@@ -10,3 +10,6 @@ mod field;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}
+
+#[builtin(trace)]
+fn trace<T>(_input : T) {}
