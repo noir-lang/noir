@@ -46,8 +46,8 @@ pub fn compile(src: String, optional_dependencies_set: js_sys::Set) -> JsValue {
     if !optional_dependencies_set.is_undefined() {
         for optional_dependency in optional_dependencies_set.values() {
             let dependency = optional_dependency.unwrap();
-            if dependency.is_string() {
-                add_noir_lib(&mut driver, dependency.as_string().unwrap());
+            if let Some(dep_name) = dependency.as_string() {
+                add_noir_lib(&mut driver, dep_name);
             }
         }
     }
