@@ -57,6 +57,9 @@ impl IrGenerator {
         self.variable_values.get(variable_def)
     }
 
+    /// Returns the ssa value of a variable
+    /// This method constructs the ssa value of a variable, while parsing the AST, using value numbering
+    /// This is why it requires a mutable SsaContext
     pub fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
             Value::Node(id) => Value::Node(ssa_form::get_current_value(&mut self.context, *id)),
