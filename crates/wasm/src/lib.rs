@@ -51,8 +51,9 @@ pub fn compile(src: String, optional_dependencies_set: js_sys::Set) -> JsValue {
         }
     }
 
-    let compiled_program =
-        driver.into_compiled_program(false, false).unwrap_or_else(|_| std::process::exit(1));
+    let compiled_program = driver
+        .into_compiled_program(false, false)
+        .unwrap_or_else(|_| panic!("could not compile program"));
 
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
