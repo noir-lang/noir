@@ -41,7 +41,6 @@ pub fn compile(src: String, optional_dependencies_set: js_sys::Set) -> JsValue {
 
     driver.create_local_crate(path, CrateType::Binary);
 
-    // add_noir_lib(&mut driver, &"std");
     if !optional_dependencies_set.is_undefined() {
         for optional_dependency in optional_dependencies_set.values() {
             let dependency = optional_dependency.unwrap();
