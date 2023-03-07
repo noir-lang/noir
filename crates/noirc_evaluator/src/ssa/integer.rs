@@ -311,7 +311,7 @@ fn block_overflow(
                     });
                 }
             }
-            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs, .. }) => {
+            Operation::Binary(node::Binary { operator: BinaryOp::Shr(loc), lhs, rhs, .. }) => {
                 if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
@@ -325,7 +325,7 @@ fn block_overflow(
                         ins.operation = Operation::Binary(node::Binary {
                             lhs,
                             rhs,
-                            operator: BinaryOp::Udiv(None),
+                            operator: BinaryOp::Udiv(loc),
                             predicate: None,
                         });
                     }
@@ -554,7 +554,7 @@ fn get_binary_max_value(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),
         ),
-        BinaryOp::Shr => {
+        BinaryOp::Shr(_) => {
             if lhs_max.bits() >= 1 {
                 BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
             } else {

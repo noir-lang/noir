@@ -604,7 +604,7 @@ pub enum BinaryOp {
     Mul, //(*)
     #[allow(dead_code)]
     SafeMul, //(*) safe multiplication
-    Udiv(Option<Location>), //(/) unsigned division
+    Udiv(Location), //(/) unsigned division
     Sdiv(Location), //(/) signed division
     Urem(Location), //(%) modulo; remainder of unsigned division
     Srem(Location), //(%) remainder of signed division
@@ -621,7 +621,7 @@ pub enum BinaryOp {
     Or,  //(|) Bitwise Or
     Xor, //(^) Bitwise Xor
     Shl, //(<<) Shift left
-    Shr, //(>>) Shift right
+    Shr(Location), //(>>) Shift right
 
     Assign,
 }
@@ -653,7 +653,7 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
             BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
+            BinaryOp::Shr(_) => "shr",
         };
         write!(f, "{op}")
     }
@@ -684,7 +684,7 @@ impl Binary {
                 let num_type: NumericType = op_type.into();
                 match num_type {
                     NumericType::Signed(_) => BinaryOp::Sdiv(location),
-                    NumericType::Unsigned(_) => BinaryOp::Udiv(Some(location)),
+                    NumericType::Unsigned(_) => BinaryOp::Udiv(location),
                     NumericType::NativeField => BinaryOp::Div(location),
                 }
             }
@@ -721,7 +721,7 @@ impl Binary {
                 }
             }
             BinaryOpKind::ShiftLeft => BinaryOp::Shl,
-            BinaryOpKind::ShiftRight => BinaryOp::Shr,
+            BinaryOpKind::ShiftRight => BinaryOp::Shr(location),
             BinaryOpKind::Modulo => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
@@ -819,10 +819,7 @@ impl Binary {
 
             BinaryOp::Udiv(loc) => {
                 if r_is_zero {
-                    // division by zero can only be a user error, so we must have a location. If not it is a bug.
-                    self.zero_div_error(
-                        &loc.expect("ICE - missing location for unsigned division"),
-                    )?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -994,7 +991,7 @@ impl Binary {
                     return Ok(wrapping(lhs, rhs, res_type, u128::shl, field_op_not_allowed));
                 }
             }
-            BinaryOp::Shr => {
+            BinaryOp::Shr(_) => {
                 if l_is_zero {
                     return Ok(l_eval);
                 }
@@ -1036,7 +1033,7 @@ impl Binary {
             BinaryOp::Xor => true,
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
-            BinaryOp::Shr => true,
+            BinaryOp::Shr(_) => true,
         }
     }
 
@@ -1065,7 +1062,7 @@ impl Binary {
             BinaryOp::Or => Opcode::Or,
             BinaryOp::Xor => Opcode::Xor,
             BinaryOp::Shl => Opcode::Shl,
-            BinaryOp::Shr => Opcode::Shr,
+            BinaryOp::Shr(_) => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
         }
     }

@@ -604,12 +604,11 @@ impl DecisionTree {
                     }
                     stack.push(ins_id);
                     let (side_effect, location) = match binary_op.operator {
-                        BinaryOp::Udiv(Some(loc))
+                        BinaryOp::Udiv(loc)
                         | BinaryOp::Sdiv(loc)
                         | BinaryOp::Urem(loc)
                         | BinaryOp::Srem(loc)
                         | BinaryOp::Div(loc) => (true, Some(loc)),
-                        BinaryOp::Udiv(None) => (true, None),
                         _ => (false, None),
                     };
                     if side_effect {
