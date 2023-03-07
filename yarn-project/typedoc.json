@@ -12,7 +12,6 @@
     "kernel-simulator",
     "key-store",
     "p2p",
-    "private-client",
     "prover-client",
     "public-client",
     "sequencer-client",
