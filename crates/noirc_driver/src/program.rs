@@ -16,14 +16,14 @@ where
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
 
-    hex::serialize(circuit_bytes, s)
+    circuit_bytes.serialize(s)
 }
 
 fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let circuit_bytes: Vec<u8> = hex::deserialize(deserializer)?;
+    let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
