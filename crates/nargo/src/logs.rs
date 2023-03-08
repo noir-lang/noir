@@ -1,14 +1,10 @@
 use crate::CliError;
-use acvm::{
-    acir::circuit::directives::{SolvedLog, SolvedLogOutputInfo},
-    FieldElement,
-};
+use acvm::acir::circuit::directives::{SolvedLog, SolvedLogOutputInfo};
 use iter_extended::vecmap;
+use noirc_abi::format_field_string;
 
 pub(crate) fn handle_logs(logs: Vec<SolvedLog>) -> Result<(), CliError> {
     for log in logs {
-        println!("is_trace: ");
-        dbg!(log.is_trace);
         let output_string = match log.output_info {
             SolvedLogOutputInfo::FinalizedOutput(output_string) => output_string.clone(),
             SolvedLogOutputInfo::WitnessValues(field_elements) => {
@@ -38,16 +34,4 @@ pub(crate) fn handle_logs(logs: Vec<SolvedLog>) -> Result<(), CliError> {
         }
     }
     Ok(())
-}
-
-/// This trims any leading zeroes.
-/// A singular '0' will be prepended as well if the trimmed string has an odd length.
-/// A hex string's length needs to be even to decode into bytes, as two digits correspond to
-/// one byte.
-fn format_field_string(field: FieldElement) -> String {
-    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
-    if trimmed_field.len() % 2 != 0 {
-        trimmed_field = "0".to_owned() + &trimmed_field
-    };
-    "0x".to_owned() + &trimmed_field
 }

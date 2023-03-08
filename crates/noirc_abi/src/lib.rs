@@ -396,6 +396,18 @@ pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
     final_string.to_owned()
 }
 
+/// This trims any leading zeroes.
+/// A singular '0' will be prepended as well if the trimmed string has an odd length.
+/// A hex string's length needs to be even to decode into bytes, as two digits correspond to
+/// one byte.
+pub fn format_field_string(field: FieldElement) -> String {
+    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
+    if trimmed_field.len() % 2 != 0 {
+        trimmed_field = "0".to_owned() + &trimmed_field
+    };
+    "0x".to_owned() + &trimmed_field
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;

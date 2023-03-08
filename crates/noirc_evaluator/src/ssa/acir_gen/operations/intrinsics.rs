@@ -13,17 +13,15 @@ use crate::{
     },
     Evaluator,
 };
-use acvm::{
-    acir::{
-        circuit::{
-            directives::{Directive, LogOutputInfo},
-            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        },
-        native_types::{Expression, Witness},
+use acvm::acir::{
+    circuit::{
+        directives::{Directive, LogOutputInfo},
+        opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
-    FieldElement,
+    native_types::{Expression, Witness},
 };
 use iter_extended::vecmap;
+use noirc_abi::{decode_string_value, format_field_string};
 
 // Generate constraints for two types of functions:
 // - Builtin functions: These are functions that
@@ -283,7 +281,7 @@ fn evaluate_logs(
             }
 
             if is_string_output {
-                let final_string = noirc_abi::decode_string_value(&field_elements);
+                let final_string = decode_string_value(&field_elements);
                 log_string.push_str(&final_string);
             } else if !field_elements.is_empty() {
                 let fields = vecmap(field_elements, format_field_string);
@@ -329,16 +327,4 @@ fn evaluate_logs(
     };
 
     evaluator.opcodes.push(AcirOpcode::Directive(log_directive));
-}
-
-/// This trims any leading zeroes.
-/// A singular '0' will be prepended as well if the trimmed string has an odd length.
-/// A hex string's length needs to be even to decode into bytes, as two digits correspond to
-/// one byte.
-fn format_field_string(field: FieldElement) -> String {
-    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
-    if trimmed_field.len() % 2 != 0 {
-        trimmed_field = "0".to_owned() + &trimmed_field
-    };
-    "0x".to_owned() + &trimmed_field
 }

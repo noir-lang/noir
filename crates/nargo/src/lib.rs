@@ -22,7 +22,7 @@ pub mod cli;
 mod constants;
 mod errors;
 mod git;
-mod logs;
+pub mod logs;
 mod resolver;
 mod toml;
 
