@@ -15,6 +15,8 @@
 const sidebars = {
   docsSidebar: [
     "intro",
+    "noir",
+    "aztec-connect-sunset",
     "glossary",
   ],
 };

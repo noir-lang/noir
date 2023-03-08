@@ -116,10 +116,6 @@ const config = {
                 label: "Introduction",
                 to: "/",
               },
-              {
-                label: "How Aztec Works",
-                to: "/category/how-aztec-works",
-              },
             ],
           },
           {
