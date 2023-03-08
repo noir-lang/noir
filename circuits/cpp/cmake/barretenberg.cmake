@@ -9,24 +9,16 @@
 
 include(ExternalProject)
 
+# Reference barretenberg artifacts (like library archives) via this dir:
 if (WASM)
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build-wasm)
 else()
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build)
 endif()
 
-# If the OpenMP library is included via this option, propogate to ExternalProject configure
-if (OpenMP_omp_LIBRARY)
-    set(LIB_OMP_OPTION -DOpenMP_omp_LIBRARY=${OpenMP_omp_LIBRARY})
+if(NOT CMAKE_BBERG_PRESET)
+    set(CMAKE_BBERG_PRESET default)
 endif()
-
-# Make sure barretenberg doesn't set its own WASI_SDK_PREFIX
-if (WASI_SDK_PREFIX)
-    set(WASI_SDK_OPTION -DWASI_SDK_PREFIX=${WASI_SDK_PREFIX})
-endif()
-
-# cmake configure cli args for ExternalProject
-set(BBERG_CONFIGURE_ARGS -DTOOLCHAIN=${TOOLCHAIN} ${WASI_SDK_OPTION} ${LIB_OMP_OPTION} -DCI=${CI})
 
 # Naming: Project: Barretenberg, Libraries: barretenberg, env
 # Need BUILD_ALWAYS to ensure that barretenberg is automatically reconfigured when its CMake files change
@@ -35,12 +27,14 @@ set(BBERG_CONFIGURE_ARGS -DTOOLCHAIN=${TOOLCHAIN} ${WASI_SDK_OPTION} ${LIB_OMP_O
 #  default success timestamp-based method." - https://cmake.org/cmake/help/latest/module/ExternalProject.html
 ExternalProject_Add(Barretenberg
     SOURCE_DIR ${BBERG_DIR}
-    BINARY_DIR ${BBERG_BUILD_DIR} # build directory
+    BUILD_IN_SOURCE TRUE
     BUILD_ALWAYS TRUE
     UPDATE_COMMAND ""
     INSTALL_COMMAND ""
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} ${BBERG_CONFIGURE_ARGS} ..
-    BUILD_COMMAND ${CMAKE_COMMAND} --build . --parallel --target barretenberg --target env)
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} --preset ${CMAKE_BBERG_PRESET}
+    BUILD_COMMAND ${CMAKE_COMMAND} --build --preset ${CMAKE_BBERG_PRESET} --target barretenberg --target env
+    # byproducts needed by ninja generator (not needed by make)
+    BUILD_BYPRODUCTS ${BBERG_BUILD_DIR}/lib/libbarretenberg.a ${BBERG_BUILD_DIR}/lib/libenv.a)
 
 include_directories(${BBERG_DIR}/src/aztec)
 

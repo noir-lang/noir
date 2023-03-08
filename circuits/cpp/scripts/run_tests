@@ -22,14 +22,15 @@ fi
 
 if [ -z "$WASM_MODE" ]; then
   TEST_CMD="./bin/\$BIN $@"
+  BUILD_DIR=/usr/src/aztec3-circuits/cpp/build
 else
   TEST_CMD="wasmtime --dir .. bin/\$BIN $@"
+  BUILD_DIR=/usr/src/aztec3-circuits/cpp/build-wasm
 fi
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -e; \
-  cd /usr/src/aztec3-circuits/barretenberg/cpp/srs_db; \
+  cd /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \
-  ./download_ignition_lagrange.sh 24; \
-  cd /usr/src/aztec3-circuits/build; \
+  cd $BUILD_DIR; \
   for BIN in $TESTS; do $TEST_CMD; done"

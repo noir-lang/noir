@@ -14,7 +14,7 @@
 
 function(barretenberg_module MODULE_NAME)
     file(GLOB_RECURSE SOURCE_FILES *.cpp)
-    file(GLOB_RECURSE HEADER_FILES *.hpp)
+    file(GLOB_RECURSE HEADER_FILES *.hpp *.tcc)
     list(FILTER SOURCE_FILES EXCLUDE REGEX ".*\.(fuzzer|test|bench).cpp$")
 
     if(SOURCE_FILES)
@@ -54,7 +54,7 @@ function(barretenberg_module MODULE_NAME)
         target_link_libraries(
             ${MODULE_NAME}_test_objects
             PRIVATE
-            gtest
+            GTest::gtest
             env
             ${TBB_IMPORTED_TARGETS}
         )
@@ -81,7 +81,8 @@ function(barretenberg_module MODULE_NAME)
             )
         endif()
 
-        if(DISABLE_HEAVY_TESTS)
+        if((COVERAGE AND NOT ENABLE_HEAVY_TESTS) OR (DISABLE_HEAVY_TESTS))
+            # Heavy tests take hours when we are using profiling instrumentation
             target_compile_definitions(
                 ${MODULE_NAME}_test_objects
                 PRIVATE
@@ -94,22 +95,56 @@ function(barretenberg_module MODULE_NAME)
             PRIVATE
             ${MODULE_LINK_NAME}
             ${ARGN}
-            gtest
-            gtest_main
+            GTest::gtest
+            GTest::gtest_main
             env
             ${TBB_IMPORTED_TARGETS}
         )
 
         if(NOT WASM AND NOT CI)
-            # Currently haven't found a way to easily wrap the calls in wasmtime when run from ctest.
-            gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+            # If collecting coverage data, set profile
+            # For some reason processor affinity doesn't work, so the developer has to set it manually anyway
+            if(COVERAGE)
+                # Profile filename has to be dependent on some process characteristic, because ctest calls all tests individually and the profiles get overwritten
+                gtest_discover_tests(${MODULE_NAME}_tests
+                PROPERTIES ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.%p.profraw"
+                PROPERTIES PROCESSOR_AFFINITY ON
+                PROPERTIES PROCESSORS 16
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+            else()
+                # Currently haven't found a way to easily wrap the calls in wasmtime when run from ctest.
+                gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+            endif()
         endif()
 
-        add_custom_target(
-            run_${MODULE_NAME}_tests
-            COMMAND ${MODULE_NAME}_tests
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
+        if(COVERAGE)
+            target_link_options(
+                ${MODULE_NAME}_tests
+                PRIVATE
+                -fprofile-instr-generate -fcoverage-mapping
+            )
+            add_custom_target(
+                run_${MODULE_NAME}_tests
+                COMMAND mkdir -p ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata
+                COMMAND LLVM_PROFILE_FILE=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.%p.profraw ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${MODULE_NAME}_tests
+                BYPRODUCTS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.profraw
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                DEPENDS ${MODULE_NAME}_tests
+            )
+            add_custom_target(
+                generate_${MODULE_NAME}_tests_coverage
+                COMMAND ${PROFDATA_EXECUTABLE} merge -sparse ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.profraw -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.profdata
+                DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.profraw
+                BYPRODUCTS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/profdata/${MODULE_NAME}.profdata
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+        else()
+            add_custom_target(
+                run_${MODULE_NAME}_tests
+                COMMAND ${MODULE_NAME}_tests
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+        endif()
     endif()
 
     file(GLOB_RECURSE FUZZERS_SOURCE_FILES *.fuzzer.cpp)
@@ -150,7 +185,7 @@ function(barretenberg_module MODULE_NAME)
         target_link_libraries(
             ${MODULE_NAME}_bench_objects
             PRIVATE
-            benchmark
+            benchmark::benchmark
             env
             ${TBB_IMPORTED_TARGETS}
         )
@@ -166,7 +201,7 @@ function(barretenberg_module MODULE_NAME)
             PRIVATE
             ${MODULE_LINK_NAME}
             ${ARGN}
-            benchmark
+            benchmark::benchmark
             env
             ${TBB_IMPORTED_TARGETS}
         )

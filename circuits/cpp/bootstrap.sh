@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 # Update the submodule
 git submodule update --init --recursive
@@ -7,16 +7,15 @@ git submodule update --init --recursive
 # Clean.
 rm -rf ./build
 rm -rf ./build-wasm
-rm -rf ./src/wasi-sdk-*
 
 # Clean barretenberg.
-rm -rf ../barretenberg/cpp/build
-rm -rf ../barretenberg/cpp/build-wasm
-rm -rf ../barretenberg/cpp/src/wasi-sdk-*
+rm -rf ./barretenberg/cpp/build
+rm -rf ./barretenberg/cpp/build-wasm
+rm -rf ./barretenberg/cpp/src/wasi-sdk-*
 
 # Install formatting git hook.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
-echo "cd \$(git rev-parse --show-toplevel) && ./format.sh staged" > $HOOKS_DIR/pre-commit
+echo "cd \$(git rev-parse --show-toplevel)/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
 chmod +x $HOOKS_DIR/pre-commit
 
 # Determine system.
@@ -33,37 +32,41 @@ fi
 (cd barretenberg/cpp/srs_db && ./download_ignition.sh 3)
 
 # Pick native toolchain file.
+ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then
+  if [ "$(which brew)" != "" ]; then
     export BREW_PREFIX=$(brew --prefix)
+
     # Ensure we have toolchain.
     if [ ! "$?" -eq 0 ] || [ ! -f "$BREW_PREFIX/opt/llvm/bin/clang++" ]; then
-        echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
-        exit 1
+      echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
+      exit 1
     fi
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "arm64" ]; then
-        TOOLCHAIN=arm-apple-clang
-    else
-        TOOLCHAIN=x86_64-apple-clang
-    fi
+
+    PRESET=homebrew
+  else
+    PRESET=default
+  fi
 else
-    TOOLCHAIN=x86_64-linux-clang
+  if [ "$(which clang++-15)" != "" ]; then
+    PRESET=clang15
+  else
+    PRESET=default
+  fi
 fi
 
+echo "#################################"
+echo "# Building with preset: $PRESET"
+echo "# When running cmake directly, remember to use: --build --preset $PRESET"
+echo "#################################"
+
 # Build native.
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN ..
-cmake --build . --parallel ${@/#/--target }
-cd ..
+cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
+cmake --build --preset $PRESET ${@/#/--target }
 
 # Install the webassembly toolchain.
-WASI_VERSION=12
-cd ./src
-curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -
-cd ..
+(cd ./barretenberg/cpp/src && export WASI_VERSION=12 && curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -)
 
 # Build WASM.
-mkdir -p build-wasm && cd build-wasm
-cmake -DTOOLCHAIN=wasm-linux-clang ..
-cmake --build . --parallel # --target aztec3.wasm
-cd ..
+cmake --preset wasm
+cmake --build --preset wasm

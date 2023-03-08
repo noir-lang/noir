@@ -76,20 +76,20 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         PublicCircuitPublicInputs<CircuitTypes<Composer>> pis = {
             to_circuit_type(call_context),
 
-            .args = to_ct(args),
-            .return_values = to_ct(return_values),
+            to_ct(args),
+            to_ct(return_values),
 
-            .emitted_events = to_ct(emitted_events),
+            to_ct(emitted_events),
 
-            .state_transitions = map(state_transitions, to_circuit_type),
-            .state_reads = map(state_reads, to_circuit_type),
+            map(state_transitions, to_circuit_type),
+            map(state_reads, to_circuit_type),
 
-            .public_call_stack = to_ct(public_call_stack),
-            .l1_msg_stack = to_ct(l1_msg_stack),
+            to_ct(public_call_stack),
+            to_ct(l1_msg_stack),
 
-            .old_private_data_tree_root = to_ct(old_private_data_tree_root),
+            to_ct(old_private_data_tree_root),
 
-            .prover_address = to_ct(prover_address),
+            to_ct(prover_address),
         };
 
         return pis;

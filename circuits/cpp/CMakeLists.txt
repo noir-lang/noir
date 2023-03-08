@@ -1,7 +1,7 @@
-# aztec-connect-cpp
+# aztec3-circuits
 # copyright 2019 Spilsbury Holdings Ltd
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.24)
 
 # Get the full path to barretenberg. This is helpful because the required
 # relative path changes based on where in cmake the path is used.
@@ -10,33 +10,66 @@ cmake_minimum_required(VERSION 3.16)
 get_filename_component(BBERG_DIR ../barretenberg/cpp
                        REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
 
-include(cmake/toolchain.cmake)
-
-set(PROJECT_VERSION 0.1.0)
-project(Aztec3Circuits
+project(
+    Aztec3Circuits
     DESCRIPTION "Project containing Aztec3 Circuits Infrastucture in C++."
-    LANGUAGES CXX C)
-
-# include barretenberg as ExternalProject
-include(cmake/barretenberg.cmake)
+    VERSION 0.1.0
+    LANGUAGES CXX C
+)
 
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)
 option(MULTITHREADING "Enable multi-threading" ON)
 option(TESTING "Build tests" ON)
+option(BENCHMARKS "Build benchmarks" ON)
+option(FUZZING "Build fuzzing harnesses" OFF)
+option(DISABLE_TBB "Intel Thread Building Blocks" ON)
+option(COVERAGE "Enable collecting coverage from tests" OFF)
+option(ENABLE_HEAVY_TESTS "Enable heavy tests when collecting coverage" OFF)
 
-if(ARM)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     message(STATUS "Compiling for ARM.")
+    set(ARM ON)
     set(DISABLE_ASM ON)
     set(DISABLE_ADX ON)
     set(RUN_HAVE_STD_REGEX 0)
     set(RUN_HAVE_POSIX_REGEX 0)
+    set(DISABLE_TBB 0)
 endif()
 
-if(WASM)
+if(FUZZING)
+    add_definitions(-DFUZZING=1)
+
+    if(DISABLE_CUSTOM_MUTATORS)
+        add_definitions(-DDISABLE_CUSTOM_MUTATORS=1)
+    endif()
+
+    set(SANITIZER_OPTIONS "")
+
+    if(ADDRESS_SANITIZER)
+        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=address)
+    endif()
+
+    if(UNDEFINED_BEHAVIOUR_SANITIZER)
+        set(SANITIZER_OPTIONS ${SANITIZER_OPTIONS} -fsanitize=undefined  -fno-sanitize=alignment)
+    endif()
+
+    add_compile_options(-fsanitize=fuzzer-no-link ${SANITIZER_OPTIONS})
+
+    set(WASM OFF)
+    set(BENCHMARKS OFF)
+    set(MULTITHREADING OFF)
+    set(TESTING OFF)
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "wasm32")
     message(STATUS "Compiling for WebAssembly.")
+    set(WASM ON)
     set(DISABLE_ASM ON)
     set(MULTITHREADING OFF)
+    set(BENCHMARKS OFF)
+    set(DISABLE_TBB 1)
+    add_compile_definitions(_WASI_EMULATED_PROCESS_CLOCKS=1)
 endif()
 
 set(CMAKE_C_STANDARD 11)
@@ -45,10 +78,62 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10")
+        message(WARNING "Clang <10 is not supported")
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10")
+        message(WARNING "GCC <10 is not supported")
+    endif()
+else()
+    message(WARNING "Unsuported compiler, use Clang >10 or GCC >10")
+endif()
+
+if(COVERAGE)
+
+    # We've only set up LLVM coverage
+    if(NOT(CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        message(FATAL_ERROR "Creating coverage is only available for clang")
+    endif()
+
+    # Get major clang version
+    string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
+    list(GET VERSION_LIST 0 CLANG_VERSION_MAJOR)
+
+    # Find llvm-profdata
+    set(PROFDATA_EXECUTABLE_NAME "llvm-profdata-${CLANG_VERSION_MAJOR}")
+    find_program(PROFDATA_EXECUTABLE ${PROFDATA_EXECUTABLE_NAME})
+    if(PROFDATA_EXECUTABLE MATCHES "NOTFOUND")
+        message(FATAL_ERROR "Couldn't find ${PROFDATA_EXECUTABLE_NAME}")
+    endif()
+
+    # Find llvm-cov
+    set(COV_EXECUTABLE_NAME "llvm-cov-${CLANG_VERSION_MAJOR}")
+    find_program(COV_EXECUTABLE ${COV_EXECUTABLE_NAME})
+    if(COV_EXECUTABLE MATCHES "NOTFOUND")
+        message(FATAL_ERROR "Couldn't find ${COV_EXECUTABLE_NAME}")
+    endif()
+
+    # Add profiling compile options and disable optimisations
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping -O0)
+
+    # Add a custom target for creating the report
+    add_custom_target(create_full_coverage_report
+    COMMAND "${CMAKE_SOURCE_DIR}/scripts/collect_coverage_information.sh" ${PROFDATA_EXECUTABLE} ${COV_EXECUTABLE}
+    VERBATIM
+    )
+endif()
+
+# include barretenberg as ExternalProject
+# (needs WASM to be set already)
+include(cmake/barretenberg.cmake)
+
 include(cmake/build.cmake)
+include(GNUInstallDirs)
 include(cmake/arch.cmake)
 include(cmake/threading.cmake)
 include(cmake/gtest.cmake)
+include(cmake/benchmark.cmake)
 include(cmake/module.cmake)
-
 add_subdirectory(src)

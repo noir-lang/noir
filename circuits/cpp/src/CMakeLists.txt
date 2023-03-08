@@ -3,7 +3,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_compile_options(-Werror -Wall -Wextra -Wconversion -Wsign-conversion -Wno-deprecated -Wno-tautological-compare -Wfatal-errors)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-Wno-unguarded-availability-new -Wno-c99-extensions -fconstexpr-steps=100000000)
+    add_compile_options(-fconstexpr-steps=100000000)
     if(MEMORY_CHECKS)
         message(STATUS "Compiling with memory checks.")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
@@ -11,7 +11,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-Wno-deprecated-copy -fconstexpr-ops-limit=100000000)
+    add_compile_options(-fconstexpr-ops-limit=100000000)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -26,7 +26,3 @@ else()
 endif()
 
 add_subdirectory(aztec3)
-
-if(BENCHMARKS)
-    add_subdirectory(benchmark)
-endif()
