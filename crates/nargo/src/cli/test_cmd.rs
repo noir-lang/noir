@@ -36,9 +36,7 @@ fn run_tests(
     let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(compile_options).is_err() {
-        return Err(CliError::CompilationError);
-    }
+    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
     println!("Running {} test functions...", test_functions.len());
