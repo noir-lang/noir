@@ -195,7 +195,10 @@ impl Driver {
         };
 
         // All Binaries should have a main function
-        Ok(local_crate.main_function().unwrap())
+        match local_crate.main_function() {
+            Some(func_id) => Ok(func_id),
+            None => return Err(ReportedError),
+        }
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!

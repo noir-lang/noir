@@ -68,9 +68,7 @@ fn run_tests(
         writeln!(writer, "All tests passed").ok();
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-        writeln!(writer, "{failing} test{plural} failed").ok();
-        return Err(CliError::Generic("".to_string()));
+        return Err(CliError::Generic(format!("{failing} test{plural} failed")));
     }
 
     writer.reset().ok();

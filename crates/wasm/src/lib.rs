@@ -30,7 +30,7 @@ pub fn compile(src: String) -> JsValue {
     let path = PathBuf::from(src);
     let compiled_program = match noirc_driver::Driver::compile_file(path, language) {
         Ok(compiled_program) => compiled_program,
-        Err(_) => panic!("Failed to compiler circuit"),
+        Err(_) => panic!("Compilation Error: Failed to compile circuit"),
     };
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
