@@ -194,7 +194,7 @@ impl IrGenerator {
                         parent_block: self.context.current_block,
                     };
                     let b_id = self.context.add_variable(new_var, None);
-                    let b_id1 = self.context.handle_assign(b_id, None, return_id)?;
+                    let b_id1 = self.context.handle_assign(b_id, None, return_id, None)?;
                     return_id = ssa_form::get_current_value(&mut self.context, b_id1);
                 }
             }
@@ -281,7 +281,7 @@ impl IrGenerator {
                         super::mem::Memory::deref(&self.context, func_arg.0).is_some();
                 }
                 if is_array_result {
-                    self.context.handle_assign(func_arg.0, None, *caller_arg)?;
+                    self.context.handle_assign(func_arg.0, None, *caller_arg, None)?;
                 }
             }
 

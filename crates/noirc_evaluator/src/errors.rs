@@ -21,6 +21,15 @@ impl RuntimeError {
     pub fn new(kind: RuntimeErrorKind, location: Option<Location>) -> RuntimeError {
         RuntimeError { location, kind }
     }
+
+    // Keep one of the two location which is Some, if possible
+    // This is used when we optimise instructions so that we do not loose track of location
+    pub fn merge_location(a: Option<Location>, b: Option<Location>) -> Option<Location> {
+        match (a, b) {
+            (Some(loc), _) | (_, Some(loc)) => Some(loc),
+            (None, None) => None,
+        }
+    }
 }
 
 impl From<RuntimeErrorKind> for RuntimeError {
