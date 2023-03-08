@@ -142,7 +142,13 @@ fn evaluate_intrinsic(
                         FieldElement::from(*item as i128),
                         ObjectType::NativeField,
                     );
-                    let op = Operation::Store { array_id: *a, index, value, predicate: None };
+                    let op = Operation::Store {
+                        array_id: *a,
+                        index,
+                        value,
+                        predicate: None,
+                        location: None,
+                    };
 
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
