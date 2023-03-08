@@ -61,6 +61,7 @@ TEST(abis, hash_tx_request)
 
     // Convert buffer to `fr` for comparison to in-test calculated hash
     NT::fr got_hash = NT::fr::serialize_from_buffer(output);
+    free(output);
     // Confirm cbind output == hash of tx request
     EXPECT_EQ(got_hash, tx_request.hash());
 }
@@ -73,6 +74,7 @@ TEST(abis, compute_function_selector_transfer)
     uint8_t* output = (uint8_t*)malloc(4 * sizeof(uint8_t));
     // Make the c_bind call to compute the function selector via keccak256
     abis__compute_function_selector(function_signature, output);
+    free(output);
 
     // get the selector as a hex string of 4 bytes and
     // compare against known good selector from solidity
@@ -87,6 +89,7 @@ TEST(abis, compute_function_selector_transferFrom)
     uint8_t* output = (uint8_t*)malloc(4 * sizeof(uint8_t));
     // Make the c_bind call to compute the function selector via keccak256
     abis__compute_function_selector(function_signature, output);
+    free(output);
 
     // get the selector as a hex string of 4 bytes and
     // compare against known good selector from solidity
