@@ -33,7 +33,7 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     add_std_lib(&mut driver);
 
     if driver.check_crate(compile_options).is_err() {
-        std::process::exit(1);
+        return Err(CliError::CompilationError);
     }
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files

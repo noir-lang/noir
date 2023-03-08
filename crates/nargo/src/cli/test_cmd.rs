@@ -37,7 +37,7 @@ fn run_tests(
     add_std_lib(&mut driver);
 
     if driver.check_crate(compile_options).is_err() {
-        std::process::exit(1);
+        return Err(CliError::CompilationError);
     }
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
@@ -70,7 +70,7 @@ fn run_tests(
         let plural = if failing == 1 { "" } else { "s" };
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
         writeln!(writer, "{failing} test{plural} failed").ok();
-        std::process::exit(1);
+        return Err(CliError::Generic("".to_string()));
     }
 
     writer.reset().ok();
