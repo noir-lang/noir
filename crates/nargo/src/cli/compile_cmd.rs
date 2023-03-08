@@ -45,10 +45,7 @@ pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), C
         }
         Ok(())
     } else {
-        let main = match driver.main_function() {
-            Ok(m) => m,
-            Err(_) => return Err(CliError::CompilationError),
-        };
+        let main = driver.main_function().map_err(|_| CliError::CompilationError)?;
         compile_and_save_program(&driver, main, &args, &circuit_dir)
     }
 }
