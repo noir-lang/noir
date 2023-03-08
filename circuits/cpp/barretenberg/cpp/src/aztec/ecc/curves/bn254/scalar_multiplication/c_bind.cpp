@@ -1,7 +1,5 @@
-#include "./scalar_multiplication.hpp"
 #include "pippenger.hpp"
-#include <common/mem.hpp>
-#include <srs/io.hpp>
+#include "common/mem.hpp"
 
 using namespace barretenberg;
 
@@ -20,7 +18,7 @@ WASM_EXPORT void bbfree(void* ptr)
     aligned_free(ptr);
 }
 
-WASM_EXPORT void* new_pippenger(g1::affine_element* points, size_t num_points)
+WASM_EXPORT void* new_pippenger(uint8_t* points, size_t num_points)
 {
     auto ptr = new scalar_multiplication::Pippenger(points, num_points);
     return ptr;

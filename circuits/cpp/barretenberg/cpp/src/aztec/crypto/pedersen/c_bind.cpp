@@ -1,3 +1,4 @@
+#include "c_bind.hpp"
 #include "pedersen.hpp"
 #include <common/serialize.hpp>
 #include <common/timer.hpp>
@@ -34,6 +35,15 @@ WASM_EXPORT void pedersen__compress_with_hash_index(uint8_t const* inputs_buffer
     read(inputs_buffer, to_compress);
     auto r = crypto::pedersen::compress_native(to_compress, hash_index);
     barretenberg::fr::serialize_to_buffer(r, output);
+}
+
+WASM_EXPORT void pedersen__commit(uint8_t const* inputs_buffer, uint8_t* output)
+{
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    grumpkin::g1::affine_element pedersen_hash = crypto::pedersen::commit_native(to_compress);
+
+    write(output, pedersen_hash);
 }
 
 WASM_EXPORT void pedersen__buffer_to_field(uint8_t const* data, size_t length, uint8_t* r)
