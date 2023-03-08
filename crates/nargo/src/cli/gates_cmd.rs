@@ -1,5 +1,6 @@
 use acvm::ProofSystemCompiler;
 use clap::Args;
+use noirc_driver::CompileOptions;
 use std::path::Path;
 
 use crate::cli::compile_cmd::compile_circuit;
@@ -10,25 +11,19 @@ use super::NargoConfig;
 /// Counts the occurrences of different gates in circuit
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesCommand {
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-
-    /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
-    show_ssa: bool,
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
-    count_gates_with_path(config.program_dir, args.show_ssa, args.allow_warnings)
+    count_gates_with_path(config.program_dir, &args.compile_options)
 }
 
 fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();
     let backend = crate::backends::ConcreteBackend;
 
