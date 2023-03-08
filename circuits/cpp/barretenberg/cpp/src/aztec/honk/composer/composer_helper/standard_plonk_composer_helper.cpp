@@ -37,7 +37,7 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
     circuit_proving_key = initialize_proving_key(
         constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, plonk::ComposerType::STANDARD);
     // Compute lagrange selectors
-    put_selectors_in_polynomial_cache(constructor, circuit_proving_key.get());
+    construct_lagrange_selector_forms(constructor, circuit_proving_key.get());
     // Compute selectors in monomial form
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 

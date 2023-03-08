@@ -34,7 +34,7 @@ std::shared_ptr<bonk::proving_key> initialize_proving_key(const CircuitConstruct
  * @param key Pointer to the proving key
  */
 template <typename CircuitConstructor>
-void put_selectors_in_polynomial_cache(const CircuitConstructor& circuit_constructor, bonk::proving_key* key);
+void construct_lagrange_selector_forms(const CircuitConstructor& circuit_constructor, bonk::proving_key* key);
 
 /**
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into

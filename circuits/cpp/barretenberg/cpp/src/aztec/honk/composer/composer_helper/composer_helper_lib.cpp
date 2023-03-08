@@ -48,7 +48,7 @@ std::shared_ptr<bonk::proving_key> initialize_proving_key(const CircuitConstruct
  * @param key Pointer to the proving key
  */
 template <typename CircuitConstructor>
-void put_selectors_in_polynomial_cache(const CircuitConstructor& circuit_constructor,
+void construct_lagrange_selector_forms(const CircuitConstructor& circuit_constructor,
                                        bonk::proving_key* circuit_proving_key)
 {
     const size_t num_public_inputs = circuit_constructor.public_inputs.size();
@@ -208,7 +208,7 @@ std::shared_ptr<bonk::verification_key> compute_verification_key_base_common(
 
 template std::shared_ptr<bonk::proving_key> initialize_proving_key<StandardCircuitConstructor>(
     const StandardCircuitConstructor&, bonk::ReferenceStringFactory*, const size_t, const size_t, plonk::ComposerType);
-template void put_selectors_in_polynomial_cache<StandardCircuitConstructor>(const StandardCircuitConstructor&,
+template void construct_lagrange_selector_forms<StandardCircuitConstructor>(const StandardCircuitConstructor&,
                                                                             bonk::proving_key*);
 template std::vector<barretenberg::polynomial> compute_witness_base<StandardCircuitConstructor>(
     const StandardCircuitConstructor&, const size_t, const size_t);

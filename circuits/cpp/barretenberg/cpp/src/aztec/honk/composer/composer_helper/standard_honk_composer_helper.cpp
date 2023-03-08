@@ -35,7 +35,7 @@ std::shared_ptr<bonk::proving_key> StandardHonkComposerHelper<CircuitConstructor
                                                  num_randomized_gates,
                                                  plonk::ComposerType::STANDARD_HONK);
     // Compute lagrange selectors
-    put_selectors_in_polynomial_cache(constructor, circuit_proving_key.get());
+    construct_lagrange_selector_forms(constructor, circuit_proving_key.get());
 
     return circuit_proving_key;
 }
