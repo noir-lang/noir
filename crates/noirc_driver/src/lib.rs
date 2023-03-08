@@ -197,7 +197,7 @@ impl Driver {
         // All Binaries should have a main function
         match local_crate.main_function() {
             Some(func_id) => Ok(func_id),
-            None => return Err(ReportedError),
+            None => Err(ReportedError),
         }
     }
 
