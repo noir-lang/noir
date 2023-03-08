@@ -28,7 +28,10 @@ pub fn compile(src: String) -> JsValue {
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
     let path = PathBuf::from(src);
-    let compiled_program = noirc_driver::Driver::compile_file(path, language);
+    let compiled_program = match noirc_driver::Driver::compile_file(path, language) {
+        Ok(compiled_program) => compiled_program,
+        Err(_) => panic!("Compilation Error: Failed to compile circuit"),
+    };
     <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
 }
 
