@@ -1,4 +1,4 @@
-use crate::errors::{RuntimeError, RuntimeErrorKind};
+use crate::errors::RuntimeErrorKind;
 use crate::ssa::{
     conditional::DecisionTree,
     context::SsaContext,
@@ -110,7 +110,7 @@ impl Anchor {
         &mut self,
         ctx: &SsaContext,
         id: NodeId,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeErrorKind> {
         let ins = ctx.instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
@@ -164,7 +164,7 @@ impl Anchor {
 
     fn get_mem_op(op: &Operation) -> (ArrayId, NodeId, bool) {
         match op {
-            Operation::Load { array_id, index } => (*array_id, *index, true),
+            Operation::Load { array_id, index, .. } => (*array_id, *index, true),
             Operation::Store { array_id, index, .. } => (*array_id, *index, false),
             _ => unreachable!(),
         }
