@@ -566,8 +566,8 @@ impl<'interner> Monomorphizer<'interner> {
         let location = call.location;
 
         if let ast::Expression::Ident(ident) = func.as_ref() {
-            match &ident.definition {
-                Definition::Builtin(opcode) => match opcode.as_str() {
+            if let Definition::Builtin(opcode) = &ident.definition {
+                match opcode.as_str() {
                     "println" | "trace" => {
                         let is_string = match &arguments[0] {
                             ast::Expression::Ident(ident) => match ident.typ {
@@ -588,8 +588,7 @@ impl<'interner> Monomorphizer<'interner> {
                         arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_string)));
                     }
                     _ => (),
-                },
-                _ => (),
+                }
             }
         }
 

@@ -14,7 +14,7 @@ use crate::ssa::{
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
+use noirc_frontend::monomorphization::ast::{Definition, FuncId, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};

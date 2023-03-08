@@ -1,18 +1,11 @@
-use acvm::{
-    acir::circuit::directives::{Directive, LogOutputInfo, SolvedLog, SolvedLogOutputInfo},
-    FieldElement, ProofSystemCompiler,
-};
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use iter_extended::vecmap;
 use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
-
-use crate::errors::CliError;
 
 mod fs;
 

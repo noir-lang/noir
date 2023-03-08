@@ -14,19 +14,17 @@ pub(crate) fn handle_logs(logs: Vec<SolvedLog>) -> Result<(), CliError> {
             SolvedLogOutputInfo::WitnessValues(field_elements) => {
                 if field_elements.len() == 1 {
                     let element = &field_elements[0];
-                    let output_string = format_field_string(*element);
-                    output_string
+                    format_field_string(*element)
                 } else {
                     // If multiple field elements are fetched for a solved log,
                     // it assumed that an array is meant to be printed to standard output
                     //
                     // Collect all field element values corresponding to the given witness indices (whose values were solved during PWG)
                     // and convert them to hex strings.
-                    let elements_as_hex = vecmap(field_elements, |e| format_field_string(e));
+                    let elements_as_hex = vecmap(field_elements, format_field_string);
                     let comma_separated_elements = elements_as_hex.join(", ");
 
-                    let output_witnesses_string = "[".to_owned() + &comma_separated_elements + "]";
-                    output_witnesses_string
+                    "[".to_owned() + &comma_separated_elements + "]"
                 }
             }
         };
