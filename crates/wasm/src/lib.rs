@@ -4,6 +4,8 @@
 
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
+use noirc_driver::{CompileOptions, Driver};
+use noirc_frontend::graph::{CrateName, CrateType};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
@@ -15,21 +17,70 @@ pub struct BuildInfo {
     dirty: &'static str,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct WASMCompileOptions {
+    // Compile each contract function used within the program
+    #[serde(default="bool::default")]
+    contracts: bool,
+
+    #[serde(default)]
+    compile_options: CompileOptions,
+
+    #[serde(default)]
+    optional_dependencies_set: Vec<String>,
+}
+
 const BUILD_INFO: BuildInfo = BuildInfo {
     git_hash: env!("GIT_COMMIT"),
     version: env!("CARGO_PKG_VERSION"),
     dirty: env!("GIT_DIRTY"),
 };
 
-// Returns a compiled program which is the ACIR circuit along with the ABI
+pub fn add_noir_lib(driver: &mut Driver, crate_name: String) {
+    let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
+    let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
+
+    driver.propagate_dep(library_crate, &CrateName::new(crate_name.as_str()).unwrap());
+}
+
 #[wasm_bindgen]
-pub fn compile(src: String) -> JsValue {
+pub fn compile(args: JsValue) -> JsValue {
     console_error_panic_hook::set_once();
+    let options: WASMCompileOptions = JsValueSerdeExt::into_serde(&args).unwrap();
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-    let path = PathBuf::from(src);
-    let compiled_program = noirc_driver::Driver::compile_file(path, language);
-    <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
+    let path = PathBuf::from("main.nr");
+    let mut driver = noirc_driver::Driver::new(&language);
+
+    driver.create_local_crate(path, CrateType::Binary);
+    
+    for dependency in options.optional_dependencies_set {
+        add_noir_lib(&mut driver, dependency);
+    }
+
+    driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Compilation failed"));
+
+    if options.contracts {
+
+        let mut collected_compiled_programs = vec![];
+
+        for contract in driver.get_all_contracts() {
+            contract.functions.into_iter().for_each(|function| {
+                let name = driver.function_name(function);
+                let key = format!("{}-{name}", &contract.name);
+                let compiled_program = driver.compile_no_check(&options.compile_options, function);
+                collected_compiled_programs.push((key, compiled_program));
+            });
+        }
+
+        <JsValue as JsValueSerdeExt>::from_serde(&collected_compiled_programs).unwrap()
+
+    } else {
+        let main = driver.main_function();
+        let compiled_program = driver.compile_no_check(&options.compile_options, main);
+
+        <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
+    }
 }
 
 // Deserializes bytes into ACIR structure

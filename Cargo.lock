@@ -2217,6 +2217,7 @@ dependencies = [
  "codespan",
  "codespan-reporting 0.9.5",
  "fm",
+ "serde",
 ]
 
 [[package]]

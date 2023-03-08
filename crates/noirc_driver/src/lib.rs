@@ -13,6 +13,7 @@ use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 mod program;
@@ -23,10 +24,10 @@ pub struct Driver {
     language: Language,
 }
 
-#[derive(Args, Clone, Debug)]
+#[derive(Args, Clone, Debug, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
+    #[arg(short, long)]    
     pub show_ssa: bool,
 
     /// Issue a warning for each unused variable instead of an error
