@@ -27,7 +27,7 @@ pub struct Driver {
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]    
+    #[arg(short, long)]
     pub show_ssa: bool,
 
     /// Issue a warning for each unused variable instead of an error
