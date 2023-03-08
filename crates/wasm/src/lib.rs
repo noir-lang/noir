@@ -58,7 +58,7 @@ pub fn compile(args: JsValue) -> JsValue {
         add_noir_lib(&mut driver, dependency);
     }
 
-    driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Compilation failed"));
+    driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Crate check failed"));
 
     if options.contracts {
 
@@ -68,7 +68,7 @@ pub fn compile(args: JsValue) -> JsValue {
             contract.functions.into_iter().for_each(|function| {
                 let name = driver.function_name(function);
                 let key = format!("{}-{name}", &contract.name);
-                let compiled_program = driver.compile_no_check(&options.compile_options, function);
+                let compiled_program = driver.compile_no_check(&options.compile_options, function).unwrap_or_else(|_| panic!("Compilation of `{key}` failed"));
                 collected_compiled_programs.push((key, compiled_program));
             });
         }
@@ -77,7 +77,7 @@ pub fn compile(args: JsValue) -> JsValue {
 
     } else {
         let main = driver.main_function();
-        let compiled_program = driver.compile_no_check(&options.compile_options, main);
+        let compiled_program = driver.compile_no_check(&options.compile_options, main).unwrap_or_else(|_| panic!("Compilation failed"));
 
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }
