@@ -136,9 +136,7 @@ fn preprocess_with_path<P: AsRef<Path>>(
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
     let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
-    println!("Proving key saved to {}", pk_path.display());
     let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
-    println!("Verification key saved to {}", vk_path.display());
 
     Ok((pk_path, vk_path))
 }
