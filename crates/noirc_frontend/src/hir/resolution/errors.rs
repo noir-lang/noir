@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{Ident, Type};
+use crate::{Ident, Shared, StructType, Type};
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
@@ -50,6 +50,13 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
+    #[error("Incorrect amount of arguments to generic type constructor")]
+    IncorrectGenericCount {
+        span: Span,
+        struct_type: Shared<StructType>,
+        actual: usize,
+        expected: usize,
+    },
 }
 
 impl ResolverError {
@@ -235,6 +242,16 @@ impl From<ResolverError> for Diagnostic {
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
                 span,
             ),
+            ResolverError::IncorrectGenericCount { span, struct_type, actual, expected } => {
+                let expected_plural = if expected == 1 { "" } else { "s" };
+                let actual_plural = if actual == 1 { "is" } else { "are" };
+
+                Diagnostic::simple_error(
+                    format!("The struct type {} has {expected} generic{expected_plural} but {actual} {actual_plural} given here", struct_type.borrow()),
+                    "Incorrect number of generic arguments".into(),
+                    span,
+                )
+            }
         }
     }
 }
