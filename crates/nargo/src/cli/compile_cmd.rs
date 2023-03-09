@@ -68,11 +68,9 @@ fn compile_and_save_program(
         .compile_no_check(&args.compile_options, main)
         .map_err(|_| CliError::Generic(format!("'{}' failed to compile", args.circuit_name)))?;
 
-    let circuit_path = save_program_to_file(&compiled_program, &args.circuit_name, circuit_dir);
+    save_program_to_file(&compiled_program, &args.circuit_name, circuit_dir);
 
     preprocess_with_path(&args.circuit_name, circuit_dir, &compiled_program.circuit)?;
-
-    println!("Generated ACIR code into {}", circuit_path.display());
     Ok(())
 }
 
@@ -100,9 +98,7 @@ fn preprocess_with_path<P: AsRef<Path>>(
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
     let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
-    println!("Proving key saved to {}", pk_path.display());
     let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
-    println!("Verification key saved to {}", vk_path.display());
 
     Ok((pk_path, vk_path))
 }
