@@ -54,10 +54,13 @@ impl Driver {
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf, np_language: acvm::Language) -> CompiledProgram {
+    pub fn compile_file(
+        root_file: PathBuf,
+        np_language: acvm::Language,
+    ) -> Result<CompiledProgram, ReportedError> {
         let mut driver = Driver::new(&np_language);
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.compile_main(&CompileOptions::default()).unwrap_or_else(|_| std::process::exit(1))
+        driver.compile_main(&CompileOptions::default())
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -168,14 +171,20 @@ impl Driver {
         options: &CompileOptions,
     ) -> Result<CompiledProgram, ReportedError> {
         self.check_crate(options)?;
-        let main = self.main_function();
+        let main = match self.main_function() {
+            Ok(m) => m,
+            Err(e) => {
+                println!("cannot compile a program with no main function");
+                return Err(e);
+            }
+        };
         self.compile_no_check(options, main)
     }
 
     /// Returns the FuncId of the 'main' funciton.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
-    pub fn main_function(&self) -> FuncId {
+    pub fn main_function(&self) -> Result<FuncId, ReportedError> {
         // Find the local crate, one should always be present
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
 
@@ -183,11 +192,14 @@ impl Driver {
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
         if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
             println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command");
-            std::process::exit(1);
+            return Err(ReportedError);
         };
 
         // All Binaries should have a main function
-        local_crate.main_function().expect("cannot compile a program with no main function")
+        match local_crate.main_function() {
+            Some(func_id) => Ok(func_id),
+            None => Err(ReportedError),
+        }
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!
