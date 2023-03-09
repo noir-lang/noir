@@ -1,0 +1,48 @@
+#pragma once
+#include "relation.hpp"
+#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "../polynomials/univariate.hpp"
+
+namespace honk::sumcheck {
+
+template <typename FF> class GrandProductInitializationRelation : public Relation<FF> {
+  public:
+    // 1 + polynomial degree of this relation
+    static constexpr size_t RELATION_LENGTH = 3;
+    using MULTIVARIATE = StandardHonk::MULTIVARIATE; // could just get from StandardArithmetization
+
+    /**
+     * @brief Add contribution of the permutation relation for a given edge
+     *
+     * @details There are 2 relations associated with enforcing the wire copy relations
+     * This file handles the relation Z_perm_shift(n_last) = 0 via the relation:
+     *
+     *                      C(X) = L_LAST(X) * Z_perm_shift(X)
+     *
+     * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
+     * @param extended_edges an std::array containing the fully extended Univariate edges.
+     * @param parameters contains beta, gamma, and public_input_delta, ....
+     * @param scaling_factor optional term to scale the evaluation before adding to evals.
+     */
+    void add_edge_contribution(Univariate<FF, RELATION_LENGTH>& evals,
+                               const auto& extended_edges,
+                               const RelationParameters<FF>&,
+                               const FF& scaling_factor) const
+    {
+        auto z_perm_shift = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::Z_PERM_SHIFT]);
+        auto lagrange_last = UnivariateView<FF, RELATION_LENGTH>(extended_edges[MULTIVARIATE::LAGRANGE_LAST]);
+
+        evals += (lagrange_last * z_perm_shift) * scaling_factor;
+    };
+
+    void add_full_relation_value_contribution(FF& full_honk_relation_value,
+                                              auto& purported_evaluations,
+                                              const RelationParameters<FF>&) const
+    {
+        auto z_perm_shift = purported_evaluations[MULTIVARIATE::Z_PERM_SHIFT];
+        auto lagrange_last = purported_evaluations[MULTIVARIATE::LAGRANGE_LAST];
+
+        full_honk_relation_value += lagrange_last * z_perm_shift;
+    };
+};
+} // namespace honk::sumcheck

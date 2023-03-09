@@ -1,7 +1,7 @@
 .cache/
 build*/
 src/wasi-sdk-*
-src/aztec/proof_system/proving_key/fixtures
-src/aztec/rollup/proofs/*/fixtures
+src/barretenberg/proof_system/proving_key/fixtures
+src/barretenberg/rollup/proofs/*/fixtures
 srs_db/*/*/transcript*
 CMakeUserPresets.json

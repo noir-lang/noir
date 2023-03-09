@@ -3,9 +3,9 @@ docker*
 scripts
 .*
 src/wasi-sdk*
-src/aztec/rollup/proofs/root_*/fixtures/account
-src/aztec/rollup/proofs/root_*/fixtures/join_split
-src/aztec/rollup/proofs/root_*/fixtures/**/proving_key
+src/barretenberg/rollup/proofs/root_*/fixtures/account
+src/barretenberg/rollup/proofs/root_*/fixtures/join_split
+src/barretenberg/rollup/proofs/root_*/fixtures/**/proving_key
 srs_db/ignition/transcript*
 srs_db/lagrange
 srs_db/coset_lagrange
