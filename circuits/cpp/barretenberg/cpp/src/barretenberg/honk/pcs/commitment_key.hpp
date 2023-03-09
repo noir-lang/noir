@@ -24,7 +24,7 @@ namespace kzg {
  * The SRS is given as a list of 𝔾₁ points
  *  { [xʲ]₁ }ⱼ where 'x' is unknown.
  *
- * @todo This class should take ownership of the SRS, and handle reading the file from disk.
+ * TODO(#218)(Adrian): This class should take ownership of the SRS, and handle reading the file from disk.
  */
 class CommitmentKey {
     using Fr = typename barretenberg::g1::Fr;
@@ -44,7 +44,6 @@ class CommitmentKey {
      * @param n
      * @param path
      *
-     * @todo change path to string_view
      */
     CommitmentKey(const size_t num_points, std::string_view path)
         : pippenger_runtime_state(num_points)
@@ -101,7 +100,7 @@ class VerificationKey {
     {
         C pairing_points[2]{ p0, p1 };
         // The final pairing check of step 12.
-        // TODO: try to template parametrise the pairing + fq12 output :/
+        // TODO(Adrian): try to template parametrise the pairing + fq12 output :/
         barretenberg::fq12 result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
             pairing_points, verifier_srs.get_precomputed_g2_lines(), 2);
 

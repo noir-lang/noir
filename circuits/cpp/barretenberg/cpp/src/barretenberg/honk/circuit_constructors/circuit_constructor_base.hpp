@@ -12,7 +12,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     static constexpr size_t program_width = program_width_;
     std::vector<std::string> selector_names_;
     size_t num_gates = 0;
-    // TODO(Adrian): It would be better to store an array of size program_width_
+    // TODO(#216)(Adrian): It would be better to store an array of size program_width_
     // to make the composer agnostic of the wire name.
     std::vector<uint32_t> w_l;
     std::vector<uint32_t> w_r;
@@ -30,7 +30,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     uint32_t current_tag = DUMMY_TAG;
     // The permutation on variable tags. See
     // https://github.com/AztecProtocol/plonk-with-lookups-private/blob/new-stuff/GenPermuations.pdf
-    // DOCTODO: replace with the relevant wiki link.
+    // DOCTODO(#231): replace with the relevant wiki link.
     std::map<uint32_t, uint32_t> tau;
 
     size_t num_selectors;
@@ -42,7 +42,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
 
     // Enum values spaced in increments of 30-bits (multiples of 2 ** 30).
-    // TODO(Adrian): This is unused, and this type of hard coded data should be avoided
+    // TODO(#216)(Adrian): This is unused, and this type of hard coded data should be avoided
     // Cody: This is used by compute_wire_copy_cycles in Plonk.
     // enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
@@ -65,7 +65,7 @@ template <size_t program_width_> class CircuitConstructorBase {
     virtual size_t get_num_gates() const { return num_gates; }
     virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    // TODO(Adrian): Feels wrong to let the zero_idx be changed.
+    // TODO(#216)(Adrian): Feels wrong to let the zero_idx be changed.
     uint32_t zero_idx = 0;
     uint32_t one_idx = 1;
 
@@ -197,8 +197,8 @@ template <size_t program_width_> class CircuitConstructorBase {
 
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");
 
-    // TODO(Adrian): This method should belong in the ComposerHelper, where the number of reserved gates can be
-    // correctly set. Cody: I don't know, this method is about circuit construction, seems like it should be here.
+    // TODO(#216)(Adrian): This method should belong in the ComposerHelper, where the number of reserved gates can be
+    // correctly set.
     size_t get_circuit_subgroup_size(const size_t num_gates) const
     {
         auto log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
@@ -238,7 +238,7 @@ template <size_t program_width_> class CircuitConstructorBase {
 
 } // namespace bonk
 
-// TODO(Cody): This may need updating, to deal with the new gate we used to ensure that non multivariate is zero?
+// TODO(#217)(Cody): This will need updating based on the approach we take to ensure no multivariate is zero.
 /**
  * Composer Example: Pythagorean triples.
  *

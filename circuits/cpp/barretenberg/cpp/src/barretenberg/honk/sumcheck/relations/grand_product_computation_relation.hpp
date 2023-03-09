@@ -5,7 +5,7 @@
 
 namespace honk::sumcheck {
 
-template <typename FF> class GrandProductComputationRelation : public Relation<FF> {
+template <typename FF> class GrandProductComputationRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 5;

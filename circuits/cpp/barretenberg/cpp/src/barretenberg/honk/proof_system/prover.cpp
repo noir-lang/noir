@@ -41,12 +41,12 @@ Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
                          std::shared_ptr<bonk::proving_key> input_key,
                          const transcript::Manifest& input_manifest)
     : transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
-    , wire_polynomials(wire_polys) // TODO(luke): move these properly
+    , wire_polynomials(wire_polys)
     , key(input_key)
     , commitment_key(std::make_unique<pcs::kzg::CommitmentKey>(
           input_key->circuit_size,
           "../srs_db/ignition")) // TODO(Cody): Need better constructors for prover.
-// , queue(proving_key.get(), &transcript) // TODO(Adrian): explore whether it's needed
+// , queue(proving_key.get(), &transcript)
 {
     // Note(luke): This could be done programmatically with some hacks but this isnt too bad and its nice to see the
     // polys laid out explicitly.
@@ -108,6 +108,7 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
  * Note: Step (4) utilizes Montgomery batch inversion to replace n-many inversions with
  * one batch inversion (at the expense of more multiplications)
  */
+// TODO(#222)(luke): Parallelize
 template <typename settings> Polynomial Prover<settings>::compute_grand_product_polynomial(Fr beta, Fr gamma)
 {
     using barretenberg::polynomial_arithmetic::copy_polynomial;
@@ -131,10 +132,10 @@ template <typename settings> Polynomial Prover<settings>::compute_grand_product_
     }
 
     // Step (1)
-    // TODO(kesha): Change the order to engage automatic prefetching and get rid of redundant computation
+    // TODO(#222)(kesha): Change the order to engage automatic prefetching and get rid of redundant computation
     for (size_t i = 0; i < key->circuit_size; ++i) {
         for (size_t k = 0; k < program_width; ++k) {
-            // TODO(luke): maybe this idx is replaced by proper ID polys in the future
+            // Note(luke): this idx could be replaced by proper ID polys if desired
             Fr idx = k * key->circuit_size + i;
             numerator_accumulator[k][i] = wires[k][i] + (idx * beta) + gamma;            // w_k(i) + β.(k*n+i) + γ
             denominator_accumulator[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
@@ -169,8 +170,6 @@ template <typename settings> Polynomial Prover<settings>::compute_grand_product_
     }
     inversion_accumulator = inversion_accumulator.invert(); // perform single inversion per thread
     for (size_t i = key->circuit_size - 1; i != std::numeric_limits<size_t>::max(); --i) {
-        // TODO(luke): What needs to be done Re the comment below:
-        // We can avoid fully reducing z_perm[i + 1] as the inverse fft will take care of that for us
         numerator_accumulator[0][i] = inversion_accumulator * inversion_coefficients[i];
         inversion_accumulator *= denominator_accumulator[0][i];
     }
@@ -420,7 +419,6 @@ template <typename settings> plonk::proof& Prover<settings>::construct_proof()
     return export_proof();
 }
 
-// TODO(luke): Need to define a 'standard_settings' analog for Standard Honk
 template class Prover<plonk::standard_settings>;
 
 } // namespace honk

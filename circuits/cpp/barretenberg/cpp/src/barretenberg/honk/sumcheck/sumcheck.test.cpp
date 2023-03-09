@@ -132,7 +132,7 @@ Transcript produce_mocked_transcript(size_t multivariate_d, size_t num_public_in
 
 TEST(Sumcheck, PolynomialNormalization)
 {
-    // Todo(Cody): We should not use real constants like this in the tests, at least not in so many of them.
+    // TODO(#225)(Cody): We should not use real constants like this in the tests, at least not in so many of them.
     const size_t multivariate_d(3);
     const size_t multivariate_n(1 << multivariate_d);
     const size_t num_public_inputs(1);
@@ -326,8 +326,7 @@ TEST(Sumcheck, Prover)
     run_test(/* is_random_input=*/true);
 }
 
-// TODO(Cody): write standalone test of the verifier.
-// TODO(luke): test possibly made obsolete by test ProverAndVerifierLonger
+// TODO(#223)(Cody): write standalone test of the verifier.
 TEST(Sumcheck, ProverAndVerifier)
 {
     const size_t multivariate_d(1);
@@ -392,7 +391,7 @@ TEST(Sumcheck, ProverAndVerifier)
     ASSERT_TRUE(verified);
 }
 
-// TODO: make the inputs to this test more interesting, e.g. num_public_inputs > 0 and non-trivial permutations
+// TODO(#225): make the inputs to this test more interesting, e.g. num_public_inputs > 0 and non-trivial permutations
 TEST(Sumcheck, ProverAndVerifierLonger)
 {
     auto run_test = [](bool expect_verified) {

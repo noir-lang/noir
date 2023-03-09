@@ -69,10 +69,9 @@ class StandardHonkComposer {
     StandardHonkComposer(const StandardHonkComposer& other) = delete;
     StandardHonkComposer(StandardHonkComposer&& other) = default;
     StandardHonkComposer& operator=(const StandardHonkComposer& other) = delete;
-    // Todo(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members. This is a
-    // temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of composer
-    // methods, where appropriate.
-    // StandardHonkComposer& operator=(StandardHonkComposer&& other) = default;
+    // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
+    // This is a temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of
+    // composer methods, where appropriate. StandardHonkComposer& operator=(StandardHonkComposer&& other) = default;
     ~StandardHonkComposer() = default;
 
     size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }

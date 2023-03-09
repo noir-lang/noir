@@ -70,10 +70,9 @@ class StandardPlonkComposer {
     StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
     StandardPlonkComposer(StandardPlonkComposer&& other) = default;
     StandardPlonkComposer& operator=(const StandardPlonkComposer& other) = delete;
-    // Todo(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members. This is a
-    // temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of composer
-    // methods, where appropriate.
-    // StandardPlonkComposer& operator=(StandardPlonkComposer&& other) = default;
+    // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
+    // This is a temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of
+    // composer methods, where appropriate. StandardPlonkComposer& operator=(StandardPlonkComposer&& other) = default;
     ~StandardPlonkComposer() = default;
 
     size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
@@ -188,7 +187,7 @@ class StandardPlonkComposer {
     uint32_t zero_idx = 0;
 
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
-    // TODO(Cody): This will not be needed, but maybe something is required for ComposerHelper to be generic?
+    // TODO(#230)(Cody): This will not be needed, but maybe something is required for ComposerHelper to be generic?
     plonk::Verifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
     /**
      * Preprocess the circuit. Delegates to create_prover.

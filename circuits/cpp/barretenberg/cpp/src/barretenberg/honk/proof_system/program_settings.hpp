@@ -8,7 +8,7 @@
 
 namespace honk {
 
-// TODO(Cody): Shouldn't subclass plonk settings here.
+// TODO(#221)(Luke/Cody): Shouldn't subclass plonk settings here. Also, define standard_settings for Honk prover.
 class standard_verifier_settings : public plonk::standard_settings {
   public:
     typedef barretenberg::fr fr;

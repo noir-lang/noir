@@ -63,12 +63,11 @@ void construct_lagrange_selector_forms(const CircuitConstructor& circuit_constru
         for (size_t i = 0; i < selector_values.size(); ++i) {
             selector_poly_lagrange[num_public_inputs + i] = selector_values[i];
         }
-        // TODO(Adrian): We may want to add a unique value (e.g. j+1) in the last position of each selector polynomial
-        // to guard against some edge cases that may occur during the MSM.
-        // If we do so, we should ensure that this does not clash with any other values we want to place at the end of
-        // of the witness vectors.
-        // In later iterations of the Sumcheck, we will be able to efficiently cancel out any checks in the last 2^k
-        // rows, so any randomness or unique values should be placed there.
+        // TODO(#217)(Adrian): We may want to add a unique value (e.g. j+1) in the last position of each selector
+        // polynomial to guard against some edge cases that may occur during the MSM. If we do so, we should ensure that
+        // this does not clash with any other values we want to place at the end of of the witness vectors. In later
+        // iterations of the Sumcheck, we will be able to efficiently cancel out any checks in the last 2^k rows, so any
+        // randomness or unique values should be placed there.
 
         circuit_proving_key->polynomial_cache.put(circuit_constructor.selector_names_[j] + "_lagrange",
                                                   std::move(selector_poly_lagrange));
@@ -98,10 +97,9 @@ void compute_monomial_and_coset_selector_forms(bonk::proving_key* circuit_provin
         barretenberg::polynomial selector_poly_fft(selector_poly, circuit_proving_key->circuit_size * 4 + 4);
         selector_poly_fft.coset_fft(circuit_proving_key->large_domain);
 
-        // TODO(kesha): Delete lagrange polynomial from cache if it's not needed
-        // if (selector_properties[i].requires_lagrange_base_polynomial) {
-        //     key->polynomial_cache.put(selector_properties[i].name + "_lagrange", std::move(selector_poly_lagrange));
-        // }
+        // TODO(#215)(Luke/Kesha): Lagrange polynomials could be deleted from cache here since they are no longer
+        // needed.
+
         circuit_proving_key->polynomial_cache.put(selector_properties[i].name, std::move(selector_poly));
         circuit_proving_key->polynomial_cache.put(selector_properties[i].name + "_fft", std::move(selector_poly_fft));
     }
@@ -127,7 +125,7 @@ std::vector<barretenberg::polynomial> compute_witness_base(const CircuitConstruc
     const size_t num_public_inputs = public_inputs.size();
 
     const size_t num_constraints = std::max(minimum_circuit_size, num_gates + num_public_inputs);
-    // TODO(Adrian): Not a fan of specifying NUM_RANDOMIZED_GATES everywhere,
+    // TODO(#216)(Adrian): Not a fan of specifying NUM_RANDOMIZED_GATES everywhere,
     // Each flavor of Honk should have a "fixed" number of random places to add randomness to.
     // It should be taken care of in as few places possible.
     const size_t subgroup_size =

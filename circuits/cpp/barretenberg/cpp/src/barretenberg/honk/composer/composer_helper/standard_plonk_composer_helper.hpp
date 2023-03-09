@@ -23,7 +23,8 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
     static constexpr size_t program_width = CircuitConstructor::program_width;
     std::shared_ptr<bonk::proving_key> circuit_proving_key;
     std::shared_ptr<bonk::verification_key> circuit_verification_key;
-    // TODO(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs at all
+    // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
+    // at all
     std::shared_ptr<bonk::ReferenceStringFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
@@ -78,7 +79,7 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
     plonk::Verifier create_verifier(const CircuitConstructor& circuit_constructor);
     plonk::Prover create_prover(const CircuitConstructor& circuit_constructor);
 
-    // TODO(Adrian): Seems error prone to provide the number of randomized gates
+    // TODO(#216)(Adrian): Seems error prone to provide the number of randomized gates
     // Cody: Where should this go? In the flavor (or whatever that becomes)?
     std::shared_ptr<bonk::proving_key> compute_proving_key_base(
         const CircuitConstructor& circuit_constructor,

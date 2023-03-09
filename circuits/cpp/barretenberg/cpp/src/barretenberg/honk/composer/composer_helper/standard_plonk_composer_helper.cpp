@@ -33,7 +33,7 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
 {
 
     // Initialize circuit_proving_key
-    // TODO: replace composer types.
+    // TODO(#229)(Kesha): replace composer types.
     circuit_proving_key = initialize_proving_key(
         constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, plonk::ComposerType::STANDARD);
     // Compute lagrange selectors

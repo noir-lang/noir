@@ -8,7 +8,7 @@
 
 namespace honk::sumcheck {
 
-template <typename FF> class ArithmeticRelation : public Relation<FF> {
+template <typename FF> class ArithmeticRelation {
   public:
     // 1 + polynomial degree of this relation
     static constexpr size_t RELATION_LENGTH = 4;

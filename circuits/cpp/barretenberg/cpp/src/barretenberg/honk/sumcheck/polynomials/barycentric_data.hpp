@@ -23,7 +23,7 @@ namespace honk::sumcheck {
 template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData {
   public:
     static constexpr size_t big_domain_size = std::max(domain_size, num_evals);
-    // TODO(Cody): these should be static, also constexpr, but arrays are not constexpr
+    // TODO(#224)(Cody): these should be static, also constexpr, but arrays are not constexpr
     std::array<Fr, big_domain_size> big_domain;
     std::array<Fr, domain_size> lagrange_denominators;
     std::array<Fr, domain_size * num_evals> precomputed_denominator_inverses;

@@ -94,7 +94,7 @@ template <typename Params> class MultilinearReductionScheme {
 
     using Fr = typename Params::Fr;
     using Commitment = typename Params::Commitment;
-    using CommitmentAffine = typename Params::C; // TODO(luke): find a better name
+    using CommitmentAffine = typename Params::C;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -150,7 +150,7 @@ template <typename Params> class MultilinearReductionScheme {
 
             // fold the previous polynomial with odd and even parts
             for (size_t i = 0; i < n_l; ++i) {
-                // TODO parallelize
+                // TODO(#219)(Adrian) parallelize
 
                 // fold(Aₗ)[i] = (1-uₗ)⋅even(Aₗ)[i] + uₗ⋅odd(Aₗ)[i]
                 //            = (1-uₗ)⋅Aₗ[2i]      + uₗ⋅Aₗ[2i+1]

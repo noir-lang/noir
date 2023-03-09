@@ -16,7 +16,6 @@ namespace honk::sumcheck {
 template <typename FF, class Transcript, template <class> class... Relations> class Sumcheck {
 
   public:
-    // TODO(luke): this value is needed here but also lives in sumcheck_round
     static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
 
     std::array<FF, bonk::StandardArithmetization::NUM_POLYNOMIALS> purported_evaluations;
@@ -52,7 +51,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
 
     *
     * NOTE: With ~40 columns, prob only want to allocate 256 EdgeGroup's at once to keep stack under 1MB?
-    * TODO(Cody): might want to just do C-style multidimensional array? for guaranteed adjacency?
+    * TODO(#224)(Cody): might want to just do C-style multidimensional array? for guaranteed adjacency?
     */
     std::array<std::vector<FF>, bonk::StandardArithmetization::NUM_POLYNOMIALS> folded_polynomials;
 
@@ -134,7 +133,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         FF round_challenge = FF::serialize_from_buffer(transcript.get_challenge(challenge_label).begin());
         fold(full_polynomials, multivariate_n, round_challenge);
         pow_univariate.partially_evaluate(round_challenge);
-        round.round_size = round.round_size >> 1; // TODO(Cody): Maybe fold should do this and release memory?
+        round.round_size = round.round_size >> 1; // TODO(#224)(Cody): Maybe fold should do this and release memory?
 
         // All but final round
         // We operate on folded_polynomials in place.
@@ -201,7 +200,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         return verified;
     };
 
-    // TODO(Cody): Rename. fold is not descriptive, and it's already in use in the Gemini context.
+    // TODO(#224)(Cody): Rename. fold is not descriptive, and it's already in use in the Gemini context.
     //             Probably just call it partial_evaluation?
     /**
      * @brief Evaluate at the round challenge and prepare class for next round.

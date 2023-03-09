@@ -308,7 +308,7 @@ TEST(StandardHonkComposer, VerificationKeyCreation)
  * @brief A test taking sumcheck relations and applying them to the witness and selector polynomials to ensure that the
  * realtions are correct.
  *
- * TODO(kesha): We'll have to update this function once we add zk, since the relation will be incorrect for he first few
+ * TODO(Kesha): We'll have to update this function once we add zk, since the relation will be incorrect for he first few
  * indices
  *
  */

@@ -25,7 +25,8 @@ template <typename CircuitConstructor> class StandardHonkComposerHelper {
     std::shared_ptr<bonk::proving_key> circuit_proving_key;
     std::vector<barretenberg::polynomial> wire_polynomials;
     std::shared_ptr<bonk::verification_key> circuit_verification_key;
-    // TODO(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs at all
+    // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
+    // at all
     std::shared_ptr<bonk::ReferenceStringFactory> crs_factory_;
     bool computed_witness = false;
     StandardHonkComposerHelper()
@@ -56,7 +57,7 @@ template <typename CircuitConstructor> class StandardHonkComposerHelper {
 
     template <typename Flavor> StandardProver create_prover(const CircuitConstructor& circuit_constructor);
 
-    // TODO(Adrian): Seems error prone to provide the number of randomized gates
+    // TODO(#216)(Adrian): Seems error prone to provide the number of randomized gates
     // Cody: Where should this go? In the flavor (or whatever that becomes)?
     std::shared_ptr<bonk::proving_key> compute_proving_key_base(
         const CircuitConstructor& circuit_constructor,

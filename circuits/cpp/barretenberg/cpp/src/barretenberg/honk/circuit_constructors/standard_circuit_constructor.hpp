@@ -13,13 +13,14 @@ inline std::vector<std::string> standard_selector_names()
 
 class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_WIDTH> {
   public:
-    // TODO: replace this with Honk enums after we have a verifier and no longer depend on plonk prover/verifier
+    // TODO(#216)(Kesha): replace this with Honk enums after we have a verifier and no longer depend on plonk
+    // prover/verifier
     static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.
-    // TODO(Adrian): Why is this not in CircuitConstructorBase
+    // TODO(#216)(Adrian): Why is this not in CircuitConstructorBase
     std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 
     StandardCircuitConstructor(const size_t size_hint = 0)
@@ -30,9 +31,10 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
         w_o.reserve(size_hint);
         // To effieciently constrain wires to zero, we set the first value of w_1 to be 0, and use copy constraints for
         // all future zero values.
-        // TODO(Adrian): This should be done in a constant way, maybe by initializing the constant_variable_indices map
+        // (#216)(Adrian): This should be done in a constant way, maybe by initializing the constant_variable_indices
+        // map
         zero_idx = put_constant_variable(barretenberg::fr::zero());
-        // TODO(Cody): Ensure that no polynomial is ever zero. Maybe there's a better way.
+        // TODO(#217)(Cody): Ensure that no polynomial is ever zero. Maybe there's a better way.
         one_idx = put_constant_variable(barretenberg::fr::one());
         // 1 * 1 * 1 + 1 * 1 + 1 * 1 + 1 * 1 + -4
         // m           l       r       o        c
@@ -63,7 +65,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
 
     fixed_group_add_quad previous_add_quad;
 
-    // TODO(Adrian): This should be a virtual overridable method in the base class.
+    // TODO(#216)(Adrian): This should be a virtual overridable method in the base class.
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
@@ -84,7 +86,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_W
     accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
     accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
-    // TODO(Adrian): The 2 following methods should be virtual in the base class
+    // TODO(#216)(Adrian): The 2 following methods should be virtual in the base class
     uint32_t put_constant_variable(const barretenberg::fr& variable);
 
     size_t get_num_constant_gates() const override { return 0; }

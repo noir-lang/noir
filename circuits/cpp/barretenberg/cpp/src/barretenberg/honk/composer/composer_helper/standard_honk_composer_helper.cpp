@@ -27,7 +27,7 @@ std::shared_ptr<bonk::proving_key> StandardHonkComposerHelper<CircuitConstructor
     const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
 {
     // Initialize circuit_proving_key
-    // TODO: replace composer types.
+    // TODO(#229)(Kesha): replace composer types.
     circuit_proving_key = initialize_proving_key(constructor,
                                                  crs_factory_.get(),
                                                  minimum_circuit_size,

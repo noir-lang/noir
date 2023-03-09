@@ -10,7 +10,6 @@ namespace honk::sumcheck {
 
 template <class Fr, size_t view_length> class UnivariateView;
 
-// TODO(Cody): This violates Rule of Five
 template <class Fr, size_t _length> class Univariate {
   public:
     static constexpr size_t LENGTH = _length;
@@ -22,6 +21,7 @@ template <class Fr, size_t _length> class Univariate {
     explicit Univariate(std::array<Fr, _length> evaluations)
         : evaluations(evaluations)
     {}
+    ~Univariate() = default;
     Univariate(const Univariate& other) = default;
     Univariate(Univariate&& other) noexcept = default;
     Univariate& operator=(const Univariate& other) = default;
