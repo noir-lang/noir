@@ -1,11 +1,7 @@
-use acvm::acir::circuit::Circuit;
-use acvm::ProofSystemCompiler;
+use acvm::{acir::circuit::Circuit, ProofSystemCompiler};
 use iter_extended::{try_btree_map, try_vecmap};
-use noirc_driver::CompileOptions;
-use noirc_driver::CompiledProgram;
-use noirc_driver::Driver;
-use noirc_frontend::hir::def_map::Contract;
-use noirc_frontend::node_interner::FuncId;
+use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_frontend::{hir::def_map::Contract, node_interner::FuncId};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
