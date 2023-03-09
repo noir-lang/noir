@@ -14,6 +14,8 @@ pub enum InputParserError {
     DuplicateVariableName(String),
     #[error("cannot parse a string toml type into {0:?}")]
     AbiTypeMismatch(AbiType),
+    #[error("Expected argument `{0}`, but none was found")]
+    MissingArgument(String),
 }
 
 impl From<toml::ser::Error> for InputParserError {
