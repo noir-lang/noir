@@ -10,8 +10,8 @@ use color_eyre::eyre;
 mod fs;
 
 mod check_cmd;
+mod codegen_verifier_cmd;
 mod compile_cmd;
-mod contract_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
@@ -48,7 +48,7 @@ pub(crate) struct NargoConfig {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    Contract(contract_cmd::ContractCommand),
+    CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -72,7 +72,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Preprocess(args) => preprocess_cmd::run(args, matches.config),
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
-        NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
     }?;
 
     Ok(())
