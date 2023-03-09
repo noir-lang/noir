@@ -11,19 +11,19 @@ using NT = plonk::stdlib::types::NativeTypes;
 auto& engine = numeric::random::get_debug_engine();
 
 /**
- * @brief Convert a bytes buffer to a hex string.
+ * @brief Convert a bytes array to a hex string.
  *
  * @details convert each byte to two hex characters
  *
- * @param bytes buffer of bytes to be converted to hex string
- * @param first_n_bytes only include the first n bytes of `bytes` in the conversion
- * @return a string containing the hex representation of the first n bytes of the input buffer
+ * @tparam NUM_BYTES length of bytes array input
+ * @param bytes array of bytes to be converted to hex string
+ * @return a string containing the hex representation of the NUM_BYTES bytes of the input array
  */
-std::string bytes_to_hex_str(uint8_t* bytes, int first_n_bytes)
+template <size_t NUM_BYTES> std::string bytes_to_hex_str(std::array<uint8_t, NUM_BYTES> bytes)
 {
     std::ostringstream stream;
-    for (int i = 0; i < first_n_bytes; i++) {
-        stream << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(bytes[i]);
+    for (const uint8_t& byte : bytes) {
+        stream << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(byte);
     }
     return stream.str();
 }
@@ -55,13 +55,15 @@ TEST(abis, hash_tx_request)
     // allocate an output buffer for cbind hash results
     std::vector<uint8_t> buf;
     write(buf, tx_request);
-    uint8_t* output = (uint8_t*)malloc(32 * sizeof(uint8_t));
+
+    // create an output buffer for cbind hash results
+    std::array<uint8_t, 32> output = { 0 };
     // Make the c_bind call to hash the tx request
-    abis__hash_tx_request(buf.data(), output);
+    abis__hash_tx_request(buf.data(), output.data());
 
     // Convert buffer to `fr` for comparison to in-test calculated hash
-    NT::fr got_hash = NT::fr::serialize_from_buffer(output);
-    free(output);
+    NT::fr got_hash = NT::fr::serialize_from_buffer(output.data());
+
     // Confirm cbind output == hash of tx request
     EXPECT_EQ(got_hash, tx_request.hash());
 }
@@ -70,30 +72,28 @@ TEST(abis, compute_function_selector_transfer)
 {
     const char* function_signature = "transfer(address,uint256)";
 
-    // allocate an output buffer for cbind selector results
-    uint8_t* output = (uint8_t*)malloc(4 * sizeof(uint8_t));
+    // create an output buffer for cbind selector results
+    std::array<uint8_t, 4> output = { 0 };
     // Make the c_bind call to compute the function selector via keccak256
-    abis__compute_function_selector(function_signature, output);
-    free(output);
+    abis__compute_function_selector(function_signature, output.data());
 
     // get the selector as a hex string of 4 bytes and
     // compare against known good selector from solidity
-    EXPECT_EQ(bytes_to_hex_str(output, 4), "a9059cbb");
+    EXPECT_EQ(bytes_to_hex_str(output), "a9059cbb");
 }
 
 TEST(abis, compute_function_selector_transferFrom)
 {
     const char* function_signature = "transferFrom(address,address,uint256)";
 
-    // allocate an output buffer for cbind selector results
-    uint8_t* output = (uint8_t*)malloc(4 * sizeof(uint8_t));
+    // create an output buffer for cbind selector results
+    std::array<uint8_t, 4> output = { 0 };
     // Make the c_bind call to compute the function selector via keccak256
-    abis__compute_function_selector(function_signature, output);
-    free(output);
+    abis__compute_function_selector(function_signature, output.data());
 
     // get the selector as a hex string of 4 bytes and
     // compare against known good selector from solidity
-    EXPECT_EQ(bytes_to_hex_str(output, 4), "23b872dd");
+    EXPECT_EQ(bytes_to_hex_str(output), "23b872dd");
 }
 
 } // namespace aztec3::circuits::abis
