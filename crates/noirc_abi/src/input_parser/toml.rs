@@ -30,16 +30,12 @@ pub(crate) fn parse_toml(
 
     // If the toml file also includes a return value then we parse it as well.
     // This isn't required as the prover calculates the return value itself.
-    match (&abi.return_type, data.get(MAIN_RETURN_NAME)) {
-        (Some(return_type), Some(toml_return_value)) => {
-            let return_value = InputValue::try_from_toml(
-                toml_return_value.clone(),
-                return_type,
-                MAIN_RETURN_NAME,
-            )?;
-            parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-        }
-        _ => {}
+    if let (Some(return_type), Some(toml_return_value)) =
+        (&abi.return_type, data.get(MAIN_RETURN_NAME))
+    {
+        let return_value =
+            InputValue::try_from_toml(toml_return_value.clone(), return_type, MAIN_RETURN_NAME)?;
+        parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
     }
 
     Ok(parsed_inputs)
