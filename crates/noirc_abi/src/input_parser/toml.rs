@@ -16,15 +16,33 @@ pub(crate) fn parse_toml(
     // When parsing the toml map we recursively go through each field to enable struct inputs.
     // To match this map with the correct abi type we reorganize our abi by parameter name in a BTreeMap, while the struct fields
     // in the abi are already stored in a BTreeMap.
-    let mut abi_map = abi.to_btree_map();
-    if let Some(return_type) = &abi.return_type {
-        abi_map.insert(MAIN_RETURN_NAME.to_owned(), return_type.to_owned());
-    }
+    let abi_map = abi.to_btree_map();
 
     // Convert arguments to field elements.
-    try_btree_map(data, |(key, value)| {
-        InputValue::try_from_toml(value, &abi_map[&key]).map(|input_value| (key, input_value))
-    })
+    let mut parsed_inputs = try_btree_map(abi_map, |(arg_name, abi_type)| {
+        // Check that toml contains a value for each argument in the ABI.
+        let value = data
+            .get(&arg_name)
+            .ok_or_else(|| InputParserError::MissingArgument(arg_name.clone()))?;
+        InputValue::try_from_toml(value.clone(), &abi_type, &arg_name)
+            .map(|input_value| (arg_name, input_value))
+    })?;
+
+    // If the toml file also includes a return value then we parse it as well.
+    // This isn't required as the prover calculates the return value itself.
+    match (&abi.return_type, data.get(MAIN_RETURN_NAME)) {
+        (Some(return_type), Some(toml_return_value)) => {
+            let return_value = InputValue::try_from_toml(
+                toml_return_value.clone(),
+                return_type,
+                MAIN_RETURN_NAME,
+            )?;
+            parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+        }
+        _ => {}
+    }
+
+    Ok(parsed_inputs)
 }
 
 pub(crate) fn serialize_to_toml(
@@ -83,6 +101,7 @@ impl InputValue {
     fn try_from_toml(
         value: TomlTypes,
         param_type: &AbiType,
+        arg_name: &str,
     ) -> Result<InputValue, InputParserError> {
         let input_value = match value {
             TomlTypes::String(string) => match param_type {
@@ -128,18 +147,22 @@ impl InputValue {
                 InputValue::Vec(array_elements)
             }
 
-            TomlTypes::Table(table) => {
-                let fields = match param_type {
-                    AbiType::Struct { fields } => fields,
-                    _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
-                };
-                let native_table = try_btree_map(table, |(key, value)| {
-                    InputValue::try_from_toml(value, &fields[&key])
-                        .map(|input_value| (key, input_value))
-                })?;
+            TomlTypes::Table(table) => match param_type {
+                AbiType::Struct { fields } => {
+                    let native_table = try_btree_map(fields, |(field_name, abi_type)| {
+                        // Check that toml contains a value for each field of the struct.
+                        let field_id = format!("{arg_name}.{field_name}");
+                        let value = table
+                            .get(field_name)
+                            .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
+                        InputValue::try_from_toml(value.clone(), abi_type, &field_id)
+                            .map(|input_value| (field_name.to_string(), input_value))
+                    })?;
 
-                InputValue::Struct(native_table)
-            }
+                    InputValue::Struct(native_table)
+                }
+                _ => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            },
         };
 
         Ok(input_value)
