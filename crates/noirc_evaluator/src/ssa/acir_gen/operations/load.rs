@@ -1,4 +1,7 @@
+use noirc_errors::Location;
+
 use crate::{
+    errors::{RuntimeError, RuntimeErrorKind},
     ssa::{
         acir_gen::{acir_mem::AcirMem, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
@@ -13,23 +16,27 @@ pub(crate) fn evaluate(
     index: NodeId,
     memory_map: &mut AcirMem,
     var_cache: &mut InternalVarCache,
+    location: Option<Location>,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> Option<InternalVar> {
+) -> Result<InternalVar, RuntimeError> {
     //retrieves the value from the map if address is known at compile time:
     //address = l_c and should be constant
     let index = var_cache.get_or_compute_internal_var_unwrap(index, evaluator, ctx);
 
-    let array_element = match index.to_const() {
+    match index.to_const() {
         Some(index) => {
             let idx = mem::Memory::as_u32(index);
             let mem_array = &ctx.mem[array_id];
 
-            memory_map
-                .load_array_element_constant_index(mem_array, idx)
-                .expect("ICE: index {idx} was out of bounds for array of length {mem_array.len}")
+            memory_map.load_array_element_constant_index(mem_array, idx).ok_or(RuntimeError {
+                location,
+                kind: RuntimeErrorKind::ArrayOutOfBounds {
+                    index: idx as u128,
+                    bound: mem_array.len as u128,
+                },
+            })
         }
         None => unimplemented!("dynamic arrays are not implemented yet"),
-    };
-    Some(array_element)
+    }
 }

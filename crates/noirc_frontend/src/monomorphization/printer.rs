@@ -96,7 +96,6 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::Unit => write!(f, "()"),
         }
     }
 

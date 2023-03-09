@@ -267,12 +267,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let lhs = Box::new(self.expr_infer(infix.lhs));
                 let rhs = Box::new(self.expr_infer(infix.rhs));
                 let operator = infix.operator.kind;
-                ast::Expression::Binary(ast::Binary { lhs, rhs, operator })
+                let location = self.interner.expr_location(&expr);
+                ast::Expression::Binary(ast::Binary { lhs, rhs, operator, location })
             }
 
             HirExpression::Index(index) => ast::Expression::Index(ast::Index {
                 collection: Box::new(self.expr_infer(index.collection)),
                 index: Box::new(self.expr_infer(index.index)),
+                location: self.interner.expr_location(&expr),
             }),
 
             HirExpression::MemberAccess(access) => {
@@ -688,8 +690,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirLValue::Index { array, index, .. } => {
                 let array = Box::new(self.lvalue(*array));
+                let location = self.interner.expr_location(&index);
                 let index = Box::new(self.expr_infer(index));
-                ast::LValue::Index { array, index }
+                ast::LValue::Index { array, index, location }
             }
         }
     }

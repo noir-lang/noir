@@ -234,6 +234,7 @@ pub struct ParsedModule {
 pub struct SubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub is_contract: bool,
 }
 
 impl ParsedModule {
