@@ -76,7 +76,8 @@ pub fn compile(args: JsValue) -> JsValue {
 
         <JsValue as JsValueSerdeExt>::from_serde(&collected_compiled_programs).unwrap()
     } else {
-        let main = driver.main_function();
+        let main =
+            driver.main_function().unwrap_or_else(|_| panic!("Could not find main function!"));
         let compiled_program = driver
             .compile_no_check(&options.compile_options, main)
             .unwrap_or_else(|_| panic!("Compilation failed"));
