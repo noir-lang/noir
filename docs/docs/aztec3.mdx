@@ -4,13 +4,13 @@ title: Aztec 3
 
 import ReactPlayer from "react-player/youtube";
 
-Aztec 3 is the next and final network in our journey to building a privacy-preserving, programmable extension to Ethereum.
+Aztec 3 is the next and final network on Aztec's journey to building a privacy-preserving, programmable extension to Ethereum.
 
 Aztec 3 is being built and launched as a credibly neutral, decentralized protocol. The protocol is being developed as open source software and will be run by a community of infrastructure providers and stakeholders.
 
-Aztec (the company) is doing much of the cryptography and engineering research and coordination to make the protocol possible. We are designing, building and auditing much of the software that others run to create the Aztec network.
+Aztec (the company) is doing much of the cryptography and engineering research and coordination to make the protocol possible. We are designing, building and auditing much of the software that others will run to create the Aztec network.
 
-The Aztec community upholds many of the values of the Ethereum community by also building permissionlessness, decentralization and censorship resistance into the tools.
+The Aztec community upholds many of the values of the Ethereum community by also building permissionlessness, decentralization and censorship resistance into the system.
 
 ## Privacy in Aztec 3
 
@@ -18,9 +18,20 @@ Aztec 3 has three distinct domains of privacy--user privacy, data privacy and co
 
 User privacy refers to the fact that transactions on the Aztec network can be completely confidential. Transactions may not include information about the sender, the recipient, the transaction amount or asset type. This is a significant deviation from most blockchains where all transaction data is transparent.
 
-Data privacy refers to data stored in program state. Programs that run on Aztec 3 are called [smart contracts](./glossary#smart-contract). Smart contracts on Aztec differ from smart contracts in many other programming contexts in that they can optionally have private state.
+Data privacy refers to data stored in program's state. Like other blockchains, programs that run on Aztec 3 are called [smart contracts](./glossary#smart-contract). Smart contracts on Aztec differ from smart contracts in many other programming contexts in that they can optionally have private state as well as private functions.
 
-Code privacy refers to program logic in smart contracts. Developers can specify `private` functions in their smart contracts that will allow users to privately interact with contracts.
+Code privacy refers to program logic in smart contracts. Developers can specify `private` functions in their smart contracts that allow users to privately interact with contracts.
+
+### Private-public Composability
+
+You can watch one of our engineering leads talk about public-private composablity in Aztec 3 at Devcon here.
+
+<ReactPlayer
+  controls
+  light
+  width="100%"
+  url="https://www.youtube.com/watch?v=7Oc0tjdbi70&t=17723s"
+/>
 
 ## Cryptography
 
@@ -28,9 +39,7 @@ Our cryptography team is building [Honk](https://github.com/AztecProtocol/barret
 
 ## Noir
 
-While [Noir](./noir) is a domain specific programming language for writing zero knowledge circuits, developers will write smart contracts for Aztec 3 using Noir.
-
-You can watch one of our engineering leads talk about public-private composablity in Aztec 3 at Devcon here.
+[Noir](./noir) is a domain specific programming language for writing zero knowledge circuits and developers will write smart contracts for Aztec 3 using Noir.
 
 ## Decentralization
 
@@ -47,10 +56,3 @@ The sequence and prover networks must avoid "winner take all" and "fastest hardw
 The network will need to define upgrade mechanics, so it can be updated over time as new technology and designs are developed.
 
 There will need to be an incentive mechanism baked into the protocol that allows the various required parties to coordinate effectively and reliably.
-
-<ReactPlayer
-  controls
-  light
-  width="100%"
-  url="https://www.youtube.com/watch?v=7Oc0tjdbi70&t=17723s"
-/>
