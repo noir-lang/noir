@@ -514,16 +514,6 @@ source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77
 dependencies = [
  "barretenberg_wrapper",
  "common",
- "dirs 3.0.2",
- "downloader",
- "hex",
- "indicatif",
- "num-bigint",
- "num-traits",
- "regex",
- "sha2 0.9.9",
- "sled",
- "tempfile",
 ]
 
 [[package]]
@@ -532,9 +522,6 @@ version = "0.1.0"
 source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
 dependencies = [
  "common",
- "sha2 0.9.9",
- "sled",
- "tempfile",
  "wasmer",
 ]
 
