@@ -31,6 +31,12 @@ template <> inline std::shared_ptr<kzg::CommitmentKey> CreateCommitmentKey<kzg::
     const size_t n = 128;
     return std::make_shared<kzg::CommitmentKey>(n, kzg_srs_path);
 }
+// For IPA
+template <> inline std::shared_ptr<ipa::CommitmentKey> CreateCommitmentKey<ipa::CommitmentKey>()
+{
+    const size_t n = 128;
+    return std::make_shared<ipa::CommitmentKey>(n, kzg_srs_path);
+}
 
 template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
 // requires std::default_initializable<CK>
@@ -44,13 +50,17 @@ template <> inline std::shared_ptr<kzg::VerificationKey> CreateVerificationKey<k
 {
     return std::make_shared<kzg::VerificationKey>(kzg_srs_path);
 }
-
+// For IPA
+template <> inline std::shared_ptr<ipa::VerificationKey> CreateVerificationKey<ipa::VerificationKey>()
+{
+    const size_t n = 128;
+    return std::make_shared<ipa::VerificationKey>(n, kzg_srs_path);
+}
 template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
 // requires std::default_initializable<VK>
 {
     return std::make_shared<VK>();
 }
-
 template <typename Params> class CommitmentTest : public ::testing::Test {
     using CK = typename Params::CK;
     using VK = typename Params::VK;
@@ -187,6 +197,7 @@ template <typename Params>
 typename std::shared_ptr<typename Params::VK> CommitmentTest<Params>::verification_key = nullptr;
 
 using CommitmentSchemeParams = ::testing::Types<kzg::Params>;
+using IpaCommitmentSchemeParams = ::testing::Types<ipa::Params>;
 // IMPROVEMENT: reinstate typed-tests for multiple field types, i.e.:
 // using CommitmentSchemeParams =
 //     ::testing::Types<fake::Params<barretenberg::g1>, fake::Params<grumpkin::g1>, kzg::Params>;

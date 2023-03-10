@@ -193,4 +193,95 @@ template <typename G> struct Params {
     using VK = VerificationKey<G>;
 };
 } // namespace fake
+
+namespace ipa {
+
+/**
+ * @brief CommitmentKey object over a group 𝔾₁, using a structured reference string (SRS).
+ * The SRS is given as a list of 𝔾₁ points
+ *  { [xʲ]₁ }ⱼ where 'x' is unknown.
+ *
+ * @todo This class should take ownership of the SRS, and handle reading the file from disk.
+ */
+class CommitmentKey {
+    using Fr = typename barretenberg::g1::Fr;
+    // C is a "raw commitment" resulting to be fed to the transcript.
+    using C = typename barretenberg::g1::affine_element;
+    // Commitment represent's a homomorphically computed group element.
+    using Commitment = barretenberg::g1::element;
+
+    using Polynomial = barretenberg::Polynomial<Fr>;
+
+  public:
+    CommitmentKey() = delete;
+
+    /**
+     * @brief Construct a new Kate Commitment Key object from existing SRS
+     *
+     * @param n
+     * @param path
+     *
+     * @todo change path to string_view
+     */
+    CommitmentKey(const size_t num_points, std::string_view path)
+        : pippenger_runtime_state(num_points)
+        , srs(num_points, std::string(path))
+    {}
+
+    /**
+     * @brief Uses the ProverSRS to create a commitment to p(X)
+     *
+     * @param polynomial a univariate polynomial p(X) = ∑ᵢ aᵢ⋅Xⁱ ()
+     * @return Commitment computed as C = [p(x)] = ∑ᵢ aᵢ⋅[xⁱ]₁
+     */
+    C commit(std::span<const Fr> polynomial)
+    {
+        const size_t degree = polynomial.size();
+        ASSERT(degree <= srs.get_monomial_size());
+        return barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
+            const_cast<Fr*>(polynomial.data()), srs.get_monomial_points(), degree, pippenger_runtime_state);
+    };
+
+    barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+    bonk::FileReferenceString srs;
+};
+
+class VerificationKey {
+    using Fr = typename barretenberg::g1::Fr;
+    using C = typename barretenberg::g1::affine_element;
+
+    using Commitment = barretenberg::g1::element;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+
+  public:
+    VerificationKey() = delete;
+
+    /**
+     * @brief Construct a new Kate Commitment Key object from existing SRS
+     *
+     *
+     * @param verifier_srs verifier G2 point
+     */
+    VerificationKey(const size_t num_points, std::string_view path)
+        : pippenger_runtime_state(num_points)
+        , srs(num_points, std::string(path))
+    {}
+
+    barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+    bonk::FileReferenceString srs;
+};
+
+struct Params {
+    using Fr = typename barretenberg::g1::Fr;
+    using C = typename barretenberg::g1::affine_element;
+
+    using Commitment = barretenberg::g1::element;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+
+    using CK = CommitmentKey;
+    using VK = VerificationKey;
+};
+
+} // namespace ipa
+
 } // namespace honk::pcs

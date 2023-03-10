@@ -4,50 +4,46 @@
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/pcs/commitment_key.test.hpp"
 using namespace barretenberg;
+namespace honk::pcs::ipa {
 
-TEST(honk_commitment_scheme, ipa_commit)
+template <class Params> class IpaCommitmentTest : public CommitmentTest<Params> {
+    using Fr = typename Params::Fr;
+    using element = typename Params::Commitment;
+    using affine_element = typename Params::C;
+    using CK = typename Params::CK;
+    using VK = typename Params::VK;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+};
+
+TYPED_TEST_SUITE(IpaCommitmentTest, IpaCommitmentSchemeParams);
+
+TYPED_TEST(IpaCommitmentTest, commit)
 {
-    constexpr size_t n = 1024;
-    std::vector<barretenberg::fr> scalars(n);
-    std::vector<barretenberg::g1::affine_element> points(n);
-
-    for (size_t i = 0; i < n; i++) {
-        scalars[i] = barretenberg::fr::random_element();
-        points[i] = barretenberg::g1::affine_element(barretenberg::g1::element::random_element());
-    }
-
-    barretenberg::g1::element expected = points[0] * scalars[0];
+    constexpr size_t n = 128;
+    auto poly = this->random_polynomial(n);
+    barretenberg::g1::element commitment = this->commit(poly);
+    auto srs_elements = this->ck()->srs.get_monomial_points();
+    barretenberg::g1::element expected = srs_elements[0] * poly[0];
     for (size_t i = 1; i < n; i++) {
-        expected += points[i] * scalars[i];
+        expected += srs_elements[i] * poly[i];
     }
-
-    InnerProductArgument<barretenberg::fr, barretenberg::fq, barretenberg::g1> newIpa;
-    barretenberg::g1::element result = newIpa.commit(scalars, n, points);
-    EXPECT_EQ(expected.normalize(), result.normalize());
+    EXPECT_EQ(expected.normalize(), commitment.normalize());
 }
 
-TEST(honk_commitment_scheme, ipa_open)
+TYPED_TEST(IpaCommitmentTest, open)
 {
-    // generate a random polynomial coeff, degree needs to be a power of two
-    size_t n = 1024;
-    std::vector<barretenberg::fr> coeffs(n);
-    for (size_t i = 0; i < n; ++i) {
-        coeffs[i] = barretenberg::fr::random_element();
-    }
-    // generate random evaluation point x and the evaluation
-    auto x = barretenberg::fr::random_element();
-    auto eval = polynomial_arithmetic::evaluate(&coeffs[0], x, n);
-    // generate G_vec for testing, bypassing srs
-    std::vector<barretenberg::g1::affine_element> G_vec(n);
-    for (size_t i = 0; i < n; ++i) {
-        auto scalar = fr::random_element();
-        G_vec[i] = barretenberg::g1::affine_element(barretenberg::g1::one * scalar);
-    }
-    InnerProductArgument<barretenberg::fr, barretenberg::fq, barretenberg::g1> newIpa;
-    auto C = newIpa.commit(coeffs, n, G_vec);
-    InnerProductArgument<barretenberg::fr, barretenberg::fq, barretenberg::g1>::IpaPubInput pub_input;
-    pub_input.commitment = C;
+    using IPA = InnerProductArgument<TypeParam>;
+    using PubInput = typename IPA::PubInput;
+    // generate a random polynomial, degree needs to be a power of two
+    size_t n = 128;
+    auto poly = this->random_polynomial(n);
+    auto [x, eval] = this->random_eval(poly);
+    barretenberg::g1::element commitment = this->commit(poly);
+    PubInput pub_input;
+    pub_input.commitment = commitment;
     pub_input.challenge_point = x;
     pub_input.evaluation = eval;
     pub_input.poly_degree = n;
@@ -58,8 +54,8 @@ TEST(honk_commitment_scheme, ipa_open)
     for (size_t i = 0; i < log_n; i++) {
         pub_input.round_challenges[i] = barretenberg::fr::random_element();
     }
-    auto proof = newIpa.ipa_prove(pub_input, coeffs, G_vec);
-    auto result =
-        InnerProductArgument<barretenberg::fr, barretenberg::fq, barretenberg::g1>::ipa_verify(proof, pub_input, G_vec);
+    auto proof = IPA::reduce_prove(this->ck(), pub_input, poly);
+    auto result = IPA::reduce_verify(this->vk(), proof, pub_input);
     EXPECT_TRUE(result);
 }
+} // namespace honk::pcs::ipa

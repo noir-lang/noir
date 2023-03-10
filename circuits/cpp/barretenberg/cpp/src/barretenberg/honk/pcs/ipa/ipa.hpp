@@ -16,15 +16,18 @@
  * @brief IPA (inner-product argument) commitment scheme class. Conforms to the specification
  * https://hackmd.io/q-A8y6aITWyWJrvsGGMWNA?view.
  *
- * @tparam Fr: The underlying field
- * @tparam Fq: The field corresponding to the elliptic curve
- * @tparam G1: The elliptic curve group
  */
-template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
+namespace honk::pcs::ipa {
+template <typename Params> class InnerProductArgument {
+    using Fr = typename Params::Fr;
+    using element = typename Params::Commitment;
+    using affine_element = typename Params::C;
+    using CK = typename Params::CK;
+    using VK = typename Params::VK;
+    using Polynomial = barretenberg::Polynomial<Fr>;
+
   public:
-    using element = typename G1::element;
-    using affine_element = typename G1::affine_element;
-    struct IpaProof {
+    struct Proof {
         std::vector<affine_element> L_vec;
         std::vector<affine_element> R_vec;
         Fr a_zero;
@@ -32,7 +35,7 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
     // To contain the public inputs for IPA proof
     // For now we are including the aux_generator and round_challenges in public input. They will be computed by the
     // prover and the verifier by Fiat-Shamir when the challengeGenerator is defined.
-    struct IpaPubInput {
+    struct PubInput {
         element commitment;
         Fr challenge_point;
         Fr evaluation;
@@ -42,52 +45,34 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
     };
 
     /**
-     * @brief Commit to a polynomial
+     * @brief Compute a proof for opening a single polynomial at a single evaluation point
      *
-     * @param polynomial The input polynomial in the coefficient form
-     * @param poly_degree The degree of the polynomial
-     * @param G_vector The common set of generators required to compute the commitment, to be replaced by srs
-     *
-     * @return a group element
-     */
-    static element commit(std::vector<Fr>& polynomial, const size_t poly_degree, std::vector<affine_element>& G_vector)
-    {
-        auto pippenger_runtime_state = barretenberg::scalar_multiplication::pippenger_runtime_state(poly_degree);
-        auto commitment = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-            &polynomial[0], &G_vector[0], poly_degree, pippenger_runtime_state);
-        return commitment;
-    }
-
-    /**
-     * @brief Compute an IpaProof for opening a single polynomial at a single evaluation point
-     *
-     * @param ipa_pub_input Data required to compute the opening proof. See spec for more details
+     * @param ck The commitment key containing srs and pippenger_runtime_state for computing MSM
+     * @param pub_input Data required to compute the opening proof. See spec for more details
      * @param polynomial The witness polynomial whose opening proof needs to be computed
-     * @param G_vector the common set of generators, to be replaced by the srs
      *
-     * @return an IpaProof, containing information required to verify whether the commitment is computed correctly and
+     * @return a Proof, containing information required to verify whether the commitment is computed correctly and
      * the polynomial evaluation is correct in the given challenge point.
      */
-    static IpaProof ipa_prove(const IpaPubInput& ipa_pub_input,
-                              const std::vector<Fr>& polynomial,
-                              const std::vector<affine_element>& G_vector)
+    static Proof reduce_prove(std::shared_ptr<CK> ck, const PubInput& pub_input, const Polynomial& polynomial)
     {
-        IpaProof proof;
-        auto& challenge_point = ipa_pub_input.challenge_point;
+        Proof proof;
+        auto& challenge_point = pub_input.challenge_point;
         ASSERT(challenge_point != 0 && "The challenge point should not be zero");
-        const size_t poly_degree = ipa_pub_input.poly_degree;
+        const size_t poly_degree = pub_input.poly_degree;
         // To check poly_degree is greater than zero and a power of two
         // TODO(#220)(Arijit): To accomodate non power of two poly_degree
         ASSERT((poly_degree > 0) && (!(poly_degree & (poly_degree - 1))) &&
                "The poly_degree should be positive and a power of two");
-        auto& aux_generator = ipa_pub_input.aux_generator;
+        auto& aux_generator = pub_input.aux_generator;
         auto a_vec = polynomial;
-        // TODO(#220)(Arijit):  to make it more efficient by directly using G_vector for the input points when i = 0 and
-        // write the output points to G_vec_local. Then use G_vec_local for rounds where i>0, this can be done after we
-        // use SRS instead of G_vector.
+        // TODO(#220)(Arijit): to make it more efficient by directly using G_vector for the input points when i = 0 and write the
+        // output points to G_vec_local. Then use G_vec_local for rounds where i>0, this can be done after we use SRS
+        // instead of G_vector.
+        auto srs_elements = ck->srs.get_monomial_points();
         std::vector<affine_element> G_vec_local(poly_degree);
         for (size_t i = 0; i < poly_degree; i++) {
-            G_vec_local[i] = G_vector[i];
+            G_vec_local[i] = srs_elements[i];
         }
         // Construct b vector
         // TODO(#220)(Arijit): For round i=0, b_vec can be derived in-place.
@@ -115,22 +100,20 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
                 inner_prod_R += a_vec[round_size + j] * b_vec[j];
             }
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
-            // TODO(#220)(Arijit): Remove usage of multiple runtime_state, pass it as an element of the SRS.
-            auto pippenger_runtime_state = barretenberg::scalar_multiplication::pippenger_runtime_state(round_size);
             element partial_L = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-                &a_vec[0], &G_vec_local[round_size], round_size, pippenger_runtime_state);
+                &a_vec[0], &G_vec_local[round_size], round_size, ck->pippenger_runtime_state);
             partial_L += aux_generator * inner_prod_L;
 
             // R_i = < a_vec_hi, G_vec_lo > + inner_prod_R * aux_generator
             element partial_R = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-                &a_vec[round_size], &G_vec_local[0], round_size, pippenger_runtime_state);
+                &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
             partial_R += aux_generator * inner_prod_R;
 
             L_elements[i] = affine_element(partial_L);
             R_elements[i] = affine_element(partial_R);
 
             // Generate the round challenge. TODO(#220)(Arijit): Use Fiat-Shamir
-            const Fr round_challenge = ipa_pub_input.round_challenges[i];
+            const Fr round_challenge = pub_input.round_challenges[i];
             const Fr round_challenge_inv = round_challenge.invert();
 
             // Update the vectors a_vec, b_vec and G_vec.
@@ -171,25 +154,23 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
     }
 
     /**
-     * @brief Verify the correctness of an IpaProof
+     * @brief Verify the correctness of a Proof
      *
-     * @param ipa_proof The proof containg L_vec, R_vec and a_zero
-     * @param Ipa_pub_input Data required to verify the ipa_proof
-     * @param G_vector The common set of generators, to be replaced by the srs
+     * @param vk Verification_key containing srs and pippenger_runtime_state to be used for MSM
+     * @param proof The proof containg L_vec, R_vec and a_zero
+     * @param pub_input Data required to verify the proof
      *
      * @return true/false depending on if the proof verifies
      */
-    static bool ipa_verify(const IpaProof& ipa_proof,
-                           const IpaPubInput& ipa_pub_input,
-                           const std::vector<affine_element>& G_vector)
+    static bool reduce_verify(std::shared_ptr<VK> vk, const Proof& proof, const PubInput& pub_input)
     {
         // Local copies of public inputs
-        auto& a_zero = ipa_proof.a_zero;
-        auto& commitment = ipa_pub_input.commitment;
-        auto& challenge_point = ipa_pub_input.challenge_point;
-        auto& evaluation = ipa_pub_input.evaluation;
-        auto& poly_degree = ipa_pub_input.poly_degree;
-        auto& aux_generator = ipa_pub_input.aux_generator;
+        auto& a_zero = proof.a_zero;
+        auto& commitment = pub_input.commitment;
+        auto& challenge_point = pub_input.challenge_point;
+        auto& evaluation = pub_input.evaluation;
+        auto& poly_degree = pub_input.poly_degree;
+        auto& aux_generator = pub_input.aux_generator;
 
         // Compute C_prime
         element C_prime = commitment + (aux_generator * evaluation);
@@ -198,18 +179,18 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
         const size_t log_poly_degree = static_cast<size_t>(numeric::get_msb(poly_degree));
         std::vector<Fr> round_challenges(log_poly_degree);
         for (size_t i = 0; i < log_poly_degree; i++) {
-            round_challenges[i] = ipa_pub_input.round_challenges[i];
+            round_challenges[i] = pub_input.round_challenges[i];
         }
         std::vector<Fr> round_challenges_inv(log_poly_degree);
         for (size_t i = 0; i < log_poly_degree; i++) {
-            round_challenges_inv[i] = ipa_pub_input.round_challenges[i];
+            round_challenges_inv[i] = pub_input.round_challenges[i];
         }
         Fr::batch_invert(&round_challenges_inv[0], log_poly_degree);
         std::vector<affine_element> L_vec(log_poly_degree);
         std::vector<affine_element> R_vec(log_poly_degree);
         for (size_t i = 0; i < log_poly_degree; i++) {
-            L_vec[i] = ipa_proof.L_vec[i];
-            R_vec[i] = ipa_proof.R_vec[i];
+            L_vec[i] = proof.L_vec[i];
+            R_vec[i] = proof.R_vec[i];
         }
 
         // Compute C_zero = C_prime + ∑_{j ∈ [k]} u_j^2L_j + ∑_{j ∈ [k]} u_j^{-2}R_j
@@ -222,9 +203,8 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
             msm_scalars[size_t(2) * i] = round_challenges[i] * round_challenges[i];
             msm_scalars[size_t(2) * i + 1] = round_challenges_inv[i] * round_challenges_inv[i];
         }
-        auto pippenger_runtime_state_1 = barretenberg::scalar_multiplication::pippenger_runtime_state(pippenger_size);
         element LR_sums = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-            &msm_scalars[0], &msm_elements[0], pippenger_size, pippenger_runtime_state_1);
+            &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
         element C_zero = C_prime + LR_sums;
 
         /**
@@ -256,17 +236,19 @@ template <typename Fr, typename Fq, typename G1> class InnerProductArgument {
             }
             s_vec[i] = s_vec_scalar;
         }
+        auto srs_elements = vk->srs.get_monomial_points();
         // Copy the G_vector to local memory.
         std::vector<affine_element> G_vec_local(poly_degree);
         for (size_t i = 0; i < poly_degree; i++) {
-            G_vec_local[i] = G_vector[i];
+            G_vec_local[i] = srs_elements[i];
         }
-        auto pippenger_runtime_state_2 = barretenberg::scalar_multiplication::pippenger_runtime_state(poly_degree);
         auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points(
-            &s_vec[0], &G_vec_local[0], poly_degree, pippenger_runtime_state_2);
+            &s_vec[0], &G_vec_local[0], poly_degree, vk->pippenger_runtime_state);
         element right_hand_side = G_zero * a_zero;
         Fr a_zero_b_zero = a_zero * b_zero;
         right_hand_side += aux_generator * a_zero_b_zero;
         return (C_zero.normalize() == right_hand_side.normalize());
     }
 };
+
+} // namespace honk::pcs::ipa
