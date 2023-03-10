@@ -52,9 +52,11 @@ WASM_EXPORT void abis__hash_tx_request(uint8_t const* tx_request_buf, uint8_t* o
  */
 WASM_EXPORT void abis__compute_function_selector(char const* func_sig_cstr, uint8_t* output)
 {
-    // Hash the function signature using keccak256
-    auto keccak_hash = ethash_keccak256((uint8_t*)func_sig_cstr, std::char_traits<char>::length(func_sig_cstr));
-    // Get the first 4 bytes of the hash's 0th word and copy into output buffer
-    memcpy(output, &keccak_hash.word64s[0], 4 * sizeof(uint8_t));
+    // hash the function signature using keccak256
+    auto keccak_hash = ethash_keccak256(reinterpret_cast<uint8_t const*>(func_sig_cstr), strlen(func_sig_cstr));
+    // get a pointer to the start of the hash bytes
+    uint8_t const* hash_bytes = reinterpret_cast<uint8_t const*>(&keccak_hash.word64s[0]);
+    // get the first 4 bytes of the hash's 0th word and copy into output buffer
+    std::copy(hash_bytes, hash_bytes + 4, output);
 }
 }
