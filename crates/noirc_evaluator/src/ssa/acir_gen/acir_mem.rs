@@ -194,12 +194,13 @@ impl AcirMem {
     }
 
     // number of bits required to store the input
-    fn bits(t: usize) -> u32 {
-        if t > 0 {
-            t.ilog2() + 1
-        } else {
-            1
+    fn bits(mut t: usize) -> u32 {
+        let mut r = 0;
+        while t != 0 {
+            t >>= 1;
+            r += 1;
         }
+        r
     }
 
     // Loads the associated `InternalVar` for the element
