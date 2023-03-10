@@ -32,6 +32,8 @@ pub enum TypeCheckError {
         second_type: String,
         second_index: usize,
     },
+    #[error("Cannot infer type of expression, type annotations needed before this point")]
+    TypeAnnotationsNeeded { span: Span },
 }
 
 impl TypeCheckError {
@@ -94,6 +96,11 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),
+                span,
+            ),
+            TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
+                "Expression type is ambiguous".to_string(),
+                "Type must be known at this point".to_string(),
                 span,
             ),
         }
