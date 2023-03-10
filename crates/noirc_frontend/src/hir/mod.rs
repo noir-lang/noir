@@ -11,7 +11,9 @@ use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
 
-/// Global context that is accessible during each stage
+/// Helper object which groups together several useful context objects used
+/// during name resolution. Once name resolution is finished, only the
+/// def_interner is required for type inference and monomorphization.
 #[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,

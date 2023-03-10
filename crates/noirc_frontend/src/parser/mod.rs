@@ -1,3 +1,11 @@
+//! The parser is the second pass of the noir compiler.
+//! The parser's job is to take the output of the lexer (a stream of tokens)
+//! and parse it into a valid Abstract Syntax Tree (Ast). During this, the parser
+//! validates the grammar of the program and returns parsing errors for any syntactically
+//! invalid constructs (such as `fn fn fn`).
+//!
+//! This file is mostly helper functions and types for the parser. For the parser itself,
+//! see parser.rs. The definition of the abstract syntax tree can be found in the `ast` folder.
 mod errors;
 #[allow(clippy::module_inception)]
 mod parser;
@@ -204,21 +212,29 @@ fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T
     parser.map(Some).recover_via(empty().map(|_| None))
 }
 
+/// A ParsedModule contains an entire Ast for one file.
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
     pub impls: Vec<NoirImpl>,
-    pub module_decls: Vec<Ident>,
-    pub submodules: Vec<SubModule>,
     pub globals: Vec<LetStatement>,
+
+    /// Module declarations like `mod foo;`
+    pub module_decls: Vec<Ident>,
+
+    /// Full submodules as in `mod foo { ... definitions ... }`
+    pub submodules: Vec<SubModule>,
 }
 
+/// A submodule defined via `mod name { contents }` in some larger file.
+/// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct SubModule {
     pub name: Ident,
     pub contents: ParsedModule,
+    pub is_contract: bool,
 }
 
 impl ParsedModule {

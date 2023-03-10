@@ -13,6 +13,7 @@ rustc_version = "0.4.0"
 build-data = "0.1.3"
 
 [dependencies]
+clap.workspace = true
 dirs.workspace = true
 url.workspace = true
 iter-extended.workspace = true
@@ -25,18 +26,18 @@ cfg-if.workspace = true
 toml.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-clap = { version = "4.1.4", features = ["derive"]}
 const_format = "0.2.30"
 hex = "0.4.2"
 serde_json = "1.0"
 termcolor = "1.1.2"
 tempdir = "0.3.7"
+color-eyre = "0.6.2"
+
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "74b4d8d8b118e4477880c04149e5e9d93d388384" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "74b4d8d8b118e4477880c04149e5e9d93d388384" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "b7f68bddcf05de22f77726c94450791141accc9a" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "b7f68bddcf05de22f77726c94450791141accc9a" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
-color-eyre = "0.6.2"
 
 [features]
 default = ["plonk_bn254"]

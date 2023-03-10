@@ -20,7 +20,6 @@ use std::collections::{BTreeMap, HashSet};
 use super::{
     const_from_expression,
     constraints::{self, mul_with_witness, subtract},
-    expression_from_witness,
     operations::{self},
 };
 
@@ -127,8 +126,7 @@ impl ArrayHeap {
         bits: &mut Vec<Witness>,
         evaluator: &mut Evaluator,
     ) -> Vec<Expression> {
-        let outputs =
-            vecmap(0..inputs.len(), |_| expression_from_witness(evaluator.add_witness_to_cs()));
+        let outputs = vecmap(0..inputs.len(), |_| evaluator.add_witness_to_cs().into());
         if bits.is_empty() {
             *bits = operations::sort::evaluate_permutation(&inputs, &outputs, evaluator);
         } else {

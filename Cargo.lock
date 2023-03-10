@@ -16,11 +16,11 @@ dependencies = [
 
 [[package]]
 name = "acir"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "104242ac56c936464e3ac9618e1f635151e83334d8d4138f9a39490ca11acaa9"
+checksum = "744c21590f6da95914f1d83f247dba49d4f287beb725bfbcbc54eaf823484b1a"
 dependencies = [
- "acir_field 0.5.0",
+ "acir_field 0.6.0",
  "flate2",
  "rmp-serde",
  "serde",
@@ -45,18 +45,15 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebd6cc7ebc948cde55bf10a8c4f3e1479e03f34e00ee8ab83e86891b693dd503"
+checksum = "081a09b71facabddd411bfb8459c0f4d9350c39707680da6c04debb3db9de503"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.1",
- "ark-serialize 0.4.1",
- "blake2",
  "cfg-if 1.0.0",
  "hex",
  "num-bigint",
- "num-traits",
  "serde",
 ]
 
@@ -81,12 +78,12 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6145438d6c89c208cae93e49b925b0e2ac1963048a8ee4e002ca0f0de87d789e"
+checksum = "73876b7d5d23d0826ea4c9150b4a62af0b20a6937a79472ee0ceda30868aa207"
 dependencies = [
- "acir 0.5.0",
- "acvm_stdlib 0.5.0",
+ "acir 0.6.0",
+ "acvm_stdlib 0.6.0",
  "blake2",
  "indexmap",
  "k256",
@@ -108,11 +105,11 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aaabcf52a534df7ed591451cf5ac2a765416fee4e38e0c523cc29da8c244aa7c"
+checksum = "b2259c21b06db652e41bddb1deb22da8d303746a0e8bf877983c7d83f71943b8"
 dependencies = [
- "acir 0.5.0",
+ "acir 0.6.0",
 ]
 
 [[package]]
@@ -513,33 +510,18 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
 dependencies = [
  "barretenberg_wrapper",
- "blake2",
  "common",
- "dirs 3.0.2",
- "downloader",
- "hex",
- "indicatif",
- "num-bigint",
- "num-traits",
- "regex",
- "sha2",
- "sled",
- "tempfile",
 ]
 
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
 dependencies = [
- "blake2",
  "common",
- "sha2",
- "sled",
- "tempfile",
  "wasmer",
 ]
 
@@ -861,9 +843,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=74b4d8d8b118e4477880c04149e5e9d93d388384#74b4d8d8b118e4477880c04149e5e9d93d388384"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -2139,7 +2121,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "barretenberg_static_lib",
  "barretenberg_wasm",
  "build-data",
@@ -2169,11 +2151,12 @@ dependencies = [
 name = "noir_wasm"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "build-data",
  "console_error_panic_hook",
  "gloo-utils",
  "noirc_driver",
+ "noirc_frontend",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -2183,7 +2166,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "iter-extended",
  "serde",
  "serde_json",
@@ -2195,7 +2178,8 @@ dependencies = [
 name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
+ "clap 4.1.4",
  "fm",
  "noirc_abi",
  "noirc_errors",
@@ -2212,13 +2196,14 @@ dependencies = [
  "codespan",
  "codespan-reporting 0.9.5",
  "fm",
+ "serde",
 ]
 
 [[package]]
 name = "noirc_evaluator"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "arena",
  "iter-extended",
  "noirc_abi",
@@ -2234,7 +2219,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.2.0"
 dependencies = [
- "acvm 0.5.0",
+ "acvm 0.6.0",
  "arena",
  "chumsky",
  "fm",
@@ -3018,6 +3003,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0efd8caf556a6cebd3b285caf480045fcc1ac04f6bd786b09a6f11af30c4fcf4"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3341,11 +3335,36 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.5.11"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+checksum = "f7afcae9e3f0fe2c370fd4657108972cbb2fa9db1b9f84849cefd80741b01cb6"
 dependencies = [
  "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ab8ed2edee10b50132aed5f331333428b011c99402b5a534154ed15746f9622"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a1eb0622d28f4b9c90adc4ea4b2b46b47663fde9ac5fafcb14a1369d5508825"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -4064,6 +4083,15 @@ name = "windows_x86_64_msvc"
 version = "0.42.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "447660ad36a13288b1db4d4248e857b510e8c3a225c822ba4fb748c0aafecffd"
+
+[[package]]
+name = "winnow"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faf09497b8f8b5ac5d3bb4d05c0a99be20f26fd3d5f2db7b0716e946d5103658"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "winreg"
