@@ -5,10 +5,7 @@ use acvm::{
 };
 
 use crate::{
-    ssa::acir_gen::{
-        constraints::{add, mul_with_witness, subtract},
-        expression_from_witness,
-    },
+    ssa::acir_gen::constraints::{add, mul_with_witness, subtract},
     Evaluator,
 };
 
@@ -79,7 +76,7 @@ fn permutation_layer(
         //q = c*(a2-a1);
         let intermediate = mul_with_witness(
             evaluator,
-            &expression_from_witness(conf[i]),
+            &conf[i].into(),
             &subtract(&in_expr[2 * i + 1], FieldElement::one(), &in_expr[2 * i]),
         );
         //b1=a1+q
@@ -100,11 +97,8 @@ fn permutation_layer(
     for i in 0..(n - 1) / 2 {
         let c = if generate_witness { evaluator.add_witness_to_cs() } else { bits[n1 + i] };
         conf.push(c);
-        let intermediate = mul_with_witness(
-            evaluator,
-            &expression_from_witness(c),
-            &subtract(&b2[i], FieldElement::one(), &b1[i]),
-        );
+        let intermediate =
+            mul_with_witness(evaluator, &c.into(), &subtract(&b2[i], FieldElement::one(), &b1[i]));
         out_expr.push(add(&intermediate, FieldElement::one(), &b1[i]));
         out_expr.push(subtract(&b2[i], FieldElement::one(), &intermediate));
     }
@@ -127,10 +121,7 @@ mod test {
     };
 
     use crate::{
-        ssa::acir_gen::{
-            expression_from_witness,
-            operations::sort::{evaluate_permutation, permutation_layer},
-        },
+        ssa::acir_gen::operations::sort::{evaluate_permutation, permutation_layer},
         Evaluator,
     };
     use rand::prelude::*;
@@ -159,7 +150,7 @@ mod test {
             let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
-                input.push(expression_from_witness(w));
+                input.push(w.into());
                 a_val.push(FieldElement::from(rng.next_u32() as i128));
                 solved_witness.insert(w, a_val[i]);
             }
@@ -168,7 +159,7 @@ mod test {
             for _i in 0..n {
                 let w = eval.add_witness_to_cs();
                 b_wit.push(w);
-                output.push(expression_from_witness(w));
+                output.push(w.into());
             }
             //generate constraints for the inputs
             let w = evaluate_permutation(&input, &output, &mut eval);

@@ -4,10 +4,7 @@ use noirc_errors::Location;
 use crate::{
     errors::{RuntimeError, RuntimeErrorKind},
     ssa::{
-        acir_gen::{
-            acir_mem::AcirMem, expression_from_witness, internal_var_cache::InternalVarCache,
-            InternalVar,
-        },
+        acir_gen::{acir_mem::AcirMem, internal_var_cache::InternalVarCache, InternalVar},
         context::SsaContext,
         mem::{self, ArrayId},
         node::NodeId,
@@ -50,11 +47,6 @@ pub(crate) fn evaluate(
     }
 
     let w = evaluator.add_witness_to_cs();
-    acir_mem.add_to_trace(
-        &array_id,
-        index.to_expression(),
-        expression_from_witness(w),
-        Expression::zero(),
-    );
+    acir_mem.add_to_trace(&array_id, index.to_expression(), w.into(), Expression::zero());
     Ok(InternalVar::from_witness(w))
 }
