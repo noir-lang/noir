@@ -34,7 +34,8 @@ pub(crate) fn evaluate(
             } else {
                 let pred = var_cache.get_or_compute_internal_var_unwrap(predicate, evaluator, ctx);
                 let dummy_load =
-                    load::evaluate(array_id, index, acir_mem, var_cache, evaluator, ctx).unwrap();
+                    load::evaluate(array_id, index, acir_mem, var_cache, None, evaluator, ctx)
+                        .unwrap();
                 let result = condition::evaluate_expression(
                     pred.expression(),
                     value_var.expression(),
