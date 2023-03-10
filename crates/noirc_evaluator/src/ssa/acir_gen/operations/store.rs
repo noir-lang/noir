@@ -22,7 +22,7 @@ pub(crate) fn evaluate(
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {
-    if let Operation::Store { array_id, index, value, predicate } = *store {
+    if let Operation::Store { array_id, index, value, predicate, .. } = *store {
         //maps the address to the rhs if address is known at compile time
         let index_var = var_cache.get_or_compute_internal_var_unwrap(index, evaluator, ctx);
         let value_var = var_cache.get_or_compute_internal_var_unwrap(value, evaluator, ctx);

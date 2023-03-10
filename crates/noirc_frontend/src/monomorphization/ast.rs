@@ -96,6 +96,7 @@ pub struct Binary {
     pub lhs: Box<Expression>,
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -130,6 +131,7 @@ pub struct Call {
 pub struct Index {
     pub collection: Box<Expression>,
     pub index: Box<Expression>,
+    pub location: Location,
 }
 
 /// Rather than a Pattern containing possibly several variables, Let now
@@ -169,7 +171,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression> },
+    Index { array: Box<LValue>, index: Box<Expression>, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 

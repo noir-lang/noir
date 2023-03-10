@@ -1,3 +1,4 @@
+use crate::Evaluator;
 use crate::{
     errors::RuntimeError,
     ssa::{
@@ -7,7 +8,6 @@ use crate::{
         node::{Instruction, Operation},
     },
 };
-use crate::{Evaluator, RuntimeErrorKind};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -60,7 +60,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
         show_output: bool,
-    ) -> Result<(), RuntimeErrorKind> {
+    ) -> Result<(), RuntimeError> {
         use operations::{
             binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
         };
@@ -100,9 +100,9 @@ impl Acir {
             Operation::Cond { condition, val_true: lhs, val_false: rhs } => {
                 condition::evaluate(*condition, *lhs, *rhs, var_cache, evaluator, ctx)
             }
-            Operation::Load { array_id, index } => {
-                load::evaluate(*array_id, *index, acir_mem, var_cache, evaluator, ctx)
-            }
+            Operation::Load { array_id, index, location } => Some(load::evaluate(
+                *array_id, *index, acir_mem, var_cache, *location, evaluator, ctx,
+            )?),
             Operation::Store { .. } => {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)
             }
