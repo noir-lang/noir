@@ -93,3 +93,5 @@ flowchart BT
 
   end
 ```
+
+Read more about Aztec 3 [here](./aztec3).
