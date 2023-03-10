@@ -54,6 +54,9 @@ pub fn compile(args: JsValue) -> JsValue {
 
     driver.create_local_crate(path, CrateType::Binary);
 
+    // We are always adding std lib implicitly. It comes bundled with binary.
+    add_noir_lib(&mut driver, (&"std").to_string());
+
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut driver, dependency);
     }
