@@ -36,11 +36,11 @@ const BUILD_INFO: BuildInfo = BuildInfo {
     dirty: env!("GIT_DIRTY"),
 };
 
-pub fn add_noir_lib(driver: &mut Driver, crate_name: String) {
+pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
     let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
     let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
 
-    driver.propagate_dep(library_crate, &CrateName::new(crate_name.as_str()).unwrap());
+    driver.propagate_dep(library_crate, &CrateName::new(crate_name).unwrap());
 }
 
 #[wasm_bindgen]
@@ -55,10 +55,10 @@ pub fn compile(args: JsValue) -> JsValue {
     driver.create_local_crate(path, CrateType::Binary);
 
     // We are always adding std lib implicitly. It comes bundled with binary.
-    add_noir_lib(&mut driver, (&"std").to_string());
+    add_noir_lib(&mut driver, "std");
 
     for dependency in options.optional_dependencies_set {
-        add_noir_lib(&mut driver, dependency);
+        add_noir_lib(&mut driver, dependency.as_str());
     }
 
     driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Crate check failed"));
