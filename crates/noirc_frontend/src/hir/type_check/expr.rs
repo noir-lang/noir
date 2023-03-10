@@ -12,6 +12,14 @@ use crate::{
 
 use super::{bind_pattern, errors::TypeCheckError};
 
+/// Infers a type for a given expression, and return this type.
+/// As a side-effect, this function will also remember this type in the NodeInterner
+/// for the given expr_id key.
+///
+/// This function also converts any HirExpression::MethodCalls `a.foo(b, c)` into
+/// an equivalent HirExpression::Call in the form `foo(a, b, c)`. This cannot
+/// be done earlier since we need to know the type of the object `a` to resolve which
+/// function `foo` to refer to.
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,

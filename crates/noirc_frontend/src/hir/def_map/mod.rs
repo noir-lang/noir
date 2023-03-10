@@ -72,10 +72,8 @@ impl CrateDefMap {
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let root = modules.insert(ModuleData::default());
-
-        // Set the origin of the root module
-        modules[root].origin = ModuleOrigin::CrateRoot(root_file_id);
+        let origin = ModuleOrigin::CrateRoot(root_file_id);
+        let root = modules.insert(ModuleData::new(None, origin, false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -129,6 +127,60 @@ impl CrateDefMap {
             functions.filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
         })
     }
+
+    /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
+    /// and collect them all into a Vec.
+    pub fn get_all_contracts(&self) -> Vec<Contract> {
+        self.modules
+            .iter()
+            .filter_map(|(id, module)| {
+                if module.is_contract {
+                    let functions = module
+                        .scope
+                        .values()
+                        .values()
+                        .filter_map(|(id, _)| id.as_function())
+                        .collect();
+
+                    let name = self.get_module_path(id, module.parent);
+                    Some(Contract { name, functions })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Find a child module's name by inspecting its parent.
+    /// Currently required as modules do not store their own names.
+    fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+        if let Some(id) = parent {
+            let parent = &self.modules[id.0];
+            let name = parent
+                .children
+                .iter()
+                .find(|(_, id)| id.0 == child_id)
+                .map(|(name, _)| &name.0.contents)
+                .expect("Child module was not a child of the given parent module");
+
+            let parent_name = self.get_module_path(id.0, parent.parent);
+            if parent_name.is_empty() {
+                name.to_string()
+            } else {
+                format!("{parent_name}.{name}")
+            }
+        } else {
+            String::new()
+        }
+    }
+}
+
+/// A 'contract' in Noir source code with the given name and functions.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+pub struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    pub name: String,
+    pub functions: Vec<FuncId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
