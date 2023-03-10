@@ -9,6 +9,7 @@ use crate::ssa::{
     },
 };
 use acvm::FieldElement;
+use num_bigint::ToBigUint;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
@@ -76,7 +77,7 @@ fn evaluate_intrinsic(
     args: Vec<u128>,
     res_type: &ObjectType,
     block_id: BlockId,
-) -> Vec<NodeId> {
+) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
         builtin::Opcode::ToBits(_) => {
             let bit_count = args[1] as u32;
@@ -108,9 +109,55 @@ fn evaluate_intrinsic(
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
-                return result;
+                return Ok(result);
             }
-            unreachable!();
+            unreachable!(
+                "compiler error: to bits should have a Pointer result type and be decomposed."
+            );
+        }
+        builtin::Opcode::ToRadix(endian) => {
+            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
+            let byte_count = args[2] as u32;
+            let diff = if byte_count > element.len() as u32 {
+                byte_count - element.len() as u32
+            } else {
+                return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                    index: element.len() as u128,
+                    bound: byte_count as u128,
+                });
+            };
+            element.extend(vec![0; diff as usize]);
+            if endian == builtin::Endian::Big {
+                element.reverse();
+            }
+            let mut result = Vec::new();
+
+            if let ObjectType::Pointer(a) = res_type {
+                for (i, item) in element.iter().enumerate() {
+                    let index = ctx.get_or_create_const(
+                        FieldElement::from(i as i128),
+                        ObjectType::NativeField,
+                    );
+                    let value = ctx.get_or_create_const(
+                        FieldElement::from(*item as i128),
+                        ObjectType::NativeField,
+                    );
+                    let op = Operation::Store {
+                        array_id: *a,
+                        index,
+                        value,
+                        predicate: None,
+                        location: None,
+                    };
+
+                    let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
+                    result.push(ctx.add_instruction(i));
+                }
+                return Ok(result);
+            }
+            unreachable!(
+                "compiler error: to radix should have a Pointer result type and be decomposed."
+            );
         }
         _ => todo!(),
     }
@@ -489,7 +536,7 @@ fn cse_block_with_anchor(
                                 args,
                                 &update2.res_type,
                                 block_id,
-                            ));
+                            )?);
                         }
                     }
                 }
