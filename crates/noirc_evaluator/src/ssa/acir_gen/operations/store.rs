@@ -7,7 +7,6 @@ use crate::{
         acir_gen::{
             acir_mem::AcirMem,
             constraints::{self, subtract},
-            expression_from_witness,
             internal_var_cache::InternalVarCache,
             operations::condition,
             InternalVar,
@@ -38,7 +37,7 @@ pub(crate) fn evaluate(
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {
-    if let Operation::Store { array_id, index, value, predicate } = *store {
+    if let Operation::Store { array_id, index, value, predicate, .. } = *store {
         //maps the address to the rhs if address is known at compile time
         let index_var = var_cache.get_or_compute_internal_var_unwrap(index, evaluator, ctx);
         let value_var = var_cache.get_or_compute_internal_var_unwrap(value, evaluator, ctx);
@@ -66,7 +65,7 @@ pub(crate) fn evaluate(
                     acir_mem.insert(array_id, idx, value_with_predicate.into(), Expression::one());
                 } else {
                     let w = evaluator.add_witness_to_cs();
-                    let w_expr = expression_from_witness(w);
+                    let w_expr = w.into();
                     let sub_p = constraints::subtract(
                         &Expression::one(),
                         FieldElement::one(),
@@ -82,7 +81,7 @@ pub(crate) fn evaluate(
                     evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(
                         &w_expr,
                         FieldElement::one(),
-                        &expression_from_witness(w1),
+                        &w1.into(),
                     )));
                     let value_with_predicate =
                         constraints::add(&w_expr, FieldElement::one(), &expr2);
@@ -106,7 +105,7 @@ pub(crate) fn evaluate(
                         val = condition::evaluate_expression(
                             pred.expression(),
                             &value_var.to_expression(),
-                            &expression_from_witness(w),
+                            &w.into(),
                             evaluator,
                         );
                     }

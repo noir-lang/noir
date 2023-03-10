@@ -3,17 +3,17 @@ use super::NargoConfig;
 use crate::{cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, errors::CliError};
 use acvm::SmartContract;
 use clap::Args;
+use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ContractCommand {
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
+pub(crate) struct CodegenVerifierCommand {
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ContractCommand, config: NargoConfig) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(config.program_dir.clone(), false, args.allow_warnings)?;
+pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
+    let compiled_program = compile_circuit(&config.program_dir, &args.compile_options)?;
 
     let backend = crate::backends::ConcreteBackend;
     #[allow(deprecated)]

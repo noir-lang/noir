@@ -13,16 +13,55 @@ use crate::{node_interner::StructId, Ident, Signedness};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
+    /// A primitive Field type, and whether or not it is known at compile-time.
     FieldElement(CompTime),
-    Array(Box<Type>, Box<Type>),        // Array(4, Field) = [Field; 4]
-    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
-    PolymorphicInteger(CompTime, TypeVariable),
+
+    /// Array(N, E) is an array of N elements of type E. It is expected that N
+    /// is either a type variable of some kind or a Type::Constant.
+    Array(Box<Type>, Box<Type>),
+
+    /// A primitive integer type with the given sign, bit count, and whether it is known at compile-time.
+    /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
+    Integer(CompTime, Signedness, u32),
+
+    /// The primitive `bool` type. Like other primitive types, whether bools are known at CompTime
+    /// is also tracked. Unlike the other primitives however, it isn't as useful since it is
+    /// primarily only used when converting between a bool and an integer type for indexing arrays.
     Bool(CompTime),
+
+    /// String(N) is an array of characters of length N. It is expected that N
+    /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
+
+    /// The unit type `()`.
     Unit,
+
+    /// A user-defined struct type. The `Shared<StructType>` field here refers to
+    /// the shared definition for each instance of this struct type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
+
+    /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
+
+    /// TypeVariables are stand-in variables for some type which is not yet known.
+    /// They are not to be confused with NamedGenerics. While the later mostly works
+    /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
+    /// will be automatically rebound as necessary to satisfy any calls to unify
+    /// and make_subtype_of.
+    ///
+    /// TypeVariables are often created when a generic function is instantiated. This
+    /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
+    /// Doing this at each call site of a generic function is how they can be called with
+    /// different argument types each time.
     TypeVariable(TypeVariable),
+
+    /// A generic integer or field type. This is a more specific kind of TypeVariable
+    /// that can only be bound to Type::Field, Type::Integer, or other PolymorphicIntegers.
+    /// This is the type of undecorated integer literals like `46`. Typing them in this way
+    /// allows them to be polymorphic over the actual integer/field type used without requiring
+    /// type annotations on each integer literal.
+    PolymorphicInteger(CompTime, TypeVariable),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -42,6 +81,10 @@ pub enum Type {
     /// bind to an integer without special checks to bind it to a non-type.
     Constant(u64),
 
+    /// The result of some type error. Remembering type errors as their own type variant lets
+    /// us avoid issuing repeat type errors for the same item. For example, a lambda with
+    /// an invalid type would otherwise issue a new error each time it is called
+    /// if not for this variant.
     Error,
 }
 

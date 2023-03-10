@@ -18,9 +18,7 @@ use iter_extended::vecmap;
 use std::collections::{BTreeMap, HashSet};
 
 use super::{
-    const_from_expression,
     constraints::{self, mul_with_witness, subtract},
-    expression_from_witness,
     operations::{self},
 };
 
@@ -48,7 +46,6 @@ impl Default for ArrayType {
     }
 }
 
-
 #[derive(Default)]
 pub struct ArrayHeap {
     // maps memory address to InternalVar
@@ -74,7 +71,7 @@ impl ArrayHeap {
 
     pub fn push(&mut self, item: MemOp) {
         let is_load = item.operation == Expression::zero();
-        let index_const = const_from_expression(&item.index);
+        let index_const = item.index.to_const();
         self.typ = match &self.typ {
             ArrayType::Init(init_idx, len) => match (is_load, index_const) {
                 (false, Some(idx)) => {
@@ -127,8 +124,7 @@ impl ArrayHeap {
         bits: &mut Vec<Witness>,
         evaluator: &mut Evaluator,
     ) -> Vec<Expression> {
-        let outputs =
-            vecmap(0..inputs.len(), |_| expression_from_witness(evaluator.add_witness_to_cs()));
+        let outputs = vecmap(0..inputs.len(), |_| evaluator.add_witness_to_cs().into());
         if bits.is_empty() {
             *bits = operations::sort::evaluate_permutation(&inputs, &outputs, evaluator);
         } else {
@@ -249,7 +245,13 @@ impl AcirMem {
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(&mut self, array_id: ArrayId, index: MemAddress, value: InternalVar, op: Expression) {
+    pub fn insert(
+        &mut self,
+        array_id: ArrayId,
+        index: MemAddress,
+        value: InternalVar,
+        op: Expression,
+    ) {
         let heap = self.virtual_memory.entry(array_id).or_default();
         let value_expr = value.to_expression();
         heap.memory_map.insert(index, value);

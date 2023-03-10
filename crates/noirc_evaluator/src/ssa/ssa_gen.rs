@@ -1,15 +1,18 @@
-use crate::ssa::{
-    block::BlockType,
-    context::SsaContext,
-    function::FuncIndex,
-    mem::ArrayId,
-    node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable},
-    value::Value,
-    {block, builtin, node, ssa_form},
+use crate::{
+    errors::{RuntimeError, RuntimeErrorKind},
+    ssa::{
+        block::BlockType,
+        context::SsaContext,
+        function::FuncIndex,
+        mem::ArrayId,
+        node::{Binary, BinaryOp, NodeId, ObjectType, Operation, Variable},
+        value::Value,
+        {block, builtin, node, ssa_form},
+    },
 };
-use crate::{errors, errors::RuntimeError};
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use noirc_frontend::{
     monomorphization::ast::{
         ArrayLiteral, Definition, Expression, For, Ident, If, LValue, Let, Literal, LocalId,
@@ -57,6 +60,9 @@ impl IrGenerator {
         self.variable_values.get(variable_def)
     }
 
+    /// Returns the ssa value of a variable
+    /// This method constructs the ssa value of a variable, while parsing the AST, using value numbering
+    /// This is why it requires a mutable SsaContext
     pub fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
             Value::Node(id) => Value::Node(ssa_form::get_current_value(&mut self.context, *id)),
@@ -215,10 +221,11 @@ impl IrGenerator {
         lhs: NodeId,
         rhs: NodeId,
         op: BinaryOpKind,
+        location: Location,
     ) -> Result<NodeId, RuntimeError> {
         let lhs_type = self.context.object_type(lhs);
         // Get the opcode from the infix operator
-        let opcode = Operation::Binary(Binary::from_ast(op, lhs_type, lhs, rhs));
+        let opcode = Operation::Binary(Binary::from_ast(op, lhs_type, lhs, rhs, location));
         let op_type = self.context.get_result_type(&opcode, lhs_type);
         self.context.new_instruction(opcode, op_type)
     }
@@ -227,11 +234,12 @@ impl IrGenerator {
         &mut self,
         array: &LValue,
         index: &Expression,
-    ) -> Result<(NodeId, NodeId), RuntimeError> {
+        location: Location,
+    ) -> Result<(NodeId, NodeId, Location), RuntimeError> {
         let value = self.lvalue_to_value(array);
         let lhs = value.unwrap_id();
         let index = self.ssa_gen_expression(index)?.unwrap_id();
-        Ok((lhs, index))
+        Ok((lhs, index, location))
     }
 
     fn lvalue_to_value(&self, lvalue: &LValue) -> &Value {
@@ -416,7 +424,7 @@ impl IrGenerator {
             self.context.add_variable(new_var, None)
         };
         //Assign rhs to lhs
-        Ok(Value::Node(self.context.handle_assign(id, None, value_id)?))
+        Ok(Value::Node(self.context.handle_assign(id, None, value_id, None)?))
     }
 
     //same as update_variable but using the var index instead of var
@@ -441,10 +449,11 @@ impl IrGenerator {
                 let result = self.assign_pattern(&lhs, rhs)?;
                 self.variable_values.insert(ident_def.clone(), result);
             }
-            LValue::Index { array, index, .. } => {
-                let (lhs_id, array_idx) = self.ssa_gen_indexed_value(array.as_ref(), index)?;
+            LValue::Index { array, index, location, .. } => {
+                let (lhs_id, array_idx, loc) =
+                    self.ssa_gen_indexed_value(array.as_ref(), index, *location)?;
                 let rhs_id = rhs.unwrap_id();
-                self.context.handle_assign(lhs_id, Some(array_idx), rhs_id)?;
+                self.context.handle_assign(lhs_id, Some(array_idx), rhs_id, Some(loc))?;
             }
             LValue::MemberAccess { object: _, field_index } => {
                 // TODO: This is incorrect for nested structs
@@ -461,7 +470,7 @@ impl IrGenerator {
     fn assign_pattern(&mut self, lhs: &Value, rhs: Value) -> Result<Value, RuntimeError> {
         match (lhs, rhs) {
             (Value::Node(lhs_id), Value::Node(rhs_id)) => {
-                Ok(Value::Node(self.context.handle_assign(*lhs_id, None, rhs_id)?))
+                Ok(Value::Node(self.context.handle_assign(*lhs_id, None, rhs_id, None)?))
             }
             (Value::Tuple(lhs_fields), Value::Tuple(rhs_fields)) => {
                 assert_eq!(lhs_fields.len(), rhs_fields.len());
@@ -485,50 +494,6 @@ impl IrGenerator {
 
     pub(crate) fn ssa_gen_expression(&mut self, expr: &Expression) -> Result<Value, RuntimeError> {
         match expr {
-            Expression::Literal(Literal::Integer(x, typ)) => {
-                let typ = self.context.convert_type(typ);
-                Ok(Value::Node(self.context.get_or_create_const(*x, typ)))
-            }
-            Expression::Literal(Literal::Array(arr_lit)) => {
-                let element_type = self.context.convert_type(&arr_lit.element_type);
-
-                let (new_var, array_id) =
-                    self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
-
-                let elements = self.ssa_gen_expression_list(&arr_lit.contents);
-                for (pos, object) in elements.into_iter().enumerate() {
-                    let lhs_adr = self.context.get_or_create_const(
-                        FieldElement::from((pos as u32) as u128),
-                        ObjectType::NativeField,
-                    );
-                    let store = Operation::Store {
-                        array_id,
-                        index: lhs_adr,
-                        value: object,
-                        predicate: None,
-                    };
-                    self.context.new_instruction(store, element_type)?;
-                }
-                Ok(Value::Node(new_var))
-            }
-            Expression::Literal(Literal::Str(string)) => {
-                let string_as_integers = vecmap(string.bytes(), |byte| {
-                    let f = FieldElement::from_be_bytes_reduce(&[byte]);
-                    Expression::Literal(Literal::Integer(
-                        f,
-                        Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
-                    ))
-                });
-
-                let string_arr_literal = ArrayLiteral {
-                    contents: string_as_integers,
-                    element_type: Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
-                };
-
-                let new_value = self
-                    .ssa_gen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
-                Ok(new_value)
-            }
             Expression::Ident(ident) => self.ssa_gen_identifier(ident),
             Expression::Binary(binary) => {
                 // Note: we disallows structs/tuples in infix expressions.
@@ -537,14 +502,21 @@ impl IrGenerator {
                 let lhs = self.ssa_gen_expression(&binary.lhs)?.to_node_ids();
                 let rhs = self.ssa_gen_expression(&binary.rhs)?.to_node_ids();
                 if lhs.len() != 1 || rhs.len() != 1 {
-                    return Err(errors::RuntimeErrorKind::UnsupportedOp {
-                        op: binary.operator.to_string(),
-                        first_type: "struct/tuple".to_string(),
-                        second_type: "struct/tuple".to_string(),
-                    }
-                    .into());
+                    return Err(RuntimeError {
+                        location: Some(binary.location),
+                        kind: RuntimeErrorKind::UnsupportedOp {
+                            op: binary.operator.to_string(),
+                            first_type: "struct/tuple".to_string(),
+                            second_type: "struct/tuple".to_string(),
+                        },
+                    });
                 }
-                Ok(Value::Node(self.ssa_gen_infix_expression(lhs[0], rhs[0], binary.operator)?))
+                Ok(Value::Node(self.ssa_gen_infix_expression(
+                    lhs[0],
+                    rhs[0],
+                    binary.operator,
+                    binary.location,
+                )?))
             }
             Expression::Cast(cast_expr) => {
                 let lhs = self.ssa_gen_expression(&cast_expr.lhs)?.unwrap_id();
@@ -563,7 +535,11 @@ impl IrGenerator {
                 let e_type = array.element_type;
                 // Evaluate the index expression
                 let index_as_obj = self.ssa_gen_expression(&indexed_expr.index)?.unwrap_id();
-                let load = Operation::Load { array_id, index: index_as_obj };
+                let load = Operation::Load {
+                    array_id,
+                    index: index_as_obj,
+                    location: Some(indexed_expr.location),
+                };
                 Ok(Value::Node(self.context.new_instruction(load, e_type)?))
             }
             Expression::Call(call_expr) => {
@@ -577,7 +553,7 @@ impl IrGenerator {
                 let rhs = self.ssa_gen_expression(&prefix.rhs)?.unwrap_id();
                 self.ssa_gen_prefix_expression(rhs, prefix.operator).map(Value::Node)
             }
-            Expression::Literal(l) => Ok(Value::Node(self.ssa_gen_literal(l))),
+            Expression::Literal(l) => self.ssa_gen_literal(l),
             Expression::Block(block) => self.ssa_gen_block(block),
             Expression::ExtractTupleField(expr, field) => {
                 let tuple = self.ssa_gen_expression(expr.as_ref())?;
@@ -597,20 +573,60 @@ impl IrGenerator {
         }
     }
 
-    fn ssa_gen_literal(&mut self, l: &Literal) -> NodeId {
+    fn ssa_gen_literal(&mut self, l: &Literal) -> Result<Value, RuntimeError> {
         match l {
+            Literal::Integer(x, typ) => {
+                let typ = self.context.convert_type(typ);
+                Ok(Value::Node(self.context.get_or_create_const(*x, typ)))
+            }
+            Literal::Array(arr_lit) => {
+                let element_type = self.context.convert_type(&arr_lit.element_type);
+
+                let (new_var, array_id) =
+                    self.context.new_array("", element_type, arr_lit.contents.len() as u32, None);
+
+                let elements = self.ssa_gen_expression_list(&arr_lit.contents);
+                for (pos, object) in elements.into_iter().enumerate() {
+                    let lhs_adr = self.context.get_or_create_const(
+                        FieldElement::from((pos as u32) as u128),
+                        ObjectType::NativeField,
+                    );
+                    let store = Operation::Store {
+                        array_id,
+                        index: lhs_adr,
+                        value: object,
+                        predicate: None,
+                        location: None,
+                    };
+                    self.context.new_instruction(store, element_type)?;
+                }
+                Ok(Value::Node(new_var))
+            }
+            Literal::Str(string) => {
+                let string_as_integers = vecmap(string.bytes(), |byte| {
+                    let f = FieldElement::from_be_bytes_reduce(&[byte]);
+                    Expression::Literal(Literal::Integer(
+                        f,
+                        Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                    ))
+                });
+
+                let string_arr_literal = ArrayLiteral {
+                    contents: string_as_integers,
+                    element_type: Type::Integer(noirc_frontend::Signedness::Unsigned, 8),
+                };
+
+                let new_value = self
+                    .ssa_gen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
+                Ok(new_value)
+            }
             Literal::Bool(b) => {
                 if *b {
-                    self.context.one()
+                    Ok(Value::Node(self.context.one()))
                 } else {
-                    self.context.zero()
+                    Ok(Value::Node(self.context.zero()))
                 }
             }
-            Literal::Integer(f, typ) => {
-                let typ = self.context.convert_type(typ);
-                self.context.get_or_create_const(*f, typ)
-            }
-            _ => todo!(), //todo: add support for Array(ArrayLiteral), Str(String)
         }
     }
 

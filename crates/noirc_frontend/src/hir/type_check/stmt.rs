@@ -9,6 +9,11 @@ use crate::CompTime;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
+/// Type checks a statement and all expressions/statements contained within.
+///
+/// All statements have a unit type `()` as their type so the type of the statement
+/// is not interesting. Type checking must still be done on statements to ensure any
+/// expressions used within them are typed correctly.
 pub(crate) fn type_check(
     interner: &mut NodeInterner,
     stmt_id: &StmtId,
@@ -53,6 +58,8 @@ pub(crate) fn type_check(
     Type::Unit
 }
 
+/// Associate a given HirPattern with the given Type, and remember
+/// this association in the NodeInterner.
 pub fn bind_pattern(
     interner: &mut NodeInterner,
     pattern: &HirPattern,
@@ -125,6 +132,7 @@ fn type_check_assign_stmt(
     });
 }
 
+/// Type check an lvalue - the left hand side of an assignment statement.
 fn type_check_lvalue(
     interner: &mut NodeInterner,
     lvalue: HirLValue,
