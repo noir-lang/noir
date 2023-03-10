@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum InputParserError {
-    #[error("input.toml file is badly formed, could not parse, {0}")]
+    #[error("input file is badly formed, could not parse, {0}")]
     ParseTomlMap(String),
     #[error("Expected witness values to be integers, provided value causes `{0}` error")]
     ParseStr(String),
@@ -12,7 +12,7 @@ pub enum InputParserError {
     ParseHexStr(String),
     #[error("duplicate variable name {0}")]
     DuplicateVariableName(String),
-    #[error("cannot parse a string toml type into {0:?}")]
+    #[error("cannot parse a string into type {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]
     MissingArgument(String),
@@ -26,6 +26,12 @@ impl From<toml::ser::Error> for InputParserError {
 
 impl From<toml::de::Error> for InputParserError {
     fn from(err: toml::de::Error) -> Self {
+        Self::ParseTomlMap(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for InputParserError {
+    fn from(err: serde_json::Error) -> Self {
         Self::ParseTomlMap(err.to_string())
     }
 }
