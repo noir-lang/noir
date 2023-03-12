@@ -1,0 +1,7 @@
+[
+  {
+    "context": {
+      "EIP712Domain": [{ "name": "name", "type": "string" }]
+    }
+  }
+]

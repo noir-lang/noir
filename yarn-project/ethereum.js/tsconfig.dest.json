@@ -1,4 +1,4 @@
 {
   "extends": ".",
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": ["src/**/*.test.ts", "src/**/fixtures/*"]
 }

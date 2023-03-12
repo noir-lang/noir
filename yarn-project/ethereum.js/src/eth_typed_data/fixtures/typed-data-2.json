@@ -1,0 +1,71 @@
+{
+  "types": {
+    "EIP712Domain": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "name": "verifyingContract",
+        "type": "address"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32"
+      }
+    ],
+    "Transaction": [
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "name": "data",
+        "type": "bytes"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256"
+      }
+    ],
+    "TransactionApproval": [
+      {
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "name": "transaction",
+        "type": "Transaction"
+      }
+    ]
+  },
+  "primaryType": "TransactionApproval",
+  "domain": {
+    "name": "Multisig Wallet",
+    "version": "1",
+    "chainId": 1,
+    "verifyingContract": "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+    "salt": "0x1dbbd6c8d75f4b446bcb44cee3ba5da8120e056d4d2f817213df8703ef065ed3"
+  },
+  "message": {
+    "owner": "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+    "transaction": {
+      "to": "0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520",
+      "amount": "1000000000000000000",
+      "data": "",
+      "nonce": "1"
+    }
+  }
+}

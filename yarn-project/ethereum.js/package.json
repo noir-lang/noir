@@ -1,19 +1,37 @@
 {
   "name": "@aztec/ethereum.js",
   "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
   "type": "module",
-  "exports": "./dest/index.js",
-  "typedoc": {
-    "entryPoint": "./src/index.ts",
-    "displayName": "Ethereum.js",
-    "tsconfig": "./tsconfig.dest.json"
+  "exports": {
+    "./eth_account": "./dest/eth_account/index.js",
+    "./eth_address": "./dest/eth_address/index.js",
+    "./eth_rpc": "./dest/eth_rpc/index.js",
+    "./eth_sign": "./dest/eth_sign/index.js",
+    "./eth_transaction": "./dest/eth_transaction/index.js",
+    "./eth_typed_data": "./dest/eth_typed_data/index.js",
+    "./eth_wallet": "./dest/eth_wallet/index.js",
+    "./contract": "./dest/contract/index.js",
+    "./contract/bytes.js": "./dest/contract/bytes.js",
+    "./provider": "./dest/provider/index.js",
+    "./units": "./dest/units/index.js",
+    "./serialize": "./dest/serialize/index.js",
+    "./log": "./dest/log/index.js",
+    "./timer": "./dest/timer/index.js",
+    "./bigint_buffer": "./dest/bigint_buffer/index.js",
+    "./crypto": "./dest/crypto/index.js"
   },
   "scripts": {
-    "build": "yarn clean && yarn formatting && tsc -b tsconfig.dest.json",
-    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "build": "yarn clean && tsc -b tsconfig.dest.json",
+    "build:dev": "yarn build --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --openssl-legacy-provider --experimental-vm-modules $(yarn bin jest) --no-cache",
+    "gen_fixtures": "NODE_NO_WARNINGS=1 node ./dest/contract/gen_def/index.js ./src/contract/fixtures/contracts.json"
+  },
+  "bin": {
+    "contract_gen_def": "./dest/contract/gen_def/index.js"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -29,17 +47,30 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "tslib": "^2.4.0"
+    "bip39": "^3.0.4",
+    "browserify-aes": "^1.2.0",
+    "debug": "^4.3.4",
+    "detect-node": "^2.1.0",
+    "elliptic": "^6.5.4",
+    "hdkey": "^2.1.0",
+    "pbkdf2": "^3.1.2",
+    "rlp": "^3.0.0",
+    "sha3": "^2.1.4",
+    "source-map-support": "^0.5.21",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@aztec/eslint-config": "workspace:^",
-    "@jest/globals": "^29.4.3",
-    "@rushstack/eslint-patch": "^1.1.4",
+    "@jest/globals": "^29.5.0",
+    "@rushstack/eslint-patch": "^1.2.0",
+    "@types/elliptic": "^6.4.14",
+    "@types/hdkey": "^2.0.1",
     "@types/jest": "^29.4.0",
-    "@types/node": "^18.7.23",
-    "jest": "^28.1.3",
-    "ts-jest": "^28.0.7",
-    "ts-node": "^10.9.1",
+    "@types/node": "^18.14.6",
+    "@types/uuid": "^9.0.0",
+    "jest": "^28.0.0",
+    "jest-mock-extended": "^3.0.1",
+    "ts-jest": "28.0.7",
     "typescript": "^4.9.5"
   }
 }
