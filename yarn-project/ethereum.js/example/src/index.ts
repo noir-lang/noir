@@ -8,7 +8,6 @@ import { ERC20Permit } from './contracts/ERC20Permit.js';
 import { EthAccount } from '@aztec/ethereum.js/eth_account';
 import { EthWallet } from '@aztec/ethereum.js/eth_wallet';
 import { Contract, ContractAbi } from '@aztec/ethereum.js/contract';
-import { hashMessage, recoverFromSignature, sign } from '@aztec/ethereum.js/eth_sign';
 import { RollupProcessorContract } from './contracts/RollupProcessorContract.js';
 import { DaiContract } from './contracts/DaiContract.js';
 import { ERC20Mintable } from './contracts/ERC20Mintable.js';
@@ -75,7 +74,7 @@ async function demoUsefulReceiptError(ethRpc: EthereumRpc, acc1: EthAddress) {
       console.log(`Call failed (expectedly) on RollupProcessor with: ${err.message}`);
     }
 
-    // Second make an actual send, request not the throw on error, and explicitly check the receipt.
+    // Second make an actual send, request not to throw on error, and explicitly check the receipt.
     const receipt = await contract.methods.processRollup(Buffer.alloc(0), Buffer.alloc(0)).send().getReceipt(false);
     if (receipt.error) {
       console.log(`Send receipt shows failure (expectedly) on RollupProcessor with: ${receipt.error.message}`);
@@ -201,15 +200,13 @@ function demoSignMessage(signingAccount: EthAccount) {
   // Sign a message.
   console.log(`Signing message with address: ${signingAccount.address}`);
   const msg = Buffer.from('My signed text');
-  const messageHash = hashMessage(msg);
-  const sig = sign(messageHash, signingAccount.privateKey);
+  const sig = signingAccount.signMessage(msg);
 
   // Verify message was signed by account.
-  const address = recoverFromSignature(messageHash, sig);
-  if (address.equals(signingAccount.address)) {
-    console.log(`Message was signed by: ${address}`);
+  if (signingAccount.signedMessage(msg, sig)) {
+    console.log(`Message was signed by: ${signingAccount.address}`);
   } else {
-    console.error(`Incorrect signature for message ${address}.`);
+    console.log(`Message was NOT signed by: ${signingAccount.address}`);
   }
   console.log('');
 }
