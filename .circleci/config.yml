@@ -97,6 +97,17 @@ jobs:
           name: "Build and test"
           command: build aztec.js
 
+  acir-simulator:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build acir-simulator
+
   end-to-end:
     machine:
       image: ubuntu-2004:202010-01
@@ -151,11 +162,13 @@ workflows:
           filters: *tag_filter
       - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
+      - acir-simulator: *yarn_project
       - end-to-end: *yarn_project
       - e2e-join:
           requires:
             - ethereum-js
             - aztec-js
+            - acir-simulator
             - end-to-end
           filters: *tag_filter
       - e2e-deploy-contract: *e2e_test
