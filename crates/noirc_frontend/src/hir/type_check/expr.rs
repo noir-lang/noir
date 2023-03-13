@@ -12,6 +12,14 @@ use crate::{
 
 use super::{bind_pattern, errors::TypeCheckError};
 
+/// Infers a type for a given expression, and return this type.
+/// As a side-effect, this function will also remember this type in the NodeInterner
+/// for the given expr_id key.
+///
+/// This function also converts any HirExpression::MethodCalls `a.foo(b, c)` into
+/// an equivalent HirExpression::Call in the form `foo(a, b, c)`. This cannot
+/// be done earlier since we need to know the type of the object `a` to resolve which
+/// function `foo` to refer to.
 pub(crate) fn type_check_expression(
     interner: &mut NodeInterner,
     expr_id: &ExprId,
@@ -479,7 +487,7 @@ fn bind_function_type(
     }
 }
 
-pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
+fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
     match op {
         crate::UnaryOp::Minus => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
@@ -497,7 +505,7 @@ pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result
 
 // Given a binary operator and another type. This method will produce the output type
 // XXX: Review these rules. In particular, the interaction between integers, comptime and private/public variables
-pub fn infix_operand_type_rules(
+fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
     rhs_type: &Type,
@@ -681,13 +689,13 @@ fn check_constructor(
     Type::Struct(typ, generics)
 }
 
-pub fn check_member_access(
+fn check_member_access(
     access: expr::HirMemberAccess,
     interner: &mut NodeInterner,
     expr_id: ExprId,
     errors: &mut Vec<TypeCheckError>,
 ) -> Type {
-    let lhs_type = type_check_expression(interner, &access.lhs, errors);
+    let lhs_type = type_check_expression(interner, &access.lhs, errors).follow_bindings();
 
     if let Type::Struct(s, args) = &lhs_type {
         let s = s.borrow();
@@ -704,7 +712,12 @@ pub fn check_member_access(
         }
     }
 
-    if lhs_type != Type::Error {
+    // If we get here the type has no field named 'access.rhs'.
+    // Now we specialize the error message based on whether we know the object type in question yet.
+    if let Type::TypeVariable(..) = &lhs_type {
+        errors
+            .push(TypeCheckError::TypeAnnotationsNeeded { span: interner.expr_span(&access.lhs) });
+    } else if lhs_type != Type::Error {
         errors.push(TypeCheckError::Unstructured {
             msg: format!("Type {lhs_type} has no member named {}", access.rhs),
             span: interner.expr_span(&access.lhs),
@@ -714,7 +727,7 @@ pub fn check_member_access(
     Type::Error
 }
 
-pub fn comparator_operand_type_rules(
+fn comparator_operand_type_rules(
     lhs_type: &Type,
     rhs_type: &Type,
     op: &HirBinaryOp,

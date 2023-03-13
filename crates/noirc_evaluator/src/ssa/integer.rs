@@ -16,7 +16,7 @@ use std::{
 };
 
 //Returns the maximum bit size of short integers
-pub fn short_integer_max_bit_size() -> u32 {
+pub(super) fn short_integer_max_bit_size() -> u32 {
     //TODO: it should be FieldElement::max_num_bits()/2, but for now we do not support more than 128 bits as well
     //This allows us to do use u128 to represent integer constant values
     u32::min(FieldElement::max_num_bits() / 2, 128)
@@ -48,7 +48,7 @@ fn get_instruction_max_operand(
     value_map: &HashMap<NodeId, NodeId>,
 ) -> BigUint {
     match &ins.operation {
-        Operation::Load { array_id, index } => {
+        Operation::Load { array_id, index, .. } => {
             get_load_max(ctx, *index, max_map, value_map, *array_id)
         }
         Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
@@ -202,7 +202,7 @@ fn process_to_truncate(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
+pub(super) fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     let mut max_map: HashMap<NodeId, BigUint> = HashMap::new();
     let mut memory_map = HashMap::new();
     tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map)
@@ -281,13 +281,13 @@ fn block_overflow(
         });
 
         match ins.operation {
-            Operation::Load { array_id, index } => {
+            Operation::Load { array_id, index, .. } => {
                 if let Some(val) = ctx.get_indexed_value(array_id, index) {
                     //optimize static load
                     ins.mark = Mark::ReplaceWith(*val);
                 }
             }
-            Operation::Store { array_id, index, value, predicate } => {
+            Operation::Store { array_id, index, value, predicate, .. } => {
                 if let Some(idx) = Memory::to_u32(ctx, index) {
                     if ctx.is_one(crate::ssa::conditional::DecisionTree::unwrap_predicate(
                         ctx, &predicate,
@@ -311,7 +311,7 @@ fn block_overflow(
                     });
                 }
             }
-            Operation::Binary(node::Binary { operator: BinaryOp::Shr, lhs, rhs, .. }) => {
+            Operation::Binary(node::Binary { operator: BinaryOp::Shr(loc), lhs, rhs, .. }) => {
                 if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
@@ -325,7 +325,7 @@ fn block_overflow(
                         ins.operation = Operation::Binary(node::Binary {
                             lhs,
                             rhs,
-                            operator: BinaryOp::Udiv,
+                            operator: BinaryOp::Udiv(loc),
                             predicate: None,
                         });
                     }
@@ -420,7 +420,7 @@ fn update_value_array(
 }
 
 //Get current value using the provided value map
-pub fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
+fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
     *value_map.get(&id).unwrap_or(&id)
 }
 
@@ -528,11 +528,11 @@ fn get_binary_max_value(
         BinaryOp::SafeSub { .. } => todo!(),
         BinaryOp::Mul => lhs_max * rhs_max,
         BinaryOp::SafeMul => todo!(),
-        BinaryOp::Udiv => lhs_max.clone(),
-        BinaryOp::Sdiv => todo!(),
-        BinaryOp::Urem => rhs_max - BigUint::one(),
-        BinaryOp::Srem => todo!(),
-        BinaryOp::Div => FieldElement::modulus() - BigUint::one(),
+        BinaryOp::Udiv(_) => lhs_max.clone(),
+        BinaryOp::Sdiv(_) => todo!(),
+        BinaryOp::Urem(_) => rhs_max - BigUint::one(),
+        BinaryOp::Srem(_) => todo!(),
+        BinaryOp::Div(_) => FieldElement::modulus() - BigUint::one(),
         BinaryOp::Eq => BigUint::one(),
         BinaryOp::Ne => BigUint::one(),
         BinaryOp::Ult => BigUint::one(),
@@ -554,7 +554,7 @@ fn get_binary_max_value(
             BigUint::from(2_u32).pow((lhs_max.bits() + 1) as u32) - BigUint::one(),
             res_type.max_size(),
         ),
-        BinaryOp::Shr => {
+        BinaryOp::Shr(_) => {
             if lhs_max.bits() >= 1 {
                 BigUint::from(2_u32).pow((lhs_max.bits() - 1) as u32) - BigUint::one()
             } else {

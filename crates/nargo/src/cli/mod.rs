@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use std::path::{Path, PathBuf};
 
@@ -10,8 +10,8 @@ use color_eyre::eyre;
 mod fs;
 
 mod check_cmd;
+mod codegen_verifier_cmd;
 mod compile_cmd;
-mod contract_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
@@ -47,7 +47,7 @@ pub(crate) struct NargoConfig {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    Contract(contract_cmd::ContractCommand),
+    CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -69,7 +69,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
-        NargoCommand::Contract(args) => contract_cmd::run(args, matches.config),
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
     }?;
 
     Ok(())
@@ -80,14 +80,15 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     use tempdir::TempDir;
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
         prg_dir,
         &tmp_dir.into_path(),
         None,
         true,
-        show_ssa,
-        false,
+        &compile_options,
     ) {
         Ok(_) => true,
         Err(error) => {
@@ -98,16 +99,11 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
 }
 
 fn add_std_lib(driver: &mut Driver) {
-    let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
-    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
     let std_crate_name = "std";
+    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
+    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
     driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
 }
-
-fn path_to_stdlib() -> PathBuf {
-    dirs::config_dir().unwrap().join("noir-lang").join("std/src")
-}
-
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {

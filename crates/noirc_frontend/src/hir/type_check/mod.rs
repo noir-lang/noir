@@ -1,10 +1,18 @@
+//! This file contains type_check_func, the entry point to the type checking pass (for each function).
+//!
+//! The pass structure of type checking is relatively straightforward. It is a single pass through
+//! the HIR of each function and outputs the inferred type of each HIR node into the NodeInterner,
+//! keyed by the ID of the node.
+//!
+//! The algorithm for checking and inferring types itself is somewhat ad-hoc. It includes both
+//! unification and subtyping, with the only difference between the two being how CompTime
+//! is handled (See note on CompTime and make_subtype_of for details). Additionally, although
+//! this algorithm features inference via TypeVariables, there is no generalization step as
+//! all functions are required to give their full signatures. Closures are inferred but are
+//! never generalized and thus cannot be used polymorphically.
 mod errors;
 mod expr;
 mod stmt;
-
-// Type checking at the moment is very simple due to what is supported in the grammar.
-// If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate
-// all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
 pub use errors::TypeCheckError;
 use expr::type_check_expression;
@@ -16,23 +24,23 @@ pub(crate) use self::stmt::{bind_pattern, type_check};
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
-    // First fetch the metadata and add the types for parameters
-    // Note that we do not look for the defining Identifier for a parameter,
-    // since we know that it is the parameter itself
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
+    // Bind each parameter to its annotated type.
+    // This is locally obvious, but it must be bound here so that the
+    // Definition object of the parameter in the NodeInterner is given the correct type.
     let mut errors = vec![];
     for param in meta.parameters.into_iter() {
         bind_pattern(interner, &param.0, param.1, &mut errors);
     }
 
     // Fetch the HirFunction and iterate all of it's statements
-    let hir_func = interner.function(&func_id);
-    let func_as_expr = hir_func.as_expr();
+    let function_body = interner.function(&func_id);
+    let function_body_id = function_body.as_expr();
 
-    let function_last_type = type_check_expression(interner, func_as_expr, &mut errors);
+    let function_last_type = type_check_expression(interner, function_body_id, &mut errors);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in interner.take_delayed_type_check_functions() {
@@ -43,7 +51,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        let func_span = interner.expr_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
@@ -237,7 +245,7 @@ mod test {
     }
 
     impl TestPathResolver {
-        pub fn insert_func(&mut self, name: String, func_id: FuncId) {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
             self.0.insert(name, func_id.into());
         }
     }

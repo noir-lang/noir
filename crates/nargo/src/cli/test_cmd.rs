@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, io::Write, path::Path};
 
 use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
 use clap::Args;
-use noirc_driver::Driver;
+use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -16,35 +16,27 @@ pub(crate) struct TestCommand {
     /// If given, only tests with names containing this string will be run
     test_name: Option<String>,
 
-    /// Issue a warning for each unused variable instead of an error
-    #[arg(short, long)]
-    allow_warnings: bool,
-
-    /// Display output of println statements during tests
-    #[arg(long)]
-    show_logs: bool,
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(&config.program_dir, &test_name, args.allow_warnings, args.show_logs)
+    run_tests(&config.program_dir, &test_name, &args.compile_options)
 }
 
 fn run_tests(
     program_dir: &Path,
     test_name: &str,
-    allow_warnings: bool,
-    show_output: bool,
+    compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(allow_warnings).is_err() {
-        std::process::exit(1);
-    }
+    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
     println!("Running {} test functions...", test_functions.len());
@@ -58,7 +50,7 @@ fn run_tests(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, allow_warnings, show_output) {
+        match run_test(test_name, test_function, &driver, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -74,9 +66,7 @@ fn run_tests(
         writeln!(writer, "All tests passed").ok();
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-        writeln!(writer, "{failing} test{plural} failed").ok();
-        std::process::exit(1);
+        return Err(CliError::Generic(format!("{failing} test{plural} failed")));
     }
 
     writer.reset().ok();
@@ -87,13 +77,12 @@ fn run_test(
     test_name: &str,
     main: FuncId,
     driver: &Driver,
-    allow_warnings: bool,
-    show_output: bool,
+    config: &CompileOptions,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
     let program = driver
-        .compile_no_check(false, allow_warnings, Some(main), show_output)
+        .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     let mut solved_witness = BTreeMap::new();

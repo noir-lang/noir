@@ -1,7 +1,6 @@
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{block::BlockId, builtin, conditional, context::SsaContext, mem::ArrayId};
 use acvm::{acir::native_types::Witness, FieldElement};
-use arena;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{
@@ -12,7 +11,7 @@ use num_bigint::BigUint;
 use num_traits::{FromPrimitive, One};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Shl, Shr, Sub};
 
-pub trait Node: std::fmt::Display {
+pub(super) trait Node: std::fmt::Display {
     fn get_type(&self) -> ObjectType;
     fn id(&self) -> NodeId;
     fn size_in_bits(&self) -> u32;
@@ -101,19 +100,19 @@ impl Node for Constant {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodeId(pub arena::Index);
+pub(crate) struct NodeId(pub(crate) arena::Index);
 
 impl NodeId {
-    pub fn dummy() -> NodeId {
+    pub(crate) fn dummy() -> NodeId {
         NodeId(SsaContext::dummy_id())
     }
-    pub fn is_dummy(&self) -> bool {
+    pub(crate) fn is_dummy(&self) -> bool {
         self.0 == SsaContext::dummy_id()
     }
 }
 
 #[derive(Debug)]
-pub enum NodeObject {
+pub(crate) enum NodeObject {
     Variable(Variable),
     Instr(Instruction),
     Const(Constant),
@@ -121,42 +120,44 @@ pub enum NodeObject {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum FunctionKind {
+pub(crate) enum FunctionKind {
     Normal(FuncId),
     Builtin(builtin::Opcode),
 }
 
 #[derive(Debug)]
-pub struct Constant {
-    pub id: NodeId,
-    pub value: BigUint,    //TODO use FieldElement instead
-    pub value_str: String, //TODO ConstStr subtype
-    pub value_type: ObjectType,
+pub(crate) struct Constant {
+    pub(crate) id: NodeId,
+    pub(crate) value: BigUint, //TODO use FieldElement instead
+    #[allow(dead_code)]
+    pub(crate) value_str: String, //TODO ConstStr subtype
+    pub(crate) value_type: ObjectType,
 }
 
 impl Constant {
-    pub fn get_value_field(&self) -> FieldElement {
+    pub(super) fn get_value_field(&self) -> FieldElement {
         FieldElement::from_be_bytes_reduce(&self.value.to_bytes_be())
     }
 }
 
 #[derive(Debug)]
-pub struct Variable {
-    pub id: NodeId,
-    pub obj_type: ObjectType,
-    pub name: String,
-    pub root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
-    pub def: Option<Definition>, //AST definition of the variable
-    pub witness: Option<Witness>,
-    pub parent_block: BlockId,
+pub(crate) struct Variable {
+    pub(crate) id: NodeId,
+    pub(crate) obj_type: ObjectType,
+    pub(crate) name: String,
+    pub(crate) root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
+    pub(crate) def: Option<Definition>, //AST definition of the variable
+    pub(crate) witness: Option<Witness>,
+    #[allow(dead_code)]
+    pub(crate) parent_block: BlockId,
 }
 
 impl Variable {
-    pub fn root(&self) -> NodeId {
+    pub(crate) fn root(&self) -> NodeId {
         self.root.unwrap_or(self.id)
     }
 
-    pub fn new(
+    pub(crate) fn new(
         obj_type: ObjectType,
         name: String,
         def: Option<Definition>,
@@ -175,7 +176,7 @@ impl Variable {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ObjectType {
+pub(crate) enum ObjectType {
     NativeField,
     Boolean,
     Unsigned(u32), //bit size
@@ -186,7 +187,7 @@ pub enum ObjectType {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum NumericType {
+pub(crate) enum NumericType {
     Signed(u32),
     Unsigned(u32),
     NativeField,
@@ -204,7 +205,7 @@ impl From<ObjectType> for NumericType {
 }
 
 impl ObjectType {
-    pub fn bits(&self) -> u32 {
+    pub(crate) fn bits(&self) -> u32 {
         match self {
             ObjectType::Boolean => 1,
             ObjectType::NativeField => FieldElement::max_num_bits(),
@@ -217,7 +218,7 @@ impl ObjectType {
     }
 
     //maximum size of the representation (e.g. signed(8).max_size() return 255, not 128.)
-    pub fn max_size(&self) -> BigUint {
+    pub(crate) fn max_size(&self) -> BigUint {
         match self {
             &ObjectType::NativeField => {
                 BigUint::from_bytes_be(&FieldElement::from(-1_i128).to_be_bytes())
@@ -226,7 +227,7 @@ impl ObjectType {
         }
     }
 
-    pub fn field_to_type(&self, f: FieldElement) -> FieldElement {
+    pub(crate) fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
             ObjectType::NotAnObject | ObjectType::Pointer(_) => {
                 unreachable!()
@@ -242,17 +243,17 @@ impl ObjectType {
 }
 
 #[derive(Clone, Debug)]
-pub struct Instruction {
-    pub id: NodeId,
-    pub operation: Operation,
-    pub res_type: ObjectType, //result type
-    pub parent_block: BlockId,
-    pub res_name: String,
-    pub mark: Mark,
+pub(crate) struct Instruction {
+    pub(crate) id: NodeId,
+    pub(crate) operation: Operation,
+    pub(crate) res_type: ObjectType, //result type
+    pub(crate) parent_block: BlockId,
+    pub(crate) res_name: String,
+    pub(crate) mark: Mark,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Mark {
+pub(crate) enum Mark {
     None,
     Deleted,
     ReplaceWith(NodeId),
@@ -269,21 +270,21 @@ impl std::fmt::Display for Instruction {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum NodeEval {
+pub(super) enum NodeEval {
     Const(FieldElement, ObjectType),
     VarOrInstruction(NodeId),
     Function(FunctionKind, NodeId),
 }
 
 impl NodeEval {
-    pub fn into_const_value(self) -> Option<FieldElement> {
+    pub(super) fn into_const_value(self) -> Option<FieldElement> {
         match self {
             NodeEval::Const(c, _) => Some(c),
             _ => None,
         }
     }
 
-    pub fn into_node_id(self) -> Option<NodeId> {
+    pub(super) fn into_node_id(self) -> Option<NodeId> {
         match self {
             NodeEval::VarOrInstruction(i) => Some(i),
             NodeEval::Const(_, _) => None,
@@ -293,7 +294,7 @@ impl NodeEval {
 
     //returns the NodeObject index of a NodeEval object
     //if NodeEval is a constant, it may creates a new NodeObject corresponding to the constant value
-    pub fn to_index(self, ctx: &mut SsaContext) -> NodeId {
+    pub(super) fn to_index(self, ctx: &mut SsaContext) -> NodeId {
         match self {
             NodeEval::Const(c, t) => ctx.get_or_create_const(c, t),
             NodeEval::VarOrInstruction(i) => i,
@@ -301,7 +302,7 @@ impl NodeEval {
         }
     }
 
-    pub fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
+    pub(super) fn from_id(ctx: &SsaContext, id: NodeId) -> NodeEval {
         match &ctx[id] {
             NodeObject::Const(c) => {
                 let value = FieldElement::from_be_bytes_reduce(&c.value.to_bytes_be());
@@ -318,7 +319,7 @@ impl NodeEval {
 }
 
 impl Instruction {
-    pub fn new(
+    pub(super) fn new(
         op_code: Operation,
         r_type: ObjectType,
         parent_block: Option<BlockId>,
@@ -337,7 +338,7 @@ impl Instruction {
     }
 
     /// Indicates whether the left and/or right operand of the instruction is required to be truncated to its bit-width
-    pub fn truncate_required(&self, ctx: &SsaContext) -> bool {
+    pub(super) fn truncate_required(&self, ctx: &SsaContext) -> bool {
         match &self.operation {
             Operation::Binary(binary) => binary.truncate_required(),
             Operation::Not(..) => true,
@@ -362,12 +363,12 @@ impl Instruction {
         }
     }
 
-    pub fn evaluate(&self, ctx: &SsaContext) -> Result<NodeEval, RuntimeError> {
+    pub(super) fn evaluate(&self, ctx: &SsaContext) -> Result<NodeEval, RuntimeError> {
         self.evaluate_with(ctx, |ctx, id| Ok(NodeEval::from_id(ctx, id)))
     }
 
     //Evaluate the instruction value when its operands are constant (constant folding)
-    pub fn evaluate_with<F>(
+    pub(super) fn evaluate_with<F>(
         &self,
         ctx: &SsaContext,
         mut eval_fn: F,
@@ -442,7 +443,10 @@ impl Instruction {
     // None, if the instruction is unreachable or in the root block and can be safely deleted
     // Some(id), if the instruction can be replaced by the node id
     // Some(ins_id), if the instruction is not trivial
-    pub fn simplify_phi(ins_id: NodeId, phi_arguments: &[(NodeId, BlockId)]) -> Option<NodeId> {
+    pub(super) fn simplify_phi(
+        ins_id: NodeId,
+        phi_arguments: &[(NodeId, BlockId)],
+    ) -> Option<NodeId> {
         let mut same = None;
         for op in phi_arguments {
             if Some(op.0) == same || op.0 == ins_id {
@@ -459,11 +463,11 @@ impl Instruction {
         same
     }
 
-    pub fn is_deleted(&self) -> bool {
+    pub(super) fn is_deleted(&self) -> bool {
         !matches!(self.mark, Mark::None)
     }
 
-    pub fn standard_form(&mut self) {
+    pub(super) fn standard_form(&mut self) {
         if let Operation::Binary(binary) = &mut self.operation {
             if binary.operator.is_commutative() && binary.rhs < binary.lhs {
                 std::mem::swap(&mut binary.rhs, &mut binary.lhs);
@@ -475,7 +479,7 @@ impl Instruction {
 //adapted from LLVM IR
 #[allow(dead_code)] //Some enums are not used yet, allow dead_code should be removed once they are all implemented.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Operation {
+pub(crate) enum Operation {
     Binary(Binary),
     Cast(NodeId), //convert type
     Truncate {
@@ -516,12 +520,14 @@ pub enum Operation {
     Load {
         array_id: ArrayId,
         index: NodeId,
+        location: Option<Location>,
     },
     Store {
         array_id: ArrayId,
         index: NodeId,
         value: NodeId,
         predicate: Option<NodeId>,
+        location: Option<Location>,
     },
 
     Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
@@ -530,7 +536,7 @@ pub enum Operation {
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-pub enum Opcode {
+pub(super) enum Opcode {
     Add,
     SafeAdd,
     Sub,
@@ -580,15 +586,15 @@ pub enum Opcode {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Binary {
-    pub lhs: NodeId,
-    pub rhs: NodeId,
-    pub operator: BinaryOp,
-    pub predicate: Option<NodeId>,
+pub(crate) struct Binary {
+    pub(crate) lhs: NodeId,
+    pub(crate) rhs: NodeId,
+    pub(crate) operator: BinaryOp,
+    pub(crate) predicate: Option<NodeId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum BinaryOp {
+pub(crate) enum BinaryOp {
     Add, //(+)
     #[allow(dead_code)]
     SafeAdd, //(+) safe addition
@@ -602,11 +608,11 @@ pub enum BinaryOp {
     Mul, //(*)
     #[allow(dead_code)]
     SafeMul, //(*) safe multiplication
-    Udiv, //(/) unsigned division
-    Sdiv, //(/) signed division
-    Urem, //(%) modulo; remainder of unsigned division
-    Srem, //(%) remainder of signed division
-    Div, //(/) field division
+    Udiv(Location), //(/) unsigned division
+    Sdiv(Location), //(/) signed division
+    Urem(Location), //(%) modulo; remainder of unsigned division
+    Srem(Location), //(%) remainder of signed division
+    Div(Location), //(/) field division
     Eq,  //(==) equal
     Ne,  //(!=) not equal
     Ult, //(<) unsigned less than
@@ -619,7 +625,7 @@ pub enum BinaryOp {
     Or,  //(|) Bitwise Or
     Xor, //(^) Bitwise Xor
     Shl, //(<<) Shift left
-    Shr, //(>>) Shift right
+    Shr(Location), //(>>) Shift right
 
     Assign,
 }
@@ -633,11 +639,11 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::SafeSub { .. } => "safe_sub",
             BinaryOp::Mul => "mul",
             BinaryOp::SafeMul => "safe_mul",
-            BinaryOp::Udiv => "udiv",
-            BinaryOp::Sdiv => "sdiv",
-            BinaryOp::Urem => "urem",
-            BinaryOp::Srem => "srem",
-            BinaryOp::Div => "div",
+            BinaryOp::Udiv(_) => "udiv",
+            BinaryOp::Sdiv(_) => "sdiv",
+            BinaryOp::Urem(_) => "urem",
+            BinaryOp::Srem(_) => "srem",
+            BinaryOp::Div(_) => "div",
             BinaryOp::Eq => "eq",
             BinaryOp::Ne => "ne",
             BinaryOp::Ult => "ult",
@@ -651,7 +657,7 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Xor => "xor",
             BinaryOp::Assign => "assign",
             BinaryOp::Shl => "shl",
-            BinaryOp::Shr => "shr",
+            BinaryOp::Shr(_) => "shr",
         };
         write!(f, "{op}")
     }
@@ -662,11 +668,12 @@ impl Binary {
         Binary { operator, lhs, rhs, predicate: None }
     }
 
-    pub fn from_ast(
+    pub(super) fn from_ast(
         op_kind: BinaryOpKind,
         op_type: ObjectType,
         lhs: NodeId,
         rhs: NodeId,
+        location: Location,
     ) -> Binary {
         let operator = match op_kind {
             BinaryOpKind::Add => BinaryOp::Add,
@@ -680,9 +687,9 @@ impl Binary {
             BinaryOpKind::Divide => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
-                    NumericType::Signed(_) => BinaryOp::Sdiv,
-                    NumericType::Unsigned(_) => BinaryOp::Udiv,
-                    NumericType::NativeField => BinaryOp::Div,
+                    NumericType::Signed(_) => BinaryOp::Sdiv(location),
+                    NumericType::Unsigned(_) => BinaryOp::Udiv(location),
+                    NumericType::NativeField => BinaryOp::Div(location),
                 }
             }
             BinaryOpKind::Less => {
@@ -718,12 +725,16 @@ impl Binary {
                 }
             }
             BinaryOpKind::ShiftLeft => BinaryOp::Shl,
-            BinaryOpKind::ShiftRight => BinaryOp::Shr,
+            BinaryOpKind::ShiftRight => BinaryOp::Shr(location),
             BinaryOpKind::Modulo => {
                 let num_type: NumericType = op_type.into();
                 match num_type {
-                    NumericType::Signed(_) => return Binary::new(BinaryOp::Srem, lhs, rhs),
-                    NumericType::Unsigned(_) => return Binary::new(BinaryOp::Urem, lhs, rhs),
+                    NumericType::Signed(_) => {
+                        return Binary::new(BinaryOp::Srem(location), lhs, rhs)
+                    }
+                    NumericType::Unsigned(_) => {
+                        return Binary::new(BinaryOp::Urem(location), lhs, rhs)
+                    }
                     NumericType::NativeField => {
                         unimplemented!("Modulo operation with Field elements is not supported")
                     }
@@ -734,9 +745,14 @@ impl Binary {
         Binary::new(operator, lhs, rhs)
     }
 
-    fn zero_div_error(&self) -> Result<(), RuntimeError> {
+    fn zero_div_error(&self, location: &Location) -> Result<(), RuntimeError> {
         if self.predicate.is_none() {
-            Err(RuntimeErrorKind::Spanless("Panic - division by zero".to_string()).into())
+            Err(RuntimeError {
+                location: Some(*location),
+                kind: RuntimeErrorKind::UnstructuredError {
+                    message: "Panic - division by zero".to_string(),
+                },
+            })
         } else {
             Ok(())
         }
@@ -805,9 +821,9 @@ impl Binary {
                 //so it is probably not worth it.
             }
 
-            BinaryOp::Udiv => {
+            BinaryOp::Udiv(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 }
@@ -818,18 +834,18 @@ impl Binary {
                     return Ok(NodeEval::Const(FieldElement::from(lhs / rhs), res_type));
                 }
             }
-            BinaryOp::Div => {
+            BinaryOp::Div(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs / rhs, res_type));
                 }
             }
-            BinaryOp::Sdiv => {
+            BinaryOp::Sdiv(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO should we ensure rhs != 0 ???
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -838,18 +854,18 @@ impl Binary {
                     return Ok(NodeEval::Const(signed_to_field(a / b, res_type.bits())?, res_type));
                 }
             }
-            BinaryOp::Urem => {
+            BinaryOp::Urem(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
                     return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
                 }
             }
-            BinaryOp::Srem => {
+            BinaryOp::Srem(loc) => {
                 if r_is_zero {
-                    self.zero_div_error()?;
+                    self.zero_div_error(loc)?;
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
@@ -979,7 +995,7 @@ impl Binary {
                     return Ok(wrapping(lhs, rhs, res_type, u128::shl, field_op_not_allowed));
                 }
             }
-            BinaryOp::Shr => {
+            BinaryOp::Shr(_) => {
                 if l_is_zero {
                     return Ok(l_eval);
                 }
@@ -1003,11 +1019,11 @@ impl Binary {
             BinaryOp::SafeSub { .. } => false,
             BinaryOp::Mul => false,
             BinaryOp::SafeMul => false,
-            BinaryOp::Udiv => true,
-            BinaryOp::Sdiv => true,
-            BinaryOp::Urem => true,
-            BinaryOp::Srem => true,
-            BinaryOp::Div => false,
+            BinaryOp::Udiv(_) => true,
+            BinaryOp::Sdiv(_) => true,
+            BinaryOp::Urem(_) => true,
+            BinaryOp::Srem(_) => true,
+            BinaryOp::Div(_) => false,
             BinaryOp::Eq => true,
             BinaryOp::Ne => true,
             BinaryOp::Ult => true,
@@ -1021,11 +1037,11 @@ impl Binary {
             BinaryOp::Xor => true,
             BinaryOp::Assign => false,
             BinaryOp::Shl => true,
-            BinaryOp::Shr => true,
+            BinaryOp::Shr(_) => true,
         }
     }
 
-    pub fn opcode(&self) -> Opcode {
+    pub(super) fn opcode(&self) -> Opcode {
         match &self.operator {
             BinaryOp::Add => Opcode::Add,
             BinaryOp::SafeAdd => Opcode::SafeAdd,
@@ -1033,11 +1049,11 @@ impl Binary {
             BinaryOp::SafeSub { .. } => Opcode::SafeSub,
             BinaryOp::Mul => Opcode::Mul,
             BinaryOp::SafeMul => Opcode::SafeMul,
-            BinaryOp::Udiv => Opcode::Udiv,
-            BinaryOp::Sdiv => Opcode::Sdiv,
-            BinaryOp::Urem => Opcode::Urem,
-            BinaryOp::Srem => Opcode::Srem,
-            BinaryOp::Div => Opcode::Div,
+            BinaryOp::Udiv(_) => Opcode::Udiv,
+            BinaryOp::Sdiv(_) => Opcode::Sdiv,
+            BinaryOp::Urem(_) => Opcode::Urem,
+            BinaryOp::Srem(_) => Opcode::Srem,
+            BinaryOp::Div(_) => Opcode::Div,
             BinaryOp::Eq => Opcode::Eq,
             BinaryOp::Ne => Opcode::Ne,
             BinaryOp::Ult => Opcode::Ult,
@@ -1050,7 +1066,7 @@ impl Binary {
             BinaryOp::Or => Opcode::Or,
             BinaryOp::Xor => Opcode::Xor,
             BinaryOp::Shl => Opcode::Shl,
-            BinaryOp::Shr => Opcode::Shr,
+            BinaryOp::Shr(_) => Opcode::Shr,
             BinaryOp::Assign => Opcode::Assign,
         }
     }
@@ -1082,11 +1098,11 @@ fn field_op_not_allowed(_lhs: FieldElement, _rhs: FieldElement) -> FieldElement 
 }
 
 impl Operation {
-    pub fn binary(op: BinaryOp, lhs: NodeId, rhs: NodeId) -> Self {
+    pub(super) fn binary(op: BinaryOp, lhs: NodeId, rhs: NodeId) -> Self {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
 
-    pub fn is_dummy_store(&self) -> bool {
+    pub(super) fn is_dummy_store(&self) -> bool {
         match self {
             Operation::Store { index, value, .. } => {
                 *index == NodeId::dummy() && *value == NodeId::dummy()
@@ -1095,7 +1111,7 @@ impl Operation {
         }
     }
 
-    pub fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
+    pub(super) fn map_id(&self, mut f: impl FnMut(NodeId) -> NodeId) -> Operation {
         use Operation::*;
         match self {
             Binary(self::Binary { lhs, rhs, operator, predicate }) => Binary(self::Binary {
@@ -1120,12 +1136,15 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 Cond { condition: f(*condition), val_true: f(*lhs), val_false: f(*rhs) }
             }
-            Load { array_id: array, index } => Load { array_id: *array, index: f(*index) },
-            Store { array_id: array, index, value, predicate } => Store {
+            Load { array_id: array, index, location } => {
+                Load { array_id: *array, index: f(*index), location: *location }
+            }
+            Store { array_id: array, index, value, predicate, location } => Store {
                 array_id: *array,
                 index: f(*index),
                 value: f(*value),
                 predicate: predicate.as_ref().map(|pred| f(*pred)),
+                location: *location,
             },
             Intrinsic(i, args) => Intrinsic(*i, vecmap(args.iter().copied(), f)),
             Nop => Nop,
@@ -1144,7 +1163,7 @@ impl Operation {
     }
 
     /// Mutate each contained NodeId in place using the given function f
-    pub fn map_id_mut(&mut self, mut f: impl FnMut(NodeId) -> NodeId) {
+    pub(super) fn map_id_mut(&mut self, mut f: impl FnMut(NodeId) -> NodeId) {
         use Operation::*;
         match self {
             Binary(self::Binary { lhs, rhs, predicate, .. }) => {
@@ -1200,7 +1219,7 @@ impl Operation {
     }
 
     /// This is the same as map_id but doesn't return a new Operation
-    pub fn for_each_id(&self, mut f: impl FnMut(NodeId)) {
+    pub(super) fn for_each_id(&self, mut f: impl FnMut(NodeId)) {
         use Operation::*;
         match self {
             Binary(self::Binary { lhs, rhs, .. }) => {
@@ -1243,7 +1262,7 @@ impl Operation {
         }
     }
 
-    pub fn opcode(&self) -> Opcode {
+    pub(super) fn opcode(&self) -> Opcode {
         match self {
             Operation::Binary(binary) => binary.opcode(),
             Operation::Cast(_) => Opcode::Cast,

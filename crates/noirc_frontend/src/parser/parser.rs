@@ -101,7 +101,8 @@ fn top_level_statement(
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
-        submodule(module_parser),
+        submodule(module_parser.clone()),
+        contract(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
@@ -128,7 +129,21 @@ fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<To
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
+        .map(|(name, contents)| {
+            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: false })
+        })
+}
+
+/// contract: 'contract' ident '{' module '}'
+fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Contract)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(module_parser)
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, contents)| {
+            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: true })
+        })
 }
 
 /// function_definition: attribute fn ident generics '(' function_parameters ')' function_return_type block

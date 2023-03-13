@@ -25,7 +25,7 @@ use iter_extended::vecmap;
 // TODO(check this): Types like structs are decomposed before getting to SSA
 // so in reality, the NEQ instruction will be done on the fields
 // of the struct
-pub(crate) fn evaluate_neq(
+pub(super) fn evaluate_neq(
     acir_mem: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,
@@ -95,7 +95,7 @@ pub(crate) fn evaluate_neq(
     }
 }
 
-pub(crate) fn evaluate_eq(
+pub(super) fn evaluate_eq(
     memory_map: &mut AcirMem,
     lhs: NodeId,
     rhs: NodeId,

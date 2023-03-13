@@ -10,7 +10,7 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub struct InternalVarCache {
+pub(crate) struct InternalVarCache {
     inner: HashMap<NodeId, InternalVar>,
 }
 
