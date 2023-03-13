@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
-mod fs;
+pub mod fs;
 
 mod check_cmd;
 mod codegen_verifier_cmd;

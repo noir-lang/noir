@@ -24,14 +24,20 @@ pub(crate) fn handle_logs(logs: Vec<SolvedLog>) -> Result<(), CliError> {
                 }
             }
         };
-        if !log.is_trace {
-            println!("{output_string}")
+        if let Some(trace_label) = log.trace_label {
+            write_to_file
         } else {
-            // TODO: Decide how we want to handle traces
-            // They are used during `nargo execute` and `nargo test` which do not have explicit program or proof names associated with them
-            // For now nargo has them keep the same functionality as println, but they are useful for any JS developer who needs to keep things in memory
-            println!("{output_string}");
+            println!("{output_string}")
         }
+
+        // if !log.is_trace {
+        //     println!("{output_string}")
+        // } else {
+        //     // TODO: Decide how we want to handle traces
+        //     // They are used during `nargo execute` and `nargo test` which do not have explicit program or proof names associated with them
+        //     // For now nargo has them keep the same functionality as println, but they are useful for any JS developer who needs to keep things in memory
+        //     println!("{output_string}");
+        // }
     }
     Ok(())
 }

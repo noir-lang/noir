@@ -570,27 +570,10 @@ impl<'interner> Monomorphizer<'interner> {
         if let ast::Expression::Ident(ident) = func.as_ref() {
             if let Definition::Builtin(opcode) = &ident.definition {
                 match opcode.as_str() {
-                    "println" | "trace" => {
-                        let is_string = match &arguments[0] {
-                            ast::Expression::Ident(ident) => match ident.typ {
-                                ast::Type::String(_) => true,
-                                ast::Type::Tuple(_) => {
-                                    unreachable!("logging structs/tuples is not supported")
-                                }
-                                ast::Type::Function { .. } => {
-                                    unreachable!("logging functions is not supported")
-                                }
-                                _ => false,
-                            },
-                            ast::Expression::Literal(literal) => {
-                                matches!(literal, ast::Literal::Str(_))
-                            }
-                            _ => unreachable!("logging this expression type is not supported"),
-                        };
-                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_string)));
-                    }
+                    "println"=> self.append_string_output_arg(&mut arguments, 0),
+                    "trace" => self.append_string_output_arg(&mut arguments, 1),
                     _ => (),
-                }
+                };
             }
         }
 
@@ -600,6 +583,30 @@ impl<'interner> Monomorphizer<'interner> {
             return_type,
             location,
         }))
+    }
+
+    fn append_string_output_arg(
+        &self,
+        arguments: &mut Vec<ast::Expression>,
+        index_to_check: usize,
+    ) {
+        let is_string = match &arguments[index_to_check] {
+            ast::Expression::Ident(ident) => match ident.typ {
+                ast::Type::String(_) => true,
+                ast::Type::Tuple(_) => {
+                    unreachable!("logging structs/tuples is not supported")
+                }
+                ast::Type::Function { .. } => {
+                    unreachable!("logging functions is not supported")
+                }
+                _ => false,
+            },
+            ast::Expression::Literal(literal) => {
+                matches!(literal, ast::Literal::Str(_))
+            }
+            _ => unreachable!("logging this expression type is not supported"),
+        };
+        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)

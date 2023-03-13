@@ -12,4 +12,4 @@ mod field;
 fn println<T>(_input : T) {}
 
 #[builtin(trace)]
-fn trace<T>(_input : T) {}
+fn trace<T, N>(_label : str<N>, _input : T) {}
