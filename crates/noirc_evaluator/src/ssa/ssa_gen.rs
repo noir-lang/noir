@@ -24,19 +24,19 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
-pub struct IrGenerator {
-    pub context: SsaContext,
-    pub function_context: Option<FuncIndex>,
+pub(crate) struct IrGenerator {
+    pub(crate) context: SsaContext,
+    pub(crate) function_context: Option<FuncIndex>,
 
     /// The current value of a variable. Used for flattening structs
     /// into multiple variables/values
     variable_values: HashMap<Definition, Value>,
 
-    pub program: Program,
+    pub(crate) program: Program,
 }
 
 impl IrGenerator {
-    pub fn new(program: Program) -> IrGenerator {
+    pub(crate) fn new(program: Program) -> IrGenerator {
         IrGenerator {
             context: SsaContext::default(),
             variable_values: HashMap::new(),
@@ -45,7 +45,7 @@ impl IrGenerator {
         }
     }
 
-    pub fn ssa_gen_main(&mut self) -> Result<(), RuntimeError> {
+    pub(crate) fn ssa_gen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
         let value = self.ssa_gen_expression(&main_body)?;
         let node_ids = value.to_node_ids();
@@ -56,14 +56,14 @@ impl IrGenerator {
         Ok(())
     }
 
-    pub fn find_variable(&self, variable_def: &Definition) -> Option<&Value> {
+    pub(crate) fn find_variable(&self, variable_def: &Definition) -> Option<&Value> {
         self.variable_values.get(variable_def)
     }
 
     /// Returns the ssa value of a variable
     /// This method constructs the ssa value of a variable, while parsing the AST, using value numbering
     /// This is why it requires a mutable SsaContext
-    pub fn get_current_value(&mut self, value: &Value) -> Value {
+    pub(crate) fn get_current_value(&mut self, value: &Value) -> Value {
         match value {
             Value::Node(id) => Value::Node(ssa_form::get_current_value(&mut self.context, *id)),
             Value::Tuple(fields) => {
@@ -72,7 +72,7 @@ impl IrGenerator {
         }
     }
 
-    pub fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
+    pub(crate) fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
             noirc_abi::AbiType::Field => ObjectType::NativeField,
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
@@ -92,7 +92,7 @@ impl IrGenerator {
         }
     }
 
-    pub fn abi_array(
+    pub(crate) fn abi_array(
         &mut self,
         name: &str,
         ident_def: Option<Definition>,
@@ -120,7 +120,7 @@ impl IrGenerator {
         v_id
     }
 
-    pub fn abi_struct(
+    pub(crate) fn abi_struct(
         &mut self,
         struct_name: &str,
         ident_def: Option<Definition>,
@@ -264,7 +264,7 @@ impl IrGenerator {
         }
     }
 
-    pub fn create_new_variable(
+    pub(crate) fn create_new_variable(
         &mut self,
         var_name: String,
         def: Option<Definition>,
@@ -297,7 +297,7 @@ impl IrGenerator {
         result
     }
 
-    pub fn create_new_value(
+    pub(crate) fn create_new_value(
         &mut self,
         typ: &Type,
         base_name: &str,
@@ -333,7 +333,7 @@ impl IrGenerator {
         }
     }
 
-    pub fn new_array(
+    pub(crate) fn new_array(
         &mut self,
         name: &str,
         element_type: ObjectType,
@@ -428,7 +428,12 @@ impl IrGenerator {
     }
 
     //same as update_variable but using the var index instead of var
-    pub fn update_variable_id(&mut self, var_id: NodeId, new_var: NodeId, new_value: NodeId) {
+    pub(crate) fn update_variable_id(
+        &mut self,
+        var_id: NodeId,
+        new_var: NodeId,
+        new_value: NodeId,
+    ) {
         self.context.update_variable_id(var_id, new_var, new_value);
     }
 
@@ -640,7 +645,7 @@ impl IrGenerator {
         Ok(Value::Tuple(fields))
     }
 
-    pub fn ssa_gen_expression_list(&mut self, exprs: &[Expression]) -> Vec<NodeId> {
+    pub(super) fn ssa_gen_expression_list(&mut self, exprs: &[Expression]) -> Vec<NodeId> {
         let mut result = Vec::with_capacity(exprs.len());
         for expr in exprs {
             let value = self.ssa_gen_expression(expr);
@@ -726,7 +731,7 @@ impl IrGenerator {
     }
 
     //Parse a block of AST statements into ssa form
-    pub fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
+    fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for expr in block {
             last_value = self.ssa_gen_expression(expr)?;
