@@ -1,5 +1,5 @@
 use noirc_errors::CustomDiagnostic as Diagnostic;
-pub use noirc_errors::Span;
+use noirc_errors::Span;
 use thiserror::Error;
 
 use crate::hir_def::expr::HirBinaryOp;

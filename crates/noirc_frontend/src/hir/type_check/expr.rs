@@ -487,7 +487,7 @@ fn bind_function_type(
     }
 }
 
-pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
+fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
     match op {
         crate::UnaryOp::Minus => {
             if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
@@ -505,7 +505,7 @@ pub fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result
 
 // Given a binary operator and another type. This method will produce the output type
 // XXX: Review these rules. In particular, the interaction between integers, comptime and private/public variables
-pub fn infix_operand_type_rules(
+fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
     rhs_type: &Type,
@@ -689,7 +689,7 @@ fn check_constructor(
     Type::Struct(typ, generics)
 }
 
-pub fn check_member_access(
+fn check_member_access(
     access: expr::HirMemberAccess,
     interner: &mut NodeInterner,
     expr_id: ExprId,
@@ -727,7 +727,7 @@ pub fn check_member_access(
     Type::Error
 }
 
-pub fn comparator_operand_type_rules(
+fn comparator_operand_type_rules(
     lhs_type: &Type,
     rhs_type: &Type,
     op: &HirBinaryOp,
