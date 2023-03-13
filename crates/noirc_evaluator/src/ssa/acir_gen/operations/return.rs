@@ -42,9 +42,7 @@ pub(crate) fn evaluate(
 
         let mut witnesses: Vec<Witness> = Vec::new();
         for mut object in objects {
-            let witness = object.get_or_compute_witness(evaluator, true).expect(
-                "infallible: `None` can only be returned when we disallow constant Expressions.",
-            );
+            let witness = var_cache.get_or_compute_witness_unwrap(&mut object, evaluator, ctx);
             // Before pushing to the public inputs, we need to check that
             // it was not a private ABI input
             if evaluator.is_private_abi_input(witness) {

@@ -8,7 +8,8 @@ use acvm::{
 
 use crate::{
     ssa::{
-        acir_gen::{constraints, InternalVar},
+        acir_gen::{constraints, internal_var_cache::InternalVarCache, InternalVar},
+        context::SsaContext,
         node::BinaryOp,
     },
     Evaluator,
@@ -80,6 +81,8 @@ pub(super) fn evaluate_bitwise(
     mut rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
+    var_cache: &mut InternalVarCache,
+    ctx: &SsaContext,
     opcode: BinaryOp,
 ) -> Expression {
     // Check precondition
@@ -111,13 +114,8 @@ pub(super) fn evaluate_bitwise(
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
     //
-
-    let mut a_witness = lhs
-        .get_or_compute_witness(evaluator, true)
-        .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
-    let mut b_witness = rhs
-        .get_or_compute_witness(evaluator, true)
-        .expect("infallible: `None` can only be returned when we disallow constant Expressions.");
+    let mut a_witness = var_cache.get_or_compute_witness_unwrap(&mut lhs, evaluator, ctx);
+    let mut b_witness = var_cache.get_or_compute_witness_unwrap(&mut rhs, evaluator, ctx);
 
     let result = evaluator.add_witness_to_cs();
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };

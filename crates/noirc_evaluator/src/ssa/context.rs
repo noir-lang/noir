@@ -17,8 +17,9 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
 use std::collections::{HashMap, HashSet};
+
+use super::acir_gen::InternalVar;
 
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
@@ -35,6 +36,7 @@ pub struct SsaContext {
 
     pub functions: HashMap<FuncId, function::SsaFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
+    pub constants: HashMap<FieldElement, Vec<InternalVar>>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
@@ -61,6 +63,7 @@ impl Default for SsaContext {
             dummy_store: HashMap::new(),
             dummy_load: HashMap::new(),
             locations: HashMap::new(),
+            constants: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_with_type(node::ObjectType::Boolean);
@@ -71,11 +74,11 @@ impl Default for SsaContext {
 
 impl SsaContext {
     pub fn zero(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::zero(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn one(&self) -> NodeId {
-        self.find_const_with_type(&BigUint::one(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::one(), node::ObjectType::Boolean).unwrap()
     }
 
     pub fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -91,7 +94,7 @@ impl SsaContext {
             return false;
         }
         let typ = self.object_type(id);
-        if let Some(one) = self.find_const_with_type(&BigUint::one(), typ) {
+        if let Some(one) = self.find_const_with_type(&FieldElement::one(), typ) {
             id == one
         } else {
             false
@@ -103,7 +106,7 @@ impl SsaContext {
             return false;
         }
         let typ = self.object_type(id);
-        if let Some(zero) = self.find_const_with_type(&BigUint::zero(), typ) {
+        if let Some(zero) = self.find_const_with_type(&FieldElement::zero(), typ) {
             id == zero
         } else {
             false
@@ -565,14 +568,16 @@ impl SsaContext {
 
     pub fn find_const_with_type(
         &self,
-        value: &BigUint,
+        value: &FieldElement,
         e_type: node::ObjectType,
     ) -> Option<NodeId> {
-        //TODO We should map constant values to id
-        for (idx, o) in &self.nodes {
-            if let node::NodeObject::Const(c) = o {
-                if c.value == *value && c.get_type() == e_type {
-                    return Some(NodeId(idx));
+        // we look for the node in the constants map
+        if let Some(vars) = self.constants.get(value) {
+            for var in vars {
+                if let Some(id) = var.get_id() {
+                    if self[id].get_type() == e_type {
+                        return Some(id);
+                    }
                 }
             }
         }
@@ -583,16 +588,22 @@ impl SsaContext {
     // If such object does not exist, we create one
     pub fn get_or_create_const(&mut self, x: FieldElement, t: node::ObjectType) -> NodeId {
         let value = BigUint::from_bytes_be(&x.to_be_bytes());
-        if let Some(prev_const) = self.find_const_with_type(&value, t) {
+        if let Some(prev_const) = self.find_const_with_type(&x, t) {
             return prev_const;
         }
 
-        self.add_const(node::Constant {
+        let id = self.add_const(node::Constant {
             id: NodeId::dummy(),
             value,
             value_str: String::new(),
             value_type: t,
-        })
+        });
+        // Adds the id into the constants map
+        let vars = self.constants.entry(x).or_insert(Vec::new());
+        let mut var = InternalVar::from_constant(x);
+        var.set_id(id);
+        vars.push(var);
+        id
     }
 
     // Return the type of the operation result, based on the left hand type

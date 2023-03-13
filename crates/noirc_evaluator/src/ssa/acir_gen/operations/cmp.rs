@@ -65,7 +65,7 @@ pub(crate) fn evaluate_neq(
         // TODO if we change the Invert directive to take an `Expression`, then we
         // TODO can get rid of this extra gate.
         let x_witness =
-            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+            x.get_or_compute_witness(evaluator).expect("unexpected constant expression");
 
         return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
     }
@@ -90,7 +90,7 @@ pub(crate) fn evaluate_neq(
     } else {
         //todo we need a witness because of the directive, but we should use an expression
         let x_witness =
-            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+            x.get_or_compute_witness(evaluator).expect("unexpected constant expression");
         Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 }

@@ -68,7 +68,7 @@ impl Acir {
                     }
                     _ => *opcode,
                 };
-                intrinsics::evaluate(args, ins, opcode, var_cache, acir_mem, ctx, evaluator)
+                intrinsics::evaluate(args, ins, opcode, self, ctx, evaluator)
             }
             Operation::Return(node_ids) => {
                 r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?

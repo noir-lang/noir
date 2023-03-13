@@ -38,6 +38,9 @@ impl InternalVar {
     pub(crate) fn set_id(&mut self, id: NodeId) {
         self.id = Some(id)
     }
+    pub(crate) fn get_id(&self) -> Option<NodeId> {
+        self.id
+    }
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness
     }
@@ -106,20 +109,15 @@ impl InternalVar {
     /// - If a `Witness` has previously been generated
     /// we return that.
     /// - If the Expression represents a constant, we return None.
-    pub(crate) fn get_or_compute_witness(
-        &mut self,
-        evaluator: &mut Evaluator,
-        create_witness_for_const: bool,
-    ) -> Option<Witness> {
+    pub(crate) fn get_or_compute_witness(&mut self, evaluator: &mut Evaluator) -> Option<Witness> {
         // Check if we've already generated a `Witness` which is equal to
         // the stored `Expression`
         if let Some(witness) = self.cached_witness {
             return Some(witness);
         }
 
-        // There are cases where we need to convert a constant expression
-        // into a witness.
-        if !create_witness_for_const && self.is_const_expression() {
+        // We do not generate a witness for constant values. It can only be done at the InternalVarCache level.
+        if self.is_const_expression() {
             return None;
         }
 

@@ -31,6 +31,7 @@ pub(crate) fn evaluate(
     res_type: ObjectType,
     var_cache: &mut InternalVarCache,
     memory_map: &mut AcirMem,
+    //acir_gen: &mut Acir,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
 ) -> Option<InternalVar> {
@@ -153,7 +154,7 @@ pub(crate) fn evaluate(
                     }
                 } else {
                     //TODO avoid creating witnesses here.
-                    let x_witness = r_c.get_or_compute_witness(evaluator, false).expect("unexpected constant expression"); 
+                    let x_witness = r_c.get_or_compute_witness(evaluator).expect("unexpected constant expression"); 
                     let inverse = Expression::from(&constraints::evaluate_inverse(
                         x_witness, &predicate, evaluator,
                     ));
@@ -237,7 +238,7 @@ pub(crate) fn evaluate(
                 let opcode = binary.operator.clone();
                 let bitwise_result = match operations::bitwise::simplify_bitwise(&l_c, &r_c, bit_size, &opcode) {
                     Some(simplified_internal_var) => simplified_internal_var.expression().clone(),
-                    None => operations::bitwise::evaluate_bitwise(l_c, r_c, bit_size, evaluator, opcode),
+                    None => operations::bitwise::evaluate_bitwise(l_c, r_c, bit_size, evaluator, var_cache, ctx, opcode),
                 };
                 InternalVar::from(bitwise_result)
             }
