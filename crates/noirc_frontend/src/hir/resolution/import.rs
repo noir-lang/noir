@@ -1,21 +1,27 @@
+use iter_extended::partition_results;
+use noirc_errors::CustomDiagnostic;
+
 use crate::graph::CrateId;
 use std::collections::HashMap;
 
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::{Ident, Path, PathKind};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportDirective {
     pub module_id: LocalModuleId,
     pub path: Path,
     pub alias: Option<Ident>,
 }
 
-#[derive(Debug)]
-pub enum PathResolution {
-    Resolved(PerNs),
+pub type PathResolution = Result<PerNs, PathResolutionError>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PathResolutionError {
     Unresolved(Ident),
+    ExternalContractUsed(Ident),
 }
+
 #[derive(Debug)]
 pub struct ResolvedImport {
     // name of the namespace, either last path segment or an alias
@@ -26,59 +32,78 @@ pub struct ResolvedImport {
     pub module_scope: LocalModuleId,
 }
 
+impl From<PathResolutionError> for CustomDiagnostic {
+    fn from(error: PathResolutionError) -> Self {
+        match error {
+            PathResolutionError::Unresolved(ident) => CustomDiagnostic::simple_error(
+                format!("Could not resolve '{ident}' in path"),
+                String::new(),
+                ident.span(),
+            ),
+            PathResolutionError::ExternalContractUsed(ident) => CustomDiagnostic::simple_error(
+                format!("Contract variable '{ident}' referenced from outside the contract"),
+                "Contracts may only be referenced from within a contract".to_string(),
+                ident.span(),
+            ),
+        }
+    }
+}
+
 pub fn resolve_imports(
     crate_id: CrateId,
     imports_to_resolve: Vec<ImportDirective>,
     def_maps: &HashMap<CrateId, CrateDefMap>,
-) -> (Vec<ImportDirective>, Vec<ResolvedImport>) {
-    let num_imports = imports_to_resolve.len();
+) -> (Vec<ResolvedImport>, Vec<ImportDirective>) {
     let def_map = &def_maps[&crate_id];
 
-    let mut unresolved: Vec<ImportDirective> = Vec::new();
-    let mut resolved: Vec<ResolvedImport> = Vec::new();
-    for import_directive in imports_to_resolve {
-        let defs = resolve_path_to_ns(&import_directive, def_map, def_maps);
+    partition_results(imports_to_resolve, |import_directive| {
+        let allow_contracts =
+            allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
-        // Once we have the Option<defs>
-        // resolve name and push into appropriate vector
-        match defs {
-            PathResolution::Unresolved(_) => {
-                unresolved.push(import_directive);
-            }
-            PathResolution::Resolved(resolved_namespace) => {
-                let name = resolve_path_name(&import_directive);
-                let res = ResolvedImport {
-                    name,
-                    resolved_namespace,
-                    module_scope: import_directive.module_id,
-                };
-                resolved.push(res);
-            }
-        };
-    }
+        let module_scope = import_directive.module_id;
+        let resolved_namespace =
+            resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
+                .map_err(|_| import_directive.clone())?;
 
-    assert!(unresolved.len() + resolved.len() == num_imports);
+        let name = resolve_path_name(&import_directive);
+        Ok(ResolvedImport { name, resolved_namespace, module_scope })
+    })
+}
 
-    (unresolved, resolved)
+pub(super) fn allow_referencing_contracts(
+    def_maps: &HashMap<CrateId, CrateDefMap>,
+    krate: CrateId,
+    module: LocalModuleId,
+) -> bool {
+    def_maps[&krate].modules()[module.0].is_contract
 }
 
 pub fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     def_map: &CrateDefMap,
     def_maps: &HashMap<CrateId, CrateDefMap>,
+    allow_contracts: bool,
 ) -> PathResolution {
     let import_path = &import_directive.path.segments;
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
             // Resolve from the root of the crate
-            resolve_path_from_crate_root(def_map, import_path, def_maps)
+            resolve_path_from_crate_root(def_map, import_path, def_maps, allow_contracts)
         }
-        crate::ast::PathKind::Dep => resolve_external_dep(def_map, import_directive, def_maps),
+        crate::ast::PathKind::Dep => {
+            resolve_external_dep(def_map, import_directive, def_maps, allow_contracts)
+        }
         crate::ast::PathKind::Plain => {
             // Plain paths are only used to import children modules. It's possible to allow import of external deps, but maybe this distinction is better?
             // In Rust they can also point to external Dependencies, if no children can be found with the specified name
-            resolve_name_in_module(def_map, import_path, import_directive.module_id, def_maps)
+            resolve_name_in_module(
+                def_map,
+                import_path,
+                import_directive.module_id,
+                def_maps,
+                allow_contracts,
+            )
         }
     }
 }
@@ -87,8 +112,9 @@ fn resolve_path_from_crate_root(
     def_map: &CrateDefMap,
     import_path: &[Ident],
     def_maps: &HashMap<CrateId, CrateDefMap>,
+    allow_contracts: bool,
 ) -> PathResolution {
-    resolve_name_in_module(def_map, import_path, def_map.root, def_maps)
+    resolve_name_in_module(def_map, import_path, def_map.root, def_maps, allow_contracts)
 }
 
 fn resolve_name_in_module(
@@ -96,6 +122,7 @@ fn resolve_name_in_module(
     import_path: &[Ident],
     starting_mod: LocalModuleId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
+    allow_contracts: bool,
 ) -> PathResolution {
     let mut current_mod = &def_map.modules[starting_mod.0];
 
@@ -103,19 +130,19 @@ fn resolve_name_in_module(
     // In that case, early return
     if import_path.is_empty() {
         let mod_id = ModuleId { krate: def_map.krate, local_id: starting_mod };
-        return PathResolution::Resolved(PerNs::types(mod_id.into()));
+        return Ok(PerNs::types(mod_id.into()));
     }
 
     let mut import_path = import_path.iter();
     let first_segment = import_path.next().expect("ice: could not fetch first segment");
     let mut current_ns = current_mod.scope.find_name(first_segment);
     if current_ns.is_none() {
-        return PathResolution::Unresolved(first_segment.clone());
+        return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
     for segment in import_path {
         let typ = match current_ns.take_types() {
-            None => return PathResolution::Unresolved(segment.clone()),
+            None => return Err(PathResolutionError::Unresolved(segment.clone())),
             Some(typ) => typ,
         };
 
@@ -127,16 +154,24 @@ fn resolve_name_in_module(
             ModuleDefId::TypeId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
+
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
+
         // Check if namespace
         let found_ns = current_mod.scope.find_name(segment);
         if found_ns.is_none() {
-            return PathResolution::Unresolved(segment.clone());
+            return Err(PathResolutionError::Unresolved(segment.clone()));
         }
+
+        // Check if it is a contract and we're calling from a non-contract context
+        if current_mod.is_contract && !allow_contracts {
+            return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
+        }
+
         current_ns = found_ns
     }
 
-    PathResolution::Resolved(current_ns)
+    Ok(current_ns)
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -150,6 +185,7 @@ fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
     def_maps: &HashMap<CrateId, CrateDefMap>,
+    allow_contracts: bool,
 ) -> PathResolution {
     // Use extern_prelude to get the dep
     //
@@ -171,5 +207,5 @@ fn resolve_external_dep(
 
     let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
 
-    resolve_path_to_ns(&dep_directive, dep_def_map, def_maps)
+    resolve_path_to_ns(&dep_directive, dep_def_map, def_maps, allow_contracts)
 }

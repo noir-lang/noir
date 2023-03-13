@@ -1,4 +1,5 @@
-use crate::{hir::resolution::import::ImportDirective, Ident};
+use crate::hir::resolution::import::ImportDirective;
+use crate::Ident;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
