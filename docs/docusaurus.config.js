@@ -29,7 +29,10 @@ const config = {
     defaultLocale: "en",
     locales: ["en"],
   },
-
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
   presets: [
     [
       "@docusaurus/preset-classic",
@@ -104,11 +107,6 @@ const config = {
             position: "left",
             label: "Aztec Protocol",
           },
-          {
-            type: "doc",
-            docId: "zk-money/userguide",
-            label: "Zk.money",
-          },
         ],
       },
       footer: {
@@ -120,10 +118,6 @@ const config = {
               {
                 label: "Introduction",
                 to: "/",
-              },
-              {
-                label: "How Aztec Works",
-                to: "/category/how-aztec-works",
               },
             ],
           },
