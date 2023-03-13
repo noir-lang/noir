@@ -15,6 +15,7 @@ mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
+mod preprocess_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
@@ -53,6 +54,7 @@ enum NargoCommand {
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
+    Preprocess(preprocess_cmd::PreprocessCommand),
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
 }
@@ -67,6 +69,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
         NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
         NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
+        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, matches.config),
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
