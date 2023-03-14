@@ -32,9 +32,7 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(compile_options).is_err() {
-        std::process::exit(1);
-    }
+    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = driver.compute_function_signature() {
@@ -134,8 +132,7 @@ mod tests {
         let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let mut config = CompileOptions::default();
-        config.allow_warnings = true;
+        let config = CompileOptions { allow_warnings: true, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {

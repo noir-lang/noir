@@ -373,9 +373,24 @@ impl<'a> Resolver<'a> {
             }
         }
 
+        let span = path.span();
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+                let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+                let expected_generic_count = struct_type.borrow().generics.len();
+
+                if args.len() != expected_generic_count {
+                    self.push_err(ResolverError::IncorrectGenericCount {
+                        span,
+                        struct_type: struct_type.clone(),
+                        actual: args.len(),
+                        expected: expected_generic_count,
+                    });
+
+                    // Fix the generic count so we can continue typechecking
+                    args.resize_with(expected_generic_count, || self.interner.next_type_variable())
+                }
+
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
@@ -1436,7 +1451,7 @@ mod test {
     }
 
     impl TestPathResolver {
-        pub fn insert_func(&mut self, name: String, func_id: FuncId) {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
             self.0.insert(name, func_id.into());
         }
     }

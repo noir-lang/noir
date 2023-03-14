@@ -16,14 +16,14 @@ default-members = ["crates/nargo"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.2.0"
+version = "0.3.1"
 # x-release-please-end
 authors = ["The Noir Team <kevtheappdev@gmail.com>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.5.0"
+acvm = "0.6.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -41,7 +41,6 @@ codespan = "0.9.5"
 codespan-reporting = "0.9.5"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
 dirs = "4"
-hex = { version = "0.4.2", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }
 smol_str = "0.1.17"
 thiserror = "1.0.21"
