@@ -1,7 +1,7 @@
 #pragma once
-#include <crypto/generators/generator_data.hpp>
+//#include <crypto/generators/generator_data.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
+//#include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/circuit_types.hpp>
 #include <stdlib/types/convert.hpp>
 #include <stdlib/types/native_types.hpp>
@@ -9,7 +9,7 @@
 
 namespace aztec3::circuits::abis {
 
-using plonk::stdlib::witness_t;
+// using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 using std::is_same;
@@ -18,7 +18,7 @@ template <typename NCT> struct FunctionSignature {
     // typedef typename NCT::address address;
     typedef typename NCT::uint32 uint32;
     typedef typename NCT::boolean boolean;
-    typedef typename NCT::grumpkin_point grumpkin_point;
+    // typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
 
     uint32 function_encoding; // e.g. 1st 4-bytes of abi-encoding of function.

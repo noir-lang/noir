@@ -1,6 +1,7 @@
 #include "c_bind.h"
 
 #include "tx_request.hpp"
+#include "function_leaf_preimage.hpp"
 
 #include <numeric/random/engine.hpp>
 #include <gtest/gtest.h>
@@ -32,7 +33,7 @@ template <size_t NUM_BYTES> std::string bytes_to_hex_str(std::array<uint8_t, NUM
 
 namespace aztec3::circuits::abis {
 
-TEST(abis, hash_tx_request)
+TEST(abi_tests, hash_tx_request)
 {
     // randomize function args for tx request
     std::array<fr, ARGS_LENGTH> args;
@@ -40,7 +41,7 @@ TEST(abis, hash_tx_request)
         args[i] = fr(engine.get_random_uint256());
     }
 
-    // Construct mostly empty TxRequest with some randomized fields
+    // Construct TxRequest with some randomized fields
     TxRequest<NT> tx_request = TxRequest<NT>{
         .from = engine.get_random_uint256(),
         .to = engine.get_random_uint256(),
@@ -52,7 +53,6 @@ TEST(abis, hash_tx_request)
     };
 
     // Write the tx request to a buffer and
-    // allocate an output buffer for cbind hash results
     std::vector<uint8_t> buf;
     write(buf, tx_request);
 
@@ -68,32 +68,56 @@ TEST(abis, hash_tx_request)
     EXPECT_EQ(got_hash, tx_request.hash());
 }
 
-TEST(abis, compute_function_selector_transfer)
+TEST(abi_tests, compute_function_selector_transfer)
 {
     const char* function_signature = "transfer(address,uint256)";
 
     // create an output buffer for cbind selector results
-    std::array<uint8_t, 4> output = { 0 };
+    std::array<uint8_t, FUNCTION_SELECTOR_NUM_BYTES> output = { 0 };
     // Make the c_bind call to compute the function selector via keccak256
     abis__compute_function_selector(function_signature, output.data());
 
-    // get the selector as a hex string of 4 bytes and
+    // get the selector as a hex string
     // compare against known good selector from solidity
-    EXPECT_EQ(bytes_to_hex_str(output), "a9059cbb");
+    // In solidity where selectors are 4 bytes it is a9059cbb
+    std::string full_selector = "a9059cbb2ab09eb219583f4a59a5d0623ade346d962bcd4e46b11da047c9049b";
+    EXPECT_EQ(bytes_to_hex_str(output), full_selector.substr(0, FUNCTION_SELECTOR_NUM_BYTES * 2));
 }
 
-TEST(abis, compute_function_selector_transferFrom)
+TEST(abi_tests, compute_function_selector_transferFrom)
 {
     const char* function_signature = "transferFrom(address,address,uint256)";
 
     // create an output buffer for cbind selector results
-    std::array<uint8_t, 4> output = { 0 };
+    std::array<uint8_t, FUNCTION_SELECTOR_NUM_BYTES> output = { 0 };
     // Make the c_bind call to compute the function selector via keccak256
     abis__compute_function_selector(function_signature, output.data());
 
-    // get the selector as a hex string of 4 bytes and
+    // get the selector as a hex string
     // compare against known good selector from solidity
-    EXPECT_EQ(bytes_to_hex_str(output), "23b872dd");
+    std::string full_selector = "23b872dd7302113369cda2901243429419bec145408fa8b352b3dd92b66c680b";
+    EXPECT_EQ(bytes_to_hex_str(output), full_selector.substr(0, FUNCTION_SELECTOR_NUM_BYTES * 2));
+}
+
+TEST(abi_tests, compute_function_leaf)
+{
+    // Construct FunctionLeafPreimage with some randomized fields
+    FunctionLeafPreimage<NT> preimage = FunctionLeafPreimage<NT>{
+        .function_selector = engine.get_random_uint256(),
+        .is_private = static_cast<bool>(engine.get_random_uint8() & 1),
+        .vk_hash = engine.get_random_uint256(),
+        .acir_hash = engine.get_random_uint256(),
+    };
+
+    // Write the leaf preimage to a buffer
+    std::vector<uint8_t> preimage_buf;
+    write(preimage_buf, preimage);
+
+    std::array<uint8_t, 32> output = { 0 };
+    abis__compute_function_leaf(preimage_buf.data(), output.data());
+
+    NT::fr got_leaf = NT::fr::serialize_from_buffer(output.data());
+    EXPECT_EQ(got_leaf, preimage.hash());
 }
 
 } // namespace aztec3::circuits::abis
