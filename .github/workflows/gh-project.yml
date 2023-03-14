@@ -15,7 +15,7 @@ jobs:
       - name: Move issue to ${{ env.lang }}
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.GH_PROJECT_AUTO_ADD }}
+          gh_token: ${{ secrets.GH_PROJECT_AUTO_ADD_2 }}
           organization: noir-lang-test
           project_id: 1
           resource_node_id: ${{ github.event.issue.node_id }}
