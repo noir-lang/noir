@@ -1334,7 +1334,7 @@ mod test {
         assert_eq!(errors.len(), 1);
         let err = errors.pop().unwrap();
 
-        path_unresolved_error(err, "some::path::to::a::func");
+        path_unresolved_error(err, "func");
     }
 
     #[test]
@@ -1374,7 +1374,7 @@ mod test {
                 ResolverError::VariableNotDeclared { name, .. } => {
                     assert_eq!(name, "a");
                 }
-                ResolverError::PathResolutionError(_) => path_unresolved_error(err, "foo::bar"),
+                ResolverError::PathResolutionError(_) => path_unresolved_error(err, "bar"),
                 _ => unimplemented!(),
             };
         }
@@ -1440,7 +1440,7 @@ mod test {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             let mod_def = self.0.get(&name.0.contents).cloned();
-            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name))
+            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 
         fn local_module_id(&self) -> LocalModuleId {
