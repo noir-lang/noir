@@ -55,19 +55,19 @@ std::shared_ptr<bonk::verification_key> StandardHonkComposerHelper<CircuitConstr
     auto commitment_key = pcs::kzg::CommitmentKey(proving_key->circuit_size, "../srs_db/ignition");
 
     // Compute and store commitments to all precomputed polynomials
-    key->commitments["Q_M"] = commitment_key.commit(proving_key->polynomial_cache.get("q_m_lagrange"));
-    key->commitments["Q_1"] = commitment_key.commit(proving_key->polynomial_cache.get("q_1_lagrange"));
-    key->commitments["Q_2"] = commitment_key.commit(proving_key->polynomial_cache.get("q_2_lagrange"));
-    key->commitments["Q_3"] = commitment_key.commit(proving_key->polynomial_cache.get("q_3_lagrange"));
-    key->commitments["Q_C"] = commitment_key.commit(proving_key->polynomial_cache.get("q_c_lagrange"));
-    key->commitments["SIGMA_1"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_1_lagrange"));
-    key->commitments["SIGMA_2"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_2_lagrange"));
-    key->commitments["SIGMA_3"] = commitment_key.commit(proving_key->polynomial_cache.get("sigma_3_lagrange"));
-    key->commitments["ID_1"] = commitment_key.commit(proving_key->polynomial_cache.get("id_1_lagrange"));
-    key->commitments["ID_2"] = commitment_key.commit(proving_key->polynomial_cache.get("id_2_lagrange"));
-    key->commitments["ID_3"] = commitment_key.commit(proving_key->polynomial_cache.get("id_3_lagrange"));
-    key->commitments["LAGRANGE_FIRST"] = commitment_key.commit(proving_key->polynomial_cache.get("L_first_lagrange"));
-    key->commitments["LAGRANGE_LAST"] = commitment_key.commit(proving_key->polynomial_cache.get("L_last_lagrange"));
+    key->commitments["Q_M"] = commitment_key.commit(proving_key->polynomial_store.get("q_m_lagrange"));
+    key->commitments["Q_1"] = commitment_key.commit(proving_key->polynomial_store.get("q_1_lagrange"));
+    key->commitments["Q_2"] = commitment_key.commit(proving_key->polynomial_store.get("q_2_lagrange"));
+    key->commitments["Q_3"] = commitment_key.commit(proving_key->polynomial_store.get("q_3_lagrange"));
+    key->commitments["Q_C"] = commitment_key.commit(proving_key->polynomial_store.get("q_c_lagrange"));
+    key->commitments["SIGMA_1"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_1_lagrange"));
+    key->commitments["SIGMA_2"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_2_lagrange"));
+    key->commitments["SIGMA_3"] = commitment_key.commit(proving_key->polynomial_store.get("sigma_3_lagrange"));
+    key->commitments["ID_1"] = commitment_key.commit(proving_key->polynomial_store.get("id_1_lagrange"));
+    key->commitments["ID_2"] = commitment_key.commit(proving_key->polynomial_store.get("id_2_lagrange"));
+    key->commitments["ID_3"] = commitment_key.commit(proving_key->polynomial_store.get("id_3_lagrange"));
+    key->commitments["LAGRANGE_FIRST"] = commitment_key.commit(proving_key->polynomial_store.get("L_first_lagrange"));
+    key->commitments["LAGRANGE_LAST"] = commitment_key.commit(proving_key->polynomial_store.get("L_last_lagrange"));
 
     return key;
 }

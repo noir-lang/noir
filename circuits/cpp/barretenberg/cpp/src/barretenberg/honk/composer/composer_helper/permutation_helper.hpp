@@ -224,7 +224,7 @@ void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
     // Save to polynomial cache
     for (size_t j = 0; j < program_width; j++) {
         std::string index = std::to_string(j + 1);
-        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
+        key->polynomial_store.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
     }
 
 } // namespace honk
@@ -323,7 +323,7 @@ void compute_standard_plonk_sigma_lagrange_polynomials_from_mapping(
         std::string index = std::to_string(i + 1);
         barretenberg::polynomial sigma_polynomial_lagrange(key->circuit_size);
         compute_standard_plonk_lagrange_polynomial(sigma_polynomial_lagrange, sigma_mappings[i], key->small_domain);
-        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
+        key->polynomial_store.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
     }
 }
 
@@ -343,7 +343,7 @@ template <size_t program_width> void compute_sigma_polynomials_monomial_and_cose
         // Construct permutation polynomials in lagrange base
         std::string index = std::to_string(i + 1);
 
-        barretenberg::polynomial sigma_polynomial_lagrange = key->polynomial_cache.get("sigma_" + index + "_lagrange");
+        barretenberg::polynomial sigma_polynomial_lagrange = key->polynomial_store.get("sigma_" + index + "_lagrange");
         // Compute permutation polynomial monomial form
         barretenberg::polynomial sigma_polynomial(key->circuit_size);
         barretenberg::polynomial_arithmetic::ifft(
@@ -353,8 +353,8 @@ template <size_t program_width> void compute_sigma_polynomials_monomial_and_cose
         barretenberg::polynomial sigma_fft(sigma_polynomial, key->large_domain.size);
         sigma_fft.coset_fft(key->large_domain);
 
-        key->polynomial_cache.put("sigma_" + index, std::move(sigma_polynomial));
-        key->polynomial_cache.put("sigma_" + index + "_fft", std::move(sigma_fft));
+        key->polynomial_store.put("sigma_" + index, std::move(sigma_polynomial));
+        key->polynomial_store.put("sigma_" + index + "_fft", std::move(sigma_fft));
     }
 }
 
@@ -381,7 +381,7 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
             id_j[i] = (j * n + i);
         }
         std::string index = std::to_string(j + 1);
-        key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_j));
+        key->polynomial_store.put("id_" + index + "_lagrange", std::move(id_j));
     }
 }
 
@@ -438,8 +438,8 @@ inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key
     barretenberg::polynomial lagrange_polynomial_n_min_1(n);
     lagrange_polynomial_0[0] = 1;
     lagrange_polynomial_n_min_1[n - 1] = 1;
-    key->polynomial_cache.put("L_first_lagrange", std::move(lagrange_polynomial_0));
-    key->polynomial_cache.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
+    key->polynomial_store.put("L_first_lagrange", std::move(lagrange_polynomial_0));
+    key->polynomial_store.put("L_last_lagrange", std::move(lagrange_polynomial_n_min_1));
 }
 
 } // namespace bonk

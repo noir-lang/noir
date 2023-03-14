@@ -46,24 +46,24 @@ TEST(stdlib_bool, test_basic_operations)
     EXPECT_EQ(prover.wire_polynomials[1][8], fr(1));
     EXPECT_EQ(prover.wire_polynomials[2][8], fr(1));
     // } else {
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[3], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[3], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[3], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[4], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[4], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[4], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[5], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[5], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[5], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_1_lagrange")[6], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_2_lagrange")[6], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_cache.get("w_3_lagrange")[6], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[1], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[2], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[3], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[3], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[3], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[4], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[4], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[4], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[5], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[5], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[5], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[6], fr(0));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[6], fr(1));
+    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[6], fr(1));
     // }
     EXPECT_EQ(prover.key->circuit_size, 16UL);
 }

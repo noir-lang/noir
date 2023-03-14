@@ -192,9 +192,9 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
         barretenberg::polynomial sigma_fft(sigma_polynomial, key->large_domain.size);
         sigma_fft.coset_fft(key->large_domain);
 
-        key->polynomial_cache.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
-        key->polynomial_cache.put("sigma_" + index, std::move(sigma_polynomial));
-        key->polynomial_cache.put("sigma_" + index + "_fft", std::move(sigma_fft));
+        key->polynomial_store.put("sigma_" + index + "_lagrange", std::move(sigma_polynomial_lagrange));
+        key->polynomial_store.put("sigma_" + index, std::move(sigma_polynomial));
+        key->polynomial_store.put("sigma_" + index + "_fft", std::move(sigma_fft));
 
         if (with_tags) {
             // Construct id polynomials in lagrange base
@@ -210,9 +210,9 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
             barretenberg::polynomial id_fft(id_polynomial, key->large_domain.size);
             id_fft.coset_fft(key->large_domain);
 
-            key->polynomial_cache.put("id_" + index + "_lagrange", std::move(id_polynomial_lagrange));
-            key->polynomial_cache.put("id_" + index, std::move(id_polynomial));
-            key->polynomial_cache.put("id_" + index + "_fft", std::move(id_fft));
+            key->polynomial_store.put("id_" + index + "_lagrange", std::move(id_polynomial_lagrange));
+            key->polynomial_store.put("id_" + index, std::move(id_polynomial));
+            key->polynomial_store.put("id_" + index + "_fft", std::move(id_fft));
         }
     }
 }
@@ -296,10 +296,10 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const Compos
         selector_poly_fft.coset_fft(circuit_proving_key->large_domain);
 
         if (properties.requires_lagrange_base_polynomial) {
-            circuit_proving_key->polynomial_cache.put(properties.name + "_lagrange", std::move(selector_poly_lagrange));
+            circuit_proving_key->polynomial_store.put(properties.name + "_lagrange", std::move(selector_poly_lagrange));
         }
-        circuit_proving_key->polynomial_cache.put(properties.name, std::move(selector_poly));
-        circuit_proving_key->polynomial_cache.put(properties.name + "_fft", std::move(selector_poly_fft));
+        circuit_proving_key->polynomial_store.put(properties.name, std::move(selector_poly));
+        circuit_proving_key->polynomial_store.put(properties.name + "_fft", std::move(selector_poly_fft));
     }
 
     return circuit_proving_key;
@@ -326,7 +326,7 @@ std::shared_ptr<verification_key> ComposerBase::compute_verification_key_base(
             selector_poly_info.source == PolynomialSource::PERMUTATION) {
             // Fetch the constraint selector polynomial in its coefficient form.
             fr* selector_poly_coefficients;
-            selector_poly_coefficients = proving_key->polynomial_cache.get(selector_poly_label).get_coefficients();
+            selector_poly_coefficients = proving_key->polynomial_store.get(selector_poly_label).get_coefficients();
 
             // Commit to the constraint selector polynomial and insert the commitment in the verification key.
             auto selector_poly_commitment = g1::affine_element(
@@ -404,11 +404,11 @@ template <size_t program_width> void ComposerBase::compute_witness_base(const si
             fr::__copy(get_variable(w_4[i - public_inputs.size()]), w_4_lagrange.at(i));
     }
 
-    circuit_proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_1_lagrange));
-    circuit_proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_2_lagrange));
-    circuit_proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_3_lagrange));
+    circuit_proving_key->polynomial_store.put("w_1_lagrange", std::move(w_1_lagrange));
+    circuit_proving_key->polynomial_store.put("w_2_lagrange", std::move(w_2_lagrange));
+    circuit_proving_key->polynomial_store.put("w_3_lagrange", std::move(w_3_lagrange));
     if (program_width > 3) {
-        circuit_proving_key->polynomial_cache.put("w_4_lagrange", std::move(w_4_lagrange));
+        circuit_proving_key->polynomial_store.put("w_4_lagrange", std::move(w_4_lagrange));
     }
 
     computed_witness = true;

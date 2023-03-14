@@ -195,9 +195,9 @@ plonk::Prover generate_test_data(const size_t n)
     polynomial sigma_2_lagrange_base(sigma_2, key->circuit_size);
     polynomial sigma_3_lagrange_base(sigma_3, key->circuit_size);
 
-    key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
-    key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
-    key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
+    key->polynomial_store.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
+    key->polynomial_store.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
+    key->polynomial_store.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
     sigma_1.ifft(key->small_domain);
     sigma_2.ifft(key->small_domain);
@@ -211,13 +211,13 @@ plonk::Prover generate_test_data(const size_t n)
     sigma_2_fft.coset_fft(key->large_domain);
     sigma_3_fft.coset_fft(key->large_domain);
 
-    key->polynomial_cache.put("sigma_1", std::move(sigma_1));
-    key->polynomial_cache.put("sigma_2", std::move(sigma_2));
-    key->polynomial_cache.put("sigma_3", std::move(sigma_3));
+    key->polynomial_store.put("sigma_1", std::move(sigma_1));
+    key->polynomial_store.put("sigma_2", std::move(sigma_2));
+    key->polynomial_store.put("sigma_3", std::move(sigma_3));
 
-    key->polynomial_cache.put("sigma_1_fft", std::move(sigma_1_fft));
-    key->polynomial_cache.put("sigma_2_fft", std::move(sigma_2_fft));
-    key->polynomial_cache.put("sigma_3_fft", std::move(sigma_3_fft));
+    key->polynomial_store.put("sigma_1_fft", std::move(sigma_1_fft));
+    key->polynomial_store.put("sigma_2_fft", std::move(sigma_2_fft));
+    key->polynomial_store.put("sigma_3_fft", std::move(sigma_3_fft));
 
     w_l.at(n - 1) = fr::zero();
     w_r.at(n - 1) = fr::zero();
@@ -233,9 +233,9 @@ plonk::Prover generate_test_data(const size_t n)
     w_o.at(shift - 1) = fr::zero();
     q_c.at(shift - 1) = fr::zero();
 
-    key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
-    key->polynomial_cache.put("w_2_lagrange", std::move(w_r));
-    key->polynomial_cache.put("w_3_lagrange", std::move(w_o));
+    key->polynomial_store.put("w_1_lagrange", std::move(w_l));
+    key->polynomial_store.put("w_2_lagrange", std::move(w_r));
+    key->polynomial_store.put("w_3_lagrange", std::move(w_o));
 
     q_l.ifft(key->small_domain);
     q_r.ifft(key->small_domain);
@@ -255,17 +255,17 @@ plonk::Prover generate_test_data(const size_t n)
     q_m_fft.coset_fft(key->large_domain);
     q_c_fft.coset_fft(key->large_domain);
 
-    key->polynomial_cache.put("q_1", std::move(q_l));
-    key->polynomial_cache.put("q_2", std::move(q_r));
-    key->polynomial_cache.put("q_3", std::move(q_o));
-    key->polynomial_cache.put("q_m", std::move(q_m));
-    key->polynomial_cache.put("q_c", std::move(q_c));
+    key->polynomial_store.put("q_1", std::move(q_l));
+    key->polynomial_store.put("q_2", std::move(q_r));
+    key->polynomial_store.put("q_3", std::move(q_o));
+    key->polynomial_store.put("q_m", std::move(q_m));
+    key->polynomial_store.put("q_c", std::move(q_c));
 
-    key->polynomial_cache.put("q_1_fft", std::move(q_1_fft));
-    key->polynomial_cache.put("q_2_fft", std::move(q_2_fft));
-    key->polynomial_cache.put("q_3_fft", std::move(q_3_fft));
-    key->polynomial_cache.put("q_m_fft", std::move(q_m_fft));
-    key->polynomial_cache.put("q_c_fft", std::move(q_c_fft));
+    key->polynomial_store.put("q_1_fft", std::move(q_1_fft));
+    key->polynomial_store.put("q_2_fft", std::move(q_2_fft));
+    key->polynomial_store.put("q_3_fft", std::move(q_3_fft));
+    key->polynomial_store.put("q_m_fft", std::move(q_m_fft));
+    key->polynomial_store.put("q_c_fft", std::move(q_c_fft));
 
     std::unique_ptr<plonk::ProverPermutationWidget<3, false>> permutation_widget =
         std::make_unique<plonk::ProverPermutationWidget<3, false>>(key.get());

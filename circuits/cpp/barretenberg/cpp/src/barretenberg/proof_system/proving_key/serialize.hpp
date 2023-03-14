@@ -26,7 +26,7 @@ template <typename B> inline void read(B& any, proving_key_data& key)
         read(any, label);
         read(any, value);
 
-        key.polynomial_cache.put(label, std::move(value));
+        key.polynomial_store.put(label, std::move(value));
     }
 
     read(any, key.contains_recursive_proof);
@@ -50,7 +50,7 @@ template <typename B> inline void write(B& buf, proving_key const& key)
 
     for (size_t i = 0; i < num_polys; ++i) {
         std::string poly_id = precomputed_poly_list[i];
-        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_cache.get(poly_id);
+        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_store.get(poly_id);
         write(buf, poly_id);
         write(buf, value);
     }
@@ -76,7 +76,7 @@ template <typename B> inline void read_mmap(B& is, std::string const& path, prov
         std::string name;
         read(is, name);
         barretenberg::polynomial value(format(path, "/", file_num++, "_", name));
-        key.polynomial_cache.put(name, std::move(value));
+        key.polynomial_store.put(name, std::move(value));
     }
     read(is, key.contains_recursive_proof);
     read(is, key.recursive_proof_public_input_indices);
@@ -101,7 +101,7 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
         std::string poly_id = precomputed_poly_list[i];
         auto filename = format(path, "/", file_num++, "_", poly_id);
         write(os, poly_id);
-        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_cache.get(poly_id);
+        const barretenberg::polynomial& value = ((proving_key&)key).polynomial_store.get(poly_id);
         auto size = value.size();
         std::ofstream ofs(filename);
         ofs.write((char*)&value[0], (std::streamsize)(size * sizeof(barretenberg::fr)));

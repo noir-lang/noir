@@ -123,10 +123,7 @@ template <typename Fr> class Polynomial {
     bool is_empty() const { return (coefficients_ == nullptr) || (size_ == 0); }
 
     // safety check for in place operations
-    bool in_place_operation_viable(size_t domain_size = 0)
-    {
-        return !is_empty() && !mapped() && (size() >= domain_size);
-    }
+    bool in_place_operation_viable(size_t domain_size = 0) { return !mapped() && (size() >= domain_size); }
 
     Fr* allocate_aligned_memory(const size_t size) const { return static_cast<Fr*>(aligned_alloc(sizeof(Fr), size)); }
 

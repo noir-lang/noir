@@ -55,21 +55,21 @@ template <class Fscalar> class ProverTests : public testing::Test {
             // Add polys to proving_key; to be used by the prover in constructing it's own z_perm
             std::string wire_id = "w_" + std::to_string(i + 1) + "_lagrange";
             std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
-            proving_key->polynomial_cache.put(wire_id, std::move(wire_poly));
-            proving_key->polynomial_cache.put(sigma_id, std::move(sigma_poly));
+            proving_key->polynomial_store.put(wire_id, std::move(wire_poly));
+            proving_key->polynomial_store.put(sigma_id, std::move(sigma_poly));
         }
 
         // Add some empty polynomials to make Prover constructor happy; not used in the z_perm calculation
-        proving_key->polynomial_cache.put("id_1_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("id_2_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("id_3_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("q_1_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("q_2_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("q_3_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("q_m_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("q_c_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("L_first_lagrange", polynomial(proving_key->circuit_size));
-        proving_key->polynomial_cache.put("L_last_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("id_1_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("id_2_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("id_3_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("q_1_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("q_2_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("q_3_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("q_m_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("q_c_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("L_first_lagrange", polynomial(proving_key->circuit_size));
+        proving_key->polynomial_store.put("L_last_lagrange", polynomial(proving_key->circuit_size));
 
         // Instantiate a Prover with wire polynomials and pointer to the proving_key just constructed
         auto wires_copy = wires;

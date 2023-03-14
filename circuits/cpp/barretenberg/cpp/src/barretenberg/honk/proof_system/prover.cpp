@@ -50,19 +50,19 @@ Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
 {
     // Note(luke): This could be done programmatically with some hacks but this isnt too bad and its nice to see the
     // polys laid out explicitly.
-    prover_polynomials[POLYNOMIAL::Q_C] = key->polynomial_cache.get("q_c_lagrange");
-    prover_polynomials[POLYNOMIAL::Q_L] = key->polynomial_cache.get("q_1_lagrange");
-    prover_polynomials[POLYNOMIAL::Q_R] = key->polynomial_cache.get("q_2_lagrange");
-    prover_polynomials[POLYNOMIAL::Q_O] = key->polynomial_cache.get("q_3_lagrange");
-    prover_polynomials[POLYNOMIAL::Q_M] = key->polynomial_cache.get("q_m_lagrange");
-    prover_polynomials[POLYNOMIAL::SIGMA_1] = key->polynomial_cache.get("sigma_1_lagrange");
-    prover_polynomials[POLYNOMIAL::SIGMA_2] = key->polynomial_cache.get("sigma_2_lagrange");
-    prover_polynomials[POLYNOMIAL::SIGMA_3] = key->polynomial_cache.get("sigma_3_lagrange");
-    prover_polynomials[POLYNOMIAL::ID_1] = key->polynomial_cache.get("id_1_lagrange");
-    prover_polynomials[POLYNOMIAL::ID_2] = key->polynomial_cache.get("id_2_lagrange");
-    prover_polynomials[POLYNOMIAL::ID_3] = key->polynomial_cache.get("id_3_lagrange");
-    prover_polynomials[POLYNOMIAL::LAGRANGE_FIRST] = key->polynomial_cache.get("L_first_lagrange");
-    prover_polynomials[POLYNOMIAL::LAGRANGE_LAST] = key->polynomial_cache.get("L_last_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_C] = key->polynomial_store.get("q_c_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_L] = key->polynomial_store.get("q_1_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_R] = key->polynomial_store.get("q_2_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_O] = key->polynomial_store.get("q_3_lagrange");
+    prover_polynomials[POLYNOMIAL::Q_M] = key->polynomial_store.get("q_m_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_1] = key->polynomial_store.get("sigma_1_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_2] = key->polynomial_store.get("sigma_2_lagrange");
+    prover_polynomials[POLYNOMIAL::SIGMA_3] = key->polynomial_store.get("sigma_3_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_1] = key->polynomial_store.get("id_1_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_2] = key->polynomial_store.get("id_2_lagrange");
+    prover_polynomials[POLYNOMIAL::ID_3] = key->polynomial_store.get("id_3_lagrange");
+    prover_polynomials[POLYNOMIAL::LAGRANGE_FIRST] = key->polynomial_store.get("L_first_lagrange");
+    prover_polynomials[POLYNOMIAL::LAGRANGE_LAST] = key->polynomial_store.get("L_last_lagrange");
     prover_polynomials[POLYNOMIAL::W_L] = wire_polynomials[0];
     prover_polynomials[POLYNOMIAL::W_R] = wire_polynomials[1];
     prover_polynomials[POLYNOMIAL::W_O] = wire_polynomials[2];
@@ -128,7 +128,7 @@ template <typename settings> Polynomial Prover<settings>::compute_grand_product_
     for (size_t i = 0; i < program_width; ++i) {
         std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
         wires[i] = wire_polynomials[i];
-        sigmas[i] = key->polynomial_cache.get(sigma_id);
+        sigmas[i] = key->polynomial_store.get(sigma_id);
     }
 
     // Step (1)

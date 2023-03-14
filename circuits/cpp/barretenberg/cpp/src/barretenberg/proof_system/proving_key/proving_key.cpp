@@ -29,10 +29,6 @@ proving_key::proving_key(const size_t num_gates,
     , circuit_size(num_gates)
     , log_circuit_size(numeric::get_msb(num_gates))
     , num_public_inputs(num_inputs)
-    // Note: must be uncommented for low-mem prover functionality. See corresponding note in proving_key.hpp
-    // #ifdef __wasm__
-    //     , polynomial_cache(&underlying_store, get_cache_capacity(num_gates, type))
-    // #endif
     , small_domain(circuit_size, circuit_size)
     , large_domain(4 * circuit_size, circuit_size > min_thread_block ? circuit_size : 4 * circuit_size)
     , reference_string(crs)
@@ -56,7 +52,7 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
     , memory_read_records(data.memory_read_records)
     , memory_write_records(data.memory_write_records)
-    , polynomial_cache(data.polynomial_cache)
+    , polynomial_store(data.polynomial_store)
     , small_domain(circuit_size, circuit_size)
     , large_domain(4 * circuit_size, circuit_size > min_thread_block ? circuit_size : 4 * circuit_size)
     , reference_string(crs)

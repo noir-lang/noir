@@ -159,7 +159,7 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
 
-        fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
+        fr* poly = input_key->polynomial_store.get(poly_label).get_coefficients();
 
         const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
         opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
@@ -219,14 +219,14 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
     KateCommitmentScheme::compute_opening_polynomial(
         &shifted_opening_poly[0], &shifted_opening_poly[0], zeta_omega, input_key->circuit_size);
 
-    input_key->polynomial_cache.put("opening_poly", std::move(opening_poly));
-    input_key->polynomial_cache.put("shifted_opening_poly", std::move(shifted_opening_poly));
+    input_key->polynomial_store.put("opening_poly", std::move(opening_poly));
+    input_key->polynomial_store.put("shifted_opening_poly", std::move(shifted_opening_poly));
 
     // Commit to the opening and shifted opening polynomials
     KateCommitmentScheme::commit(
-        input_key->polynomial_cache.get("opening_poly").get_coefficients(), "PI_Z", fr(0), queue);
+        input_key->polynomial_store.get("opening_poly").get_coefficients(), "PI_Z", fr(0), queue);
     KateCommitmentScheme::commit(
-        input_key->polynomial_cache.get("shifted_opening_poly").get_coefficients(), "PI_Z_OMEGA", fr(0), queue);
+        input_key->polynomial_store.get("shifted_opening_poly").get_coefficients(), "PI_Z_OMEGA", fr(0), queue);
 }
 
 template <typename settings>
@@ -363,7 +363,7 @@ void KateCommitmentScheme<settings>::add_opening_evaluations_to_transcript(trans
         const auto& info = input_key->polynomial_manifest[i];
         const std::string poly_label(info.polynomial_label);
 
-        fr* poly = input_key->polynomial_cache.get(poly_label).get_coefficients();
+        fr* poly = input_key->polynomial_store.get(poly_label).get_coefficients();
 
         fr poly_evaluation(0);
 

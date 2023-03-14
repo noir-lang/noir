@@ -53,10 +53,10 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sorted_list_polynomial(
     transcript::StandardTranscript& transcript)
 {
-    barretenberg::polynomial s_accum(key->polynomial_cache.get("s_1_lagrange"));
-    std::span<const fr> s_2 = key->polynomial_cache.get("s_2_lagrange");
-    std::span<const fr> s_3 = key->polynomial_cache.get("s_3_lagrange");
-    std::span<const fr> s_4 = key->polynomial_cache.get("s_4_lagrange");
+    barretenberg::polynomial s_accum(key->polynomial_store.get("s_1_lagrange"));
+    std::span<const fr> s_2 = key->polynomial_store.get("s_2_lagrange");
+    std::span<const fr> s_3 = key->polynomial_store.get("s_3_lagrange");
+    std::span<const fr> s_4 = key->polynomial_store.get("s_4_lagrange");
 
     // Get challenge η
     const auto eta = fr::serialize_from_buffer(transcript.get_challenge("eta", 0).begin());
@@ -94,11 +94,11 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sor
 
     // Save the lagrange base representation of s
     polynomial s_lagrange(s_accum, key->small_domain.size);
-    key->polynomial_cache.put("s_lagrange", std::move(s_lagrange));
+    key->polynomial_store.put("s_lagrange", std::move(s_lagrange));
 
     // Compute the monomial coefficient representation of s
     s_accum.ifft(key->small_domain);
-    key->polynomial_cache.put("s", std::move(s_accum));
+    key->polynomial_store.put("s", std::move(s_accum));
 }
 /**
  * @brief Compute the blinded lookup grand product polynomial Z_lookup(X)
@@ -139,11 +139,11 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
         accumulators[k] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
     }
 
-    polynomial s_lagrange = key->polynomial_cache.get("s_lagrange");
+    polynomial s_lagrange = key->polynomial_store.get("s_lagrange");
 
-    const fr* column_1_step_size = key->polynomial_cache.get("q_2_lagrange").get_coefficients();
-    const fr* column_2_step_size = key->polynomial_cache.get("q_m_lagrange").get_coefficients();
-    const fr* column_3_step_size = key->polynomial_cache.get("q_c_lagrange").get_coefficients();
+    const fr* column_1_step_size = key->polynomial_store.get("q_2_lagrange").get_coefficients();
+    const fr* column_2_step_size = key->polynomial_store.get("q_m_lagrange").get_coefficients();
+    const fr* column_3_step_size = key->polynomial_store.get("q_c_lagrange").get_coefficients();
 
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     fr eta_sqr = eta.sqr();
@@ -153,17 +153,17 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
     fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
     std::array<const fr*, 3> lagrange_base_wires;
     std::array<const fr*, 4> lagrange_base_tables{
-        key->polynomial_cache.get("table_value_1_lagrange").get_coefficients(),
-        key->polynomial_cache.get("table_value_2_lagrange").get_coefficients(),
-        key->polynomial_cache.get("table_value_3_lagrange").get_coefficients(),
-        key->polynomial_cache.get("table_value_4_lagrange").get_coefficients(),
+        key->polynomial_store.get("table_value_1_lagrange").get_coefficients(),
+        key->polynomial_store.get("table_value_2_lagrange").get_coefficients(),
+        key->polynomial_store.get("table_value_3_lagrange").get_coefficients(),
+        key->polynomial_store.get("table_value_4_lagrange").get_coefficients(),
     };
 
-    const fr* lookup_selector = key->polynomial_cache.get("table_type_lagrange").get_coefficients();
-    const fr* lookup_index_selector = key->polynomial_cache.get("q_3_lagrange").get_coefficients();
+    const fr* lookup_selector = key->polynomial_store.get("table_type_lagrange").get_coefficients();
+    const fr* lookup_index_selector = key->polynomial_store.get("q_3_lagrange").get_coefficients();
     for (size_t i = 0; i < 3; ++i) {
         lagrange_base_wires[i] =
-            key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
+            key->polynomial_store.get("w_" + std::to_string(i + 1) + "_lagrange").get_coefficients();
     }
 
     const fr beta_constant = beta + fr(1);                // (1 + β)
@@ -334,7 +334,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_gra
 
     // Compute and add monomial form of z_lookup to the polynomial store
     z_lookup.ifft(key->small_domain);
-    key->polynomial_cache.put("z_lookup", std::move(z_lookup));
+    key->polynomial_store.put("z_lookup", std::move(z_lookup));
 }
 
 /**
@@ -351,7 +351,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
 {
     if (round_number == 2) {
         compute_sorted_list_polynomial(transcript);
-        const polynomial& s = key->polynomial_cache.get("s");
+        const polynomial& s = key->polynomial_store.get("s");
 
         // Commit to s:
         queue.add_to_queue({
@@ -375,7 +375,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
     }
     if (round_number == 3) {
         compute_grand_product_polynomial(transcript);
-        const polynomial& z = key->polynomial_cache.get("z_lookup");
+        const polynomial& z = key->polynomial_store.get("z_lookup");
 
         // Commit to z_lookup:
         queue.add_to_queue({
@@ -425,7 +425,7 @@ template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(
     const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
-    const polynomial& z_lookup_fft = key->polynomial_cache.get("z_lookup_fft");
+    const polynomial& z_lookup_fft = key->polynomial_store.get("z_lookup_fft");
 
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -433,30 +433,30 @@ barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>:
     fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     std::array<const fr*, 3> wire_ffts{
-        key->polynomial_cache.get("w_1_fft").get_coefficients(),
-        key->polynomial_cache.get("w_2_fft").get_coefficients(),
-        key->polynomial_cache.get("w_3_fft").get_coefficients(),
+        key->polynomial_store.get("w_1_fft").get_coefficients(),
+        key->polynomial_store.get("w_2_fft").get_coefficients(),
+        key->polynomial_store.get("w_3_fft").get_coefficients(),
     };
 
-    const fr* s_fft = key->polynomial_cache.get("s_fft").get_coefficients();
+    const fr* s_fft = key->polynomial_store.get("s_fft").get_coefficients();
 
     std::array<const fr*, 4> table_ffts{
-        key->polynomial_cache.get("table_value_1_fft").get_coefficients(),
-        key->polynomial_cache.get("table_value_2_fft").get_coefficients(),
-        key->polynomial_cache.get("table_value_3_fft").get_coefficients(),
-        key->polynomial_cache.get("table_value_4_fft").get_coefficients(),
+        key->polynomial_store.get("table_value_1_fft").get_coefficients(),
+        key->polynomial_store.get("table_value_2_fft").get_coefficients(),
+        key->polynomial_store.get("table_value_3_fft").get_coefficients(),
+        key->polynomial_store.get("table_value_4_fft").get_coefficients(),
     };
 
-    const fr* column_1_step_size = key->polynomial_cache.get("q_2_fft").get_coefficients();
-    const fr* column_2_step_size = key->polynomial_cache.get("q_m_fft").get_coefficients();
-    const fr* column_3_step_size = key->polynomial_cache.get("q_c_fft").get_coefficients();
+    const fr* column_1_step_size = key->polynomial_store.get("q_2_fft").get_coefficients();
+    const fr* column_2_step_size = key->polynomial_store.get("q_m_fft").get_coefficients();
+    const fr* column_3_step_size = key->polynomial_store.get("q_c_fft").get_coefficients();
 
-    const fr* lookup_fft = key->polynomial_cache.get("table_type_fft").get_coefficients();
-    const fr* lookup_index_fft = key->polynomial_cache.get("q_3_fft").get_coefficients();
+    const fr* lookup_fft = key->polynomial_store.get("table_type_fft").get_coefficients();
+    const fr* lookup_index_fft = key->polynomial_store.get("q_3_fft").get_coefficients();
 
     const fr gamma_beta_constant = gamma * (fr(1) + beta); // γ(1 + β)
 
-    const polynomial& l_1 = key->polynomial_cache.get("lagrange_1_fft");
+    const polynomial& l_1 = key->polynomial_store.get("lagrange_1_fft");
     // delta_factor = [γ(1 + β)]^{n-k}
     const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - num_roots_cut_out_of_vanishing_polynomial);
     const fr alpha_sqr = alpha.sqr();

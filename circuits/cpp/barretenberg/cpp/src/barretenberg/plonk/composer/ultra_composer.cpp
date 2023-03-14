@@ -561,9 +561,9 @@ void UltraComposer::add_table_column_selector_poly_to_proving_key(polynomial& se
     polynomial selector_poly_coset_form(selector_poly_coeff_form, circuit_proving_key->circuit_size * 4);
     selector_poly_coset_form.coset_fft(circuit_proving_key->large_domain);
 
-    circuit_proving_key->polynomial_cache.put(tag, std::move(selector_poly_coeff_form));
-    circuit_proving_key->polynomial_cache.put(tag + "_lagrange", std::move(selector_poly_lagrange_form_copy));
-    circuit_proving_key->polynomial_cache.put(tag + "_fft", std::move(selector_poly_coset_form));
+    circuit_proving_key->polynomial_store.put(tag, std::move(selector_poly_coeff_form));
+    circuit_proving_key->polynomial_store.put(tag + "_lagrange", std::move(selector_poly_lagrange_form_copy));
+    circuit_proving_key->polynomial_store.put(tag + "_fft", std::move(selector_poly_coset_form));
 }
 
 std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
@@ -702,8 +702,8 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key()
     // Note: might be better to add these polys to cache only after they've been computed, as is convention
     polynomial z_lookup_fft(subgroup_size * 4);
     polynomial s_fft(subgroup_size * 4);
-    circuit_proving_key->polynomial_cache.put("z_lookup_fft", std::move(z_lookup_fft));
-    circuit_proving_key->polynomial_cache.put("s_fft", std::move(s_fft));
+    circuit_proving_key->polynomial_store.put("z_lookup_fft", std::move(z_lookup_fft));
+    circuit_proving_key->polynomial_store.put("s_fft", std::move(s_fft));
 
     // TODO: composer-level constant variable needed for the program width
     compute_sigma_permutations<4, true>(circuit_proving_key.get());
@@ -862,10 +862,10 @@ void UltraComposer::compute_witness()
         ++count;
     }
 
-    circuit_proving_key->polynomial_cache.put("s_1_lagrange", std::move(s_1));
-    circuit_proving_key->polynomial_cache.put("s_2_lagrange", std::move(s_2));
-    circuit_proving_key->polynomial_cache.put("s_3_lagrange", std::move(s_3));
-    circuit_proving_key->polynomial_cache.put("s_4_lagrange", std::move(s_4));
+    circuit_proving_key->polynomial_store.put("s_1_lagrange", std::move(s_1));
+    circuit_proving_key->polynomial_store.put("s_2_lagrange", std::move(s_2));
+    circuit_proving_key->polynomial_store.put("s_3_lagrange", std::move(s_3));
+    circuit_proving_key->polynomial_store.put("s_4_lagrange", std::move(s_4));
 
     computed_witness = true;
 }

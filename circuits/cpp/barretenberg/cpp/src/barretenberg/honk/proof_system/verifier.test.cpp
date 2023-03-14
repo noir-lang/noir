@@ -29,14 +29,14 @@ template <class FF> class VerifierTests : public testing::Test {
     static StandardVerifier generate_verifier(std::shared_ptr<bonk::proving_key> circuit_proving_key)
     {
         std::array<fr*, 8> poly_coefficients;
-        poly_coefficients[0] = circuit_proving_key->polynomial_cache.get("q_1_lagrange").get_coefficients();
-        poly_coefficients[1] = circuit_proving_key->polynomial_cache.get("q_2_lagrange").get_coefficients();
-        poly_coefficients[2] = circuit_proving_key->polynomial_cache.get("q_3_lagrange").get_coefficients();
-        poly_coefficients[3] = circuit_proving_key->polynomial_cache.get("q_m_lagrange").get_coefficients();
-        poly_coefficients[4] = circuit_proving_key->polynomial_cache.get("q_c_lagrange").get_coefficients();
-        poly_coefficients[5] = circuit_proving_key->polynomial_cache.get("sigma_1_lagrange").get_coefficients();
-        poly_coefficients[6] = circuit_proving_key->polynomial_cache.get("sigma_2_lagrange").get_coefficients();
-        poly_coefficients[7] = circuit_proving_key->polynomial_cache.get("sigma_3_lagrange").get_coefficients();
+        poly_coefficients[0] = circuit_proving_key->polynomial_store.get("q_1_lagrange").get_coefficients();
+        poly_coefficients[1] = circuit_proving_key->polynomial_store.get("q_2_lagrange").get_coefficients();
+        poly_coefficients[2] = circuit_proving_key->polynomial_store.get("q_3_lagrange").get_coefficients();
+        poly_coefficients[3] = circuit_proving_key->polynomial_store.get("q_m_lagrange").get_coefficients();
+        poly_coefficients[4] = circuit_proving_key->polynomial_store.get("q_c_lagrange").get_coefficients();
+        poly_coefficients[5] = circuit_proving_key->polynomial_store.get("sigma_1_lagrange").get_coefficients();
+        poly_coefficients[6] = circuit_proving_key->polynomial_store.get("sigma_2_lagrange").get_coefficients();
+        poly_coefficients[7] = circuit_proving_key->polynomial_store.get("sigma_3_lagrange").get_coefficients();
 
         std::vector<barretenberg::g1::affine_element> commitments;
         scalar_multiplication::pippenger_runtime_state prover(circuit_proving_key->circuit_size);
@@ -173,22 +173,22 @@ template <class FF> class VerifierTests : public testing::Test {
         polynomial sigma_2_lagrange_base(sigma_2, proving_key->circuit_size);
         polynomial sigma_3_lagrange_base(sigma_3, proving_key->circuit_size);
 
-        proving_key->polynomial_cache.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
-        proving_key->polynomial_cache.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
-        proving_key->polynomial_cache.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
+        proving_key->polynomial_store.put("sigma_1_lagrange", std::move(sigma_1_lagrange_base));
+        proving_key->polynomial_store.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
+        proving_key->polynomial_store.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
         bonk::compute_standard_honk_id_polynomials<3>(proving_key);
         bonk::compute_first_and_last_lagrange_polynomials(proving_key);
 
-        proving_key->polynomial_cache.put("w_1_lagrange", std::move(w_l));
-        proving_key->polynomial_cache.put("w_2_lagrange", std::move(w_r));
-        proving_key->polynomial_cache.put("w_3_lagrange", std::move(w_o));
+        proving_key->polynomial_store.put("w_1_lagrange", std::move(w_l));
+        proving_key->polynomial_store.put("w_2_lagrange", std::move(w_r));
+        proving_key->polynomial_store.put("w_3_lagrange", std::move(w_o));
 
-        proving_key->polynomial_cache.put("q_1_lagrange", std::move(q_l));
-        proving_key->polynomial_cache.put("q_2_lagrange", std::move(q_r));
-        proving_key->polynomial_cache.put("q_3_lagrange", std::move(q_o));
-        proving_key->polynomial_cache.put("q_m_lagrange", std::move(q_m));
-        proving_key->polynomial_cache.put("q_c_lagrange", std::move(q_c));
+        proving_key->polynomial_store.put("q_1_lagrange", std::move(q_l));
+        proving_key->polynomial_store.put("q_2_lagrange", std::move(q_r));
+        proving_key->polynomial_store.put("q_3_lagrange", std::move(q_o));
+        proving_key->polynomial_store.put("q_m_lagrange", std::move(q_m));
+        proving_key->polynomial_store.put("q_c_lagrange", std::move(q_c));
 
         // TODO(#223)(Cody): This should be more generic
         std::vector<barretenberg::polynomial> witness_polynomials;

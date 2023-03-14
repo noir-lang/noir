@@ -80,7 +80,7 @@ void StandardPlonkComposerHelper<CircuitConstructor>::compute_witness(const Circ
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);
-        circuit_proving_key->polynomial_cache.put("w_" + index + "_lagrange",
+        circuit_proving_key->polynomial_store.put("w_" + index + "_lagrange",
                                                   std::move(wire_polynomial_evaluations[j]));
     }
     computed_witness = true;

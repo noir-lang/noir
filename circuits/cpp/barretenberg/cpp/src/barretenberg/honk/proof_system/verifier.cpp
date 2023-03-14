@@ -11,7 +11,7 @@
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
-#include "barretenberg/proof_system/polynomial_cache/polynomial_cache.hpp"
+#include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"

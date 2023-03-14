@@ -80,13 +80,13 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     [[maybe_unused]] std::array<std::span<const fr>, program_width> lagrange_base_ids;
 
     for (size_t i = 0; i < program_width; ++i) {
-        lagrange_base_wires[i] = key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_lagrange");
-        lagrange_base_sigmas[i] = key->polynomial_cache.get("sigma_" + std::to_string(i + 1) + "_lagrange");
+        lagrange_base_wires[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_lagrange");
+        lagrange_base_sigmas[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_lagrange");
 
         // If idpolys = true, it implies that we do NOT use the identity permutation
         // S_ID1(X) = X, S_ID2(X) = k_1X, S_ID3(X) = k_2X.
         if constexpr (idpolys)
-            lagrange_base_ids[i] = key->polynomial_cache.get("id_" + std::to_string(i + 1) + "_lagrange");
+            lagrange_base_ids[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_lagrange");
     }
 
 #ifndef NO_MULTITHREADING
@@ -339,14 +339,14 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         0,
     });
 
-    key->polynomial_cache.put("z_perm", std::move(z_perm));
+    key->polynomial_store.put("z_perm", std::move(z_perm));
 }
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
 barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::
     compute_quotient_contribution(const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
-    const polynomial& z_perm_fft = key->polynomial_cache.get("z_perm_fft");
+    const polynomial& z_perm_fft = key->polynomial_store.get("z_perm_fft");
 
     barretenberg::fr alpha_squared = alpha_base.sqr();
     barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
@@ -383,18 +383,18 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
         // wire_fft[0] contains the fft of the wire polynomial w_1
         // sigma_fft[0] contains the fft of the permutation selector polynomial \sigma_1
-        wire_ffts[i] = key->polynomial_cache.get("w_" + std::to_string(i + 1) + "_fft");
-        sigma_ffts[i] = key->polynomial_cache.get("sigma_" + std::to_string(i + 1) + "_fft");
+        wire_ffts[i] = key->polynomial_store.get("w_" + std::to_string(i + 1) + "_fft");
+        sigma_ffts[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_fft");
 
         // idpolys is FALSE iff the "identity permutation" is used as a monomial
         // as a part of the permutation polynomial
         // <=> idpolys = FALSE
         if constexpr (idpolys)
-            id_ffts[i] = key->polynomial_cache.get("id_" + std::to_string(i + 1) + "_fft");
+            id_ffts[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_fft");
     }
 
     // we start with lagrange polynomial L_1(X)
-    const polynomial& l_start = key->polynomial_cache.get("lagrange_1_fft");
+    const polynomial& l_start = key->polynomial_store.get("lagrange_1_fft");
 
     // Compute our public input component
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));

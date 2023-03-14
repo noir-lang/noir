@@ -232,7 +232,7 @@ class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_rela
             auto info_ = key->polynomial_manifest[i];
             if (required_polynomial_ids.contains(info_.index)) {
                 std::string label = std::string(info_.polynomial_label) + label_suffix;
-                result.coefficients[info_.index] = key->polynomial_cache.get(label);
+                result.coefficients[info_.index] = key->polynomial_store.get(label);
             }
         }
         return result;

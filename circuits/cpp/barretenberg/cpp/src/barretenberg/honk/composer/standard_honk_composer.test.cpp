@@ -42,7 +42,7 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         // Let's check that indices are the same and nothing is lost, first
         for (size_t j = 0; j < composer.program_width; ++j) {
             std::string index = std::to_string(j + 1);
-            const auto& sigma_j = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
+            const auto& sigma_j = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
             for (size_t i = 0; i < n; ++i) {
                 left *= (gamma + j * n + i);
                 right *= (gamma + sigma_j[i]);
@@ -68,9 +68,9 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
 
         for (size_t j = 0; j < composer.program_width; ++j) {
             std::string index = std::to_string(j + 1);
-            const auto& permutation_polynomial = proving_key->polynomial_cache.get("sigma_" + index + "_lagrange");
+            const auto& permutation_polynomial = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
             const auto& witness_polynomial = composer.composer_helper.wire_polynomials[j];
-            const auto& id_polynomial = proving_key->polynomial_cache.get("id_" + index + "_lagrange");
+            const auto& id_polynomial = proving_key->polynomial_store.get("id_" + index + "_lagrange");
             // left = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅ind(i,j) + γ)
             // right = ∏ᵢ,ⱼ(ωᵢ,ⱼ + β⋅σ(i,j) + γ)
             for (size_t i = 0; i < proving_key->circuit_size; ++i) {
@@ -156,7 +156,7 @@ TEST(StandardHonkComposer, LagrangeCorrectness)
         random_polynomial[i] = barretenberg::fr::random_element();
     }
     // Compute inner product of random polynomial and the first lagrange polynomial
-    barretenberg::polynomial first_lagrange_polynomial = proving_key->polynomial_cache.get("L_first_lagrange");
+    barretenberg::polynomial first_lagrange_polynomial = proving_key->polynomial_store.get("L_first_lagrange");
     barretenberg::fr first_product(0);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
         first_product += random_polynomial[i] * first_lagrange_polynomial[i];
@@ -164,7 +164,7 @@ TEST(StandardHonkComposer, LagrangeCorrectness)
     EXPECT_EQ(first_product, random_polynomial[0]);
 
     // Compute inner product of random polynomial and the last lagrange polynomial
-    barretenberg::polynomial last_lagrange_polynomial = proving_key->polynomial_cache.get("L_last_lagrange");
+    barretenberg::polynomial last_lagrange_polynomial = proving_key->polynomial_store.get("L_last_lagrange");
     barretenberg::fr last_product(0);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
         last_product += random_polynomial[i] * last_lagrange_polynomial[i];
@@ -213,7 +213,7 @@ TEST(StandardHonkComposer, AssertEquals)
         // Put the sigma polynomials into a vector for easy access
         for (size_t i = 0; i < composer.program_width; i++) {
             std::string index = std::to_string(i + 1);
-            sigma_polynomials.push_back(proving_key->polynomial_cache.get("sigma_" + index + "_lagrange"));
+            sigma_polynomials.push_back(proving_key->polynomial_store.get("sigma_" + index + "_lagrange"));
         }
 
         // Let's compute the maximum cycle
@@ -366,19 +366,19 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
     evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];
     evaluations_array[POLYNOMIAL::Z_PERM] = z_perm_poly;
     evaluations_array[POLYNOMIAL::Z_PERM_SHIFT] = z_perm_poly.shifted();
-    evaluations_array[POLYNOMIAL::Q_M] = prover.key->polynomial_cache.get("q_m_lagrange");
-    evaluations_array[POLYNOMIAL::Q_L] = prover.key->polynomial_cache.get("q_1_lagrange");
-    evaluations_array[POLYNOMIAL::Q_R] = prover.key->polynomial_cache.get("q_2_lagrange");
-    evaluations_array[POLYNOMIAL::Q_O] = prover.key->polynomial_cache.get("q_3_lagrange");
-    evaluations_array[POLYNOMIAL::Q_C] = prover.key->polynomial_cache.get("q_c_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_1] = prover.key->polynomial_cache.get("sigma_1_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_2] = prover.key->polynomial_cache.get("sigma_2_lagrange");
-    evaluations_array[POLYNOMIAL::SIGMA_3] = prover.key->polynomial_cache.get("sigma_3_lagrange");
-    evaluations_array[POLYNOMIAL::ID_1] = prover.key->polynomial_cache.get("id_1_lagrange");
-    evaluations_array[POLYNOMIAL::ID_2] = prover.key->polynomial_cache.get("id_2_lagrange");
-    evaluations_array[POLYNOMIAL::ID_3] = prover.key->polynomial_cache.get("id_3_lagrange");
-    evaluations_array[POLYNOMIAL::LAGRANGE_FIRST] = prover.key->polynomial_cache.get("L_first_lagrange");
-    evaluations_array[POLYNOMIAL::LAGRANGE_LAST] = prover.key->polynomial_cache.get("L_last_lagrange");
+    evaluations_array[POLYNOMIAL::Q_M] = prover.key->polynomial_store.get("q_m_lagrange");
+    evaluations_array[POLYNOMIAL::Q_L] = prover.key->polynomial_store.get("q_1_lagrange");
+    evaluations_array[POLYNOMIAL::Q_R] = prover.key->polynomial_store.get("q_2_lagrange");
+    evaluations_array[POLYNOMIAL::Q_O] = prover.key->polynomial_store.get("q_3_lagrange");
+    evaluations_array[POLYNOMIAL::Q_C] = prover.key->polynomial_store.get("q_c_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_1] = prover.key->polynomial_store.get("sigma_1_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_2] = prover.key->polynomial_store.get("sigma_2_lagrange");
+    evaluations_array[POLYNOMIAL::SIGMA_3] = prover.key->polynomial_store.get("sigma_3_lagrange");
+    evaluations_array[POLYNOMIAL::ID_1] = prover.key->polynomial_store.get("id_1_lagrange");
+    evaluations_array[POLYNOMIAL::ID_2] = prover.key->polynomial_store.get("id_2_lagrange");
+    evaluations_array[POLYNOMIAL::ID_3] = prover.key->polynomial_store.get("id_3_lagrange");
+    evaluations_array[POLYNOMIAL::LAGRANGE_FIRST] = prover.key->polynomial_store.get("L_first_lagrange");
+    evaluations_array[POLYNOMIAL::LAGRANGE_LAST] = prover.key->polynomial_store.get("L_last_lagrange");
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     auto relations = std::tuple(honk::sumcheck::ArithmeticRelation<fr>(),

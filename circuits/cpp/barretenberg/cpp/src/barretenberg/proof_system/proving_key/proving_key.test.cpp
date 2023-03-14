@@ -32,8 +32,8 @@ TEST(proving_key, proving_key_from_serialized_key)
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
-        barretenberg::polynomial input_poly = p_key.polynomial_cache.get(poly_id);
-        barretenberg::polynomial output_poly = proving_key->polynomial_cache.get(poly_id);
+        barretenberg::polynomial input_poly = p_key.polynomial_store.get(poly_id);
+        barretenberg::polynomial output_poly = proving_key->polynomial_store.get(poly_id);
         all_polys_are_equal = all_polys_are_equal && (input_poly == output_poly);
     }
 
@@ -99,8 +99,8 @@ TEST(proving_key, proving_key_from_mmaped_key)
     bool all_polys_are_equal{ true };
     for (size_t i = 0; i < precomputed_poly_list.size(); ++i) {
         std::string poly_id = precomputed_poly_list[i];
-        barretenberg::polynomial input_poly = p_key.polynomial_cache.get(poly_id);
-        barretenberg::polynomial output_poly = pk_data.polynomial_cache.get(poly_id);
+        barretenberg::polynomial input_poly = p_key.polynomial_store.get(poly_id);
+        barretenberg::polynomial output_poly = pk_data.polynomial_store.get(poly_id);
         all_polys_are_equal = all_polys_are_equal && (input_poly == output_poly);
     }
 
