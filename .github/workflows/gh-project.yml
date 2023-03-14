@@ -9,17 +9,7 @@ env:
   lang: ✏️ Language
 
 jobs:
-  automate-project-columns:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: alex-page/github-project-automation-plus@v0.8.3
-        with:
-          project: Main
-          column: 🤔 Grooming
-          repo-token: ${{ secrets.GHPROJECT_TOKEN }}
-
-jobs:
-  issue_opened_or_reopened:
+  issue_opened:
     runs-on: ubuntu-latest
     steps:
       - name: Move issue to ${{ env.lang }}
