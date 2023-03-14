@@ -104,7 +104,6 @@
       },
       "cacheVariables": {
         "CMAKE_SYSROOT": "$env{WASI_SDK_PREFIX}/share/wasi-sysroot",
-        "CMAKE_STAGING_PREFIX": "$env{WASI_SDK_PREFIX}/share/wasi-sysroot",
         "CMAKE_FIND_ROOT_PATH_MODE_PROGRAM": "NEVER",
         "CMAKE_FIND_ROOT_PATH_MODE_LIBRARY": "ONLY",
         "CMAKE_FIND_ROOT_PATH_MODE_INCLUDE": "ONLY",
