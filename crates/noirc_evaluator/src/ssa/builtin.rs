@@ -11,7 +11,7 @@ use num_traits::{One, Zero};
 /// function signature defined in Noir, but its
 /// function definition is implemented in the compiler.
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub enum Opcode {
+pub(crate) enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits(Endian),
     ToRadix(Endian),
@@ -32,7 +32,7 @@ impl Opcode {
     ///
     /// Returns `None` if there is no string that
     /// corresponds to any of the opcodes.
-    pub fn lookup(op_name: &str) -> Option<Opcode> {
+    pub(crate) fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
             "to_le_bits" => Some(Opcode::ToBits(Endian::Little)),
             "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
@@ -68,7 +68,7 @@ impl Opcode {
         }
     }
 
-    pub fn get_max_value(&self) -> BigUint {
+    pub(crate) fn get_max_value(&self) -> BigUint {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -103,7 +103,7 @@ impl Opcode {
 
     /// Returns the number of elements that the `Opcode` should return
     /// and the type.
-    pub fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
+    pub(crate) fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -137,7 +137,7 @@ impl Opcode {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Endian {
+pub(crate) enum Endian {
     Big,
     Little,
 }

@@ -5,16 +5,13 @@ use acvm::{
 };
 
 use crate::{
-    ssa::acir_gen::{
-        constraints::{add, mul_with_witness, subtract},
-        expression_from_witness,
-    },
+    ssa::acir_gen::constraints::{add, mul_with_witness, subtract},
     Evaluator,
 };
 
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
-pub fn evaluate_permutation(
+pub(super) fn evaluate_permutation(
     in_expr: &Vec<Expression>,
     out_expr: &Vec<Expression>,
     evaluator: &mut Evaluator,
@@ -30,7 +27,7 @@ pub fn evaluate_permutation(
 // Generates gates for a sorting network
 // returns witness corresponding to the network configuration and the expressions corresponding to the network output
 // in_expr: inputs of the sorting network
-pub fn permutation_layer(
+pub(super) fn permutation_layer(
     in_expr: &Vec<Expression>,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Vec<Expression>) {
@@ -53,7 +50,7 @@ pub fn permutation_layer(
         //q = c*(a2-a1);
         let intermediate = mul_with_witness(
             evaluator,
-            &expression_from_witness(conf[i]),
+            &conf[i].into(),
             &subtract(&in_expr[2 * i + 1], FieldElement::one(), &in_expr[2 * i]),
         );
         //b1=a1+q
@@ -72,11 +69,8 @@ pub fn permutation_layer(
     for i in 0..(n - 1) / 2 {
         let c = evaluator.add_witness_to_cs();
         conf.push(c);
-        let intermediate = mul_with_witness(
-            evaluator,
-            &expression_from_witness(c),
-            &subtract(&b2[i], FieldElement::one(), &b1[i]),
-        );
+        let intermediate =
+            mul_with_witness(evaluator, &c.into(), &subtract(&b2[i], FieldElement::one(), &b1[i]));
         out_expr.push(add(&intermediate, FieldElement::one(), &b1[i]));
         out_expr.push(subtract(&b2[i], FieldElement::one(), &intermediate));
     }
@@ -98,10 +92,7 @@ mod test {
         FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
-    use crate::{
-        ssa::acir_gen::{expression_from_witness, operations::sort::evaluate_permutation},
-        Evaluator,
-    };
+    use crate::{ssa::acir_gen::operations::sort::evaluate_permutation, Evaluator};
     use rand::prelude::*;
 
     struct MockBackend {}
@@ -128,7 +119,7 @@ mod test {
             let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
-                input.push(expression_from_witness(w));
+                input.push(w.into());
                 a_val.push(FieldElement::from(rng.next_u32() as i128));
                 solved_witness.insert(w, a_val[i]);
             }
@@ -137,7 +128,7 @@ mod test {
             for _i in 0..n {
                 let w = eval.add_witness_to_cs();
                 b_wit.push(w);
-                output.push(expression_from_witness(w));
+                output.push(w.into());
             }
             //generate constraints for the inputs
             let w = evaluate_permutation(&input, &output, &mut eval);

@@ -36,9 +36,7 @@ fn run_tests(
     let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
 
-    if driver.check_crate(compile_options).is_err() {
-        std::process::exit(1);
-    }
+    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
     let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
     println!("Running {} test functions...", test_functions.len());
@@ -68,9 +66,7 @@ fn run_tests(
         writeln!(writer, "All tests passed").ok();
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-        writeln!(writer, "{failing} test{plural} failed").ok();
-        std::process::exit(1);
+        return Err(CliError::Generic(format!("{failing} test{plural} failed")));
     }
 
     writer.reset().ok();

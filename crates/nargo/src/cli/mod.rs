@@ -15,6 +15,7 @@ mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
 mod new_cmd;
+mod preprocess_cmd;
 mod prove_cmd;
 mod test_cmd;
 mod verify_cmd;
@@ -53,6 +54,7 @@ enum NargoCommand {
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
+    Preprocess(preprocess_cmd::PreprocessCommand),
     Test(test_cmd::TestCommand),
     Gates(gates_cmd::GatesCommand),
 }
@@ -67,6 +69,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
         NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
         NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
+        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, matches.config),
         NargoCommand::Test(args) => test_cmd::run(args, matches.config),
         NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
@@ -100,16 +103,11 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
 }
 
 fn add_std_lib(driver: &mut Driver) {
-    let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
-    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
     let std_crate_name = "std";
+    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
+    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
     driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
 }
-
-fn path_to_stdlib() -> PathBuf {
-    dirs::config_dir().unwrap().join("noir-lang").join("std/src")
-}
-
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {

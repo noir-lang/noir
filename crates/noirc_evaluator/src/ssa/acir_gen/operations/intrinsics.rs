@@ -2,7 +2,6 @@ use crate::{
     ssa::{
         acir_gen::{
             constraints::{bound_constraint_with_offset, to_radix_base},
-            expression_from_witness,
             operations::sort::evaluate_permutation,
             AcirMem, InternalVar, InternalVarCache,
         },
@@ -105,8 +104,7 @@ pub(crate) fn evaluate(
                 );
             }
             outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
-            let out_expr: Vec<Expression> =
-                outputs.iter().map(|w| expression_from_witness(*w)).collect();
+            let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
                     &out_expr[i],
