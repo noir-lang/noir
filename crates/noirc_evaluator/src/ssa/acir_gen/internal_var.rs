@@ -5,7 +5,7 @@ use acvm::{
 };
 
 #[derive(Clone, Debug, Eq)]
-pub struct InternalVar {
+pub(crate) struct InternalVar {
     // A multi-variate degree-2 polynomial
     expression: Expression,
     // A witness associated to `expression`.
@@ -42,7 +42,7 @@ impl InternalVar {
         &self.cached_witness
     }
 
-    pub fn to_expression(&self) -> Expression {
+    pub(crate) fn to_expression(&self) -> Expression {
         if let Some(w) = self.cached_witness {
             w.into()
         } else {

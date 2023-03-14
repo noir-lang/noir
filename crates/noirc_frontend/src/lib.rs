@@ -7,6 +7,7 @@
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unreachable_pub)]
 
 pub mod ast;
 pub mod graph;

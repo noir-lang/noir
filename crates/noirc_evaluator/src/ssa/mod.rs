@@ -1,4 +1,4 @@
-pub mod acir_gen;
+pub(crate) mod acir_gen;
 mod anchor;
 mod block;
 mod builtin;
@@ -9,8 +9,8 @@ mod function;
 mod inline;
 mod integer;
 mod mem;
-pub mod node;
+pub(crate) mod node;
 mod optimizations;
 mod ssa_form;
-pub mod ssa_gen;
+pub(crate) mod ssa_gen;
 mod value;
