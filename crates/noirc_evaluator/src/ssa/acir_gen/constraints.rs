@@ -569,8 +569,10 @@ pub(crate) fn evaluate_inverse(
 ) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
-    evaluator
-        .push_gate(AcirOpcode::Directive(Directive::Invert { x: x_witness, result: inverse_witness }));
+    evaluator.push_gate(AcirOpcode::Directive(Directive::Invert {
+        x: x_witness,
+        result: inverse_witness,
+    }));
 
     //x*inverse = 1
     let one = mul(&x_witness.into(), &inverse_witness.into());
