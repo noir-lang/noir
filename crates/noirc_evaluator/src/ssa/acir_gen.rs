@@ -30,7 +30,7 @@ pub(crate) struct Acir {
 }
 
 impl Acir {
-    pub fn acir_gen(
+    pub(crate) fn acir_gen(
         &mut self,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
