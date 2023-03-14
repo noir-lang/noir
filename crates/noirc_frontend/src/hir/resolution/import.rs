@@ -53,7 +53,7 @@ pub fn resolve_imports(
     crate_id: CrateId,
     imports_to_resolve: Vec<ImportDirective>,
     def_maps: &HashMap<CrateId, CrateDefMap>,
-) -> (Vec<ResolvedImport>, Vec<ImportDirective>) {
+) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
     let def_map = &def_maps[&crate_id];
 
     partition_results(imports_to_resolve, |import_directive| {
@@ -63,7 +63,7 @@ pub fn resolve_imports(
         let module_scope = import_directive.module_id;
         let resolved_namespace =
             resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
-                .map_err(|_| import_directive.clone())?;
+                .map_err(|error| (error, module_scope))?;
 
         let name = resolve_path_name(&import_directive);
         Ok(ResolvedImport { name, resolved_namespace, module_scope })

@@ -1,4 +1,4 @@
-use crate::hir::resolution::import::ImportDirective;
+use crate::hir::resolution::import::PathResolutionError;
 use crate::Ident;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -18,8 +18,8 @@ pub enum DefCollectorErrorKind {
     DuplicateGlobal { first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident },
-    #[error("unresolved import")]
-    UnresolvedImport { import: ImportDirective },
+    #[error("path resolution error")]
+    PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
 }
@@ -95,18 +95,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     span,
                 )
             }
-            DefCollectorErrorKind::UnresolvedImport { import } => {
-                let mut span = import.path.span();
-                if let Some(alias) = &import.alias {
-                    span = span.merge(alias.0.span())
-                }
-
-                Diagnostic::simple_error(
-                    format!("could not resolve import {}", &import.path.as_string()),
-                    String::new(),
-                    span,
-                )
-            }
+            DefCollectorErrorKind::PathResolutionError(error) => error.into(),
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
                 "Non-struct type used in impl".into(),
                 "Only struct types may have implementation methods".into(),

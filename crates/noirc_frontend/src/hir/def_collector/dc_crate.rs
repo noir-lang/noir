@@ -127,9 +127,9 @@ impl DefCollector {
 
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
 
-        errors.extend(vecmap(unresolved_imports, |import| {
-            let file_id = current_def_map.modules[import.module_id.0].origin.file_id();
-            let error = DefCollectorErrorKind::UnresolvedImport { import };
+        errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
+            let file_id = current_def_map.modules[module_id.0].origin.file_id();
+            let error = DefCollectorErrorKind::PathResolutionError(error);
             error.into_file_diagnostic(file_id)
         }));
 
