@@ -9,8 +9,9 @@ use crate::ssa::{
     },
 };
 use acvm::FieldElement;
+use num_bigint::ToBigUint;
 
-pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
+pub(super) fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
     simplify(ctx, &mut ins)?;
     ctx[ins_id] = super::node::NodeObject::Instr(ins);
@@ -19,7 +20,7 @@ pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeEr
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
-pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
+pub(super) fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
     if ins.is_deleted() {
         return Ok(());
     }
@@ -76,7 +77,7 @@ fn evaluate_intrinsic(
     args: Vec<u128>,
     res_type: &ObjectType,
     block_id: BlockId,
-) -> Vec<NodeId> {
+) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
         builtin::Opcode::ToBits(_) => {
             let bit_count = args[1] as u32;
@@ -108,9 +109,55 @@ fn evaluate_intrinsic(
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
-                return result;
+                return Ok(result);
             }
-            unreachable!();
+            unreachable!(
+                "compiler error: to bits should have a Pointer result type and be decomposed."
+            );
+        }
+        builtin::Opcode::ToRadix(endian) => {
+            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
+            let byte_count = args[2] as u32;
+            let diff = if byte_count > element.len() as u32 {
+                byte_count - element.len() as u32
+            } else {
+                return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                    index: element.len() as u128,
+                    bound: byte_count as u128,
+                });
+            };
+            element.extend(vec![0; diff as usize]);
+            if endian == builtin::Endian::Big {
+                element.reverse();
+            }
+            let mut result = Vec::new();
+
+            if let ObjectType::Pointer(a) = res_type {
+                for (i, item) in element.iter().enumerate() {
+                    let index = ctx.get_or_create_const(
+                        FieldElement::from(i as i128),
+                        ObjectType::NativeField,
+                    );
+                    let value = ctx.get_or_create_const(
+                        FieldElement::from(*item as i128),
+                        ObjectType::NativeField,
+                    );
+                    let op = Operation::Store {
+                        array_id: *a,
+                        index,
+                        value,
+                        predicate: None,
+                        location: None,
+                    };
+
+                    let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
+                    result.push(ctx.add_instruction(i));
+                }
+                return Ok(result);
+            }
+            unreachable!(
+                "compiler error: to radix should have a Pointer result type and be decomposed."
+            );
         }
         _ => todo!(),
     }
@@ -120,7 +167,7 @@ fn evaluate_intrinsic(
 // The following code will be concerned with Common Subexpression Elimination (CSE)
 //
 
-pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
+pub(super) fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
         if let Mark::ReplaceWith(replacement) = obj.mark {
             *modified = true;
@@ -136,7 +183,7 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(
+pub(super) fn cse(
     ir_gen: &mut SsaContext,
     first_block: BlockId,
     stop_on_error: bool,
@@ -173,7 +220,7 @@ fn cse_tree(
 }
 
 //perform common subexpression elimination until there is no more change
-pub fn full_cse(
+pub(super) fn full_cse(
     ir_gen: &mut SsaContext,
     first_block: BlockId,
     report_error: bool,
@@ -188,13 +235,16 @@ pub fn full_cse(
     Ok(result)
 }
 
-pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) -> Result<Option<NodeId>, RuntimeError> {
+pub(super) fn simple_cse(
+    ctx: &mut SsaContext,
+    block_id: BlockId,
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut modified = false;
     let mut instructions = Vec::new();
     cse_block(ctx, block_id, &mut instructions, &mut modified)
 }
 
-pub fn cse_block(
+pub(super) fn cse_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
     instructions: &mut Vec<NodeId>,
@@ -489,7 +539,7 @@ fn cse_block_with_anchor(
                                 args,
                                 &update2.res_type,
                                 block_id,
-                            ));
+                            )?);
                         }
                     }
                 }

@@ -1,13 +1,13 @@
-pub mod binary;
+pub(super) mod binary;
 mod bitwise;
 mod cmp;
 
-pub mod condition;
-pub mod constrain;
-pub mod intrinsics;
-pub mod load;
-pub mod not;
-pub mod r#return;
+pub(super) mod condition;
+pub(super) mod constrain;
+pub(super) mod intrinsics;
+pub(super) mod load;
+pub(super) mod not;
+pub(super) mod r#return;
 mod sort;
-pub mod store;
-pub mod truncate;
+pub(super) mod store;
+pub(super) mod truncate;

@@ -11,7 +11,7 @@ use num_traits::{One, Zero};
 /// function signature defined in Noir, but its
 /// function definition is implemented in the compiler.
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub enum Opcode {
+pub(crate) enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits(Endian),
     ToRadix(Endian),
@@ -31,7 +31,7 @@ impl Opcode {
     ///
     /// Returns `None` if there is no string that
     /// corresponds to any of the opcodes.
-    pub fn lookup(op_name: &str) -> Option<Opcode> {
+    pub(crate) fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
             "to_le_bits" => Some(Opcode::ToBits(Endian::Little)),
             "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
@@ -67,7 +67,7 @@ impl Opcode {
         }
     }
 
-    pub fn get_max_value(&self) -> BigUint {
+    pub(crate) fn get_max_value(&self) -> BigUint {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -100,7 +100,7 @@ impl Opcode {
 
     /// Returns the number of elements that the `Opcode` should return
     /// and the type.
-    pub fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
+    pub(crate) fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -133,16 +133,16 @@ impl Opcode {
 }
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub struct PrintlnInfo {
+pub(crate) struct PrintlnInfo {
     // We store strings as arrays and there is no differentiation between them in the SSA.
     // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
-    pub is_string_output: bool,
+    pub(crate) is_string_output: bool,
     // This is a flag used during `nargo test` to determine whether to display println output.
-    pub show_output: bool,
+    pub(crate) show_output: bool,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Endian {
+pub(crate) enum Endian {
     Big,
     Little,
 }
