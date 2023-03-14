@@ -749,7 +749,7 @@ impl SsaContext {
         Ok(())
     }
 
-    pub fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
+    pub(crate) fn acir(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeError> {
         let mut acir = Acir::default();
         let mut fb = Some(&self[self.first_block]);
         while let Some(block) = fb {
@@ -1143,7 +1143,7 @@ impl SsaContext {
         NodeId(index)
     }
 
-    pub fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
+    pub(crate) fn get_builtin_opcode(&self, node_id: NodeId) -> Option<builtin::Opcode> {
         match &self[node_id] {
             NodeObject::Function(FunctionKind::Builtin(opcode), ..) => Some(*opcode),
             _ => None,

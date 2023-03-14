@@ -53,7 +53,7 @@ fn test_prints_array() {
     std::println(array);
 
     std::trace("yoyo", array);
-
+    
     let hash = std::hash::pedersen(array);
     std::println(hash);
 
