@@ -20,7 +20,7 @@
     };
 
     libbarretenberg_flake = {
-      url = "github:kobyhallx/aztec-connect/kh-ndsl-w-flake";
+      url = "git+https://github.com/AztecProtocol/barretenberg?ref=phated/nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -31,16 +31,24 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) ];
+          overlays = [
+            rust-overlay.overlays.default
+            libbarretenberg_flake.overlays.default
+          ];
         };
 
+        rustToolchain = pkgs.rust-bin.stable."1.66.0".default;
 
-        craneLib = (crane.mkLib pkgs).overrideScope' (final: prev: {
-          stdenv = pkgs.llvmPackages.stdenv;
+        craneLibScope = (crane.mkLib pkgs).overrideScope' (final: prev: {
+          # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7
+          stdenv = with pkgs;
+            if (stdenv.targetPlatform.isGnu && stdenv.targetPlatform.isAarch64) then
+              overrideCC llvmPackages.stdenv (llvmPackages.clang.override { gccForLibs = gcc11.cc; })
+            else
+              llvmPackages.stdenv;
         });
 
-        # TODO: line below looks terrible we can do better naming here in referenced flake
-        libbarretenberg = libbarretenberg_flake.packages.${system}.default;
+        craneLib = craneLibScope.overrideToolchain rustToolchain;
 
         commonArgs = {
           src = craneLib.cleanCargoSource ./.;
@@ -66,12 +74,16 @@
           
           # Bindegn needs these
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg}/include/aztec -L${libbarretenberg}";
-          RUSTFLAGS = "-L${libbarretenberg}/lib -lomp";
+          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg_flake}/include/barretenberg -L${libbarretenberg_flake}";
+          # RUSTFLAGS = "-L${libbarretenberg}/lib -lomp";
+
+          nativeBuildInputs = [
+            pkgs.pkg-config
+          ];
 
           buildInputs = [
             pkgs.llvmPackages.openmp
-            libbarretenberg
+            pkgs.barretenberg
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             pkgs.libiconv
           ];
@@ -95,7 +107,7 @@
 
           buildInputs = packages.default.buildInputs ;
 
-          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg}/include/aztec -L${libbarretenberg}";
+          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg_flake}/include/barretenberg -L${libbarretenberg_flake}";
 
           nativeBuildInputs = with pkgs; [
             cargo

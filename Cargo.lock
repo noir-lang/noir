@@ -16,6 +16,18 @@ dependencies = [
 
 [[package]]
 name = "acir"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d756bcab90b3a4a84dc53245890cf9bb8fcde31a1394931f5abca551b48eb20"
+dependencies = [
+ "acir_field 0.4.1",
+ "flate2",
+ "rmp-serde",
+ "serde",
+]
+
+[[package]]
+name = "acir"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "744c21590f6da95914f1d83f247dba49d4f287beb725bfbcbc54eaf823484b1a"
@@ -33,6 +45,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "687506e635efa7ce15d6b93ceae14dec1519ed2e54c24298fc8c40e86edbce24"
 dependencies = [
  "ark-bls12-381",
+ "ark-bn254 0.3.0",
+ "ark-ff 0.3.0",
+ "blake2",
+ "cfg-if 1.0.0",
+ "hex",
+ "num-bigint",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
+name = "acir_field"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deb7e1e30625a9125a0e700c6c6fd7442ffbcb1d235933100b791ba3786ef49e"
+dependencies = [
  "ark-bn254 0.3.0",
  "ark-ff 0.3.0",
  "blake2",
@@ -78,6 +106,24 @@ dependencies = [
 
 [[package]]
 name = "acvm"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c4fae94e7f3fe0d21bec4796de00bbf0cd8f781271b5203dea54897aa5387b9"
+dependencies = [
+ "acir 0.4.1",
+ "acvm_stdlib 0.4.1",
+ "blake2",
+ "hex",
+ "indexmap",
+ "k256",
+ "num-bigint",
+ "num-traits",
+ "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
+name = "acvm"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73876b7d5d23d0826ea4c9150b4a62af0b20a6937a79472ee0ceda30868aa207"
@@ -101,6 +147,15 @@ checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
 dependencies = [
  "acir 0.3.1",
  "acir_field 0.3.1",
+]
+
+[[package]]
+name = "acvm_stdlib"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaf6617b72c2cd4e965d425bc768bb77a803e485a7e37cbc09cccc5967becd7a"
+dependencies = [
+ "acir 0.4.1",
 ]
 
 [[package]]
@@ -476,17 +531,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi 0.1.19",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -508,32 +552,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "barretenberg_static_lib"
+name = "barretenberg-sys"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=phated/bb-sys#14944aba2e4c1d14ef09beb2e1b0211d2b61f07e"
 dependencies = [
- "barretenberg_wrapper",
- "common",
+ "bindgen",
+ "pkg-config",
 ]
 
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=d0e1257c22618f98f53781faba3c372ef91a0172#d0e1257c22618f98f53781faba3c372ef91a0172"
 dependencies = [
+ "blake2",
  "common",
+ "sha2 0.9.9",
+ "sled",
+ "tempfile",
  "wasmer",
-]
-
-[[package]]
-name = "barretenberg_wrapper"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec-connect?branch=kw/noir-dsl#b3abf261314b5ae5bc38e75eb8b40628b4d49fe8"
-dependencies = [
- "bindgen",
- "cmake",
- "hex",
- "num_cpus 0.2.13",
 ]
 
 [[package]]
@@ -544,15 +581,13 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 
 [[package]]
 name = "bindgen"
-version = "0.60.1"
+version = "0.64.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062dddbc1ba4aca46de6338e2bf87771414c335f7b2f2036e8f3e9befebf88e6"
+checksum = "c4243e6031260db77ede97ad86c27e501d646a27ab57b59a574f725d98ab1fb4"
 dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "clap 3.2.23",
- "env_logger",
  "lazy_static",
  "lazycell",
  "log",
@@ -562,6 +597,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
+ "syn",
  "which",
 ]
 
@@ -725,28 +761,13 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71655c45cb9845d3270c9d6df84ebe72b4dad3c2ba3f7023ad47c144e4e473a5"
-dependencies = [
- "atty",
- "bitflags",
- "clap_lex 0.2.4",
- "indexmap",
- "strsim",
- "termcolor",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f13b9c79b5d1dd500d20ef541215a6423c75829ef43117e1b4d17fd8af0b5d76"
 dependencies = [
  "bitflags",
  "clap_derive",
- "clap_lex 0.3.1",
+ "clap_lex",
  "is-terminal",
  "once_cell",
  "strsim",
@@ -768,29 +789,11 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
-]
-
-[[package]]
-name = "clap_lex"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "783fe232adfca04f90f56201b26d79682d4cd2625e0bc7290b95123afe558ade"
 dependencies = [
  "os_str_bytes",
-]
-
-[[package]]
-name = "cmake"
-version = "0.1.49"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db34956e100b30725f2eb215f90d4871051239535632f84fea3bc92722c66b7c"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -852,9 +855,9 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=b7f68bddcf05de22f77726c94450791141accc9a#b7f68bddcf05de22f77726c94450791141accc9a"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=d0e1257c22618f98f53781faba3c372ef91a0172#d0e1257c22618f98f53781faba3c372ef91a0172"
 dependencies = [
- "acvm 0.6.0",
+ "acvm 0.4.1",
  "blake2",
  "dirs 3.0.2",
  "downloader",
@@ -1332,19 +1335,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
-dependencies = [
- "atty",
- "humantime",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1688,15 +1678,6 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "hermit-abi"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee512640fe35acbfb4bb779db6f0d80704c2cacfa2e39b601ef3e3f47d1ae4c7"
@@ -1759,12 +1740,6 @@ name = "httpdate"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
-
-[[package]]
-name = "humantime"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
@@ -2133,11 +2108,11 @@ name = "nargo"
 version = "0.2.0"
 dependencies = [
  "acvm 0.6.0",
- "barretenberg_static_lib",
+ "barretenberg-sys",
  "barretenberg_wasm",
  "build-data",
  "cfg-if 1.0.0",
- "clap 4.1.4",
+ "clap",
  "color-eyre",
  "const_format",
  "dirs 4.0.0",
@@ -2190,7 +2165,7 @@ name = "noirc_driver"
 version = "0.2.0"
 dependencies = [
  "acvm 0.6.0",
- "clap 4.1.4",
+ "clap",
  "fm",
  "noirc_abi",
  "noirc_errors",
@@ -2282,15 +2257,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "num_cpus"
-version = "0.2.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cee7e88156f3f9e19bdd598f8d6c9db7bf4078f99f8381f43a55b09648d1a6e3"
-dependencies = [
- "libc",
 ]
 
 [[package]]
@@ -2427,6 +2393,12 @@ checksum = "b4839a901843f3942576e65857f0ebf2e190ef7024d3c62a94099ba3f819ad1d"
 dependencies = [
  "der",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ac9a59f73473f1b8d852421e59e64809f025994837ef743615c6d0c5b305160"
 
 [[package]]
 name = "ppv-lite86"
@@ -2594,7 +2566,7 @@ dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
  "crossbeam-utils",
- "num_cpus 1.15.0",
+ "num_cpus",
 ]
 
 [[package]]
@@ -3295,12 +3267,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "textwrap"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
-
-[[package]]
 name = "thiserror"
 version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3367,7 +3333,7 @@ dependencies = [
  "libc",
  "memchr",
  "mio",
- "num_cpus 1.15.0",
+ "num_cpus",
  "pin-project-lite",
  "socket2",
  "windows-sys 0.42.0",
