@@ -1,0 +1,18 @@
+{
+  "version": "v1",
+  "packages": {
+    "@aztec/wasm-worker": {
+      "signature": "c3f323629c42198a64e1e6969247e19a",
+      "file": true,
+      "replaced": "workspace:^"
+    },
+    "@aztec/log": {
+      "signature": "66820adbe0b16465eb2826f2bc079a5c",
+      "file": true
+    },
+    "@aztec/eslint-config": {
+      "signature": "afe1f6648a5208f857a53f99fbc458af",
+      "file": true
+    }
+  }
+}

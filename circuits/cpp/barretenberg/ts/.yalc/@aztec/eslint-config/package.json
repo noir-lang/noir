@@ -1,0 +1,22 @@
+{
+  "name": "@aztec/eslint-config",
+  "version": "0.0.0",
+  "packageManager": "yarn@3.2.2",
+  "files": [
+    "index.js"
+  ],
+  "scripts": {
+    "build": "echo \"Did nothing.\""
+  },
+  "dependencies": {
+    "@aztec/eslint-config": "link:../../../yarn-project/eslint-config",
+    "@aztec/wasm-worker": "link:../../../yarn-project/wasm-worker",
+    "@typescript-eslint/eslint-plugin": "^5.38.0",
+    "@typescript-eslint/parser": "^5.38.0",
+    "eslint": "^8.21.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-jsdoc": "^40.0.0",
+    "eslint-plugin-tsdoc": "^0.2.17"
+  },
+  "yalcSig": "afe1f6648a5208f857a53f99fbc458af"
+}
