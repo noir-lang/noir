@@ -10,6 +10,9 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     std::println(10);
 
     std::println(z); // x * 5 in println not yet supported
+
+    std::trace("zz", z);
+
     std::println(x);
 
     let array = [1, 2, 3, 5, 8];
@@ -22,8 +25,10 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     let hash = std::hash::pedersen([x]);
     std::println(hash);
 
-    std::trace(hash);
-    
+    std::trace("hello hash", hash);
+    std::trace("hello hash", hex_as_field);
+    std::trace("hello hash", "goodbye hash");
+
     constrain hex_as_string == "0x41";
     // constrain hex_as_string != 0x41; This will fail with a type mismatch between str[4] and Field
     constrain hex_as_field == 0x41;
@@ -47,8 +52,12 @@ fn test_prints_array() {
 
     std::println(array);
 
+    std::trace("yoyo", array);
+
     let hash = std::hash::pedersen(array);
     std::println(hash);
+
+    std::trace("yoyo", hash);
 }
 
 struct Test {

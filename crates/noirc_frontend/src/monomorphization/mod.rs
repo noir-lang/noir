@@ -570,7 +570,7 @@ impl<'interner> Monomorphizer<'interner> {
         if let ast::Expression::Ident(ident) = func.as_ref() {
             if let Definition::Builtin(opcode) = &ident.definition {
                 match opcode.as_str() {
-                    "println"=> self.append_string_output_arg(&mut arguments, 0),
+                    "println" => self.append_string_output_arg(&mut arguments, 0),
                     "trace" => self.append_string_output_arg(&mut arguments, 1),
                     _ => (),
                 };

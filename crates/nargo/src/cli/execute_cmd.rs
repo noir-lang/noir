@@ -1,18 +1,19 @@
 use std::path::Path;
 
+use acvm::acir::circuit::directives::SolvedLog;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{InputMap, WitnessMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 
+use super::fs::logs::handle_logs;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR},
     errors::CliError,
-    logs::handle_logs,
 };
 
 /// Executes a circuit to calculate its return value
@@ -54,7 +55,9 @@ fn execute_with_path(
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &compiled_program.abi)?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let (solved_witness, logs) = execute_program(&compiled_program, &inputs_map)?;
+
+    handle_logs(logs, compile_options.debug_file.clone(), program_dir)?;
 
     let public_abi = compiled_program.abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
@@ -65,7 +68,7 @@ fn execute_with_path(
 pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError> {
+) -> Result<(WitnessMap, Vec<SolvedLog>), CliError> {
     let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let mut logs = Vec::new();
@@ -73,7 +76,5 @@ pub(crate) fn execute_program(
     let backend = crate::backends::ConcreteBackend;
     backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone(), &mut logs)?;
 
-    handle_logs(logs)?;
-
-    Ok(solved_witness)
+    Ok((solved_witness, logs))
 }

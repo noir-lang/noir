@@ -66,21 +66,21 @@ pub(crate) fn evaluate(
         Opcode::Println => {
             outputs = Vec::new(); // print statements do not output anything
             let is_string_output = ctx.get_as_constant(args[1]).unwrap().to_u128();
-            evaluate_logs(
-                var_cache,
-                memory_map,
-                None,
-                is_string_output != 0,
-                args,
-                ctx,
-                evaluator,
-            );
+            evaluate_logs(var_cache, memory_map, None, is_string_output != 0, args, ctx, evaluator);
         }
         Opcode::Trace => {
             outputs = Vec::new(); // print statements do not output anything
             let trace_label = args[0];
             let is_string_output = ctx.get_as_constant(args[2]).unwrap().to_u128();
-            evaluate_logs(var_cache, memory_map, Some(trace_label), is_string_output != 0, args, ctx, evaluator);
+            evaluate_logs(
+                var_cache,
+                memory_map,
+                Some(trace_label),
+                is_string_output != 0,
+                args,
+                ctx,
+                evaluator,
+            );
         }
         Opcode::LowLevel(op) => {
             let inputs = prepare_inputs(var_cache, memory_map, args, ctx, evaluator);
@@ -251,13 +251,12 @@ fn evaluate_logs(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) {
-    assert_eq!(args.len(), 2, "log statements can only support two arguments: one supplied by the user and a `is_string_output` flag inserted by the compiler");
-    let node_id = args[0];
-
-    let trace_label = if let Some(trace_label_id) = trace_label {
-        Some(evaluate_trace_label(var_cache, memory_map, trace_label_id, is_string_output, ctx))
+    let (trace_label, node_id) = if let Some(trace_label_id) = trace_label {
+        assert_eq!(args.len(), 3, "trace log statements can only support three arguments: two supplied by the user and an `is_string_output` flag inserted by the compiler");
+        (Some(evaluate_trace_label(var_cache, memory_map, trace_label_id, ctx)), args[1])
     } else {
-        None
+        assert_eq!(args.len(), 2, "println log statements can only support two arguments: one supplied by the user and an `is_string_output` flag inserted by the compiler");
+        (None, args[0])
     };
 
     let mut log_string = "".to_owned();
@@ -266,49 +265,15 @@ fn evaluate_logs(
     let obj_type = ctx.object_type(node_id);
     match obj_type {
         ObjectType::Pointer(array_id) => {
-            let mem_array = &ctx.mem[array_id];
-            let mut field_elements = Vec::new();
-            for idx in 0..mem_array.len {
-                let var = memory_map
-                    .load_array_element_constant_index(mem_array, idx)
-                    .expect("array element being logged does not exist in memory");
-                let array_elem_expr = var.expression();
-                if array_elem_expr.is_const() {
-                    field_elements.push(array_elem_expr.q_c);
-                } else {
-                    let var = match var_cache.get(&node_id) {
-                        Some(var) => var.clone(),
-                        _ => InternalVar::from(array_elem_expr.clone()),
-                    };
-                    let w = var
-                        .cached_witness()
-                        .expect("array element to be logged is missing a witness");
-                    log_witnesses.push(w);
-                }
-            }
-
-            if is_string_output {
-                let final_string = decode_string_value(&field_elements);
-                log_string.push_str(&final_string);
-            } else if !field_elements.is_empty() {
-                let fields = vecmap(field_elements, format_field_string);
-                log_string = format!("[{}]", fields.join(", "));
-            }
+            (log_string, log_witnesses) =
+                evaluate_array_log(ctx, array_id, memory_map, var_cache, node_id, is_string_output);
         }
         _ => match ctx.get_as_constant(node_id) {
             Some(field) => {
                 log_string = format_field_string(field);
             }
             None => {
-                let mut var = var_cache
-                    .get(&node_id)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "invalid input for print statement: {:?}",
-                            ctx.try_get_node(node_id).expect("node is missing from SSA")
-                        )
-                    })
-                    .clone();
+                let mut var = var_cache.get_or_compute_internal_var_unwrap(node_id, evaluator, ctx);
                 if let Some(field) = var.to_const() {
                     log_string = format_field_string(field);
                 } else if let Some(w) = var.get_or_compute_witness(evaluator, false) {
@@ -340,50 +305,60 @@ fn evaluate_trace_label(
     var_cache: &mut InternalVarCache,
     memory_map: &mut AcirMem,
     trace_label_id: NodeId,
-    is_string_output: bool,
     ctx: &SsaContext,
 ) -> String {
-    let mut trace_label_string = "".to_owned();
-    let mut log_witnesses = Vec::new();
-
     let obj_type = ctx.object_type(trace_label_id);
     match obj_type {
         ObjectType::Pointer(array_id) => {
-            let mem_array = &ctx.mem[array_id];
-            let mut field_elements = Vec::new();
-            for idx in 0..mem_array.len {
-                let var = memory_map
-                    .load_array_element_constant_index(mem_array, idx)
-                    .expect("array element being logged does not exist in memory");
-                let array_elem_expr = var.expression();
-                if array_elem_expr.is_const() {
-                    field_elements.push(array_elem_expr.q_c);
-                } else {
-                    let var = match var_cache.get(&trace_label_id) {
-                        Some(var) => var.clone(),
-                        _ => InternalVar::from(array_elem_expr.clone()),
-                    };
-                    let w = var
-                        .cached_witness()
-                        .expect("array element to be logged is missing a witness");
-                    log_witnesses.push(w);
-                }
-            }
-
-            if is_string_output {
-                let final_string = decode_string_value(&field_elements);
-                trace_label_string.push_str(&final_string);
-            } else if !field_elements.is_empty() {
-                dbg!("got here");
-                let fields = vecmap(field_elements, format_field_string);
-                trace_label_string = format!("[{}]", fields.join(", "));
-            }
+            let (evaluated_string, _) =
+                evaluate_array_log(ctx, array_id, memory_map, var_cache, trace_label_id, true);
+            evaluated_string
         }
         _ => {
             unreachable!(
                 "a trace label must be a string (which is represented by a pointer and no other ObjectType)"
             );
-        },
+        }
     }
-    trace_label_string
+}
+
+fn evaluate_array_log(
+    ctx: &SsaContext,
+    array_id: ArrayId,
+    memory_map: &mut AcirMem,
+    var_cache: &mut InternalVarCache,
+    node_id: NodeId,
+    is_string_output: bool,
+) -> (String, Vec<Witness>) {
+    let mut log_string = "".to_owned();
+    let mut log_witnesses = Vec::new();
+
+    let mem_array = &ctx.mem[array_id];
+    let mut field_elements = Vec::new();
+    for idx in 0..mem_array.len {
+        let var = memory_map
+            .load_array_element_constant_index(mem_array, idx)
+            .expect("array element being logged does not exist in memory");
+        let array_elem_expr = var.expression();
+        if array_elem_expr.is_const() {
+            field_elements.push(array_elem_expr.q_c);
+        } else {
+            let var = match var_cache.get(&node_id) {
+                Some(var) => var.clone(),
+                _ => InternalVar::from(array_elem_expr.clone()),
+            };
+            let w = var.cached_witness().expect("array element to be logged is missing a witness");
+            log_witnesses.push(w);
+        }
+    }
+
+    if is_string_output {
+        let final_string = decode_string_value(&field_elements);
+        log_string.push_str(&final_string);
+    } else if !field_elements.is_empty() {
+        let fields = vecmap(field_elements, format_field_string);
+        log_string = format!("[{}]", fields.join(", "));
+    };
+
+    (log_string, log_witnesses)
 }

@@ -17,6 +17,7 @@ dependencies = [
 [[package]]
 name = "acir"
 version = "0.6.0"
+source = "git+https://github.com/noir-lang/acvm?branch=mv/traces2#57ad1efdba4b8bcd887bb6857e73b3d64642b021"
 dependencies = [
  "acir_field 0.6.0",
  "flate2",
@@ -44,6 +45,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.6.0"
+source = "git+https://github.com/noir-lang/acvm?branch=mv/traces2#57ad1efdba4b8bcd887bb6857e73b3d64642b021"
 dependencies = [
  "ark-bn254 0.4.0",
  "ark-ff 0.4.1",
@@ -75,6 +77,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.6.0"
+source = "git+https://github.com/noir-lang/acvm?branch=mv/traces2#57ad1efdba4b8bcd887bb6857e73b3d64642b021"
 dependencies = [
  "acir 0.6.0",
  "acvm_stdlib 0.6.0",
@@ -100,6 +103,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.6.0"
+source = "git+https://github.com/noir-lang/acvm?branch=mv/traces2#57ad1efdba4b8bcd887bb6857e73b3d64642b021"
 dependencies = [
  "acir 0.6.0",
 ]
@@ -502,6 +506,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/trace#5e89b650981c9e8006c123501e11a64d6bbae333"
 dependencies = [
  "barretenberg_wrapper",
  "common",
@@ -510,6 +515,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/trace#5e89b650981c9e8006c123501e11a64d6bbae333"
 dependencies = [
  "common",
  "wasmer",
@@ -834,6 +840,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/trace#5e89b650981c9e8006c123501e11a64d6bbae333"
 dependencies = [
  "acvm 0.6.0",
  "blake2",

@@ -36,11 +36,15 @@ pub struct CompileOptions {
     /// Display output of `println` statements during tests
     #[arg(long)]
     pub show_output: bool,
+
+    /// File name to write debug output of `trace` statements
+    #[arg(long)]
+    pub debug_file: Option<String>,
 }
 
 impl Default for CompileOptions {
     fn default() -> Self {
-        Self { show_ssa: false, allow_warnings: false, show_output: true }
+        Self { show_ssa: false, allow_warnings: false, show_output: true, debug_file: None }
     }
 }
 

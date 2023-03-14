@@ -5,6 +5,7 @@ use clap::Args;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 
+use super::fs::logs::handle_logs;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     keys::fetch_pk_and_vk,
@@ -94,7 +95,9 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         &compiled_program.abi,
     )?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let (solved_witness, logs) = execute_program(&compiled_program, &inputs_map)?;
+
+    handle_logs(logs, compile_options.debug_file.clone(), &program_dir)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.clone().public_abi();

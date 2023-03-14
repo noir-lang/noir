@@ -80,7 +80,8 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     use tempdir::TempDir;
 
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
-    let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+    let compile_options =
+        CompileOptions { show_ssa, allow_warnings: false, show_output: false, debug_file: None };
 
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),

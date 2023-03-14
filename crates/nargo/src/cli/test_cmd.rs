@@ -6,9 +6,9 @@ use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{errors::CliError, logs::handle_logs, resolver::Resolver};
+use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, NargoConfig};
+use super::{add_std_lib, fs::logs::handle_logs, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -52,7 +52,7 @@ fn run_tests(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(test_name, test_function, &driver, compile_options) {
+        match run_test(test_name, test_function, &driver, compile_options, program_dir) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -82,6 +82,7 @@ fn run_test(
     main: FuncId,
     driver: &Driver,
     config: &CompileOptions,
+    program_dir: &Path,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
@@ -91,11 +92,13 @@ fn run_test(
 
     let mut solved_witness = BTreeMap::new();
     let mut logs = Vec::new();
+    let test_debug_file_name =
+        config.debug_file.as_ref().map(|debug_file| format!("{debug_file}-{test_name}"));
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
     if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes, &mut logs) {
-        handle_logs(logs)?;
+        handle_logs(logs, test_debug_file_name, program_dir)?;
 
         let writer = StandardStream::stderr(ColorChoice::Always);
         let mut writer = writer.lock();
@@ -105,7 +108,7 @@ fn run_test(
         return Err(error.into());
     }
     if config.show_output {
-        handle_logs(logs)?;
+        handle_logs(logs, test_debug_file_name, program_dir)?;
     }
 
     Ok(())

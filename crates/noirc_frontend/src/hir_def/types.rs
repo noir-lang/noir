@@ -853,6 +853,8 @@ impl Type {
                 elem_a.try_unify(elem_b, span)
             }
 
+            (String(len_a), String(len_b)) => len_a.try_unify(len_b, span),
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -983,6 +985,8 @@ impl Type {
                 len_a.is_subtype_of(len_b, span)?;
                 elem_a.is_subtype_of(elem_b, span)
             }
+
+            (String(len_a), String(len_b)) => len_a.is_subtype_of(len_b, span),
 
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {

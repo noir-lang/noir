@@ -14,3 +14,4 @@ pkg/
 *.pk
 *.vk
 **/Verifier.toml
+*.trace
