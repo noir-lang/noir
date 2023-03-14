@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use super::expression_to_witness;
 
 #[derive(Default)]
-pub struct InternalVarCache {
+pub(crate) struct InternalVarCache {
     inner: HashMap<NodeId, InternalVar>,
     constants: HashMap<FieldElement, InternalVar>,
 }

@@ -11,7 +11,7 @@ use crate::ssa::{
 use acvm::FieldElement;
 use num_bigint::ToBigUint;
 
-pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
+pub(super) fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
     simplify(ctx, &mut ins)?;
     ctx[ins_id] = super::node::NodeObject::Instr(ins);
@@ -20,7 +20,7 @@ pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeEr
 
 // Performs constant folding, arithmetic simplifications and move to standard form
 // Modifies ins.mark with whether the instruction should be deleted, replaced, or neither
-pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
+pub(super) fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), RuntimeError> {
     if ins.is_deleted() {
         return Ok(());
     }
@@ -167,7 +167,7 @@ fn evaluate_intrinsic(
 // The following code will be concerned with Common Subexpression Elimination (CSE)
 //
 
-pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
+pub(super) fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
     if let Some(obj) = ctx.try_get_instruction(id) {
         if let Mark::ReplaceWith(replacement) = obj.mark {
             *modified = true;
@@ -183,7 +183,7 @@ pub fn propagate(ctx: &SsaContext, id: NodeId, modified: &mut bool) -> NodeId {
 }
 
 //common subexpression elimination, starting from the root
-pub fn cse(
+pub(super) fn cse(
     ir_gen: &mut SsaContext,
     first_block: BlockId,
     stop_on_error: bool,
@@ -220,7 +220,7 @@ fn cse_tree(
 }
 
 //perform common subexpression elimination until there is no more change
-pub fn full_cse(
+pub(super) fn full_cse(
     ir_gen: &mut SsaContext,
     first_block: BlockId,
     report_error: bool,
@@ -235,13 +235,16 @@ pub fn full_cse(
     Ok(result)
 }
 
-pub fn simple_cse(ctx: &mut SsaContext, block_id: BlockId) -> Result<Option<NodeId>, RuntimeError> {
+pub(super) fn simple_cse(
+    ctx: &mut SsaContext,
+    block_id: BlockId,
+) -> Result<Option<NodeId>, RuntimeError> {
     let mut modified = false;
     let mut instructions = Vec::new();
     cse_block(ctx, block_id, &mut instructions, &mut modified)
 }
 
-pub fn cse_block(
+pub(super) fn cse_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
     instructions: &mut Vec<NodeId>,

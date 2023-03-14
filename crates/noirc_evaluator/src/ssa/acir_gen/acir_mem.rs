@@ -8,14 +8,14 @@ use iter_extended::vecmap;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-pub struct ArrayHeap {
+struct ArrayHeap {
     // maps memory address to InternalVar
     memory_map: BTreeMap<u32, InternalVar>,
 }
 
 /// Handle virtual memory access
 #[derive(Default)]
-pub struct AcirMem {
+pub(crate) struct AcirMem {
     virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
 }
 
@@ -26,12 +26,12 @@ impl AcirMem {
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
+    pub(super) fn insert(&mut self, array_id: ArrayId, index: u32, value: InternalVar) {
         self.array_map_mut(array_id).insert(index, value);
     }
 
     //Map the outputs into the array
-    pub(crate) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
+    pub(super) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
         let array = &ctx.mem[a];
         for i in 0..array.len {
             let var = if i < outputs.len() as u32 {
@@ -45,7 +45,7 @@ impl AcirMem {
 
     // Load array values into InternalVars
     // If create_witness is true, we create witnesses for values that do not have witness
-    pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
+    pub(super) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
         vecmap(0..array.len, |offset| {
             self.load_array_element_constant_index(array, offset)
                 .expect("infallible: array out of bounds error")
@@ -60,7 +60,7 @@ impl AcirMem {
     //
     //
     // Returns `None` if `offset` is out of bounds.
-    pub(crate) fn load_array_element_constant_index(
+    pub(super) fn load_array_element_constant_index(
         &mut self,
         array: &MemArray,
         offset: u32,
