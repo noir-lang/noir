@@ -159,6 +159,7 @@ else()
     add_library(
         barretenberg
         STATIC
+        $<TARGET_OBJECTS:transcript_objects>
         $<TARGET_OBJECTS:srs_objects>
         $<TARGET_OBJECTS:numeric_objects>
         $<TARGET_OBJECTS:crypto_sha256_objects>
@@ -171,6 +172,8 @@ else()
         $<TARGET_OBJECTS:ecc_objects>
         $<TARGET_OBJECTS:polynomials_objects>
         $<TARGET_OBJECTS:plonk_objects>
+        $<TARGET_OBJECTS:honk_objects>
+        $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:stdlib_primitives_objects>
         $<TARGET_OBJECTS:stdlib_schnorr_objects>
         $<TARGET_OBJECTS:stdlib_pedersen_objects>
