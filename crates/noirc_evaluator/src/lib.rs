@@ -114,6 +114,10 @@ impl Evaluator {
         self.current_witness_index
     }
 
+    pub fn push_gate(&mut self, gate: AcirOpcode) {
+        self.opcodes.push(gate);
+    }
+
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main_alt(
         &mut self,
