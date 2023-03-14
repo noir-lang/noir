@@ -77,8 +77,8 @@ pub(super) fn simplify_bitwise(
 }
 // Precondition: `lhs` and `rhs` do not represent constant expressions
 pub(super) fn evaluate_bitwise(
-    mut lhs: InternalVar,
-    mut rhs: InternalVar,
+    lhs: InternalVar,
+    rhs: InternalVar,
     bit_size: u32,
     evaluator: &mut Evaluator,
     var_cache: &mut InternalVarCache,
@@ -114,8 +114,8 @@ pub(super) fn evaluate_bitwise(
     // If the gate is implemented, it is expected to be better than going through bit decomposition, even if one of the operand is a constant
     // If the gate is not implemented, we rely on the ACIR simplification to remove these witnesses
     //
-    let mut a_witness = var_cache.get_or_compute_witness_unwrap(&mut lhs, evaluator, ctx);
-    let mut b_witness = var_cache.get_or_compute_witness_unwrap(&mut rhs, evaluator, ctx);
+    let mut a_witness = var_cache.get_or_compute_witness_unwrap(lhs, evaluator, ctx);
+    let mut b_witness = var_cache.get_or_compute_witness_unwrap(rhs, evaluator, ctx);
 
     let result = evaluator.add_witness_to_cs();
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
@@ -128,12 +128,12 @@ pub(super) fn evaluate_bitwise(
             a_witness = evaluator.create_intermediate_variable(constraints::subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
-                lhs.expression(),
+                &Expression::from(a_witness),
             ));
             b_witness = evaluator.create_intermediate_variable(constraints::subtract(
                 &Expression::from_field(max),
                 FieldElement::one(),
-                rhs.expression(),
+                &Expression::from(b_witness),
             ));
             // We do not have an OR gate yet, so we use the AND gate
             acvm::acir::BlackBoxFunc::AND

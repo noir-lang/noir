@@ -19,8 +19,6 @@ use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Lite
 use num_bigint::BigUint;
 use std::collections::{HashMap, HashSet};
 
-use super::acir_gen::InternalVar;
-
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
@@ -36,7 +34,7 @@ pub struct SsaContext {
 
     pub functions: HashMap<FuncId, function::SsaFunction>,
     pub opcode_ids: HashMap<builtin::Opcode, NodeId>,
-    pub constants: HashMap<FieldElement, Vec<InternalVar>>,
+    pub constants: HashMap<FieldElement, Vec<NodeId>>,
 
     //Adjacency Matrix of the call graph; list of rows where each row indicates the functions called by the function whose FuncIndex is the row number
     pub call_graph: Vec<Vec<u8>>,
@@ -572,12 +570,10 @@ impl SsaContext {
         e_type: node::ObjectType,
     ) -> Option<NodeId> {
         // we look for the node in the constants map
-        if let Some(vars) = self.constants.get(value) {
-            for var in vars {
-                if let Some(id) = var.get_id() {
-                    if self[id].get_type() == e_type {
-                        return Some(id);
-                    }
+        if let Some(ids) = self.constants.get(value) {
+            for &id in ids {
+                if self[id].get_type() == e_type {
+                    return Some(id);
                 }
             }
         }
@@ -599,10 +595,8 @@ impl SsaContext {
             value_type: t,
         });
         // Adds the id into the constants map
-        let vars = self.constants.entry(x).or_insert(Vec::new());
-        let mut var = InternalVar::from_constant(x);
-        var.set_id(id);
-        vars.push(var);
+        let ids = self.constants.entry(x).or_insert(Vec::new());
+        ids.push(id);
         id
     }
 

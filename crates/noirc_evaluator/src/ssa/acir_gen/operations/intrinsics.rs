@@ -181,17 +181,12 @@ fn resolve_node_id(
             // Upon the case that the `NodeObject` is not a `Variable`,
             // we attempt to fetch an associated `InternalVar`.
             // Otherwise, this is a internal compiler error.
-            let internal_var = acir_gen.var_cache.get(node_id);
-            match internal_var {
-                Some(var) => {
-                    let witness = var
-                        .clone()
-                        .get_or_compute_witness(evaluator)
-                        .expect("unexpected constant expression");
-                    vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
-                }
-                None => unreachable!("invalid input: {:?}", node_object),
-            }
+            let internal_var = acir_gen.var_cache.get(node_id).expect("invalid input").clone();
+            let witness = acir_gen
+                .var_cache
+                .get_or_compute_witness(internal_var, evaluator)
+                .expect("unexpected constant expression");
+            vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
         }
     }
 }
@@ -212,9 +207,9 @@ fn resolve_array(
             .load_array_element_constant_index(array, i)
             .expect("array index out of bounds");
         let witness =
-            acir_gen.var_cache.get_or_compute_witness_unwrap(&mut arr_element, evaluator, cfg);
+            acir_gen.var_cache.get_or_compute_witness_unwrap(arr_element.clone(), evaluator, cfg);
         let func_input = FunctionInput { witness, num_bits };
-
+        arr_element.set_witness(Some(witness));
         acir_gen.memory.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
@@ -291,7 +286,7 @@ fn evaluate_println(
                 log_string = format_field_string(field);
             }
             None => {
-                let mut var = var_cache
+                let var = var_cache
                     .get(&node_id)
                     .unwrap_or_else(|| {
                         panic!(
@@ -302,7 +297,7 @@ fn evaluate_println(
                     .clone();
                 if let Some(field) = var.to_const() {
                     log_string = format_field_string(field);
-                } else if let Some(w) = var.get_or_compute_witness(evaluator) {
+                } else if let Some(w) = var_cache.get_or_compute_witness(var, evaluator) {
                     // We check whether there has already been a cached witness for this node. If not, we generate a new witness and include it in the logs
                     // TODO we need a witness because of the directive, but we should use an expression
                     log_witnesses.push(w);
