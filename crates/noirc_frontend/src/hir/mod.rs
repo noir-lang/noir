@@ -11,23 +11,15 @@ use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
 
-/// Global context that is accessible during each stage
+/// Helper object which groups together several useful context objects used
+/// during name resolution. Once name resolution is finished, only the
+/// def_interner is required for type inference and monomorphization.
+#[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Context {
-            def_interner: NodeInterner::default(),
-            crate_graph: CrateGraph::default(),
-            file_manager: FileManager::new(),
-            def_maps: HashMap::new(),
-        }
-    }
 }
 
 impl Context {

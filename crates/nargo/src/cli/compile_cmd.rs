@@ -1,84 +1,142 @@
-use clap::ArgMatches;
+use acvm::{acir::circuit::Circuit, ProofSystemCompiler};
+use iter_extended::{try_btree_map, try_vecmap};
+use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_frontend::{hir::def_map::Contract, node_interner::FuncId};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use acvm::ProofSystemCompiler;
-use noirc_abi::input_parser::Format;
+use clap::Args;
 
-use super::{add_std_lib, create_named_dir, read_inputs_from_file, write_to_file};
-use crate::{
-    cli::execute_cmd::save_witness_to_dir,
-    constants::{ACIR_EXT, PROVER_INPUT_FILE, TARGET_DIR},
-    errors::CliError,
-    resolver::Resolver,
-};
+use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("compile").unwrap();
-    let circuit_name = args.value_of("circuit_name").unwrap();
-    let witness = args.is_present("witness");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
+use super::{add_std_lib, NargoConfig};
 
-    let mut circuit_path = program_dir.clone();
-    circuit_path.push(TARGET_DIR);
+/// Compile the program and its secret execution trace into ACIR format
+#[derive(Debug, Clone, Args)]
+pub(crate) struct CompileCommand {
+    /// The name of the ACIR file
+    circuit_name: String,
 
-    generate_circuit_and_witness_to_disk(
-        circuit_name,
-        program_dir,
-        circuit_path,
-        witness,
-        allow_warnings,
-    )
-    .map(|_| ())
+    /// Compile each contract function used within the program
+    #[arg(short, long)]
+    contracts: bool,
+
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
-#[allow(deprecated)]
-pub fn generate_circuit_and_witness_to_disk<P: AsRef<Path>>(
-    circuit_name: &str,
-    program_dir: P,
-    circuit_dir: P,
-    generate_witness: bool,
-    allow_warnings: bool,
-) -> Result<PathBuf, CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), false, allow_warnings)?;
-    let serialized = compiled_program.circuit.to_bytes();
+struct CompiledContract {
+    /// The name of the contract.
+    name: String,
+    /// Each of the contract's functions are compiled into a separate `CompiledProgram`
+    /// stored in this `BTreeMap`.
+    functions: BTreeMap<String, CompiledProgram>,
+}
 
-    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "build");
-    circuit_path.push(circuit_name);
-    circuit_path.set_extension(ACIR_EXT);
-    let path = write_to_file(serialized.as_slice(), &circuit_path);
-    println!("Generated ACIR code into {path}");
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+    let driver = check_crate(&config.program_dir, &args.compile_options)?;
 
-    if generate_witness {
-        // Parse the initial witness values from Prover.toml
-        let inputs_map = read_inputs_from_file(
-            program_dir,
-            PROVER_INPUT_FILE,
-            Format::Toml,
-            compiled_program.abi.as_ref().unwrap().clone(),
-        )?;
+    let mut circuit_dir = config.program_dir;
+    circuit_dir.push(TARGET_DIR);
 
-        let (_, solved_witness) =
-            super::execute_cmd::execute_program(&compiled_program, &inputs_map)?;
+    // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
+    if args.contracts {
+        let compiled_contracts = try_vecmap(driver.get_all_contracts(), |contract| {
+            compile_contract(&driver, contract, &args.compile_options)
+        })?;
 
-        circuit_path.pop();
-        save_witness_to_dir(solved_witness, circuit_name, &circuit_path)?;
+        // Flatten each contract into a list of its functions, each being assigned a unique name.
+        let compiled_programs = compiled_contracts.into_iter().flat_map(|contract| {
+            let contract_id = format!("{}-{}", args.circuit_name, &contract.name);
+            contract.functions.into_iter().map(move |(function, program)| {
+                let program_name = format!("{}-{}", contract_id, function);
+                (program_name, program)
+            })
+        });
+
+        for (circuit_name, compiled_program) in compiled_programs {
+            save_and_preprocess_program(&compiled_program, &circuit_name, &circuit_dir)?
+        }
+        Ok(())
+    } else {
+        let main = driver.main_function().map_err(|_| CliError::CompilationError)?;
+        let program = compile_program(&driver, main, &args.compile_options, &args.circuit_name)?;
+        save_and_preprocess_program(&program, &args.circuit_name, &circuit_dir)
     }
-
-    Ok(circuit_path)
 }
 
-pub fn compile_circuit<P: AsRef<Path>>(
-    program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
-) -> Result<noirc_driver::CompiledProgram, CliError> {
+fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
     let backend = crate::backends::ConcreteBackend;
-    let mut driver = Resolver::resolve_root_config(program_dir.as_ref(), backend.np_language())?;
+    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
     add_std_lib(&mut driver);
+    Ok(driver)
+}
 
+fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {
+    let mut driver = setup_driver(program_dir)?;
+    driver.check_crate(options).map_err(|_| CliError::CompilationError)?;
+    Ok(driver)
+}
+
+/// Compiles all of the functions associated with a Noir contract.
+fn compile_contract(
+    driver: &Driver,
+    contract: Contract,
+    compile_options: &CompileOptions,
+) -> Result<CompiledContract, CliError> {
+    let functions = try_btree_map(&contract.functions, |function| {
+        let function_name = driver.function_name(*function).to_owned();
+        let program_id = format!("{}-{}", contract.name, function_name);
+
+        compile_program(driver, *function, compile_options, &program_id)
+            .map(|program| (function_name, program))
+    })?;
+
+    Ok(CompiledContract { name: contract.name, functions })
+}
+
+fn compile_program(
+    driver: &Driver,
+    main: FuncId,
+    compile_options: &CompileOptions,
+    program_id: &str,
+) -> Result<CompiledProgram, CliError> {
     driver
-        .into_compiled_program(backend.np_language(), show_ssa, allow_warnings)
-        .map_err(|_| std::process::exit(1))
+        .compile_no_check(compile_options, main)
+        .map_err(|_| CliError::Generic(format!("'{}' failed to compile", program_id)))
+}
+
+/// Save a program to disk along with proving and verification keys.
+fn save_and_preprocess_program(
+    compiled_program: &CompiledProgram,
+    circuit_name: &str,
+    circuit_dir: &Path,
+) -> Result<(), CliError> {
+    save_program_to_file(compiled_program, circuit_name, circuit_dir);
+    preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
+    Ok(())
+}
+
+pub(crate) fn compile_circuit(
+    program_dir: &Path,
+    compile_options: &CompileOptions,
+) -> Result<noirc_driver::CompiledProgram, CliError> {
+    let mut driver = setup_driver(program_dir)?;
+    driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
+}
+
+fn preprocess_with_path<P: AsRef<Path>>(
+    key_name: &str,
+    preprocess_dir: P,
+    circuit: &Circuit,
+) -> Result<(PathBuf, PathBuf), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+
+    let (proving_key, verification_key) = backend.preprocess(circuit);
+
+    let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
+    let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
+
+    Ok((pk_path, vk_path))
 }

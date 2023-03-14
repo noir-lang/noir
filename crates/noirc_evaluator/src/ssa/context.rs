@@ -14,6 +14,7 @@ use crate::ssa::{
 use crate::Evaluator;
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Literal, Type};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -39,10 +40,13 @@ pub struct SsaContext {
     pub call_graph: Vec<Vec<u8>>,
     dummy_store: HashMap<ArrayId, NodeId>,
     dummy_load: HashMap<ArrayId, NodeId>,
+
+    //debug information
+    pub locations: HashMap<NodeId, Location>,
 }
 
-impl SsaContext {
-    pub fn new() -> SsaContext {
+impl Default for SsaContext {
+    fn default() -> Self {
         let mut pc = SsaContext {
             first_block: BlockId::dummy(),
             current_block: BlockId::dummy(),
@@ -56,13 +60,16 @@ impl SsaContext {
             call_graph: Vec::new(),
             dummy_store: HashMap::new(),
             dummy_load: HashMap::new(),
+            locations: HashMap::new(),
         };
         block::create_first_block(&mut pc);
         pc.one_with_type(node::ObjectType::Boolean);
         pc.zero_with_type(node::ObjectType::Boolean);
         pc
     }
+}
 
+impl SsaContext {
     pub fn zero(&self) -> NodeId {
         self.find_const_with_type(&BigUint::zero(), node::ObjectType::Boolean).unwrap()
     }
@@ -114,7 +121,7 @@ impl SsaContext {
     #[allow(clippy::map_entry)]
     pub fn add_dummy_load(&mut self, a: ArrayId) {
         if !self.dummy_load.contains_key(&a) {
-            let op_a = Operation::Load { array_id: a, index: NodeId::dummy() };
+            let op_a = Operation::Load { array_id: a, index: NodeId::dummy(), location: None };
             let dummy_load = node::Instruction::new(op_a, self.mem[a].element_type, None);
             let id = self.add_instruction(dummy_load);
             self.dummy_load.insert(a, id);
@@ -128,6 +135,7 @@ impl SsaContext {
                 index: NodeId::dummy(),
                 value: NodeId::dummy(),
                 predicate: None,
+                location: None,
             };
             let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
@@ -198,10 +206,10 @@ impl SsaContext {
                 let rhs = self.id_to_string(*rhs);
                 format!("cond({}) {lhs}, {rhs}", self.id_to_string(*condition))
             }
-            Operation::Load { array_id, index } => {
+            Operation::Load { array_id, index, .. } => {
                 format!("load {array_id:?}, index {}", self.id_to_string(*index))
             }
-            Operation::Store { array_id, index, value, predicate } => {
+            Operation::Store { array_id, index, value, predicate, .. } => {
                 let pred_str = if let Some(predicate) = predicate {
                     format!(", predicate {}", self.id_to_string(*predicate))
                 } else {
@@ -421,7 +429,7 @@ impl SsaContext {
     pub fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -436,7 +444,7 @@ impl SsaContext {
     ) -> Result<&mut node::Variable, RuntimeErrorKind> {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
-                node::NodeObject::Obj(o) => Ok(o),
+                node::NodeObject::Variable(o) => Ok(o),
                 _ => Err(RuntimeErrorKind::UnstructuredError {
                     message: "Not an object".to_string(),
                 }),
@@ -467,9 +475,9 @@ impl SsaContext {
     }
 
     pub fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
-        let id = NodeId(self.nodes.insert(NodeObject::Obj(obj)));
+        let id = NodeId(self.nodes.insert(NodeObject::Variable(obj)));
         match &mut self[id] {
-            node::NodeObject::Obj(v) => {
+            node::NodeObject::Variable(v) => {
                 v.id = id;
                 v.root = root;
             }
@@ -780,10 +788,15 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let idx_a = self
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let op_b = Operation::Load { array_id: b, index: idx_b };
+                let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction(op_b, e_type)?;
-                let op_a =
-                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
+                let op_a = Operation::Store {
+                    array_id: a,
+                    index: idx_a,
+                    value: load,
+                    predicate: None,
+                    location: None,
+                };
                 self.new_instruction(op_a, l_type)?;
             }
         } else {
@@ -807,6 +820,7 @@ impl SsaContext {
         lhs: NodeId,
         index: Option<NodeId>,
         rhs: NodeId,
+        location: Option<Location>,
     ) -> Result<NodeId, RuntimeError> {
         let lhs_type = self.object_type(lhs);
         let rhs_type = self.object_type(rhs);
@@ -863,8 +877,13 @@ impl SsaContext {
         if let Some(idx) = index {
             if let ObjectType::Pointer(a) = lhs_type {
                 //Store
-                let op_a =
-                    Operation::Store { array_id: a, index: idx, value: rhs, predicate: None };
+                let op_a = Operation::Store {
+                    array_id: a,
+                    index: idx,
+                    value: rhs,
+                    predicate: None,
+                    location,
+                };
                 return self.new_instruction(op_a, self.mem[a].element_type);
             } else {
                 unreachable!("Index expression must be for an array");
@@ -938,7 +957,8 @@ impl SsaContext {
         for (i, v) in values.iter().enumerate() {
             let index =
                 self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-            let op_a = Operation::Store { array_id, index, value: *v, predicate: None };
+            let op_a =
+                Operation::Store { array_id, index, value: *v, predicate: None, location: None };
             self.new_instruction_inline(op_a, e_type, stack_frame);
         }
     }
@@ -961,10 +981,15 @@ impl SsaContext {
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
                 let idx_a = self
                     .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let op_b = Operation::Load { array_id: b, index: idx_b };
+                let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
-                let op_a =
-                    Operation::Store { array_id: a, index: idx_a, value: load, predicate: None };
+                let op_a = Operation::Store {
+                    array_id: a,
+                    index: idx_a,
+                    value: load,
+                    predicate: None,
+                    location: None,
+                };
                 self.new_instruction_inline(op_a, l_type, stack_frame);
             }
         } else {
@@ -1052,15 +1077,16 @@ impl SsaContext {
                 let index = self
                     .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
                 self.current_block = block1;
-                let op = Operation::Load { array_id: adr1, index };
+                let op = Operation::Load { array_id: adr1, index, location: None };
                 let v1 = self.new_instruction(op, el_type).unwrap();
                 self.current_block = block2;
                 let adr2 = super::mem::Memory::deref(self, b).unwrap();
-                let op = Operation::Load { array_id: adr2, index };
+                let op = Operation::Load { array_id: adr2, index, location: None };
                 let v2 = self.new_instruction(op, el_type).unwrap();
                 self.current_block = exit_block;
                 let v = self.new_phi(v1, v2, c);
-                let op = Operation::Store { array_id, index, value: v, predicate: None };
+                let op =
+                    Operation::Store { array_id, index, value: v, predicate: None, location: None };
                 self.new_instruction(op, el_type).unwrap();
             }
             id

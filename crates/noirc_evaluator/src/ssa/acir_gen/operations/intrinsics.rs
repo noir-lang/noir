@@ -2,7 +2,6 @@ use crate::{
     ssa::{
         acir_gen::{
             constraints::{bound_constraint_with_offset, to_radix_base},
-            expression_from_witness,
             operations::sort::evaluate_permutation,
             AcirMem, InternalVar, InternalVarCache,
         },
@@ -46,21 +45,21 @@ pub(crate) fn evaluate(
 
     let outputs;
     match opcode {
-        Opcode::ToBits => {
+        Opcode::ToBits(endianess) => {
             // TODO: document where `0` and `1` are coming from, for args[0], args[1]
             let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), 2, bit_size, evaluator);
+            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
                 memory_map.map_array(a, &outputs, ctx);
             }
         }
-        Opcode::ToRadix => {
+        Opcode::ToRadix(endianess) => {
             // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
             let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
             let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), radix, limb_size, evaluator);
+            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
                 memory_map.map_array(a, &outputs, ctx);
             }
@@ -101,8 +100,7 @@ pub(crate) fn evaluate(
                 );
             }
             outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
-            let out_expr: Vec<Expression> =
-                outputs.iter().map(|w| expression_from_witness(*w)).collect();
+            let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
                     &out_expr[i],
@@ -159,7 +157,7 @@ fn resolve_node_id(
 ) -> Vec<FunctionInput> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
-        node::NodeObject::Obj(v) => {
+        node::NodeObject::Variable(v) => {
             let node_obj_type = node_object.get_type();
             match node_obj_type {
                 // If the `Variable` represents a Pointer
@@ -289,18 +287,25 @@ fn evaluate_println(
                 log_string = format_field_string(field);
             }
             None => {
-                let var = var_cache.get(&node_id).unwrap_or_else(|| {
-                    panic!(
-                        "invalid input for print statement: {:?}",
-                        ctx.try_get_node(node_id).expect("node is missing from SSA")
-                    )
-                });
+                let mut var = var_cache
+                    .get(&node_id)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "invalid input for print statement: {:?}",
+                            ctx.try_get_node(node_id).expect("node is missing from SSA")
+                        )
+                    })
+                    .clone();
                 if let Some(field) = var.to_const() {
                     log_string = format_field_string(field);
-                } else if let Some(w) = var.cached_witness() {
-                    log_witnesses.push(*w);
+                } else if let Some(w) = var.get_or_compute_witness(evaluator, false) {
+                    // We check whether there has already been a cached witness for this node. If not, we generate a new witness and include it in the logs
+                    // TODO we need a witness because of the directive, but we should use an expression
+                    log_witnesses.push(w);
                 } else {
-                    unreachable!("array element to be logged is missing a witness");
+                    unreachable!(
+                        "a witness should have been computed for the non-constant expression"
+                    );
                 }
             }
         },

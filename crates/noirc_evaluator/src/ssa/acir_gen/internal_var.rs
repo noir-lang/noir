@@ -1,11 +1,4 @@
-use crate::{
-    ssa::acir_gen::{
-        const_from_expression, expression_from_witness, expression_to_witness,
-        optional_expression_to_witness,
-    },
-    ssa::node::NodeId,
-    Evaluator,
-};
+use crate::{ssa::acir_gen::expression_to_witness, ssa::node::NodeId, Evaluator};
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -51,7 +44,7 @@ impl InternalVar {
 
     pub fn to_expression(&self) -> Expression {
         if let Some(w) = self.cached_witness {
-            expression_from_witness(w)
+            w.into()
         } else {
             self.expression().clone()
         }
@@ -60,7 +53,7 @@ impl InternalVar {
     /// If the InternalVar holds a constant expression
     /// Return that constant.Otherwise, return None.
     pub(super) fn to_const(&self) -> Option<FieldElement> {
-        const_from_expression(&self.expression)
+        self.expression.to_const()
     }
 
     /// The expression term is degree-2 multi-variate polynomial, so
@@ -85,7 +78,7 @@ impl InternalVar {
     /// If `Expression` represents a degree-1 polynomial
     /// then we also assign it to the `cached_witness`
     pub(crate) fn from_expression(expression: Expression) -> InternalVar {
-        let witness = optional_expression_to_witness(&expression);
+        let witness = expression.to_witness();
         InternalVar { expression, cached_witness: witness, id: None }
     }
 
@@ -196,7 +189,7 @@ mod tests {
 
     #[test]
     fn internal_var_const_expression() {
-        let mut evaluator = Evaluator::new();
+        let mut evaluator = Evaluator::default();
 
         let expected_constant = FieldElement::from(123456789u128);
 
@@ -216,7 +209,7 @@ mod tests {
     }
     #[test]
     fn internal_var_from_witness() {
-        let mut evaluator = Evaluator::new();
+        let mut evaluator = Evaluator::default();
 
         let expected_witness = Witness(1234);
         // Initialize an InternalVar with a `Witness`

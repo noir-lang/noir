@@ -19,7 +19,9 @@ pub(crate) const PKG_FILE: &str = "Nargo.toml";
 // Extensions
 /// The extension for files containing circuit proofs.
 pub(crate) const PROOF_EXT: &str = "proof";
-/// The extension for files containing circuit ACIR representations.
-pub(crate) const ACIR_EXT: &str = "acir";
 /// The extension for files containing proof witnesses.
 pub(crate) const WITNESS_EXT: &str = "tr";
+/// The extension for proving keys.
+pub(crate) const PK_EXT: &str = "pk";
+/// The extension for verification keys.
+pub(crate) const VK_EXT: &str = "vk";

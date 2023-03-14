@@ -91,12 +91,12 @@ impl std::fmt::Display for CustomDiagnostic {
 
 #[derive(Debug, PartialEq, Eq)]
 struct CustomLabel {
-    pub message: String,
-    pub span: Span,
+    message: String,
+    span: Span,
 }
 
 impl CustomLabel {
-    pub fn new(message: String, span: Span) -> CustomLabel {
+    fn new(message: String, span: Span) -> CustomLabel {
         CustomLabel { message, span }
     }
 }

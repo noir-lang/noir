@@ -5,10 +5,7 @@ use acvm::{
 };
 
 use crate::{
-    ssa::acir_gen::{
-        constraints::{add, mul_with_witness, subtract},
-        expression_from_witness,
-    },
+    ssa::acir_gen::constraints::{add, mul_with_witness, subtract},
     Evaluator,
 };
 
@@ -20,7 +17,7 @@ pub fn evaluate_permutation(
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
     let (w, b) = permutation_layer(in_expr, evaluator);
-    // we contrain the network output to out_expr
+    // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
@@ -45,7 +42,7 @@ pub fn permutation_layer(
         conf.push(evaluator.add_witness_to_cs());
     }
     // compute expressions after the input switches
-    // If inputs are a1,a2, and the switch value is c, then we compute expresions b1,b2 where
+    // If inputs are a1,a2, and the switch value is c, then we compute expressions b1,b2 where
     // b1 = a1+q, b2 = a2-q, q = c(a2-a1)
     let mut in_sub1 = Vec::new();
     let mut in_sub2 = Vec::new();
@@ -53,7 +50,7 @@ pub fn permutation_layer(
         //q = c*(a2-a1);
         let intermediate = mul_with_witness(
             evaluator,
-            &expression_from_witness(conf[i]),
+            &conf[i].into(),
             &subtract(&in_expr[2 * i + 1], FieldElement::one(), &in_expr[2 * i]),
         );
         //b1=a1+q
@@ -68,15 +65,12 @@ pub fn permutation_layer(
     // compute results for the sub networks
     let (w1, b1) = permutation_layer(&in_sub1, evaluator);
     let (w2, b2) = permutation_layer(&in_sub2, evaluator);
-    // apply the output swithces
+    // apply the output switches
     for i in 0..(n - 1) / 2 {
         let c = evaluator.add_witness_to_cs();
         conf.push(c);
-        let intermediate = mul_with_witness(
-            evaluator,
-            &expression_from_witness(c),
-            &subtract(&b2[i], FieldElement::one(), &b1[i]),
-        );
+        let intermediate =
+            mul_with_witness(evaluator, &c.into(), &subtract(&b2[i], FieldElement::one(), &b1[i]));
         out_expr.push(add(&intermediate, FieldElement::one(), &b1[i]));
         out_expr.push(subtract(&b2[i], FieldElement::one(), &intermediate));
     }
@@ -98,10 +92,7 @@ mod test {
         FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
-    use crate::{
-        ssa::acir_gen::{expression_from_witness, operations::sort::evaluate_permutation},
-        Evaluator,
-    };
+    use crate::{ssa::acir_gen::operations::sort::evaluate_permutation, Evaluator};
     use rand::prelude::*;
 
     struct MockBackend {}
@@ -119,12 +110,7 @@ mod test {
     fn test_permutation() {
         let mut rng = rand::thread_rng();
         for n in 2..50 {
-            let mut eval = Evaluator {
-                current_witness_index: 0,
-                num_witnesses_abi_len: 0,
-                public_inputs: Vec::new(),
-                opcodes: Vec::new(),
-            };
+            let mut eval = Evaluator::default();
 
             //we generate random inputs
             let mut input = Vec::new();
@@ -133,7 +119,7 @@ mod test {
             let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
-                input.push(expression_from_witness(w));
+                input.push(w.into());
                 a_val.push(FieldElement::from(rng.next_u32() as i128));
                 solved_witness.insert(w, a_val[i]);
             }
@@ -142,7 +128,7 @@ mod test {
             for _i in 0..n {
                 let w = eval.add_witness_to_cs();
                 b_wit.push(w);
-                output.push(expression_from_witness(w));
+                output.push(w.into());
             }
             //generate constraints for the inputs
             let w = evaluate_permutation(&input, &output, &mut eval);
@@ -152,7 +138,7 @@ mod test {
             for _i in 0..w.len() {
                 c.push(rng.next_u32() % 2 != 0);
             }
-            // intialise bits
+            // initialize bits
             for i in 0..w.len() {
                 solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
             }
@@ -166,7 +152,9 @@ mod test {
                 b_val.push(solved_witness[&b_wit[i]]);
             }
             // ensure the outputs are a permutation of the inputs
-            assert_eq!(a_val.sort(), b_val.sort());
+            a_val.sort();
+            b_val.sort();
+            assert_eq!(a_val, b_val);
         }
     }
 }

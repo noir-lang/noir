@@ -4,6 +4,20 @@ use crate::{Ident, Type};
 use fm::FileId;
 use noirc_errors::Span;
 
+/// A HirStatement is the result of performing name resolution on
+/// the Statement AST node. Unlike the AST node, any nested nodes
+/// are referred to indirectly via ExprId or StmtId, which can be
+/// used to retrieve the relevant node via the NodeInterner.
+#[derive(Debug, Clone)]
+pub enum HirStatement {
+    Let(HirLetStatement),
+    Constrain(HirConstrainStatement),
+    Assign(HirAssignStatement),
+    Expression(ExprId),
+    Semi(ExprId),
+    Error,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
     pub pattern: HirPattern,
@@ -20,31 +34,19 @@ impl HirLetStatement {
     }
 }
 
+/// Corresponds to `lvalue = expression;` in the source code
 #[derive(Debug, Clone)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,
     pub expression: ExprId,
 }
 
+/// Corresponds to `constrain expr;` in the source code.
+/// This node also contains the FileId of the file the constrain
+/// originates from. This is used later in the SSA pass to issue
+/// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub ExprId, pub FileId);
-
-#[derive(Debug, Clone)]
-pub struct BinaryStatement {
-    pub lhs: ExprId,
-    pub r#type: Type,
-    pub expression: ExprId,
-}
-
-#[derive(Debug, Clone)]
-pub enum HirStatement {
-    Let(HirLetStatement),
-    Constrain(HirConstrainStatement),
-    Assign(HirAssignStatement),
-    Expression(ExprId),
-    Semi(ExprId),
-    Error,
-}
 
 #[derive(Debug, Clone)]
 pub enum HirPattern {
@@ -79,7 +81,8 @@ impl HirPattern {
     }
 }
 
-/// Represents an Ast form that can be assigned to
+/// Represents an Ast form that can be assigned to. These
+/// can be found on the left hand side of an assignment `=`.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum HirLValue {
     Ident(HirIdent, Type),

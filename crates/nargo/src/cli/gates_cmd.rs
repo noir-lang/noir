@@ -1,26 +1,29 @@
 use acvm::ProofSystemCompiler;
-use clap::ArgMatches;
-use std::path::{Path, PathBuf};
+use clap::Args;
+use noirc_driver::CompileOptions;
+use std::path::Path;
 
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
 
-pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
-    let args = args.subcommand_matches("gates").unwrap();
-    let show_ssa = args.is_present("show-ssa");
-    let allow_warnings = args.is_present("allow-warnings");
-    let program_dir =
-        args.value_of("path").map_or_else(|| std::env::current_dir().unwrap(), PathBuf::from);
+use super::NargoConfig;
 
-    count_gates_with_path(program_dir, show_ssa, allow_warnings)
+/// Counts the occurrences of different gates in circuit
+#[derive(Debug, Clone, Args)]
+pub(crate) struct GatesCommand {
+    #[clap(flatten)]
+    compile_options: CompileOptions,
 }
 
-pub fn count_gates_with_path<P: AsRef<Path>>(
+pub(crate) fn run(args: GatesCommand, config: NargoConfig) -> Result<(), CliError> {
+    count_gates_with_path(config.program_dir, &args.compile_options)
+}
+
+fn count_gates_with_path<P: AsRef<Path>>(
     program_dir: P,
-    show_ssa: bool,
-    allow_warnings: bool,
+    compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let compiled_program = compile_circuit(program_dir.as_ref(), show_ssa, allow_warnings)?;
+    let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();
     let backend = crate::backends::ConcreteBackend;
 
@@ -30,7 +33,7 @@ pub fn count_gates_with_path<P: AsRef<Path>>(
         num_opcodes
     );
 
-    let exact_circuit_size = backend.get_exact_circuit_size(compiled_program.circuit);
+    let exact_circuit_size = backend.get_exact_circuit_size(&compiled_program.circuit);
     println!("Backend circuit size: {exact_circuit_size}");
 
     Ok(())

@@ -10,19 +10,3 @@ mod field;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}
-
-// Returns base^exponent. 
-// ^ means to the power of and not xor
-// Caution: we assume the exponent fits into 32 bits
-// using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
-fn pow_32(base: Field, exponent: Field) -> Field {
-    let mut r = 1 as Field;
-    let b = field::to_le_bits(exponent, 32);
-
-    for i in 1..33 {
-        r = r*r;
-        r = (b[32-i] as Field) * (r * base) + (1 - b[32-i] as Field) * r;
-    };
-    r
-}
-

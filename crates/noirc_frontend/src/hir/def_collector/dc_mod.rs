@@ -21,7 +21,9 @@ struct ModCollector<'a> {
     pub(crate) module_id: LocalModuleId,
 }
 
-/// Walk a module and collect it's definitions
+/// Walk a module and collect its definitions.
+///
+/// This performs the entirety of the definition collection phase of the name resolution pass.
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: ParsedModule,
@@ -159,7 +161,7 @@ impl<'a> ModCollector<'a> {
             let name = struct_definition.name.clone();
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(&name, self.file_id, false, errors) {
+            let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
                 Some(local_id) => StructId(ModuleId { krate, local_id }),
                 None => continue,
             };
@@ -193,7 +195,13 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) {
         for submodule in submodules {
-            if let Some(child) = self.push_child_module(&submodule.name, file_id, true, errors) {
+            if let Some(child) = self.push_child_module(
+                &submodule.name,
+                file_id,
+                true,
+                submodule.is_contract,
+                errors,
+            ) {
                 collect_defs(
                     self.def_collector,
                     submodule.contents,
@@ -232,7 +240,9 @@ impl<'a> ModCollector<'a> {
         let ast = parse_file(&mut context.file_manager, child_file_id, errors);
 
         // Add module into def collector and get a ModuleId
-        if let Some(child_mod_id) = self.push_child_module(mod_name, child_file_id, true, errors) {
+        if let Some(child_mod_id) =
+            self.push_child_module(mod_name, child_file_id, true, false, errors)
+        {
             collect_defs(
                 self.def_collector,
                 ast,
@@ -252,20 +262,14 @@ impl<'a> ModCollector<'a> {
         mod_name: &Ident,
         file_id: FileId,
         add_to_parent_scope: bool,
+        is_contract: bool,
         errors: &mut Vec<FileDiagnostic>,
     ) -> Option<LocalModuleId> {
-        // Create a new default module
-        let module_id = self.def_collector.def_map.modules.insert(ModuleData::default());
+        let parent = Some(self.module_id);
+        let new_module = ModuleData::new(parent, ModuleOrigin::File(file_id), is_contract);
+        let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;
-
-        // Update the child module to reference the parent
-        modules[module_id].parent = Some(self.module_id);
-
-        // Update the origin of the child module
-        // Also note that the FileId is where this module is defined and not declared
-        // To find out where the module was declared, you need to check its parent
-        modules[module_id].origin = ModuleOrigin::File(file_id);
 
         // Update the parent module to reference the child
         modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));

@@ -1,12 +1,15 @@
-use crate::errors::RuntimeError;
+use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{
     anchor::{Anchor, CseAction},
     block::BlockId,
     builtin,
     context::SsaContext,
-    node::{Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Operation},
+    node::{
+        Binary, BinaryOp, Instruction, Mark, Node, NodeEval, NodeId, ObjectType, Opcode, Operation,
+    },
 };
 use acvm::FieldElement;
+use num_bigint::ToBigUint;
 
 pub fn simplify_id(ctx: &mut SsaContext, ins_id: NodeId) -> Result<(), RuntimeError> {
     let mut ins = ctx.instruction(ins_id).clone();
@@ -48,7 +51,7 @@ pub fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<(), Runti
 
     if let Operation::Binary(binary) = &mut ins.operation {
         if let NodeEval::Const(r_const, r_type) = NodeEval::from_id(ctx, binary.rhs) {
-            if binary.operator == BinaryOp::Div && !r_const.is_zero() {
+            if binary.opcode() == Opcode::Div && !r_const.is_zero() {
                 binary.rhs = ctx.get_or_create_const(r_const.inverse(), r_type);
                 binary.operator = BinaryOp::Mul;
             }
@@ -74,9 +77,9 @@ fn evaluate_intrinsic(
     args: Vec<u128>,
     res_type: &ObjectType,
     block_id: BlockId,
-) -> Vec<NodeId> {
+) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
-        builtin::Opcode::ToBits => {
+        builtin::Opcode::ToBits(_) => {
             let bit_count = args[1] as u32;
             let mut result = Vec::new();
 
@@ -87,16 +90,74 @@ fn evaluate_intrinsic(
                         ObjectType::NativeField,
                     );
                     let op = if args[0] & (1 << i) != 0 {
-                        Operation::Store { array_id: *a, index, value: ctx.one(), predicate: None }
+                        Operation::Store {
+                            array_id: *a,
+                            index,
+                            value: ctx.one(),
+                            predicate: None,
+                            location: None,
+                        }
                     } else {
-                        Operation::Store { array_id: *a, index, value: ctx.zero(), predicate: None }
+                        Operation::Store {
+                            array_id: *a,
+                            index,
+                            value: ctx.zero(),
+                            predicate: None,
+                            location: None,
+                        }
                     };
                     let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
                     result.push(ctx.add_instruction(i));
                 }
-                return result;
+                return Ok(result);
             }
-            unreachable!();
+            unreachable!(
+                "compiler error: to bits should have a Pointer result type and be decomposed."
+            );
+        }
+        builtin::Opcode::ToRadix(endian) => {
+            let mut element = args[0].to_biguint().unwrap().to_radix_le(args[1] as u32);
+            let byte_count = args[2] as u32;
+            let diff = if byte_count > element.len() as u32 {
+                byte_count - element.len() as u32
+            } else {
+                return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                    index: element.len() as u128,
+                    bound: byte_count as u128,
+                });
+            };
+            element.extend(vec![0; diff as usize]);
+            if endian == builtin::Endian::Big {
+                element.reverse();
+            }
+            let mut result = Vec::new();
+
+            if let ObjectType::Pointer(a) = res_type {
+                for (i, item) in element.iter().enumerate() {
+                    let index = ctx.get_or_create_const(
+                        FieldElement::from(i as i128),
+                        ObjectType::NativeField,
+                    );
+                    let value = ctx.get_or_create_const(
+                        FieldElement::from(*item as i128),
+                        ObjectType::NativeField,
+                    );
+                    let op = Operation::Store {
+                        array_id: *a,
+                        index,
+                        value,
+                        predicate: None,
+                        location: None,
+                    };
+
+                    let i = Instruction::new(op, ObjectType::NotAnObject, Some(block_id));
+                    result.push(ctx.add_instruction(i));
+                }
+                return Ok(result);
+            }
+            unreachable!(
+                "compiler error: to radix should have a Pointer result type and be decomposed."
+            );
         }
         _ => todo!(),
     }
@@ -250,24 +311,30 @@ fn cse_block_with_anchor(
                         anchor.push_front(&ins.operation, *ins_id);
                     }
                 }
-                Operation::Load { array_id: x, .. } | Operation::Store { array_id: x, .. } => {
+                Operation::Load { array_id: x, location, .. }
+                | Operation::Store { array_id: x, location, .. } => {
                     if !is_join && ins.operation.is_dummy_store() {
                         continue;
                     }
                     anchor.use_array(*x, ctx.mem[*x].len as usize);
                     let prev_ins = anchor.get_mem_all(*x);
-                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins)? {
-                        CseAction::Keep => {
-                            anchor.push_mem_instruction(ctx, *ins_id)?;
-                            new_list.push(*ins_id)
+                    let into_runtime_error =
+                        |err: RuntimeErrorKind| RuntimeError { location: *location, kind: err };
+                    match anchor.find_similar_mem_instruction(ctx, &operator, prev_ins) {
+                        Ok(CseAction::Keep) => {
+                            anchor
+                                .push_mem_instruction(ctx, *ins_id)
+                                .map_err(into_runtime_error)?;
+                            new_list.push(*ins_id);
                         }
-                        CseAction::ReplaceWith(new_id) => {
+                        Ok(CseAction::ReplaceWith(new_id)) => {
                             *modified = true;
                             new_mark = Mark::ReplaceWith(new_id);
                         }
-                        CseAction::Remove(id_to_remove) => {
-                            anchor.push_mem_instruction(ctx, *ins_id)?;
-
+                        Ok(CseAction::Remove(id_to_remove)) => {
+                            anchor
+                                .push_mem_instruction(ctx, *ins_id)
+                                .map_err(into_runtime_error)?;
                             // TODO if not found, it should be removed from other blocks; we could keep a list of instructions to remove
                             if let Some(id) = new_list.iter().position(|x| *x == id_to_remove) {
                                 *modified = true;
@@ -278,12 +345,14 @@ fn cse_block_with_anchor(
                                 index: idx,
                                 value: value2,
                                 predicate: Some(predicate2),
+                                location: location1,
                                 ..
                             } = operator
                             {
                                 if let Operation::Store {
                                     value: value1,
                                     predicate: predicate1,
+                                    location: location2,
                                     ..
                                 } = ctx.instruction(id_to_remove).operation
                                 {
@@ -326,6 +395,9 @@ fn cse_block_with_anchor(
                                             index: idx,
                                             value: cond_id,
                                             predicate: pred,
+                                            location: RuntimeError::merge_location(
+                                                location1, location2,
+                                            ),
                                         };
                                     }
                                 } else {
@@ -333,6 +405,9 @@ fn cse_block_with_anchor(
                                 }
                             }
                             new_list.push(*ins_id);
+                        }
+                        Err(err) => {
+                            return Err(RuntimeError { location: *location, kind: err });
                         }
                     }
                 }
@@ -461,7 +536,7 @@ fn cse_block_with_anchor(
                                 args,
                                 &update2.res_type,
                                 block_id,
-                            ));
+                            )?);
                         }
                     }
                 }
