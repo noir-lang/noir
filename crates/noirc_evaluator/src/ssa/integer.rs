@@ -16,7 +16,7 @@ use std::{
 };
 
 //Returns the maximum bit size of short integers
-pub fn short_integer_max_bit_size() -> u32 {
+pub(super) fn short_integer_max_bit_size() -> u32 {
     //TODO: it should be FieldElement::max_num_bits()/2, but for now we do not support more than 128 bits as well
     //This allows us to do use u128 to represent integer constant values
     u32::min(FieldElement::max_num_bits() / 2, 128)
@@ -202,7 +202,7 @@ fn process_to_truncate(
 }
 
 //Add required truncate instructions on all blocks
-pub fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
+pub(super) fn overflow_strategy(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     let mut max_map: HashMap<NodeId, BigUint> = HashMap::new();
     let mut memory_map = HashMap::new();
     tree_overflow(ctx, ctx.first_block, &mut max_map, &mut memory_map)
@@ -420,7 +420,7 @@ fn update_value_array(
 }
 
 //Get current value using the provided value map
-pub fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
+fn get_value_from_map(id: NodeId, value_map: &HashMap<NodeId, NodeId>) -> NodeId {
     *value_map.get(&id).unwrap_or(&id)
 }
 

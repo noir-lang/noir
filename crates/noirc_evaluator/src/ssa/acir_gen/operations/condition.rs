@@ -24,7 +24,7 @@ pub(crate) fn evaluate(
     Some(result.into())
 }
 
-pub fn evaluate_expression(
+pub(super) fn evaluate_expression(
     condition: &Expression,
     lhs: &Expression,
     rhs: &Expression,

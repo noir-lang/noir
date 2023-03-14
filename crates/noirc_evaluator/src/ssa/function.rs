@@ -13,30 +13,30 @@ use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, T
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
-pub struct FuncIndex(pub usize);
+pub(crate) struct FuncIndex(pub(crate) usize);
 
 impl FuncIndex {
-    pub fn new(idx: usize) -> FuncIndex {
+    pub(crate) fn new(idx: usize) -> FuncIndex {
         FuncIndex(idx)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct SsaFunction {
-    pub entry_block: BlockId,
-    pub id: FuncId,
-    pub idx: FuncIndex,
-    pub node_id: NodeId,
+pub(crate) struct SsaFunction {
+    pub(crate) entry_block: BlockId,
+    pub(crate) id: FuncId,
+    pub(crate) idx: FuncIndex,
+    pub(crate) node_id: NodeId,
 
     //signature:
-    pub name: String,
-    pub arguments: Vec<(NodeId, bool)>,
-    pub result_types: Vec<ObjectType>,
-    pub decision: DecisionTree,
+    pub(crate) name: String,
+    pub(crate) arguments: Vec<(NodeId, bool)>,
+    pub(crate) result_types: Vec<ObjectType>,
+    pub(crate) decision: DecisionTree,
 }
 
 impl SsaFunction {
-    pub fn new(
+    pub(crate) fn new(
         id: FuncId,
         name: &str,
         block_id: BlockId,
@@ -55,7 +55,7 @@ impl SsaFunction {
         }
     }
 
-    pub fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
+    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
@@ -114,7 +114,7 @@ impl SsaFunction {
         Ok(decision)
     }
 
-    pub fn get_mapped_value(
+    pub(crate) fn get_mapped_value(
         var: Option<&NodeId>,
         ctx: &mut SsaContext,
         inline_map: &HashMap<NodeId, NodeId>,
@@ -139,7 +139,7 @@ impl SsaFunction {
 
 impl IrGenerator {
     /// Creates an ssa function and returns its type upon success
-    pub fn create_function(
+    pub(crate) fn create_function(
         &mut self,
         func_id: FuncId,
         index: FuncIndex,
@@ -226,7 +226,7 @@ impl IrGenerator {
     }
 
     //generates an instruction for calling the function
-    pub fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
+    pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
         let arguments = self.ssa_gen_expression_list(&call.arguments);
 
@@ -328,7 +328,7 @@ impl IrGenerator {
     }
 
     //Low-level functions with no more than 2 arguments
-    pub fn call_low_level(
+    fn call_low_level(
         &mut self,
         op: builtin::Opcode,
         args: Vec<NodeId>,
@@ -349,7 +349,7 @@ impl IrGenerator {
     }
 }
 
-pub fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
+fn resize_graph(call_graph: &mut Vec<Vec<u8>>, size: usize) {
     while call_graph.len() < size {
         call_graph.push(vec![0; size]);
     }
@@ -389,7 +389,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
 }
 
 //inline all functions of the call graph such that every inlining operates with a fully flattened function
-pub fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
+pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();
     let mut processed = Vec::new();

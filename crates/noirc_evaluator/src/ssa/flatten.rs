@@ -9,7 +9,7 @@ use acvm::FieldElement;
 use std::collections::HashMap;
 
 //Unroll the CFG
-pub fn unroll_tree(
+pub(super) fn unroll_tree(
     ctx: &mut SsaContext,
     block_id: BlockId,
 ) -> Result<HashMap<NodeId, NodeEval>, RuntimeError> {
@@ -52,7 +52,7 @@ fn update_operator(operator: &Operation, eval_map: &HashMap<NodeId, NodeEval>) -
 }
 
 //Unroll from unroll_ctx.to_unroll until it reaches unroll_ctx.unroll_into
-pub fn unroll_until(
+pub(super) fn unroll_until(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
     end: BlockId,
@@ -69,7 +69,7 @@ pub fn unroll_until(
     Ok(prev)
 }
 
-pub fn unroll_block(
+pub(super) fn unroll_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<(), RuntimeError> {
@@ -92,7 +92,7 @@ pub fn unroll_block(
 }
 
 //unroll a normal block by generating new instructions into the target block, or by updating its instructions if no target is specified, using and updating the eval_map
-pub fn unroll_std_block(
+pub(super) fn unroll_std_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<Option<BlockId>, RuntimeError> // The left block
@@ -157,7 +157,7 @@ pub fn unroll_std_block(
     Ok(Some(next))
 }
 
-pub fn unroll_join(
+pub(super) fn unroll_join(
     ssa_ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<BlockId, RuntimeError> {
@@ -206,15 +206,15 @@ pub fn unroll_join(
 }
 
 #[derive(Debug)]
-pub struct UnrollContext {
-    pub deprecated: Vec<BlockId>,
-    pub to_unroll: BlockId,
-    pub unroll_into: BlockId,
-    pub eval_map: HashMap<NodeId, NodeEval>,
+pub(super) struct UnrollContext {
+    pub(super) deprecated: Vec<BlockId>,
+    pub(super) to_unroll: BlockId,
+    pub(super) unroll_into: BlockId,
+    pub(super) eval_map: HashMap<NodeId, NodeEval>,
 }
 
 impl UnrollContext {
-    pub fn deprecate(&mut self, block_id: BlockId) {
+    pub(super) fn deprecate(&mut self, block_id: BlockId) {
         if !self.deprecated.contains(&block_id) {
             self.deprecated.push(block_id);
         }
