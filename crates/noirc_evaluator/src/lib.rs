@@ -114,7 +114,7 @@ impl Evaluator {
         self.current_witness_index
     }
 
-    pub fn push_gate(&mut self, gate: AcirOpcode) {
+    pub fn push_opcode(&mut self, gate: AcirOpcode) {
         self.opcodes.push(gate);
     }
 

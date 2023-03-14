@@ -112,7 +112,7 @@ pub(crate) fn evaluate(
             }
             let bits = evaluate_permutation(&in_expr, &out_expr, evaluator);
             let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
-            evaluator.push_gate(AcirOpcode::Directive(Directive::PermutationSort {
+            evaluator.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
                 inputs,
                 tuple: 1,
                 bits,
