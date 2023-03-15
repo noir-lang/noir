@@ -30,16 +30,65 @@ impl BlockId {
         *self == BlockId::dummy()
     }
 }
-
+/// A basic block is a sequence of instructions.
+/// A well-formed basic block will have:
+/// - A single point of entry at the beginning of the block
+/// - Followed by a sequence of non-terminating instructions
+/// - Followed by a single terminating/control flow instruction at the end of the block
+/// - Maximal: Expanding the basic block to cover more instructions would make it invalid
+///
+/// This means that executing the first instruction in a basic block
+/// will imply that every instruction in a basic block will be executed.
+///
+/// Example of non-terminating instructions: CALL, ADD, LOAD
+/// Example of terminating instructions: RETURN, IF, GOTO  
 #[derive(Debug)]
 pub struct BasicBlock {
+    /// Each basic block has a unique Identifier
+    /// which identifies the basic block over the
+    /// whole program.
     pub id: BlockId,
     pub kind: BlockType,
+    /// Domination is a relationship between two basic blocks.
+    /// Basic Block `A` is said to dominate Basic Block `B`
+    /// if `A` is guaranteed to execute before `B`.
+    /// Intuitively, if `B` has executed, you know that
+    /// `A` must have executed previously.
+    ///
+    /// Note: The first/entry block will always dominate every other
+    /// block
+    ///
+    /// Strict domination: A basic block will always dominate itself. So
+    /// we use the term _strict domination_ to rule out the
+    /// case where the block is not itself. ie we lose the reflexive property
+    ///
+    /// Immediate domination: A basic block `A` is said to be a direct dominator
+    /// of a basic block `B` if `A` strictly dominates `B` and `A` does not
+    /// strictly dominate any other Block which dominates `B`.
+    /// One can think of this as `A` being the parent basic block to `B`
+    /// such that there are no other ways to get to `B`
+    ///
+    /// TODO: check if we make use of the dominance frontier/post-dominator
+    /// TODO for dominance frontier -- check how phi nodes are being placed
     pub dominator: Option<BlockId>, //direct dominator
-    pub dominated: Vec<BlockId>,    //dominated sons
-    pub predecessor: Vec<BlockId>,  //for computing the dominator tree
-    pub left: Option<BlockId>,      //sequential successor
-    pub right: Option<BlockId>,     //jump successor
+    pub dominated: Vec<BlockId>, //dominated sons
+    /// Predecessors are the basic blocks which can
+    /// reach this basic block. If you imagine a
+    /// basic blocks as nodes in a directed graph.
+    /// The predecessors for Node A are all of the
+    /// nodes which have edges pointing to A.
+    pub predecessor: Vec<BlockId>, //for computing the dominator tree
+    /// Successors are the basic blocks which this basic
+    /// block can reach. It is common for a basic block
+    /// to have at most two successors.
+    /// This would be the case, if the last instruction in the basic
+    /// block was an if statement. This means that depending on the
+    /// condition, the flow could be given to one of two blocks of code.
+    ///
+    /// TODO: what about if elseif elseif else
+    pub left: Option<BlockId>, //sequential successor
+    pub right: Option<BlockId>,  //jump successor
+    ///  The sequence of instructions which make up the basic block
     pub instructions: Vec<NodeId>,
     pub value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
     pub assumption: AssumptionId,

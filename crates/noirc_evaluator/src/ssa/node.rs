@@ -462,7 +462,7 @@ impl Instruction {
     pub fn is_deleted(&self) -> bool {
         !matches!(self.mark, Mark::None)
     }
-
+    /// mutates a binary operation to be canonical
     pub fn standard_form(&mut self) {
         if let Operation::Binary(binary) = &mut self.operation {
             if binary.operator.is_commutative() && binary.rhs < binary.lhs {
