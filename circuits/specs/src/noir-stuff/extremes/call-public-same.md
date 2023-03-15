@@ -32,7 +32,7 @@ fn my_private_function(
         unpacked_public_call_stack: [
             {
                 // Here's the call stack item for the call to `my_public_function`
-                function_signature: {
+                function_data: {
                     contract_address: 0, // `0` is understood by the private kernel
                                          // snark to mean `address(this)`. The 
                                          // correct address will be inserted here
@@ -121,11 +121,11 @@ fn my_private_function(
     // Check the correct contract address is being called.
     // address(this) is a special case: we put 0 in this circuit, and the kernel
     // circuit will insert the correct address.
-    assert(call_stack_item.function_signature.contract_address == 0);
+    assert(call_stack_item.function_data.contract_address == 0);
 
     // Check the vkIndex (which can be inferred from the ordering of functions in
     // this contract).
-    assert(call_stack_item.function_signature.vkIndex == 0);
+    assert(call_stack_item.function_data.vkIndex == 0);
 
     // Check the correct parameters are being passed to the function:
     assert(call_stack_item.public_inputs.args[0] == a);

@@ -77,14 +77,14 @@ fn swap_a_for_b(
         unpacked_callback_stack: [
             {
                 success_callback_call: {
-                    function_signature,
+                    function_data,
                     public_inputs,
                     call_context,
                     is_delegate_call,
                     is_static_call,
                 },
                 failure_callback_call: {
-                    function_signature,
+                    function_data,
                     public_inputs,
                     call_context,
                     is_delegate_call,
@@ -174,7 +174,7 @@ fn swap_a_for_b(
 
     require(
         success_callback_call == {
-            function_signature: {
+            function_data: {
                 contract_address: 0, // Special meaning: address(this)
                 vk_index: 1, // hide_amount_b()
                 is_private: true,
@@ -231,7 +231,7 @@ fn swap_a_for_b(
             }
         },
         failure_callback_call == {
-            function_signature: {
+            function_data: {
                 contract_address: 0, // Special meaning: address(this)
                 vk_index: 2, // hide_amount_a()
                 is_private: true,
@@ -287,7 +287,7 @@ fn swap_a_for_b(
 
     let failure_callback = PUBLIC_INPUTS.callback_stack.failure_callback;
     assert(
-        failure_callback.function_signature == {
+        failure_callback.function_data == {
             contract_address: 0, // special meaning: address(this)
             vk_index: 2, // hide_amount_a()
             is_private: true,

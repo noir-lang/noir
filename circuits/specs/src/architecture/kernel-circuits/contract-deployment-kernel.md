@@ -78,7 +78,7 @@ You'll notice that the private/public inputs for this kernel circuit are a super
 | `}],` | |
 | `- optionallyRevealedData: [{` | Some values from a public call can be optionally revealed to the Contract Deployment kernel circuit / L1, depending on bools of the public circuit ABI. For some/every public call, each 'object' in this 'array' contains the following fields (some of which might be 0, depending on the bools) (note: there might be more efficient ways to encode this data - this is just for illustration): |
 | `-  - callStackItemHash,` | Serves as a 'lookup key' of sorts. |
-| `-  - functionSignature,` | |
+| `-  - functionData,` | |
 | `-  - emittedPublicInputs: [_, _, _, _],` | |
 | `-  - vkHash,` | |
 | `-  - portalContractAddress,` | |
@@ -171,7 +171,7 @@ Validate the next call on the contractDeploymentCallStack:
 * Verify `start.contractDeploymentCallStack.length > 0` and (if not already done during the 'Base Case' logic above), pop 1 item off of `start.contractDeploymentCallStack` - call it `contractDeploymentCall`.
 * Validate that this newly-popped `contractDeploymentCallStackItemHash` corresponds to the `contractDeploymentCall` data passed into this circuit:
     * Calculate `contractDeploymentCallPublicInputsHash := hash(contractDeploymentCall.publicInputs);`
-    * Verify that `contractDeploymentCallStackItemHash == hash(contractDeploymentCall.functionSignature, contractDeploymentCallPublicInputsHash, contractDeploymentCall.callContext, etc...)`
+    * Verify that `contractDeploymentCallStackItemHash == hash(contractDeploymentCall.functionData, contractDeploymentCallPublicInputsHash, contractDeploymentCall.callContext, etc...)`
 
 Deploy the contract:
 - Let `deployerAddress := contractDeploymentCall.callContext.msgSender`
@@ -208,12 +208,12 @@ Verify the private constructor's kernel snark:
         - We need to reconcile the exposed callStackItemHash of the actually-executed constructor of the private kernel snark, with what we'd expect:
             - Let `actualCallStackItemHash = privateConstructorKernel.publicInputs.end.optionallyRevealedData[0].callStackItemHash;` (the `0`-th value will be the constructor's callStack item, otherwise something has gone wrong).
             - Let's try to reconcile that `actualCallStackItemHash` with the hash we'd expect: `expectedCallStackItemHash`:
-                - Let `expectedFunctionSignature := concat(newContractAddress, 0, false, true, false)`. Note: the `0` in the 2nd parameter might suggest we want to call the function whose vkIndex is at position `0` - but the `isConstructor = true` tells the kernel circuit that we're calling a constructor; not looking up a deployed function. Note: this line is justification for `isConstructor` being part of the functionSignature. If it were alternatively part of the `privateConstructorPublicInputsHash`, we'd have to do _much_ more hashing to extract its value here.
+                - Let `expectedFunctionData := concat(newContractAddress, 0, false, true, false)`. Note: the `0` in the 2nd parameter might suggest we want to call the function whose vkIndex is at position `0` - but the `isConstructor = true` tells the kernel circuit that we're calling a constructor; not looking up a deployed function. Note: this line is justification for `isConstructor` being part of the functionData. If it were alternatively part of the `privateConstructorPublicInputsHash`, we'd have to do _much_ more hashing to extract its value here.
                 - Let `expectedPublicInputsHash := contractDeploymentCall.publicInputs.privateConstructorPublicInputsHash`
                 - Let `expectedCallContext := { msgSender: contractDeploymentCall.callContext.msgSender, storageContractAddress: newContractAddress }`. Notice: The calling of a constructor is as though called by the person/contract who called to deploy the contract in the first place.
                 - Let `expectedIsDelegateCall = false`, `expectedIsStaticCall = false`.
                 - Hash it all together:
-                    - `expectedCallStackItemHash = hash(expectedFunctionSignature, expectedPublicInputsHash, expectedCallContext, false, false)`
+                    - `expectedCallStackItemHash = hash(expectedFunctionData, expectedPublicInputsHash, expectedCallContext, false, false)`
                 - Assert `actualCallStackItemHash == expectedCallStackItemHash`.
         - We need to reconcile the exposed `privateConstructorVKHash` of the actually-executed constructor of the private kernel snark, with what we'd expect:
             - Let `actualPrivateConstructorVKHash = privateConstructorKernel.publicInputs.end.optionallyRevealedData[0].vkHash` (the `0`-th value will be the constructor's callStack item, otherwise something has gone wrong).
@@ -235,12 +235,12 @@ Verify the public constructor's kernel snark:
         - We need to reconcile the exposed callStackItemHash of the actually-executed constructor of the public kernel snark, with what we'd expect:
             - Let `actualCallStackItemHash = publicConstructorKernel.publicInputs.end.optionallyRevealedData[0].callStackItemHash;` (the `0`-th value will be the constructor's callStack item, otherwise something has gone wrong).
             - Let's try to reconcile that `actualCallStackItemHash` with the hash we'd expect: `expectedCallStackItemHash`:
-                - Let `expectedFunctionSignature := concat(newContractAddress, 0, false, true, false)`. Note: the `0` in the 2nd parameter might suggest we want to call the function whose vkIndex is at position `0` - but the `isConstructor = true` tells the kernel circuit that we're calling a constructor; not looking up a deployed function. Note: this line is justification for `isConstructor` being part of the functionSignature. If it were alternatively part of the `publicConstructorPublicInputsHash`, we'd have to do _much_ more hashing to extract its value here.
+                - Let `expectedFunctionData := concat(newContractAddress, 0, false, true, false)`. Note: the `0` in the 2nd parameter might suggest we want to call the function whose vkIndex is at position `0` - but the `isConstructor = true` tells the kernel circuit that we're calling a constructor; not looking up a deployed function. Note: this line is justification for `isConstructor` being part of the functionData. If it were alternatively part of the `publicConstructorPublicInputsHash`, we'd have to do _much_ more hashing to extract its value here.
                 - Let `expectedPublicInputsHash := contractDeploymentCall.publicInputs.publicConstructorPublicInputsHash`
                 - Let `expectedCallContext := { msgSender: contractDeploymentCall.callContext.msgSender, storageContractAddress: newContractAddress }`. Notice: The calling of a constructor is as though called by the person/contract who called to deploy the contract in the first place.
                 - Let `expectedIsDelegateCall = false`, `expectedIsStaticCall = false`.
                 - Hash it all together:
-                    - `expectedCallStackItemHash = hash(expectedFunctionSignature, expectedPublicInputsHash, expectedCallContext, false, false)`
+                    - `expectedCallStackItemHash = hash(expectedFunctionData, expectedPublicInputsHash, expectedCallContext, false, false)`
                 - Assert `actualCallStackItemHash == expectedCallStackItemHash`.
         - We need to reconcile the exposed `publicConstructorVKHash` of the actually-executed constructor of the public kernel snark, with what we'd expect:
             - Let `actualPublicConstructorVKHash = publicConstructorKernel.publicInputs.end.optionallyRevealedData[0].vkHash` (the `0`-th value will be the constructor's callStack item, otherwise something has gone wrong).
@@ -282,8 +282,8 @@ Update the `end` values:
             - If `newCallStackItem.isDelegateCall == true`:
                 - Assert `newCallStackItem.callContext == contractDeploymentCall.callContext`
             - Else:
-                - Assert `newCallStackItem.callContext.msgSender == contractDeploymentCall.functionSignature.contractAddress`
-                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionSignature.contractAddress`
+                - Assert `newCallStackItem.callContext.msgSender == contractDeploymentCall.functionData.contractAddress`
+                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionData.contractAddress`
     - Push the contents of these call stacks onto the kernel circuit's `end.contractDeploymentCallStack` and `end.l1CallStack`.
         - It would be nice if these 'pushes' could result in tightly-packed stacks.
 

@@ -91,7 +91,7 @@ The `publicConstructorCallstackItem` looks like:
 
 ```js
 publicConstructorCallstackItem: {
-  functionSignature: concat(
+  functionData: concat(
       contractAddress,
       vkIndex = 0, // Constructor vks won't be added to the contract's vkTree.
                    // This `0` is treated as 'null' when `isConstructor = true`.

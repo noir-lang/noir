@@ -1,5 +1,5 @@
 #pragma once
-#include "function_signature.hpp"
+#include "function_data.hpp"
 #include "tx_context.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
@@ -20,7 +20,7 @@ template <typename NCT> struct TxRequest {
 
     address from;
     address to;
-    FunctionSignature<NCT> function_signature;
+    FunctionData<NCT> function_data;
     std::array<fr, ARGS_LENGTH> args;
     fr nonce;
     TxContext<NCT> tx_context;
@@ -35,7 +35,7 @@ template <typename NCT> struct TxRequest {
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         TxRequest<CircuitTypes<Composer>> tx_request = {
-            to_ct(from),     to_ct(to),    to_circuit_type(function_signature),
+            to_ct(from),     to_ct(to),    to_circuit_type(function_data),
             to_ct(args),     to_ct(nonce), to_circuit_type(tx_context),
             to_ct(chain_id),
         };
@@ -48,7 +48,7 @@ template <typename NCT> struct TxRequest {
         std::vector<fr> inputs;
         inputs.push_back(fr(from));
         inputs.push_back(fr(to));
-        inputs.push_back(function_signature.hash());
+        inputs.push_back(function_data.hash());
         spread_arr_into_vec(args, inputs);
         inputs.push_back(nonce);
         inputs.push_back(tx_context.hash());
@@ -69,7 +69,7 @@ template <typename NCT> void read(uint8_t const*& it, TxRequest<NCT>& tx_request
 
     read(it, tx_request.from);
     read(it, tx_request.to);
-    read(it, tx_request.function_signature);
+    read(it, tx_request.function_data);
     read(it, tx_request.args);
     read(it, tx_request.nonce);
     read(it, tx_request.tx_context);
@@ -82,7 +82,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, TxRequest<NCT> con
 
     write(buf, tx_request.from);
     write(buf, tx_request.to);
-    write(buf, tx_request.function_signature);
+    write(buf, tx_request.function_data);
     write(buf, tx_request.args);
     write(buf, tx_request.nonce);
     write(buf, tx_request.tx_context);
@@ -93,7 +93,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, TxRequest<NCT
 {
     return os << "from: " << tx_request.from << "\n"
               << "to: " << tx_request.to << "\n"
-              << "function_signature: " << tx_request.function_signature << "\n"
+              << "function_data: " << tx_request.function_data << "\n"
               << "args: " << tx_request.args << "\n"
               << "nonce: " << tx_request.nonce << "\n"
               << "tx_context: " << tx_request.tx_context << "\n"

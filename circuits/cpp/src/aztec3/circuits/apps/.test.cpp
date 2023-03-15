@@ -95,7 +95,7 @@ class state_var_tests : public ::testing::Test {
         const NT::address msg_sender = NT::fr(
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
-        FunctionSignature<NT> function_signature{
+        FunctionData<NT> function_data{
             .function_encoding = 1, // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
@@ -111,7 +111,7 @@ class state_var_tests : public ::testing::Test {
             .reference_block_num = 0,
         };
 
-        return NativeOracle(db, contract_address, function_signature, call_context, msg_sender_private_key);
+        return NativeOracle(db, contract_address, function_data, call_context, msg_sender_private_key);
     };
 };
 

@@ -39,7 +39,7 @@ Public kernel proofs are generated recursively until `end.publicCallStack.length
 | `- vkPath` | We can support multiple 'sizes' of kernel circuit (i.e. kernel circuits with varying numbers of public inputs) if we store all of the VKs of such circuits as vkHashes in a little Merkle tree. This path is the sibling path from the `previousKernel.vk`'s leaf to the root of such a tree. |
 | `}` | |
 | `publicCall: {` | Data relating to the next public callstack item that we're going to pop off the callstack and verify within this snark. Recall we're representing items in the callstack as a `callStackItemHash`. We'll pass the unpacked data here, for validation within this kernel circuit. |
-| `- functionSignature,` | 64-bits (see earlier section) |
+| `- functionData,` | 64-bits (see earlier section) |
 | `- publicInputs: {...},` | Rather than pass in the `publicInputsHash`, we pass in its preimage here (we'll hash it within this kernel circuit). This is _all_ of the data listed in the Public Circuit ABI's table of public inputs (see earlier section). |
 | `- callContext: {...},` |  |
 | `- isDelegateCall,` | |
@@ -72,7 +72,7 @@ Public kernel proofs are generated recursively until `end.publicCallStack.length
 | `}],` | |
 | `- optionallyRevealedData: [{` | Some values from a public call can be optionally revealed to the Contract Deployment kernel circuit / L1, depending on bools of the public circuit ABI. For some/every public call, each 'object' in this 'array' contains the following fields (some of which might be 0, depending on the bools) (note: there might be more efficient ways to encode this data - this is just for illustration): |
 | `-  - callStackItemHash,` | Serves as a 'lookup key' of sorts. |
-| `-  - functionSignature,` | |
+| `-  - functionData,` | |
 | `-  - emittedPublicInputs: [_, _, _, _],` | |
 | `-  - vkHash,` | |
 | `-  - portalContractAddress,` | |
@@ -121,7 +121,7 @@ Public kernel proofs are generated recursively until `end.publicCallStack.length
 * `require(start.publicCallStack.length > 0)`
 Base case (verifying a private kernel snark):
 *  if `(previousKernel.proof && previousKernel.publicInputs.isPrivate)`
-    - `require(privateCall.functionSignature.isConstructor == false && privateCall.functionSignature.isCallback == false)`:
+    - `require(privateCall.functionData.isConstructor == false && privateCall.functionData.isCallback == false)`:
         - only the first call in the kernel recursion can be a constructor or a callback.
     * Verify the (`previousKernel.proof`, `previousKernel.publicInputs`) using the `previousKernel.vk`.
     * Validate that the `previousKernel.vk` is a valid _private_ kernel VK with a membership check:
@@ -140,7 +140,7 @@ Base case (verifying a private kernel snark):
     * Validate that `start.publicCallStack.length == 1 && start.contractDeploymentCallStack.length == 0 && start.l1CallStack.length == 0`
         - TBD: to allow the option of a fee payment, we might require `start.publicCallStack.length` to be "1" or "2, where one tx has an `isFeePayment` indicator". We could even allow any number of initial private calls on the stack, but that's a pretty big deviation from the ethereum tx model.
     * Pop the only (TBD) `publicCallStackItemHash` off the `start.publicCallStack`.
-        - If `publicCall.functionSignature.isConstructor == true`:
+        - If `publicCall.functionData.isConstructor == true`:
             - then we don't need a signature from the user, since this entire 'callstack' has been instantiated by a Contract Deployment kernel snark (which itself will have been signed by the user).
             - Set `isConstructorRecursion := true` - This public input will percolate to, and be checked by. the Contract Deployment Kernel Circuit which calls this constructor. This check is required to prevent a person from circumventing the ECDSA signature check by simply setting `isConstructor = true` when making a private call. If this aggregated kernel snark reaches the rollup circuit without this flag being reset to `false` by the Contract Deployment Kernel Circuit (to say "yes, this kernel was indeed a constructor for a Contract Deployment Kernel Circuit"), then the entire tx will be rejected by the rollup circuit.
         - Else:
@@ -150,8 +150,8 @@ Base case (verifying a private kernel snark):
                 - If `publicCall.isDelegateCall == true || publicCall.isStaticCall == true`:
                     - Revert - a user cannot make a delegateCall or staticCall.
                 - Else:
-                    - Assert `publicCall.callContext.storageContractAddress == publicCall.functionSignature.contractAddress`
-        - If `publicCall.functionSignature.isCallback == true`:
+                    - Assert `publicCall.callContext.storageContractAddress == publicCall.functionData.contractAddress`
+        - If `publicCall.functionData.isCallback == true`:
             - Set `isCallbackRecursion = true;` - this can only be set in the _first_ call of a recursion.
             - Assert `l1ResultHash != 0`
             - Copy over the `publicCall.publicInputs.executedCallback` data to this snark's output: `constants.executedCallback`.
@@ -163,7 +163,7 @@ Base case (verifying a private kernel snark):
 
 Recursion (of public kernel snarks):
 * If `previousKernel.publicInputs.isPublic && start.publicCallCount > 0`:
-    - `require(privateCall.functionSignature.isConstructor == false && privateCall.functionSignature.isCallback == false)`:
+    - `require(privateCall.functionData.isConstructor == false && privateCall.functionData.isCallback == false)`:
         - only the first call in the kernel recursion can be a constructor or a callback.
     * Verify the `previousKernel.proof` using the `previousKernel.vk`
     * Validate that the `previousKernel.vk` is a valid _public_ kernel VK with a membership check:
@@ -178,16 +178,16 @@ Recursion (of public kernel snarks):
 
 Verify the next call on the callstack:
 * Verify `start.publicCallStack.length > 0` and (if not already done during the 'Base Case' logic above), pop 1 item off of `start.publicCallStack`.
-* Validate that `publicCall.functionSignature.isPrivate == false` (otherwise this is the wrong type of kernel circuit to be using).
+* Validate that `publicCall.functionData.isPrivate == false` (otherwise this is the wrong type of kernel circuit to be using).
 * Validate that this newly-popped  `publiceCallStackItemHash` corresponds to the `publicCall` data passed into this circuit:
     - Calculate the `publicInputsHashPreimage`, given the complexity that 'current' public data wasn't known to the caller at the time they made the call:
         - Include all data from `publicCall.publicInputs`, except for the data documented earlier in the Public Circuit ABI section.
     * Calculate `publicCallPublicInputsHash := hash(publicInputsHashPreimage);`
-    * Verify that `publicCallStackItemHash == hash(publicCall.functionSignature, publicCallPublicInputsHash, publicCall.callContext, etc...)`
+    * Verify that `publicCallStackItemHash == hash(publicCall.functionData, publicCallPublicInputsHash, publicCall.callContext, etc...)`
     * Recall, the structure of a callstack item:
     * ```js
       publicCall = {
-        functionSignature: {
+        functionData: {
           contractAddress,
           vkIndex,
           isPrivate,
@@ -202,7 +202,7 @@ Verify the next call on the callstack:
       ```
 * Verify the correctness of `(proof, publicCallPublicInputsHash)` using the `vk`.
 * Validate the `vk` actually represents the function that is purportedly being executed:
-    * Extract the `contractAddress` and `vkIndex` from `publicCall.functionSignature`.
+    * Extract the `contractAddress` and `vkIndex` from `publicCall.functionData`.
     * Compute `vkHash := hash(vk)`
     * Compute the `vkRoot` of this function's contract using the `vkIndex`, `vkPath`, and `vkHash`.
     * Compute the contract's leaf in the `contractTree`:
@@ -260,8 +260,8 @@ Update the `end` values:
             - If `newCallStackItem.isDelegateCall == true`:
                 - Assert `newCallStackItem.callContext == publicCall.callContext`
             - Else:
-                - Assert `newCallStackItem.callContext.msgSender == publicCall.functionSignature.contractAddress`
-                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionSignature.contractAddress`
+                - Assert `newCallStackItem.callContext.msgSender == publicCall.functionData.contractAddress`
+                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionData.contractAddress`
     - Validate `partialL1CallStack` and `callbackStack` lengths:
       - `require(partialL1CallStack.length == callbackStack.length)` - every L1 call must have a callback entry (even if the callbacks are zeroes).
     - For each `partialL1CallStackItem` in the `partialL1CallStack` (index `i`):
@@ -271,33 +271,33 @@ Update the `end` values:
         - Let `successCallback = publicCall.callbackStack[i].successCallback`
         - Let `failureCallback = publicCall.callbackStack[i].failureCallback`
         - Ensure the contract address of each of the two callbacks matches that of the public call:
-          - `require(successCallback.functionSignature.contractAddress == publicCall.functionSignature.contractAddress)`;
-          - `require(failureCallback.functionSignature.contractAddress == publicCall.functionSignature.contractAddress)`;
+          - `require(successCallback.functionData.contractAddress == publicCall.functionData.contractAddress)`;
+          - `require(failureCallback.functionData.contractAddress == publicCall.functionData.contractAddress)`;
         - Calculate the callbackHashes:
-          - Let `successCallbackHash = hash(successCallback.functionSignature, etc...)`
-          - Let `failureCallbackHash = hash(failureCallback.functionSignature, etc...)`
+          - Let `successCallbackHash = hash(successCallback.functionData, etc...)`
+          - Let `failureCallbackHash = hash(failureCallback.functionData, etc...)`
     - Push the contents of these call stacks onto the kernel circuit's `end.publicCallStack`, `end.contractDeploymentCallStack` and `end.l1CallStack`.
     - Also push the each `{callbackPublicKey, successCallbackHash, failureCallbackHash}` onto `end.callbackStack`.
     - As per the commitments/nullifiers bullet above, it would be nice if these 'pushes' could result in tightly-packed stacks.
 - Determine whether any values need to be optionally revealed to the Contract Deployment kernel circuit, or to L1, by referring to the `publicCall`'s booleans:
     - Let `optionallyRevealedData = {};`
-    - If `publicCall.functionSignature.isConstructor`, set:
+    - If `publicCall.functionData.isConstructor`, set:
         - `optionallyRevealedData.callStackItemHash = publicCallStackItemHash;`
         - `optionallyRevealedData.vkHash = vkHash;`
         - `optionallyRevealedData.emittedPublicInputs = publicCall.publicInputs.emittedPublicInputs;`
-    - If `publicCall.functionSignature.isCallback`, set:
-        - `optionallyRevealedData.functionSignature = publicCall.functionSignature;`
+    - If `publicCall.functionData.isCallback`, set:
+        - `optionallyRevealedData.functionData = publicCall.functionData;`
         - `optionallyRevealedData.emittedPublicInputs = publicCall.publicInputs.emittedPublicInputs;`
           - TODO: consider whether we can get rid of the emittedPublicInputs being emitted by a callback. More [here](../contracts/l1-calls.md#more-details).
     - If `isFeePayment`, set:
         - `optionallyRevealedData.callStackItemHash = publicCallStackItemHash;`
-        - `optionallyRevealedData.functionSignature = publicCall.functionSignature;`
+        - `optionallyRevealedData.functionData = publicCall.functionData;`
         - `optionallyRevealedData.emittedPublicInputs = publicCall.publicInputs.emittedPublicInputs;`
     - If `payFeeFromL1`, set:
         - `optionallyRevealedData.callStackItemHash = publicCallStackItemHash;`
     - If `calledFromL1`, set:
         - `optionallyRevealedData.callStackItemHash = publicCallStackItemHash;`
-        - `optionallyRevealedData.functionSignature = publicCall.functionSignature;`
+        - `optionallyRevealedData.functionData = publicCall.functionData;`
         - `optionallyRevealedData.emittedPublicInputs = publicCall.publicInputs.emittedPublicInputs;`
     - Push the `optionallyRevealedData` onto the `optionallyRevealedData`.
 * If `end.publicCallStack.length == 0`, set `end.publicCallCount = 0`, else `end.publicCallCount = start.publicCallCount + 1`

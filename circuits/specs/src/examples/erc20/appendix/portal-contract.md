@@ -20,7 +20,7 @@ contract ERC20Shield {
 
     IRollupProcessor rollupProcessor;
     uint32 public immutable l2ContractAddress;
-    bytes public immutable l2DepositFunctionSignature;
+    bytes public immutable l2DepositFunctionData;
 
     struct PendingDepositDatum {
         address depositorAddress;
@@ -42,11 +42,11 @@ contract ERC20Shield {
     constructor (
         address _rollupProcessorAddress,
         uint32 _l2ContractAddress,
-        bytes _l2DepositFunctionSignature
+        bytes _l2DepositFunctionData
     ) {
         rollupProcessor = IRollupProcessor(rollupProcessorAddress);
         l2ContractAddress = _l2ContractAddress;
-        l2DepositFunctionSignature = _l2DepositFunctionSignature;
+        l2DepositFunctionData = _l2DepositFunctionData;
     }
 
 
@@ -114,14 +114,14 @@ contract ERC20Shield {
     function depositCallback(
         uint256 l2CallHash,
         uint256 callIndex,
-        bytes functionSignature,
+        bytes functionData,
         uint256[4] emittedPublicInputs,
     ) external onlyRollupProcessor {
         // First check that the function which was executed on L2 was _actually_ 
         // the 'deposit' circuit of the L2 contract which is actually associated with
         // this portal contract:
         require(
-            functionSignature == l2DepositFunctionSignature,
+            functionData == l2DepositFunctionData,
             "The wrong function was executed on L2!"
         );
 

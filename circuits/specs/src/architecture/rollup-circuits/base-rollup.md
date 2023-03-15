@@ -106,7 +106,7 @@ membershipWitnesses: {
                 // because if a nonzero callbackPublicKey is included,
                 // then this callback must be validated only by the private
                 // kernel circuit (not by this circuit).
-                // Also, we need to validate the function signature of the callback.
+                // Also, we need to validate the function data of the callback.
                 callbackPublicKey,
                 successCallback,
                 failureCallback,
@@ -240,7 +240,7 @@ constants: {
 l1CallStack: [...], // combined from both input kernel snarks' public inputs
 optionallyRevealedData: [{
     callStackItemHash,
-    functionSignature,
+    functionData,
     emittedPublicInputs: [_, _, _, _],
     vkHash,
     portalContractAddress,
@@ -329,17 +329,17 @@ This logic MUST come before the 'nullifier insertion' logic, because we add a ne
         - `require(l1ResultHash != 0)` to prevent a user executing a callback which refers to a _pending_ result.
         - Extract `{ l1ResultHash, l1ResultsTreeLeafIndex } = kernelSnarks[i].publicInputs.constants.executedCallback;`
         - Extract `{ callbackStackItem: { callbackPublicKey, successCallback, failureCallbac } } = membershipWitnesses.executedCallbacks[i];`
-        - Extract the function signature of the callback which was called (this will always be at the 0th position of the optionallyRevealedData):
-            - Let `executedCallbackFunctionSignature = kernelSnarks[i].publicInputs.end.optionallyRevealedData[0].functionSelector`.
-            - `require(executedCallbackFunctionSignature != 0)`
+        - Extract the function data of the callback which was called (this will always be at the 0th position of the optionallyRevealedData):
+            - Let `executedCallbackFunctionData = kernelSnarks[i].publicInputs.end.optionallyRevealedData[0].functionSelector`.
+            - `require(executedCallbackFunctionData != 0)`
             - Let `executedCallbackEmittedPublicInputs = kernelSnarks[i].publicInputs.end.optionallyRevealedData[0].emittedPublicInputs`.
         - If `l1ResultHash != 0` (success):
-            - Check the successCallback's `functionSignature` matches the kernel snark's:
-            - `require(successCallbackHash.functionSignature == executedCallbackFunctionSignature)`
+            - Check the successCallback's `functionData` matches the kernel snark's:
+            - `require(successCallbackHash.functionData == executedCallbackFunctionData)`
             - In fact, check the entire successCallbackCallHash
         - Else:
-            - Check the failureCallbackHash's `functionSignature` matches the kernel snark's:
-            - `require(failureCallbackHash.functionSignature == executedCallbackFunctionSignature)`
+            - Check the failureCallbackHash's `functionData` matches the kernel snark's:
+            - `require(failureCallbackHash.functionData == executedCallbackFunctionData)`
             - In fact, check the entire successCallbackCallHash
         - `require(callbackPublicKey == 0)`, otherwise this callback should have been processed in the private kernel snark.
         - Let `callbackStackItemHash := hash(callbackPublicKey, callbackStackItem.successCallbackHash, callbackStackItem.failureCallbackHash)`

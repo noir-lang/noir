@@ -142,7 +142,7 @@ contract RollupProcessor is IRollupProcessor {
     function executeCallbackAndPayFee(
         uint256 l2CallHash,
         uint256 callIndex,
-        bytes functionSignature,
+        bytes functionData,
         uint256[4] emittedPublicInputs,
         address rollupProvider,
     ) private {
@@ -156,7 +156,7 @@ contract RollupProcessor is IRollupProcessor {
         tx.callback(
             l2CallHash,
             callIndex,
-            functionSignature,
+            functionData,
             emittedPublicInputs,
             { tx.callbackGasLimit }
         );

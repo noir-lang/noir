@@ -11,7 +11,7 @@
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/call_stack_item.hpp>
 #include <aztec3/circuits/abis/contract_deployment_data.hpp>
-#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/abis/signed_tx_request.hpp>
 #include <aztec3/circuits/abis/tx_context.hpp>
 #include <aztec3/circuits/abis/tx_request.hpp>
@@ -44,7 +44,7 @@ using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CallType;
 using aztec3::circuits::abis::ContractDeploymentData;
-using aztec3::circuits::abis::FunctionSignature;
+using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 using aztec3::circuits::abis::SignedTxRequest;
@@ -89,7 +89,7 @@ TEST(private_kernel_tests, test_deposit)
     Composer deposit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     DB db;
 
-    FunctionSignature<NT> function_signature{
+    FunctionData<NT> function_data{
         .function_encoding = 1, // TODO: deduce this from the contract, somehow.
         .is_private = true,
         .is_constructor = false,
@@ -106,7 +106,7 @@ TEST(private_kernel_tests, test_deposit)
     };
 
     NativeOracle deposit_oracle =
-        NativeOracle(db, escrow_contract_address, function_signature, call_context, msg_sender_private_key);
+        NativeOracle(db, escrow_contract_address, function_data, call_context, msg_sender_private_key);
     OracleWrapper deposit_oracle_wrapper = OracleWrapper(deposit_composer, deposit_oracle);
 
     FunctionExecutionContext deposit_ctx(deposit_composer, deposit_oracle_wrapper);
@@ -132,7 +132,7 @@ TEST(private_kernel_tests, test_deposit)
     TxRequest<NT> deposit_tx_request = TxRequest<NT>{
         .from = tx_origin,
         .to = escrow_contract_address,
-        .function_signature = function_signature,
+        .function_data = function_data,
         .args = deposit_public_inputs.args,
         .nonce = 0,
         .tx_context =
@@ -167,7 +167,7 @@ TEST(private_kernel_tests, test_deposit)
     const CallStackItem<NT, CallType::Private> deposit_call_stack_item{
         .contract_address = deposit_tx_request.to,
 
-        .function_signature = deposit_tx_request.function_signature,
+        .function_data = deposit_tx_request.function_data,
 
         .public_inputs = deposit_public_inputs,
     };

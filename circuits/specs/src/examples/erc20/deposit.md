@@ -35,8 +35,8 @@ A 'deposit' is an example of an [L1 function making a call to an L2 function](..
   - In our example, the callback will call the Portal Contract's `depositCallback` function.
 - Once the L2 circuit is executed, it will be added to a rollup, and the rollup will be submitted by the rollup provider to `RollupProcessor.processRollup`.
 - The RollupProcessor will be able to identify from the rollup calldata any 'event data' emitted by functions which were 'called' by L1.
-  - In this example, the RollupProcessor will be able to extract the `l2CallHash`, `functionSignature`, and `emittedPublicInputs` of the L2 'deposit' circuit.
-- The `l2CallHash`, `functionSignature`, and `emittedPublicInputs` will all be validated against what was previously stored when the L1 `deposit` function was called.
+  - In this example, the RollupProcessor will be able to extract the `l2CallHash`, `functionData`, and `emittedPublicInputs` of the L2 'deposit' circuit.
+- The `l2CallHash`, `functionData`, and `emittedPublicInputs` will all be validated against what was previously stored when the L1 `deposit` function was called.
   - In particular, the `emittedPublicInputs` of this example's 'deposit' circuit will contain the `amount` deposited, as a way of reconciling the L1 call with the L2 call. It might also contain the `msg.sender`.
 - If all of the checks reconcile, then the rollup provider will be paid a fee (if one was provided as part of the initial L1 call).
 

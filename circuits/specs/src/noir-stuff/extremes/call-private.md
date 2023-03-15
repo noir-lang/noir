@@ -38,7 +38,7 @@ fn my_private_function(
         unpacked_private_call_stack: [
             {
                 // Here's the call stack item for the call to `other_private_function`
-                function_signature: {
+                function_data: {
                     contract_address: 0xabc123,
                     vk_index: 0,
                     is_private: true,
@@ -124,11 +124,11 @@ fn my_private_function(
     let call_stack_item = PRIVATE_INPUTS.unpacked_private_call_stack[0];
 
     // Check the correct contract address is being called.
-    assert(call_stack_item.function_signature.contract_address == 0x123abc);
+    assert(call_stack_item.function_data.contract_address == 0x123abc);
 
     // Check the vkIndex (which can be inferred from the ordering of functions in
     // the Other_Contract):
-    assert(call_stack_item.function_signature.vk_index == 0);
+    assert(call_stack_item.function_data.vk_index == 0);
 
     // Check the correct parameters are being passed to the function:
     assert(call_stack_item.public_inputs.args[0] == a);

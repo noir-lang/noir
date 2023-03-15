@@ -1,5 +1,5 @@
 #pragma once
-#include "function_signature.hpp"
+#include "function_data.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>
@@ -15,7 +15,7 @@ template <typename NCT> struct OptionallyRevealedData {
     typedef typename NCT::fr fr;
 
     fr call_stack_item_hash;
-    FunctionSignature<NCT> function_signature;
+    FunctionData<NCT> function_data;
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
     fr vk_hash;
     fr portal_contract_address; // an ETH address
@@ -33,7 +33,7 @@ template <typename NCT> struct OptionallyRevealedData {
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
         OptionallyRevealedData<CircuitTypes<Composer>> data = {
-            to_ct(call_stack_item_hash),    function_signature.to_circuit_type(composer),
+            to_ct(call_stack_item_hash),    function_data.to_circuit_type(composer),
             to_ct(emitted_events),          to_ct(vk_hash),
             to_ct(portal_contract_address), to_ct(pay_fee_from_l1),
             to_ct(pay_fee_from_public_l2),  to_ct(called_from_l1),
@@ -50,7 +50,7 @@ template <typename NCT> struct OptionallyRevealedData {
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         OptionallyRevealedData<NativeTypes> data = {
-            to_nt(call_stack_item_hash),    to_native_type(function_signature),
+            to_nt(call_stack_item_hash),    to_native_type(function_data),
             to_nt(emitted_events),          to_nt(vk_hash),
             to_nt(portal_contract_address), to_nt(pay_fee_from_l1),
             to_nt(pay_fee_from_public_l2),  to_nt(called_from_l1),
@@ -65,7 +65,7 @@ template <typename NCT> struct OptionallyRevealedData {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         call_stack_item_hash.set_public();
-        function_signature.set_public();
+        function_data.set_public();
         set_array_public(emitted_events);
         vk_hash.set_public();
         portal_contract_address.set_public();

@@ -10,7 +10,7 @@
 #include <aztec3/constants.hpp>
 
 #include <aztec3/circuits/abis/call_stack_item.hpp>
-#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
 #include <stdlib/primitives/field/array.hpp>
@@ -23,7 +23,7 @@ namespace aztec3::circuits::apps {
 
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CallType;
-using aztec3::circuits::abis::FunctionSignature;
+using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::PrivateCircuitPublicInputs;
 
@@ -115,11 +115,11 @@ template <typename Composer> class FunctionExecutionContext {
     CallStackItem<NT, CallType::Private> get_call_stack_item()
     {
         const NT::address& actual_contract_address = oracle.native_oracle.get_actual_contract_address();
-        const FunctionSignature<NT>& function_signature = oracle.native_oracle.get_function_signature();
+        const FunctionData<NT>& function_data = oracle.native_oracle.get_function_data();
 
         return CallStackItem<NT, CallType::Private>{
             .contract_address = actual_contract_address,
-            .function_signature = function_signature,
+            .function_data = function_data,
             .public_inputs = get_final_private_circuit_public_inputs(),
         };
     }
@@ -136,12 +136,11 @@ template <typename Composer> class FunctionExecutionContext {
             if (nested_exec_ctx != nullptr) {
                 const NT::address& actual_contract_address =
                     nested_exec_ctx->oracle.native_oracle.get_actual_contract_address();
-                const FunctionSignature<NT>& function_signature =
-                    nested_exec_ctx->oracle.native_oracle.get_function_signature();
+                const FunctionData<NT>& function_data = nested_exec_ctx->oracle.native_oracle.get_function_data();
 
                 result[i] = CallStackItem<NT, CallType::Private>{
                     .contract_address = actual_contract_address,
-                    .function_signature = function_signature,
+                    .function_data = function_data,
                     .public_inputs = nested_exec_ctx->get_final_private_circuit_public_inputs(),
                 };
             }
@@ -179,7 +178,7 @@ template <typename Composer> class FunctionExecutionContext {
         // fr alternative_f_encoding_ct = fr(to_ct(composer, f_encoding));
         // alternative_f_encoding_ct.fix_witness();
 
-        const FunctionSignature<CT> f_function_signature_ct{
+        const FunctionData<CT> f_function_data_ct{
             // Note: we MUST
             .function_encoding = f_encoding_ct,
             .is_private = true,
@@ -198,7 +197,7 @@ template <typename Composer> class FunctionExecutionContext {
 
         NativeOracle f_oracle(oracle.native_oracle.db,
                               f_contract_address.get_value(),
-                              f_function_signature_ct.template to_native_type<Composer>(),
+                              f_function_data_ct.template to_native_type<Composer>(),
                               f_call_context_ct.template to_native_type<Composer>(),
                               oracle.get_msg_sender_private_key()
                                   .get_value() // TODO: consider whether a nested function should even be able to access
@@ -242,7 +241,7 @@ template <typename Composer> class FunctionExecutionContext {
 
         CallStackItem<CT, CallType::Private> f_call_stack_item_ct{
             .contract_address = f_contract_address,
-            .function_signature = f_function_signature_ct,
+            .function_data = f_function_data_ct,
             .public_inputs = f_public_inputs_ct,
         };
 

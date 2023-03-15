@@ -13,36 +13,36 @@ using NT = plonk::stdlib::types::NativeTypes;
 
 class abi_tests : public ::testing::Test {};
 
-TEST(abi_tests, test_native_function_signature)
+TEST(abi_tests, test_native_function_data)
 {
-    FunctionSignature<NT> function_signature = {
+    FunctionData<NT> function_data = {
         .function_encoding = 11,
         .is_private = false,
         .is_constructor = false,
     };
 
-    info("function signature: ", function_signature);
+    info("function data: ", function_data);
 
-    auto buffer = to_buffer(function_signature);
-    auto function_signature_2 = from_buffer<FunctionSignature<NT>>(buffer.data());
+    auto buffer = to_buffer(function_data);
+    auto function_data_2 = from_buffer<FunctionData<NT>>(buffer.data());
 
-    EXPECT_EQ(function_signature, function_signature_2);
+    EXPECT_EQ(function_data, function_data_2);
 }
 
-TEST(abi_tests, test_native_to_circuit_function_signature)
+TEST(abi_tests, test_native_to_circuit_function_data)
 {
-    FunctionSignature<NT> native_function_signature = {
+    FunctionData<NT> native_function_data = {
         .function_encoding = 11,
         .is_private = false,
         .is_constructor = false,
     };
 
-    info("function signature: ", native_function_signature);
+    info("function data: ", native_function_data);
 
     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
-    FunctionSignature<CT> circuit_function_signature = native_function_signature.to_circuit_type(composer);
+    FunctionData<CT> circuit_function_data = native_function_data.to_circuit_type(composer);
 
-    info("function signature: ", circuit_function_signature);
+    info("function data: ", circuit_function_data);
 }
 
 TEST(abi_tests, test_native_call_context)
@@ -130,7 +130,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //     };
 
 //     CallStackItem<NT, CallType::Public> call_stack_item = {
-//         .function_signature = {
+//         .function_data = {
 //             // .contract_address = 10,
 //             .function_encoding = 11,
 //             .is_private = false,
@@ -163,7 +163,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //     };
 
 //     CallStackItem<NT, CallType::Public> native_call_stack_item = {
-//         .function_signature = {
+//         .function_data = {
 //             // .contract_address = 10,
 //             .function_encoding = 11,
 //             .is_private = false,

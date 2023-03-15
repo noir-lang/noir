@@ -3,13 +3,13 @@
 #include "function_declaration.hpp"
 #include "l1_function_interface.hpp"
 
-#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/function_data.hpp>
 
 #include <common/container.hpp>
 
 namespace aztec3::circuits::apps {
 
-using aztec3::circuits::abis::FunctionSignature;
+using aztec3::circuits::abis::FunctionData;
 
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
@@ -30,7 +30,7 @@ template <typename NCT> class Contract {
 
     std::map<std::string, fr> start_slots_by_state_var_name;
 
-    std::map<std::string, FunctionSignature<NCT>> function_signatures;
+    std::map<std::string, FunctionData<NCT>> function_datas;
 
     std::map<std::string, L1FunctionInterface<NCT>> l1_functions;
 
@@ -55,9 +55,9 @@ template <typename NCT> class Contract {
     }
 
     // TODO: return some Function class which has a `call` method...
-    // FunctionSignature<CT> get_function(std::string name) { return function_signature[name]; }
+    // FunctionData<CT> get_function(std::string name) { return function_data[name]; }
 
-    FunctionSignature<NCT> get_function_signature_by_name(std::string const& name);
+    FunctionData<NCT> get_function_data_by_name(std::string const& name);
 
     void import_l1_function(L1FunctionInterfaceStruct<NCT> const& l1_function_struct);
 

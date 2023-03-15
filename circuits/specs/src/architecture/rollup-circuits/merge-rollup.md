@@ -98,7 +98,7 @@ constants: {
 l1CallStack: [...], // combined from both input kernel snarks' public inputs
 optionallyRevealedData: [{
     callStackItemHash,
-    functionSignature,
+    functionData,
     emittedPublicInputs: [_, _, _, _],
     vkHash,
     portalContractAddress,

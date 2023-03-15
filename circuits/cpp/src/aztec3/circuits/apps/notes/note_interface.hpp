@@ -32,7 +32,7 @@ template <typename Composer> class NoteInterface {
     // `note_preimage` members here (although that would require a NotePreimage template param).
     // This is all because the Opcodes actually _assume_ a particular constructor layout for each Note, as well as
     // _assume_ those two data members are always present. Having said that, there's still no way to actually enforce a
-    // constructor function signature of a derived class.
+    // constructor function data of a derived class.
 
     virtual void remove() = 0;
 

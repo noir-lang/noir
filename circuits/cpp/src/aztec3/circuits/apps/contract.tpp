@@ -7,7 +7,7 @@
 
 #include <aztec3/constants.hpp>
 
-#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/function_data.hpp>
 
 #include <stdlib/types/convert.hpp>
 
@@ -16,17 +16,17 @@ namespace aztec3::circuits::apps {
 using plonk::stdlib::witness_t;
 using plonk::stdlib::types::CircuitTypes;
 using NT = plonk::stdlib::types::NativeTypes;
-using aztec3::circuits::abis::FunctionSignature;
+using aztec3::circuits::abis::FunctionData;
 // using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDeclaration<NCT>> const& functions)
 {
     for (uint32_t i = 0; i < functions.size(); ++i) {
         const auto& function = functions[i];
-        if (function_signatures.contains(function.name)) {
+        if (function_datas.contains(function.name)) {
             throw_or_abort("Name already exists");
         }
-        function_signatures[function.name] = FunctionSignature<NCT>{
+        function_datas[function.name] = FunctionData<NCT>{
             .function_encoding = uint32(i),
             .is_private = function.is_private,
             .is_constructor = function.is_constructor,
@@ -53,14 +53,14 @@ void Contract<NCT>::import_contracts(std::vector<std::pair<std::string, Contract
 }
 
 // TODO: return some Function class which has a `call` method...
-// FunctionSignature<CT> get_function(std::string name) { return function_signature[name]; }
+// FunctionData<CT> get_function(std::string name) { return function_data[name]; }
 
-template <typename NCT> FunctionSignature<NCT> Contract<NCT>::get_function_signature_by_name(std::string const& name)
+template <typename NCT> FunctionData<NCT> Contract<NCT>::get_function_data_by_name(std::string const& name)
 {
-    if (!function_signatures.contains(name)) {
-        throw_or_abort("function signature not found");
+    if (!function_datas.contains(name)) {
+        throw_or_abort("function data not found");
     }
-    return function_signatures[name];
+    return function_datas[name];
 }
 
 template <typename NCT> void Contract<NCT>::import_l1_function(L1FunctionInterfaceStruct<NCT> const& l1_function_struct)

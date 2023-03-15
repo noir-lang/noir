@@ -14,7 +14,7 @@ using plonk::stdlib::types::CircuitTypes;
 using plonk::stdlib::types::NativeTypes;
 using std::is_same;
 
-template <typename NCT> struct FunctionSignature {
+template <typename NCT> struct FunctionData {
     // typedef typename NCT::address address;
     typedef typename NCT::uint32 uint32;
     typedef typename NCT::boolean boolean;
@@ -25,38 +25,38 @@ template <typename NCT> struct FunctionSignature {
     boolean is_private = false;
     boolean is_constructor = false;
 
-    bool operator==(FunctionSignature<NCT> const&) const = default;
+    bool operator==(FunctionData<NCT> const&) const = default;
 
-    static FunctionSignature<NCT> empty() { return { 0, 0, 0 }; };
+    static FunctionData<NCT> empty() { return { 0, 0, 0 }; };
 
-    template <typename Composer> FunctionSignature<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer> FunctionData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
 
-        FunctionSignature<CircuitTypes<Composer>> function_signature = {
+        FunctionData<CircuitTypes<Composer>> function_data = {
             to_ct(function_encoding),
             to_ct(is_private),
             to_ct(is_constructor),
         };
 
-        return function_signature;
+        return function_data;
     };
 
-    template <typename Composer> FunctionSignature<NativeTypes> to_native_type() const
+    template <typename Composer> FunctionData<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
         auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
 
-        FunctionSignature<NativeTypes> fs = {
+        FunctionData<NativeTypes> function_data = {
             to_nt(function_encoding),
             to_nt(is_private),
             to_nt(is_constructor),
         };
 
-        return fs;
+        return function_data;
     };
 
     void set_public()
@@ -77,33 +77,33 @@ template <typename NCT> struct FunctionSignature {
             fr(is_constructor),
         };
 
-        return NCT::compress(inputs, GeneratorIndex::FUNCTION_SIGNATURE);
+        return NCT::compress(inputs, GeneratorIndex::FUNCTION_DATA);
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, FunctionSignature<NCT>& function_signature)
+template <typename NCT> void read(uint8_t const*& it, FunctionData<NCT>& function_data)
 {
     using serialize::read;
 
-    read(it, function_signature.function_encoding);
-    read(it, function_signature.is_private);
-    read(it, function_signature.is_constructor);
+    read(it, function_data.function_encoding);
+    read(it, function_data.is_private);
+    read(it, function_data.is_constructor);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionSignature<NCT> const& function_signature)
+template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionData<NCT> const& function_data)
 {
     using serialize::write;
 
-    write(buf, function_signature.function_encoding);
-    write(buf, function_signature.is_private);
-    write(buf, function_signature.is_constructor);
+    write(buf, function_data.function_encoding);
+    write(buf, function_data.is_private);
+    write(buf, function_data.is_constructor);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionSignature<NCT> const& function_signature)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<NCT> const& function_data)
 {
-    return os << "function_encoding: " << function_signature.function_encoding << "\n"
-              << "is_private: " << function_signature.is_private << "\n"
-              << "is_constructor: " << function_signature.is_constructor << "\n";
+    return os << "function_encoding: " << function_data.function_encoding << "\n"
+              << "is_private: " << function_data.is_private << "\n"
+              << "is_constructor: " << function_data.is_constructor << "\n";
 }
 
 } // namespace aztec3::circuits::abis

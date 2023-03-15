@@ -141,7 +141,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 {
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
-    this_call_stack_item.function_signature.is_private.assert_equal(
+    this_call_stack_item.function_data.is_private.assert_equal(
         true, "Cannot execute a non-private function with the private kernel circuit");
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
@@ -185,7 +185,7 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
     std::vector<std::pair<CT::boolean, std::string>> recursive_case_conditions{
         { private_inputs.previous_kernel.public_inputs.is_private == true,
           "Cannot verify a non-private kernel snark in the private kernel circuit" },
-        { this_call_stack_item.function_signature.is_constructor == false,
+        { this_call_stack_item.function_data.is_constructor == false,
           "A constructor must be executed as the first tx in the recursion" },
         { start_private_call_stack_length != 0,
           "Cannot execute private kernel circuit with an empty private call stack" }

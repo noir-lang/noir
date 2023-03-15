@@ -64,7 +64,7 @@ fn deploy(
                 },
                 call_stack_item: {
                     // Here's the call stack item for the contract deployment call.
-                    // Notice: no function signature for contract deployment calls.
+                    // Notice: no function data for contract deployment calls.
                     public_inputs: {
                         private_constructor_public_inputs_hash, // TODO: consider having the unpacked public inputs here instead, for ease.
                         public_constructor_public_inputs_hash,

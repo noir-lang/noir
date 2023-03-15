@@ -28,10 +28,10 @@ contract L1_Contract {
     function callback_after_l2_function_executed(
         uint256 l2CallHash,
         uint256 callIndex,
-        bytes functionSignature,
+        bytes functionData,
         uint256[4] emittedPublicInputs, // THIS IS EVENT DATA FROM L2!
     ) {
-        // Logic to validate the functionSignature, emittedPublicInputs were as
+        // Logic to validate the functionData, emittedPublicInputs were as
         // expected. E.g.:
         require(emittedPublicInputs[0] == 123);
         require(emittedPublicInputs[1] == 456);

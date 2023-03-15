@@ -44,7 +44,7 @@ enum GeneratorIndex {
     STATE_READ,
     STATE_TRANSITION,
     CONTRACT_ADDRESS,
-    FUNCTION_SIGNATURE,
+    FUNCTION_DATA,
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALL_STACK_ITEM_2, // see function where it's used for explanation

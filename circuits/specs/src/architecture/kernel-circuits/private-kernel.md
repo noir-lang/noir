@@ -55,7 +55,7 @@ Some values from a private call can be optionally revealed to the 'public world'
 | Value | Description |
 | -------- | -------- |
 | `callStackItemHash`: `Field` | Serves as a 'lookup key' of sorts, for when an L1 function has made a call to a L2 function, and will need to validate that the correct call was made. |
-| `functionSignature`: [`FunctionSignature`](../contracts/transactions.md#functionsignature) | |
+| `functionData`: [`FunctionData`](../contracts/transactions.md#functiondata) | |
 | `emittedEvents` | Emitting data to another layer. |
 | `vkHash` | |
 | `portalContractAddress` | Needed when making a call from L2 to L1. |
@@ -132,7 +132,7 @@ Base case:
         - TBD: to allow the option of a fee payment, we might require `start.privateCallStack.length` to be "1" or "2, where one tx has an `isFeePayment` indicator". ✅
     * Pop the only (TBD) `privateCallHash` off the `start.privateCallStack`. ✅
         - Validate that `hash(privateCall.callStackItem) == privateCallHash` ✅
-        - If `privateCall.callStackItem.functionSignature.isConstructor == true`: ❌
+        - If `privateCall.callStackItem.functionData.isConstructor == true`: ❌
             - THIS SECTION IS OUT OF DATE - IGNORE!
             - then we don't need a signature from the user, since this entire 'callstack' has been instantiated by a Contract Deployment kernel snark (which itself will have been signed by the user).
             - Set `constants.recursionContext.isConstructor := true` - This public input will percolate to -- and be checked by -- the Contract Deployment Kernel Circuit which calls this constructor. This check is required to prevent a person from circumventing the ECDSA signature check by simply setting `isConstructor = true` when making a private call. If this aggregated kernel snark reaches the rollup circuit without this flag being reset to `false` by the Contract Deployment Kernel Circuit (to say "yes, this kernel was indeed a constructor for a Contract Deployment Kernel Circuit"), then the entire tx will be rejected by the rollup circuit.
@@ -147,7 +147,7 @@ Base case:
 
 Recursion:
 * If `previousKernel.publicInputs.isPrivate && start.privateCallCount > 0`: ✅
-    - If `privateCall.callStackItem.functionSignature.isConstructor == true`:
+    - If `privateCall.callStackItem.functionData.isConstructor == true`:
         - Revert - only the first call in the kernel recursion can be a constructor.
     * Verify the `previousKernel.proof` using the `previousKernel.vk` ✅
     * Validate that the `previousKernel.vk` is a valid private kernel VK with a membership check:
@@ -163,14 +163,14 @@ Recursion:
 
 Verify the next call on the callstack:
 * Verify `start.privateCallStack.length > 0` and (if not already done during the 'Base Case' logic above, depending on how we do the implementation), pop 1 item off of `start.privateCallStack` (a `privateCallStackItemHash`)
-* Validate that `privateCall.callStackItem.functionSignature.isPrivate == true` (otherwise this is the wrong type of kernel circuit to be using).
+* Validate that `privateCall.callStackItem.functionData.isPrivate == true` (otherwise this is the wrong type of kernel circuit to be using).
 * Validate that this newly-popped  `privateCallStackItemHash` corresponds to the `privateCall` data passed into this circuit:
     * Calculate `privateCallPublicInputsHash := hash(privateCall.callStackItem.publicInputs);`
     * Verify that `privateCallStackItemHash == hash(privateCall.callStackItem)`
     * Recall, the structure of a [callstack item](../contracts/transactions.md#privatecallstackitem).
 * Verify the correctness of `(proof, privateCallPublicInputsHash)` using the `vk`.
 * Validate the `vk` actually represents the function that is purportedly being executed:
-    * Extract the `contractAddress` and `vkIndex` from `privateCall.functionSignature`.
+    * Extract the `contractAddress` and `vkIndex` from `privateCall.functionData`.
     * Compute `vkHash := hash(vk)`
     * Compute the `vkRoot` of this function's contract using the `vkIndex`, `vkPath`, and `vkHash`.
     * Compute the contract's leaf in the `contractTree`:
@@ -201,15 +201,15 @@ Update the `end` values:
 * Extract the private call's `privateCallStack`, `publicCallStack`, `contractDeploymentCallStack`.
     - Validate the call contexts of these calls:
         - For each `newCallStackItem` in `privateCallStack`, `publicCallStack`, `contractDeploymentCallStack` and `partialL1CallStack`.
-            - If `newCallStackItem.functionSignature.contractAddress == 0`:
+            - If `newCallStackItem.functionData.contractAddress == 0`:
                 - Then this `0` is understood to be a call to `address(this)`, which cannot be populated by the app's circuit itself.
                 - We must mutate the contract address to be that of the `privateCall`.
-                - Mutation: Set `newCallStackItem.functionSignature.contractAddress = privateCall.functionSignature.contractAddress`
+                - Mutation: Set `newCallStackItem.functionData.contractAddress = privateCall.functionData.contractAddress`
             - If `newCallStackItem.isDelegateCall == true`:
                 - Assert `newCallStackItem.callContext == publicCall.callContext`
             - Else:
-                - Assert `newCallStackItem.callContext.msgSender == publicCall.functionSignature.contractAddress`
-                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionSignature.contractAddress`
+                - Assert `newCallStackItem.callContext.msgSender == publicCall.functionData.contractAddress`
+                - Assert `newCallStackItem.callContext.storageContractAddress == newCallStackItem.functionData.contractAddress`
     - For each `partialL1CallStackItem` in the `partialL1CallStack` (index `i`):
       - Ensure that the call is being sent to the associated portal contract address, by adding the `portalContractAddress` here:
         - Let `l1CallStackItem := keccak(portalContractAddress, partialL1CallStackItem)`
@@ -217,19 +217,19 @@ Update the `end` values:
     - As per the commitments/nullifiers bullet immediately above, it would be nice if these 'pushes' could result in tightly-packed stacks.
 - Determine whether any values need to be optionally revealed to the 'public world', by referring to the `publicCall`'s booleans:
     - Let `optionallyRevealedData = {};`
-    - If `privateCall.functionSignature.isConstructor`, set:
+    - If `privateCall.functionData.isConstructor`, set:
         - `optionallyRevealedData.callStackItemHash = privateCallStackItemHash;`
         - `optionallyRevealedData.vkHash = vkHash;`
         - `optionallyRevealedData.emittedPublicInputs = privateCall.publicInputs.emittedPublicInputs;`
     - If `isFeePayment`, set:
         - `optionallyRevealedData.callStackItemHash = privateCallStackItemHash;`
-        - `optionallyRevealedData.functionSignature = privateCall.functionSignature;`
+        - `optionallyRevealedData.functionData = privateCall.functionData;`
         - `optionallyRevealedData.emittedPublicInputs = privateCall.publicInputs.emittedPublicInputs;`
     - If `payFeeFromL1`, set:
         - `optionallyRevealedData.callStackItemHash = privateCallStackItemHash;`
     - If `calledFromL1`, set:
         - `optionallyRevealedData.callStackItemHash = privateCallStackItemHash;`
-        - `optionallyRevealedData.functionSignature = privateCall.functionSignature;`
+        - `optionallyRevealedData.functionData = privateCall.functionData;`
         - `optionallyRevealedData.emittedPublicInputs = privateCall.publicInputs.emittedPublicInputs;`
         - `optionallyRevealedData.portalContractAddress = portalContractAddress;` // TODO: we need to check this portal contract address is the correct one within this kernel circuit (with a membership check). We need to decide where in L2 this should be stored: either in the contract tree or in the public data tree (e.g. at storage slot 0 for each contract). Argh, it cannot be in the public data tree, because the private kernel circuit cannot access that :heavy_exclamation_mark:
     - Push the `optionallyRevealedData` onto the `optionallyRevealedData`.

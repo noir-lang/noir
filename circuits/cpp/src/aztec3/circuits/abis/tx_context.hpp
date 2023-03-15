@@ -1,6 +1,6 @@
 #pragma once
 #include "contract_deployment_data.hpp"
-#include "function_signature.hpp"
+#include "function_data.hpp"
 #include <stdlib/primitives/witness/witness.hpp>
 #include <stdlib/types/native_types.hpp>
 #include <stdlib/types/circuit_types.hpp>

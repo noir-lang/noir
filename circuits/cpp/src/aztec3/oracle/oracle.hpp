@@ -3,7 +3,7 @@
 #include "fake_db.hpp"
 
 #include <aztec3/circuits/abis/call_context.hpp>
-#include <aztec3/circuits/abis/function_signature.hpp>
+#include <aztec3/circuits/abis/function_data.hpp>
 
 #include <aztec3/circuits/apps/utxo_datum.hpp>
 
@@ -15,7 +15,7 @@
 namespace aztec3::oracle {
 
 using aztec3::circuits::abis::CallContext;
-using aztec3::circuits::abis::FunctionSignature;
+using aztec3::circuits::abis::FunctionData;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
 
@@ -30,12 +30,12 @@ template <typename DB> class NativeOracleInterface {
 
     NativeOracleInterface(DB& db,
                           NT::address const& actual_contract_address,
-                          FunctionSignature<NT> const& function_signature,
+                          FunctionData<NT> const& function_data,
                           CallContext<NT> const& call_context,
                           std::optional<NT::fr> const& msg_sender_private_key = std::nullopt)
         : db(db)
         , actual_contract_address(actual_contract_address)
-        , function_signature(function_signature)
+        , function_data(function_data)
         , call_context(call_context)
         // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
@@ -63,7 +63,7 @@ template <typename DB> class NativeOracleInterface {
 
     NT::address get_actual_contract_address() { return actual_contract_address; };
 
-    FunctionSignature<NT> get_function_signature() { return function_signature; };
+    FunctionData<NT> get_function_data() { return function_data; };
 
     CallContext<NT> get_call_context()
     {
@@ -103,10 +103,10 @@ template <typename DB> class NativeOracleInterface {
     // untrustworthy oracle could give two different pieces of information. As long as this (trusted) oracle catches
     // double-queries, we can ensure the circuit we build doesn't query twice.
 
-    // Note: actual_contract_address and function_signature are NOT to be provided to the circuit, so don't include
+    // Note: actual_contract_address and function_data are NOT to be provided to the circuit, so don't include
     // getter methods for these in the OracleWrapper.
     NT::address actual_contract_address; // not to be confused with call_context.storage_contract_address;
-    FunctionSignature<NT> function_signature;
+    FunctionData<NT> function_data;
 
     CallContext<NT> call_context;
     // NT::fr portal_contract_address;
@@ -114,7 +114,7 @@ template <typename DB> class NativeOracleInterface {
 
     // Ensure functions called only once:
     bool actual_contract_address_already_got = false;
-    bool function_signature_already_got = false;
+    bool function_data_already_got = false;
     bool call_context_already_got = false;
     // bool portal_contract_address_already_got = false;
     bool msg_sender_private_key_already_got = false;
