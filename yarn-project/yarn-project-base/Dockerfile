@@ -31,7 +31,7 @@ COPY wallet/package.json wallet/package.json
 # All workspaces use the linting config, so always include it.
 COPY eslint-config eslint-config
 COPY prettier-config prettier-config
-COPY .pnp.cjs .pnp.loader.mjs package.json tsconfig.json yarn.lock ./
+COPY package.json tsconfig.json yarn.lock ./
 COPY .yarn .yarn
 # Use PNP in CI context
 COPY .yarnrc.prod.yml .yarnrc.yml
