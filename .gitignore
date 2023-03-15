@@ -1,3 +1,5 @@
 dest
 node_modules
 .cache
+.pnp.cjs
+.pnp.loader.mjs
