@@ -77,16 +77,21 @@ mod tests {
     use super::fetch_pk_and_vk;
 
     #[test]
-    fn fetching_pk_and_vk_loads_the_acir_hash_successfully() {
+    fn fetching_pk_and_vk_loads_expected_keys() {
         let circuit = Circuit::default();
         let circuit_name = "my_circuit";
         let mut circuit_build_path = TempDir::new("temp_circuit_hash_dir").unwrap().into_path();
-
-        save_acir_hash_to_dir(&circuit, circuit_name, circuit_build_path.clone());
-
+        
+        // These values are not meaningful, we just need distinct values.
+        let pk: Vec<u8> = vec![0];
+        let vk: Vec<u8> = vec![1,2];
+        save_key_to_dir(&pk, circuit_name, &circuit_build_path, true);
+        save_key_to_dir(&vk, circuit_name, &circuit_build_path, false);
+        
+        save_acir_hash_to_dir(&circuit, circuit_name, &circuit_build_path);
         circuit_build_path.push(circuit_name);
 
-        // Here we do not prove nor verify because it is not the scope of this test.
-        assert!(fetch_pk_and_vk(&circuit, circuit_build_path, false, false).is_ok());
+        let loaded_keys = fetch_pk_and_vk(&circuit, circuit_build_path, true, true).unwrap();
+        assert_eq!(loaded_keys, (pk, vk));
     }
 }
