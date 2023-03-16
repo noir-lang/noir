@@ -26,9 +26,7 @@ cfg_if::cfg_if! {
         pub(crate) fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
             use std::io::ErrorKind;
 
-            let path_str = path_to_file.as_os_str().to_str().unwrap();
-
-            match StdLibAssets::get(path_str) {
+            match StdLibAssets::get(path_to_file.to_str().unwrap()) {
 
                 Some(std_lib_asset) => {
                     Ok(std::str::from_utf8(std_lib_asset.data.as_ref()).unwrap().to_string())
