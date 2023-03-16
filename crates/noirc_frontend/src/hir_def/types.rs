@@ -197,6 +197,14 @@ impl StructType {
         self.fields.keys().cloned().collect()
     }
 
+    /// True if the given index is the same index as a generic type of this struct
+    /// which is expected to be a numeric generic.
+    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
+    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
+        let target_id = self.generics[index_of_generic].0;
+        self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
+    }
+
     /// Instantiate this struct type, returning a Vec of the new generic args (in
     /// the same order as self.generics)
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
@@ -531,6 +539,57 @@ impl Type {
 
     pub fn is_field(&self) -> bool {
         matches!(self.follow_bindings(), Type::FieldElement(_))
+    }
+
+    fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
+        // True if the given type is a NamedGeneric with the target_id
+        let named_generic_id_matches_target = |typ: &Type| {
+            if let Type::NamedGeneric(type_variable, _) = typ {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(_) => {
+                        unreachable!("Named generics should not be bound until monomorphization")
+                    }
+                    TypeBinding::Unbound(id) => target_id == *id,
+                }
+            } else {
+                false
+            }
+        };
+
+        match self {
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::String(_)
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_)
+            | Type::PolymorphicInteger(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Forall(_, _) => false,
+
+            Type::Array(length, elem) => {
+                elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
+            }
+
+            Type::Tuple(fields) => {
+                fields.iter().any(|field| field.contains_numeric_typevar(target_id))
+            }
+            Type::Function(parameters, return_type) => {
+                parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
+                    || return_type.contains_numeric_typevar(target_id)
+            }
+            Type::Struct(struct_type, generics) => {
+                generics.iter().enumerate().any(|(i, generic)| {
+                    if named_generic_id_matches_target(generic) {
+                        struct_type.borrow().generic_is_numeric(i)
+                    } else {
+                        generic.contains_numeric_typevar(target_id)
+                    }
+                })
+            }
+        }
     }
 }
 

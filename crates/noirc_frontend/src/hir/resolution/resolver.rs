@@ -608,7 +608,7 @@ impl<'a> Resolver<'a> {
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
-        self.declare_numeric_generics(func.parameters(), &func.return_type());
+        self.declare_numeric_generics(&parameter_types, &return_type);
 
         if func.name() == "main"
             && *return_type != Type::Unit
@@ -643,16 +643,12 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn declare_numeric_generics(
-        &mut self,
-        params: &[(Pattern, UnresolvedType, noirc_abi::AbiVisibility)],
-        return_type: &UnresolvedType,
-    ) {
+    fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
         if self.generics.is_empty() {
             return;
         }
 
-        for (name_to_find, type_variable) in self.find_numeric_generics(params, return_type) {
+        for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
             // Declare any generics to let users use numeric generics in scope.
             // Don't issue a warning if these are unused
             let (name, _, span) = self
@@ -668,78 +664,58 @@ impl<'a> Resolver<'a> {
     }
 
     fn find_numeric_generics(
-        &mut self,
-        params: &[(Pattern, UnresolvedType, noirc_abi::AbiVisibility)],
-        return_type: &UnresolvedType,
+        parameters: &[Type],
+        return_type: &Type,
     ) -> Vec<(String, TypeVariable)> {
         let mut found = HashMap::new();
-        for (_, parameter, _) in params {
-            self.find_numeric_generics_in_type(parameter, &mut found);
+        for parameter in parameters {
+            Self::find_numeric_generics_in_type(parameter, &mut found);
         }
-        self.find_numeric_generics_in_type(return_type, &mut found);
+        Self::find_numeric_generics_in_type(return_type, &mut found);
         found.into_iter().collect()
     }
 
-    fn find_numeric_generics_in_type(
-        &mut self,
-        typ: &UnresolvedType,
-        found: &mut HashMap<String, Shared<TypeBinding>>,
-    ) {
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut HashMap<String, Shared<TypeBinding>>) {
         match typ {
-            UnresolvedType::FieldElement(_)
-            | UnresolvedType::Integer(_, _, _)
-            | UnresolvedType::Bool(_)
-            | UnresolvedType::String(_)
-            | UnresolvedType::Unit
-            | UnresolvedType::Unspecified
-            | UnresolvedType::Error => (),
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::String(_)
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_)
+            | Type::PolymorphicInteger(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Forall(_, _) => (),
 
-            UnresolvedType::Named(_, args) | UnresolvedType::Tuple(args) => {
-                for arg in args {
-                    self.find_numeric_generics_in_type(arg, found);
+            Type::Array(length, _) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
                 }
             }
 
-            UnresolvedType::Function(parameters, return_type) => {
+            Type::Tuple(fields) => {
+                for field in fields {
+                    Self::find_numeric_generics_in_type(field, found);
+                }
+            }
+            Type::Function(parameters, return_type) => {
                 for parameter in parameters {
-                    self.find_numeric_generics_in_type(parameter, found);
+                    Self::find_numeric_generics_in_type(parameter, found);
                 }
-                self.find_numeric_generics_in_type(return_type, found);
+                Self::find_numeric_generics_in_type(return_type, found);
             }
-
-            UnresolvedType::Array(length, element) => {
-                self.find_numeric_generics_in_type(element, found);
-
-                if let Some(length) = length {
-                    self.find_numeric_generics_in_type_expr(length, found);
-                }
-            }
-            UnresolvedType::Expression(expr) => {
-                self.find_numeric_generics_in_type_expr(expr, found);
-            }
-        }
-    }
-
-    fn find_numeric_generics_in_type_expr(
-        &mut self,
-        expr: &UnresolvedTypeExpression,
-        found: &mut HashMap<String, Shared<TypeBinding>>,
-    ) {
-        match expr {
-            UnresolvedTypeExpression::Variable(variable) => {
-                if let Some(ident) = variable.as_ident() {
-                    if let Ok(ident) = self.find_variable(ident) {
-                        let definition = self.interner.definition(ident.id);
-                        if let DefinitionKind::GenericType(type_variable) = &definition.kind {
-                            found.insert(definition.name.clone(), type_variable.clone());
+            Type::Struct(struct_type, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
                         }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
                     }
                 }
-            }
-            UnresolvedTypeExpression::Constant(_, _) => (),
-            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                self.find_numeric_generics_in_type_expr(lhs, found);
-                self.find_numeric_generics_in_type_expr(rhs, found);
             }
         }
     }
