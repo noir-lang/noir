@@ -5,6 +5,8 @@ const contexts = [
   'PropertySignature',
   'TSInterfaceDeclaration',
   'InterfaceDeclaration',
+  'TSPropertyDefinition[accessibility=public]',
+  'PropertyDefinition[accessibility=public]',
   'TSTypeAliasDeclaration',
   'TypeAliasDeclaration',
   'TSTypeDeclaration',
