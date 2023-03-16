@@ -132,8 +132,7 @@ mod tests {
         let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let mut config = CompileOptions::default();
-        config.allow_warnings = true;
+        let config = CompileOptions { allow_warnings: true, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
