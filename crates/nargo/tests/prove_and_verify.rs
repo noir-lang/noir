@@ -40,6 +40,7 @@ mod tests {
         current_dir.push(TEST_DIR);
         current_dir.push(TEST_DATA_DIR);
 
+        // Tests: nargo prove pp && nargo verify pp for every program in tests/test_data.
         for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
             if let Ok(test_name) = c.file_name().into_string() {
                 println!("Running test {test_name:?}");
@@ -63,22 +64,8 @@ mod tests {
                 }
             }
         }
-    }
 
-    #[test]
-    fn cached_noir_integration() {
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
-
-        //load config.tml file from test_data directory
-        current_dir.push(CONFIG_FILE);
-        let config_path = std::fs::read_to_string(current_dir).unwrap();
-        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
-
+        // Tests: nargo compile c && nargo prove pp c && nargo verify pp c for every program in tests/test_data.
         for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
             if let Ok(test_name) = c.file_name().into_string() {
                 println!("Running test {test_name:?}");
