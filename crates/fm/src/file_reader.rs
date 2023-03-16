@@ -7,7 +7,8 @@ use std::path::Path;
 
 #[derive(RustEmbed)]
 #[folder = "../../noir_stdlib/src"]
-#[prefix = "std/"]
+#[cfg_attr(not(target_os = "windows"), prefix = "std/")]
+#[cfg_attr(target_os = "windows", prefix = r"std\")] // Note reversed slash direction
 struct StdLibAssets;
 
 cfg_if::cfg_if! {
