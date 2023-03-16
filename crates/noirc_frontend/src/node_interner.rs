@@ -18,7 +18,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariableId};
+use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -199,7 +199,7 @@ impl DefinitionInfo {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionKind {
     Function(FuncId),
     Global(ExprId),
@@ -207,6 +207,10 @@ pub enum DefinitionKind {
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
     Local(Option<ExprId>),
+
+    /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
+    /// in scope in case they resolve to numeric generics later.
+    GenericType(TypeVariable),
 }
 
 impl DefinitionKind {
@@ -221,6 +225,7 @@ impl DefinitionKind {
             DefinitionKind::Function(_) => None,
             DefinitionKind::Global(id) => Some(id),
             DefinitionKind::Local(id) => id,
+            DefinitionKind::GenericType(_) => None,
         }
     }
 }
@@ -393,13 +398,12 @@ impl NodeInterner {
         mutable: bool,
         definition: DefinitionKind,
     ) -> DefinitionId {
-        let id = self.definitions.len();
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
-
-        let id = DefinitionId(id);
+        let id = DefinitionId(self.definitions.len());
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
+
+        self.definitions.push(DefinitionInfo { name, mutable, kind: definition });
         id
     }
 

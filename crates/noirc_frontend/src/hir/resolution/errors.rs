@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{Ident, Shared, StructType, Type};
+use crate::{parser::ParserError, Ident, Shared, StructType, Type};
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
@@ -57,6 +57,8 @@ pub enum ResolverError {
         actual: usize,
         expected: usize,
     },
+    #[error("{0}")]
+    ParserError(ParserError),
 }
 
 impl ResolverError {
@@ -252,6 +254,7 @@ impl From<ResolverError> for Diagnostic {
                     span,
                 )
             }
+            ResolverError::ParserError(error) => error.into(),
         }
     }
 }
