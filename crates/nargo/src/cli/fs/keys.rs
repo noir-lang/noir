@@ -1,13 +1,10 @@
-use std::path::{Path, PathBuf};
-
-use acvm::{acir::circuit::Circuit, hash_constraint_system};
-
+use super::{create_named_dir, load_hex_data, write_to_file};
 use crate::{
     constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
-
-use super::{create_named_dir, load_hex_data, write_to_file};
+use acvm::{acir::circuit::Circuit, hash_constraint_system};
+use std::path::{Path, PathBuf};
 
 pub(crate) fn save_key_to_dir<P: AsRef<Path>>(
     key: Vec<u8>,
@@ -69,25 +66,23 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod tests {
+    use super::fetch_pk_and_vk;
+    use crate::cli::fs::{keys::save_key_to_dir, program::save_acir_hash_to_dir};
     use acvm::acir::circuit::Circuit;
     use tempdir::TempDir;
-
-    use crate::cli::fs::program::save_acir_hash_to_dir;
-
-    use super::fetch_pk_and_vk;
 
     #[test]
     fn fetching_pk_and_vk_loads_expected_keys() {
         let circuit = Circuit::default();
         let circuit_name = "my_circuit";
         let mut circuit_build_path = TempDir::new("temp_circuit_hash_dir").unwrap().into_path();
-        
+
         // These values are not meaningful, we just need distinct values.
         let pk: Vec<u8> = vec![0];
-        let vk: Vec<u8> = vec![1,2];
-        save_key_to_dir(&pk, circuit_name, &circuit_build_path, true);
-        save_key_to_dir(&vk, circuit_name, &circuit_build_path, false);
-        
+        let vk: Vec<u8> = vec![1, 2];
+        save_key_to_dir(pk.clone(), circuit_name, &circuit_build_path, true).unwrap();
+        save_key_to_dir(vk.clone(), circuit_name, &circuit_build_path, false).unwrap();
+
         save_acir_hash_to_dir(&circuit, circuit_name, &circuit_build_path);
         circuit_build_path.push(circuit_name);
 
