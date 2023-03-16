@@ -27,7 +27,7 @@ pub(crate) fn save_acir_hash_to_dir<P: AsRef<Path>>(
     hash_dir: P,
 ) -> PathBuf {
     let acir_hash = hash_constraint_system(circuit);
-    let hash_path = hash_dir.as_ref().join(hash_name).with_extension("json.sha256");
+    let hash_path = hash_dir.as_ref().join(hash_name).with_extension("json.checksum");
     write_to_file(hex::encode(acir_hash).as_bytes(), &hash_path);
 
     hash_path
