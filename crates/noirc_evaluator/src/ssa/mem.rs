@@ -23,6 +23,10 @@ impl ArrayId {
     pub(crate) fn dummy() -> ArrayId {
         ArrayId(std::u32::MAX)
     }
+
+    pub(crate) fn as_u32(&self) -> u32 {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone)]

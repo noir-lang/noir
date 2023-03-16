@@ -8,7 +8,7 @@ use crate::{
 };
 use acvm::{
     acir::{
-        circuit::{directives::Directive, opcodes::Opcode as AcirOpcode},
+        circuit::{directives::Directive, opcodes::{Opcode as AcirOpcode, MemoryBlock, BlockId as AcirBlockId, MemOp}},
         native_types::{Expression, Witness},
     },
     FieldElement,
@@ -24,12 +24,12 @@ use super::{
 
 /// Represent a memory operation on the ArrayHeap, at the specified index
 /// Operation is one for a store and 0 for a load
-#[derive(Clone, Debug)]
-struct MemOp {
-    operation: Expression,
-    value: Expression,
-    index: Expression,
-}
+// #[derive(Clone, Debug)]
+// struct MemOp {
+//     operation: Expression,
+//     value: Expression,
+//     index: Expression,
+// }
 
 type MemAddress = u32;
 
@@ -77,7 +77,7 @@ impl ArrayHeap {
         }
         outputs
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
         let len = self.trace.len();
         if len == 0 {
             return;
@@ -141,6 +141,15 @@ impl ArrayHeap {
             evaluator.opcodes.push(AcirOpcode::Arithmetic(store_on_new_adr));
             evaluator.opcodes.push(AcirOpcode::Arithmetic(load_on_same_adr));
         }
+        
+        let id = array_id.as_u32();
+        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+            id: AcirBlockId(id),
+            len: array_len,
+            trace: self.trace.clone(),
+            init: 0,
+        }));
+        
     }
 }
 
@@ -238,9 +247,10 @@ impl AcirMem {
         self.commit(array_id, op != Expression::zero());
         self.array_heap_mut(*array_id).push(index, value, op);
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
         for mem in &self.virtual_memory {
-            mem.1.acir_gen(evaluator);
+            let array = ctx.mem[*mem.0];
+            mem.1.acir_gen(evaluator, array.id, array.len);
         }
     }
 }
