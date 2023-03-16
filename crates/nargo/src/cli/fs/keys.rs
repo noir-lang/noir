@@ -66,3 +66,27 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 
     Ok((proving_key, verification_key))
 }
+
+#[cfg(test)]
+mod tests {
+    use acvm::acir::circuit::Circuit;
+    use tempdir::TempDir;
+
+    use crate::cli::fs::program::save_acir_hash_to_dir;
+
+    use super::fetch_pk_and_vk;
+
+    #[test]
+    fn fetching_pk_and_vk_loads_the_acir_hash_successfully() {
+        let circuit = Circuit::default();
+        let circuit_name = "my_circuit";
+        let mut circuit_build_path = TempDir::new("temp_circuit_hash_dir").unwrap().into_path();
+
+        save_acir_hash_to_dir(&circuit, circuit_name, circuit_build_path.clone());
+
+        circuit_build_path.push(circuit_name);
+
+        // Here we do not prove nor verify because it is not the scope of this test.
+        assert!(fetch_pk_and_vk(&circuit, circuit_build_path, false, false).is_ok());
+    }
+}
