@@ -109,7 +109,7 @@ fn compile_program(
 }
 
 /// Save a program to disk along with proving and verification keys.
-pub(crate) fn save_and_preprocess_program(
+fn save_and_preprocess_program(
     compiled_program: &CompiledProgram,
     circuit_name: &str,
     circuit_dir: &Path,
