@@ -1,6 +1,5 @@
 use rustc_version::{version, Version};
 use std::path::Path;
-
 /// Expects that the given directory is an existing path
 fn rerun_if_stdlib_changes(directory: &Path) {
     for entry in std::fs::read_dir(directory).unwrap() {
@@ -21,6 +20,8 @@ fn check_rustc_version() {
         "The minimal supported rustc version is 1.66.0."
     );
 }
+
+const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
     check_rustc_version();

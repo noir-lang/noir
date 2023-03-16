@@ -1,9 +1,30 @@
 {
   "nodes": {
+    "barretenberg": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1678819958,
+        "narHash": "sha256-ResINN3e6J91RlGlu9BVucxIbIRRbWMKL6HcyCNt9ZY=",
+        "ref": "refs/heads/master",
+        "rev": "f2f8d1f7a24ca73e30c981fd245c86f7f964abb7",
+        "revCount": 931,
+        "type": "git",
+        "url": "https://github.com/AztecProtocol/barretenberg"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://github.com/AztecProtocol/barretenberg"
+      }
+    },
     "crane": {
       "inputs": {
         "flake-compat": "flake-compat",
-        "flake-utils": "flake-utils",
+        "flake-utils": "flake-utils_2",
         "nixpkgs": [
           "nixpkgs"
         ],
@@ -71,48 +92,26 @@
     },
     "flake-utils_3": {
       "locked": {
-        "lastModified": 1676283394,
-        "narHash": "sha256-XX2f9c3iySLCw54rJ/CZs+ZK6IQy7GXNY4nSOyu2QG4=",
+        "lastModified": 1678901627,
+        "narHash": "sha256-U02riOqrKKzwjsxc/400XnElV+UtPUQWpANPlyazjH0=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "3db36a8b464d0c4532ba1c7dda728f4576d6d073",
+        "rev": "93a2b84fc4b70d9e089d029deacc3583435c2ed6",
         "type": "github"
       },
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
         "type": "github"
-      }
-    },
-    "libbarretenberg_flake": {
-      "inputs": {
-        "flake-utils": "flake-utils_3",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1678726748,
-        "narHash": "sha256-/SLomvPwsyvZAqL3U7VcpwBU9kJeWJrwqYm5DRRQMT0=",
-        "ref": "phated/nix",
-        "rev": "a0b82bcd5de86f9fa27afd4490b4c5cd9251fea2",
-        "revCount": 931,
-        "type": "git",
-        "url": "https://github.com/AztecProtocol/barretenberg"
-      },
-      "original": {
-        "ref": "phated/nix",
-        "type": "git",
-        "url": "https://github.com/AztecProtocol/barretenberg"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1678724065,
-        "narHash": "sha256-MjeRjunqfGTBGU401nxIjs7PC9PZZ1FBCZp/bRB3C2M=",
+        "lastModified": 1678875422,
+        "narHash": "sha256-T3o6NcQPwXjxJMn2shz86Chch4ljXgZn746c2caGxd8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b8afc8489dc96f29f69bec50fdc51e27883f89c1",
+        "rev": "126f49a01de5b7e35a43fd43f891ecf6d3a51459",
         "type": "github"
       },
       "original": {
@@ -124,9 +123,9 @@
     },
     "root": {
       "inputs": {
+        "barretenberg": "barretenberg",
         "crane": "crane",
-        "flake-utils": "flake-utils_2",
-        "libbarretenberg_flake": "libbarretenberg_flake",
+        "flake-utils": "flake-utils_3",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay_2"
       }
@@ -166,11 +165,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1678760344,
-        "narHash": "sha256-N8u9/O0NWt3PUQc9xmCeod1SFilOFicALjtYtslib2g=",
+        "lastModified": 1678933473,
+        "narHash": "sha256-UY19R278O9bwneLWC7ady8VMoQ+UlAWy8SkUsfDZvQs=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "d907affef544f64bd6886fe6bcc5fa2495a82373",
+        "rev": "5c1af9b9d618e02a87cdd30a3022aec0b78cd9aa",
         "type": "github"
       },
       "original": {

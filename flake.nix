@@ -1,5 +1,5 @@
 {
-  description = "Build Nargo";
+  description = "Nargo";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -19,21 +19,21 @@
       };
     };
 
-    libbarretenberg_flake = {
-      url = "git+https://github.com/AztecProtocol/barretenberg?ref=phated/nix";
+    barretenberg = {
+      url = "git+https://github.com/AztecProtocol/barretenberg";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs =
-    { self, nixpkgs, crane, flake-utils, rust-overlay, libbarretenberg_flake, ... }:
+    { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
             rust-overlay.overlays.default
-            libbarretenberg_flake.overlays.default
+            barretenberg.overlays.default
           ];
         };
 
@@ -51,7 +51,7 @@
         craneLib = craneLibScope.overrideToolchain rustToolchain;
 
         commonArgs = {
-          src = craneLib.cleanCargoSource ./.;
+          src = ./.;
 
           doCheck = false;
 
@@ -60,12 +60,14 @@
 
         };
 
-        GIT_COMMIT = pkgs.lib.optionalString (self ? rev) self.rev;
+        src = pkgs.copyPathToStore ./.;
+
+        # This is a problem for now
+        GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
         GIT_DIRTY = "false";
 
         nargo = craneLib.buildPackage ({
           pname = "nargo";
-          src = craneLib.cleanCargoSource ./.;
 
           doCheck = false;
 
@@ -74,11 +76,10 @@
           
           # Bindegn needs these
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg_flake}/include/barretenberg -L${libbarretenberg_flake}";
-          # RUSTFLAGS = "-L${libbarretenberg}/lib -lomp";
 
           nativeBuildInputs = [
             pkgs.pkg-config
+            pkgs.llvmPackages.bintools
           ];
 
           buildInputs = [
@@ -94,24 +95,30 @@
 
         packages.default = nargo;
 
-        # apps.default = flake-utils.lib.mkApp {
-        #   drv = pkgs.writeShellScriptBin "barretenberg_wrapper" ''
-        #     ${my-crate}/bin/barretenberg_wrapper
-        #   '';
-        # };
-
         apps.default = flake-utils.lib.mkApp { drv = nargo; };
 
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
           inputsFrom = builtins.attrValues self.checks;
 
           buildInputs = packages.default.buildInputs ;
 
-          BINDGEN_EXTRA_CLANG_ARGS = "-I${libbarretenberg_flake}/include/barretenberg -L${libbarretenberg_flake}";
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          # Uncertain if below line is needed. dev Shell is not yet fully working
+          # BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.barretenberg}/include -isystem ${pkgs.llvmPackages.libcxx.dev}/include";
 
           nativeBuildInputs = with pkgs; [
+            which
+            starship
+            git
             cargo
-            rustc ];
+            rustc
+            pkg-config            
+          ];
+
+          shellHook = ''
+            eval "$(starship init bash)"
+          '';
+
         };
       });
 }
