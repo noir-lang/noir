@@ -12,11 +12,11 @@ RUN apk update && apk add --no-cache build-base git python3 curl bash jq
 WORKDIR /usr/src/yarn-project
 # We only want to copy the package.json's, to ensure we only rebuild this image if project dependencies changed.
 COPY acir-simulator/package.json acir-simulator/package.json
+COPY archiver/package.json archiver/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuit.js/package.json circuit.js/package.json
-COPY data-archiver/package.json data-archiver/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/example/package.json ethereum.js/example/package.json

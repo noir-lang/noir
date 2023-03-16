@@ -12,11 +12,11 @@ PROJECTS=(
   # l1-contracts:l1-contracts
   # yarn-project-base:yarn-project
   # acir-simulator:yarn-project
+  # archiver:yarn-project
   # aztec-cli:yarn-project
   # aztec.js:yarn-project
   # barretenberg.js:yarn-project
   # circuit.js:yarn-project
-  # data-archiver:yarn-project
   # end-to-end:yarn-project
   # ethereum.js:yarn-project
   # kernel-simulator:yarn-project

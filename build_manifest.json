@@ -45,6 +45,13 @@
     "rebuildPatterns": ["^yarn-project/acir-simulator/"],
     "dependencies": ["yarn-project-base"]
   },
+  "archiver": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/archiver",
+    "dockerfile": "archiver/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/archiver/"],
+    "dependencies": ["yarn-project-base"]
+  },
   "aztec-cli": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-cli",
@@ -71,13 +78,6 @@
     "projectDir": "yarn-project/circuit.js",
     "dockerfile": "circuit.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/circuit.js/"],
-    "dependencies": ["yarn-project-base"]
-  },
-  "data-archiver": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/data-archiver",
-    "dockerfile": "data-archiver/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/data-archiver/"],
     "dependencies": ["yarn-project-base"]
   },
   "end-to-end": {

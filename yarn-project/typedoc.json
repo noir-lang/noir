@@ -3,11 +3,11 @@
   "entryPointStrategy": "packages",
   "entryPoints": [
     "acir-simulator",
+    "archiver",
     "aztec-cli",
     "aztec.js",
     "barretenberg.js",
     "circuit.js",
-    "data-archiver",
     "ethereum.js",
     "kernel-simulator",
     "key-store",

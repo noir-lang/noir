@@ -8,11 +8,11 @@
   },
   "workspaces": [
     "acir-simulator",
+    "archiver",
     "aztec-cli",
     "aztec.js",
     "barretenberg.js",
     "circuit.js",
-    "data-archiver",
     "docs",
     "end-to-end",
     "eslint-config",
