@@ -41,3 +41,24 @@ where
 {
     iterable.into_iter().map(f).collect()
 }
+
+/// Given an iterator over a Result, filter out the Ok values from the Err values
+/// and return both in separate Vecs. Unlike other collect-like functions over Results,
+/// this function will always consume the entire iterator.
+pub fn partition_results<It, T, E, F>(iterable: It, mut f: F) -> (Vec<T>, Vec<E>)
+where
+    It: IntoIterator,
+    F: FnMut(It::Item) -> Result<T, E>,
+{
+    let mut oks = vec![];
+    let mut errors = vec![];
+
+    for elem in iterable {
+        match f(elem) {
+            Ok(ok) => oks.push(ok),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    (oks, errors)
+}
