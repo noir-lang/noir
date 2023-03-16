@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::{acir::circuit::Circuit, hash_constraint_system};
 
 use crate::{
-    constants::{PK_EXT, VK_EXT, ACIR_CHECKSUM},
+    constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
 

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acvm::{acir::circuit::Circuit, hash_constraint_system};
 use noirc_driver::CompiledProgram;
 
-use crate::{errors::CliError, constants::ACIR_CHECKSUM};
+use crate::{constants::ACIR_CHECKSUM, errors::CliError};
 
 use super::{create_named_dir, write_to_file};
 
