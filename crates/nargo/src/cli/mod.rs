@@ -102,7 +102,12 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
 }
 
 // helper function which tests noir programs by trying to compile, generate a proof and verify it
-pub fn cached_prove_and_verify(circuit_name: &str, proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
+pub fn cached_prove_and_verify(
+    circuit_name: &str,
+    proof_name: &str,
+    prg_dir: &Path,
+    show_ssa: bool,
+) -> bool {
     use tempdir::TempDir;
 
     let proof_tmp_dir = TempDir::new("c_p_and_v_tests").unwrap();
@@ -110,7 +115,8 @@ pub fn cached_prove_and_verify(circuit_name: &str, proof_name: &str, prg_dir: &P
     let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
 
     let compiled_program = compile_cmd::compile_circuit(prg_dir, &compile_options).unwrap();
-    compile_cmd::save_and_preprocess_program(&compiled_program, circuit_name, &circuit_dir).unwrap();
+    compile_cmd::save_and_preprocess_program(&compiled_program, circuit_name, &circuit_dir)
+        .unwrap();
     circuit_dir.push(circuit_name);
 
     match prove_cmd::prove_with_path(
