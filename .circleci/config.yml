@@ -130,17 +130,20 @@ jobs:
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
-tag_filter: &tag_filter
-  tags:
-    only: *tag_regex
+defaults: &defaults
+  filters:
+    tags:
+      only: *tag_regex
+  context:
+    - build
 yarn_project: &yarn_project
   requires:
     - yarn-project-base
-  filters: *tag_filter
+  <<: *defaults
 e2e_test: &e2e_test
   requires:
     - e2e-join
-  filters: *tag_filter
+  <<: *defaults
 
 workflows:
   system:
@@ -148,7 +151,7 @@ workflows:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
       - yarn-project-base:
-          filters: *tag_filter
+          <<: *defaults
       - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
@@ -157,5 +160,5 @@ workflows:
             - ethereum-js
             - aztec-js
             - end-to-end
-          filters: *tag_filter
+          <<: *defaults
       - e2e-deploy-contract: *e2e_test

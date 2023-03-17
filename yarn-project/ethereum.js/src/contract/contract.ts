@@ -120,12 +120,6 @@ export class Contract<T extends ContractDefinition | void = void> {
     return this.executorFactory([new ContractFunctionEntry(abiEntry)]);
   }
 
-  // public async getTransactionReceipt(txHash: TxHash)
-
-  // public async getError(txHash: TxHash) {
-  //   return await decodeErrorFromContractByTxHash(this.contractAbi, txHash, this.eth);
-  // }
-
   // PRIVATE METHODS
 
   private executorFactory(functions: ContractFunctionEntry[]): TxFactory {

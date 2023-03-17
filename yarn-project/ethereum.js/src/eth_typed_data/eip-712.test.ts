@@ -29,9 +29,7 @@ describe('getDependencies', () => {
     expect(getDependencies(arrayTypedData, 'Person')).toStrictEqual(['Person']);
     expect(getDependencies(arrayTypedData, 'Mail')).toStrictEqual(['Mail', 'Person']);
 
-    expect(getDependencies(customTypedData, 'FooBarDomain', { domain: 'FooBarDomain' })).toStrictEqual([
-      'FooBarDomain',
-    ]);
+    expect(getDependencies(customTypedData, 'FooBarDomain')).toStrictEqual(['FooBarDomain']);
   });
 
   it.skip('throws for invalid JSON data', () => {
@@ -65,7 +63,7 @@ describe('encodeType', () => {
       'TransactionApproval(address owner,Transaction transaction)Transaction(address to,uint256 amount,bytes data,uint256 nonce)',
     );
 
-    expect(encodeType(customTypedData, 'FooBarDomain', { domain: 'FooBarDomain' })).toBe(
+    expect(encodeType(customTypedData, 'FooBarDomain')).toBe(
       'FooBarDomain(string name,string version,uint256 chainId,address verifyingContract)',
     );
   });
@@ -113,7 +111,7 @@ describe('getTypeHash', () => {
       'b9d8c78acf9b987311de6c7b45bb6a9c8e1bf361fa7fd3467a2163f994c79500',
     );
 
-    expect(bytesToHex(getTypeHash(customTypedData, 'FooBarDomain', { domain: 'FooBarDomain' }))).toBe(
+    expect(bytesToHex(getTypeHash(customTypedData, 'FooBarDomain'))).toBe(
       '85b412c5db9e26aa4f6bf794e72b1557f463a0978ceef9acaff7f6ff1eb24e57',
     );
   });
@@ -149,9 +147,7 @@ describe('encodeData', () => {
       'c81112a69b6596b8bc0678e67d97fbf9bed619811fc781419323ec02d1c7290dafd2599280d009dcb3e261f4bccebec901d67c3f54b56d49bf8327359fc69cd7392bb8ab5338a9075ce8fec1b431e334007d4de1e5e83201ca35762e24428e24b7c4150525d88db452c5f08f93f4593daa458ab6280b012532183aed3a8e4a01',
     );
 
-    expect(
-      bytesToHex(encodeData(customTypedData, 'FooBarDomain', customTypedData.domain, { domain: 'FooBarDomain' })),
-    ).toBe(
+    expect(bytesToHex(encodeData(customTypedData, 'FooBarDomain', customTypedData.domain))).toBe(
       '85b412c5db9e26aa4f6bf794e72b1557f463a0978ceef9acaff7f6ff1eb24e57c70ef06638535b4881fafcac8287e210e3769ff1a8e91f1b95d6246e61e4d3c6c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc60000000000000000000000000000000000000000000000000000000000000001000000000000000000000000cccccccccccccccccccccccccccccccccccccccc',
     );
   });
@@ -228,7 +224,7 @@ describe('getMessage', () => {
     expect(bytesToHex(getMessage(arrayTypedData))).toBe(
       '1901f2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f6757567025d2ba15d5ebb228ea677055b8b601007e60e9463f6ed7c68f918189',
     );
-    expect(bytesToHex(getMessage(customTypedData, false, { domain: 'FooBarDomain' }))).toBe(
+    expect(bytesToHex(getMessage(customTypedData, false, 'FooBarDomain'))).toBe(
       '19016ff4505ed33bedaadf3491aa039d9ccb91a3114eeab940e69fdecb809fb268826757567025d2ba15d5ebb228ea677055b8b601007e60e9463f6ed7c68f918189',
     );
   });
@@ -243,7 +239,7 @@ describe('getMessage', () => {
     expect(bytesToHex(getMessage(arrayTypedData, true))).toBe(
       'c6f6c8028eadb17bc5c9e2ea2f738e92e49cfa627d19896c250fd2eac653e4e0',
     );
-    expect(bytesToHex(getMessage(customTypedData, true, { domain: 'FooBarDomain' }))).toBe(
+    expect(bytesToHex(getMessage(customTypedData, true, 'FooBarDomain'))).toBe(
       'e028c0622beef9bde70e78a98c1d09a95ffe0cd9cfa5ff6a99f7db7c9245e103',
     );
   });
