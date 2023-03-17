@@ -122,16 +122,16 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
-        let (unresolved, resolved) =
+        let (resolved, unresolved_imports) =
             resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
 
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
-        for unresolved_import in unresolved.into_iter() {
-            // File if that the import was declared
-            let file_id = current_def_map.modules[unresolved_import.module_id.0].origin.file_id();
-            let error = DefCollectorErrorKind::UnresolvedImport { import: unresolved_import };
-            errors.push(error.into_file_diagnostic(file_id));
-        }
+
+        errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
+            let file_id = current_def_map.modules[module_id.0].origin.file_id();
+            let error = DefCollectorErrorKind::PathResolutionError(error);
+            error.into_file_diagnostic(file_id)
+        }));
 
         // Populate module namespaces according to the imports used
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
