@@ -2192,6 +2192,7 @@ dependencies = [
  "acvm 0.6.0",
  "clap 4.1.8",
  "fm",
+ "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
