@@ -27,17 +27,12 @@ pub(crate) struct VerifyCommand {
 }
 
 pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliError> {
-    let mut proof_path = config.program_dir.clone();
-    proof_path.push(Path::new(PROOFS_DIR));
-    proof_path.push(Path::new(&args.proof));
-    proof_path.set_extension(PROOF_EXT);
+    let proof_path =
+        config.program_dir.join(PROOFS_DIR).join(&args.proof).with_extension(PROOF_EXT);
 
-    let circuit_build_path = args.circuit_name.map(|circuit_name| {
-        let mut circuit_build_path = config.program_dir.clone();
-        circuit_build_path.push(TARGET_DIR);
-        circuit_build_path.push(circuit_name);
-        circuit_build_path
-    });
+    let circuit_build_path = args
+        .circuit_name
+        .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
     verify_with_path(config.program_dir, proof_path, circuit_build_path, args.compile_options)
 }

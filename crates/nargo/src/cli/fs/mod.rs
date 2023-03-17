@@ -12,15 +12,11 @@ pub(super) mod program;
 pub(super) mod proof;
 pub(super) mod witness;
 
-fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
-    let mut dir = std::path::PathBuf::new();
-    dir.push(dir_path);
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
-}
-
 pub(super) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    create_dir(named_dir).unwrap_or_else(|_| panic!("could not create the `{name}` directory"))
+    std::fs::create_dir_all(named_dir)
+        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
+
+    PathBuf::from(named_dir)
 }
 
 pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {

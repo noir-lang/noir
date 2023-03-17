@@ -38,8 +38,7 @@ struct CompiledContract {
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let driver = check_crate(&config.program_dir, &args.compile_options)?;
 
-    let mut circuit_dir = config.program_dir;
-    circuit_dir.push(TARGET_DIR);
+    let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
