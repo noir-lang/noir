@@ -1048,11 +1048,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let span = path.span();
-        let name = path.as_string();
-        self.path_resolver
-            .resolve(self.def_maps, path)
-            .map_err(|segment| ResolverError::PathUnresolved { name, span, segment })
+        self.path_resolver.resolve(self.def_maps, path).map_err(ResolverError::PathResolutionError)
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
@@ -1212,7 +1208,8 @@ mod test {
     use fm::FileId;
     use iter_extended::vecmap;
 
-    use crate::{hir::resolution::errors::ResolverError, Ident};
+    use crate::hir::resolution::errors::ResolverError;
+    use crate::hir::resolution::import::PathResolutionError;
 
     use crate::graph::CrateId;
     use crate::hir_def::function::HirFunction;
@@ -1337,7 +1334,7 @@ mod test {
         assert_eq!(errors.len(), 1);
         let err = errors.pop().unwrap();
 
-        path_unresolved_error(err, "some::path::to::a::func");
+        path_unresolved_error(err, "func");
     }
 
     #[test]
@@ -1377,11 +1374,12 @@ mod test {
                 ResolverError::VariableNotDeclared { name, .. } => {
                     assert_eq!(name, "a");
                 }
-                ResolverError::PathUnresolved { .. } => path_unresolved_error(err, "foo::bar"),
+                ResolverError::PathResolutionError(_) => path_unresolved_error(err, "bar"),
                 _ => unimplemented!(),
             };
         }
     }
+
     #[test]
     fn resolve_prefix_expr() {
         let src = r#"
@@ -1424,8 +1422,8 @@ mod test {
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
-            ResolverError::PathUnresolved { span: _, name, segment: _ } => {
-                assert_eq!(name, expected_unresolved_path)
+            ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                assert_eq!(name.to_string(), expected_unresolved_path)
             }
             _ => unimplemented!("expected an unresolved path"),
         }
@@ -1438,11 +1436,11 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<ModuleDefId, Ident> {
+        ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             let mod_def = self.0.get(&name.0.contents).cloned();
-            mod_def.ok_or_else(|| name.clone())
+            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 
         fn local_module_id(&self) -> LocalModuleId {
