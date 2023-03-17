@@ -288,7 +288,6 @@ fn type_check_index_expression(
     //         expr_span: span,
     //     }
     // });
- 
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
     match lhs_type {
