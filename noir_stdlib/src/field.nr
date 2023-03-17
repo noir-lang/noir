@@ -32,6 +32,11 @@ impl Field {
         }
         r
     }
+
+    // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
+    fn sgn0(self) -> u1 {
+        self as u1
+    }
 }
 
 #[builtin(modulus_num_bits)]

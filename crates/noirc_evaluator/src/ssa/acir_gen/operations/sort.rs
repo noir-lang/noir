@@ -11,7 +11,7 @@ use crate::{
 
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
-pub fn evaluate_permutation(
+pub(crate) fn evaluate_permutation(
     in_expr: &Vec<Expression>,
     out_expr: &Vec<Expression>,
     evaluator: &mut Evaluator,
@@ -26,7 +26,7 @@ pub fn evaluate_permutation(
 }
 
 // Same as evaluate_permutation() but uses the provided witness as network control bits
-pub fn evaluate_permutation_with_witness(
+pub(crate) fn evaluate_permutation_with_witness(
     in_expr: &Vec<Expression>,
     out_expr: &Vec<Expression>,
     bits: &Vec<Witness>,

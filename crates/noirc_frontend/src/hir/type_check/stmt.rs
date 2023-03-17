@@ -60,7 +60,7 @@ pub(crate) fn type_check(
 
 /// Associate a given HirPattern with the given Type, and remember
 /// this association in the NodeInterner.
-pub fn bind_pattern(
+pub(crate) fn bind_pattern(
     interner: &mut NodeInterner,
     pattern: &HirPattern,
     typ: Type,

@@ -25,7 +25,7 @@ use super::{
 /// Represent a memory operation on the ArrayHeap, at the specified index
 /// Operation is one for a store and 0 for a load
 #[derive(Clone, Debug)]
-pub struct MemOp {
+pub(crate) struct MemOp {
     operation: Expression,
     value: Expression,
     index: Expression,
@@ -47,7 +47,7 @@ impl Default for ArrayType {
 }
 
 #[derive(Default)]
-pub struct ArrayHeap {
+struct ArrayHeap {
     // maps memory address to InternalVar
     memory_map: BTreeMap<MemAddress, InternalVar>,
     trace: Vec<MemOp>,
@@ -57,8 +57,8 @@ pub struct ArrayHeap {
 }
 
 impl ArrayHeap {
-    pub fn commit_staged(&mut self) {
-        for (idx, (value, op)) in &self.staged.clone() {
+    fn commit_staged(&mut self) {
+        for (idx, (value, op)) in &self.staged {
             let item = MemOp {
                 operation: op.clone(),
                 value: value.clone(),
@@ -69,7 +69,7 @@ impl ArrayHeap {
         self.staged.clear();
     }
 
-    pub fn push(&mut self, item: MemOp) {
+    fn push(&mut self, item: MemOp) {
         let is_load = item.operation == Expression::zero();
         let index_const = item.index.to_const();
         self.typ = match &self.typ {
@@ -115,7 +115,7 @@ impl ArrayHeap {
         self.trace.push(item);
     }
 
-    pub fn stage(&mut self, index: MemAddress, value: Expression, op: Expression) {
+    fn stage(&mut self, index: MemAddress, value: Expression, op: Expression) {
         self.staged.insert(index, (value, op));
     }
 
@@ -132,7 +132,8 @@ impl ArrayHeap {
         }
         outputs
     }
-    pub fn acir_gen(&self, evaluator: &mut Evaluator) {
+
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
         let mut len = self.trace.len();
 
         let mut read_write = true;
@@ -228,7 +229,7 @@ impl ArrayHeap {
 
 /// Handle virtual memory access
 #[derive(Default)]
-pub struct AcirMem {
+pub(crate) struct AcirMem {
     virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
 }
 
@@ -239,13 +240,13 @@ impl AcirMem {
     }
 
     // returns the memory trace for the array
-    pub fn array_heap_mut(&mut self, array_id: ArrayId) -> &mut ArrayHeap {
+    fn array_heap_mut(&mut self, array_id: ArrayId) -> &mut ArrayHeap {
         let e = self.virtual_memory.entry(array_id);
         e.or_default()
     }
 
     // Write the value to the array's VM at the specified index
-    pub fn insert(
+    pub(super) fn insert(
         &mut self,
         array_id: ArrayId,
         index: MemAddress,
@@ -260,7 +261,7 @@ impl AcirMem {
     }
 
     //Map the outputs into the array
-    pub(crate) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
+    pub(super) fn map_array(&mut self, a: ArrayId, outputs: &[Witness], ctx: &SsaContext) {
         let array = &ctx.mem[a];
         for i in 0..array.len {
             let var = if i < outputs.len() as u32 {
@@ -274,7 +275,7 @@ impl AcirMem {
 
     // Load array values into InternalVars
     // If create_witness is true, we create witnesses for values that do not have witness
-    pub(crate) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
+    pub(super) fn load_array(&mut self, array: &MemArray) -> Vec<InternalVar> {
         vecmap(0..array.len, |offset| {
             self.load_array_element_constant_index(array.id, offset)
                 .expect("infallible: array out of bounds error")
@@ -282,12 +283,13 @@ impl AcirMem {
     }
 
     // number of bits required to store the input
-    fn bits(t: usize) -> u32 {
-        if t > 0 {
-            t.ilog2() + 1
-        } else {
-            1
+    fn bits(mut t: usize) -> u32 {
+        let mut r = 0;
+        while t != 0 {
+            t >>= 1;
+            r += 1;
         }
+        r
     }
 
     // Loads the associated `InternalVar` for the element
@@ -298,7 +300,7 @@ impl AcirMem {
     //
     //
     // Returns `None` if not found
-    pub(crate) fn load_array_element_constant_index(
+    pub(super) fn load_array_element_constant_index(
         &mut self,
         array_id: ArrayId,
         offset: MemAddress,
@@ -308,14 +310,14 @@ impl AcirMem {
     }
 
     // Apply staged stores to the memory trace
-    pub fn commit(&mut self, array_id: &ArrayId, clear: bool) {
+    fn commit(&mut self, array_id: &ArrayId, clear: bool) {
         let e = self.virtual_memory.entry(*array_id).or_default();
         e.commit_staged();
         if clear {
             e.memory_map.clear();
         }
     }
-    pub fn add_to_trace(
+    pub(crate) fn add_to_trace(
         &mut self,
         array_id: &ArrayId,
         index: Expression,
@@ -326,7 +328,7 @@ impl AcirMem {
         let item = MemOp { operation: op, value, index };
         self.array_heap_mut(*array_id).push(item);
     }
-    pub fn acir_gen(&self, evaluator: &mut Evaluator) {
+    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
         for mem in &self.virtual_memory {
             mem.1.acir_gen(evaluator);
         }
