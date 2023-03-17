@@ -10,7 +10,7 @@ use std::{
 };
 
 use super::fs::write_to_file;
-use super::{add_std_lib, NargoConfig};
+use super::NargoConfig;
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -30,7 +30,6 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
-    add_std_lib(&mut driver);
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
