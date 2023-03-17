@@ -25,8 +25,7 @@ pub(crate) struct CompileCommand {
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let mut circuit_dir = config.program_dir.clone();
-    circuit_dir.push(TARGET_DIR);
+    let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {

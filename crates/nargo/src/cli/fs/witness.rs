@@ -11,9 +11,8 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     witness_name: &str,
     witness_dir: P,
 ) -> Result<PathBuf, CliError> {
-    let mut witness_path = create_named_dir(witness_dir.as_ref(), "witness");
-    witness_path.push(witness_name);
-    witness_path.set_extension(WITNESS_EXT);
+    create_named_dir(witness_dir.as_ref(), "witness");
+    let witness_path = witness_dir.as_ref().join(witness_name).with_extension(WITNESS_EXT);
 
     let buf = Witness::to_bytes(&witness);
 

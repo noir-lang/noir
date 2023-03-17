@@ -129,8 +129,8 @@ mod tests {
 
     #[test]
     fn compilation_pass() {
-        let mut pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+        let pass_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
@@ -141,8 +141,8 @@ mod tests {
 
     #[test]
     fn compilation_fail() {
-        let mut fail_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+        let fail_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
