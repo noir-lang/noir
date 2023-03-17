@@ -245,7 +245,7 @@ mod test {
     }
 
     impl TestPathResolver {
-        pub fn insert_func(&mut self, name: String, func_id: FuncId) {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
             self.0.insert(name, func_id.into());
         }
     }

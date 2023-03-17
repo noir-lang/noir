@@ -1,15 +1,16 @@
-use acvm::{acir::circuit::Circuit, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use iter_extended::{try_btree_map, try_vecmap};
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
 use noirc_frontend::{hir::def_map::Contract, node_interner::FuncId};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::Args;
 
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::fs::{keys::save_key_to_dir, program::save_program_to_file};
+use super::fs::program::save_program_to_file;
+use super::preprocess_cmd::preprocess_with_path;
 use super::{add_std_lib, NargoConfig};
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -124,19 +125,4 @@ pub(crate) fn compile_circuit(
 ) -> Result<noirc_driver::CompiledProgram, CliError> {
     let mut driver = setup_driver(program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
-}
-
-fn preprocess_with_path<P: AsRef<Path>>(
-    key_name: &str,
-    preprocess_dir: P,
-    circuit: &Circuit,
-) -> Result<(PathBuf, PathBuf), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-
-    let (proving_key, verification_key) = backend.preprocess(circuit);
-
-    let pk_path = save_key_to_dir(proving_key, key_name, &preprocess_dir, true)?;
-    let vk_path = save_key_to_dir(verification_key, key_name, preprocess_dir, false)?;
-
-    Ok((pk_path, vk_path))
 }

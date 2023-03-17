@@ -24,13 +24,13 @@ mod acir_mem;
 use acir_mem::AcirMem;
 
 #[derive(Default)]
-pub struct Acir {
+pub(crate) struct Acir {
     memory: AcirMem,
     var_cache: InternalVarCache,
 }
 
 impl Acir {
-    pub fn acir_gen(
+    pub(crate) fn acir_gen(
         &mut self,
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
@@ -51,7 +51,7 @@ impl Acir {
     }
 
     /// Generate ACIR opcodes based on the given instruction
-    pub fn acir_gen_instruction(
+    pub(crate) fn acir_gen_instruction(
         &mut self,
         ins: &Instruction,
         evaluator: &mut Evaluator,

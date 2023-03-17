@@ -19,18 +19,18 @@ use num_traits::One;
 const DUPLICATED: &str = "_dup";
 
 #[derive(Debug, Clone)]
-pub struct Assumption {
-    pub parent: AssumptionId,
-    pub val_true: Vec<AssumptionId>,
-    pub val_false: Vec<AssumptionId>,
-    pub condition: NodeId,
-    pub entry_block: BlockId,
-    pub exit_block: BlockId,
+pub(crate) struct Assumption {
+    pub(crate) parent: AssumptionId,
+    pub(crate) val_true: Vec<AssumptionId>,
+    pub(crate) val_false: Vec<AssumptionId>,
+    pub(crate) condition: NodeId,
+    pub(crate) entry_block: BlockId,
+    pub(crate) exit_block: BlockId,
     value: Option<NodeId>,
 }
 
 impl Assumption {
-    pub fn new(parent: AssumptionId) -> Assumption {
+    pub(crate) fn new(parent: AssumptionId) -> Assumption {
         Assumption {
             parent,
             val_true: Vec::new(),
@@ -44,30 +44,30 @@ impl Assumption {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct AssumptionId(pub arena::Index);
+pub(crate) struct AssumptionId(pub(crate) arena::Index);
 
 impl AssumptionId {
-    pub fn dummy() -> AssumptionId {
+    pub(crate) fn dummy() -> AssumptionId {
         AssumptionId(SsaContext::dummy_id())
     }
 }
 
 //temporary data used to build the decision tree
-pub struct TreeBuilder {
-    pub join_to_process: Vec<BlockId>,
-    pub stack: StackFrame,
+pub(crate) struct TreeBuilder {
+    pub(crate) join_to_process: Vec<BlockId>,
+    pub(crate) stack: StackFrame,
 }
 
 impl TreeBuilder {
-    pub fn new(entry: BlockId) -> TreeBuilder {
+    pub(crate) fn new(entry: BlockId) -> TreeBuilder {
         TreeBuilder { join_to_process: Vec::new(), stack: StackFrame::new(entry) }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct DecisionTree {
+pub(crate) struct DecisionTree {
     arena: arena::Arena<Assumption>,
-    pub root: AssumptionId,
+    pub(crate) root: AssumptionId,
 }
 
 impl std::ops::Index<AssumptionId> for DecisionTree {
@@ -85,7 +85,7 @@ impl std::ops::IndexMut<AssumptionId> for DecisionTree {
 }
 
 impl DecisionTree {
-    pub fn new(ctx: &SsaContext) -> DecisionTree {
+    pub(crate) fn new(ctx: &SsaContext) -> DecisionTree {
         let mut tree = DecisionTree { arena: arena::Arena::new(), root: AssumptionId::dummy() };
         let root_id = tree.new_decision_leaf(AssumptionId::dummy());
         tree.root = root_id;
@@ -94,12 +94,12 @@ impl DecisionTree {
         tree
     }
 
-    pub fn new_decision_leaf(&mut self, parent: AssumptionId) -> AssumptionId {
+    pub(crate) fn new_decision_leaf(&mut self, parent: AssumptionId) -> AssumptionId {
         let node = Assumption::new(parent);
         AssumptionId(self.arena.insert(node))
     }
 
-    pub fn is_true_branch(&self, assumption: AssumptionId) -> bool {
+    pub(crate) fn is_true_branch(&self, assumption: AssumptionId) -> bool {
         assert_ne!(assumption, self.root);
         let parent_id = self[assumption].parent;
         assert!(
@@ -155,7 +155,7 @@ impl DecisionTree {
         ctx.push_instruction_after(id, block_id, after)
     }
 
-    pub fn compute_assumption(&mut self, ctx: &mut SsaContext, block_id: BlockId) -> NodeId {
+    pub(crate) fn compute_assumption(&mut self, ctx: &mut SsaContext, block_id: BlockId) -> NodeId {
         let block = &ctx[block_id];
         let assumption_id = block.assumption;
         let assumption = &self[block.assumption];
@@ -196,7 +196,7 @@ impl DecisionTree {
         ins
     }
 
-    pub fn make_decision_tree(
+    pub(crate) fn make_decision_tree(
         &mut self,
         ctx: &mut SsaContext,
         mut builder: TreeBuilder,
@@ -322,7 +322,7 @@ impl DecisionTree {
         Ok(())
     }
 
-    pub fn reduce(
+    pub(crate) fn reduce(
         &mut self,
         ctx: &mut SsaContext,
         node_id: AssumptionId,
@@ -343,7 +343,7 @@ impl DecisionTree {
     }
 
     //reduce if sub graph
-    pub fn reduce_sub_graph(
+    pub(crate) fn reduce_sub_graph(
         &self,
         ctx: &mut SsaContext,
         if_block_id: BlockId,
@@ -419,7 +419,7 @@ impl DecisionTree {
 
     /// Apply the condition of the block to each instruction
     /// in the block.
-    pub fn apply_condition_to_block(
+    pub(crate) fn apply_condition_to_block(
         &self,
         ctx: &mut SsaContext,
         block: BlockId,
@@ -436,7 +436,7 @@ impl DecisionTree {
 
     /// Applies a condition to each instruction
     /// and places into the stack frame.
-    pub fn apply_condition_to_instructions(
+    pub(crate) fn apply_condition_to_instructions(
         &self,
         ctx: &mut SsaContext,
         instructions: &[NodeId],
@@ -504,7 +504,7 @@ impl DecisionTree {
     /// For most instructions, this does nothing
     /// but for instructions with side-effects
     /// this will alter the behavior.
-    pub fn apply_condition_to_instruction(
+    pub(crate) fn apply_condition_to_instruction(
         &self,
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -744,7 +744,7 @@ impl DecisionTree {
         Ok(true)
     }
 
-    pub fn get_assumption_value(&self, assumption: AssumptionId) -> Option<NodeId> {
+    pub(crate) fn get_assumption_value(&self, assumption: AssumptionId) -> Option<NodeId> {
         if assumption == AssumptionId::dummy() {
             None
         } else {
@@ -819,7 +819,7 @@ impl DecisionTree {
         }
     }
 
-    pub fn unwrap_predicate(ctx: &SsaContext, predicate: &Option<NodeId>) -> NodeId {
+    pub(crate) fn unwrap_predicate(ctx: &SsaContext, predicate: &Option<NodeId>) -> NodeId {
         let predicate = predicate.unwrap_or(NodeId::dummy());
         if predicate.is_dummy() {
             ctx.one()
@@ -976,7 +976,7 @@ impl DecisionTree {
 }
 
 //unroll an if sub-graph
-pub fn unroll_if(
+pub(super) fn unroll_if(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<BlockId, RuntimeError> {
@@ -1062,10 +1062,11 @@ struct Segment {
 }
 
 impl Segment {
-    pub fn new(left_node: (usize, &NodeId), right_node: (usize, &NodeId)) -> Segment {
+    fn new(left_node: (usize, &NodeId), right_node: (usize, &NodeId)) -> Segment {
         Segment { left: (left_node.0, *left_node.1), right: (right_node.0, *right_node.1) }
     }
-    pub fn intersect(&self, other: &Segment) -> bool {
+
+    fn intersect(&self, other: &Segment) -> bool {
         !((self.right.0 < other.right.0 && self.left.0 < other.left.0)
             || (self.right.0 > other.right.0 && self.left.0 > other.left.0))
     }

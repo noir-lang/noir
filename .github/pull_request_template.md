@@ -29,6 +29,8 @@ Resolves # <!-- link to issue -->
 ## Documentation needs
 - [ ] This PR requires documentation updates when merged.
 
+<!-- If checked, list / describe what needs to be documented. -->
+
 # Additional context
 
 <!-- If applicable. -->
