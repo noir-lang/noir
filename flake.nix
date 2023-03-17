@@ -155,9 +155,7 @@
           # Uncertain if below line is needed. dev Shell is not yet fully working
           # BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.barretenberg}/include -isystem ${pkgs.llvmPackages.libcxx.dev}/include";
 
-          TERM = "xterm-256color";
-
-          nativeBuildInputs = with pkgs; packages.default.buildInputs ++ [
+          nativeBuildInputs = with pkgs; [
             which
             starship
             git
