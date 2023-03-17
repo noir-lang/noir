@@ -651,15 +651,17 @@ impl<'a> Resolver<'a> {
         for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
             // Declare any generics to let users use numeric generics in scope.
             // Don't issue a warning if these are unused
-            let (name, _, span) = self
-                .generics
-                .iter()
-                .find(|(name, _, _)| name.as_ref() == &name_to_find)
-                .expect("Name of numeric generic should always be in the list of generics");
-
-            let ident = Ident::new(name.to_string(), *span);
-            let definition = DefinitionKind::GenericType(type_variable);
-            self.add_variable_decl_inner(ident, false, false, false, definition);
+            //
+            // We can fail to find the generic in self.generics if it is an implicit one created
+            // by the compiler. This can happen when, e.g. elliding array lengths using the slice
+            // syntax [T].
+            if let Some((name, _, span)) =
+                self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
+            {
+                let ident = Ident::new(name.to_string(), *span);
+                let definition = DefinitionKind::GenericType(type_variable);
+                self.add_variable_decl_inner(ident, false, false, false, definition);
+            }
         }
     }
 
