@@ -1,13 +1,10 @@
-use std::path::{Path, PathBuf};
-
-use acvm::{acir::circuit::Circuit, hash_constraint_system};
-
+use super::{create_named_dir, load_hex_data, write_to_file};
 use crate::{
-    constants::{PK_EXT, VK_EXT},
+    constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
-
-use super::{create_named_dir, load_hex_data, write_to_file};
+use acvm::{acir::circuit::Circuit, hash_constraint_system};
+use std::path::{Path, PathBuf};
 
 pub(crate) fn save_key_to_dir<P: AsRef<Path>>(
     key: Vec<u8>,
@@ -32,7 +29,7 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
     check_proof: bool,
 ) -> Result<(Vec<u8>, Vec<u8>), CliError> {
     let mut acir_hash_path = PathBuf::from(circuit_build_path.as_ref());
-    acir_hash_path.set_extension("json.checksum");
+    acir_hash_path.set_extension(ACIR_CHECKSUM);
 
     let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
 
@@ -65,4 +62,31 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
     };
 
     Ok((proving_key, verification_key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fetch_pk_and_vk;
+    use crate::cli::fs::{keys::save_key_to_dir, program::save_acir_hash_to_dir};
+    use acvm::acir::circuit::Circuit;
+    use tempdir::TempDir;
+
+    #[test]
+    fn fetching_pk_and_vk_loads_expected_keys() {
+        let circuit = Circuit::default();
+        let circuit_name = "my_circuit";
+        let mut circuit_build_path = TempDir::new("temp_circuit_hash_dir").unwrap().into_path();
+
+        // These values are not meaningful, we just need distinct values.
+        let pk: Vec<u8> = vec![0];
+        let vk: Vec<u8> = vec![1, 2];
+        save_key_to_dir(pk.clone(), circuit_name, &circuit_build_path, true).unwrap();
+        save_key_to_dir(vk.clone(), circuit_name, &circuit_build_path, false).unwrap();
+
+        save_acir_hash_to_dir(&circuit, circuit_name, &circuit_build_path);
+        circuit_build_path.push(circuit_name);
+
+        let loaded_keys = fetch_pk_and_vk(&circuit, circuit_build_path, true, true).unwrap();
+        assert_eq!(loaded_keys, (pk, vk));
+    }
 }

@@ -1,5 +1,5 @@
 fn main(x : Field, y : pub Field) {
-    constrain Foo::double(x) == Foo::triple(y);
+    constrain x * 2 == y * 3;
 }
 
 contract Foo {
