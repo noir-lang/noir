@@ -88,14 +88,16 @@ fn build_placeholder_input_map(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use noirc_driver::CompileOptions;
 
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
     fn pass() {
-        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+        let pass_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
@@ -112,8 +114,8 @@ mod tests {
     #[test]
     #[ignore = "This test fails because the reporter exits the process with 1"]
     fn fail() {
-        let mut fail_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+        let fail_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
@@ -129,8 +131,8 @@ mod tests {
 
     #[test]
     fn pass_with_warnings() {
-        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
+        let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
         let config = CompileOptions { allow_warnings: true, ..Default::default() };
 

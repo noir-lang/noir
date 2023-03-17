@@ -33,8 +33,7 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         println!("Circuit output: {return_value:?}");
     }
     if let Some(witness_name) = args.witness_name {
-        let mut witness_dir = config.program_dir;
-        witness_dir.push(TARGET_DIR);
+        let witness_dir = config.program_dir.join(TARGET_DIR);
 
         let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;
 
