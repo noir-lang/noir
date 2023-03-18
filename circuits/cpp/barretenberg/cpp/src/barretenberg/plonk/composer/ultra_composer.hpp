@@ -11,7 +11,7 @@ class UltraComposer : public ComposerBase {
 
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
-    static constexpr MerkleHashType merkle_hash_type = MerkleHashType::FIXED_BASE_PEDERSEN;
+    static constexpr MerkleHashType merkle_hash_type = MerkleHashType::LOOKUP_PEDERSEN;
     static constexpr size_t NUM_RESERVED_GATES = 4; // This must be >= num_roots_cut_out_of_vanishing_polynomial
                                                     // See the comment in plonk/proof_system/prover/prover.cpp
                                                     // ProverBase::compute_quotient_commitments() for why 4 exactly.
@@ -24,6 +24,8 @@ class UltraComposer : public ComposerBase {
     static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1 << DEFAULT_PLOOKUP_RANGE_BITNUM) - 1;
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS = 68;
     static constexpr uint32_t UNINITIALIZED_MEMORY_RECORD = UINT32_MAX;
+    static constexpr size_t NUMBER_OF_GATES_PER_RAM_ACCESS = 2;
+    static constexpr size_t NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY = 1;
 
     struct non_native_field_witnesses {
         // first 4 array elements = limbs
@@ -105,20 +107,16 @@ class UltraComposer : public ComposerBase {
      *
      */
     struct RamTranscript {
-        // Represents the current state of the array. Elements are variable indices.
-        // Every update requires a new entry in the `records` vector below.
+        // Contains the value of each index of the array
         std::vector<uint32_t> state;
 
         // A vector of records, each of which contains:
-        // - Witnesses for [index, timestamp, value, record]
-        //   (record is initialized during the proof creation, and points to 0 until then)
-        // - Index of the element in the `state` vector
-        // - READ/WRITE flag
-        // - Real timestamp value, initialized to the current `access_count`
+        // + The constant witness with the index
+        // + The value in the memory slot
+        // + The actual index value
         std::vector<RamRecord> records;
 
         // used for RAM records, to compute the timestamp when performing a read/write
-        // Incremented at every init/read/write operation.
         size_t access_count = 0;
     };
 
@@ -139,7 +137,7 @@ class UltraComposer : public ComposerBase {
         std::vector<RomRecord> records;
     };
 
-    enum UltraSelectors { QM, QC, Q1, Q2, Q3, Q4, QARITH, QFIXED, QSORT, QELLIPTIC, QAUX, QLOOKUPTYPE, NUM };
+    enum UltraSelectors { QM, QC, Q1, Q2, Q3, Q4, QARITH, QSORT, QELLIPTIC, QAUX, QLOOKUPTYPE, NUM };
 
     UltraComposer();
     UltraComposer(std::string const& crs_path, const size_t size_hint = 0);
@@ -171,10 +169,6 @@ class UltraComposer : public ComposerBase {
     void create_mul_gate(const mul_triple& in) override;
     void create_bool_gate(const uint32_t a) override;
     void create_poly_gate(const poly_triple& in) override;
-    void create_fixed_group_add_gate(const fixed_group_add_quad& in);
-    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
-    void create_fixed_group_add_gate_final(const add_quad& in);
-
     void create_ecc_add_gate(const ecc_add_gate& in);
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
@@ -192,8 +186,10 @@ class UltraComposer : public ComposerBase {
         }
     }
 
-    void create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range);
-    void create_range_constraint(const uint32_t variable_index, const size_t num_bits, std::string const&)
+    void create_new_range_constraint(const uint32_t variable_index,
+                                     const uint64_t target_range,
+                                     std::string const msg = "create_new_range_constraint");
+    void create_range_constraint(const uint32_t variable_index, const size_t num_bits, std::string const& msg)
     {
         if (num_bits <= DEFAULT_PLOOKUP_RANGE_BITNUM) {
             /**
@@ -205,9 +201,9 @@ class UltraComposer : public ComposerBase {
              *      and throwing an error would require a refactor of the Composer to catelog all 'orphan' variables not
              *      assigned to gates.
              **/
-            create_new_range_constraint(variable_index, 1ULL << num_bits);
+            create_new_range_constraint(variable_index, 1ULL << num_bits, msg);
         } else {
-            decompose_into_default_range(variable_index, num_bits);
+            decompose_into_default_range(variable_index, num_bits, DEFAULT_PLOOKUP_RANGE_BITNUM, msg);
         }
     }
 
@@ -241,9 +237,6 @@ class UltraComposer : public ComposerBase {
                                              size_t& ramcount) const
     {
         count = num_gates;
-        rangecount = 0;
-        romcount = 0;
-        ramcount = 0;
         // each ROM gate adds +1 extra gate due to the rom reads being copied to a sorted list set
         for (size_t i = 0; i < rom_arrays.size(); ++i) {
             for (size_t j = 0; j < rom_arrays[i].state.size(); ++j) {
@@ -258,20 +251,24 @@ class UltraComposer : public ComposerBase {
         constexpr size_t gate_width = ultra_settings::program_width;
         // each RAM gate adds +2 extra gates due to the ram reads being copied to a sorted list set,
         // as well as an extra gate to validate timestamps
+        std::vector<size_t> ram_timestamps;
+        std::vector<size_t> ram_range_sizes;
+        std::vector<size_t> ram_range_exists;
         for (size_t i = 0; i < ram_arrays.size(); ++i) {
             for (size_t j = 0; j < ram_arrays[i].state.size(); ++j) {
                 if (ram_arrays[i].state[j] == UNINITIALIZED_MEMORY_RECORD) {
-                    ramcount += 2;
+                    ramcount += NUMBER_OF_GATES_PER_RAM_ACCESS;
                 }
             }
-            ramcount += (ram_arrays[i].records.size() * 2);
-            ramcount += 1; // we add an addition gate after procesing a ram array
+            ramcount += (ram_arrays[i].records.size() * NUMBER_OF_GATES_PER_RAM_ACCESS);
+            ramcount += NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY; // we add an addition gate after procesing a ram array
 
             // there will be 'max_timestamp' number of range checks, need to calculate.
             const auto max_timestamp = ram_arrays[i].access_count - 1;
 
-            // TODO: if a range check of length `max_timestamp` already exists, this will be innacurate!
-            // TODO: fix this
+            // if a range check of length `max_timestamp` already exists, we are double counting.
+            // We record `ram_timestamps` to detect and correct for this error when we process range lists.
+            ram_timestamps.push_back(max_timestamp);
             size_t padding = (gate_width - (max_timestamp % gate_width)) % gate_width;
             if (max_timestamp == gate_width)
                 padding += gate_width;
@@ -280,7 +277,9 @@ class UltraComposer : public ComposerBase {
             size_t ram_range_check_gate_count = (ram_range_check_list_size / gate_width);
             ram_range_check_gate_count += 1; // we need to add 1 extra addition gates for every distinct range list
 
-            ramcount += ram_range_check_gate_count;
+            ram_range_sizes.push_back(ram_range_check_gate_count);
+            ram_range_exists.push_back(false);
+            // rangecount += ram_range_check_gate_count;
         }
         for (const auto& list : range_lists) {
             auto list_size = list.second.variable_indices.size();
@@ -288,8 +287,20 @@ class UltraComposer : public ComposerBase {
             if (list.second.variable_indices.size() == gate_width)
                 padding += gate_width;
             list_size += padding;
+
+            for (size_t i = 0; i < ram_timestamps.size(); ++i) {
+                if (list.second.target_range == ram_timestamps[i]) {
+                    ram_range_exists[i] = true;
+                }
+            }
             rangecount += (list_size / gate_width);
             rangecount += 1; // we need to add 1 extra addition gates for every distinct range list
+        }
+        // update rangecount to include the ram range checks the composer will eventually be creating
+        for (size_t i = 0; i < ram_range_sizes.size(); ++i) {
+            if (!ram_range_exists[i]) {
+                rangecount += ram_range_sizes[i];
+            }
         }
     }
 
@@ -318,33 +329,16 @@ class UltraComposer : public ComposerBase {
 
     virtual void print_num_gates() const override
     {
-
         size_t count = 0;
         size_t rangecount = 0;
         size_t romcount = 0;
         size_t ramcount = 0;
-        size_t constant_rangecount = 0;
-
-        size_t plookupcount = 0;
 
         get_num_gates_split_into_components(count, rangecount, romcount, ramcount);
 
-        for (const auto& table : lookup_tables) {
-            plookupcount += table.lookup_gates.size();
-            count -= table.lookup_gates.size();
-        }
-
-        for (const auto& list : range_lists) {
-            // rough estimate
-            const auto constant_cost = static_cast<size_t>(list.second.target_range / 6);
-            constant_rangecount += constant_cost;
-            rangecount -= constant_cost;
-        }
-        size_t total = count + romcount + rangecount;
-        std::cout << "gates = " << total << " (arith " << count << ", plookup " << plookupcount << ", rom " << romcount
-                  << ", ram " << ramcount << romcount << ", range " << rangecount
-                  << ", range table init cost = " << constant_rangecount << "), pubinp = " << public_inputs.size()
-                  << std::endl;
+        size_t total = count + romcount + ramcount + rangecount;
+        std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
+                  << ", range " << rangecount << "), pubinp = " << public_inputs.size() << std::endl;
     }
 
     void assert_equal_constant(const uint32_t a_idx,
@@ -508,7 +502,7 @@ class UltraComposer : public ComposerBase {
     std::vector<RamTranscript> ram_arrays;
 
     /**
-     * @brief Each entry in rom_arrays represents an independent ROM table.
+     * @brief Each entry in ram_arrays represents an independent ROM table.
      * RomTranscript tracks the current table state,
      * as well as the 'records' produced by each read operation.
      * Used in `compute_proving_key` to generate consistency check gates required to validate the ROM read history
@@ -523,6 +517,17 @@ class UltraComposer : public ComposerBase {
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
+    /**
+     * Program Manifests
+     **/
+
+    /**
+     * @brief Create a manifest object
+     *
+     * @note UltraPlonk manifest does not use linearisation trick
+     * @param num_public_inputs
+     * @return transcript::Manifest
+     */
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
         // add public inputs....
@@ -597,7 +602,6 @@ class UltraComposer : public ComposerBase {
                       { "q_sort", fr_size, false, 14 },     // *
                       { "q_elliptic", fr_size, false, 15 }, // *
                       { "q_aux", fr_size, false, 16 },
-                      { "q_fixed_base", fr_size, false, 30 },
                       { "sigma_1", fr_size, false, 17 },
                       { "sigma_2", fr_size, false, 18 },
                       { "sigma_3", fr_size, false, 19 },
@@ -637,6 +641,23 @@ class UltraComposer : public ComposerBase {
                   ) });
 
         return output;
+    }
+
+    // @note 'unrolled' means "don't use linearisation techniques from the plonk paper".
+    /**
+     * @brief Create a unrolled manifest object
+     *
+     * @note UP rolled/unrolled manifests are the same. Difference between regulur && unrolled Prover/Verifier is that
+     * unrolled Prover/Verifier uses 16-byte challenges and a SNARK-friendly hash algorithm to generate challenges.
+     * (i.e. unrolled Prover/Verifier is used in recursive setting)
+     *
+     * TODO: remove linearisation trick entirely from barretenberg and relabel `unrolled` to `recursive`!
+     * @param num_public_inputs
+     * @return transcript::Manifest
+     */
+    static transcript::Manifest create_unrolled_manifest(const size_t num_public_inputs)
+    {
+        return create_manifest(num_public_inputs);
     }
 };
 } // namespace plonk

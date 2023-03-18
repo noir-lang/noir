@@ -855,4 +855,5 @@ TEST(ultra_composer, ram)
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
+
 } // namespace plonk

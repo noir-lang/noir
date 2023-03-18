@@ -101,18 +101,6 @@ class StandardHonkComposer {
     }
     void create_big_mul_gate(const mul_quad& in) { circuit_constructor.create_big_mul_gate(in); }
     void create_balanced_add_gate(const add_quad& in) { circuit_constructor.create_balanced_add_gate(in); }
-    void create_fixed_group_add_gate(const fixed_group_add_quad& in)
-    {
-        circuit_constructor.create_fixed_group_add_gate(in);
-    }
-    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init)
-    {
-        circuit_constructor.create_fixed_group_add_gate_with_init(in, init);
-    }
-    void create_fixed_group_add_gate_final(const add_quad& in)
-    {
-        circuit_constructor.create_fixed_group_add_gate_final(in);
-    }
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
     {

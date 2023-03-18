@@ -6,6 +6,7 @@
 #include "barretenberg/crypto/pedersen/pedersen.hpp"
 
 #include "../../hash/pedersen/pedersen.hpp"
+#include "../../hash/pedersen/pedersen_gates.hpp"
 
 using namespace bonk;
 
@@ -162,6 +163,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     fr x_alpha = accumulator_offset;
     std::vector<uint32_t> accumulator_witnesses;
+    pedersen_gates<ComposerContext> pedersen_gates(ctx);
     for (size_t i = 0; i < num_quads; ++i) {
         fixed_group_add_quad round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
@@ -187,9 +189,9 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
         round_quad.q_y_2 = ladder[i + 1].q_y_2;
 
         if (i > 0) {
-            ctx->create_fixed_group_add_gate(round_quad);
+            pedersen_gates.create_fixed_group_add_gate(round_quad);
         } else {
-            ctx->create_fixed_group_add_gate_with_init(round_quad, init_quad);
+            pedersen_gates.create_fixed_group_add_gate_with_init(round_quad, init_quad);
         }
         accumulator_witnesses.push_back(round_quad.d);
     }

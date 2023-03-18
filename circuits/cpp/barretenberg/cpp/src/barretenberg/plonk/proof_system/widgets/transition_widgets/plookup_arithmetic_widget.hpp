@@ -128,7 +128,7 @@ template <class Field, class Getters, typename PolyContainer> class PlookupArith
             Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_C>(polynomials, i);
 
         const Field& alpha_base = challenges.alpha_powers[0];
-        const Field& alpha = challenges.alpha_powers[1];
+        const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
 
         // basic arithmetic gate identity
         // (w_1 . w_2 . q_m) + (w_1 . q_1) + (w_2 . q_2) + (w_3 . q_3) + (w_4 . q_4) + q_c = 0

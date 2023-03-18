@@ -97,11 +97,6 @@ class StandardComposer : public ComposerBase {
     void create_big_add_gate_with_bit_extraction(const add_quad& in);
     void create_big_mul_gate(const mul_quad& in);
     void create_balanced_add_gate(const add_quad& in);
-    void create_fixed_group_add_gate(const fixed_group_add_quad& in);
-    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
-    void create_fixed_group_add_gate_final(const add_quad& in);
-
-    fixed_group_add_quad previous_add_quad;
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
