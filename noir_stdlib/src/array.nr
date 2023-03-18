@@ -20,6 +20,19 @@ impl<T, N> [T; N] {
         a
     }
 
+    // Apply a function to each element of an array, returning a new array
+    // containing the mapped elements.
+    fn map<U>(self, f: fn(T) -> U) -> [U; N] {
+        let first_elem = f(self[0]);
+        let mut ret = [first_elem; N];
+
+        for i in 1 .. self.len() {
+            ret[i] = f(self[i]);
+        }
+
+        ret
+    }
+
     // Apply a function to each element of the array and an accumulator value,
     // returning the final accumulated value. This function is also sometimes
     // called `foldl`, `fold_left`, `reduce`, or `inject`.
