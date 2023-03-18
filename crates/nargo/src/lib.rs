@@ -25,8 +25,8 @@ pub mod cli;
 mod constants;
 mod errors;
 mod git;
+mod manifest;
 mod resolver;
-mod toml;
 
 /// Searches for the Nargo.toml file
 ///
@@ -34,7 +34,7 @@ mod toml;
 /// for the Nargo.toml file there
 /// However, it should only do this after checking the current path
 /// This allows the use of workspace settings in the future.
-fn find_package_config(current_path: &Path) -> Result<PathBuf, CliError> {
+fn find_package_manifest(current_path: &Path) -> Result<PathBuf, CliError> {
     match find_file(current_path, "Nargo", "toml") {
         Some(p) => Ok(p),
         None => Err(CliError::Generic(format!(
