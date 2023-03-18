@@ -11,8 +11,6 @@
     "archiver",
     "aztec-cli",
     "aztec.js",
-    "barretenberg.js",
-    "circuit.js",
     "docs",
     "end-to-end",
     "eslint-config",
