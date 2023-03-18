@@ -123,7 +123,7 @@ impl<'a> Resolver<'a> {
 
         // Resolve all transitive dependencies
         for (dependency_path, (crate_id, dep_meta)) in cached_packages {
-            if dep_meta.remote && manifest.has_local_path() {
+            if dep_meta.remote && manifest.has_local_dependency() {
                 return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
             let mut new_res = Resolver::with_driver(self.driver);
