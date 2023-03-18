@@ -28,20 +28,28 @@ mod git;
 mod manifest;
 mod resolver;
 
-/// Searches for the Nargo.toml file
+/// Returns the path of the root directory of the package containing `current_path`.
 ///
-/// XXX: In the end, this should find the root of the project and check
-/// for the Nargo.toml file there
-/// However, it should only do this after checking the current path
-/// This allows the use of workspace settings in the future.
+/// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
+fn find_package_root(current_path: &Path) -> Result<PathBuf, CliError> {
+    let manifest_path = find_package_manifest(current_path)?;
+
+    let package_root =
+        manifest_path.parent().expect("infallible: manifest file path can't be root directory");
+
+    Ok(package_root.to_path_buf())
+}
+
+/// Returns the path of the manifest file (`Nargo.toml`) of the package containing `current_path`.
+///
+/// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
 fn find_package_manifest(current_path: &Path) -> Result<PathBuf, CliError> {
-    match find_file(current_path, "Nargo", "toml") {
-        Some(p) => Ok(p),
-        None => Err(CliError::Generic(format!(
-            "cannot find a Nargo.toml in {}",
+    current_path.ancestors().find_map(|dir| find_file(dir, "Nargo", "toml")).ok_or_else(|| {
+        CliError::Generic(format!(
+            "could not find Nargo.toml in {} or any parent directory",
             current_path.display()
-        ))),
-    }
+        ))
+    })
 }
 
 fn lib_or_bin(current_path: &Path) -> Result<(PathBuf, CrateType), CliError> {

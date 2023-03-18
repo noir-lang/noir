@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
+use crate::find_package_root;
+
 mod fs;
 
 mod check_cmd;
@@ -59,19 +61,22 @@ enum NargoCommand {
 }
 
 pub fn start_cli() -> eyre::Result<()> {
-    let matches = NargoCli::parse();
+    let NargoCli { command, mut config } = NargoCli::parse();
 
-    match matches.command {
-        NargoCommand::New(args) => new_cmd::run(args, matches.config),
-        NargoCommand::Check(args) => check_cmd::run(args, matches.config),
-        NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
-        NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
-        NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
-        NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
-        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, matches.config),
-        NargoCommand::Test(args) => test_cmd::run(args, matches.config),
-        NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
-        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
+    // Search through parent directories to find package root.
+    config.program_dir = find_package_root(&config.program_dir)?;
+
+    match command {
+        NargoCommand::New(args) => new_cmd::run(args, config),
+        NargoCommand::Check(args) => check_cmd::run(args, config),
+        NargoCommand::Compile(args) => compile_cmd::run(args, config),
+        NargoCommand::Execute(args) => execute_cmd::run(args, config),
+        NargoCommand::Prove(args) => prove_cmd::run(args, config),
+        NargoCommand::Verify(args) => verify_cmd::run(args, config),
+        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, config),
+        NargoCommand::Test(args) => test_cmd::run(args, config),
+        NargoCommand::Gates(args) => gates_cmd::run(args, config),
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, config),
     }?;
 
     Ok(())
