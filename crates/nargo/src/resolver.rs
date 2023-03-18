@@ -5,7 +5,7 @@ use std::{
 
 use acvm::Language;
 use noirc_driver::Driver;
-use noirc_frontend::graph::{CrateId, CrateType};
+use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 
 use crate::{
     errors::CliError,
@@ -64,6 +64,7 @@ impl<'a> Resolver<'a> {
         let mut resolver = Resolver::with_driver(&mut driver);
         resolver.resolve_config(crate_id, cfg)?;
 
+        add_std_lib(&mut driver);
         Ok(driver)
     }
 
@@ -140,4 +141,12 @@ impl<'a> Resolver<'a> {
             Err(msg) => Err(CliError::Generic(msg)),
         }
     }
+}
+
+// This needs to be public to support the tests in `cli/mod.rs`.
+pub(crate) fn add_std_lib(driver: &mut Driver) {
+    let std_crate_name = "std";
+    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
+    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
+    driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
 }

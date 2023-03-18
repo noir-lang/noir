@@ -1,8 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, Driver};
-use noirc_frontend::graph::{CrateName, CrateType};
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
@@ -101,12 +100,6 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     }
 }
 
-fn add_std_lib(driver: &mut Driver) {
-    let std_crate_name = "std";
-    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
-    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-    driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
-}
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {
@@ -123,7 +116,7 @@ mod tests {
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut driver = Driver::new(&acvm::Language::R1CS);
         driver.create_local_crate(&root_file, CrateType::Binary);
-        super::add_std_lib(&mut driver);
+        crate::resolver::add_std_lib(&mut driver);
         driver.file_compiles()
     }
 
