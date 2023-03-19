@@ -49,7 +49,7 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub(crate) fn resolve_root_config(
+    pub(crate) fn resolve_root_manifest(
         dir_path: &std::path::Path,
         np_language: Language,
     ) -> Result<Driver, CliError> {
@@ -62,7 +62,7 @@ impl<'a> Resolver<'a> {
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
-        resolver.resolve_config(crate_id, manifest)?;
+        resolver.resolve_manifest(crate_id, manifest)?;
 
         add_std_lib(&mut driver);
         Ok(driver)
@@ -74,7 +74,7 @@ impl<'a> Resolver<'a> {
     // We do not need to add stdlib, as it's implicitly
     // imported. However, it may be helpful to have the stdlib imported by the
     // package manager.
-    fn resolve_config(
+    fn resolve_manifest(
         &mut self,
         parent_crate: CrateId,
         manifest: PackageManifest,
@@ -106,7 +106,7 @@ impl<'a> Resolver<'a> {
                 )));
             }
             let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_config(*crate_id, dep_meta.manifest.clone())?;
+            new_res.resolve_manifest(*crate_id, dep_meta.manifest.clone())?;
         }
         Ok(())
     }
