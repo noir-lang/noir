@@ -1,6 +1,7 @@
 const contexts = [
   'TSMethodDefinition',
   'MethodDefinition',
+  'TSParameterProperty[accessibility=public]',
   'TSPropertySignature',
   'PropertySignature',
   'TSInterfaceDeclaration',
