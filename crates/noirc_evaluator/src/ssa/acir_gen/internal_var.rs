@@ -45,6 +45,7 @@ impl InternalVar {
         &self.cached_witness
     }
     pub(crate) fn set_witness(&mut self, w: Option<Witness>) {
+        debug_assert!(self.cached_witness.is_none() || self.cached_witness == w);
         self.cached_witness = w;
     }
 

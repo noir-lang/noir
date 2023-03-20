@@ -112,8 +112,7 @@ impl InternalVarCache {
     ) -> Witness {
         if let Some(ids) = ctx.constants.get(&value) {
             //we have a constant node object for the value
-            if !ids.is_empty() {
-                let id = ids.first().unwrap();
+            if let Some(id) = ids.first() {
                 let var = self.get_or_compute_internal_var_unwrap(*id, evaluator, ctx);
                 if let Some(w) = var.cached_witness() {
                     return *w;
@@ -143,7 +142,7 @@ impl InternalVarCache {
             let witness = expression_to_witness(var.to_expression(), evaluator);
             var.set_witness(Some(witness));
         }
-        var.cached_witness().unwrap()
+        var.cached_witness().expect("Infallible, the witness is computed before")
     }
 
     /// Get or compute a witness for an internal var
@@ -235,21 +234,21 @@ mod test {
     #[test]
     fn test_const_witness() {
         let mut eval = Evaluator::default();
-        let mut ctx = SsaContext::default();
+        let ctx = SsaContext::default();
         let mut var_cache = InternalVarCache::default();
         let v1 = var_cache.get_or_compute_internal_var_unwrap(ctx.one(), &mut eval, &ctx);
         let v2 = var_cache.get_or_compute_internal_var_unwrap(ctx.zero(), &mut eval, &ctx);
-        let w1 = var_cache.get_or_compute_witness_unwrap(v1, &mut eval, &mut ctx);
-        let w2 = var_cache.get_or_compute_witness_unwrap(v2, &mut eval, &mut ctx);
+        let w1 = var_cache.get_or_compute_witness_unwrap(v1, &mut eval, &ctx);
+        let w2 = var_cache.get_or_compute_witness_unwrap(v2, &mut eval, &ctx);
         let w11 = var_cache.get_or_compute_witness_unwrap(
             InternalVar::from_constant(FieldElement::one()),
             &mut eval,
-            &mut ctx,
+            &ctx,
         );
         let w21 = var_cache.get_or_compute_witness_unwrap(
             InternalVar::from_constant(FieldElement::zero()),
             &mut eval,
-            &mut ctx,
+            &ctx,
         );
         let two = FieldElement::one() + FieldElement::one();
         assert!(var_cache.constants.is_empty());
@@ -266,7 +265,6 @@ mod test {
     #[test]
     fn internal_var_from_witness() {
         let mut evaluator = Evaluator::default();
-        // let mut var_cache = InternalVarCache::default();
         let expected_witness = Witness(1234);
         // Initialize an InternalVar with a `Witness`
         let mut internal_var = InternalVar::from_witness(expected_witness);
