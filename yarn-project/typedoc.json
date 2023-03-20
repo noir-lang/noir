@@ -6,8 +6,6 @@
     "archiver",
     "aztec-cli",
     "aztec.js",
-    "barretenberg.js",
-    "circuit.js",
     "ethereum.js",
     "kernel-simulator",
     "key-store",

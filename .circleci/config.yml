@@ -19,11 +19,6 @@ parameters:
   workflow:
     type: string
     default: "system"
-  target:
-    type: enum
-    default: "dev"
-    description: The environment to trigger redeploys to
-    enum: ["dev", "stage", "testnet"]
 
 # This build step checks out the code from the repository. It has a hardcoded readonly key to allow the checkout.
 # Initially it just fetches the repo metadata for the current commit hash to a depth of 50 commits.

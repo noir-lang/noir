@@ -46,8 +46,6 @@ PROJECTS=(
   # "yarn-project/acir-simulator:yarn build"
   # "yarn-project/aztec-cli:yarn build"
   "yarn-project/aztec.js:yarn build"
-  # "yarn-project/barretenberg.js:yarn build"
-  # "yarn-project/circuit.js:yarn build"
   "yarn-project/archiver:yarn build"
   # "yarn-project/ethereum.js:yarn build"
   # "yarn-project/kernel-simulator:yarn build"
