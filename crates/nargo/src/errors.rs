@@ -4,6 +4,8 @@ use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
 
+use crate::resolver::DependencyResolutionError;
+
 #[derive(Debug, Error)]
 pub(crate) enum CliError {
     #[error("{0}")]
@@ -22,6 +24,9 @@ pub(crate) enum CliError {
     MismatchedAcir(PathBuf),
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
+
+    #[error(transparent)]
+    ResolutionError(#[from] DependencyResolutionError),
 
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
