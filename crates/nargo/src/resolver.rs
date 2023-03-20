@@ -59,13 +59,12 @@ struct CachedDep {
 /// Downloading will be recursive, so if a package contains packages
 /// We need to download those too
 pub(crate) struct Resolver<'a> {
-    cached_packages: HashMap<PathBuf, (CrateId, CachedDep)>,
     driver: &'a mut Driver,
 }
 
 impl<'a> Resolver<'a> {
     fn with_driver(driver: &mut Driver) -> Resolver {
-        Resolver { cached_packages: HashMap::new(), driver }
+        Resolver { driver }
     }
 
     /// Returns the Driver and the backend to use
@@ -102,6 +101,8 @@ impl<'a> Resolver<'a> {
         parent_crate: CrateId,
         manifest: PackageManifest,
     ) -> Result<(), DependencyResolutionError> {
+        let mut cached_packages: HashMap<PathBuf, (CrateId, CachedDep)> = HashMap::new();
+
         // First download and add these top level dependencies crates to the Driver
         for (dep_pkg_name, pkg_src) in manifest.dependencies.iter() {
             let (dir_path, dep_meta) = Resolver::cache_dep(pkg_src)?;
@@ -117,18 +118,16 @@ impl<'a> Resolver<'a> {
             let crate_id = self.driver.create_non_local_crate(entry_path, *crate_type);
             self.driver.add_dep(parent_crate, crate_id, dep_pkg_name);
 
-            self.cached_packages.insert(dir_path, (crate_id, dep_meta));
+            cached_packages.insert(dir_path, (crate_id, dep_meta));
         }
 
         // Resolve all transitive dependencies
-        for (dependency_path, (crate_id, dep_meta)) in self.cached_packages.iter() {
+        for (dependency_path, (crate_id, dep_meta)) in cached_packages {
             if dep_meta.remote && manifest.has_local_path() {
-                return Err(DependencyResolutionError::RemoteDepWithLocalDep {
-                    dependency_path: dependency_path.to_path_buf(),
-                });
+                return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
             let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_manifest(*crate_id, dep_meta.manifest.clone())?;
+            new_res.resolve_manifest(crate_id, dep_meta.manifest)?;
         }
         Ok(())
     }
