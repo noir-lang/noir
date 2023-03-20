@@ -1,6 +1,7 @@
 use acvm::acir::native_types::Expression;
 
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{
             acir_mem::AcirMem,
@@ -12,7 +13,7 @@ use crate::{
         mem,
         node::Operation,
     },
-    Evaluator, errors::RuntimeError,
+    Evaluator,
 };
 
 pub(crate) fn evaluate(
