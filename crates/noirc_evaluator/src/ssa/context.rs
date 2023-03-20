@@ -601,7 +601,7 @@ impl SsaContext {
             value_type: t,
         });
         // Adds the id into the constants map
-        let ids = self.constants.entry(x).or_insert(Vec::new());
+        let ids = self.constants.entry(x).or_default();
         ids.push(id);
         id
     }
