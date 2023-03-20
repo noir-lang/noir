@@ -7,9 +7,9 @@
 #include "../state_vars/utxo_state_var.hpp"
 #include "../state_vars/utxo_set_state_var.hpp"
 
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace {
 // Declared here, so that `opcodes.hpp` doesn't see it; thereby preventing circular dependencies.
@@ -22,9 +22,9 @@ namespace aztec3::circuits::apps::opcodes {
 
 using aztec3::circuits::apps::FunctionExecutionContext;
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename Composer>
 template <typename Note>

@@ -2,8 +2,8 @@
 
 #include "../opcodes/opcodes.hpp"
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;

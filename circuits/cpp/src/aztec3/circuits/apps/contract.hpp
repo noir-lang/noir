@@ -5,15 +5,15 @@
 
 #include <aztec3/circuits/abis/function_data.hpp>
 
-#include <common/container.hpp>
+#include <barretenberg/common/container.hpp>
 
 namespace aztec3::circuits::apps {
 
 using aztec3::circuits::abis::FunctionData;
 
+using aztec3::utils::types::CircuitTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using NT = plonk::stdlib::types::NativeTypes;
+using NT = aztec3::utils::types::NativeTypes;
 
 // template <typename Composer> class FunctionExecutionContext;
 

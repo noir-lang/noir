@@ -6,7 +6,7 @@
 // #include <aztec3/circuits/apps/function_execution_context.hpp>
 
 #include <gtest/gtest.h>
-#include <common/test.hpp>
+#include <barretenberg/common/test.hpp>
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 

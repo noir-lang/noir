@@ -1,15 +1,15 @@
 #pragma once
 #include "public_inputs.hpp"
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::abis::private_kernel {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct PreviousKernelData {
@@ -32,7 +32,7 @@ template <typename NCT> struct PreviousKernelData {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         PreviousKernelData<CircuitTypes<Composer>> data = {
             public_inputs.to_circuit_type(composer),

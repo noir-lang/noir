@@ -1,17 +1,17 @@
 #pragma once
-//#include <crypto/generators/generator_data.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
-//#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/native_types.hpp>
+// #include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+// #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/constants.hpp>
 
 namespace aztec3::circuits::abis {
 
 // using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct FunctionData {
@@ -34,7 +34,7 @@ template <typename NCT> struct FunctionData {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         FunctionData<CircuitTypes<Composer>> function_data = {
             to_ct(function_encoding),
@@ -48,7 +48,7 @@ template <typename NCT> struct FunctionData {
     template <typename Composer> FunctionData<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         FunctionData<NativeTypes> function_data = {
             to_nt(function_encoding),

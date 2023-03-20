@@ -1,20 +1,20 @@
 // #include "index.hpp"
 
 // #include <gtest/gtest.h>
-// #include <common/test.hpp>
-// #include <common/serialize.hpp>
-// // #include <numeric/random/engine.hpp>
-// #include <stdlib/types/types.hpp>
+// #include <barretenberg/common/test.hpp>
+// #include <barretenberg/common/serialize.hpp>
+// // #include <barretenberg/numeric/random/engine.hpp>
+// #include <barretenberg/stdlib/types/types.hpp>
 // // #include <aztec3/constants.hpp>
-// // #include <crypto/pedersen/pedersen.hpp>
-// // #include <stdlib/hash/pedersen/pedersen.hpp>
+// // #include <barretenberg/crypto/pedersen/pedersen.hpp>
+// // #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 
 // namespace aztec3::circuits::apps {
 
 // namespace {
-// using Composer = plonk::stdlib::types::Composer;
-// using CT = plonk::stdlib::types::CircuitTypes<Composer>;
-// using NT = plonk::stdlib::types::NativeTypes;
+// using Composer = aztec3::utils::types:plonk::stdlib::types::Composer;
+// using CT = aztec3::utils::types::CircuitTypes<Composer>;
+// using NT = aztec3::utils::types::NativeTypes;
 // // using plonk::stdlib::pedersen;
 // } // namespace
 

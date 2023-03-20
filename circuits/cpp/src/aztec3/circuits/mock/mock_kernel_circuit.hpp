@@ -1,11 +1,11 @@
 #pragma once
-#include <common/map.hpp>
-#include <numeric/random/engine.hpp>
-#include <stdlib/primitives/field/field.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/commitment/pedersen/pedersen.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/numeric/random/engine.hpp>
+#include <barretenberg/stdlib/primitives/field/field.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 // #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
@@ -16,10 +16,10 @@ auto& engine = numeric::random::get_debug_engine();
 namespace aztec3::circuits::mock {
 
 using aztec3::circuits::abis::private_kernel::PublicInputs;
-using NT = plonk::stdlib::types::NativeTypes;
+using NT = aztec3::utils::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
 using plonk::stdlib::pedersen_commitment;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
 
 template <typename Composer> void mock_kernel_circuit(Composer& composer, PublicInputs<NT> const& _public_inputs)
 {

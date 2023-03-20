@@ -36,7 +36,7 @@ ExternalProject_Add(Barretenberg
     # byproducts needed by ninja generator (not needed by make)
     BUILD_BYPRODUCTS ${BBERG_BUILD_DIR}/lib/libbarretenberg.a ${BBERG_BUILD_DIR}/lib/libenv.a)
 
-include_directories(${BBERG_DIR}/src/aztec)
+include_directories(${BBERG_DIR}/src)
 
 # Add the imported barretenberg and env libraries, point to their library archives,
 # and add a dependency of these libraries on the imported project

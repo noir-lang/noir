@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::apps::state_vars {
 template <typename Composer> class StateVar;
@@ -16,9 +16,9 @@ using aztec3::circuits::apps::state_vars::StateVar;        // Don't #include it!
 using aztec3::circuits::apps::state_vars::UTXOSetStateVar; // Don't #include it!
 using aztec3::circuits::apps::state_vars::UTXOStateVar;    // Don't #include it!
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 /**
  * @brief - These static methods are a suggestion for what ACIR++ 'Opcodes' might do. They can get

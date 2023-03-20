@@ -1,5 +1,5 @@
 #pragma once
-// #include <common/container.hpp>
+// #include <barretenberg/common/container.hpp>
 // #include "oracle_wrapper.hpp"
 // #include "private_state_note.hpp"
 // #include "private_state_note_preimage.hpp"
@@ -7,15 +7,15 @@
 
 #include "../function_execution_context.hpp"
 
-#include "plonk/composer/turbo_composer.hpp"
+#include <barretenberg/plonk/composer/turbo_composer.hpp>
 
-#include <common/streams.hpp>
-#include <common/map.hpp>
-#include <crypto/generators/generator_data.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <barretenberg/common/streams.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace {
 using aztec3::circuits::apps::FunctionExecutionContext;
@@ -25,8 +25,8 @@ namespace aztec3::circuits::apps::state_vars {
 
 using crypto::generators::generator_index_t;
 
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 
 // Fr: start_slot
 //

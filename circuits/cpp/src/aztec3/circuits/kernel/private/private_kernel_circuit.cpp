@@ -1,6 +1,6 @@
 #include "init.hpp"
 
-#include <stdlib/primitives/field/array.hpp>
+#include <barretenberg/stdlib/primitives/field/array.hpp>
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>

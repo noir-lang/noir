@@ -2,8 +2,8 @@
 
 #include "state_var_base.hpp"
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps {
@@ -14,8 +14,8 @@ namespace aztec3::circuits::apps::state_vars {
 
 using aztec3::circuits::apps::FunctionExecutionContext; // Don't #include it!
 
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 
 /**
  * @brief - A derived StateVar which represents a singleton UTXO type. I.e. a state which can only ever have at-most ONE

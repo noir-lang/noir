@@ -13,11 +13,11 @@
 #include <aztec3/circuits/abis/function_data.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 
-#include <stdlib/primitives/field/array.hpp>
+#include <barretenberg/stdlib/primitives/field/array.hpp>
 
-#include <common/container.hpp>
+#include <barretenberg/common/container.hpp>
 
-#include <stdlib/types/convert.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::apps {
 
@@ -32,11 +32,11 @@ using aztec3::circuits::apps::opcodes::Opcodes;
 
 using plonk::stdlib::array_push;
 
+using aztec3::utils::types::CircuitTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using NT = plonk::stdlib::types::NativeTypes;
-using plonk::stdlib::types::to_ct;
-using plonk::stdlib::types::to_nt;
+using NT = aztec3::utils::types::NativeTypes;
+using aztec3::utils::types::to_ct;
+using aztec3::utils::types::to_nt;
 
 template <typename Composer> class FunctionExecutionContext {
     typedef NativeTypes NT;

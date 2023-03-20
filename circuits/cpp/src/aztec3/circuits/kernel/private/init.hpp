@@ -7,10 +7,10 @@
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 
-#include <stdlib/types/types.hpp>
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/native_types.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
@@ -21,9 +21,9 @@ using plonk::stdlib::types::Prover;
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 
 // Generic:
-using CT = plonk::stdlib::types::CircuitTypes<Composer>;
-using NT = plonk::stdlib::types::NativeTypes;
-using plonk::stdlib::types::to_ct;
+using CT = aztec3::utils::types::CircuitTypes<Composer>;
+using NT = aztec3::utils::types::NativeTypes;
+using aztec3::utils::types::to_ct;
 
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;

@@ -8,16 +8,16 @@
 
 #include "../../state_vars/state_var_base.hpp"
 
-#include <crypto/generators/generator_data.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
 
-#include <plonk/composer/turbo_composer.hpp>
+#include <barretenberg/plonk/composer/turbo_composer.hpp>
 
-#include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/hash/blake2s/blake2s.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace {
 using aztec3::circuits::apps::opcodes::Opcodes;
@@ -30,9 +30,9 @@ using aztec3::GeneratorIndex;
 
 using crypto::generators::generator_index_t;
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename Composer, typename V> void DefaultPrivateNote<Composer, V>::remove()
 {

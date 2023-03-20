@@ -1,19 +1,19 @@
 #pragma once
 
-#include <common/map.hpp>
-#include <common/streams.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/common/streams.hpp>
 
-#include <crypto/generators/generator_data.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::apps::notes {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using crypto::generators::generator_index_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename NCT, typename V> struct DefaultSingletonPrivateNotePreimage {
     typedef typename NCT::fr fr;
@@ -36,7 +36,7 @@ template <typename NCT, typename V> struct DefaultSingletonPrivateNotePreimage {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         // Depending on whether the _circuit_ type version of `V` is from the stdlib, or some custom type, the
         // conversion method will be different.
@@ -76,7 +76,7 @@ template <typename NCT, typename V> struct DefaultSingletonPrivateNotePreimage {
 
         static_assert(!std::is_same<NativeTypes, NCT>::value);
 
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         // See `to_circuit_type()` for explanation of this code.
         const bool has_to_native_type = requires(V v) { v.to_native_type(); };

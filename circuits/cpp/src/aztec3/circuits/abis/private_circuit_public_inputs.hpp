@@ -4,19 +4,19 @@
 #include "contract_deployment_data.hpp"
 #include <aztec3/constants.hpp>
 
-#include <common/map.hpp>
-#include <crypto/generators/generator_data.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/native_types.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
@@ -49,7 +49,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         PrivateCircuitPublicInputs<CircuitTypes<Composer>> pis = {
@@ -80,7 +80,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     template <typename Composer> PrivateCircuitPublicInputs<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         PrivateCircuitPublicInputs<NativeTypes> pis = {
@@ -386,7 +386,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
         auto to_circuit_type = [&](auto& e) {
             return e ? std::make_optional((*e).to_circuit_type(composer)) : std::nullopt;
         };
@@ -419,7 +419,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     template <typename Composer> OptionalPrivateCircuitPublicInputs<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
         auto to_native_type = []<typename T>(const std::optional<T>& e) {
             return e ? std::make_optional((*e).template to_native_type<Composer>()) : std::nullopt;
         };

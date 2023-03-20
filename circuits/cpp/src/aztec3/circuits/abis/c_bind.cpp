@@ -4,15 +4,15 @@
 
 #include <aztec3/constants.hpp>
 
-#include <stdlib/types/native_types.hpp>
-#include <crypto/keccak/keccak.hpp>
-#include <common/serialize.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <barretenberg/crypto/keccak/keccak.hpp>
+#include <barretenberg/common/serialize.hpp>
 
 namespace {
 using aztec3::GeneratorIndex;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::TxRequest;
-using NT = plonk::stdlib::types::NativeTypes;
+using NT = aztec3::utils::types::NativeTypes;
 } // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))

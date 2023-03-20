@@ -1,9 +1,9 @@
-#include <stdlib/types/types.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/recursion/verifier/verifier.hpp>
-#include <stdlib/recursion/verifier/program_settings.hpp>
-#include <transcript/manifest.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+#include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
+#include <barretenberg/transcript/manifest.hpp>
 
 namespace aztec3::circuits::recursion {
 
@@ -12,10 +12,10 @@ namespace aztec3::circuits::recursion {
 using plonk::stdlib::types::recursive_inner_verifier_settings;
 // using plonk::stdlib::recursion::verification_key;
 using plonk::stdlib::recursion::verify_proof;
-// using plonk::stdlib::types::bn254;
+// using aztec3::utils::types::bn254;
 using plonk::stdlib::types::Composer;
-using CT = plonk::stdlib::types::CircuitTypes<Composer>;
-using NT = plonk::stdlib::types::NativeTypes;
+using CT = aztec3::utils::types::CircuitTypes<Composer>;
+using NT = aztec3::utils::types::NativeTypes;
 using transcript::Manifest;
 
 // class Aggregator {

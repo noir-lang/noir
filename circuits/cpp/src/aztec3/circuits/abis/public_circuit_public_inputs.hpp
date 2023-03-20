@@ -5,16 +5,16 @@
 #include "state_read.hpp"
 #include "../../constants.hpp"
 
-#include <common/map.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename NCT> struct PublicCircuitPublicInputs {
     typedef typename NCT::fr fr;
@@ -70,7 +70,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         PublicCircuitPublicInputs<CircuitTypes<Composer>> pis = {

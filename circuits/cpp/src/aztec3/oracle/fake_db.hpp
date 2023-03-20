@@ -7,7 +7,7 @@
 #include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
 #include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
 
-#include <stdlib/types/native_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::oracle {
 
@@ -19,8 +19,8 @@ using aztec3::circuits::apps::notes::DefaultPrivateNotePreimage;
 
 using aztec3::circuits::apps::notes::DefaultSingletonPrivateNotePreimage;
 
-using plonk::stdlib::types::CircuitTypes;
-using NT = plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using NT = aztec3::utils::types::NativeTypes;
 
 // A temporary stub, whilst building other things first.
 class FakeDB {

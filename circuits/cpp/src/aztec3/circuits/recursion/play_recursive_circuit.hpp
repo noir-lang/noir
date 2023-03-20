@@ -1,13 +1,13 @@
-// #include <stdlib/types/types.hpp>
-// #include <stdlib/recursion/verifier/verifier.hpp>
-// #include <stdlib/recursion/verifier/program_settings.hpp>
-// #include <plonk/transcript/manifest.hpp>
+// #include <barretenberg/stdlib/types/types.hpp>
+// #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+// #include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
+// #include <barretenberg/plonk/transcript/manifest.hpp>
 
 namespace aztec3::circuits::recursion {
 
 using plonk::stdlib::types::Composer;
-using CT = plonk::stdlib::types::CircuitTypes<Composer>;
-using NT = plonk::stdlib::types::NativeTypes;
+using CT = aztec3::utils::types::CircuitTypes<Composer>;
+using NT = aztec3::utils::types::NativeTypes;
 
 CT::AggregationObject play_recursive_circuit(Composer& composer,
                                              std::shared_ptr<NT::VK> const& app_vk,

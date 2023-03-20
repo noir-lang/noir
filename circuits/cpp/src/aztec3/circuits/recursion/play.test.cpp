@@ -1,11 +1,11 @@
 #include "index.hpp"
-#include <common/test.hpp>
-// #include <numeric/random/engine.hpp>
-#include <stdlib/types/types.hpp>
+#include <barretenberg/common/test.hpp>
+// #include <barretenberg/numeric/random/engine.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
 
 namespace aztec3::circuits::recursion {
 
-using namespace plonk::stdlib::types;
+using namespace aztec3::utils::types;
 using plonk::stdlib::recursion::recursion_output;
 
 // namespace {

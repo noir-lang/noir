@@ -1,18 +1,18 @@
 #pragma once
 
-#include <crypto/generators/generator_data.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/native_types.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/constants.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 template <typename NCT> struct CallContext {
     typedef typename NCT::address address;
@@ -45,7 +45,7 @@ template <typename NCT> struct CallContext {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         CallContext<CircuitTypes<Composer>> call_context = {
             to_ct(msg_sender),     to_ct(storage_contract_address), to_ct(tx_origin),           to_ct(is_delegate_call),
@@ -59,7 +59,7 @@ template <typename NCT> struct CallContext {
     template <typename Composer> CallContext<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         CallContext<NativeTypes> call_context = {
             to_nt(msg_sender),     to_nt(storage_contract_address), to_nt(tx_origin),           to_nt(is_delegate_call),

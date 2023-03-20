@@ -7,10 +7,10 @@
 // #include <aztec3/circuits/apps/function_execution_context.hpp>
 
 #include <gtest/gtest.h>
-#include <common/test.hpp>
-// #include <common/serialize.hpp>
-// #include <stdlib/types/types.hpp>
-// #include <numeric/random/engine.hpp>
+#include <barretenberg/common/test.hpp>
+// #include <barretenberg/common/serialize.hpp>
+// #include <barretenberg/stdlib/types/types.hpp>
+// #include <barretenberg/numeric/random/engine.hpp>
 
 namespace aztec3::circuits::apps::test_apps::escrow {
 

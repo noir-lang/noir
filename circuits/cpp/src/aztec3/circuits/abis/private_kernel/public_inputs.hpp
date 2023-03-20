@@ -1,16 +1,16 @@
 #pragma once
 #include "accumulated_data.hpp"
 #include "constant_data.hpp"
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::abis::private_kernel {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct PublicInputs {
@@ -27,7 +27,7 @@ template <typename NCT> struct PublicInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         PublicInputs<CircuitTypes<Composer>> private_inputs = {
             end.to_circuit_type(composer),
@@ -42,7 +42,7 @@ template <typename NCT> struct PublicInputs {
     template <typename Composer> PublicInputs<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
-        auto to_nt = [&](auto& e) { return plonk::stdlib::types::to_nt<Composer>(e); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         PublicInputs<NativeTypes> pis = {

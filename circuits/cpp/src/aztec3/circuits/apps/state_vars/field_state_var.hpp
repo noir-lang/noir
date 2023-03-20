@@ -3,13 +3,13 @@
 #include "state_var_base.hpp"
 #include "../function_execution_context.hpp"
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::apps::state_vars {
 
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 
 // TODO: we can probably generalise this to be a PrimitiveStateVar for any stdlib primitive.
 template <typename Composer> class FieldStateVar : public StateVar<Composer> {

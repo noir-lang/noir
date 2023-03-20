@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
-#include <common/test.hpp>
-#include <common/serialize.hpp>
-// #include <numeric/random/engine.hpp>
+#include <barretenberg/common/test.hpp>
+#include <barretenberg/common/serialize.hpp>
+// #include <barretenberg/numeric/random/engine.hpp>
 #include "index.hpp"
-#include <stdlib/types/types.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
 
 namespace aztec3::circuits::abis {
 
 using Composer = plonk::stdlib::types::Composer;
-using CT = plonk::stdlib::types::CircuitTypes<Composer>;
-using NT = plonk::stdlib::types::NativeTypes;
+using CT = aztec3::utils::types::CircuitTypes<Composer>;
+using NT = aztec3::utils::types::NativeTypes;
 
 class abi_tests : public ::testing::Test {};
 

@@ -1,8 +1,8 @@
-// #include <common/serialize.hpp>
-// #include <stdlib/types/types.hpp>
+// #include <barretenberg/common/serialize.hpp>
+// #include <barretenberg/stdlib/types/types.hpp>
 // #include <aztec3/oracle/oracle.hpp>
 // #include <aztec3/circuits/apps/oracle_wrapper.hpp>
-// #include <numeric/random/engine.hpp>
+// #include <barretenberg/numeric/random/engine.hpp>
 #include "index.hpp"
 #include "init.hpp"
 
@@ -30,13 +30,13 @@
 // #include <aztec3/circuits/mock/mock_circuit.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
-#include <common/map.hpp>
-#include <common/test.hpp>
+#include <barretenberg/common/map.hpp>
+#include <barretenberg/common/test.hpp>
 #include <gtest/gtest.h>
 
 // #include <aztec3/constants.hpp>
-// #include <crypto/pedersen/pedersen.hpp>
-// #include <stdlib/hash/pedersen/pedersen.hpp>
+// #include <barretenberg/crypto/pedersen/pedersen.hpp>
+// #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 
 namespace {
 

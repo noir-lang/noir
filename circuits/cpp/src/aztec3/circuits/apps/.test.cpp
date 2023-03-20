@@ -1,10 +1,10 @@
 
-// #include <common/serialize.hpp>
-// #include <stdlib/types/types.hpp>
-// #include <numeric/random/engine.hpp>
+// #include <barretenberg/common/serialize.hpp>
+// #include <barretenberg/stdlib/types/types.hpp>
+// #include <barretenberg/numeric/random/engine.hpp>
 
 #include <gtest/gtest.h>
-#include <common/test.hpp>
+#include <barretenberg/common/test.hpp>
 
 // #include "utxo_state_var.hpp"
 
@@ -28,19 +28,19 @@
 
 #include <aztec3/oracle/oracle.hpp>
 
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
 
 namespace {
 // Composer
 using C = plonk::stdlib::types::Composer;
 
 // Types
-using CT = plonk::stdlib::types::CircuitTypes<C>;
-using NT = plonk::stdlib::types::NativeTypes;
-using plonk::stdlib::types::to_ct;
+using CT = aztec3::utils::types::CircuitTypes<C>;
+using NT = aztec3::utils::types::NativeTypes;
+using aztec3::utils::types::to_ct;
 
 // exec_ctx
 // using aztec3::circuits::apps::FunctionExecutionContext;

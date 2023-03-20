@@ -5,8 +5,8 @@
 #include "note_preimage.hpp"
 #include "nullifier_preimage.hpp"
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 // Forward-declare from this namespace in particular:
 namespace aztec3::circuits::apps::state_vars {
@@ -17,8 +17,8 @@ namespace aztec3::circuits::apps::notes {
 
 using aztec3::circuits::apps::state_vars::StateVar; // Don't #include it!
 
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 
 template <typename Composer, typename ValueType> class DefaultPrivateNote : public NoteInterface<Composer> {
   public:

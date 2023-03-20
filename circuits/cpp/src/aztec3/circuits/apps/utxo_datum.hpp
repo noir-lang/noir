@@ -1,14 +1,14 @@
 #pragma once
 
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::apps {
 
+using aztec3::utils::types::CircuitTypes;
+using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
-using plonk::stdlib::types::CircuitTypes;
-using plonk::stdlib::types::NativeTypes;
 
 /**
  * @tparam NCT - NativeTypes or CircuitTypes<Composer>
@@ -32,7 +32,7 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
         static_assert(std::is_same<NativeTypes, NCT>::value);
 
         // Capture the composer:
-        auto to_ct = [&](auto& e) { return plonk::stdlib::types::to_ct(composer, e); };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         auto preimage_ct = preimage.to_circuit_type(composer);
 

@@ -8,16 +8,16 @@
 
 #include <aztec3/oracle/oracle.hpp>
 
-#include <stdlib/types/types.hpp>
-#include <stdlib/types/convert.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/native_types.hpp>
+#include <barretenberg/stdlib/types/types.hpp>
+#include <aztec3/utils/types/convert.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
 using C = plonk::stdlib::types::Composer;
-using CT = plonk::stdlib::types::CircuitTypes<C>;
-using NT = plonk::stdlib::types::NativeTypes;
+using CT = aztec3::utils::types::CircuitTypes<C>;
+using NT = aztec3::utils::types::NativeTypes;
 
 using DB = oracle::FakeDB;
 using oracle::NativeOracle;
@@ -26,7 +26,7 @@ using OracleWrapper = OracleWrapperInterface<C>;
 using Contract = apps::Contract<NT>;
 using FunctionExecutionContext = apps::FunctionExecutionContext<C>;
 
-using plonk::stdlib::types::to_ct;
+using aztec3::utils::types::to_ct;
 
 // StateVars
 using apps::state_vars::UTXOStateVar;

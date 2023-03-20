@@ -2,18 +2,18 @@
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/oracle/oracle.hpp>
 
-#include <common/map.hpp>
+#include <barretenberg/common/map.hpp>
 
-#include <stdlib/types/native_types.hpp>
-#include <stdlib/types/circuit_types.hpp>
-#include <stdlib/types/convert.hpp>
+#include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
+#include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::apps {
 
-using NT = plonk::stdlib::types::NativeTypes;
+using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::CallContext;
 using aztec3::oracle::NativeOracle;
-using plonk::stdlib::types::CircuitTypes;
+using aztec3::utils::types::CircuitTypes;
 
 /**
  * The main purpose of this wrapper is to:
@@ -44,7 +44,7 @@ template <typename Composer> class OracleWrapperInterface {
         if (msg_sender_private_key) {
             return *msg_sender_private_key;
         }
-        msg_sender_private_key = plonk::stdlib::types::to_ct(composer, native_oracle.get_msg_sender_private_key());
+        msg_sender_private_key = aztec3::utils::types::to_ct(composer, native_oracle.get_msg_sender_private_key());
         validate_msg_sender_private_key();
         return *msg_sender_private_key;
     };
@@ -66,17 +66,17 @@ template <typename Composer> class OracleWrapperInterface {
 
     address& get_tx_origin() { return get_call_context().tx_origin; };
 
-    fr generate_salt() const { return plonk::stdlib::types::to_ct(composer, native_oracle.generate_salt()); }
+    fr generate_salt() const { return aztec3::utils::types::to_ct(composer, native_oracle.generate_salt()); }
 
     fr generate_random_element() const
     {
-        return plonk::stdlib::types::to_ct(composer, native_oracle.generate_random_element());
+        return aztec3::utils::types::to_ct(composer, native_oracle.generate_random_element());
     }
 
     template <typename NotePreimage>
     auto get_utxo_sload_datum(grumpkin_point const& storage_slot_point, NotePreimage const& advice)
     {
-        auto native_storage_slot_point = plonk::stdlib::types::to_nt<Composer>(storage_slot_point);
+        auto native_storage_slot_point = aztec3::utils::types::to_nt<Composer>(storage_slot_point);
 
         auto native_advice = advice.template to_native_type<Composer>();
 
@@ -90,7 +90,7 @@ template <typename Composer> class OracleWrapperInterface {
                              size_t const& num_notes,
                              NotePreimage const& advice)
     {
-        auto native_storage_slot_point = plonk::stdlib::types::to_nt<Composer>(storage_slot_point);
+        auto native_storage_slot_point = aztec3::utils::types::to_nt<Composer>(storage_slot_point);
 
         auto native_advice = advice.template to_native_type<Composer>();
 

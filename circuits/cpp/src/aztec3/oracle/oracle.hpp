@@ -10,7 +10,7 @@
 #include <aztec3/circuits/apps/notes/default_private_note/note_preimage.hpp>
 #include <aztec3/circuits/apps/notes/default_singleton_private_note/note_preimage.hpp>
 
-#include <stdlib/types/native_types.hpp>
+#include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::oracle {
 
@@ -19,8 +19,8 @@ using aztec3::circuits::abis::FunctionData;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
 
-using plonk::stdlib::types::CircuitTypes;
-using NT = plonk::stdlib::types::NativeTypes;
+using aztec3::utils::types::CircuitTypes;
+using NT = aztec3::utils::types::NativeTypes;
 
 /// Note: the server will always serve NATIVE types to the circuit, since eventually we'll be passing data to Noir (so
 /// won't be handling circuit types at all from the Aztec3 end).

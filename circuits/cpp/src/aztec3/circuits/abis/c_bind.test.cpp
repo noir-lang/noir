@@ -3,12 +3,12 @@
 #include "tx_request.hpp"
 #include "function_leaf_preimage.hpp"
 
-#include <numeric/random/engine.hpp>
+#include <barretenberg/numeric/random/engine.hpp>
 #include <gtest/gtest.h>
 
 namespace {
 
-using NT = plonk::stdlib::types::NativeTypes;
+using NT = aztec3::utils::types::NativeTypes;
 auto& engine = numeric::random::get_debug_engine();
 
 /**

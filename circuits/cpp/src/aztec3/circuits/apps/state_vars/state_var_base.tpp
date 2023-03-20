@@ -2,12 +2,12 @@
 
 #include "../function_execution_context.hpp"
 
-#include <plonk/composer/turbo_composer.hpp>
+#include <barretenberg/plonk/composer/turbo_composer.hpp>
 
-#include <crypto/generators/generator_data.hpp>
+#include <barretenberg/crypto/generators/generator_data.hpp>
 
-#include <stdlib/hash/pedersen/pedersen.hpp>
-#include <stdlib/types/circuit_types.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
+#include <aztec3/utils/types/circuit_types.hpp>
 
 namespace {
 using aztec3::circuits::apps::FunctionExecutionContext;
@@ -15,8 +15,8 @@ using aztec3::circuits::apps::FunctionExecutionContext;
 
 namespace aztec3::circuits::apps::state_vars {
 
+using aztec3::utils::types::CircuitTypes;
 using crypto::generators::generator_index_t;
-using plonk::stdlib::types::CircuitTypes;
 
 template <typename Composer>
 StateVar<Composer>::StateVar(FunctionExecutionContext<Composer>* exec_ctx, std::string const& state_var_name)
