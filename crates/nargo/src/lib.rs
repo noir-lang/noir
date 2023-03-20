@@ -29,7 +29,7 @@ fn nargo_crates() -> PathBuf {
 /// Returns the path of the root directory of the package containing `current_path`.
 ///
 /// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
-fn find_package_root(current_path: &Path) -> Result<PathBuf, CliError> {
+fn find_package_root(current_path: &Path) -> Result<PathBuf, InvalidPackageError> {
     let manifest_path = find_package_manifest(current_path)?;
 
     let package_root =
@@ -41,13 +41,11 @@ fn find_package_root(current_path: &Path) -> Result<PathBuf, CliError> {
 /// Returns the path of the manifest file (`Nargo.toml`) of the package containing `current_path`.
 ///
 /// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
-fn find_package_manifest(current_path: &Path) -> Result<PathBuf, CliError> {
-    current_path.ancestors().find_map(|dir| find_file(dir, "Nargo", "toml")).ok_or_else(|| {
-        CliError::Generic(format!(
-            "could not find Nargo.toml in {} or any parent directory",
-            current_path.display()
-        ))
-    })
+fn find_package_manifest(current_path: &Path) -> Result<PathBuf, InvalidPackageError> {
+    current_path
+        .ancestors()
+        .find_map(|dir| find_file(dir, "Nargo", "toml"))
+        .ok_or_else(|| InvalidPackageError::MissingManifestFile(current_path.to_path_buf()))
 }
 
 fn lib_or_bin(current_path: &Path) -> Result<(PathBuf, CrateType), InvalidPackageError> {
