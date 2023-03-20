@@ -68,7 +68,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
 
 fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
     let backend = crate::backends::ConcreteBackend;
-    Resolver::resolve_root_config(program_dir, backend.np_language())
+    Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
 
 fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {

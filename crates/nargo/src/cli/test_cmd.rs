@@ -33,7 +33,7 @@ fn run_tests(
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
+    let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
