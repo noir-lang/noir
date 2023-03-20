@@ -44,9 +44,9 @@ impl InternalVar {
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness
     }
-    pub(crate) fn set_witness(&mut self, w: Option<Witness>) {
-        debug_assert!(self.cached_witness.is_none() || self.cached_witness == w);
-        self.cached_witness = w;
+    pub(crate) fn set_witness(&mut self, w: Witness) {
+        debug_assert!(self.cached_witness.is_none() || self.cached_witness == Some(w));
+        self.cached_witness = Some(w);
     }
 
     pub(crate) fn to_expression(&self) -> Expression {

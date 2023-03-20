@@ -16,7 +16,11 @@ use super::expression_to_witness;
 
 #[derive(Default)]
 pub(crate) struct InternalVarCache {
+    /// Map node id to an InternalVar
     inner: HashMap<NodeId, InternalVar>,
+    /// Map field values to an InternalVar, which lazily gets a witness when required
+    /// This avoids us to re-create another witness for the same value
+    /// A witness for a field value should be avoided but can be needed as an opcode input, for example the logic opcode.
     constants: HashMap<FieldElement, InternalVar>,
 }
 
@@ -47,8 +51,8 @@ impl InternalVarCache {
                 if let Some(constant_ids) = ctx.constants.get(&field_value) {
                     for c_id in constant_ids {
                         if let Some(i_var) = self.inner.get(c_id) {
-                            if i_var.cached_witness().is_some() {
-                                result.set_witness(*i_var.cached_witness());
+                            if let Some(w) = i_var.cached_witness() {
+                                result.set_witness(*w);
                                 break;
                             }
                         }
@@ -123,7 +127,7 @@ impl InternalVarCache {
             for &id in ids {
                 let mut cached_var = self.get_or_compute_internal_var_unwrap(id, evaluator, ctx);
                 assert!(cached_var.cached_witness().is_none());
-                cached_var.set_witness(Some(w));
+                cached_var.set_witness(w);
                 self.update(cached_var);
             }
             w
@@ -140,7 +144,7 @@ impl InternalVarCache {
         let w = Self::internal_get_or_compute_witness(var, evaluator);
         if w.is_none() {
             let witness = expression_to_witness(var.to_expression(), evaluator);
-            var.set_witness(Some(witness));
+            var.set_witness(witness);
         }
         var.cached_witness().expect("Infallible, the witness is computed before")
     }
@@ -159,7 +163,7 @@ impl InternalVarCache {
         } else {
             let w = Self::internal_get_or_compute_witness(&mut var, evaluator)
                 .expect("infallible non const expression");
-            var.set_witness(Some(w));
+            var.set_witness(w);
             self.update(var);
             w
         }
@@ -203,7 +207,7 @@ impl InternalVarCache {
             return None;
         }
 
-        var.set_witness(Some(expression_to_witness(var.expression().clone(), evaluator)));
+        var.set_witness(expression_to_witness(var.expression().clone(), evaluator));
 
         *var.cached_witness()
     }

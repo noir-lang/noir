@@ -209,7 +209,7 @@ fn resolve_array(
         let witness =
             acir_gen.var_cache.get_or_compute_witness_unwrap(arr_element.clone(), evaluator, cfg);
         let func_input = FunctionInput { witness, num_bits };
-        arr_element.set_witness(Some(witness));
+        arr_element.set_witness(witness);
         acir_gen.memory.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
