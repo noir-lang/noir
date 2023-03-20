@@ -7,6 +7,7 @@ use std::path::Path;
 
 use clap::Args;
 
+use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::save_program_to_file;
@@ -66,7 +67,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     }
 }
 
-fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
+fn setup_driver(program_dir: &Path) -> Result<Driver, DependencyResolutionError> {
     let backend = crate::backends::ConcreteBackend;
     Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
