@@ -35,11 +35,6 @@ checkout: &checkout
       chmod 0700 .ssh
       ssh-keyscan -t rsa github.com >> .ssh/known_hosts
 
-      # A read only key for cloning the repository.
-      echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
-
-      chmod 0600 .ssh/id_rsa
-
       # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
       # Shallow checkout this commit.
       mkdir -p project
@@ -177,29 +172,28 @@ jobs:
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/
-tag_filter: &tag_filter
-  tags:
-    only: *tag_regex
+defaults: &defaults
+  context:
+    - build
+  filters: 
+    tags:
+      only: *tag_regex
 a3_wasm_test: &a3_wasm_test
   requires:
     - wasm-linux-clang-assert
-  filters: *tag_filter
+  <<: *defaults
 a3_test: &a3_test
   requires:
     - x86_64-linux-clang-assert
-  filters: *tag_filter
+  <<: *defaults
 
 workflows:
   system:
     jobs:
-      - wasm-linux-clang:
-          filters: *tag_filter
-      - wasm-linux-clang-assert:
-          filters: *tag_filter
-      - x86_64-linux-clang:
-          filters: *tag_filter
-      - x86_64-linux-clang-assert:
-          filters: *tag_filter
+      - wasm-linux-clang: *defaults
+      - wasm-linux-clang-assert: *defaults
+      - x86_64-linux-clang: *defaults
+      - x86_64-linux-clang-assert: *defaults
       - aztec3-circuits-wasm-tests: *a3_wasm_test
       - aztec3-circuits-tests: *a3_test
       #- aztec3-circuit-<individual>-tests: *a3_test
