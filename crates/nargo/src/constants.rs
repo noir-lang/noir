@@ -25,3 +25,5 @@ pub(crate) const WITNESS_EXT: &str = "tr";
 pub(crate) const PK_EXT: &str = "pk";
 /// The extension for verification keys.
 pub(crate) const VK_EXT: &str = "vk";
+/// The extension for ACIR hash files.
+pub(crate) const ACIR_CHECKSUM: &str = "json.checksum";

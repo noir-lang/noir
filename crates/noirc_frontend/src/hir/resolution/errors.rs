@@ -2,7 +2,9 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{Ident, Shared, StructType, Type};
+use crate::{parser::ParserError, Ident, Shared, StructType, Type};
+
+use super::import::PathResolutionError;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
@@ -15,7 +17,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathUnresolved { span: Span, name: String, segment: Ident },
+    PathResolutionError(PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
@@ -57,6 +59,8 @@ pub enum ResolverError {
         actual: usize,
         expected: usize,
     },
+    #[error("{0}")]
+    ParserError(ParserError),
 }
 
 impl ResolverError {
@@ -99,22 +103,7 @@ impl From<ResolverError> for Diagnostic {
                 String::new(),
                 span,
             ),
-            ResolverError::PathUnresolved { span, name, segment } => {
-                let mut diag = Diagnostic::simple_error(
-                    format!("could not resolve path '{name}'"),
-                    String::new(),
-                    span,
-                );
-                // XXX: When the secondary and primary labels have spans that
-                // overlap, you cannot differentiate between them.
-                // This error is an example of this.
-                diag.add_secondary(
-                    format!("could not resolve `{}` in path", &segment.0.contents),
-                    segment.0.span(),
-                );
-
-                diag
-            }
+            ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { span, expected, got } => Diagnostic::simple_error(
                 format!("expected {expected} got {got}"),
                 String::new(),
@@ -252,6 +241,7 @@ impl From<ResolverError> for Diagnostic {
                     span,
                 )
             }
+            ResolverError::ParserError(error) => error.into(),
         }
     }
 }

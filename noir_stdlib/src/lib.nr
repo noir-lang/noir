@@ -7,6 +7,7 @@ mod scalar_mul;
 mod sha256;
 mod sha512;
 mod field;
+mod ec;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}

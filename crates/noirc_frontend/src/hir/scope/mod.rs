@@ -137,14 +137,17 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     fn extend_current_scope_tree(&mut self) {
         self.current_scope_tree().push_scope()
     }
+
     fn remove_scope_tree_extension(&mut self) -> Scope<K, V> {
         self.current_scope_tree().pop_scope()
     }
+
     /// Starting a function requires a new scope tree, as you do not want the functions scope to
     /// have access to the scope of the caller
     pub fn start_function(&mut self) {
         self.0.push(ScopeTree::default())
     }
+
     /// Ending a function requires that we removes it's whole tree of scope
     /// This is by design the current scope, which is the last element in the vector
     pub fn end_function(&mut self) -> ScopeTree<K, V> {

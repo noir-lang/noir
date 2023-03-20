@@ -10,7 +10,7 @@ use std::{
 };
 
 use super::fs::write_to_file;
-use super::{add_std_lib, NargoConfig};
+use super::NargoConfig;
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -30,7 +30,6 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_config(p.as_ref(), backend.np_language())?;
-    add_std_lib(&mut driver);
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 
@@ -88,14 +87,16 @@ fn build_placeholder_input_map(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use noirc_driver::CompileOptions;
 
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
     fn pass() {
-        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+        let pass_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
@@ -112,8 +113,8 @@ mod tests {
     #[test]
     #[ignore = "This test fails because the reporter exits the process with 1"]
     fn fail() {
-        let mut fail_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+        let fail_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
@@ -129,11 +130,10 @@ mod tests {
 
     #[test]
     fn pass_with_warnings() {
-        let mut pass_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass_dev_mode"));
+        let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let mut config = CompileOptions::default();
-        config.allow_warnings = true;
+        let config = CompileOptions { allow_warnings: true, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {

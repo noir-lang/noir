@@ -21,8 +21,5 @@ serde.workspace = true
 console_error_panic_hook = "0.1.7"
 gloo-utils = { version = "0.1", features = ["serde"] }
 
-[dev-dependencies]
-wasm-bindgen-test.workspace = true
-
 [build-dependencies]
 build-data = "0.1.3"

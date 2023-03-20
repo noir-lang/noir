@@ -26,22 +26,16 @@ pub(crate) enum CliError {
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
     CompilationError,
-}
 
-impl From<OpcodeResolutionError> for CliError {
-    fn from(value: OpcodeResolutionError) -> Self {
-        CliError::Generic(value.to_string())
-    }
-}
+    /// Input parsing error
+    #[error(transparent)]
+    InputParserError(#[from] InputParserError),
 
-impl From<InputParserError> for CliError {
-    fn from(error: InputParserError) -> Self {
-        CliError::Generic(error.to_string())
-    }
-}
+    /// ABI encoding/decoding error
+    #[error(transparent)]
+    AbiError(#[from] AbiError),
 
-impl From<AbiError> for CliError {
-    fn from(error: AbiError) -> Self {
-        CliError::Generic(error.to_string())
-    }
+    /// ACIR circuit solving error
+    #[error(transparent)]
+    SolvingError(#[from] OpcodeResolutionError),
 }

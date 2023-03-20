@@ -11,7 +11,7 @@ use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::save_program_to_file;
 use super::preprocess_cmd::preprocess_with_path;
-use super::{add_std_lib, NargoConfig};
+use super::NargoConfig;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -38,8 +38,7 @@ struct CompiledContract {
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let driver = check_crate(&config.program_dir, &args.compile_options)?;
 
-    let mut circuit_dir = config.program_dir;
-    circuit_dir.push(TARGET_DIR);
+    let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
@@ -69,9 +68,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
 
 fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
     let backend = crate::backends::ConcreteBackend;
-    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
-    add_std_lib(&mut driver);
-    Ok(driver)
+    Resolver::resolve_root_config(program_dir, backend.np_language())
 }
 
 fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {

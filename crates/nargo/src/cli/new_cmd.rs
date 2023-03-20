@@ -18,9 +18,8 @@ pub(crate) struct NewCommand {
 }
 
 pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {
-    let mut package_dir = config.program_dir;
+    let package_dir = config.program_dir.join(args.package_name);
 
-    package_dir.push(Path::new(&args.package_name));
     if package_dir.exists() {
         return Err(CliError::DestinationAlreadyExists(package_dir));
     }
@@ -39,8 +38,8 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
         "[dependencies]"
     );
 
-    write_to_file(SETTINGS.as_bytes(), &package_dir.join(Path::new(PKG_FILE)));
-    write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
+    write_to_file(SETTINGS.as_bytes(), &package_dir.join(PKG_FILE));
+    write_to_file(EXAMPLE.as_bytes(), &src_dir.join("main.nr"));
     println!("Project successfully created! Binary located at {}", package_dir.display());
     Ok(())
 }
