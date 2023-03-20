@@ -5,6 +5,7 @@
 use acvm::Language;
 use clap::Args;
 use fm::FileType;
+use iter_extended::{try_btree_map, try_vecmap};
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
@@ -16,7 +17,10 @@ use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+mod contract;
 mod program;
+
+pub use contract::CompiledContract;
 pub use program::CompiledProgram;
 
 pub struct Driver {
@@ -179,6 +183,31 @@ impl Driver {
             }
         };
         self.compile_no_check(options, main)
+    }
+
+    /// Run the frontend to check the crate for errors then compile all contracts if there were none
+    pub fn compile_contracts(
+        &mut self,
+        options: &CompileOptions,
+    ) -> Result<Vec<CompiledContract>, ReportedError> {
+        self.check_crate(options)?;
+        let contracts = self.get_all_contracts();
+        try_vecmap(contracts, |contract| self.compile_contract(contract, options))
+    }
+
+    /// Compile all of the functions associated with a Noir contract.
+    fn compile_contract(
+        &self,
+        contract: Contract,
+        options: &CompileOptions,
+    ) -> Result<CompiledContract, ReportedError> {
+        let functions = try_btree_map(&contract.functions, |function| {
+            let function_name = self.function_name(*function).to_owned();
+
+            self.compile_no_check(options, *function).map(|program| (function_name, program))
+        })?;
+
+        Ok(CompiledContract { name: contract.name, functions })
     }
 
     /// Returns the FuncId of the 'main' funciton.
