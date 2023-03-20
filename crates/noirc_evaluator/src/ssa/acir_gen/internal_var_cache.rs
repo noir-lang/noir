@@ -252,7 +252,7 @@ mod test {
             &mut ctx,
         );
         let two = FieldElement::one() + FieldElement::one();
-        assert!(var_cache.constants.len() == 0);
+        assert!(var_cache.constants.is_empty());
         assert_eq!(w1, w11);
         assert_eq!(w2, w21);
         var_cache.const_to_witness(two, &mut eval, &ctx);
