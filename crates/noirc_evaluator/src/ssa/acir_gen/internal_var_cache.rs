@@ -159,7 +159,7 @@ impl InternalVarCache {
             self.const_to_witness(v, evaluator, ctx)
         } else {
             let w = Self::internal_get_or_compute_witness(&mut var, evaluator)
-                .expect("infaillible non const expression");
+                .expect("infallible non const expression");
             var.set_witness(Some(w));
             self.update(var);
             w
