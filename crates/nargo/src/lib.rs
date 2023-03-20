@@ -6,9 +6,6 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-// Necessary as we use `color_eyre` in `main.rs`.
-use color_eyre as _;
-
 use noirc_frontend::graph::CrateType;
 use std::{
     fs::ReadDir,
