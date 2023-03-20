@@ -12,7 +12,7 @@ use crate::{
         mem,
         node::Operation,
     },
-    Evaluator,
+    Evaluator, errors::RuntimeError,
 };
 
 pub(crate) fn evaluate(
@@ -21,7 +21,7 @@ pub(crate) fn evaluate(
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> Option<InternalVar> {
+) -> Result<Option<InternalVar>, RuntimeError> {
     if let Operation::Store { array_id, index, value, predicate, .. } = *store {
         //maps the address to the rhs if address is known at compile time
         let index_var = var_cache.get_or_compute_internal_var_unwrap(index, evaluator, ctx);
@@ -30,12 +30,11 @@ pub(crate) fn evaluate(
             if predicate.is_dummy() || ctx.is_one(predicate) {
                 value_var
             } else if ctx.is_zero(predicate) {
-                return None;
+                return Ok(None);
             } else {
                 let pred = var_cache.get_or_compute_internal_var_unwrap(predicate, evaluator, ctx);
                 let dummy_load =
-                    load::evaluate(array_id, index, acir_mem, var_cache, None, evaluator, ctx)
-                        .unwrap();
+                    load::evaluate(array_id, index, acir_mem, var_cache, None, evaluator, ctx)?;
                 let result = condition::evaluate_expression(
                     pred.expression(),
                     value_var.expression(),
@@ -66,5 +65,5 @@ pub(crate) fn evaluate(
         unreachable!("Expected store, got {:?}", store.opcode());
     }
     //we do not generate constraint, so no output.
-    None
+    Ok(None)
 }
