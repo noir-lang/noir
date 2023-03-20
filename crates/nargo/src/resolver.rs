@@ -122,7 +122,7 @@ impl<'a> Resolver<'a> {
         }
 
         // Resolve all transitive dependencies
-        for (dependency_path, (crate_id, dep_meta)) in cached_packages.into_iter() {
+        for (dependency_path, (crate_id, dep_meta)) in cached_packages {
             if dep_meta.remote && manifest.has_local_path() {
                 return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
