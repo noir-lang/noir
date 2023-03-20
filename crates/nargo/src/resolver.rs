@@ -6,10 +6,12 @@ use std::{
 use acvm::Language;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
+use thiserror::Error;
 
 use crate::{
-    errors::CliError,
+    git::clone_git_repo,
     manifest::{Dependency, PackageManifest},
+    InvalidPackageError,
 };
 
 /// Creates a unique folder name for a GitHub repo
@@ -19,6 +21,27 @@ pub(crate) fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     folder_name.push_str(base.path());
     folder_name.push_str(tag);
     folder_name
+}
+
+/// Errors covering situations where a crate's dependency tree cannot be resolved.
+#[derive(Debug, Error)]
+pub(crate) enum DependencyResolutionError {
+    /// Encountered error while downloading git repository.
+    #[error("{0}")]
+    GitError(String),
+
+    /// Attempted to depend on a binary crate.
+    #[error("dependency {dep_pkg_name} is a binary package and so it cannot be depended upon.")]
+    BinaryDependency { dep_pkg_name: String },
+
+    /// Attempted to depend on remote crate which has a local dependency.
+    /// We have no guarantees that this local dependency will be available so must error.
+    #[error("remote(git) dependency has a local dependency.\ndependency located at {}", dependency_path.display())]
+    RemoteDepWithLocalDep { dependency_path: PathBuf },
+
+    /// Dependency is not a valid crate
+    #[error(transparent)]
+    MalformedDependency(#[from] InvalidPackageError),
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +74,7 @@ impl<'a> Resolver<'a> {
     pub(crate) fn resolve_root_manifest(
         dir_path: &std::path::Path,
         np_language: Language,
-    ) -> Result<Driver, CliError> {
+    ) -> Result<Driver, DependencyResolutionError> {
         let mut driver = Driver::new(&np_language);
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
@@ -77,7 +100,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         parent_crate: CrateId,
         manifest: PackageManifest,
-    ) -> Result<(), CliError> {
+    ) -> Result<(), DependencyResolutionError> {
         let mut cached_packages: HashMap<PathBuf, (CrateId, CachedDep)> = HashMap::new();
 
         // First download and add these top level dependencies crates to the Driver
@@ -87,9 +110,9 @@ impl<'a> Resolver<'a> {
             let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
 
             if crate_type == &CrateType::Binary {
-                return Err(CliError::Generic(format!(
-                    "{dep_pkg_name} is a binary package and so it cannot be depended upon. src : {pkg_src:?}"
-                )));
+                return Err(DependencyResolutionError::BinaryDependency {
+                    dep_pkg_name: dep_pkg_name.to_string(),
+                });
             }
 
             let crate_id = self.driver.create_non_local_crate(entry_path, *crate_type);
@@ -99,12 +122,9 @@ impl<'a> Resolver<'a> {
         }
 
         // Resolve all transitive dependencies
-        for (dir_path, (crate_id, dep_meta)) in cached_packages.into_iter() {
+        for (dependency_path, (crate_id, dep_meta)) in cached_packages.into_iter() {
             if dep_meta.remote && manifest.has_local_path() {
-                return Err(CliError::Generic(format!(
-                    "remote(git) dependency depends on a local path. \ndependency located at {}",
-                    dir_path.display()
-                )));
+                return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
             let mut new_res = Resolver::with_driver(self.driver);
             new_res.resolve_manifest(crate_id, dep_meta.manifest)?;
@@ -118,8 +138,11 @@ impl<'a> Resolver<'a> {
     ///
     /// If it's a local path, the same applies, however it will not
     /// be downloaded
-    fn cache_dep(dep: &Dependency) -> Result<(PathBuf, CachedDep), CliError> {
-        fn retrieve_meta(dir_path: &Path, remote: bool) -> Result<CachedDep, CliError> {
+    fn cache_dep(dep: &Dependency) -> Result<(PathBuf, CachedDep), DependencyResolutionError> {
+        fn retrieve_meta(
+            dir_path: &Path,
+            remote: bool,
+        ) -> Result<CachedDep, DependencyResolutionError> {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
             let manifest_path = super::find_package_manifest(dir_path)?;
             let manifest = super::manifest::parse(manifest_path)?;
@@ -128,7 +151,8 @@ impl<'a> Resolver<'a> {
 
         match dep {
             Dependency::Github { git, tag } => {
-                let dir_path = Resolver::resolve_git_dep(git, tag)?;
+                let dir_path =
+                    clone_git_repo(git, tag).map_err(DependencyResolutionError::GitError)?;
                 let meta = retrieve_meta(&dir_path, true)?;
                 Ok((dir_path, meta))
             }
@@ -137,13 +161,6 @@ impl<'a> Resolver<'a> {
                 let meta = retrieve_meta(&dir_path, false)?;
                 Ok((dir_path, meta))
             }
-        }
-    }
-
-    fn resolve_git_dep(url: &str, tag: &str) -> Result<PathBuf, CliError> {
-        match super::git::clone_git_repo(url, tag) {
-            Ok(path) => Ok(path),
-            Err(msg) => Err(CliError::Generic(msg)),
         }
     }
 }
