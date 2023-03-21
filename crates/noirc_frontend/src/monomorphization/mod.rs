@@ -504,7 +504,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let ident = ast::Ident { location, mutable, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
-            DefinitionKind::Global(expr_id) => self.expr_infer(*expr_id),
+            DefinitionKind::Global(expr_id, _slot) => self.expr_infer(*expr_id),
             DefinitionKind::Local(_) => {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)

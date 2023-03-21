@@ -11,6 +11,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::type_check::TypeCheckError;
+use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
@@ -202,7 +203,7 @@ impl DefinitionInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionKind {
     Function(FuncId),
-    Global(ExprId),
+    Global(ExprId, Option<StorageSlot>),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -217,13 +218,13 @@ impl DefinitionKind {
     /// True if this definition is for a global variable.
     /// Note that this returns false for top-level functions.
     pub fn is_global(&self) -> bool {
-        matches!(self, DefinitionKind::Global(_))
+        matches!(self, DefinitionKind::Global(..))
     }
 
     pub fn get_rhs(self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(id),
+            DefinitionKind::Global(id, ..) => Some(id),
             DefinitionKind::Local(id) => id,
             DefinitionKind::GenericType(_) => None,
         }
