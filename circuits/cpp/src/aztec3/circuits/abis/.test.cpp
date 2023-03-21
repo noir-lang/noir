@@ -16,7 +16,7 @@ class abi_tests : public ::testing::Test {};
 TEST(abi_tests, test_native_function_data)
 {
     FunctionData<NT> function_data = {
-        .function_encoding = 11,
+        .function_selector = 11,
         .is_private = false,
         .is_constructor = false,
     };
@@ -32,7 +32,7 @@ TEST(abi_tests, test_native_function_data)
 TEST(abi_tests, test_native_to_circuit_function_data)
 {
     FunctionData<NT> native_function_data = {
-        .function_encoding = 11,
+        .function_selector = 11,
         .is_private = false,
         .is_constructor = false,
     };
@@ -87,7 +87,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //         .public_call_stack = { 26, 27, 28, 29 },
 //         .contract_deployment_call_stack = { 30, 31 },
 //         .partial_l1_call_stack = { 32, 33 },
-//         .old_private_data_tree_root = 38,
+//         .historic_private_data_tree_root = 38,
 //     };
 
 //     info("public_circuit_public_inputs: ", public_inputs);
@@ -104,7 +104,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //         .public_call_stack = { 26, 27, 28, 29 },
 //         .contract_deployment_call_stack = { 30, 31 },
 //         .partial_l1_call_stack = { 32, 33 },
-//         .old_private_data_tree_root = 38,
+//         .historic_private_data_tree_root = 38,
 //     };
 
 //     info("public_circuit_public_inputs: ", native_public_inputs);
@@ -126,13 +126,13 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //         .public_call_stack = { 26, 27, 28, 29 },
 //         .contract_deployment_call_stack = { 30, 31 },
 //         .partial_l1_call_stack = { 32, 33 },
-//         .old_private_data_tree_root = 38,
+//         .historic_private_data_tree_root = 38,
 //     };
 
 //     CallStackItem<NT, CallType::Public> call_stack_item = {
 //         .function_data = {
 //             // .contract_address = 10,
-//             .function_encoding = 11,
+//             .function_selector = 11,
 //             .is_private = false,
 //             .is_constructor = false,
 //         },
@@ -159,13 +159,13 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 //         .public_call_stack = { 26, 27, 28, 29 },
 //         .contract_deployment_call_stack = { 30, 31 },
 //         .partial_l1_call_stack = { 32, 33 },
-//         .old_private_data_tree_root = 38,
+//         .historic_private_data_tree_root = 38,
 //     };
 
 //     CallStackItem<NT, CallType::Public> native_call_stack_item = {
 //         .function_data = {
 //             // .contract_address = 10,
-//             .function_encoding = 11,
+//             .function_selector = 11,
 //             .is_private = false,
 //             .is_constructor = false,
 //         },

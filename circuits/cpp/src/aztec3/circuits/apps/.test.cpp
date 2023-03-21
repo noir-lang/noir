@@ -96,20 +96,17 @@ class state_var_tests : public ::testing::Test {
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
         FunctionData<NT> function_data{
-            .function_encoding = 1, // TODO: deduce this from the contract, somehow.
+            .function_selector = 1, // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
         };
 
-        CallContext<NT> call_context{
-            .msg_sender = msg_sender,
-            .storage_contract_address = contract_address,
-            .tx_origin = msg_sender,
-            .is_delegate_call = false,
-            .is_static_call = false,
-            .is_contract_deployment = false,
-            .reference_block_num = 0,
-        };
+        CallContext<NT> call_context{ .msg_sender = msg_sender,
+                                      .storage_contract_address = contract_address,
+                                      .tx_origin = msg_sender,
+                                      .is_delegate_call = false,
+                                      .is_static_call = false,
+                                      .is_contract_deployment = false };
 
         return NativeOracle(db, contract_address, function_data, call_context, msg_sender_private_key);
     };

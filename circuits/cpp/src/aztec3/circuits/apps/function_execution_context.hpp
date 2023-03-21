@@ -170,7 +170,7 @@ template <typename Composer> class FunctionExecutionContext {
         memcpy(&f_encoding, f_encoding_bytes.data(), sizeof(f_encoding));
 
         fr f_encoding_ct = fr(f_encoding);
-        // Important Note: we MUST constrain this function_encoding value against a fixed selector value. Without the
+        // Important Note: we MUST constrain this function_selector value against a fixed selector value. Without the
         // below line, an attacker could pass any f_encoding as a witness.
         f_encoding_ct.convert_constant_to_fixed_witness(&composer);
 
@@ -180,7 +180,7 @@ template <typename Composer> class FunctionExecutionContext {
 
         const FunctionData<CT> f_function_data_ct{
             // Note: we MUST
-            .function_encoding = f_encoding_ct,
+            .function_selector = f_encoding_ct,
             .is_private = true,
             .is_constructor = false,
         };
@@ -192,7 +192,6 @@ template <typename Composer> class FunctionExecutionContext {
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,
-            .reference_block_num = 0,
         };
 
         NativeOracle f_oracle(oracle.native_oracle.db,

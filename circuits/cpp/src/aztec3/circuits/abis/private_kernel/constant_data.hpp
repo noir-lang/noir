@@ -57,4 +57,26 @@ template <typename NCT> struct ConstantData {
     }
 };
 
+template <typename NCT> void read(uint8_t const*& it, ConstantData<NCT>& constant_data)
+{
+    using serialize::read;
+
+    read(it, constant_data.old_tree_roots);
+    read(it, constant_data.tx_context);
+};
+
+template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantData<NCT> const& constant_data)
+{
+    using serialize::write;
+
+    write(buf, constant_data.old_tree_roots);
+    write(buf, constant_data.tx_context);
+};
+
+template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantData<NCT> const& constant_data)
+{
+    return os << "old_tree_roots: " << constant_data.old_tree_roots << "\n"
+              << "tx_context: " << constant_data.tx_context << "\n";
+}
+
 } // namespace aztec3::circuits::abis::private_kernel

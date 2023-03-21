@@ -66,4 +66,31 @@ template <typename NCT> struct PublicInputs {
     }
 };
 
+template <typename NCT> void read(uint8_t const*& it, PublicInputs<NCT>& public_inputs)
+{
+    using serialize::read;
+
+    read(it, public_inputs.end);
+    read(it, public_inputs.constants);
+    read(it, public_inputs.is_private);
+};
+
+template <typename NCT> void write(std::vector<uint8_t>& buf, PublicInputs<NCT> const& public_inputs)
+{
+    using serialize::write;
+
+    write(buf, public_inputs.end);
+    write(buf, public_inputs.constants);
+    write(buf, public_inputs.is_private);
+};
+
+template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicInputs<NCT> const& public_inputs)
+{
+    return os << "end:\n"
+              << public_inputs.end << "\n"
+              << "constants:\n"
+              << public_inputs.constants << "\n"
+              << "is_private: " << public_inputs.is_private << "\n";
+}
+
 } // namespace aztec3::circuits::abis::private_kernel

@@ -90,7 +90,7 @@ TEST(private_kernel_tests, test_deposit)
     DB db;
 
     FunctionData<NT> function_data{
-        .function_encoding = 1, // TODO: deduce this from the contract, somehow.
+        .function_selector = 1, // TODO: deduce this from the contract, somehow.
         .is_private = true,
         .is_constructor = false,
     };
@@ -102,7 +102,6 @@ TEST(private_kernel_tests, test_deposit)
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,
-        .reference_block_num = 0,
     };
 
     NativeOracle deposit_oracle =
@@ -141,7 +140,6 @@ TEST(private_kernel_tests, test_deposit)
                 .is_rebate_payment_tx = false,
                 .is_contract_deployment_tx = false,
                 .contract_deployment_data = ContractDeploymentData<NT>(),
-                .reference_block_num = 0,
             },
         .chain_id = 1,
     };
@@ -188,7 +186,7 @@ TEST(private_kernel_tests, test_deposit)
             ConstantData<NT>{
                 .old_tree_roots =
                     OldTreeRoots<NT>{
-                        .private_data_tree_root = deposit_public_inputs.old_private_data_tree_root,
+                        .private_data_tree_root = deposit_public_inputs.historic_private_data_tree_root,
                         // .nullifier_tree_root =
                         // .contract_tree_root =
                         // .private_kernel_vk_tree_root =

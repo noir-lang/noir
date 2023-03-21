@@ -62,4 +62,32 @@ template <typename NCT> struct OldTreeRoots {
     }
 };
 
+template <typename NCT> void read(uint8_t const*& it, OldTreeRoots<NCT>& old_tree_roots)
+{
+    using serialize::read;
+
+    read(it, old_tree_roots.private_data_tree_root);
+    read(it, old_tree_roots.nullifier_tree_root);
+    read(it, old_tree_roots.contract_tree_root);
+    read(it, old_tree_roots.private_kernel_vk_tree_root);
+};
+
+template <typename NCT> void write(std::vector<uint8_t>& buf, OldTreeRoots<NCT> const& old_tree_roots)
+{
+    using serialize::write;
+
+    write(buf, old_tree_roots.private_data_tree_root);
+    write(buf, old_tree_roots.nullifier_tree_root);
+    write(buf, old_tree_roots.contract_tree_root);
+    write(buf, old_tree_roots.private_kernel_vk_tree_root);
+};
+
+template <typename NCT> std::ostream& operator<<(std::ostream& os, OldTreeRoots<NCT> const& old_tree_roots)
+{
+    return os << "private_data_tree_root: " << old_tree_roots.private_data_tree_root << "\n"
+              << "nullifier_tree_root: " << old_tree_roots.nullifier_tree_root << "\n"
+              << "contract_tree_root: " << old_tree_roots.contract_tree_root << "\n"
+              << "private_kernel_vk_tree_root: " << old_tree_roots.private_kernel_vk_tree_root << "\n";
+}
+
 } // namespace aztec3::circuits::abis::private_kernel

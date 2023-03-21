@@ -34,7 +34,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
     std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
 
-    fr old_private_data_tree_root;
+    fr historic_private_data_tree_root;
 
     address prover_address;
 
@@ -56,7 +56,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     //         std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH>::fill(0),
     //         std::array<fr, L1_MSG_STACK_LENGTH>::fill(0),
 
-    //         .old_private_data_tree_root = 0,
+    //         .historic_private_data_tree_root = 0,
 
     //         .prover_address = 0,
     //     };
@@ -87,7 +87,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
             .public_call_stack = to_ct(public_call_stack),
             .l1_msg_stack = to_ct(l1_msg_stack),
 
-            .old_private_data_tree_root = to_ct(old_private_data_tree_root),
+            .historic_private_data_tree_root = to_ct(historic_private_data_tree_root),
 
             .prover_address = to_ct(prover_address),
         };
@@ -116,7 +116,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         spread_arr_into_vec(public_call_stack, inputs);
         spread_arr_into_vec(l1_msg_stack, inputs);
 
-        inputs.push_back(old_private_data_tree_root);
+        inputs.push_back(historic_private_data_tree_root);
 
         return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
@@ -144,7 +144,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicCircuitPublicInputs<
     read(it, pis.public_call_stack);
     read(it, pis.l1_msg_stack);
 
-    read(it, pis.old_private_data_tree_root);
+    read(it, pis.historic_private_data_tree_root);
 
     read(it, pis.prover_address);
 };
@@ -167,7 +167,7 @@ void write(std::vector<uint8_t>& buf, PublicCircuitPublicInputs<NCT> const& priv
     write(buf, pis.public_call_stack);
     write(buf, pis.l1_msg_stack);
 
-    write(buf, pis.old_private_data_tree_root);
+    write(buf, pis.historic_private_data_tree_root);
 
     write(buf, pis.prover_address);
 };
@@ -187,7 +187,7 @@ std::ostream& operator<<(std::ostream& os, PublicCircuitPublicInputs<NCT> const&
               << "public_call_stack: " << pis.public_call_stack << "\n"
               << "l1_msg_stack: " << pis.l1_msg_stack << "\n"
 
-              << "old_private_data_tree_root: " << pis.old_private_data_tree_root << "\n"
+              << "historic_private_data_tree_root: " << pis.historic_private_data_tree_root << "\n"
 
               << "prover_address: " << pis.prover_address << "\n";
 }

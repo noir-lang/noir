@@ -25,7 +25,7 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
 
     std::vector<fr> sibling_path;
     uint32 leaf_index;
-    fr old_private_data_tree_root;
+    fr historic_private_data_tree_root;
 
     template <typename Composer> auto to_circuit_type(Composer& composer) const
     {
@@ -38,7 +38,7 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
 
         UTXOSLoadDatum<CircuitTypes<Composer>, decltype(preimage_ct)> datum = {
             to_ct(commitment),   to_ct(contract_address), preimage_ct,
-            to_ct(sibling_path), to_ct(leaf_index),       to_ct(old_private_data_tree_root),
+            to_ct(sibling_path), to_ct(leaf_index),       to_ct(historic_private_data_tree_root),
         };
 
         return datum;

@@ -1,5 +1,6 @@
 #pragma once
 #include "../optionally_revealed_data.hpp"
+#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -27,6 +28,8 @@ template <typename NCT> struct AccumulatedData {
     std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack;
     std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack;
     std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack;
+
+    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts;
 
     std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data;
 
@@ -57,6 +60,7 @@ template <typename NCT> struct AccumulatedData {
             to_ct(public_call_stack),
             to_ct(l1_msg_stack),
 
+            map(new_contracts, to_circuit_type),
             map(optionally_revealed_data, to_circuit_type),
         };
 
@@ -87,6 +91,7 @@ template <typename NCT> struct AccumulatedData {
             to_nt(public_call_stack),
             to_nt(l1_msg_stack),
 
+            map(new_contracts, to_native_type),
             map(optionally_revealed_data, to_native_type),
         };
 
@@ -108,6 +113,7 @@ template <typename NCT> struct AccumulatedData {
         set_array_public(public_call_stack);
         set_array_public(l1_msg_stack);
 
+        set_array_public(new_contracts);
         set_array_public(optionally_revealed_data);
     }
 
@@ -126,6 +132,65 @@ template <typename NCT> struct AccumulatedData {
             e.set_public();
         }
     }
+
+    template <size_t SIZE> void set_array_public(std::array<NewContractData<NCT>, SIZE>& arr)
+    {
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
+        for (auto& e : arr) {
+            e.set_public();
+        }
+    }
 };
+
+template <typename NCT> void read(uint8_t const*& it, AccumulatedData<NCT>& accum_data)
+{
+    using serialize::read;
+
+    read(it, accum_data.aggregation_object);
+    read(it, accum_data.private_call_count);
+    read(it, accum_data.new_commitments);
+    read(it, accum_data.new_nullifiers);
+    read(it, accum_data.private_call_stack);
+    read(it, accum_data.public_call_stack);
+    read(it, accum_data.l1_msg_stack);
+    read(it, accum_data.new_contracts);
+    read(it, accum_data.optionally_revealed_data);
+};
+
+template <typename NCT> void write(std::vector<uint8_t>& buf, AccumulatedData<NCT> const& accum_data)
+{
+    using serialize::write;
+
+    write(buf, accum_data.aggregation_object);
+    write(buf, accum_data.private_call_count);
+    write(buf, accum_data.new_commitments);
+    write(buf, accum_data.new_nullifiers);
+    write(buf, accum_data.private_call_stack);
+    write(buf, accum_data.public_call_stack);
+    write(buf, accum_data.l1_msg_stack);
+    write(buf, accum_data.new_contracts);
+    write(buf, accum_data.optionally_revealed_data);
+};
+
+template <typename NCT> std::ostream& operator<<(std::ostream& os, AccumulatedData<NCT> const& accum_data)
+{
+    return os << "aggregation_object:\n"
+              << accum_data.aggregation_object << "\n"
+              << "private_call_count: " << accum_data.private_call_count << "\n"
+              << "new_commitments:\n"
+              << accum_data.new_commitments << "\n"
+              << "new_nullifiers:\n"
+              << accum_data.new_nullifiers << "\n"
+              << "private_call_stack:\n"
+              << accum_data.private_call_stack << "\n"
+              << "public_call_stack:\n"
+              << accum_data.public_call_stack << "\n"
+              << "l1_msg_stack:\n"
+              << accum_data.l1_msg_stack << "\n"
+              << "new_contracts:\n"
+              << accum_data.new_contracts << "\n"
+              << "optionally_revealed_data:\n"
+              << accum_data.optionally_revealed_data << "\n";
+}
 
 } // namespace aztec3::circuits::abis::private_kernel

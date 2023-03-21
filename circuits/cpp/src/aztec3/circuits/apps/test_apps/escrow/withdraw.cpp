@@ -95,7 +95,7 @@ OptionalPrivateCircuitPublicInputs<NT> withdraw(FunctionExecutionContext& exec_c
     exec_ctx.finalise();
 
     /// TODO: merkle membership check
-    // public_inputs.old_private_data_tree_root
+    // public_inputs.historic_private_data_tree_root
 
     info("public inputs: ", public_inputs);
 

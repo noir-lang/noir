@@ -1,7 +1,4 @@
 #pragma once
-// #include <barretenberg/crypto/generators/generator_data.hpp>
-#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
-// #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
@@ -21,7 +18,7 @@ template <typename NCT> struct FunctionData {
     // typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
 
-    uint32 function_encoding; // e.g. 1st 4-bytes of abi-encoding of function.
+    uint32 function_selector; // e.g. 1st 4-bytes of abi-encoding of function.
     boolean is_private = false;
     boolean is_constructor = false;
 
@@ -37,7 +34,7 @@ template <typename NCT> struct FunctionData {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         FunctionData<CircuitTypes<Composer>> function_data = {
-            to_ct(function_encoding),
+            to_ct(function_selector),
             to_ct(is_private),
             to_ct(is_constructor),
         };
@@ -51,7 +48,7 @@ template <typename NCT> struct FunctionData {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         FunctionData<NativeTypes> function_data = {
-            to_nt(function_encoding),
+            to_nt(function_selector),
             to_nt(is_private),
             to_nt(is_constructor),
         };
@@ -63,7 +60,7 @@ template <typename NCT> struct FunctionData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        fr(function_encoding).set_public();
+        fr(function_selector).set_public();
         fr(is_private).set_public();
         fr(is_constructor).set_public();
     }
@@ -72,7 +69,7 @@ template <typename NCT> struct FunctionData {
     fr hash() const
     {
         std::vector<fr> inputs = {
-            fr(function_encoding),
+            fr(function_selector),
             fr(is_private),
             fr(is_constructor),
         };
@@ -85,7 +82,7 @@ template <typename NCT> void read(uint8_t const*& it, FunctionData<NCT>& functio
 {
     using serialize::read;
 
-    read(it, function_data.function_encoding);
+    read(it, function_data.function_selector);
     read(it, function_data.is_private);
     read(it, function_data.is_constructor);
 };
@@ -94,14 +91,14 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionData<NCT> 
 {
     using serialize::write;
 
-    write(buf, function_data.function_encoding);
+    write(buf, function_data.function_selector);
     write(buf, function_data.is_private);
     write(buf, function_data.is_constructor);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<NCT> const& function_data)
 {
-    return os << "function_encoding: " << function_data.function_encoding << "\n"
+    return os << "function_selector: " << function_data.function_selector << "\n"
               << "is_private: " << function_data.is_private << "\n"
               << "is_constructor: " << function_data.is_constructor << "\n";
 }

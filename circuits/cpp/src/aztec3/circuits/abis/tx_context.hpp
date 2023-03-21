@@ -26,8 +26,6 @@ template <typename NCT> struct TxContext {
 
     ContractDeploymentData<NCT> contract_deployment_data;
 
-    fr reference_block_num;
-
     template <typename Composer> TxContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
@@ -37,9 +35,10 @@ template <typename NCT> struct TxContext {
         // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         TxContext<CircuitTypes<Composer>> tx_context = {
-            to_ct(is_fee_payment_tx),         to_ct(is_rebate_payment_tx),
-            to_ct(is_contract_deployment_tx), contract_deployment_data.to_circuit_type(composer),
-            to_ct(reference_block_num),
+            to_ct(is_fee_payment_tx),
+            to_ct(is_rebate_payment_tx),
+            to_ct(is_contract_deployment_tx),
+            contract_deployment_data.to_circuit_type(composer),
         };
 
         return tx_context;
@@ -52,9 +51,10 @@ template <typename NCT> struct TxContext {
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
         TxContext<NativeTypes> tx_context = {
-            to_nt(is_fee_payment_tx),         to_nt(is_rebate_payment_tx),
-            to_nt(is_contract_deployment_tx), to_native_type(contract_deployment_data),
-            to_nt(reference_block_num),
+            to_nt(is_fee_payment_tx),
+            to_nt(is_rebate_payment_tx),
+            to_nt(is_contract_deployment_tx),
+            to_native_type(contract_deployment_data),
         };
 
         return tx_context;
@@ -68,14 +68,15 @@ template <typename NCT> struct TxContext {
         fr(is_rebate_payment_tx).set_public();
         fr(is_contract_deployment_tx).set_public();
         contract_deployment_data.set_public();
-        reference_block_num.set_public();
     }
 
     fr hash() const
     {
         std::vector<fr> inputs = {
-            fr(is_fee_payment_tx),           fr(is_rebate_payment_tx), fr(is_contract_deployment_tx),
-            contract_deployment_data.hash(), reference_block_num,
+            fr(is_fee_payment_tx),
+            fr(is_rebate_payment_tx),
+            fr(is_contract_deployment_tx),
+            contract_deployment_data.hash(),
         };
 
         return NCT::compress(inputs, GeneratorIndex::TX_CONTEXT);
@@ -90,7 +91,6 @@ template <typename NCT> void read(uint8_t const*& it, TxContext<NCT>& tx_context
     read(it, tx_context.is_rebate_payment_tx);
     read(it, tx_context.is_contract_deployment_tx);
     read(it, tx_context.contract_deployment_data);
-    read(it, tx_context.reference_block_num);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, TxContext<NCT> const& tx_context)
@@ -101,7 +101,6 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, TxContext<NCT> con
     write(buf, tx_context.is_rebate_payment_tx);
     write(buf, tx_context.is_contract_deployment_tx);
     write(buf, tx_context.contract_deployment_data);
-    write(buf, tx_context.reference_block_num);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, TxContext<NCT> const& tx_context)
@@ -109,8 +108,9 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, TxContext<NCT
     return os << "is_fee_payment_tx: " << tx_context.is_fee_payment_tx << "\n"
               << "is_rebate_payment_tx: " << tx_context.is_rebate_payment_tx << "\n"
               << "is_contract_deployment_tx: " << tx_context.is_contract_deployment_tx << "\n"
-              << "contract_deployment_data: " << tx_context.contract_deployment_data << "\n"
-              << "reference_block_num: " << tx_context.reference_block_num << "\n";
+              << "contract_deployment_data: "
+              << "\n"
+              << tx_context.contract_deployment_data;
 }
 
 } // namespace aztec3::circuits::abis

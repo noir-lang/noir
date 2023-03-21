@@ -24,7 +24,7 @@ class escrow_tests : public ::testing::Test {
             uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
 
         FunctionData<NT> function_data{
-            .function_encoding = 1, // TODO: deduce this from the contract, somehow.
+            .function_selector = 1, // TODO: deduce this from the contract, somehow.
             .is_private = true,
             .is_constructor = false,
         };
@@ -36,7 +36,6 @@ class escrow_tests : public ::testing::Test {
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,
-            .reference_block_num = 0,
         };
 
         return NativeOracle(db, contract_address, function_data, call_context, msg_sender_private_key);

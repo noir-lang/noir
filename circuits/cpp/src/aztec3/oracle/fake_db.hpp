@@ -67,7 +67,7 @@ class FakeDB {
 
             .sibling_path = sibling_path,
             .leaf_index = 2,
-            .old_private_data_tree_root = required_utxo_tree_root,
+            .historic_private_data_tree_root = required_utxo_tree_root,
         };
     };
 
@@ -115,7 +115,7 @@ class FakeDB {
 
                 .sibling_path = sibling_path,
                 .leaf_index = 2,
-                .old_private_data_tree_root = required_utxo_tree_root,
+                .historic_private_data_tree_root = required_utxo_tree_root,
             });
         }
 
@@ -159,7 +159,7 @@ class FakeDB {
 
             .sibling_path = sibling_path,
             .leaf_index = 2,
-            .old_private_data_tree_root = required_utxo_tree_root,
+            .historic_private_data_tree_root = required_utxo_tree_root,
         };
     };
 };
