@@ -284,6 +284,14 @@ fn type_check_index_expression(
             }
         }
     });
+    // TODO: replace the above by the below in order to activate dynamic arrays
+    // index_type.make_subtype_of(&Type::field(Some(span)), span, errors, || {
+    //     TypeCheckError::TypeMismatch {
+    //         expected_typ: "Field".to_owned(),
+    //         expr_typ: index_type.to_string(),
+    //         expr_span: span,
+    //     }
+    // });
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
     match lhs_type {
