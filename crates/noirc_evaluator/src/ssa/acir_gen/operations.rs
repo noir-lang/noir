@@ -8,6 +8,6 @@ pub(super) mod intrinsics;
 pub(super) mod load;
 pub(super) mod not;
 pub(super) mod r#return;
-mod sort;
+pub(crate) mod sort;
 pub(super) mod store;
 pub(super) mod truncate;

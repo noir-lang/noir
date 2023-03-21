@@ -11,24 +11,45 @@ use crate::{
 
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
-pub(super) fn evaluate_permutation(
+pub(crate) fn evaluate_permutation(
     in_expr: &Vec<Expression>,
     out_expr: &Vec<Expression>,
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
-    let (w, b) = permutation_layer(in_expr, evaluator);
+    let bits = Vec::new();
+    let (w, b) = permutation_layer(in_expr, &bits, true, evaluator);
+    // we constrain the network output to out_expr
+    for (b, o) in b.iter().zip(out_expr) {
+        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
+    }
+    w
+}
+
+// Same as evaluate_permutation() but uses the provided witness as network control bits
+pub(crate) fn evaluate_permutation_with_witness(
+    in_expr: &Vec<Expression>,
+    out_expr: &Vec<Expression>,
+    bits: &Vec<Witness>,
+    evaluator: &mut Evaluator,
+) {
+    let (w, b) = permutation_layer(in_expr, bits, false, evaluator);
+    debug_assert_eq!(w, *bits);
     // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
-    w
 }
 
 // Generates gates for a sorting network
 // returns witness corresponding to the network configuration and the expressions corresponding to the network output
 // in_expr: inputs of the sorting network
-pub(super) fn permutation_layer(
+// if generate_witness is false, it uses the witness provided in bits instead of generating them
+// in both cases it returns the witness of the network configuration
+// if generate_witnes is true, bits is ignored
+fn permutation_layer(
     in_expr: &Vec<Expression>,
+    bits: &[Witness],
+    generate_witness: bool,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Vec<Expression>) {
     let n = in_expr.len();
@@ -36,11 +57,16 @@ pub(super) fn permutation_layer(
         return (Vec::new(), in_expr.clone());
     }
     let n1 = n / 2;
-    let mut conf = Vec::new();
+
     // witness for the input switches
-    for _ in 0..n1 {
-        conf.push(evaluator.add_witness_to_cs());
-    }
+    let mut conf = iter_extended::vecmap(0..n1, |i| {
+        if generate_witness {
+            evaluator.add_witness_to_cs()
+        } else {
+            bits[i]
+        }
+    });
+
     // compute expressions after the input switches
     // If inputs are a1,a2, and the switch value is c, then we compute expressions b1,b2 where
     // b1 = a1+q, b2 = a2-q, q = c(a2-a1)
@@ -63,11 +89,13 @@ pub(super) fn permutation_layer(
     }
     let mut out_expr = Vec::new();
     // compute results for the sub networks
-    let (w1, b1) = permutation_layer(&in_sub1, evaluator);
-    let (w2, b2) = permutation_layer(&in_sub2, evaluator);
-    // apply the output switches
+    let bits1 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2..] };
+    let (w1, b1) = permutation_layer(&in_sub1, bits1, generate_witness, evaluator);
+    let bits2 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2 + w1.len()..] };
+    let (w2, b2) = permutation_layer(&in_sub2, bits2, generate_witness, evaluator);
+    // apply the output swithces
     for i in 0..(n - 1) / 2 {
-        let c = evaluator.add_witness_to_cs();
+        let c = if generate_witness { evaluator.add_witness_to_cs() } else { bits[n1 + i] };
         conf.push(c);
         let intermediate =
             mul_with_witness(evaluator, &c.into(), &subtract(&b2[i], FieldElement::one(), &b1[i]));
@@ -92,7 +120,10 @@ mod test {
         FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
-    use crate::{ssa::acir_gen::operations::sort::evaluate_permutation, Evaluator};
+    use crate::{
+        ssa::acir_gen::operations::sort::{evaluate_permutation, permutation_layer},
+        Evaluator,
+    };
     use rand::prelude::*;
 
     struct MockBackend {}
@@ -132,7 +163,9 @@ mod test {
             }
             //generate constraints for the inputs
             let w = evaluate_permutation(&input, &output, &mut eval);
-
+            //checks that it generate the same witness
+            let (w1, _) = permutation_layer(&input, &w, false, &mut eval);
+            assert_eq!(w, w1);
             //we generate random network
             let mut c = Vec::new();
             for _i in 0..w.len() {

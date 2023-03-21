@@ -9,9 +9,8 @@ pub(crate) fn save_proof_to_dir<P: AsRef<Path>>(
     proof_name: &str,
     proof_dir: P,
 ) -> Result<PathBuf, CliError> {
-    let mut proof_path = create_named_dir(proof_dir.as_ref(), "proof");
-    proof_path.push(proof_name);
-    proof_path.set_extension(PROOF_EXT);
+    create_named_dir(proof_dir.as_ref(), "proof");
+    let proof_path = proof_dir.as_ref().join(proof_name).with_extension(PROOF_EXT);
 
     write_to_file(hex::encode(proof).as_bytes(), &proof_path);
 

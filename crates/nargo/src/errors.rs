@@ -4,6 +4,8 @@ use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
 
+use crate::resolver::DependencyResolutionError;
+
 #[derive(Debug, Error)]
 pub(crate) enum CliError {
     #[error("{0}")]
@@ -23,25 +25,22 @@ pub(crate) enum CliError {
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
+    #[error(transparent)]
+    ResolutionError(#[from] DependencyResolutionError),
+
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
     CompilationError,
-}
 
-impl From<OpcodeResolutionError> for CliError {
-    fn from(value: OpcodeResolutionError) -> Self {
-        CliError::Generic(value.to_string())
-    }
-}
+    /// Input parsing error
+    #[error(transparent)]
+    InputParserError(#[from] InputParserError),
 
-impl From<InputParserError> for CliError {
-    fn from(error: InputParserError) -> Self {
-        CliError::Generic(error.to_string())
-    }
-}
+    /// ABI encoding/decoding error
+    #[error(transparent)]
+    AbiError(#[from] AbiError),
 
-impl From<AbiError> for CliError {
-    fn from(error: AbiError) -> Self {
-        CliError::Generic(error.to_string())
-    }
+    /// ACIR circuit solving error
+    #[error(transparent)]
+    SolvingError(#[from] OpcodeResolutionError),
 }

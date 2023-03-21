@@ -74,6 +74,8 @@ mod test {
     use iter_extended::vecmap;
     use noirc_errors::{Location, Span};
 
+    use crate::graph::CrateId;
+    use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
@@ -85,7 +87,6 @@ mod test {
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
     use crate::BinaryOpKind;
-    use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -233,10 +234,13 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<ModuleDefId, Ident> {
+        ) -> Result<ModuleDefId, PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            self.0.get(&name.0.contents).cloned().ok_or_else(|| name.clone())
+            self.0
+                .get(&name.0.contents)
+                .cloned()
+                .ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 
         fn local_module_id(&self) -> LocalModuleId {
