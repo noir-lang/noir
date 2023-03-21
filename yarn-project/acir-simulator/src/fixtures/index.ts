@@ -2,10 +2,8 @@ import { compile } from '@noir-lang/noir_wasm';
 import { dirname, join as pathJoin } from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import Resolver from '@noir-lang/noir-source-resolver';
+import { initialiseResolver } from '@noir-lang/noir-source-resolver';
 import toml from 'toml';
-
-const initialiseResolver = Resolver.default;
 
 const circuitsPath = pathJoin(dirname(fileURLToPath(import.meta.url)), 'circuits');
 

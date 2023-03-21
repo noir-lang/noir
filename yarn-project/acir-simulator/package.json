@@ -34,7 +34,7 @@
   "devDependencies": {
     "@aztec/eslint-config": "workspace:^",
     "@jest/globals": "^29.4.3",
-    "@noir-lang/noir-source-resolver": "^1.0.0",
+    "@noir-lang/noir-source-resolver": "^1.1.0",
     "@noir-lang/noir_wasm": "0.2.0-9bec92a",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.4.0",

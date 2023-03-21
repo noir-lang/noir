@@ -21,7 +21,7 @@ __metadata:
   dependencies:
     "@aztec/eslint-config": "workspace:^"
     "@jest/globals": ^29.4.3
-    "@noir-lang/noir-source-resolver": ^1.0.0
+    "@noir-lang/noir-source-resolver": ^1.1.0
     "@noir-lang/noir_wasm": 0.2.0-9bec92a
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
@@ -1439,10 +1439,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/noir-source-resolver@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@noir-lang/noir-source-resolver@npm:1.0.0"
-  checksum: 08cb6b145bccc521bb56cfe0af2a25369558b8266098b79bc432eb3cb653d3085cce8d7b5dacedf8c6f455a25128c709e5255bf54c69d0c435fb75c07d39b8db
+"@noir-lang/noir-source-resolver@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@noir-lang/noir-source-resolver@npm:1.1.0"
+  checksum: c3077f6740e613fd7866715ba01053f9711cff47c1196a780ff7b2683a5e500d08791ac304515ccbe906d32cdabf658df6fc825c775bb7d181abbf16e87cee92
   languageName: node
   linkType: hard
 
