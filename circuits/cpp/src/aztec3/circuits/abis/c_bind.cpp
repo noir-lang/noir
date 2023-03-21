@@ -173,7 +173,9 @@ WASM_EXPORT void abis__set_global_verifier_reference_string(uint8_t* data)
     serialize::set_global_verifier_reference_string(vrs);
 }
 
-/*** Serialization test helpers ***/
+/* Typescript test helpers that call as_string_output() to stress serialization.
+ * Each of these take an object buffer, and a string size pointer.
+ * They return a string pointer (to be bbfree'd) and write to the string size pointer. */
 WASM_EXPORT const char* abis__test_roundtrip_serialize_tx_context(uint8_t const* tx_context_buf, uint32_t* size)
 {
     return as_string_output<TxContext<NT>>(tx_context_buf, size);
