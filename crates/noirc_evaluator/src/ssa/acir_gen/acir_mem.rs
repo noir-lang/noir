@@ -35,12 +35,15 @@ type MemAddress = u32;
 
 enum ArrayType {
     /// Initialization phase: intializing the array with writes on the 0..array.len range
+    /// It contains the HashSet of the initialised indexes and the maximum of these indexes
     Init(HashSet<MemAddress>, u32),
     /// Array is only written on, never read
     WriteOnly,
     /// Initialization phase and then only read, and optionally a bunch of writes at the end
+    /// The optional usize indicates the position of the ending writes if any: after this position, there are only writes
     ReadOnly(Option<usize>),
-    /// reads and writes outside the initialization phase
+    /// Reads and writes outside the initialization phase
+    /// The optional usize indicates the position of the ending writes if any: after this position, there are only writes
     ReadWrite(Option<usize>),
 }
 
