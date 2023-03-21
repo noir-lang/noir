@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
-
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
+use log::debug;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use serde::{Deserialize, Serialize};
@@ -17,8 +17,14 @@ pub struct BuildInfo {
     dirty: &'static str,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WASMCompileOptions {
+    #[serde(default = "default_entry_point")]
+    entry_point: String,
+
+    #[serde(default = "default_circuit_name")]
+    circuit_name: String,
+
     // Compile each contract function used within the program
     #[serde(default = "bool::default")]
     contracts: bool,
@@ -30,12 +36,31 @@ pub struct WASMCompileOptions {
     optional_dependencies_set: Vec<String>,
 }
 
+fn default_circuit_name() -> String {
+    String::from("main")
+}
+
+fn default_entry_point() -> String {
+    String::from("main.nr")
+}
+
+impl Default for WASMCompileOptions {
+    fn default() -> Self {
+        Self {
+            entry_point: default_entry_point(),
+            circuit_name: default_circuit_name(),
+            contracts: false,
+            compile_options: CompileOptions::default(),
+            optional_dependencies_set: vec![],
+        }
+    }
+}
+
 const BUILD_INFO: BuildInfo = BuildInfo {
     git_hash: env!("GIT_COMMIT"),
     version: env!("CARGO_PKG_VERSION"),
     dirty: env!("GIT_DIRTY"),
 };
-
 pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
     let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
     let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
@@ -46,10 +71,23 @@ pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
 #[wasm_bindgen]
 pub fn compile(args: JsValue) -> JsValue {
     console_error_panic_hook::set_once();
-    let options: WASMCompileOptions = JsValueSerdeExt::into_serde(&args).unwrap();
+    wasm_logger::init(wasm_logger::Config::default());
+
+    let options: WASMCompileOptions = if args.is_undefined() || args.is_null() {
+        debug!("Initializing compiler with default values.");
+        WASMCompileOptions::default()
+    } else {
+        JsValueSerdeExt::into_serde(&args)
+            .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
+    };
+
+    debug!("Conpiler configureation {:?}", &options);
+
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-    let path = PathBuf::from("main.nr");
+
+    let path = PathBuf::from(&options.entry_point);
+
     let mut driver = noirc_driver::Driver::new(&language);
 
     driver.create_local_crate(path, CrateType::Binary);
