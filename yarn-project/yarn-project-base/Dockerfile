@@ -12,11 +12,9 @@ RUN apk update && apk add --no-cache build-base git python3 curl bash jq
 WORKDIR /usr/src/yarn-project
 # We only want to copy the package.json's, to ensure we only rebuild this image if project dependencies changed.
 COPY acir-simulator/package.json acir-simulator/package.json
+COPY archiver/package.json archiver/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
 COPY aztec.js/package.json aztec.js/package.json
-COPY barretenberg.js/package.json barretenberg.js/package.json
-COPY circuit.js/package.json circuit.js/package.json
-COPY data-archiver/package.json data-archiver/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/example/package.json ethereum.js/example/package.json
@@ -31,8 +29,10 @@ COPY wallet/package.json wallet/package.json
 # All workspaces use the linting config, so always include it.
 COPY eslint-config eslint-config
 COPY prettier-config prettier-config
-COPY .pnp.cjs .pnp.loader.mjs .yarnrc.yml package.json tsconfig.json yarn.lock ./
+COPY package.json tsconfig.json yarn.lock ./
 COPY .yarn .yarn
+# Use PNP in CI context
+COPY .yarnrc.prod.yml .yarnrc.yml
 # Although we're attempting to be "zero-install", in practice we still need to build arch specific packages.
 RUN yarn --immutable
 # If everything's worked properly, we should no longer need access to the network.

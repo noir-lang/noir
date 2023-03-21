@@ -4,18 +4,11 @@ import { abiCoder } from '../contract/index.js';
 
 const EIP_191_PREFIX = Buffer.from('1901', 'hex');
 
-type Options = any;
-
 /**
  * Get the dependencies of a struct type. If a struct has the same dependency multiple times, it's only included once
  * in the resulting array.
  */
-export const getDependencies = (
-  typedData: TypedData,
-  type: string,
-  options?: Options,
-  dependencies: string[] = [],
-): string[] => {
+export const getDependencies = (typedData: TypedData, type: string, dependencies: string[] = []): string[] => {
   const TYPE_REGEX = /^\w+/;
   const match = type.match(TYPE_REGEX)!;
   const actualType = match[0];
@@ -32,9 +25,7 @@ export const getDependencies = (
     ...typedData.types[actualType].reduce<string[]>(
       (previous, type) => [
         ...previous,
-        ...getDependencies(typedData, type.type, options, previous).filter(
-          dependency => !previous.includes(dependency),
-        ),
+        ...getDependencies(typedData, type.type, previous).filter(dependency => !previous.includes(dependency)),
       ],
       [],
     ),
@@ -49,8 +40,8 @@ export const getDependencies = (
  * @param {Options} [options]
  * @return {string}
  */
-export const encodeType = (typedData: TypedData, type: string, options?: Options): string => {
-  const [primary, ...dependencies] = getDependencies(typedData, type, options);
+export const encodeType = (typedData: TypedData, type: string): string => {
+  const [primary, ...dependencies] = getDependencies(typedData, type);
   const types = [primary, ...dependencies.sort()];
 
   return types
@@ -63,20 +54,15 @@ export const encodeType = (typedData: TypedData, type: string, options?: Options
 /**
  * Get a type string as hash.
  */
-export const getTypeHash = (typedData: TypedData, type: string, options?: Options) => {
-  return keccak256(Buffer.from(encodeType(typedData, type, options)));
+export const getTypeHash = (typedData: TypedData, type: string) => {
+  return keccak256(Buffer.from(encodeType(typedData, type)));
 };
 
 /**
  * Encodes a single value to an ABI serialisable string, number or Buffer. Returns the data as tuple, which consists of
  * an array of ABI compatible types, and an array of corresponding values.
  */
-const encodeValue = (
-  typedData: TypedData,
-  type: string,
-  data: unknown,
-  options?: Options,
-): [string, Buffer | string] => {
+const encodeValue = (typedData: TypedData, type: string, data: unknown): [string, Buffer | string] => {
   // Checks for array types
   const ARRAY_REGEX = /^(.*)\[([0-9]*?)]$/;
   const match = type.match(ARRAY_REGEX);
@@ -92,7 +78,7 @@ const encodeValue = (
       throw new Error(`Cannot encode data: expected length of ${length}, but got ${data.length}`);
     }
 
-    const encodedData = data.map(item => encodeValue(typedData, arrayType, item, options));
+    const encodedData = data.map(item => encodeValue(typedData, arrayType, item));
     const types = encodedData.map(item => item[0]);
     const values = encodedData.map(item => item[1]);
 
@@ -100,7 +86,7 @@ const encodeValue = (
   }
 
   if (typedData.types[type]) {
-    return ['bytes32', getStructHash(typedData, type, data as Record<string, unknown>, options)];
+    return ['bytes32', getStructHash(typedData, type, data as Record<string, unknown>)];
   }
 
   // Strings and arbitrary byte arrays are hashed to bytes32
@@ -119,12 +105,7 @@ const encodeValue = (
  * Encode the data to an ABI encoded Buffer. The data should be a key -> value object with all the required values. All
  * dependant types are automatically encoded.
  */
-export const encodeData = (
-  typedData: TypedData,
-  type: string,
-  data: Record<string, unknown>,
-  options?: Options,
-): Buffer => {
+export const encodeData = (typedData: TypedData, type: string, data: Record<string, unknown>): Buffer => {
   const [types, values] = typedData.types[type].reduce<[string[], unknown[]]>(
     ([types, values], field) => {
       if (data[field.name] === undefined || data[field.name] === null) {
@@ -132,14 +113,14 @@ export const encodeData = (
       }
 
       const value = data[field.name];
-      const [type, encodedValue] = encodeValue(typedData, field.type, value, options);
+      const [type, encodedValue] = encodeValue(typedData, field.type, value);
 
       return [
         [...types, type],
         [...values, encodedValue],
       ];
     },
-    [['bytes32'], [getTypeHash(typedData, type, options)]],
+    [['bytes32'], [getTypeHash(typedData, type)]],
   );
 
   return abiCoder.encodeParameters(types, values);
@@ -149,20 +130,19 @@ export const encodeData = (
  * Get encoded data as a hash. The data should be a key -> value object with all the required values. All dependant
  * types are automatically encoded.
  */
-export const getStructHash = (typedData: TypedData, type: string, data: Record<string, unknown>, options?: Options) => {
-  return keccak256(encodeData(typedData, type, data, options));
+export const getStructHash = (typedData: TypedData, type: string, data: Record<string, unknown>) => {
+  return keccak256(encodeData(typedData, type, data));
 };
 
 /**
  * Get the EIP-191 encoded message to sign, from the typedData object. If `hash` is enabled, the message will be hashed
  * with Keccak256.
  */
-export const getMessage = (typedData: TypedData, hash?: boolean, options?: Options) => {
-  const { domain } = options || { domain: 'EIP712Domain', verifyDomain: true };
+export const getMessage = (typedData: TypedData, hash?: boolean, domain = 'EIP712Domain') => {
   const message = Buffer.concat([
     EIP_191_PREFIX,
-    getStructHash(typedData, domain, typedData.domain as Record<string, unknown>, options),
-    getStructHash(typedData, typedData.primaryType, typedData.message, options),
+    getStructHash(typedData, domain, typedData.domain as Record<string, unknown>),
+    getStructHash(typedData, typedData.primaryType, typedData.message),
   ]);
 
   if (hash) {
@@ -179,7 +159,6 @@ export const asArray = (
   typedData: TypedData,
   type: string = typedData.primaryType,
   data: Record<string, unknown> = typedData.message,
-  options?: Options,
 ): unknown[] => {
   if (!typedData.types[type]) {
     throw new Error('Cannot get data as array: type does not exist');
@@ -191,7 +170,7 @@ export const asArray = (
         throw new Error(`Cannot get data as array: missing data for '${name}'`);
       }
 
-      return [...array, asArray(typedData, type, data[name] as Record<string, unknown>, options)];
+      return [...array, asArray(typedData, type, data[name] as Record<string, unknown>)];
     }
 
     const value = data[name];

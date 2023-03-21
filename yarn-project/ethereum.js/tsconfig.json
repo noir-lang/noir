@@ -6,5 +6,5 @@
     "rootDir": "src",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
-  "include": ["src"]
+  "include": ["src", "src/eth_typed_data/fixtures/*.json"]
 }
