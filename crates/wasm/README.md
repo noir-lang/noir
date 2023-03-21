@@ -1,4 +1,4 @@
-# Noir wasm
+# Nargo wasm
 
 ## Dependencies
 

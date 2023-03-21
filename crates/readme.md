@@ -41,4 +41,4 @@ This crate comprises of the first few compiler passes that together we denote as
 
 ## wasm
 
-This crate is used to compile the Noir compiler into wasm. This is useful in the context where one wants to compile noir programs in the web browser.
+This crate is used to compile the Nargo package manager into wasm. This is useful in the context where one wants to compile noir programs in the web browser.

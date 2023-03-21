@@ -2159,7 +2159,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_wasm"
+name = "nargo_wasm"
 version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
