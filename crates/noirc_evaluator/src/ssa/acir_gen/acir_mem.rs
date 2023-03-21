@@ -18,7 +18,6 @@ use iter_extended::vecmap;
 use std::collections::{BTreeMap, HashSet};
 
 use super::{
-    //    const_from_expression,
     constraints::{self, mul_with_witness, subtract},
     operations::{self},
 };
