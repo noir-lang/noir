@@ -11,6 +11,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::type_check::TypeCheckError;
+use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
 use crate::hir_def::{
@@ -202,6 +203,7 @@ impl DefinitionInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionKind {
     Function(FuncId),
+
     Global(ExprId),
 
     /// Locals may be defined in let statements or parameters,
@@ -217,7 +219,7 @@ impl DefinitionKind {
     /// True if this definition is for a global variable.
     /// Note that this returns false for top-level functions.
     pub fn is_global(&self) -> bool {
-        matches!(self, DefinitionKind::Global(_))
+        matches!(self, DefinitionKind::Global(..))
     }
 
     pub fn get_rhs(self) -> Option<ExprId> {
@@ -234,6 +236,10 @@ impl DefinitionKind {
 pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
+
+    /// Global definitions have an associated storage slot if they are defined within
+    /// a contract. If they're defined elsewhere, this value is None.
+    pub storage_slot: Option<StorageSlot>,
 }
 
 impl Default for NodeInterner {
@@ -331,8 +337,14 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    pub fn push_global(
+        &mut self,
+        stmt_id: StmtId,
+        ident: Ident,
+        local_id: LocalModuleId,
+        storage_slot: Option<StorageSlot>,
+    ) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id, storage_slot });
     }
 
     /// Intern an empty global stmt. Used for collecting globals
