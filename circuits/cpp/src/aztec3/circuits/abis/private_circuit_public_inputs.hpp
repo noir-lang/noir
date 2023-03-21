@@ -20,7 +20,6 @@ using plonk::stdlib::witness_t;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
 
   public:
     CallContext<NCT> call_context;
@@ -213,9 +212,7 @@ std::ostream& operator<<(std::ostream& os, PrivateCircuitPublicInputs<NCT> const
 // std::nullopt)
 template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
     typedef typename std::optional<fr> opt_fr;
-    typedef typename std::optional<boolean> opt_boolean;
 
   public:
     std::optional<CallContext<NCT>> call_context;

@@ -13,7 +13,6 @@ using std::is_same;
 template <typename NCT> struct NewContractData {
     typedef typename NCT::address address;
     typedef typename NCT::fr fr;
-    typedef typename NCT::boolean boolean;
 
     address contract_address;
     address portal_contract_address;

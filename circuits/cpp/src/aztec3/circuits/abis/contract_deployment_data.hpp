@@ -15,7 +15,6 @@ using std::is_same;
 
 template <typename NCT> struct ContractDeploymentData {
     typedef typename NCT::address address;
-    typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
 
     fr constructor_vk_hash;
