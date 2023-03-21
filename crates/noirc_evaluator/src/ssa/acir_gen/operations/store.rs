@@ -3,6 +3,7 @@ use acvm::{
 };
 
 use crate::{
+    errors::RuntimeError,
     ssa::{
         acir_gen::{
             acir_mem::AcirMem,
@@ -36,7 +37,7 @@ pub(crate) fn evaluate(
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,
-) -> Option<InternalVar> {
+) -> Result<Option<InternalVar>, RuntimeError> {
     if let Operation::Store { array_id, index, value, predicate, .. } = *store {
         //maps the address to the rhs if address is known at compile time
         let index_var = var_cache.get_or_compute_internal_var_unwrap(index, evaluator, ctx);
@@ -44,7 +45,7 @@ pub(crate) fn evaluate(
 
         let pred = unwrap_predicate(ctx, predicate);
         if ctx.is_zero(pred) {
-            return None;
+            return Ok(None);
         }
         let pred_var = var_cache.get_or_compute_internal_var_unwrap(pred, evaluator, ctx);
 
@@ -117,5 +118,5 @@ pub(crate) fn evaluate(
         unreachable!("Expected store, got {:?}", store.opcode());
     }
     //we do not generate constraint, so no output.
-    None
+    Ok(None)
 }

@@ -264,13 +264,30 @@ fn type_check_index_expression(
 ) -> Type {
     let index_type = type_check_expression(interner, &index_expr.index, errors);
     let span = interner.expr_span(&index_expr.index);
-    index_type.make_subtype_of(&Type::field(Some(span)), span, errors, || {
-        TypeCheckError::TypeMismatch {
-            expected_typ: "Field".to_owned(),
-            expr_typ: index_type.to_string(),
-            expr_span: span,
+
+    index_type.unify(&Type::comp_time(Some(span)), span, errors, || {
+        // Specialize the error in the case the user has a Field, just not a `comptime` one.
+        if matches!(index_type, Type::FieldElement(..)) {
+            TypeCheckError::Unstructured {
+                msg: format!("Array index must be known at compile-time, but here a non-comptime {index_type} was used instead"),
+                span,
+            }
+        } else {
+            TypeCheckError::TypeMismatch {
+                expected_typ: "comptime Field".to_owned(),
+                expr_typ: index_type.to_string(),
+                expr_span: span,
+            }
         }
     });
+    // TODO: replace the above by the below in order to activate dynamic arrays
+    // index_type.make_subtype_of(&Type::field(Some(span)), span, errors, || {
+    //     TypeCheckError::TypeMismatch {
+    //         expected_typ: "Field".to_owned(),
+    //         expr_typ: index_type.to_string(),
+    //         expr_span: span,
+    //     }
+    // });
 
     let lhs_type = type_check_expression(interner, &index_expr.collection, errors);
     match lhs_type {
