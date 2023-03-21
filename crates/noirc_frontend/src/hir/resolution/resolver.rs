@@ -1,4 +1,3 @@
-use crate::hir::StorageSlot;
 // Fix usage of intern and resolve
 // In some places, we do intern, however in others we are resolving and interning
 // Ideally, I want to separate the interning and resolving abstractly
@@ -568,7 +567,7 @@ impl<'a> Resolver<'a> {
         for (stmt_id, global_info) in self.interner.get_all_globals() {
             if global_info.local_id == self.path_resolver.local_module_id() {
                 let global_stmt = self.interner.let_statement(&stmt_id);
-                let definition = DefinitionKind::Global(global_stmt.expression, None); // TODO
+                let definition = DefinitionKind::Global(global_stmt.expression);
                 self.add_global_variable_decl(global_info.ident, definition);
             }
         }
@@ -723,13 +722,9 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve_global_let(
-        &mut self,
-        let_stmt: crate::LetStatement,
-        storage_slot: Option<StorageSlot>,
-    ) -> HirStatement {
+    pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
         let expression = self.resolve_expression(let_stmt.expression);
-        let definition = DefinitionKind::Global(expression, storage_slot);
+        let definition = DefinitionKind::Global(expression);
 
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),

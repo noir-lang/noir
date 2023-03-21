@@ -204,9 +204,7 @@ impl DefinitionInfo {
 pub enum DefinitionKind {
     Function(FuncId),
 
-    /// Global definitions have an associated storage slot if they are defined within
-    /// a contract. If they're defined elsewhere, this value is None.
-    Global(ExprId, Option<StorageSlot>),
+    Global(ExprId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -227,7 +225,7 @@ impl DefinitionKind {
     pub fn get_rhs(self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id, ..) => Some(id),
+            DefinitionKind::Global(id) => Some(id),
             DefinitionKind::Local(id) => id,
             DefinitionKind::GenericType(_) => None,
         }
@@ -238,6 +236,10 @@ impl DefinitionKind {
 pub struct GlobalInfo {
     pub ident: Ident,
     pub local_id: LocalModuleId,
+
+    /// Global definitions have an associated storage slot if they are defined within
+    /// a contract. If they're defined elsewhere, this value is None.
+    pub storage_slot: Option<StorageSlot>,
 }
 
 impl Default for NodeInterner {
@@ -335,8 +337,14 @@ impl NodeInterner {
         self.id_to_type.insert(definition_id.into(), typ);
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    pub fn push_global(
+        &mut self,
+        stmt_id: StmtId,
+        ident: Ident,
+        local_id: LocalModuleId,
+        storage_slot: Option<StorageSlot>,
+    ) {
+        self.globals.insert(stmt_id, GlobalInfo { ident, local_id, storage_slot });
     }
 
     /// Intern an empty global stmt. Used for collecting globals

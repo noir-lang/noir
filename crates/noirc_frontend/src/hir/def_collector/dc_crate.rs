@@ -272,11 +272,11 @@ fn resolve_globals(
 
         let name = global.stmt_def.pattern.name_ident().clone();
 
-        let hir_stmt = resolver.resolve_global_let(global.stmt_def, storage_slot);
+        let hir_stmt = resolver.resolve_global_let(global.stmt_def);
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name, global.module_id);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
 
         (global.file_id, global.stmt_id)
     })
