@@ -11,6 +11,7 @@ using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
 template <typename NCT> struct OptionallyRevealedData {
+    typedef typename NCT::address address;
     typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
 
@@ -18,7 +19,7 @@ template <typename NCT> struct OptionallyRevealedData {
     FunctionData<NCT> function_data;
     std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
     fr vk_hash;
-    fr portal_contract_address; // an ETH address
+    address portal_contract_address;
     boolean pay_fee_from_l1;
     boolean pay_fee_from_public_l2;
     boolean called_from_l1;
@@ -68,7 +69,7 @@ template <typename NCT> struct OptionallyRevealedData {
         function_data.set_public();
         set_array_public(emitted_events);
         vk_hash.set_public();
-        portal_contract_address.set_public();
+        portal_contract_address.to_field().set_public();
         fr(pay_fee_from_l1).set_public();
         fr(pay_fee_from_public_l2).set_public();
         fr(called_from_l1).set_public();

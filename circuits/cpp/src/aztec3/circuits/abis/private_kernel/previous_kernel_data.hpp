@@ -1,4 +1,5 @@
 #pragma once
+#include "../barretenberg/proof.hpp"
 #include "aztec3/circuits/abis/private_kernel/public_inputs.hpp"
 #include "aztec3/circuits/abis/barretenberg/verifier_reference_string.hpp"
 #include "aztec3/circuits/abis/barretenberg/proof.hpp"
@@ -64,7 +65,7 @@ template <typename NCT> void read(uint8_t const*& it, PreviousKernelData<NCT>& k
     using serialize::read;
 
     read(it, kernel_data.public_inputs);
-    // read(it, kernel_data.proof); TODO
+    read(it, kernel_data.proof);
     read(it, kernel_data.vk);
     read(it, kernel_data.vk_index);
     read(it, kernel_data.vk_path);
@@ -76,7 +77,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PreviousKernelData
     using serialize::write;
 
     write(buf, kernel_data.public_inputs);
-    // write(buf, kernel_data.proof); TODO
+    write(buf, kernel_data.proof);
     write(buf, kernel_data.vk);
     write(buf, kernel_data.vk_index);
     write(buf, kernel_data.vk_path);

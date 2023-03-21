@@ -11,11 +11,12 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct NewContractData {
+    typedef typename NCT::address address;
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    fr contract_address;        // TODO: Change to aztec address type
-    fr portal_contract_address; // TODO: Change to eth address type
+    address contract_address;
+    address portal_contract_address;
     fr function_tree_root;
 
     template <typename Composer> NewContractData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -48,8 +49,8 @@ template <typename NCT> struct NewContractData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        contract_address.set_public();
-        portal_contract_address.set_public();
+        contract_address.to_field().set_public();
+        portal_contract_address.to_field().set_public();
         function_tree_root.set_public();
     }
 };

@@ -14,13 +14,14 @@ using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct ContractDeploymentData {
+    typedef typename NCT::address address;
     typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
 
     fr constructor_vk_hash;
     fr function_tree_root;
     fr contract_address_salt;
-    fr portal_contract_address; // TODO: no uint160 circuit type?
+    address portal_contract_address;
 
     bool operator==(ContractDeploymentData<NCT> const&) const = default;
 
@@ -66,7 +67,7 @@ template <typename NCT> struct ContractDeploymentData {
         constructor_vk_hash.assert_is_zero();
         function_tree_root.assert_is_zero();
         contract_address_salt.assert_is_zero();
-        portal_contract_address.assert_is_zero();
+        portal_contract_address.to_field().assert_is_zero();
     }
 
     void set_public()
@@ -76,7 +77,7 @@ template <typename NCT> struct ContractDeploymentData {
         constructor_vk_hash.set_public();
         function_tree_root.set_public();
         contract_address_salt.set_public();
-        portal_contract_address.set_public();
+        portal_contract_address.to_field().set_public();
     }
 
     fr hash() const
@@ -85,7 +86,7 @@ template <typename NCT> struct ContractDeploymentData {
             constructor_vk_hash,
             function_tree_root,
             contract_address_salt,
-            portal_contract_address,
+            portal_contract_address.to_field(),
         };
 
         return NCT::compress(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);

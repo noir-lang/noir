@@ -9,7 +9,8 @@ static std::shared_ptr<bonk::VerifierReferenceString>* global_verifier_reference
 // TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
 std::shared_ptr<bonk::VerifierReferenceString> get_global_verifier_reference_string()
 {
-    return *global_verifier_reference_string;
+    return global_verifier_reference_string ? *global_verifier_reference_string
+                                            : std::shared_ptr<bonk::VerifierReferenceString>();
 }
 // TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
 void set_global_verifier_reference_string(std::shared_ptr<bonk::VerifierReferenceString> const& vrs)
