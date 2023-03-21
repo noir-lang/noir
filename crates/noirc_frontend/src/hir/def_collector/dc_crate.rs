@@ -276,7 +276,7 @@ fn resolve_globals(
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id);
 
         (global.file_id, global.stmt_id)
     })
