@@ -10,7 +10,7 @@ use crate::{
         {block, builtin, node, ssa_form},
     },
 };
-use acvm::FieldElement;
+use acvm::{FieldElement, compiler::transformers::IsOpcodeSupported};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{

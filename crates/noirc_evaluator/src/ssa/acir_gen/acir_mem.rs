@@ -64,6 +64,82 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
+
+    /// This helper function transforms an expression into a linear expression, by generating a witness if the input expression is not linear nor constant
+    fn normalize_expression(expr: &mut Expression, evaluator: &mut Evaluator) -> Expression {
+        if !expr.is_linear() || expr.linear_combinations.len() > 1 {
+            let w = evaluator.create_intermediate_variable(expr);
+            Expression::from(w)
+        } else {
+            expr.clone()
+        }
+    }
+
+    /// Decide which opcode to use, depending on the backend support
+    fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32, is_opcde_supported: IsOpcodeSupported) {
+        let (block,ram,rom) = (IsOpcodeSupported(AcirOpcode::Block),IsOpcodeSupported(AcirOpcode::RAM),IsOpcodeSupported(AcirOpcode::ROM));
+       if rom
+       {
+            todo!("Check if the array is read-only and add the rom opcode if it is");   //TODO we need the R-O arrays PR
+            self.add_rom_opcode(evaluator,array_id, array_len);
+            return;
+       }
+
+        match (block,ram) {
+           (false, false) =>  self.generate_permutation_constraints(evaluator, array_id, array_len),
+           (false, true) => self.add_ram_opcode(evaluator,array_id, array_len),
+           (true, _) => 
+           {
+            evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+                id: AcirBlockId(id),
+                len: array_len,
+                trace: self.trace.clone(),
+            }));
+           },
+
+        }
+    }
+
+    fn add_rom_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+        let mut trace = Vec::new();
+        for op in self.trace {
+            let index = Self::normalize_expression(&mut op.index, evaluator);
+            let value = Self::normalize_expression(&mut op.value, evaluator);
+            trace.push(MemOp {
+                operation: op.operation,
+                index,
+                value,
+            });
+        }
+        evaluator.opcodes.push(AcirOpcode::ROM(MemoryBlock {
+            id: AcirBlockId(id),
+            len: array_len,
+            trace,
+        }));
+    }
+
+    fn add_ram_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+        todo!("Check there is an initialization phase"); //TODO we need the R-O array PR for this
+        let mut trace = Vec::new();
+        for op in self.trace {
+            //TODO - after the init, we need a witness per-index but this will be managed by BB - we need to wait for the BB ram PR
+            let index = Self::normalize_expression(&mut op.index, evaluator);
+            let value = Self::normalize_expression(&mut op.value, evaluator);
+            trace.push(MemOp {
+                operation: op.operation,
+                index,
+                value,
+            });
+        }
+        evaluator.opcodes.push(AcirOpcode::ROM(MemoryBlock {
+            id: AcirBlockId(id),
+            len: array_len,
+            trace,
+        }));
+    }
+
+   
+
     fn generate_outputs(
         inputs: Vec<Expression>,
         bits: &mut Vec<Witness>,
@@ -77,7 +153,7 @@ impl ArrayHeap {
         }
         outputs
     }
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+    pub(crate) fn generate_permutation_constraints(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
         let len = self.trace.len();
         if len == 0 {
             return;

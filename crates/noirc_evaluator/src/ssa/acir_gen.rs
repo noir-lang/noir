@@ -35,6 +35,7 @@ impl Acir {
         evaluator: &mut Evaluator,
         ctx: &SsaContext,
         root: &BasicBlock,
+        is_opcode_supported: IsOpcodeSupported,
         show_output: bool,
     ) -> Result<(), RuntimeError> {
         let mut current_block = Some(root);
