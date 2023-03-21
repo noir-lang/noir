@@ -13,14 +13,6 @@
 #include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 
-// #include <barretenberg/stdlib/primitives/bit_array/bit_array.hpp>
-// #include <barretenberg/stdlib/primitives/bool/bool.hpp>
-// #include <barretenberg/stdlib/primitives/byte_array/byte_array.hpp>
-// #include <barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
-// #include <barretenberg/stdlib/primitives/uint/uint.hpp>
-// #include <barretenberg/stdlib/primitives/point/point.hpp>
-// #include <barretenberg/stdlib/primitives/group/group.hpp>
-
 namespace aztec3::utils::types {
 
 // using plonk::stdlib::address;

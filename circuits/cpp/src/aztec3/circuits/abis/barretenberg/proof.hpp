@@ -1,11 +1,10 @@
 #pragma once
-#include <common/serialize.hpp>
-#include <stdlib/types/native_types.hpp>
+
+#include "aztec3/utils/types/native_types.hpp"
 
 namespace serialize {
-using Proof = plonk::stdlib::types::NativeTypes::Proof;
 
-inline void read(uint8_t const*& it, Proof& proof)
+inline void read(uint8_t const*& it, aztec3::utils::types::NativeTypes::Proof& proof)
 {
     using serialize::read;
 
@@ -14,7 +13,7 @@ inline void read(uint8_t const*& it, Proof& proof)
 } // namespace serialize
 
 namespace std {
-inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::types::NativeTypes::Proof const& data)
+inline std::ostream& operator<<(std::ostream& os, aztec3::utils::types::NativeTypes::Proof const& data)
 {
     return os << data.proof_data;
 }

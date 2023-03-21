@@ -1,6 +1,7 @@
 #pragma once
 #include "aztec3/circuits/abis/private_kernel/public_inputs.hpp"
-#include "aztec3/circuits/abis/verifier_reference_string.hpp"
+#include "aztec3/circuits/abis/barretenberg/verifier_reference_string.hpp"
+#include "aztec3/circuits/abis/barretenberg/proof.hpp"
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
@@ -54,7 +55,7 @@ template <typename B> inline void read(B& buf, verification_key& key)
     // Note this matches write() below
     verification_key_data data;
     read(buf, data);
-    key = verification_key{ std::move(data), get_global_verifier_reference_string() };
+    key = verification_key{ std::move(data), serialize::get_global_verifier_reference_string() };
 }
 
 template <typename NCT> void read(uint8_t const*& it, PreviousKernelData<NCT>& kernel_data)

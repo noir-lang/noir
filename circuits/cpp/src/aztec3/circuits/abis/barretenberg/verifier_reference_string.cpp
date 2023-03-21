@@ -1,6 +1,6 @@
 #include "verifier_reference_string.hpp"
 
-namespace aztec3::circuits::abis {
+namespace serialize {
 
 // TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
 // Use a pointer to play nicely in case initialization does not occur (i.e. WASM)
@@ -20,4 +20,4 @@ void set_global_verifier_reference_string(std::shared_ptr<bonk::VerifierReferenc
     *global_verifier_reference_string = vrs;
 }
 
-} // namespace aztec3::circuits::abis
+} // namespace serialize

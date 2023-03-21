@@ -1,7 +1,7 @@
 #include "c_bind.h"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
-#include "aztec3/circuits/abis/verifier_reference_string.hpp"
+#include "aztec3/circuits/abis/barretenberg/verifier_reference_string.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "tx_request.hpp"
 #include "tx_context.hpp"
@@ -126,7 +126,7 @@ WASM_EXPORT void abis__compute_function_leaf(uint8_t const* function_leaf_preima
 WASM_EXPORT void abis__set_global_verifier_reference_string(uint8_t* data)
 {
     auto vrs = std::make_shared<bonk::VerifierMemReferenceString>(data);
-    aztec3::circuits::abis::set_global_verifier_reference_string(vrs);
+    serialize::set_global_verifier_reference_string(vrs);
 }
 
 /*** Serialization test helpers ***/

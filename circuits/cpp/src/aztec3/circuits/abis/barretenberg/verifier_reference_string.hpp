@@ -4,7 +4,7 @@
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/proof_system/verification_key/verification_key.hpp"
 
-namespace aztec3::circuits::abis {
+namespace serialize {
 
 // TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
 std::shared_ptr<bonk::VerifierReferenceString> get_global_verifier_reference_string();
@@ -26,4 +26,4 @@ inline void write(std::vector<uint8_t>& buf, std::shared_ptr<bonk::verification_
     write(buf, *key.get());
 }
 
-} // namespace aztec3::circuits::abis
+} // namespace serialize

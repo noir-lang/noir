@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 #include <barretenberg/common/test.hpp>
 #include <barretenberg/common/serialize.hpp>
-// #include <barretenberg/numeric/random/engine.hpp>
 #include "index.hpp"
 #include <barretenberg/stdlib/types/types.hpp>
 
