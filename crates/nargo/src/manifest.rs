@@ -1,17 +1,40 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use thiserror::Error;
 
-use crate::errors::CliError;
+/// Errors covering situations where a package is either missing or malformed.
+#[derive(Debug, Error)]
+pub(crate) enum InvalidPackageError {
+    /// Package doesn't have a manifest file
+    #[error("cannot find a Nargo.toml in {}", .0.display())]
+    MissingManifestFile(PathBuf),
+
+    /// Package manifest is unreadable.
+    #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
+    MalformedManifestFile(toml::de::Error),
+
+    /// Package does not contain Noir source files.
+    #[error("cannot find src directory in path {}", .0.display())]
+    NoSourceDir(PathBuf),
+
+    /// Package has neither of `main.nr` and `lib.nr`.
+    #[error("package must contain either a `lib.nr`(Library) or a `main.nr`(Binary).")]
+    ContainsZeroCrates,
+
+    /// Package has both a `main.nr` (for binaries) and `lib.nr` (for libraries)
+    #[error("package cannot contain both a `lib.nr` and a `main.nr`")]
+    ContainsMultipleCrates,
+}
 
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct Config {
+pub(crate) struct PackageManifest {
     #[allow(dead_code)]
-    pub(crate) package: Package,
+    pub(crate) package: PackageMetadata,
     pub(crate) dependencies: BTreeMap<String, Dependency>,
 }
 
-impl Config {
+impl PackageManifest {
     // Local paths are usually relative and are discouraged when sharing libraries
     // It is better to separate these into different packages.
     pub(crate) fn has_local_path(&self) -> bool {
@@ -28,7 +51,7 @@ impl Config {
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct Package {
+pub(crate) struct PackageMetadata {
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
@@ -53,32 +76,18 @@ pub(crate) enum Dependency {
 /// Parses a Nargo.toml file from it's path
 /// The path to the toml file must be present.
 /// Calling this function without this guarantee is an ICE.
-pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<Config, CliError> {
+pub(crate) fn parse<P: AsRef<Path>>(
+    path_to_toml: P,
+) -> Result<PackageManifest, InvalidPackageError> {
     let toml_as_string =
         std::fs::read_to_string(&path_to_toml).expect("ice: path given for toml file is invalid");
 
-    match parse_toml_str(&toml_as_string) {
-        Ok(cfg) => Ok(cfg),
-        Err(msg) => {
-            let path = path_to_toml.as_ref();
-            Err(CliError::Generic(format!("{}\n Location: {}", msg, path.display())))
-        }
-    }
+    parse_toml_str(&toml_as_string)
 }
 
-fn parse_toml_str(toml_as_string: &str) -> Result<Config, String> {
-    match toml::from_str::<Config>(toml_as_string) {
-        Ok(cfg) => Ok(cfg),
-        Err(err) => {
-            let mut message = "input.toml file is badly formed, could not parse\n\n".to_owned();
-            // XXX: This error is not always that helpful, but it gives the line number
-            // and the entry, in those cases
-            // which is useful for telling the user where the error occurred
-            // XXX: maybe there is a way to extract ErrorInner from toml
-            message.push_str(&err.to_string());
-            Err(message)
-        }
-    }
+fn parse_toml_str(toml_as_string: &str) -> Result<PackageManifest, InvalidPackageError> {
+    toml::from_str::<PackageManifest>(toml_as_string)
+        .map_err(InvalidPackageError::MalformedManifestFile)
 }
 
 #[test]

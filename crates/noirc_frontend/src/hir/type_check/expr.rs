@@ -3,7 +3,7 @@ use noirc_errors::Span;
 
 use crate::{
     hir_def::{
-        expr::{self, HirBinaryOp, HirExpression, HirLiteral},
+        expr::{self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral},
         types::Type,
     },
     node_interner::{ExprId, FuncId, NodeInterner},
@@ -38,7 +38,7 @@ pub(crate) fn type_check_expression(
         }
         HirExpression::Literal(literal) => {
             match literal {
-                HirLiteral::Array(arr) => {
+                HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                     let elem_types =
                         vecmap(&arr, |arg| type_check_expression(interner, arg, errors));
 
@@ -67,6 +67,10 @@ pub(crate) fn type_check_expression(
                     }
 
                     arr_type
+                }
+                HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
+                    let elem_type = type_check_expression(interner, &repeated_element, errors);
+                    Type::Array(Box::new(length), Box::new(elem_type))
                 }
                 HirLiteral::Bool(_) => Type::Bool(CompTime::new(interner)),
                 HirLiteral::Integer(_) => {

@@ -1,17 +1,15 @@
 use acvm::ProofSystemCompiler;
-use iter_extended::{try_btree_map, try_vecmap};
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
-use noirc_frontend::{hir::def_map::Contract, node_interner::FuncId};
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use clap::Args;
 
+use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::save_program_to_file;
 use super::preprocess_cmd::preprocess_with_path;
-use super::{add_std_lib, NargoConfig};
+use super::NargoConfig;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -27,25 +25,15 @@ pub(crate) struct CompileCommand {
     compile_options: CompileOptions,
 }
 
-struct CompiledContract {
-    /// The name of the contract.
-    name: String,
-    /// Each of the contract's functions are compiled into a separate `CompiledProgram`
-    /// stored in this `BTreeMap`.
-    functions: BTreeMap<String, CompiledProgram>,
-}
-
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let driver = check_crate(&config.program_dir, &args.compile_options)?;
-
-    let mut circuit_dir = config.program_dir;
-    circuit_dir.push(TARGET_DIR);
+    let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let compiled_contracts = try_vecmap(driver.get_all_contracts(), |contract| {
-            compile_contract(&driver, contract, &args.compile_options)
-        })?;
+        let mut driver = setup_driver(&config.program_dir)?;
+        let compiled_contracts = driver
+            .compile_contracts(&args.compile_options)
+            .map_err(|_| CliError::CompilationError)?;
 
         // Flatten each contract into a list of its functions, each being assigned a unique name.
         let compiled_programs = compiled_contracts.into_iter().flat_map(|contract| {
@@ -61,51 +49,14 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         }
         Ok(())
     } else {
-        let main = driver.main_function().map_err(|_| CliError::CompilationError)?;
-        let program = compile_program(&driver, main, &args.compile_options, &args.circuit_name)?;
+        let program = compile_circuit(&config.program_dir, &args.compile_options)?;
         save_and_preprocess_program(&program, &args.circuit_name, &circuit_dir)
     }
 }
 
-fn setup_driver(program_dir: &Path) -> Result<Driver, CliError> {
+fn setup_driver(program_dir: &Path) -> Result<Driver, DependencyResolutionError> {
     let backend = crate::backends::ConcreteBackend;
-    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
-    add_std_lib(&mut driver);
-    Ok(driver)
-}
-
-fn check_crate(program_dir: &Path, options: &CompileOptions) -> Result<Driver, CliError> {
-    let mut driver = setup_driver(program_dir)?;
-    driver.check_crate(options).map_err(|_| CliError::CompilationError)?;
-    Ok(driver)
-}
-
-/// Compiles all of the functions associated with a Noir contract.
-fn compile_contract(
-    driver: &Driver,
-    contract: Contract,
-    compile_options: &CompileOptions,
-) -> Result<CompiledContract, CliError> {
-    let functions = try_btree_map(&contract.functions, |function| {
-        let function_name = driver.function_name(*function).to_owned();
-        let program_id = format!("{}-{}", contract.name, function_name);
-
-        compile_program(driver, *function, compile_options, &program_id)
-            .map(|program| (function_name, program))
-    })?;
-
-    Ok(CompiledContract { name: contract.name, functions })
-}
-
-fn compile_program(
-    driver: &Driver,
-    main: FuncId,
-    compile_options: &CompileOptions,
-    program_id: &str,
-) -> Result<CompiledProgram, CliError> {
-    driver
-        .compile_no_check(compile_options, main)
-        .map_err(|_| CliError::Generic(format!("'{}' failed to compile", program_id)))
+    Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
 
 /// Save a program to disk along with proving and verification keys.
@@ -122,7 +73,7 @@ fn save_and_preprocess_program(
 pub(crate) fn compile_circuit(
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<noirc_driver::CompiledProgram, CliError> {
+) -> Result<CompiledProgram, CliError> {
     let mut driver = setup_driver(program_dir)?;
     driver.compile_main(compile_options).map_err(|_| CliError::CompilationError)
 }

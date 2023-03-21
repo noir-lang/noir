@@ -251,9 +251,22 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = Self::convert_type(&self.interner.id_type(expr));
                 Literal(Integer(value, typ))
             }
-            HirExpression::Literal(HirLiteral::Array(array)) => {
+            HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(array))) => {
                 let element_type = Self::convert_type(&self.interner.id_type(array[0]));
                 let contents = vecmap(array, |id| self.expr_infer(id));
+                Literal(Array(ast::ArrayLiteral { contents, element_type }))
+            }
+            HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Repeated {
+                repeated_element,
+                length,
+            })) => {
+                let element_type = Self::convert_type(&self.interner.id_type(repeated_element));
+                let contents = self.expr_infer(repeated_element);
+                let length = length
+                    .evaluate_to_u64()
+                    .expect("Length of array is unknown when evaluating numeric generic");
+
+                let contents = vec![contents; length as usize];
                 Literal(Array(ast::ArrayLiteral { contents, element_type }))
             }
             HirExpression::Block(block) => self.block(block.0),
@@ -479,22 +492,35 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
         let definition = self.interner.definition(ident.id);
-        match definition.kind {
+        match &definition.kind {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
                 let typ = self.interner.id_type(expr_id);
 
-                let definition = self.lookup_function(func_id, expr_id, &typ);
+                let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
-            DefinitionKind::Global(expr_id) => self.expr_infer(expr_id),
+            DefinitionKind::Global(expr_id) => self.expr_infer(*expr_id),
             DefinitionKind::Local(_) => {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)
+            }
+            DefinitionKind::GenericType(type_variable) => {
+                let value = match &*type_variable.borrow() {
+                    TypeBinding::Unbound(_) => {
+                        unreachable!("Unbound type variable used in expression")
+                    }
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u64().unwrap_or_else(|| {
+                        panic!("Non-numeric type variable used in expression expecting a value")
+                    }),
+                };
+
+                let value = FieldElement::from(value as u128);
+                ast::Expression::Literal(ast::Literal::Integer(value, ast::Type::Field))
             }
         }
     }
