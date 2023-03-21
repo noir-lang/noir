@@ -232,7 +232,6 @@ impl ArrayHeap {
 #[derive(Default)]
 pub(crate) struct AcirMem {
     virtual_memory: BTreeMap<ArrayId, ArrayHeap>,
-    //pub(crate) dummy: Witness,
 }
 
 impl AcirMem {
@@ -277,7 +276,7 @@ impl AcirMem {
         })
     }
 
-    // number of bits required to store the input
+    // Number of bits required to store the input
     fn bits(mut t: usize) -> u32 {
         let mut r = 0;
         while t != 0 {
