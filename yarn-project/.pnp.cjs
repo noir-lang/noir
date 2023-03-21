@@ -150,7 +150,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@aztec/eslint-config", "workspace:eslint-config"],\
             ["@jest/globals", "npm:29.5.0"],\
             ["@noir-lang/noir-source-resolver", "npm:1.1.0"],\
-            ["@noir-lang/noir_wasm", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.2.0-9bec92a"],\
+            ["@noir-lang/noir_wasm", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.3.2-29b1f7df"],\
             ["@rushstack/eslint-patch", "npm:1.2.0"],\
             ["@types/jest", "npm:29.4.0"],\
             ["@types/node", "npm:18.14.6"],\
@@ -2085,17 +2085,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["@noir-lang/noir_wasm", [\
-        ["npm:0.2.0-9bec92a", {\
-          "packageLocation": "./.yarn/cache/@noir-lang-noir_wasm-npm-0.2.0-9bec92a-bf50bab9b9-3fc84a13f3.zip/node_modules/@noir-lang/noir_wasm/",\
+        ["npm:0.3.2-29b1f7df", {\
+          "packageLocation": "./.yarn/cache/@noir-lang-noir_wasm-npm-0.3.2-29b1f7df-8d8f235340-f5e61eb256.zip/node_modules/@noir-lang/noir_wasm/",\
           "packageDependencies": [\
-            ["@noir-lang/noir_wasm", "npm:0.2.0-9bec92a"]\
+            ["@noir-lang/noir_wasm", "npm:0.3.2-29b1f7df"]\
           ],\
           "linkType": "SOFT"\
         }],\
-        ["virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.2.0-9bec92a", {\
-          "packageLocation": "./.yarn/__virtual__/@noir-lang-noir_wasm-virtual-89aedf68ea/0/cache/@noir-lang-noir_wasm-npm-0.2.0-9bec92a-bf50bab9b9-3fc84a13f3.zip/node_modules/@noir-lang/noir_wasm/",\
+        ["virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.3.2-29b1f7df", {\
+          "packageLocation": "./.yarn/__virtual__/@noir-lang-noir_wasm-virtual-257da628ef/0/cache/@noir-lang-noir_wasm-npm-0.3.2-29b1f7df-8d8f235340-f5e61eb256.zip/node_modules/@noir-lang/noir_wasm/",\
           "packageDependencies": [\
-            ["@noir-lang/noir_wasm", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.2.0-9bec92a"],\
+            ["@noir-lang/noir_wasm", "virtual:97973ff51783dc29efdf1c1cff3bd542763fb1d8ea565946db4f6425a5a443923944d5f46e5672160073e5b792b61ec2b3a0e9df4f007033f07c728780e0e4e7#npm:0.3.2-29b1f7df"],\
             ["@noir-lang/noir-source-resolver", "npm:1.1.0"],\
             ["@types/noir-lang__noir-source-resolver", null]\
           ],\
