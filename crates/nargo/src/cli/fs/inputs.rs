@@ -25,12 +25,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
         return Ok((BTreeMap::new(), None));
     }
 
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
     if !file_path.exists() {
         return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
     }
@@ -49,12 +44,7 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
 ) -> Result<(), CliError> {
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
 
     // We must insert the return value into the `InputMap` in order for it to be written to file.
     let serialized_output = match return_value {

@@ -5,13 +5,13 @@ use std::path::Path;
 use crate::errors::CliError;
 
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct Config {
+pub(crate) struct PackageManifest {
     #[allow(dead_code)]
-    pub(crate) package: Package,
+    pub(crate) package: PackageMetadata,
     pub(crate) dependencies: BTreeMap<String, Dependency>,
 }
 
-impl Config {
+impl PackageManifest {
     // Local paths are usually relative and are discouraged when sharing libraries
     // It is better to separate these into different packages.
     pub(crate) fn has_local_path(&self) -> bool {
@@ -28,7 +28,7 @@ impl Config {
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct Package {
+pub(crate) struct PackageMetadata {
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
@@ -53,7 +53,7 @@ pub(crate) enum Dependency {
 /// Parses a Nargo.toml file from it's path
 /// The path to the toml file must be present.
 /// Calling this function without this guarantee is an ICE.
-pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<Config, CliError> {
+pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<PackageManifest, CliError> {
     let toml_as_string =
         std::fs::read_to_string(&path_to_toml).expect("ice: path given for toml file is invalid");
 
@@ -66,8 +66,8 @@ pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<Config, CliError>
     }
 }
 
-fn parse_toml_str(toml_as_string: &str) -> Result<Config, String> {
-    match toml::from_str::<Config>(toml_as_string) {
+fn parse_toml_str(toml_as_string: &str) -> Result<PackageManifest, String> {
+    match toml::from_str::<PackageManifest>(toml_as_string) {
         Ok(cfg) => Ok(cfg),
         Err(err) => {
             let mut message = "input.toml file is badly formed, could not parse\n\n".to_owned();
