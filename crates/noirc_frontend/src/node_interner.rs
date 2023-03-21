@@ -203,6 +203,9 @@ impl DefinitionInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionKind {
     Function(FuncId),
+
+    /// Global definitions have an associated storage slot if they are defined within
+    /// a contract. If they're defined elsewhere, this value is None.
     Global(ExprId, Option<StorageSlot>),
 
     /// Locals may be defined in let statements or parameters,
