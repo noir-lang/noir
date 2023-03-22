@@ -135,7 +135,8 @@ impl InternalVarCache {
             w
         } else {
             //if not, we use the constants map
-            let var = self.constants.entry(value).or_insert(InternalVar::from_constant(value));
+            let var =
+                self.constants.entry(value).or_insert_with(|| InternalVar::from_constant(value));
             Self::const_to_witness_helper(var, evaluator)
         }
     }
