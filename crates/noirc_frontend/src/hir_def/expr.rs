@@ -76,10 +76,16 @@ impl HirBinaryOp {
 
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
-    Array(Vec<ExprId>),
+    Array(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum HirArrayLiteral {
+    Standard(Vec<ExprId>),
+    Repeated { repeated_element: ExprId, length: Type },
 }
 
 #[derive(Debug, Clone)]

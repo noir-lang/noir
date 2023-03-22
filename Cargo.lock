@@ -169,7 +169,7 @@ dependencies = [
 
 [[package]]
 name = "arena"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "generational-arena",
 ]
@@ -1370,7 +1370,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cfg-if 1.0.0",
  "codespan-reporting 0.9.5",
@@ -1853,7 +1853,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.3.1"
+version = "0.3.2"
 
 [[package]]
 name = "itertools"
@@ -2072,7 +2072,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "barretenberg_static_lib",
@@ -2083,7 +2083,6 @@ dependencies = [
  "color-eyre",
  "const_format",
  "dirs 4.0.0",
- "fm",
  "hex",
  "iter-extended",
  "marlin_arkworks_backend",
@@ -2102,7 +2101,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "build-data",
@@ -2116,7 +2115,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "iter-extended",
@@ -2128,11 +2127,12 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "clap",
  "fm",
+ "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
@@ -2142,7 +2142,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chumsky",
  "codespan",
@@ -2153,7 +2153,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "arena",
@@ -2169,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "acvm 0.6.0",
  "arena",

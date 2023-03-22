@@ -36,17 +36,11 @@ pub(crate) struct ProveCommand {
 }
 
 pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliError> {
-    let mut proof_dir = config.program_dir.clone();
-    proof_dir.push(PROOFS_DIR);
+    let proof_dir = config.program_dir.join(PROOFS_DIR);
 
-    let circuit_build_path = if let Some(circuit_name) = args.circuit_name {
-        let mut circuit_build_path = config.program_dir.clone();
-        circuit_build_path.push(TARGET_DIR);
-        circuit_build_path.push(circuit_name);
-        Some(circuit_build_path)
-    } else {
-        None
-    };
+    let circuit_build_path = args
+        .circuit_name
+        .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
     prove_with_path(
         args.proof_name,

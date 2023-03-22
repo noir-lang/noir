@@ -8,7 +8,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{errors::CliError, resolver::Resolver};
 
-use super::{add_std_lib, NargoConfig};
+use super::NargoConfig;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -33,8 +33,7 @@ fn run_tests(
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    let mut driver = Resolver::resolve_root_config(program_dir, backend.np_language())?;
-    add_std_lib(&mut driver);
+    let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
     driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
 

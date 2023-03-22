@@ -25,12 +25,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
         return Ok((BTreeMap::new(), None));
     }
 
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
     if !file_path.exists() {
         return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
     }
@@ -49,12 +44,7 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
 ) -> Result<(), CliError> {
-    let file_path = {
-        let mut dir_path = path.as_ref().to_path_buf();
-        dir_path.push(file_name);
-        dir_path.set_extension(format.ext());
-        dir_path
-    };
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
 
     // We must insert the return value into the `InputMap` in order for it to be written to file.
     let serialized_output = match return_value {
@@ -72,4 +62,67 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     write_to_file(serialized_output.as_bytes(), &file_path);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::BTreeMap, vec};
+
+    use acvm::FieldElement;
+    use noirc_abi::{
+        input_parser::{Format, InputValue},
+        Abi, AbiParameter, AbiType, AbiVisibility,
+    };
+    use tempdir::TempDir;
+
+    use super::{read_inputs_from_file, write_inputs_to_file};
+    use crate::constants::VERIFIER_INPUT_FILE;
+
+    #[test]
+    fn write_and_read_recovers_inputs_and_return_value() {
+        let input_dir = TempDir::new("input_dir").unwrap().into_path();
+
+        // We purposefully test a simple ABI here as we're focussing on `fs`.
+        // Tests for serializing complex types should exist in `noirc_abi`.
+        let abi = Abi {
+            parameters: vec![
+                AbiParameter {
+                    name: "foo".into(),
+                    typ: AbiType::Field,
+                    visibility: AbiVisibility::Public,
+                },
+                AbiParameter {
+                    name: "bar".into(),
+                    typ: AbiType::String { length: 11 },
+                    visibility: AbiVisibility::Private,
+                },
+            ],
+            return_type: Some(AbiType::Field),
+
+            // Input serialization is only dependent on types, not position in witness map.
+            // Neither of these should be relevant so we leave them empty.
+            param_witnesses: BTreeMap::new(),
+            return_witnesses: Vec::new(),
+        };
+        let input_map = BTreeMap::from([
+            ("foo".to_owned(), InputValue::Field(42u128.into())),
+            ("bar".to_owned(), InputValue::String("hello world".to_owned())),
+        ]);
+        let return_value = Some(InputValue::Field(FieldElement::zero()));
+
+        write_inputs_to_file(
+            &input_map,
+            &return_value,
+            &input_dir,
+            VERIFIER_INPUT_FILE,
+            Format::Toml,
+        )
+        .unwrap();
+
+        let (loaded_inputs, loaded_return_value) =
+            read_inputs_from_file(input_dir, VERIFIER_INPUT_FILE, Format::Toml, &abi).unwrap();
+
+        assert_eq!(loaded_inputs, input_map);
+        assert_eq!(loaded_return_value, return_value);
+    }
 }

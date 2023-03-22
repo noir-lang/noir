@@ -122,16 +122,16 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
-        let (unresolved, resolved) =
+        let (resolved, unresolved_imports) =
             resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
 
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
-        for unresolved_import in unresolved.into_iter() {
-            // File if that the import was declared
-            let file_id = current_def_map.modules[unresolved_import.module_id.0].origin.file_id();
-            let error = DefCollectorErrorKind::UnresolvedImport { import: unresolved_import };
-            errors.push(error.into_file_diagnostic(file_id));
-        }
+
+        errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
+            let file_id = current_def_map.modules[module_id.0].origin.file_id();
+            let error = DefCollectorErrorKind::PathResolutionError(error);
+            error.into_file_diagnostic(file_id)
+        }));
 
         // Populate module namespaces according to the imports used
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
@@ -258,11 +258,10 @@ fn resolve_globals(
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
 ) -> Vec<(FileId, StmtId)> {
-    let mut global_ids = Vec::new();
-
-    for global in globals {
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: global.module_id, krate: crate_id });
+    vecmap(globals, |global| {
+        let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
+        let path_resolver = StandardPathResolver::new(module_id);
+        let storage_slot = context.next_storage_slot(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,
@@ -277,11 +276,10 @@ fn resolve_globals(
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
 
-        global_ids.push((global.file_id, global.stmt_id));
-    }
-    global_ids
+        (global.file_id, global.stmt_id)
+    })
 }
 
 fn type_check_globals(
