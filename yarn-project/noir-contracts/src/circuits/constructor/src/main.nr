@@ -26,16 +26,38 @@ fn main(
     ) {
     constrain_call_contexts(public_inputs.call_context, call_context);
 
-    constrain public_inputs.args == args;
-    constrain public_inputs.return_values == [0; abi::MAX_RETURN_VALUES];
-    constrain public_inputs.logs == [0; abi::MAX_LOGS];
 
-    constrain public_inputs.new_commitments == [0; abi::MAX_NEW_COMMITMENTS];
-    constrain public_inputs.new_nullifiers == [0; abi::MAX_NEW_NULLIFIERS];
+    for i in 0..abi::MAX_ARGS {
+        constrain public_inputs.args[i] == args[i];
+    }
 
-    constrain public_inputs.private_call_stack == [0; abi::MAX_PRIVATE_CALL_STACK];
-    constrain public_inputs.public_call_stack == [0; abi::MAX_PUBLIC_CALL_STACK];
-    constrain public_inputs.l1_message_stack == [0; abi::MAX_L1_MSG_STACK];
+
+    for i in 0..abi::MAX_RETURN_VALUES {
+        constrain public_inputs.return_values[i] == 0;
+    }
+    for i in 0..abi::MAX_LOGS {
+        constrain public_inputs.logs[i] == 0;
+    }
+
+
+    for i in 0..abi::MAX_NEW_COMMITMENTS {
+        constrain public_inputs.new_commitments[i] == 0;
+    }
+    for i in 0..abi::MAX_NEW_NULLIFIERS {
+        constrain public_inputs.new_nullifiers[i] == 0;
+    }
+
+
+    for i in 0..abi::MAX_PRIVATE_CALL_STACK {
+        constrain public_inputs.private_call_stack[i] == 0;
+    }
+    for i in 0..abi::MAX_PUBLIC_CALL_STACK {
+        constrain public_inputs.public_call_stack[i] == 0;
+    }
+    for i in 0..abi::MAX_L1_MSG_STACK {
+        constrain public_inputs.l1_message_stack[i] == 0;
+    }
+
 
     constrain public_inputs.old_private_data_tree_root == 0;
     constrain public_inputs.old_nullifier_tree_root == 0;

@@ -18,6 +18,7 @@
     "ethereum.js/example",
     "kernel-simulator",
     "key-store",
+    "noir-contracts",
     "p2p",
     "prettier-config",
     "prover-client",

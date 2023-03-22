@@ -4,81 +4,9 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { initialiseResolver } from '@noir-lang/noir-source-resolver';
 import toml from 'toml';
+import { CompiledCircuit, Dependency } from './compiled_circuit.js';
 
 const circuitsPath = pathJoin(dirname(fileURLToPath(import.meta.url)), 'circuits');
-
-/**
- * A dependency entry of Nargo.toml.
- */
-interface Dependency {
-  /**
-   * Path to the dependency.
-   */
-  path?: string;
-  /**
-   * Git repository of the dependency.
-   */
-  git?: string;
-}
-
-/**
- * A circuit type.
- */
-interface CircuitType {
-  /**
-   * The actual type.
-   */
-  kind: any;
-}
-
-/**
- * A parameter to the circuit.
- */
-interface Parameter {
-  /**
-   * The name of the parameter.
-   */
-  name: string;
-  /**
-   * The type of the parameter.
-   */
-  type: CircuitType;
-  /**
-   * The visibility of the parameter.
-   */
-  visibility: 'private' | 'public';
-}
-
-/**
- * The representation of a compiled circuit.
- */
-interface CompiledCircuit {
-  /**
-   * The bytecode of the circuit.
-   */
-  circuit: Array<number>;
-  /**
-   * The Noir ABI of the circuit.
-   */
-  abi: {
-    /**
-     * The circuit  parameters.
-     */
-    parameters: Array<Parameter>;
-    /**
-     * The witness indices for the parameters.
-     */
-    param_witnesses: Record<string, Array<number>>;
-    /**
-     * The circuit return type.
-     */
-    return_type: CircuitType | null;
-    /**
-     * The witness indices for the return value.
-     */
-    return_witnesses: Array<number>;
-  };
-}
 
 /**
  *

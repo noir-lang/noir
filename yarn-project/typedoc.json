@@ -9,6 +9,7 @@
     "ethereum.js",
     "kernel-simulator",
     "key-store",
+    "noir-contracts",
     "p2p",
     "prover-client",
     "public-client",

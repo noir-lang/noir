@@ -224,6 +224,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/noir-contracts@workspace:noir-contracts":
+  version: 0.0.0-use.local
+  resolution: "@aztec/noir-contracts@workspace:noir-contracts"
+  dependencies:
+    "@aztec/eslint-config": "workspace:^"
+    "@jest/globals": ^29.4.3
+    "@noir-lang/noir-source-resolver": ^1.1.0
+    "@noir-lang/noir_wasm": 0.3.2-29b1f7df
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.4.0
+    "@types/node": ^18.7.23
+    jest: ^28.1.3
+    toml: ^3.0.0
+    ts-jest: ^28.0.7
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^4.9.5
+  languageName: unknown
+  linkType: soft
+
 "@aztec/p2p@workspace:p2p":
   version: 0.0.0-use.local
   resolution: "@aztec/p2p@workspace:p2p"

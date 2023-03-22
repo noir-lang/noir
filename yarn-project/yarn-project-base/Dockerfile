@@ -21,6 +21,7 @@ COPY ethereum.js/example/package.json ethereum.js/example/package.json
 COPY ethereum.js/package.json ethereum.js/package.json
 COPY kernel-simulator/package.json kernel-simulator/package.json
 COPY key-store/package.json key-store/package.json
+COPY noir-contracts/package.json noir-contracts/package.json
 COPY p2p/package.json p2p/package.json
 COPY prover-client/package.json prover-client/package.json
 COPY public-client/package.json public-client/package.json

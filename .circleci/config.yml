@@ -92,7 +92,7 @@ jobs:
           name: "Build and test"
           command: build aztec.js
 
-  acir-simulator:
+  noir-contracts:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -101,7 +101,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build and test"
-          command: build acir-simulator
+          command: build noir-contracts
 
   end-to-end:
     machine:
@@ -160,13 +160,13 @@ workflows:
           <<: *defaults
       - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
-      - acir-simulator: *yarn_project
       - end-to-end: *yarn_project
       - e2e-join:
           requires:
             - ethereum-js
             - aztec-js
-            - acir-simulator
             - end-to-end
+            - noir-contracts
           <<: *defaults
       - e2e-deploy-contract: *e2e_test
+      - noir-contracts: *yarn_project
