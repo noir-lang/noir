@@ -3,11 +3,11 @@
 #![warn(unreachable_pub)]
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
-use log::debug;
+use log::{debug, Level};
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize)]
@@ -34,6 +34,13 @@ pub struct WASMCompileOptions {
 
     #[serde(default)]
     optional_dependencies_set: Vec<String>,
+
+    #[serde(default = "default_log_level")]
+    log_level: String,
+}
+
+fn default_log_level() -> String {
+    String::from("info")
 }
 
 fn default_circuit_name() -> String {
@@ -49,6 +56,7 @@ impl Default for WASMCompileOptions {
         Self {
             entry_point: default_entry_point(),
             circuit_name: default_circuit_name(),
+            log_level: default_log_level(),
             contracts: false,
             compile_options: CompileOptions::default(),
             optional_dependencies_set: vec![],
@@ -56,6 +64,17 @@ impl Default for WASMCompileOptions {
     }
 }
 
+#[wasm_bindgen]
+pub fn init_log_level(level: String) {
+    // Set the static variable from Rust
+    use std::sync::Once;
+    static SET_HOOK: Once = Once::new();
+    SET_HOOK.call_once(|| {
+        wasm_logger::init(wasm_logger::Config::new(
+            Level::from_str(&level).unwrap_or(Level::Error),
+        ));
+    });
+}
 const BUILD_INFO: BuildInfo = BuildInfo {
     git_hash: env!("GIT_COMMIT"),
     version: env!("CARGO_PKG_VERSION"),
@@ -71,7 +90,6 @@ pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
 #[wasm_bindgen]
 pub fn compile(args: JsValue) -> JsValue {
     console_error_panic_hook::set_once();
-    wasm_logger::init(wasm_logger::Config::default());
 
     let options: WASMCompileOptions = if args.is_undefined() || args.is_null() {
         debug!("Initializing compiler with default values.");
@@ -81,7 +99,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
     };
 
-    debug!("Conpiler configureation {:?}", &options);
+    debug!("Compiler configureation {:?}", &options);
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
