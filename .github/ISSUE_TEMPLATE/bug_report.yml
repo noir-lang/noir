@@ -89,3 +89,10 @@ body:
     attributes:
       label: Additional context
       description: Please provide any additional context that may be applicable.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission Checklist
+      options:
+        - label: Once I hit submit, I will assign this issue to the Project Board with the appropriate tags.
+          required: true
