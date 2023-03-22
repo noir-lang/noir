@@ -12,9 +12,8 @@ pub(crate) fn save_program_to_file<P: AsRef<Path>>(
     circuit_name: &str,
     circuit_dir: P,
 ) -> PathBuf {
-    let mut circuit_path = create_named_dir(circuit_dir.as_ref(), "target");
-    circuit_path.push(circuit_name);
-    circuit_path.set_extension("json");
+    create_named_dir(circuit_dir.as_ref(), "target");
+    let circuit_path = circuit_dir.as_ref().join(circuit_name).with_extension("json");
 
     write_to_file(&serde_json::to_vec(compiled_program).unwrap(), &circuit_path);
 

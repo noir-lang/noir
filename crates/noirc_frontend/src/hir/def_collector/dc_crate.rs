@@ -258,11 +258,10 @@ fn resolve_globals(
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
 ) -> Vec<(FileId, StmtId)> {
-    let mut global_ids = Vec::new();
-
-    for global in globals {
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: global.module_id, krate: crate_id });
+    vecmap(globals, |global| {
+        let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
+        let path_resolver = StandardPathResolver::new(module_id);
+        let storage_slot = context.next_storage_slot(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,
@@ -277,11 +276,10 @@ fn resolve_globals(
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
-        context.def_interner.push_global(global.stmt_id, name.clone(), global.module_id);
+        context.def_interner.push_global(global.stmt_id, name, global.module_id, storage_slot);
 
-        global_ids.push((global.file_id, global.stmt_id));
-    }
-    global_ids
+        (global.file_id, global.stmt_id)
+    })
 }
 
 fn type_check_globals(

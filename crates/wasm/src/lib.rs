@@ -120,18 +120,20 @@ pub fn compile(args: JsValue) -> JsValue {
     driver.check_crate(&options.compile_options).unwrap_or_else(|_| panic!("Crate check failed"));
 
     if options.contracts {
-        let mut collected_compiled_programs = vec![];
+        let compiled_contracts = driver
+            .compile_contracts(&options.compile_options)
+            .unwrap_or_else(|_| panic!("Contract compilation failed"));
 
-        for contract in driver.get_all_contracts() {
-            contract.functions.into_iter().for_each(|function| {
-                let name = driver.function_name(function);
-                let key = format!("{}-{name}", &contract.name);
-                let compiled_program = driver
-                    .compile_no_check(&options.compile_options, function)
-                    .unwrap_or_else(|_| panic!("Compilation of `{key}` failed"));
-                collected_compiled_programs.push((key, compiled_program));
-            });
-        }
+        // Flatten each contract into a list of its functions, each being assigned a unique name.
+        let collected_compiled_programs: Vec<_> = compiled_contracts
+            .into_iter()
+            .flat_map(|contract| {
+                contract.functions.into_iter().map(move |(function, program)| {
+                    let program_name = format!("{}-{}", &contract.name, function);
+                    (program_name, program)
+                })
+            })
+            .collect();
 
         <JsValue as JsValueSerdeExt>::from_serde(&collected_compiled_programs).unwrap()
     } else {

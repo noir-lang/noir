@@ -44,6 +44,8 @@ fn test_array_functions() {
     
     let descending = myarray.sort_via(|a, b| a > b);
     constrain descending == [3, 2, 1];
+
+    constrain evens.map(|n| n / 2) == myarray;
 }
 
 fn foo() -> [u32; 2] {

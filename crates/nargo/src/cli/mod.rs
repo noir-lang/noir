@@ -1,11 +1,12 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use noirc_abi::InputMap;
-use noirc_driver::{CompileOptions, Driver};
-use noirc_frontend::graph::{CrateName, CrateType};
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
+
+use crate::find_package_root;
 
 mod fs;
 
@@ -60,19 +61,22 @@ enum NargoCommand {
 }
 
 pub fn start_cli() -> eyre::Result<()> {
-    let matches = NargoCli::parse();
+    let NargoCli { command, mut config } = NargoCli::parse();
 
-    match matches.command {
-        NargoCommand::New(args) => new_cmd::run(args, matches.config),
-        NargoCommand::Check(args) => check_cmd::run(args, matches.config),
-        NargoCommand::Compile(args) => compile_cmd::run(args, matches.config),
-        NargoCommand::Execute(args) => execute_cmd::run(args, matches.config),
-        NargoCommand::Prove(args) => prove_cmd::run(args, matches.config),
-        NargoCommand::Verify(args) => verify_cmd::run(args, matches.config),
-        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, matches.config),
-        NargoCommand::Test(args) => test_cmd::run(args, matches.config),
-        NargoCommand::Gates(args) => gates_cmd::run(args, matches.config),
-        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, matches.config),
+    // Search through parent directories to find package root.
+    config.program_dir = find_package_root(&config.program_dir)?;
+
+    match command {
+        NargoCommand::New(args) => new_cmd::run(args, config),
+        NargoCommand::Check(args) => check_cmd::run(args, config),
+        NargoCommand::Compile(args) => compile_cmd::run(args, config),
+        NargoCommand::Execute(args) => execute_cmd::run(args, config),
+        NargoCommand::Prove(args) => prove_cmd::run(args, config),
+        NargoCommand::Verify(args) => verify_cmd::run(args, config),
+        NargoCommand::Preprocess(args) => preprocess_cmd::run(args, config),
+        NargoCommand::Test(args) => test_cmd::run(args, config),
+        NargoCommand::Gates(args) => gates_cmd::run(args, config),
+        NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(args, config),
     }?;
 
     Ok(())
@@ -101,12 +105,6 @@ pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> boo
     }
 }
 
-fn add_std_lib(driver: &mut Driver) {
-    let std_crate_name = "std";
-    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
-    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-    driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
-}
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {
@@ -123,14 +121,14 @@ mod tests {
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut driver = Driver::new(&acvm::Language::R1CS);
         driver.create_local_crate(&root_file, CrateType::Binary);
-        super::add_std_lib(&mut driver);
+        crate::resolver::add_std_lib(&mut driver);
         driver.file_compiles()
     }
 
     #[test]
     fn compilation_pass() {
-        let mut pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        pass_dir.push(&format!("{TEST_DATA_DIR}/pass"));
+        let pass_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
@@ -141,8 +139,8 @@ mod tests {
 
     #[test]
     fn compilation_fail() {
-        let mut fail_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        fail_dir.push(&format!("{TEST_DATA_DIR}/fail"));
+        let fail_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
