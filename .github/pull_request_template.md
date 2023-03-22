@@ -18,7 +18,7 @@ Resolves # <!-- link to issue -->
 
 <!-- If applicable. -->
 
-# Checklist
+## Checklist
 
 - [ ] I have tested the changes locally.
 - [ ] I have formatted the changes with [Prettier](https://prettier.io/) and/or `cargo fmt` with default settings.
@@ -27,9 +27,11 @@ Resolves # <!-- link to issue -->
 - [ ] I have ensured all changes are covered in the description.
 
 ## Documentation needs
-- [ ] This PR requires documentation updates when merged.
 
-<!-- If checked, list / describe what needs to be documented. -->
+- [ ] I have submitted PR documentation changes in [the noir book repo](https://github.com/noir-lang/book)
+- [ ] The PR with the documentation change is ready to merge
+
+<!-- If checked, refer the relevant PR -->
 
 # Additional context
 
