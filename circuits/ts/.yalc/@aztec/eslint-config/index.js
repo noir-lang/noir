@@ -1,8 +1,9 @@
 const contexts = [
   'TSMethodDefinition',
   'MethodDefinition',
-  // 'TSPropertyDefinition',
-  // 'PropertyDefinition',
+  'TSParameterProperty[accessibility=public]',
+  'TSPropertyDefinition[accessibility=public]',
+  'PropertyDefinition[accessibility=public]',
   'TSPropertySignature',
   'PropertySignature',
   'TSInterfaceDeclaration',
@@ -26,7 +27,11 @@ const contexts = [
 ];
 
 module.exports = {
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+  ],
   root: true,
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'jsdoc'],
@@ -57,11 +62,13 @@ module.exports = {
         patterns: [
           {
             group: ['client-dest'],
-            message: "Fix this absolute garbage import. It's your duty to solve it before it spreads.",
+            message:
+              'Fix this absolute garbage import. It's your duty to solve it before it spreads.',
           },
           {
             group: ['dest'],
-            message: 'You should not be importing from a build directory. Did you accidentally do a relative import?',
+            message:
+              'You should not be importing from a build directory. Did you accidentally do a relative import?',
           },
         ],
       },
