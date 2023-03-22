@@ -234,6 +234,10 @@ class PrecomputedPolyList {
             case PolynomialSource::SELECTOR: // monomial and fft
                 precomputed_poly_ids.emplace_back(label);
                 precomputed_poly_ids.emplace_back(label + "_fft");
+                // Store all lagrange forms of selector polynomials for ultra
+                if (composer_type == plonk::ComposerType::PLOOKUP) {
+                    precomputed_poly_ids.emplace_back(label + "_lagrange");
+                }
                 break;
             case PolynomialSource::PERMUTATION: // monomial, fft, and lagrange
                 precomputed_poly_ids.emplace_back(label);

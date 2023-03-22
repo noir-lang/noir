@@ -46,10 +46,19 @@ namespace plonk {
 
 std::vector<ComposerBase::SelectorProperties> ultra_selector_properties()
 {
+    // When reading and writing the proving key from a buffer we must precompute the Lagrange form of certain selector
+    // polynomials. In order to avoid a new selector type and definitions in the polynomial manifest, we can instead
+    // store the Lagrange forms of all the selector polynomials.
+    //
+    // This workaround increases the memory footprint of the prover, and is a possible place of improvement in the
+    // future. Below is the previous state showing where the Lagrange form is necessary for a selector:
+    //     { "q_m", true },         { "q_c", true },    { "q_1", true },        { "q_2", true },
+    //     { "q_3", true },         { "q_4", false },   { "q_arith", false },   { "q_sort", false },
+    //     { "q_elliptic", false }, { "q_aux", false }, { "table_type", true },
     std::vector<ComposerBase::SelectorProperties> result{
-        { "q_m", true },         { "q_c", true },    { "q_1", true },        { "q_2", true },
-        { "q_3", true },         { "q_4", false },   { "q_arith", false },   { "q_sort", false },
-        { "q_elliptic", false }, { "q_aux", false }, { "table_type", true },
+        { "q_m", true },        { "q_c", true },   { "q_1", true },        { "q_2", true },
+        { "q_3", true },        { "q_4", true },   { "q_arith", true },    { "q_sort", true },
+        { "q_elliptic", true }, { "q_aux", true }, { "table_type", true },
     };
     return result;
 }
