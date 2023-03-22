@@ -102,7 +102,7 @@ impl Acir {
                 *array_id, *index, acir_mem, var_cache, *location, evaluator, ctx,
             )?),
             Operation::Store { .. } => {
-                store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)
+                store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
             Operation::Nop => None,
             i @ Operation::Jne(..)

@@ -20,7 +20,7 @@ pub(crate) fn evaluate_permutation(
     let (w, b) = permutation_layer(in_expr, &bits, true, evaluator);
     // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
-        evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
+        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
     w
 }

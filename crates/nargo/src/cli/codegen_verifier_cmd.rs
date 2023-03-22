@@ -19,11 +19,9 @@ pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(
     #[allow(deprecated)]
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
-    let mut contract_dir = config.program_dir;
-    contract_dir.push(CONTRACT_DIR);
-    let mut contract_path = create_named_dir(contract_dir.as_ref(), "contract");
-    contract_path.push("plonk_vk");
-    contract_path.set_extension("sol");
+    let contract_dir = config.program_dir.join(CONTRACT_DIR);
+    create_named_dir(&contract_dir, "contract");
+    let contract_path = contract_dir.join("plonk_vk").with_extension("sol");
 
     let path = write_to_file(smart_contract_string.as_bytes(), &contract_path);
     println!("Contract successfully created and located at {path}");

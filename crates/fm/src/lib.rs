@@ -7,12 +7,10 @@ mod file_reader;
 
 pub use file_map::{File, FileId, FileMap};
 
-pub mod util;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-pub use util::*;
 
 pub const FILE_EXTENSION: &str = "nr";
 
