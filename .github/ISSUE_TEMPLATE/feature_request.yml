@@ -35,5 +35,6 @@ body:
     id: checklist
     attributes:
       label: Submission Checklist
+      description: For core contributors.
       options:
         - label: Once I hit submit, I will assign this issue to the Project Board with the appropriate tags.
