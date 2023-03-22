@@ -47,17 +47,19 @@ impl InternalVarCache {
                 if let Some(c_var) = self.constants.get(&field_value) {
                     result = c_var.clone();
                 }
+
                 //use witness from other nodes if exists
-                if let Some(constant_ids) = ctx.constants.get(&field_value) {
-                    for c_id in constant_ids {
-                        if let Some(i_var) = self.inner.get(c_id) {
-                            if let Some(w) = i_var.cached_witness() {
-                                result.set_witness(*w);
-                                break;
-                            }
-                        }
-                    }
+                let new_vec = Vec::new();
+                let constant_ids = ctx.constants.get(&field_value).unwrap_or(&new_vec);
+                let cached_witness =
+                    constant_ids.iter().find_map(|c_id| match self.inner.get(c_id) {
+                        Some(i_var) => *i_var.cached_witness(),
+                        None => None,
+                    });
+                if let Some(w) = cached_witness {
+                    result.set_witness(w);
                 }
+
                 result
             }
             NodeObject::Variable(variable) => {
