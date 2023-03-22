@@ -37,4 +37,3 @@ body:
       label: Submission Checklist
       options:
         - label: Once I hit submit, I will assign this issue to the Project Board with the appropriate tags.
-          required: true
