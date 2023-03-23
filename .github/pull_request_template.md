@@ -28,8 +28,9 @@ Resolves # <!-- link to issue -->
 
 ## Documentation needs
 
-- [ ] I have submitted PR documentation changes in [the noir book repo](https://github.com/noir-lang/book)
-- [ ] The PR with the documentation change is ready to merge
+- [ ] I have documented the changes in this PR
+    or
+- [ ] I had a quick call with DevRel team explaining the changes needed in the [book](https://github.com/noir-lang/book)
 
 <!-- If checked, refer the relevant PR -->
 
