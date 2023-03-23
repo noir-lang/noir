@@ -72,7 +72,7 @@ fn save_and_preprocess_contract(
         let contract_id = format!("{}-{}", circuit_name, &compiled_contract.name);
 
         // Save contract ABI to file using the contract ID.
-        save_contract_to_file(&compiled_contract, &contract_id, circuit_dir);
+        save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
 
         for (function_name, contract_function) in &compiled_contract.functions {
             // Create a name which uniquely identifies this contract function
