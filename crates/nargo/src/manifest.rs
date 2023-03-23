@@ -35,17 +35,11 @@ pub(crate) struct PackageManifest {
 }
 
 impl PackageManifest {
+    /// Returns whether the package has a local dependency.
     // Local paths are usually relative and are discouraged when sharing libraries
     // It is better to separate these into different packages.
-    pub(crate) fn has_local_path(&self) -> bool {
-        let mut has_local_path = false;
-        for dep in self.dependencies.values() {
-            if let Dependency::Path { .. } = dep {
-                has_local_path = true;
-                break;
-            }
-        }
-        has_local_path
+    pub(crate) fn has_local_dependency(&self) -> bool {
+        self.dependencies.values().any(|dep| matches!(dep, Dependency::Path { .. }))
     }
 }
 
