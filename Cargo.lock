@@ -499,10 +499,12 @@ dependencies = [
 [[package]]
 name = "barretenberg-sys"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=phated/bb-sys#8a8bcc959d23d9cce3a166129c89df5deed32dc0"
+source = "git+https://github.com/noir-lang/barretenberg-sys.git#4c2e04219b308cb1b21a4c36ad0119fa45cfb05c"
 dependencies = [
  "bindgen",
+ "cc",
  "color-eyre",
+ "link-cplusplus",
  "pkg-config",
  "thiserror",
 ]
@@ -510,10 +512,10 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=phated/bb-sys#8a8bcc959d23d9cce3a166129c89df5deed32dc0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=kh-bb-sys#3934ab9d4755c6941c5af1b9562d9aead9257fc7"
 dependencies = [
  "barretenberg-sys",
- "common 0.1.0 (git+https://github.com/noir-lang/aztec_backend?branch=phated/bb-sys)",
+ "common 0.1.0 (git+https://github.com/noir-lang/aztec_backend?branch=kh-bb-sys)",
 ]
 
 [[package]]
@@ -808,7 +810,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?branch=phated/bb-sys#8a8bcc959d23d9cce3a166129c89df5deed32dc0"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=kh-bb-sys#3934ab9d4755c6941c5af1b9562d9aead9257fc7"
 dependencies = [
  "acvm 0.6.0",
  "blake2",
