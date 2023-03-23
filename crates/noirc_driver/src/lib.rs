@@ -4,6 +4,7 @@
 
 use acvm::Language;
 use clap::Args;
+use contract::ContractMethod;
 use fm::FileType;
 use iter_extended::{try_btree_map, try_vecmap};
 use noirc_abi::FunctionSignature;
@@ -204,13 +205,21 @@ impl Driver {
         let functions = try_btree_map(&contract.functions, |function| {
             let function_name = self.function_name(*function).to_owned();
             let program = self.compile_no_check(options, *function)?;
-            Ok((function_name, program))
+            Ok((
+                function_name,
+                ContractMethod {
+                    // Note: currently we mark all of the contract methods
+                    // as secret as we do not support public functions.
+                    func_type: contract::ContractFunctionType::Secret,
+                    function: program,
+                },
+            ))
         })?;
 
         Ok(CompiledContract { name: contract.name, functions })
     }
 
-    /// Returns the FuncId of the 'main' funciton.
+    /// Returns the FuncId of the 'main' function.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
     pub fn main_function(&self) -> Result<FuncId, ReportedError> {
