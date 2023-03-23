@@ -21,6 +21,7 @@
     "key-store",
     "merkle-tree",
     "noir-contracts",
+    "l1-contracts",
     "p2p",
     "prettier-config",
     "prover-client",

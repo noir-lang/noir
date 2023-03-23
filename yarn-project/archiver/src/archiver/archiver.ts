@@ -212,7 +212,7 @@ export class Archiver implements L2BlockSource {
  * @param l2BlockNum - Block number.
  * @returns Random L2Block.
  */
-function mockRandomL2Block(l2BlockNum: number): L2Block {
+export function mockRandomL2Block(l2BlockNum: number): L2Block {
   const newNullifiers = [randomBytes(32), randomBytes(32), randomBytes(32), randomBytes(32)];
   const newCommitments = [randomBytes(32), randomBytes(32), randomBytes(32), randomBytes(32)];
   const newContracts: Buffer[] = [randomBytes(32)];

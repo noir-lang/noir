@@ -1,0 +1,9 @@
+{
+  "outputPath": "./src/aztec-ethereumjs-contracts",
+  "contracts": {
+    "Rollup": {
+      "source": "foundry",
+      "buildFile": "../../l1-contracts/out/Rollup.sol/Rollup.json"
+    }
+  }
+}
