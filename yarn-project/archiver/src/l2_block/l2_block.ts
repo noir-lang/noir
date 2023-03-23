@@ -26,10 +26,15 @@ export type ContractData = {
   ethAddress: Buffer;
 };
 
+/* eslint-disable jsdoc/require-jsdoc */
+
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
  */
 export class L2Block {
+  /**
+   * A yeet to go with the block.
+   */
   public yeet?: Buffer;
 
   /**
@@ -69,6 +74,10 @@ export class L2Block {
     public newContractData: ContractData[],
   ) {}
 
+  /**
+   * Sets the yeet on this block.
+   * @param yeet - The yeet to set.
+   */
   setYeet(yeet: Buffer) {
     this.yeet = yeet;
   }

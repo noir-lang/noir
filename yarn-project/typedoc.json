@@ -12,8 +12,10 @@
     "noir-contracts",
     "p2p",
     "prover-client",
-    "public-client",
+    "aztec-node",
     "sequencer-client",
-    "wallet"
+    "wallet",
+    "world-state",
+    "merkle-tree"
   ]
 }

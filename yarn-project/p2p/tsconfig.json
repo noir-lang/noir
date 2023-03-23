@@ -3,7 +3,14 @@
   "compilerOptions": {
     "outDir": "dest",
     "rootDir": "src",
-    "tsBuildInfoFile": ".tsbuildinfo"
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "moduleResolution": "nodenext",
+    "types": ["node", "jest"]
   },
+  "references": [
+    {
+      "path": "../archiver/tsconfig.dest.json"
+    }
+  ],
   "include": ["src"]
 }

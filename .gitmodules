@@ -7,3 +7,9 @@
 [submodule "l1-contracts"]
 	path = l1-contracts
 	url = git@github.com:AztecProtocol/aztec3-l1-contracts.git
+[submodule "barretenberg"]
+	path = barretenberg
+	url = git@github.com:AztecProtocol/barretenberg.git
+[submodule "yarn-project/foundation"]
+	path = yarn-project/foundation
+	url = git@github.com:AztecProtocol/foundation.git

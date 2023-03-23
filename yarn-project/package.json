@@ -16,15 +16,18 @@
     "eslint-config",
     "ethereum.js",
     "ethereum.js/example",
+    "foundation",
     "kernel-simulator",
     "key-store",
+    "merkle-tree",
     "noir-contracts",
     "p2p",
     "prettier-config",
     "prover-client",
-    "public-client",
+    "aztec-node",
     "sequencer-client",
-    "wallet"
+    "wallet",
+    "world-state"
   ],
   "prettier": "./prettier-config",
   "devDependencies": {

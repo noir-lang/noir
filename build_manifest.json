@@ -50,7 +50,7 @@
     "projectDir": "yarn-project/archiver",
     "dockerfile": "archiver/Dockerfile",
     "rebuildPatterns": ["^yarn-project/archiver/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "ethereum.js"]
   },
   "aztec-cli": {
     "buildDir": "yarn-project",
@@ -94,6 +94,13 @@
     "rebuildPatterns": ["^yarn-project/key-store/"],
     "dependencies": ["yarn-project-base"]
   },
+  "merkle-tree": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/merkle-tree",
+    "dockerfile": "merkle-tree/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/merkle-tree/"],
+    "dependencies": ["yarn-project-base", "foundation"]
+  },
   "noir-contracts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-contracts",
@@ -106,7 +113,7 @@
     "projectDir": "yarn-project/p2p",
     "dockerfile": "p2p/Dockerfile",
     "rebuildPatterns": ["^yarn-project/p2p/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "archiver"]
   },
   "prover-client": {
     "buildDir": "yarn-project",
@@ -115,11 +122,11 @@
     "rebuildPatterns": ["^yarn-project/prover-client/"],
     "dependencies": ["yarn-project-base"]
   },
-  "public-client": {
+  "aztec-node": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/public-client",
-    "dockerfile": "public-client/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/public-client/"],
+    "projectDir": "yarn-project/aztec-node",
+    "dockerfile": "aztec-node/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/aztec-node/"],
     "dependencies": ["yarn-project-base"]
   },
   "sequencer-client": {
@@ -135,5 +142,12 @@
     "dockerfile": "wallet/Dockerfile",
     "rebuildPatterns": ["^yarn-project/wallet/"],
     "dependencies": ["yarn-project-base"]
+  },
+  "world-state": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/world-state",
+    "dockerfile": "world-state/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/world-state/"],
+    "dependencies": ["yarn-project-base", "merkle-tree"]
   }
 }

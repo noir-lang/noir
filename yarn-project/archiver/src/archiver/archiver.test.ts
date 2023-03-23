@@ -1,0 +1,64 @@
+import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { jest } from '@jest/globals';
+import { PublicClient } from 'viem';
+import { Archiver } from './archiver.js';
+
+jest.mock('viem');
+
+describe('Archiver', () => {
+  const rollupAddress = '0x0000000000000000000000000000000000000000';
+  const yeeterAddress = '0x0000000000000000000000000000000000000000';
+  let publicClient: PublicClient;
+
+  beforeEach(() => {
+    publicClient = {
+      readContract: jest.fn().mockReturnValue(3n),
+      createEventFilter: jest.fn(),
+      getFilterLogs: jest.fn().mockReturnValue([
+        {
+          args: {
+            blockNum: 0n,
+          },
+        },
+        {
+          args: {
+            blockNum: 1n,
+          },
+        },
+        {
+          args: {
+            blockNum: 2n,
+          },
+        },
+      ]),
+      watchEvent: jest.fn().mockReturnValue(jest.fn()),
+    } as unknown as PublicClient;
+  });
+
+  it('can start, sync and stop', async () => {
+    const archiver = new Archiver(
+      publicClient,
+      EthAddress.fromString(rollupAddress),
+      EthAddress.fromString(yeeterAddress),
+    );
+    let syncStatus = await archiver.getSyncStatus();
+    let latestBlockNum = await archiver.getLatestBlockNum();
+    expect(syncStatus).toStrictEqual({
+      syncedToBlock: -1,
+      latestBlock: 2,
+    });
+    expect(latestBlockNum).toBe(syncStatus.syncedToBlock);
+
+    await archiver.start();
+
+    syncStatus = await archiver.getSyncStatus();
+    latestBlockNum = await archiver.getLatestBlockNum();
+    expect(syncStatus).toStrictEqual({
+      syncedToBlock: 2,
+      latestBlock: 2,
+    });
+    expect(latestBlockNum).toBe(syncStatus.syncedToBlock);
+
+    await archiver.stop();
+  });
+});

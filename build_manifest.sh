@@ -19,9 +19,11 @@ PROJECTS=(
   # ethereum.js:yarn-project
   # kernel-simulator:yarn-project
   # key-store:yarn-project
+  # merkle-tree:yarn-project
   # p2p:yarn-project
   # prover-client:yarn-project
-  # public-client:yarn-project
+  # aztec-node:yarn-project
   # sequencer-client:yarn-project
   # wallet:yarn-project
+  # world-state:yarn-project
 )

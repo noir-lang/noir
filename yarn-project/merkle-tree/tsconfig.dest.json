@@ -1,0 +1,5 @@
+{
+  "extends": ".",
+  "exclude": ["**/*.test.*", "**/fixtures/*"],
+  "references": [{ "path": "../foundation/tsconfig.dest.json" }]
+}

@@ -1,0 +1,14 @@
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
+
+COPY world-state world-state
+WORKDIR /usr/src/yarn-project/world-state
+RUN yarn build && yarn formatting && yarn test
+
+# Prune dev dependencies. See comment in base image.
+RUN yarn cache clean
+RUN yarn workspaces focus --production > /dev/null
+
+FROM node:18-alpine
+COPY --from=builder /usr/src/yarn-project/world-state /usr/src/yarn-project/world-state
+WORKDIR /usr/src/yarn-project/world-state
+ENTRYPOINT ["yarn"]

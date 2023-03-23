@@ -1,38 +1,42 @@
-import { createPublicClient, getAddress, http } from 'viem';
-import { localhost } from 'viem/chains';
-import { Archiver } from './archiver.js';
+// import { createPublicClient, getAddress, http } from 'viem';
+// import { localhost } from 'viem/chains';
+// import { Archiver } from './archiver/archiver.js';
 
-const {
-  ETHEREUM_HOST = 'http://localhost:8545/',
-  ROLLUP_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-  YEETER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-} = process.env;
+export * from './archiver/index.js';
+export * from './block_downloader/index.js';
+export * from './l2_block/index.js';
 
-/**
- * A function which instantiates and starts Archiver.
- */
-async function main() {
-  const rollupAddress = getAddress(ROLLUP_ADDRESS);
-  const yeeterAddress = getAddress(YEETER_ADDRESS);
+// const {
+//   ETHEREUM_HOST = 'http://localhost:8545/',
+//   ROLLUP_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+//   YEETER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+// } = process.env;
 
-  const publicClient = createPublicClient({
-    chain: localhost,
-    transport: http(ETHEREUM_HOST),
-  });
+// /**
+//  * A function which instantiates and starts Archiver.
+//  */
+// async function main() {
+//   const rollupAddress = getAddress(ROLLUP_ADDRESS);
+//   const yeeterAddress = getAddress(YEETER_ADDRESS);
 
-  const archiver = new Archiver(publicClient, rollupAddress, yeeterAddress);
+//   const publicClient = createPublicClient({
+//     chain: localhost,
+//     transport: http(ETHEREUM_HOST),
+//   });
 
-  const shutdown = () => {
-    archiver.stop();
-    process.exit(0);
-  };
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
+//   const archiver = new Archiver(publicClient, rollupAddress, yeeterAddress);
 
-  await archiver.start();
-}
+//   const shutdown = () => {
+//     archiver.stop();
+//     process.exit(0);
+//   };
+//   process.once('SIGINT', shutdown);
+//   process.once('SIGTERM', shutdown);
 
-main().catch(err => {
-  console.log(err);
-  process.exit(1);
-});
+//   await archiver.start();
+// }
+
+// main().catch(err => {
+//   console.log(err);
+//   process.exit(1);
+// });
