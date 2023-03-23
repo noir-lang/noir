@@ -63,7 +63,7 @@ fn save_and_preprocess_program(
 /// - The proving and verification keys are namespaced since the file
 /// could contain multiple contracts with the same name.
 fn save_and_preprocess_contract(
-    compiled_contracts: Vec<CompiledContract>,
+    compiled_contracts: &[CompiledContract],
     circuit_name: &str,
     circuit_dir: &Path,
 ) -> Result<(), CliError> {
