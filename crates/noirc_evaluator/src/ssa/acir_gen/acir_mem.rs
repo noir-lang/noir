@@ -141,19 +141,12 @@ impl ArrayHeap {
     }
 
     pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
-        let mut len = self.trace.len();
+        let (len, read_write) = match self.typ {
+            ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
+            ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
+            ArrayType::ReadWrite(last) => (last.unwrap_or(self.trace.len()), true),
+        };
 
-        let mut read_write = true;
-        match self.typ {
-            ArrayType::Init(_, _) | ArrayType::WriteOnly => len = 0,
-            ArrayType::ReadOnly(last) => {
-                len = last.unwrap_or(len);
-                read_write = false;
-            }
-            ArrayType::ReadWrite(last) => {
-                len = last.unwrap_or(len);
-            }
-        }
         if len == 0 {
             return;
         }
