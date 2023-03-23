@@ -44,7 +44,7 @@ fn default_log_level() -> String {
 }
 
 fn default_circuit_name() -> String {
-    String::from("main")
+    String::from("contract")
 }
 
 fn default_entry_point() -> String {
@@ -68,8 +68,8 @@ impl Default for WASMCompileOptions {
 pub fn init_log_level(level: String) {
     // Set the static variable from Rust
     use std::sync::Once;
-    
-    let log_level = Level::from_str(&level).unwrap_or(Level::Error)
+
+    let log_level = Level::from_str(&level).unwrap_or(Level::Error);
     static SET_HOOK: Once = Once::new();
     SET_HOOK.call_once(|| {
         wasm_logger::init(wasm_logger::Config::new(log_level));
@@ -126,8 +126,9 @@ pub fn compile(args: JsValue) -> JsValue {
         let collected_compiled_programs: Vec<_> = compiled_contracts
             .into_iter()
             .flat_map(|contract| {
+                let contract_id = format!("{}-{}", options.circuit_name, &contract.name);
                 contract.functions.into_iter().map(move |(function, program)| {
-                    let program_name = format!("{}-{}", &contract.name, function);
+                    let program_name = format!("{}-{}", contract_id, function);
                     (program_name, program)
                 })
             })
