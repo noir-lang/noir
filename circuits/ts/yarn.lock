@@ -13,8 +13,8 @@
 "@aztec/eslint-config@file:.yalc/@aztec/eslint-config":
   version "0.0.0"
   dependencies:
-    "@aztec/eslint-config" "link:../../../.cache/yarn/v6/npm-@aztec-eslint-config-0.0.0-c3fe19f8-d17b-4602-82af-e13372f32c46-1679061380326/yarn-project/eslint-config"
-    "@aztec/wasm-worker" "link:../../../.cache/yarn/v6/npm-@aztec-eslint-config-0.0.0-c3fe19f8-d17b-4602-82af-e13372f32c46-1679061380326/yarn-project/wasm-worker"
+    "@aztec/eslint-config" "link:../../../../.cache/yarn/v6/npm-@aztec-eslint-config-0.0.0-f0ad3e77-4a59-480a-abd1-8333a7ce82c8-1679580896853/yarn-project/eslint-config"
+    "@aztec/wasm-worker" "link:../../../../.cache/yarn/v6/npm-@aztec-eslint-config-0.0.0-f0ad3e77-4a59-480a-abd1-8333a7ce82c8-1679580896853/yarn-project/wasm-worker"
     "@typescript-eslint/eslint-plugin" "^5.38.0"
     "@typescript-eslint/parser" "^5.38.0"
     eslint "^8.21.0"

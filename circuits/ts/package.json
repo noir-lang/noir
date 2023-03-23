@@ -2,7 +2,10 @@
   "name": "@aztec/circuits.js",
   "version": "0.0.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    ".": "./dest/index.js",
+    "./factories": "./dest/tests/factories.js"
+  },
   "typedoc": {
     "entryPoint": "./src/index.ts",
     "displayName": "Circuits.js",
