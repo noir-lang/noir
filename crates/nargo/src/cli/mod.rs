@@ -65,7 +65,7 @@ pub fn start_cli() -> eyre::Result<()> {
 
     // Search through parent directories to find package root if necessary.
     if !matches!(command, NargoCommand::New(_)) {
-	config.program_dir = find_package_root(&config.program_dir)?;
+        config.program_dir = find_package_root(&config.program_dir)?;
     }
 
     match command {
