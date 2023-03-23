@@ -15,6 +15,8 @@ WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves
                                                   uint8_t num_leaves,
                                                   uint8_t* output);
 
+WASM_EXPORT void abis__hash_vk(uint8_t const* vk_data_buf, uint8_t* output);
+
 WASM_EXPORT void abis__hash_constructor(uint8_t const* func_sig_hash_buf,
                                         uint8_t const* args_hash_buf,
                                         uint8_t const* constructor_vk_hash_buf,

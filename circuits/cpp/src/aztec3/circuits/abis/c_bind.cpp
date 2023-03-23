@@ -163,6 +163,24 @@ WASM_EXPORT void abis__compute_function_selector(char const* func_sig_cstr, uint
 }
 
 /**
+ * @brief Hash/compress verification key data.
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details Pedersen compress VK to use later when computing function leaf
+ * or constructor hash. Return the serialized results in the `output` buffer.
+ *
+ * @param vk_data_buf buffer of bytes representing serialized verification_key_data
+ * @param output buffer that will contain the output. The serialized vk_hash.
+ */
+WASM_EXPORT void abis__hash_vk(uint8_t const* vk_data_buf, uint8_t* output)
+{
+    NT::VKData vk_data;
+    read(vk_data_buf, vk_data);
+
+    NT::fr::serialize_to_buffer(vk_data.compress_native(aztec3::GeneratorIndex::VK), output);
+}
+
+/**
  * @brief Generates a function tree leaf from its preimage.
  * This is a WASM-export that can be called from Typescript.
  *

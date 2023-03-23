@@ -103,6 +103,37 @@ TEST(abi_tests, compute_function_selector_transferFrom)
     EXPECT_EQ(bytes_to_hex_str(output), full_selector.substr(0, FUNCTION_SELECTOR_NUM_BYTES * 2));
 }
 
+TEST(abi_tests, hash_vk)
+{
+    // Initialize some random VK data
+    NT::VKData vk_data;
+    vk_data.composer_type = engine.get_random_uint32();
+    vk_data.circuit_size = engine.get_random_uint32();
+    vk_data.num_public_inputs = engine.get_random_uint32();
+    vk_data.commitments["test1"] = g1::element::random_element();
+    vk_data.commitments["test2"] = g1::element::random_element();
+    vk_data.commitments["foo1"] = g1::element::random_element();
+    vk_data.commitments["foo2"] = g1::element::random_element();
+    // Write the vk data to a bytes vector
+    std::vector<uint8_t> vk_data_vec;
+    write(vk_data_vec, vk_data);
+
+    // create an output buffer for cbind hash results
+    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
+
+    // Make the c_bind call to hash the vk
+    abis__hash_vk(vk_data_vec.data(), output.data());
+
+    // Convert buffer to `fr` for comparison to in-test calculated hash
+    NT::fr got_hash = NT::fr::serialize_from_buffer(output.data());
+
+    // Calculate the expected hash in-test
+    NT::fr expected_hash = vk_data.compress_native(aztec3::GeneratorIndex::VK);
+
+    // Confirm cbind output == expected hash
+    EXPECT_EQ(got_hash, expected_hash);
+}
+
 TEST(abi_tests, compute_function_leaf)
 {
     // Construct FunctionLeafPreimage with some randomized fields
