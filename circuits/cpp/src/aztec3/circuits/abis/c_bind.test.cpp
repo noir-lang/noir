@@ -2,6 +2,7 @@
 
 #include "tx_request.hpp"
 #include "function_leaf_preimage.hpp"
+#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
 
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 #include <barretenberg/numeric/random/engine.hpp>
@@ -10,8 +11,9 @@
 namespace {
 
 using NT = aztec3::utils::types::NativeTypes;
+using aztec3::circuits::abis::private_kernel::NewContractData;
+
 auto& engine = numeric::random::get_debug_engine();
-constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
 
 /**
  * @brief Convert a bytes array to a hex string.
@@ -124,6 +126,8 @@ TEST(abi_tests, compute_function_leaf)
 
 TEST(abi_tests, compute_function_tree_root)
 {
+    constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
+
     NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
     // these frs will be used to compute the root directly (without cbind)
     // all empty slots will have the zero-leaf to ensure full tree
@@ -226,6 +230,26 @@ TEST(abi_tests, compute_contract_address)
 
     // Confirm cbind output == expected
     EXPECT_EQ(got_address, expected_address);
+}
+
+TEST(abi_tests, compute_contract_leaf)
+{
+    // Construct ContractLeafPreimage with some randomized fields
+    NewContractData<NT> preimage = NewContractData<NT>{
+        .contract_address = NT::fr::random_element(),
+        .portal_contract_address = NT::fr::random_element(),
+        .function_tree_root = NT::fr::random_element(),
+    };
+
+    // Write the leaf preimage to a buffer
+    std::vector<uint8_t> preimage_buf;
+    write(preimage_buf, preimage);
+
+    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
+    abis__compute_contract_leaf(preimage_buf.data(), output.data());
+
+    NT::fr got_leaf = NT::fr::serialize_from_buffer(output.data());
+    EXPECT_EQ(got_leaf, preimage.hash());
 }
 
 } // namespace aztec3::circuits::abis

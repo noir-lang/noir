@@ -52,6 +52,17 @@ template <typename NCT> struct NewContractData {
         portal_contract_address.to_field().set_public();
         function_tree_root.set_public();
     }
+
+    fr hash() const
+    {
+        std::vector<fr> inputs = {
+            fr(contract_address),
+            fr(portal_contract_address),
+            fr(function_tree_root),
+        };
+
+        return NCT::compress(inputs, GeneratorIndex::CONTRACT_LEAF);
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, NewContractData<NCT>& new_contract_data)

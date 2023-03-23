@@ -54,6 +54,7 @@ enum GeneratorIndex {
     CONTRACT_DEPLOYMENT_DATA,
     CONSTRUCTOR,
     CONTRACT_ADDRESS,
+    CONTRACT_LEAF,
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALL_STACK_ITEM_2, // see function where it's used for explanation
