@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
-
 use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
+use log::{debug, Level};
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::graph::{CrateName, CrateType};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize)]
@@ -17,8 +17,14 @@ pub struct BuildInfo {
     dirty: &'static str,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WASMCompileOptions {
+    #[serde(default = "default_entry_point")]
+    entry_point: String,
+
+    #[serde(default = "default_circuit_name")]
+    circuit_name: String,
+
     // Compile each contract function used within the program
     #[serde(default = "bool::default")]
     contracts: bool,
@@ -28,14 +34,52 @@ pub struct WASMCompileOptions {
 
     #[serde(default)]
     optional_dependencies_set: Vec<String>,
+
+    #[serde(default = "default_log_level")]
+    log_level: String,
 }
 
+fn default_log_level() -> String {
+    String::from("info")
+}
+
+fn default_circuit_name() -> String {
+    String::from("contract")
+}
+
+fn default_entry_point() -> String {
+    String::from("main.nr")
+}
+
+impl Default for WASMCompileOptions {
+    fn default() -> Self {
+        Self {
+            entry_point: default_entry_point(),
+            circuit_name: default_circuit_name(),
+            log_level: default_log_level(),
+            contracts: false,
+            compile_options: CompileOptions::default(),
+            optional_dependencies_set: vec![],
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn init_log_level(level: String) {
+    // Set the static variable from Rust
+    use std::sync::Once;
+
+    let log_level = Level::from_str(&level).unwrap_or(Level::Error);
+    static SET_HOOK: Once = Once::new();
+    SET_HOOK.call_once(|| {
+        wasm_logger::init(wasm_logger::Config::new(log_level));
+    });
+}
 const BUILD_INFO: BuildInfo = BuildInfo {
     git_hash: env!("GIT_COMMIT"),
     version: env!("CARGO_PKG_VERSION"),
     dirty: env!("GIT_DIRTY"),
 };
-
 pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
     let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
     let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
@@ -46,12 +90,22 @@ pub fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
 #[wasm_bindgen]
 pub fn compile(args: JsValue) -> JsValue {
     console_error_panic_hook::set_once();
-    let options: WASMCompileOptions = JsValueSerdeExt::into_serde(&args).unwrap();
+
+    let options: WASMCompileOptions = if args.is_undefined() || args.is_null() {
+        debug!("Initializing compiler with default values.");
+        WASMCompileOptions::default()
+    } else {
+        JsValueSerdeExt::into_serde(&args)
+            .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
+    };
+
+    debug!("Compiler configuration {:?}", &options);
+
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-    let path = PathBuf::from("main.nr");
     let mut driver = noirc_driver::Driver::new(&language);
 
+    let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
 
     // We are always adding std lib implicitly. It comes bundled with binary.
@@ -72,8 +126,9 @@ pub fn compile(args: JsValue) -> JsValue {
         let collected_compiled_programs: Vec<_> = compiled_contracts
             .into_iter()
             .flat_map(|contract| {
+                let contract_id = format!("{}-{}", options.circuit_name, &contract.name);
                 contract.functions.into_iter().map(move |(function, program)| {
-                    let program_name = format!("{}-{}", &contract.name, function);
+                    let program_name = format!("{}-{}", contract_id, function);
                     (program_name, program)
                 })
             })
