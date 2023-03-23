@@ -1,11 +1,11 @@
 {
-  "name": "@aztec/wasm-worker",
+  "name": "@aztec/wasm",
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "wasm-worker",
+    "displayName": "wasm",
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
@@ -38,5 +38,5 @@
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"
   },
-  "yalcSig": "c3f323629c42198a64e1e6969247e19a"
+  "yalcSig": "49e137843b2fae07ab3c4df8d2229740"
 }

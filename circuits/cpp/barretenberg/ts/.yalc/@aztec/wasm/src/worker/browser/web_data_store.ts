@@ -1,6 +1,6 @@
-import { DataStore } from "../data_store.js";
-import levelup, { LevelUp } from "levelup";
-import memdown from "memdown";
+import { DataStore } from '../data_store.js';
+import levelup, { LevelUp } from 'levelup';
+import memdown from 'memdown';
 
 /**
  * Cache for data used by wasm module.

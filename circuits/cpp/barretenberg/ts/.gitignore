@@ -2,3 +2,5 @@ node_modules
 yarn-error.log
 .yarn
 dest
+.pnp.cjs
+.pnp.loader.mjs

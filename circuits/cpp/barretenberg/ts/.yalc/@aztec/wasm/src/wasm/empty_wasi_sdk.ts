@@ -8,7 +8,7 @@ import { createDebugLogger } from '@aztec/log';
  */
 /* eslint-disable camelcase */
 /* eslint-disable jsdoc/require-jsdoc */
-export const getEmptyWasiSdk = (debug = createDebugLogger('wasm-worker:empty_wasi_sdk')) => ({
+export const getEmptyWasiSdk = (debug = createDebugLogger('wasm:empty_wasi_sdk')) => ({
   clock_time_get() {
     debug('clock_time_get');
   },

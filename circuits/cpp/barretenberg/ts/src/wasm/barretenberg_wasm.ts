@@ -6,12 +6,12 @@ import {
   NodeDataStore,
   WasmModule,
   WebDataStore,
-} from "@aztec/wasm-worker";
+} from "@aztec/wasm";
 import { readFile } from "fs/promises";
-import { fetch } from "cross-fetch";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { numToUInt32LE } from "./serialize.js";
+import { Crs } from "../crs/index.js";
 
 /**
  * Get the WASM binary for barretenberg.
@@ -54,7 +54,7 @@ export class BarretenbergWasm {
    * @param maximum - Max memory pages.
    */
   public async init(initial = 20, maximum = 8192) {
-    const { asyncCallState, store } = this;
+    const { store } = this;
     let wasm: WasmModule;
     this.wasm = wasm = new WasmModule(
       await fetchCode(),
@@ -79,50 +79,55 @@ export class BarretenbergWasm {
          * The caller is responsible for taking ownership of (and freeing) the memory at the returned address.
          */
         // eslint-disable-next-line camelcase
-        get_data: asyncCallState.wrapImportFn(
-          (state: AsyncFnState, keyAddr: number, lengthOutAddr: number) => {
+        get_data: this.wrapAsyncImportFn(
+          async (keyAddr: number, lengthOutAddr: number) => {
             const key = wasm.getMemoryAsString(keyAddr);
-            if (!state.continuation) {
-              // We are in the initial code path. Start the async fetch of data, return the promise.
-              wasm.getLogger()(`get_data: key: ${key}`);
-              return store.get(key);
-            } else {
-              const data = state.result as Buffer | undefined;
-              if (!data) {
-                wasm.writeMemory(numToUInt32LE(0), lengthOutAddr);
-                wasm.getLogger()(`get_data: no data found for: ${key}`);
-                return 0;
-              }
-              const dataAddr = wasm.call("bbmalloc", data.length);
-              wasm.writeMemory(numToUInt32LE(data.length), lengthOutAddr);
-              wasm.writeMemory(data, dataAddr);
-              wasm.getLogger()(
-                `get_data: data at ${dataAddr} is ${data.length} bytes.`
-              );
-              return dataAddr;
+            wasm.getLogger()(`get_data: key: ${key}`);
+            const data = await store.get(key);
+            if (!data) {
+              wasm.writeMemory(lengthOutAddr, numToUInt32LE(0));
+              wasm.getLogger()(`get_data: no data found for: ${key}`);
+              return 0;
             }
+            const dataAddr = wasm.call("bbmalloc", data.length);
+            wasm.writeMemory(lengthOutAddr, numToUInt32LE(data.length));
+            wasm.writeMemory(dataAddr, data);
+            wasm.getLogger()(
+              `get_data: data at ${dataAddr} is ${data.length} bytes.`
+            );
+            return dataAddr;
           }
         ),
         // eslint-disable-next-line camelcase
-        set_data: asyncCallState.wrapImportFn(
-          (
-            state: AsyncFnState,
-            keyAddr: number,
-            dataAddr: number,
-            dataLength: number
-          ) => {
-            if (!state.continuation) {
-              const key = wasm.getMemoryAsString(keyAddr);
-              wasm.getLogger()(
-                `set_data: key: ${key} addr: ${dataAddr} length: ${dataLength}`
-              );
-              return store.set(
-                key,
-                Buffer.from(
-                  wasm.getMemorySlice(dataAddr, dataAddr + dataLength)
-                )
-              );
-            }
+        env_load_verifier_crs: this.wrapAsyncImportFn(async () => {
+          // TODO optimize
+          const crs = new Crs(0);
+          await crs.init();
+          const crsPtr = wasm.call("bbmalloc", crs.getG2Data().length);
+          wasm.writeMemory(crsPtr, crs.getG2Data());
+          return crsPtr;
+        }),
+        // eslint-disable-next-line camelcase
+        env_load_prover_crs: this.wrapAsyncImportFn(
+          async (numPoints: number) => {
+            const crs = new Crs(numPoints);
+            await crs.init();
+            const crsPtr = wasm.call("bbmalloc", crs.getG1Data().length);
+            wasm.writeMemory(crsPtr, crs.getG1Data());
+            return crsPtr;
+          }
+        ),
+        // eslint-disable-next-line camelcase
+        set_data: this.wrapAsyncImportFn(
+          async (keyAddr: number, dataAddr: number, dataLength: number) => {
+            const key = wasm.getMemoryAsString(keyAddr);
+            wasm.getLogger()(
+              `set_data: key: ${key} addr: ${dataAddr} length: ${dataLength}`
+            );
+            await store.set(
+              key,
+              Buffer.from(wasm.getMemorySlice(dataAddr, dataAddr + dataLength))
+            );
           }
         ),
         memory: module.getRawMemory(),
@@ -131,6 +136,23 @@ export class BarretenbergWasm {
     );
     await wasm.init(initial, maximum);
     this.asyncCallState.init(wasm);
+  }
+
+  /**
+   * Wrap an async import funtion.
+   * @param fn - The function.
+   * @returns The AsyncCallState-adapted function.
+   */
+  private wrapAsyncImportFn(fn: (...args: number[]) => Promise<number | void>) {
+    // TODO upstream this utility to asyncCallState?
+    return this.asyncCallState.wrapImportFn(
+      (state: AsyncFnState, ...args: number[]) => {
+        if (!state.continuation) {
+          return fn(...args);
+        }
+        return state.result;
+      }
+    );
   }
 
   /**
@@ -148,8 +170,8 @@ export class BarretenbergWasm {
    * @param arr - The data to write.
    * @param offset - The address to write data at.
    */
-  public writeMemory(arr: Uint8Array, offset: number) {
-    this.wasm.writeMemory(arr, offset);
+  public writeMemory(offset: number, arr: Uint8Array) {
+    this.wasm.writeMemory(offset, arr);
   }
 
   /**

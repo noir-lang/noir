@@ -4,7 +4,7 @@ import { readFile } from 'fs/promises';
 import { dirname } from 'path';
 
 /**
- *
+ * Fetch a simple WASM.
  */
 async function fetchCode() {
   const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ describe('barretenberg wasm', () => {
     await wasm.init();
   });
 
-  it('should new malloc, transfer and slice mem', () => {
-    expect(wasm.call('gcd', 1, 1)).toBe(1);
+  it('should call gcd with correct result', () => {
+    expect(wasm.call('gcd', 12312, 12123)).toBe(27);
   });
 });

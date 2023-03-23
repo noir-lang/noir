@@ -1,8 +1,8 @@
-import { createDebugLogger, DebugLogger } from "@aztec/log";
-import { Buffer } from "buffer";
-import { MemoryFifo } from "../memory_fifo.js";
-import { getEmptyWasiSdk } from "./empty_wasi_sdk.js";
-import { randomBytes } from "crypto";
+import { createDebugLogger, DebugLogger } from '@aztec/log';
+import { Buffer } from 'buffer';
+import { MemoryFifo } from '../memory_fifo.js';
+import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
+import { randomBytes } from 'crypto';
 
 /**
  * WasmModule:
@@ -28,12 +28,19 @@ export class WasmModule {
   constructor(
     private module: WebAssembly.Module | Buffer,
     private importFn: (module: WasmModule) => any,
-    loggerName = "wasm-worker"
+    loggerName = 'wasm',
   ) {
     this.debug = createDebugLogger(loggerName);
     this.mutexQ.put(true);
   }
 
+  /**
+   * Return the wasm source.
+   * @returns The source.
+   */
+  public getModule(): WebAssembly.Module | Buffer {
+    return this.module;
+  }
   /**
    * Initialize this wasm module.
    * @param wasmImportEnv - Linked to a module called "env". Functions implementations referenced from e.g. C++.
@@ -42,9 +49,9 @@ export class WasmModule {
    */
   public async init(initial = 20, maximum = 8192) {
     this.debug(
-      `initial mem: ${initial} pages, ${
-        (initial * 2 ** 16) / (1024 * 1024)
-      }mb. max mem: ${maximum} pages, ${(maximum * 2 ** 16) / (1024 * 1024)}mb`
+      `initial mem: ${initial} pages, ${(initial * 2 ** 16) / (1024 * 1024)}mb. max mem: ${maximum} pages, ${
+        (maximum * 2 ** 16) / (1024 * 1024)
+      }mb`,
     );
     this.memory = new WebAssembly.Memory({ initial, maximum });
     // Create a view over the memory buffer.
@@ -75,10 +82,7 @@ export class WasmModule {
     if (this.module instanceof WebAssembly.Module) {
       this.instance = await WebAssembly.instantiate(this.module, importObj);
     } else {
-      const { instance } = await WebAssembly.instantiate(
-        this.module,
-        importObj
-      );
+      const { instance } = await WebAssembly.instantiate(this.module, importObj);
       this.instance = instance;
     }
   }
@@ -89,7 +93,7 @@ export class WasmModule {
    */
   public exports(): any {
     if (!this.instance) {
-      throw new Error("WasmModule: not initialized!");
+      throw new Error('WasmModule: not initialized!');
     }
     return this.instance.exports;
   }
@@ -174,14 +178,27 @@ export class WasmModule {
 
   /**
    * Write data into the heap.
-   * @param arr - The data to write.
    * @param offset - The address to write data at.
+   * @param arr - The data to write.
    */
-  public writeMemory(arr: Uint8Array, offset: number) {
+  public writeMemory(offset: number, arr: Uint8Array) {
     const mem = this.getMemory();
     for (let i = 0; i < arr.length; i++) {
       mem[i + offset] = arr[i];
     }
+  }
+
+  /**
+   * Read WASM memory as a JS string.
+   * @param addr - The memory address.
+   * @returns A JS string.
+   */
+  public getMemoryAsString(addr: number) {
+    addr = addr >>> 0;
+    const m = this.getMemory();
+    let i = addr;
+    for (; m[i] !== 0; ++i);
+    return Buffer.from(m.slice(addr, i)).toString('ascii');
   }
 
   /**
@@ -199,7 +216,7 @@ export class WasmModule {
    */
   public release() {
     if (this.mutexQ.length() !== 0) {
-      throw new Error("Release called but not acquired.");
+      throw new Error('Release called but not acquired.');
     }
     this.mutexQ.put(true);
   }

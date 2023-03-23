@@ -21,8 +21,8 @@ export function pedersenCompress(
   // If not done already, precompute constants.
   wasm.call("pedersen__init");
   // TODO check if lhs and rhs are <= 32 bytes?
-  wasm.writeMemory(lhs, 0);
-  wasm.writeMemory(rhs, 32);
+  wasm.writeMemory(0, lhs);
+  wasm.writeMemory(32, rhs);
   wasm.call("pedersen__compress_fields", 0, 32, 64);
   return Buffer.from(wasm.getMemorySlice(64, 96));
 }
@@ -41,7 +41,7 @@ export function pedersenCompressInputs(
   // If not done already, precompute constants.
   wasm.call("pedersen__init");
   const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(inputVectors, 0);
+  wasm.writeMemory(0, inputVectors);
   wasm.call("pedersen__compress", 0, 0);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
@@ -61,7 +61,7 @@ export function pedersenCompressWithHashIndex(
   // If not done already, precompute constants.
   wasm.call("pedersen__init");
   const inputVectors = serializeBufferArrayToVector(inputs);
-  wasm.writeMemory(inputVectors, 0);
+  wasm.writeMemory(0, inputVectors);
   wasm.call("pedersen__compress_with_hash_index", 0, 0, hashIndex);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
@@ -76,7 +76,7 @@ export function pedersenGetHash(wasm: BarretenbergWasm, data: Buffer): Buffer {
   // If not done already, precompute constants.
   wasm.call("pedersen__init");
   const mem = wasm.call("bbmalloc", data.length);
-  wasm.writeMemory(data, mem);
+  wasm.writeMemory(mem, data);
   wasm.call("pedersen__buffer_to_field", mem, data.length, 0);
   wasm.call("bbfree", mem);
   return Buffer.from(wasm.getMemorySlice(0, 32));
@@ -96,7 +96,7 @@ export function pedersenGetHashTree(wasm: BarretenbergWasm, values: Buffer[]) {
   wasm.call("pedersen__init");
   const data = serializeBufferArrayToVector(values);
   const inputPtr = wasm.call("bbmalloc", data.length);
-  wasm.writeMemory(data, inputPtr);
+  wasm.writeMemory(inputPtr, data);
 
   const resultPtr = wasm.call("pedersen__hash_to_tree", inputPtr);
   const resultNumFields = Buffer.from(
