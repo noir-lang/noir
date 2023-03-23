@@ -1,4 +1,4 @@
-use crate::{ssa::acir_gen::expression_to_witness, ssa::node::NodeId, Evaluator};
+use crate::ssa::node::NodeId;
 use acvm::{
     acir::native_types::{Expression, Witness},
     FieldElement,
@@ -38,8 +38,15 @@ impl InternalVar {
     pub(crate) fn set_id(&mut self, id: NodeId) {
         self.id = Some(id)
     }
+    pub(crate) fn get_id(&self) -> Option<NodeId> {
+        self.id
+    }
     pub(crate) fn cached_witness(&self) -> &Option<Witness> {
         &self.cached_witness
+    }
+    pub(crate) fn set_witness(&mut self, w: Witness) {
+        debug_assert!(self.cached_witness.is_none() || self.cached_witness == Some(w));
+        self.cached_witness = Some(w);
     }
 
     pub(crate) fn to_expression(&self) -> Expression {
@@ -70,7 +77,7 @@ impl InternalVar {
     /// Example: f(x,y) = 10
     /// `f` is a constant expression because there are no
     /// bi-variate or uni-variate terms, just a constant.
-    fn is_const_expression(&self) -> bool {
+    pub(crate) fn is_const_expression(&self) -> bool {
         self.expression.is_const()
     }
 
@@ -100,32 +107,6 @@ impl InternalVar {
     /// Creates an `InternalVar` from a `FieldElement`.
     pub(crate) fn from_constant(constant: FieldElement) -> InternalVar {
         InternalVar { expression: Expression::from_field(constant), cached_witness: None, id: None }
-    }
-
-    /// Generates a `Witness` that is equal to the `expression`.
-    /// - If a `Witness` has previously been generated
-    /// we return that.
-    /// - If the Expression represents a constant, we return None.
-    pub(crate) fn get_or_compute_witness(
-        &mut self,
-        evaluator: &mut Evaluator,
-        create_witness_for_const: bool,
-    ) -> Option<Witness> {
-        // Check if we've already generated a `Witness` which is equal to
-        // the stored `Expression`
-        if let Some(witness) = self.cached_witness {
-            return Some(witness);
-        }
-
-        // There are cases where we need to convert a constant expression
-        // into a witness.
-        if !create_witness_for_const && self.is_const_expression() {
-            return None;
-        }
-
-        self.cached_witness = Some(expression_to_witness(self.expression.clone(), evaluator));
-
-        self.cached_witness
     }
 }
 
@@ -184,42 +165,24 @@ impl From<FieldElement> for InternalVar {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ssa::acir_gen::InternalVar, Evaluator};
-    use acvm::{acir::native_types::Witness, FieldElement};
+    use crate::ssa::acir_gen::InternalVar;
+    use acvm::FieldElement;
 
     #[test]
     fn internal_var_const_expression() {
-        let mut evaluator = Evaluator::default();
-
         let expected_constant = FieldElement::from(123456789u128);
 
         // Initialize an InternalVar with a FieldElement
-        let mut internal_var = InternalVar::from_constant(expected_constant);
+        let internal_var = InternalVar::from_constant(expected_constant);
 
         // We currently do not create witness when the InternalVar was created using a constant
-        let witness = internal_var.get_or_compute_witness(&mut evaluator, false);
-        assert!(witness.is_none());
+        assert!(internal_var.cached_witness().is_none());
 
         match internal_var.to_const() {
             Some(got_constant) => assert_eq!(got_constant, expected_constant),
             None => {
                 panic!("`InternalVar` was initialized with a constant, so a field element was expected")
             }
-        }
-    }
-    #[test]
-    fn internal_var_from_witness() {
-        let mut evaluator = Evaluator::default();
-
-        let expected_witness = Witness(1234);
-        // Initialize an InternalVar with a `Witness`
-        let mut internal_var = InternalVar::from_witness(expected_witness);
-
-        // We should get back the same `Witness`
-        let got_witness = internal_var.get_or_compute_witness(&mut evaluator, false);
-        match got_witness {
-            Some(got_witness) => assert_eq!(got_witness, expected_witness),
-            None => panic!("expected a `Witness` value"),
         }
     }
 }
