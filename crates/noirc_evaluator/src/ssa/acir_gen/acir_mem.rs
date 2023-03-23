@@ -34,9 +34,16 @@ pub(crate) struct MemOp {
 type MemAddress = u32;
 
 enum ArrayType {
-    Init(HashSet<MemAddress>, u32),
+    /// Initialization phase: initializing the array with writes on the 0..array.len range
+    /// It contains the HashSet of the initialized indexes and the maximum of these indexes
+    Init(HashSet<MemAddress>, MemAddress),
+    /// Array is only written on, never read
     WriteOnly,
+    /// Initialization phase and then only read, and optionally a bunch of writes at the end
+    /// The optional usize indicates the position of the ending writes if any: after this position, there are only writes
     ReadOnly(Option<usize>),
+    /// Reads and writes outside the initialization phase
+    /// The optional usize indicates the position of the ending writes if any: after this position, there are only writes
     ReadWrite(Option<usize>),
 }
 
@@ -77,11 +84,8 @@ impl ArrayHeap {
                 (false, Some(idx)) => {
                     let idx: MemAddress = idx.to_u128().try_into().unwrap();
                     let mut init_idx2 = init_idx.clone();
-                    let mut len2 = *len;
                     init_idx2.insert(idx);
-                    if idx + 1 > len2 {
-                        len2 = idx + 1;
-                    }
+                    let len2 = std::cmp::max(idx + 1, *len);
                     ArrayType::Init(init_idx2, len2)
                 }
                 (false, None) => ArrayType::WriteOnly,
@@ -134,19 +138,12 @@ impl ArrayHeap {
     }
 
     pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator) {
-        let mut len = self.trace.len();
+        let (len, read_write) = match self.typ {
+            ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
+            ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
+            ArrayType::ReadWrite(last) => (last.unwrap_or(self.trace.len()), true),
+        };
 
-        let mut read_write = true;
-        match self.typ {
-            ArrayType::Init(_, _) | ArrayType::WriteOnly => len = 0,
-            ArrayType::ReadOnly(last) => {
-                len = last.unwrap_or(len);
-                read_write = false;
-            }
-            ArrayType::ReadWrite(last) => {
-                len = last.unwrap_or(len);
-            }
-        }
         if len == 0 {
             return;
         }

@@ -67,7 +67,7 @@ impl Acir {
 
         let output = match &ins.operation {
             Operation::Binary(binary) => {
-                binary::evaluate(binary, ins.res_type, var_cache, acir_mem, evaluator, ctx)
+                binary::evaluate(binary, ins.res_type, self, evaluator, ctx)
             }
             Operation::Constrain(value, ..) => {
                 constrain::evaluate(value, var_cache, evaluator, ctx)
@@ -89,7 +89,7 @@ impl Acir {
                     }
                     _ => *opcode,
                 };
-                intrinsics::evaluate(args, ins, opcode, var_cache, acir_mem, ctx, evaluator)
+                intrinsics::evaluate(args, ins, opcode, self, ctx, evaluator)
             }
             Operation::Return(node_ids) => {
                 r#return::evaluate(node_ids, acir_mem, var_cache, evaluator, ctx)?
@@ -118,7 +118,7 @@ impl Acir {
         // then we add it to the `InternalVar` cache
         if let Some(mut output) = output {
             output.set_id(ins.id);
-            self.var_cache.update(ins.id, output);
+            self.var_cache.update(output);
         }
 
         Ok(())
