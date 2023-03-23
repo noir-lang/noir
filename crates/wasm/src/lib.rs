@@ -68,11 +68,11 @@ impl Default for WASMCompileOptions {
 pub fn init_log_level(level: String) {
     // Set the static variable from Rust
     use std::sync::Once;
+    
+    let log_level = Level::from_str(&level).unwrap_or(Level::Error)
     static SET_HOOK: Once = Once::new();
     SET_HOOK.call_once(|| {
-        wasm_logger::init(wasm_logger::Config::new(
-            Level::from_str(&level).unwrap_or(Level::Error),
-        ));
+        wasm_logger::init(wasm_logger::Config::new(log_level));
     });
 }
 const BUILD_INFO: BuildInfo = BuildInfo {
@@ -99,15 +99,13 @@ pub fn compile(args: JsValue) -> JsValue {
             .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
     };
 
-    debug!("Compiler configureation {:?}", &options);
+    debug!("Compiler configuration {:?}", &options);
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-
-    let path = PathBuf::from(&options.entry_point);
-
     let mut driver = noirc_driver::Driver::new(&language);
 
+    let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
 
     // We are always adding std lib implicitly. It comes bundled with binary.
