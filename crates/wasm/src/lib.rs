@@ -99,7 +99,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .unwrap_or_else(|_| panic!("Could not deserialize compile arguments"))
     };
 
-    debug!("Compiler configureation {:?}", &options);
+    debug!("Compiler configuration {:?}", &options);
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
