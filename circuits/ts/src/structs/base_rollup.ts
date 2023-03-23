@@ -8,7 +8,13 @@ import {
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from "./constants.js";
 import { PreviousKernelData } from "./kernel.js";
-import { AggregationObject, Fr, MembershipWitness, UInt32 } from "./shared.js";
+import {
+  AggregationObject,
+  Fr,
+  MembershipWitness,
+  RollupTypes,
+  UInt32,
+} from "./shared.js";
 
 export class NullifierLeafPreimage {
   constructor(
@@ -145,11 +151,6 @@ export class BaseRollupInputs {
   toBuffer() {
     return serializeToBuffer(...BaseRollupInputs.getFields(this));
   }
-}
-
-export enum RollupTypes {
-  Base = 0,
-  Rollup = 1,
 }
 
 /**

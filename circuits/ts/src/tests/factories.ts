@@ -2,7 +2,6 @@ import {
   AppendOnlyTreeSnapshot,
   BaseRollupPublicInputs,
   ConstantBaseRollupData,
-  RollupTypes,
 } from "../structs/base_rollup.js";
 import {
   EMITTED_EVENTS_LENGTH,
@@ -34,6 +33,7 @@ import {
   Fr,
   MembershipWitness,
   UInt8Vector,
+  RollupTypes,
 } from "../structs/shared.js";
 import { ContractDeploymentData, TxContext } from "../structs/tx.js";
 import {

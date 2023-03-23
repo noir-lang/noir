@@ -215,3 +215,12 @@ export enum ComposerType {
   PLOOKUP = 2,
   STANDARD_HONK = 3,
 }
+
+/**
+ * Rollup types.
+ */
+export enum RollupTypes {
+  Base = 0,
+  Rollup = 1,
+  Merge = 2,
+}
