@@ -103,11 +103,9 @@ pub fn compile(args: JsValue) -> JsValue {
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-
-    let path = PathBuf::from(&options.entry_point);
-
     let mut driver = noirc_driver::Driver::new(&language);
 
+    let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
 
     // We are always adding std lib implicitly. It comes bundled with binary.
