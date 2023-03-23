@@ -84,11 +84,8 @@ impl ArrayHeap {
                 (false, Some(idx)) => {
                     let idx: MemAddress = idx.to_u128().try_into().unwrap();
                     let mut init_idx2 = init_idx.clone();
-                    let mut len2 = *len;
                     init_idx2.insert(idx);
-                    if idx + 1 > len2 {
-                        len2 = idx + 1;
-                    }
+                    let len2 = std::cmp::max(idx + 1, *len);
                     ArrayType::Init(init_idx2, len2)
                 }
                 (false, None) => ArrayType::WriteOnly,
