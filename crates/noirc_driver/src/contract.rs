@@ -24,14 +24,14 @@ pub enum ContractFunctionType {
     // / and does not require any constraint.
     Unconstrained,
 }
-/// Each method in the contract , a contract method,
-/// will be compiled as a separate noir program.
+/// Each function in the contract will be compiled
+/// as a separate noir program.
 ///
-/// A contract method unlike a regular Noir program
+/// A contract function unlike a regular Noir program
 /// however can have addition properties.
 /// One of these being a function type.
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct ContractMethod {
+pub struct ContractFunction {
     pub func_type: ContractFunctionType,
     pub function: CompiledProgram,
 }
@@ -42,6 +42,5 @@ pub struct CompiledContract {
     pub name: String,
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
     /// stored in this `BTreeMap`.
-    #[serde(rename = "methods")]
-    pub functions: BTreeMap<String, ContractMethod>,
+    pub functions: BTreeMap<String, ContractFunction>,
 }

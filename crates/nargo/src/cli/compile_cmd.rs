@@ -34,7 +34,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-        save_and_preprocess_contract(compiled_contracts, &args.circuit_name, &circuit_dir)
+        save_and_preprocess_contract(&compiled_contracts, &args.circuit_name, &circuit_dir)
     } else {
         let program = compile_circuit(&config.program_dir, &args.compile_options)?;
         save_and_preprocess_program(&program, &args.circuit_name, &circuit_dir)
@@ -59,7 +59,7 @@ fn save_and_preprocess_program(
 
 /// Save a contract to disk along with proving and verification keys.
 /// - The contract ABI is saved as one file, which contains all of the
-/// methods defined in the contract.
+/// functions defined in the contract.
 /// - The proving and verification keys are namespaced since the file
 /// could contain multiple contracts with the same name.
 fn save_and_preprocess_contract(
@@ -74,8 +74,8 @@ fn save_and_preprocess_contract(
         // Save contract ABI to file using the contract ID.
         save_contract_to_file(&compiled_contract, &contract_id, circuit_dir);
 
-        for (function_name, contract_method) in compiled_contract.functions {
-            // Create a name which uniquely identifies this contract method
+        for (function_name, contract_function) in &compiled_contract.functions {
+            // Create a name which uniquely identifies this contract function
             // over multiple contracts.
             let uniquely_identifying_program_name = format!("{}-{}", contract_id, function_name);
             // Each program in a contract is preprocessed
@@ -83,7 +83,7 @@ fn save_and_preprocess_contract(
             preprocess_with_path(
                 &uniquely_identifying_program_name,
                 circuit_dir,
-                &contract_method.function.circuit,
+                &contract_function.function.circuit,
             )?;
         }
     }
