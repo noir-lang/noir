@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{acir_mem::AcirMem, constraints, InternalVar},
+        acir_gen::{acir_mem::AcirMem, constraints, Acir, InternalVar},
         context::SsaContext,
         mem::{MemArray, Memory},
         node::NodeId,
@@ -26,7 +26,7 @@ use iter_extended::vecmap;
 // so in reality, the NEQ instruction will be done on the fields
 // of the struct
 pub(super) fn evaluate_neq(
-    acir_mem: &mut AcirMem,
+    acir_gen: &mut Acir,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -60,12 +60,14 @@ pub(super) fn evaluate_neq(
             )
         }
 
-        let mut x = InternalVar::from(array_eq(acir_mem, array_a, array_b, evaluator));
+        let x = InternalVar::from(array_eq(&mut acir_gen.memory, array_a, array_b, evaluator));
         // TODO we need a witness because of the directive, but we should use an expression
         // TODO if we change the Invert directive to take an `Expression`, then we
         // TODO can get rid of this extra gate.
-        let x_witness =
-            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+        let x_witness = acir_gen
+            .var_cache
+            .get_or_compute_witness(x, evaluator)
+            .expect("unexpected constant expression");
 
         return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
     }
@@ -73,7 +75,7 @@ pub(super) fn evaluate_neq(
     // Arriving here means that `lhs` and `rhs` are not Arrays
     let l_c = l_c.expect("ICE: unexpected array pointer");
     let r_c = r_c.expect("ICE: unexpected array pointer");
-    let mut x = InternalVar::from(constraints::subtract(
+    let x = InternalVar::from(constraints::subtract(
         l_c.expression(),
         FieldElement::one(),
         r_c.expression(),
@@ -89,14 +91,16 @@ pub(super) fn evaluate_neq(
         }
     } else {
         //todo we need a witness because of the directive, but we should use an expression
-        let x_witness =
-            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+        let x_witness = acir_gen
+            .var_cache
+            .get_or_compute_witness(x, evaluator)
+            .expect("unexpected constant expression");
         Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 }
 
 pub(super) fn evaluate_eq(
-    memory_map: &mut AcirMem,
+    acir_gen: &mut Acir,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -104,7 +108,7 @@ pub(super) fn evaluate_eq(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Expression {
-    let neq = evaluate_neq(memory_map, lhs, rhs, l_c, r_c, ctx, evaluator);
+    let neq = evaluate_neq(acir_gen, lhs, rhs, l_c, r_c, ctx, evaluator);
     constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
 }
 

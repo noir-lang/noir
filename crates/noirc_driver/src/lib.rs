@@ -203,8 +203,8 @@ impl Driver {
     ) -> Result<CompiledContract, ReportedError> {
         let functions = try_btree_map(&contract.functions, |function| {
             let function_name = self.function_name(*function).to_owned();
-
-            self.compile_no_check(options, *function).map(|program| (function_name, program))
+            let program = self.compile_no_check(options, *function)?;
+            Ok((function_name, program))
         })?;
 
         Ok(CompiledContract { name: contract.name, functions })
@@ -225,10 +225,7 @@ impl Driver {
         };
 
         // All Binaries should have a main function
-        match local_crate.main_function() {
-            Some(func_id) => Ok(func_id),
-            None => Err(ReportedError),
-        }
+        local_crate.main_function().ok_or(ReportedError)
     }
 
     /// Compile the current crate. Assumes self.check_crate is called beforehand!

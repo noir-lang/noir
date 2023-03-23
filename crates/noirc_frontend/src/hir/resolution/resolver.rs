@@ -725,6 +725,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_global_let(&mut self, let_stmt: crate::LetStatement) -> HirStatement {
         let expression = self.resolve_expression(let_stmt.expression);
         let definition = DefinitionKind::Global(expression);
+
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),
             r#type: self.resolve_type(let_stmt.r#type),
