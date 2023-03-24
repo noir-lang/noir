@@ -84,7 +84,7 @@ impl<'a> Resolver<'a> {
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
-	let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
+        let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
         resolver.resolve_manifest(crate_id, manifest, pkg_root)?;
 
         add_std_lib(&mut driver);
