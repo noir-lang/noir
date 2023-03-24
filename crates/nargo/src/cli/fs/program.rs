@@ -29,7 +29,7 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
     create_named_dir(circuit_dir.as_ref(), "target");
     let circuit_path = circuit_dir.as_ref().join(circuit_name).with_extension("json");
 
-    write_to_file(&serde_json::to_vec(strukt).unwrap(), &circuit_path);
+    write_to_file(&serde_json::to_vec(build_artifact).unwrap(), &circuit_path);
 
     circuit_path
 }
