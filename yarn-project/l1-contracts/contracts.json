@@ -1,9 +1,13 @@
 {
-  "outputPath": "./src/aztec-ethereumjs-contracts",
+  "outputPath": "./src/ethereumjs-contracts",
   "contracts": {
     "Rollup": {
       "source": "foundry",
       "buildFile": "../../l1-contracts/out/Rollup.sol/Rollup.json"
+    },
+    "Yeeter": {
+      "source": "foundry",
+      "buildFile": "../../l1-contracts/out/Yeeter.sol/Yeeter.json"
     }
   }
 }

@@ -1,12 +1,18 @@
 {
   "extends": ".",
+  "exclude": ["**/*.test.*", "**/fixtures/*"],
   "references": [
     {
       "path": "../ethereum.js/tsconfig.dest.json"
     },
     {
       "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../l1-contracts/tsconfig.dest.json"
     }
-  ],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  ]
 }

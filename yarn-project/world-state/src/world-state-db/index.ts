@@ -1,19 +1,26 @@
+import { SiblingPath } from '@aztec/merkle-tree';
+
 export * from './memory_world_state_db.js';
+
 /**
- * Defines the possible tree IDs.
+ * Defines the possible Merkle tree IDs.
  */
-export enum WorldStateTreeId {
+export enum MerkleTreeId {
   CONTRACT_TREE = 0,
+  CONTRACT_TREE_ROOTS_TREE = 1,
+  NULLIFIER_TREE = 2,
+  DATA_TREE = 3,
+  DATA_TREE_ROOTS_TREE = 4,
 }
 
 /**
- * Defines tree information.
+ *  Defines tree information.
  */
 export interface TreeInfo {
   /**
    * The tree ID.
    */
-  treeId: WorldStateTreeId;
+  treeId: MerkleTreeId;
   /**
    * The tree root.
    */
@@ -21,19 +28,22 @@ export interface TreeInfo {
   /**
    * The number of leaves in the tree.
    */
-  size: number;
+  size: bigint;
 }
 
 /**
- * Defines a batch update.
+ * Defines the interface for Merkle Tree operations.
  */
-export interface BatchUpdate {
-  /**
-   * The ID of a tree to be updated.
-   */
-  treeId: WorldStateTreeId;
-  /**
-   * The leaves to be updated.
-   */
-  elements: Buffer[];
+export interface MerkleTreeOperations {
+  getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
+  appendLeaves(treeId: MerkleTreeId, leaves: Buffer[]): Promise<void>;
+  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath>;
+}
+
+/**
+ * Defines the interface for a database that stores Merkle trees.
+ */
+export interface MerkleTreeDb extends MerkleTreeOperations {
+  commit(): Promise<void>;
+  rollback(): Promise<void>;
 }

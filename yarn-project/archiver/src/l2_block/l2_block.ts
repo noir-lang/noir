@@ -1,35 +1,43 @@
-import { numToUInt32BE } from '@aztec/foundation';
-
-/**
- * A snapshot of an append only tree.
- */
-export type AppendOnlyTreeSnapshot = {
-  /**
-   * The root of the tree, as a field element.
-   */
-  root: Buffer;
-  /**
-   * The next available index in the tree.
-   */
-  nextAvailableLeafIndex: number;
-};
+import { AppendOnlyTreeSnapshot, EthAddress, Fr } from '@aztec/circuits.js';
+import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 
 /**
  * A contract data blob, containing L1 and L2 addresses.
  */
-export type ContractData = {
+export class ContractData {
+  constructor(
+    /**
+     * The L2 address of the contract, as a field element (32 bytes).
+     */
+    public aztecAddress: Fr,
+    /**
+     * The L1 address of the contract, (20 bytes).
+     */
+    public ethAddress: EthAddress,
+  ) {}
+
   /**
-   * The L2 address of the contract, as a field element (32 bytes).
+   * Serializes this instance into a buffer, using 20 bytes for the eth address.
+   * @returns Encoded buffer.
    */
-  aztecAddress: Buffer;
+  public toBuffer(): Buffer {
+    return serializeToBuffer(this.aztecAddress, this.ethAddress.buffer);
+  }
+
   /**
-   * The L1 address of the contract, (20 bytes).
+   * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
+   * @param buffer - Byte array resulting from calling toBuffer.
+   * @returns Deserialized instance.
    */
-  ethAddress: Buffer;
-};
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new ContractData(reader.readFr(), new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES)));
+  }
+}
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
+ * TODO: Reuse data types and serialization functions from circuits package.
  */
 export class L2Block {
   /**
@@ -68,11 +76,52 @@ export class L2Block {
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
-    public newCommitments: Buffer[],
-    public newNullifiers: Buffer[],
-    public newContracts: Buffer[],
+    public newCommitments: Fr[],
+    public newNullifiers: Fr[],
+    public newContracts: Fr[],
     public newContractData: ContractData[],
   ) {}
+
+  /**
+   * Constructs a new instance from named fields.
+   * @param fields - Fields to pass to the constructor.
+   * @returns A new instance.
+   */
+  static fromFields(fields: {
+    number: number;
+    startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot;
+    startNullifierTreeSnapshot: AppendOnlyTreeSnapshot;
+    startContractTreeSnapshot: AppendOnlyTreeSnapshot;
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot;
+    endNullifierTreeSnapshot: AppendOnlyTreeSnapshot;
+    endContractTreeSnapshot: AppendOnlyTreeSnapshot;
+    endTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot;
+    newCommitments: Fr[];
+    newNullifiers: Fr[];
+    newContracts: Fr[];
+    newContractData: ContractData[];
+  }) {
+    return new this(
+      fields.number,
+      fields.startPrivateDataTreeSnapshot,
+      fields.startNullifierTreeSnapshot,
+      fields.startContractTreeSnapshot,
+      fields.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      fields.startTreeOfHistoricContractTreeRootsSnapshot,
+      fields.endPrivateDataTreeSnapshot,
+      fields.endNullifierTreeSnapshot,
+      fields.endContractTreeSnapshot,
+      fields.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      fields.endTreeOfHistoricContractTreeRootsSnapshot,
+      fields.newCommitments,
+      fields.newNullifiers,
+      fields.newContracts,
+      fields.newContractData,
+    );
+  }
 
   /**
    * Sets the yeet on this block.
@@ -87,26 +136,34 @@ export class L2Block {
    * @returns The encoded L2 block data.
    */
   encode(): Buffer {
-    return Buffer.concat([
-      numToUInt32BE(Number(this.number)),
-      appendOnlyTreeSnapshotToBuffer(this.startPrivateDataTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.startNullifierTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.startContractTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.startTreeOfHistoricPrivateDataTreeRootsSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.startTreeOfHistoricContractTreeRootsSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.endPrivateDataTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.endNullifierTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.endContractTreeSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.endTreeOfHistoricPrivateDataTreeRootsSnapshot),
-      appendOnlyTreeSnapshotToBuffer(this.endTreeOfHistoricContractTreeRootsSnapshot),
-      numToUInt32BE(this.newCommitments.length),
-      ...this.newCommitments,
-      numToUInt32BE(this.newNullifiers.length),
-      ...this.newNullifiers,
-      numToUInt32BE(this.newContracts.length),
-      ...this.newContracts,
-      ...this.newContractData.map(contractData => contractDataToBuffer(contractData)),
-    ]);
+    return serializeToBuffer(
+      this.number,
+      this.startPrivateDataTreeSnapshot,
+      this.startNullifierTreeSnapshot,
+      this.startContractTreeSnapshot,
+      this.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.startTreeOfHistoricContractTreeRootsSnapshot,
+      this.endPrivateDataTreeSnapshot,
+      this.endNullifierTreeSnapshot,
+      this.endContractTreeSnapshot,
+      this.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      this.endTreeOfHistoricContractTreeRootsSnapshot,
+      this.newCommitments.length,
+      this.newCommitments,
+      this.newNullifiers.length,
+      this.newNullifiers,
+      this.newContracts.length,
+      this.newContracts,
+      this.newContractData,
+    );
+  }
+
+  /**
+   * Alias for encode.
+   * @returns The encoded L2 block data.
+   */
+  toBuffer() {
+    return this.encode();
   }
 
   /**
@@ -114,70 +171,26 @@ export class L2Block {
    * @param encoded - The encoded L2 block data.
    * @returns The decoded L2 block data.
    */
-  static decode(encoded: Buffer) {
-    let offset = 0;
-    const blockNum = encoded.readUInt32BE(offset);
-    offset += 4;
-    const startPrivateDataTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const startNullifierTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const startContractTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const startTreeOfHistoricPrivateDataTreeRootsSnapshot = bufferToAppendOnlyTreeSnapshot(
-      encoded.subarray(offset, offset + 36),
-    );
-    offset += 36;
-    const startTreeOfHistoricContractTreeRootsSnapshot = bufferToAppendOnlyTreeSnapshot(
-      encoded.subarray(offset, offset + 36),
-    );
-    offset += 36;
-    const endPrivateDataTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const endNullifierTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const endContractTreeSnapshot = bufferToAppendOnlyTreeSnapshot(encoded.subarray(offset, offset + 36));
-    offset += 36;
-    const endTreeOfHistoricPrivateDataTreeRootsSnapshot = bufferToAppendOnlyTreeSnapshot(
-      encoded.subarray(offset, offset + 36),
-    );
-    offset += 36;
-    const endTreeOfHistoricContractTreeRootsSnapshot = bufferToAppendOnlyTreeSnapshot(
-      encoded.subarray(offset, offset + 36),
-    );
-    offset += 36;
-
-    const newCommitments: Buffer[] = [];
-    const newNullifiers: Buffer[] = [];
-    const newContracts: Buffer[] = [];
-    const newContractData: ContractData[] = [];
-
-    const newCommitmentCount = encoded.readUInt32BE(offset);
-    offset += 4;
-    for (let i = 0; i < newCommitmentCount; i++) {
-      newCommitments.push(encoded.subarray(offset, offset + 32));
-      offset += 32;
-    }
-    const newNullifierCount = encoded.readUInt32BE(offset);
-    offset += 4;
-    for (let i = 0; i < newNullifierCount; i++) {
-      newNullifiers.push(encoded.subarray(offset, offset + 32));
-      offset += 32;
-    }
-
-    const newContractCount = encoded.readUInt32BE(offset);
-    offset += 4;
-    for (let i = 0; i < newContractCount; i++) {
-      newContracts.push(encoded.subarray(offset, offset + 32));
-      offset += 32;
-    }
-    for (let i = 0; i < newContractCount; i++) {
-      newContractData.push(bufferToContractData(encoded.subarray(offset, offset + 52)));
-      offset += 52;
-    }
+  static decode(encoded: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(encoded);
+    const number = reader.readNumber();
+    const startPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startTreeOfHistoricPrivateDataTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const startTreeOfHistoricContractTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endPrivateDataTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endNullifierTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endContractTreeSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endTreeOfHistoricPrivateDataTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const endTreeOfHistoricContractTreeRootsSnapshot = reader.readObject(AppendOnlyTreeSnapshot);
+    const newCommitments = reader.readVector(Fr);
+    const newNullifiers = reader.readVector(Fr);
+    const newContracts = reader.readVector(Fr);
+    const newContractData = reader.readArray(newContracts.length, ContractData);
 
     return new L2Block(
-      blockNum,
+      number,
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
       startContractTreeSnapshot,
@@ -194,55 +207,55 @@ export class L2Block {
       newContractData,
     );
   }
-}
 
-/**
- * UTILITIES.
- */
-
-/**
- * Serialize the contract data as a buffer.
- * @param contractData - The contract data to serialize.
- * @returns The serialized contract data as a buffer.
- */
-export function contractDataToBuffer(contractData: ContractData): Buffer {
-  return Buffer.concat([contractData.aztecAddress, contractData.ethAddress]);
-}
-
-/**
- * Deserialize the contract data from a buffer.
- * @param buffer - The buffer to deserialize.
- * @returns The contract data.
- */
-export function bufferToContractData(buffer: Buffer): ContractData {
-  return {
-    aztecAddress: buffer.subarray(0, 32),
-    ethAddress: buffer.subarray(32, 52),
-  };
-}
-
-/**
- * Serialize the append only tree snapshot as a buffer.
- * @param snapshot - The snapshot to serialize.
- * @returns The serialized snapshot as a buffer.
- */
-export function appendOnlyTreeSnapshotToBuffer(snapshot: AppendOnlyTreeSnapshot): Buffer {
-  const buffer = Buffer.concat([numToUInt32BE(snapshot.nextAvailableLeafIndex), snapshot.root]);
-  return buffer;
-}
-
-/**
- * Deserialize the append only tree snapshot from a buffer.
- * @param buffer - The buffer to deserialize.
- * @returns The append only tree snapshot.
- */
-export function bufferToAppendOnlyTreeSnapshot(buffer: Buffer): AppendOnlyTreeSnapshot {
-  const nextAvailableLeafIndex = buffer.readUInt32BE(0);
-  const root = buffer.subarray(4);
-  return {
-    nextAvailableLeafIndex,
-    root,
-  };
+  /**
+   * Inspect for debugging purposes..
+   * @param maxBufferSize - The number of bytes to be extracted from buffer.
+   * @returns A human-friendly string representation of the l2block.
+   */
+  inspect(maxBufferSize = 4): string {
+    const inspectTreeSnapshot = (s: AppendOnlyTreeSnapshot): string =>
+      `(${s.nextAvailableLeafIndex}, 0x${s.root.toBuffer().subarray(0, maxBufferSize).toString('hex')})`;
+    const inspectFrArray = (arr: Fr[]): string =>
+      '[' + arr.map(fr => '0x' + fr.toBuffer().subarray(0, maxBufferSize).toString('hex')).join(', ') + ']';
+    const inspectContractDataArray = (arr: ContractData[]): string =>
+      '[' +
+      arr
+        .map(
+          cd =>
+            `(0x${cd.aztecAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')}, 0x${cd.ethAddress.buffer
+              .subarray(0, maxBufferSize)
+              .toString('hex')})`,
+        )
+        .join(', ') +
+      ']';
+    return [
+      `L2Block`,
+      `number: ${this.number}`,
+      `startPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.startPrivateDataTreeSnapshot)}`,
+      `startNullifierTreeSnapshot: ${inspectTreeSnapshot(this.startNullifierTreeSnapshot)}`,
+      `startContractTreeSnapshot: ${inspectTreeSnapshot(this.startContractTreeSnapshot)}`,
+      `startTreeOfHistoricPrivateDataTreeRootsSnapshot: ${inspectTreeSnapshot(
+        this.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      )}`,
+      `startTreeOfHistoricContractTreeRootsSnapshot: ${inspectTreeSnapshot(
+        this.startTreeOfHistoricContractTreeRootsSnapshot,
+      )}`,
+      `endPrivateDataTreeSnapshot: ${inspectTreeSnapshot(this.endPrivateDataTreeSnapshot)}`,
+      `endNullifierTreeSnapshot: ${inspectTreeSnapshot(this.endNullifierTreeSnapshot)}`,
+      `endContractTreeSnapshot: ${inspectTreeSnapshot(this.endContractTreeSnapshot)}`,
+      `endTreeOfHistoricPrivateDataTreeRootsSnapshot: ${inspectTreeSnapshot(
+        this.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
+      )}`,
+      `endTreeOfHistoricContractTreeRootsSnapshot: ${inspectTreeSnapshot(
+        this.endTreeOfHistoricContractTreeRootsSnapshot,
+      )}`,
+      `newCommitments: ${inspectFrArray(this.newCommitments)}`,
+      `newNullifiers: ${inspectFrArray(this.newNullifiers)}`,
+      `newContracts: ${inspectFrArray(this.newContracts)}`,
+      `newContractData: ${inspectContractDataArray(this.newContractData)}`,
+    ].join('\n');
+  }
 }
 
 /**

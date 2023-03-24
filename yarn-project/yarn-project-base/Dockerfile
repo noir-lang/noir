@@ -15,6 +15,7 @@ WORKDIR /usr/src/yarn-project
 COPY acir-simulator/package.json acir-simulator/package.json
 COPY archiver/package.json archiver/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
+COPY aztec-node/package.json aztec-node/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
@@ -28,19 +29,21 @@ COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
 COPY noir-contracts/package.json noir-contracts/package.json
 COPY l1-contracts/package.json l1-contracts/package.json
+COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY prover-client/package.json prover-client/package.json
-COPY aztec-node/package.json aztec-node/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
 COPY wallet/package.json wallet/package.json
 COPY world-state/package.json world-state/package.json
 COPY package.json tsconfig.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn
+# bundled dependencies
+COPY .yalc .yalc
 
-# Although we're attempting to be "zero-install", in practice we still need to build arch specific packages.
-RUN yarn --immutable
 # Build submodule packages that have their own yarn.lock.
 RUN cd foundation && yarn --immutable && cd ..
+# Although we're attempting to be "zero-install", in practice we still need to build arch specific packages.
+RUN yarn --immutable
 # If everything's worked properly, we should no longer need access to the network.
 RUN echo "enableNetwork: false" >> .yarnrc.yml
 

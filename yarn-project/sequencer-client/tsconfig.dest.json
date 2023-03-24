@@ -1,4 +1,12 @@
 {
   "extends": ".",
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": ["**/*.test.*", "**/fixtures/*"],
+  "references": [
+    { "path": "../archiver/tsconfig.dest.json" },
+    { "path": "../circuits.js/tsconfig.dest.json" },
+    { "path": "../l1-contracts/tsconfig.dest.json" },
+    { "path": "../merkle-tree/tsconfig.dest.json" },
+    { "path": "../p2p/tsconfig.dest.json" },
+    { "path": "../world-state/tsconfig.dest.json" }
+  ]
 }

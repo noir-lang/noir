@@ -1,44 +1,20 @@
-import { randomBytes } from 'crypto';
+import { L2Block } from '@aztec/archiver';
+import {
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  PrivateKernelPublicInputs,
+} from '@aztec/circuits.js';
 import { Keccak } from 'sha3';
 
 const hash = new Keccak(256);
 
 /**
- * Accumulated data of an A3 transaction.
- */
-export class AccumulatedTxData {
-  constructor(
-    public newCommitments: Buffer[],
-    public newNullifiers: Buffer[],
-    public privateCallStack: Buffer[],
-    public publicCallStack: Buffer[],
-    public l1MsgStack: Buffer[],
-    public newContracts: Buffer[],
-    public optionallyRevealedData: Buffer[],
-    public aggregationObject?: object,
-    public callCount?: number,
-  ) {}
-
-  public static random() {
-    return new AccumulatedTxData(
-      [randomBytes(32)],
-      [randomBytes(32)],
-      [randomBytes(32)],
-      [randomBytes(32)],
-      [randomBytes(32)],
-      [randomBytes(32)],
-      [randomBytes(32)],
-      undefined,
-      undefined,
-    );
-  }
-}
-
-/**
  * The interface of an L2 transaction.
  */
 export class Tx {
-  constructor(private txData: AccumulatedTxData) {}
+  private _id?: Buffer;
+  constructor(private txData: PrivateKernelPublicInputs) {}
 
   /**
    * Construct & return transaction ID.
@@ -46,18 +22,55 @@ export class Tx {
    * @returns The transaction's id.
    */
   get txId() {
-    const constractTxData = this.txData.newContracts[0];
-    hash.reset();
-    return hash.update(constractTxData).digest();
+    if (!this._id) {
+      this._id = Tx.createTxId(this);
+    }
+    return this._id;
+  }
+
+  get data() {
+    return this.txData;
   }
 
   /**
    * Utility function to generate tx ID.
-   * @param txData - Binary representation of the tx data.
+   * @param tx - The transaction from which to generate the id.
    * @returns A hash of the tx data that identifies the tx.
    */
-  static createTxId(txData: Buffer) {
+  static createTxId(tx: Tx) {
     hash.reset();
-    return hash.update(txData).digest();
+    const dataToHash = Buffer.concat(
+      [
+        tx.txData.end.newCommitments.map(x => x.toBuffer()),
+        tx.txData.end.newNullifiers.map(x => x.toBuffer()),
+        tx.txData.end.newContracts.map(x => x.functionTreeRoot.toBuffer()),
+      ].flat(),
+    );
+    return hash.update(dataToHash).digest();
   }
+}
+
+export function createTxIds(block: L2Block) {
+  hash.reset();
+  let i = 0;
+  const numTxs = Math.floor(block.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
+  const txIds: Buffer[] = [];
+  while (i < numTxs) {
+    const dataToHash = Buffer.concat(
+      [
+        block.newCommitments
+          .slice(i * KERNEL_NEW_COMMITMENTS_LENGTH, i * KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_COMMITMENTS_LENGTH)
+          .map(x => x.toBuffer()),
+        block.newNullifiers
+          .slice(i * KERNEL_NEW_NULLIFIERS_LENGTH, i * KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH)
+          .map(x => x.toBuffer()),
+        block.newContracts
+          .slice(i * KERNEL_NEW_CONTRACTS_LENGTH, i * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH)
+          .map(x => x.toBuffer()),
+      ].flat(),
+    );
+    txIds.push(hash.update(dataToHash).digest());
+    i++;
+  }
+  return txIds;
 }

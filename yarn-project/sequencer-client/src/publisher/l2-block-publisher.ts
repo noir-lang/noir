@@ -1,8 +1,7 @@
 import { L2Block } from '@aztec/archiver';
+import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const MIN_FEE_DISTRIBUTOR_BALANCE = 5n * 10n ** 17n;
+import { PublisherConfig } from './config.js';
 
 /**
  * Component responsible of pushing the txs to the chain and waiting for completion.
@@ -22,21 +21,20 @@ export type L1ProcessRollupArgs = {
 
 /**
  * Publishes L2 blocks to the L1 rollup contracts. This implementation does *not* retry a transaction in
- * the event of network congestion.
+ * the event of network congestion, but should work for local development.
  * - If sending (not mining) a tx fails, it retries indefinitely at 1-minute intervals.
  * - If the tx is not mined, keeps polling indefinitely at 1-second intervals.
  *
  * Adapted from https://github.com/AztecProtocol/aztec2-internal/blob/master/falafel/src/rollup_publisher.ts.
  */
 export class L2BlockPublisher implements L2BlockReceiver {
-  private interrupted = false;
-  private interruptPromise = Promise.resolve();
-  private interruptResolve = () => {};
+  private interruptableSleep = new InterruptableSleep();
   private sleepTimeMs: number;
+  private interrupted = false;
+  private log = createDebugLogger('aztec:sequencer');
 
-  constructor(private txSender: PublisherTxSender, opts?: { sleepTimeMs?: number }) {
-    this.interruptPromise = new Promise(resolve => (this.interruptResolve = resolve));
-    this.sleepTimeMs = opts?.sleepTimeMs ?? 60_000;
+  constructor(private txSender: PublisherTxSender, config?: PublisherConfig) {
+    this.sleepTimeMs = config?.retryIntervalMs ?? 60_000;
   }
 
   /**
@@ -46,10 +44,11 @@ export class L2BlockPublisher implements L2BlockReceiver {
   public async processL2Block(l2BlockData: L2Block): Promise<boolean> {
     const proof = Buffer.alloc(0);
     const txData = { proof, inputs: l2BlockData.encode() };
+    //this.log(`Publishing L2 block: ${l2BlockData.inspect()}`);
 
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
-        console.log(`Fee distributor ETH balance too low, awaiting top up...`);
+        this.log(`Fee distributor ETH balance too low, awaiting top up...`);
         await this.sleepOrInterrupted();
         continue;
       }
@@ -65,15 +64,15 @@ export class L2BlockPublisher implements L2BlockReceiver {
 
       // Check if someone else moved the block id
       if (!(await this.checkNextL2BlockId(l2BlockData.number))) {
-        console.log('Publish failed. Contract changed underfoot.');
+        this.log('Publish failed. Contract changed underfoot.');
         break;
       }
 
-      console.log(`Transaction status failed: ${receipt.transactionHash}`);
+      this.log(`Transaction status failed: ${receipt.transactionHash}`);
       await this.sleepOrInterrupted();
     }
 
-    console.log('Publish rollup interrupted.');
+    this.log('Publish rollup interrupted.');
     return false;
   }
 
@@ -85,7 +84,7 @@ export class L2BlockPublisher implements L2BlockReceiver {
    */
   public interrupt() {
     this.interrupted = true;
-    this.interruptResolve();
+    this.interruptableSleep.interrupt();
   }
 
   // TODO: Check fee distributor has at least 0.5 ETH.
@@ -105,7 +104,7 @@ export class L2BlockPublisher implements L2BlockReceiver {
       try {
         return await this.txSender.sendTransaction(encodedData);
       } catch (err) {
-        console.log(`Error sending tx to L1`, err);
+        this.log(`Error sending tx to L1`, err);
         await this.sleepOrInterrupted();
       }
     }
@@ -118,14 +117,13 @@ export class L2BlockPublisher implements L2BlockReceiver {
       try {
         return await this.txSender.getTransactionReceipt(txHash);
       } catch (err) {
-        console.log(`Error getting tx receipt`, err);
+        this.log(`Error getting tx receipt`, err);
         await this.sleepOrInterrupted();
       }
     }
   }
 
   protected async sleepOrInterrupted() {
-    const ms = this.sleepTimeMs;
-    await Promise.race([new Promise(resolve => setTimeout(resolve, ms)), this.interruptPromise]);
+    await this.interruptableSleep.sleep(this.sleepTimeMs);
   }
 }

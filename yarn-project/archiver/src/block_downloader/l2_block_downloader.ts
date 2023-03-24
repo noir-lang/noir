@@ -1,4 +1,5 @@
 import { InterruptableSleep, Semaphore, MemoryFifo } from '@aztec/foundation';
+import { INITIAL_ROLLUP_ID } from '@aztec/l1-contracts';
 import { L2BlockSource, L2Block } from '../index.js';
 
 /**
@@ -21,9 +22,9 @@ export class L2BlockDownloader {
 
   /**
    * Starts the downloader.
-   * @param from - The block number to start downloading from. Defaults to 0.
+   * @param from - The block number to start downloading from. Defaults to INITIAL_ROLLUP_ID.
    */
-  public start(from = 0) {
+  public start(from = INITIAL_ROLLUP_ID) {
     this.from = from;
 
     if (this.running) {

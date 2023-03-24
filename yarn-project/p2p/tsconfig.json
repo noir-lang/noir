@@ -8,9 +8,9 @@
     "types": ["node", "jest"]
   },
   "references": [
-    {
-      "path": "../archiver/tsconfig.dest.json"
-    }
+    { "path": "../archiver/tsconfig.dest.json" },
+    { "path": "../circuits.js/tsconfig.dest.json" },
+    { "path": "../foundation/tsconfig.dest.json" }
   ],
   "include": ["src"]
 }

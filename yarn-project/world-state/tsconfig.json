@@ -14,9 +14,10 @@
     },
     {
       "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
     }
   ],
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

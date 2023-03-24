@@ -1,3 +1,5 @@
+import { MerkleTreeOperations } from '../index.js';
+
 /**
  * Defines the possible states of the world state synchroniser.
  */
@@ -25,7 +27,7 @@ export interface WorldStateStatus {
 /**
  * Defines the interface for a world state synchroniser.
  */
-export interface WorldStateSynchroniser {
+export interface WorldStateSynchroniser extends MerkleTreeOperations {
   start(): void;
   status(): Promise<WorldStateStatus>;
   stop(): Promise<void>;

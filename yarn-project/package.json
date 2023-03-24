@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
-    "formatting": "yarn workspaces foreach run formatting"
+    "formatting": "yarn workspaces foreach run formatting",
+    "formatting:fix": "yarn workspaces foreach run formatting:fix"
   },
   "workspaces": [
     "acir-simulator",
     "archiver",
     "aztec-cli",
     "aztec.js",
+    "circuits.js",
     "docs",
     "end-to-end",
     "ethereum.js",
@@ -26,7 +28,8 @@
     "aztec-node",
     "sequencer-client",
     "wallet",
-    "world-state"
+    "world-state",
+    ".yalc/*/*"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {
@@ -34,5 +37,8 @@
     "prettier": "^2.7.1",
     "typedoc": "^0.23.26",
     "typescript": "^4.9.5"
+  },
+  "comments": {
+    "resolutions": "Yarn has a bug where it does not load resolutions from packages in a workspace, so those need to be hoisted here. See https://github.com/yarnpkg/yarn/issues/5039."
   }
 }

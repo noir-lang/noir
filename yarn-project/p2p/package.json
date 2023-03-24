@@ -15,6 +15,7 @@
     "start:dev": "tsc-watch -p tsconfig.dest.json --onSuccess 'yarn start'",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
+    "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
   },
   "jest": {
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@aztec/archiver": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"

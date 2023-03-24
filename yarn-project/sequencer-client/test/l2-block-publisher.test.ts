@@ -4,7 +4,7 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup } from '@aztec/l1-contracts';
 import { beforeAll, describe, expect, it } from '@jest/globals';
-import { AztecEthereumjsTxSender } from '../src/publisher/aztec-ethereumjs-tx-sender.js';
+import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
 import { L2BlockPublisher } from '../src/publisher/l2-block-publisher.js';
 import { hexStringToBuffer } from '../src/utils.js';
 
@@ -21,19 +21,17 @@ describe('L2BlockPublisher integration', () => {
   let l2Proof: Buffer;
 
   beforeAll(async () => {
-    let deployer: EthAddress;
-    ({ ethRpc, rollup, deployer } = await deployRollup());
+    ({ ethRpc, rollup } = await deployRollup());
 
     l2Block = mockRandomL2Block(42);
     l2Proof = Buffer.alloc(0);
 
     publisher = new L2BlockPublisher(
-      new AztecEthereumjsTxSender({ 
+      new EthereumjsTxSender({ 
         ethereumHost: anvilHost, 
-        feeDistributor: deployer.toChecksumString(), 
         requiredConfirmations: 1, 
-        rollupContract: rollup.address.toChecksumString(), 
-        sequencerPrivateKey: sequencerPK 
+        rollupContract: rollup.address, 
+        sequencerPrivateKey: hexStringToBuffer(sequencerPK)
       }),
       {
         sleepTimeMs: 100
@@ -45,12 +43,12 @@ describe('L2BlockPublisher integration', () => {
     const blockNumber = await ethRpc.blockNumber();
     await publisher.processL2Block(l2Block);
 
-    const logs = await rollup.getLogs('RollupBlockProcessed', { fromBlock: blockNumber });
+    const logs = await rollup.getLogs('L2BlockProcessed', { fromBlock: blockNumber });
     expect(logs).toHaveLength(1);
-    expect(logs[0].args.rollupBlockNumber).toEqual(42n);
+    expect(logs[0].args.blockNum).toEqual(42n);
 
     const tx = await ethRpc.getTransactionByHash(logs[0].transactionHash!);
-    const expectedData = rollup.methods.processRollup(l2Proof, l2Block.encode()).encodeABI();
+    const expectedData = rollup.methods.process(l2Proof, l2Block.encode()).encodeABI();
     expect(tx.input).toEqual(expectedData);
   });
 });

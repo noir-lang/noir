@@ -124,5 +124,6 @@
   },
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "cmake.sourceDirectory": "${workspaceFolder}/barretenberg/cpp"
 }

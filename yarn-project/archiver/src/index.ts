@@ -1,42 +1,54 @@
-// import { createPublicClient, getAddress, http } from 'viem';
-// import { localhost } from 'viem/chains';
-// import { Archiver } from './archiver/archiver.js';
+import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { fileURLToPath } from 'url';
+import { createPublicClient, getAddress, http } from 'viem';
+import { localhost } from 'viem/chains';
+import { Archiver } from './archiver/index.js';
 
 export * from './archiver/index.js';
 export * from './block_downloader/index.js';
 export * from './l2_block/index.js';
 
-// const {
-//   ETHEREUM_HOST = 'http://localhost:8545/',
-//   ROLLUP_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-//   YEETER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-// } = process.env;
+const {
+  ETHEREUM_HOST = 'http://localhost:8545/',
+  ROLLUP_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  YEETER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+} = process.env;
 
-// /**
-//  * A function which instantiates and starts Archiver.
-//  */
-// async function main() {
-//   const rollupAddress = getAddress(ROLLUP_ADDRESS);
-//   const yeeterAddress = getAddress(YEETER_ADDRESS);
+/**
+ * A function which instantiates and starts Archiver.
+ */
+// eslint-disable-next-line require-await
+async function main() {
+  const rollupAddress = getAddress(ROLLUP_ADDRESS);
+  const yeeterAddress = getAddress(YEETER_ADDRESS);
 
-//   const publicClient = createPublicClient({
-//     chain: localhost,
-//     transport: http(ETHEREUM_HOST),
-//   });
+  const publicClient = createPublicClient({
+    chain: localhost,
+    transport: http(ETHEREUM_HOST),
+  });
 
-//   const archiver = new Archiver(publicClient, rollupAddress, yeeterAddress);
+  const archiver = new Archiver(
+    publicClient,
+    EthAddress.fromString(rollupAddress),
+    EthAddress.fromString(yeeterAddress),
+  );
 
-//   const shutdown = () => {
-//     archiver.stop();
-//     process.exit(0);
-//   };
-//   process.once('SIGINT', shutdown);
-//   process.once('SIGTERM', shutdown);
+  const shutdown = async () => {
+    await archiver.stop();
+    process.exit(0);
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+}
 
-//   await archiver.start();
-// }
+// See https://twitter.com/Rich_Harris/status/1355289863130673153
+if (process.argv[1] === fileURLToPath(import.meta.url).replace(/\/index\.js$/, '')) {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  main().catch(err => {
+    console.log(err);
+    process.exit(1);
+  });
+}
 
-// main().catch(err => {
-//   console.log(err);
-//   process.exit(1);
-// });
+export { Archiver, mockRandomL2Block } from './archiver/index.js';
+export * from './l2_block/l2_block.js';
