@@ -20,8 +20,8 @@ pub enum ContractFunctionType {
     /// This function will be executed in a public
     /// context.
     Public,
-    // / A function which is non-deterministic
-    // / and does not require any constraint.
+    /// A function which is non-deterministic
+    /// and does not require any constraints.
     Unconstrained,
 }
 /// Each function in the contract will be compiled
