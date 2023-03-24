@@ -84,7 +84,8 @@ impl<'a> Resolver<'a> {
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
-        resolver.resolve_manifest(crate_id, manifest, manifest_path.parent().unwrap())?;
+	let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
+        resolver.resolve_manifest(crate_id, manifest, pkg_root)?;
 
         add_std_lib(&mut driver);
         Ok(driver)
@@ -128,7 +129,7 @@ impl<'a> Resolver<'a> {
                 return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
             let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_manifest(crate_id, dep_meta.manifest, pkg_root)?;
+            new_res.resolve_manifest(crate_id, dep_meta.manifest, &dependency_path)?;
         }
         Ok(())
     }
