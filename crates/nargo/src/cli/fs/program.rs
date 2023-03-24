@@ -22,7 +22,7 @@ pub(crate) fn save_contract_to_file<P: AsRef<Path>>(
     save_build_artifact_to_file(compiled_contract, circuit_name, circuit_dir)
 }
 fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
-    strukt: &T,
+    build_artifact: &T,
     circuit_name: &str,
     circuit_dir: P,
 ) -> PathBuf {
