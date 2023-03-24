@@ -73,9 +73,9 @@ pub fn resolve_imports(
 pub(super) fn allow_referencing_contracts(
     def_maps: &HashMap<CrateId, CrateDefMap>,
     krate: CrateId,
-    module: LocalModuleId,
+    local_id: LocalModuleId,
 ) -> bool {
-    def_maps[&krate].modules()[module.0].is_contract
+    ModuleId { krate, local_id }.module(def_maps).is_contract
 }
 
 pub fn resolve_path_to_ns(

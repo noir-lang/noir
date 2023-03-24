@@ -56,7 +56,7 @@ impl Context {
     }
 
     fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
-        &self.def_maps[&module_id.krate].modules()[module_id.local_id.0]
+        module_id.module(&self.def_maps)
     }
 
     /// Returns the next available storage slot in the given module.

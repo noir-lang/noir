@@ -33,9 +33,10 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
-    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
+    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, ContractVisibility,
+    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda,
+    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
+    UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -146,11 +147,12 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute fn ident generics '(' function_parameters ')' function_return_type block
-///                      fn ident generics '(' function_parameters ')' function_return_type block
+/// function_definition: attribute contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
+///                      contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
+        .then(contract_visibility())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
@@ -159,13 +161,17 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(block(expression()))
         .map(
             |(
-                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
+                (
+                    ((((attribute, contract_visibility), name), generics), parameters),
+                    (return_visibility, return_type),
+                ),
                 body,
             )| {
                 FunctionDefinition {
                     span: name.0.span(),
                     name,
                     attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    contract_visibility,
                     generics,
                     parameters,
                     body,
@@ -175,6 +181,16 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 .into()
             },
         )
+}
+
+/// contract_visibility: 'open' | 'unconstrained' | %empty
+fn contract_visibility() -> impl NoirParser<ContractVisibility> {
+    keyword(Keyword::Open).or(keyword(Keyword::Unconstrained)).or_not().map(|token| match token {
+        Some(Token::Keyword(Keyword::Open)) => ContractVisibility::Open,
+        Some(Token::Keyword(Keyword::Unconstrained)) => ContractVisibility::Unconstrained,
+        None => ContractVisibility::Secret,
+        _ => unreachable!("Only open and unconstrained keywords are parsed here"),
+    })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list

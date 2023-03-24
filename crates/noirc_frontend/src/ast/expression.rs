@@ -310,12 +310,23 @@ pub struct Lambda {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+    pub contract_visibility: ContractVisibility,
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
     pub body: BlockExpression,
     pub span: Span,
     pub return_type: UnresolvedType,
     pub return_visibility: noirc_abi::AbiVisibility,
+}
+
+/// The visibility a function has in the contract it is defined within.
+/// If the function is not defined within a contract, this should always be 'Secret'.
+/// Likewise, if a function does not specify its visibility, it defaults to 'Secret'.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum ContractVisibility {
+    Open,
+    Secret,
+    Unconstrained,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -61,6 +61,8 @@ pub enum ResolverError {
     },
     #[error("{0}")]
     ParserError(ParserError),
+    #[error("Function is not defined in a contract yet sets its contract visibility")]
+    ContractVisibilityInNormalFunction { span: Span },
 }
 
 impl ResolverError {
@@ -242,6 +244,11 @@ impl From<ResolverError> for Diagnostic {
                 )
             }
             ResolverError::ParserError(error) => error.into(),
+            ResolverError::ContractVisibilityInNormalFunction { span } => Diagnostic::simple_error(
+                "Only functions defined within contracts can set their contract visibility".into(),
+                "Non-contract functions cannot be 'open' or 'unconstrained'".into(),
+                span,
+            ),
         }
     }
 }
