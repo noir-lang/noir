@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { randomBytes } from 'crypto';
 import { Keccak } from 'sha3';
 

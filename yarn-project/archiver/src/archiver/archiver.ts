@@ -2,11 +2,11 @@ import { PublicClient, getAddress, http, createPublicClient } from 'viem';
 import { rollupAbi } from '../abis/rollup.js';
 import { yeeterAbi } from '../abis/yeeter.js';
 import { ContractData, L2Block } from '../l2_block/l2_block.js';
-import { randomAppendOnlyTreeSnapshot, randomBytes, randomContractData } from '../l2_block/mocks.js';
+import { randomAppendOnlyTreeSnapshot, randomContractData } from '../l2_block/mocks.js';
 import { L2BlockSource, L2BlockSourceSyncStatus } from '../l2_block/l2_block_source.js';
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { localhost } from 'viem/chains';
-import { createDebugLogger } from '@aztec/foundation';
+import { createDebugLogger, randomBytes } from '@aztec/foundation';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.

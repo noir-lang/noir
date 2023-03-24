@@ -1,4 +1,5 @@
-import { randomAppendOnlyTreeSnapshot, randomBytes, randomContractData } from './mocks.js';
+import { randomBytes } from '@aztec/foundation';
+import { randomAppendOnlyTreeSnapshot, randomContractData } from './mocks.js';
 import { ContractData, L2Block } from './l2_block.js';
 
 describe('L2Block', () => {

@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@aztec/ethereum.js": "workspace:^",
+    "@aztec/foundation": "workspace:^",
     "source-map-support": "^0.5.21"
   },
   "devDependencies": {
-    "@aztec/eslint-config": "workspace:^",
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/node": "^18.15.0",
     "typescript": "^4.9.5"

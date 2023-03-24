@@ -47,8 +47,8 @@ checkout: &checkout
       # Only download metadata when fetching.
       git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
-      # Pull in build-system submodule.
-      git submodule update --init build-system
+      # Initialize submodules recursively
+      git submodule update --init --recursive build-system yarn-project/foundation
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
@@ -80,6 +80,17 @@ jobs:
       - run:
           name: "Build and test"
           command: build ethereum.js
+
+  foundation:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build foundation
 
   aztec-js:
     machine:
@@ -145,10 +156,12 @@ defaults: &defaults
 yarn_project: &yarn_project
   requires:
     - yarn-project-base
+    - foundation
   <<: *defaults
 e2e_test: &e2e_test
   requires:
     - e2e-join
+    - foundation
   <<: *defaults
 
 workflows:
@@ -161,12 +174,17 @@ workflows:
       - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
+      - foundation:
+          requires:
+            - yarn-project-base
+          <<: *defaults
       - e2e-join:
           requires:
             - ethereum-js
             - aztec-js
             - end-to-end
             - noir-contracts
+            - foundation
           <<: *defaults
       - e2e-deploy-contract: *e2e_test
       - noir-contracts: *yarn_project

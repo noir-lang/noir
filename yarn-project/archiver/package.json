@@ -35,7 +35,6 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
-    "@aztec/eslint-config": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/debug": "^4.1.7",

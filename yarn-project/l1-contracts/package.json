@@ -33,7 +33,6 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@aztec/eslint-config": "workspace:^",
     "@aztec/ethereum.js": "workspace:^",
     "@jest/globals": "^29.4.3",
     "@rushstack/eslint-patch": "^1.1.4",

@@ -1,5 +1,6 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
+COPY foundation foundation
 COPY noir-contracts noir-contracts
 WORKDIR /usr/src/yarn-project/noir-contracts
 RUN yarn build && yarn formatting && yarn test

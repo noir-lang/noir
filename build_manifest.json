@@ -64,21 +64,21 @@
     "projectDir": "yarn-project/aztec.js",
     "dockerfile": "aztec.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/aztec.js/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "foundation"]
   },
   "end-to-end": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/end-to-end",
     "dockerfile": "end-to-end/Dockerfile",
     "rebuildPatterns": ["^yarn-project/end-to-end/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "foundation"]
   },
   "ethereum.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/ethereum.js",
     "dockerfile": "ethereum.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/ethereum.js/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "foundation"]
   },
   "kernel-simulator": {
     "buildDir": "yarn-project",
@@ -94,6 +94,13 @@
     "rebuildPatterns": ["^yarn-project/key-store/"],
     "dependencies": ["yarn-project-base"]
   },
+  "foundation": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/foundation",
+    "dockerfile": "foundation/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/foundation/"],
+    "dependencies": ["yarn-project-base"]
+  },
   "merkle-tree": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/merkle-tree",
@@ -106,7 +113,7 @@
     "projectDir": "yarn-project/noir-contracts",
     "dockerfile": "noir-contracts/Dockerfile",
     "rebuildPatterns": ["^yarn-project/noir-contracts/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "foundation"]
   },
   "p2p": {
     "buildDir": "yarn-project",

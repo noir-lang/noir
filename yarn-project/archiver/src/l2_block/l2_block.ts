@@ -1,3 +1,5 @@
+import { numToUInt32BE } from '@aztec/foundation';
+
 /**
  * A snapshot of an append only tree.
  */
@@ -25,8 +27,6 @@ export type ContractData = {
    */
   ethAddress: Buffer;
 };
-
-/* eslint-disable jsdoc/require-jsdoc */
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -243,21 +243,6 @@ export function bufferToAppendOnlyTreeSnapshot(buffer: Buffer): AppendOnlyTreeSn
     nextAvailableLeafIndex,
     root,
   };
-}
-
-/**
- * FUNCTIONS THAT SHOULD NOT BE HERE.
- */
-
-/**
- * For serializing numbers to 32 byte big-endian form.
- * @param n - The number to serialize.
- * @param bufferSize - The size of the buffer to serialize to, defaults to 4.
- */
-export function numToUInt32BE(n: number, bufferSize = 4): Buffer {
-  const buf = Buffer.alloc(bufferSize);
-  buf.writeUInt32BE(n, bufferSize - 4);
-  return buf;
 }
 
 /**

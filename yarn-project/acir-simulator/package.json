@@ -32,7 +32,6 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@aztec/eslint-config": "workspace:^",
     "@jest/globals": "^29.4.3",
     "@noir-lang/noir-source-resolver": "^1.1.0",
     "@noir-lang/noir_wasm": "0.3.2-29b1f7df",

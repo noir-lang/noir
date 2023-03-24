@@ -1,9 +1,0 @@
-plugins:
-  - path: .yarn/plugins/@yarnpkg/plugin-workspace-tools.cjs
-    spec: '@yarnpkg/plugin-workspace-tools'
-
-# note that node-modules is used during dev
-nodeLinker: pnp
-# compatibility with node-modules linker
-pnpMode: loose
-yarnPath: .yarn/releases/yarn-3.4.1.cjs

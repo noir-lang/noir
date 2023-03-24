@@ -1,9 +1,6 @@
-import nodeCrypto from 'crypto';
-import { AppendOnlyTreeSnapshot, ContractData } from './l2_block.js';
+import { randomBytes } from '@aztec/foundation';
 
-export const randomBytes = (len: number) => {
-  return nodeCrypto.randomBytes(len) as Buffer;
-};
+import { AppendOnlyTreeSnapshot, ContractData } from './l2_block.js';
 
 export const randomAppendOnlyTreeSnapshot = (nextIndex: number): AppendOnlyTreeSnapshot => {
   return {
