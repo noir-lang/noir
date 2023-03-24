@@ -52,6 +52,19 @@ export class BufferReader {
     return result;
   }
 
+  public readArray<T>(
+    size: number,
+    itemDeserializer: {
+      fromBuffer: (reader: BufferReader) => T;
+    }
+  ): T[] {
+    const result = new Array<T>(size);
+    for (let i = 0; i < size; i++) {
+      result[i] = itemDeserializer.fromBuffer(this);
+    }
+    return result;
+  }
+
   public readObject<T>(deserializer: {
     fromBuffer: (reader: BufferReader) => T;
   }): T {

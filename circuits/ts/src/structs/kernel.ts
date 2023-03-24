@@ -1,5 +1,5 @@
 import { assertLength, checkLength } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../wasm/serialize.js";
+import { serializeToBuffer } from "../utils/serialize.js";
 import {
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,

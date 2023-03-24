@@ -1,4 +1,4 @@
-import { serializeToBuffer } from "../wasm/serialize.js";
+import { serializeToBuffer } from "../utils/serialize.js";
 import { AztecAddress, EthAddress } from "./shared.js";
 
 /**

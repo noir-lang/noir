@@ -42,7 +42,7 @@ import {
   VerificationKey,
 } from "../structs/verification_key.js";
 import { range } from "../utils/jsUtils.js";
-import { numToUInt32BE } from "../wasm/serialize.js";
+import { numToUInt32BE } from "../utils/serialize.js";
 
 export function makeTxContext(seed: number): TxContext {
   const deploymentData = new ContractDeploymentData(

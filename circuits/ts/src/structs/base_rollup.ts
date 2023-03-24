@@ -1,6 +1,6 @@
-import { BufferReader } from "../wasm/buffer_reader.js";
+import { BufferReader } from "../utils/buffer_reader.js";
 import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../wasm/serialize.js";
+import { serializeToBuffer } from "../utils/serialize.js";
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   KERNEL_NEW_NULLIFIERS_LENGTH,

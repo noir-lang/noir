@@ -11,7 +11,7 @@ import { readFile } from "fs/promises";
 import { fetch } from "cross-fetch";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-import { numToUInt32LE } from "./serialize.js";
+import { numToUInt32LE } from "../utils/serialize.js";
 
 /**
  * Get the WASM binary for barretenberg.

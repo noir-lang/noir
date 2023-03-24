@@ -1,5 +1,5 @@
 import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../wasm/serialize.js";
+import { serializeToBuffer } from "../utils/serialize.js";
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupPublicInputs,

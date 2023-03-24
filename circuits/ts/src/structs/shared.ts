@@ -1,10 +1,10 @@
-import { BufferReader } from "../wasm/buffer_reader.js";
+import { BufferReader } from "../utils/buffer_reader.js";
 import { checkLength, range } from "../utils/jsUtils.js";
 import {
   Bufferable,
   numToUInt32BE,
   serializeToBuffer,
-} from "../wasm/serialize.js";
+} from "../utils/serialize.js";
 
 abstract class Field {
   public static SIZE_IN_BYTES = 32;
@@ -95,7 +95,7 @@ function pad32(buffer: Buffer) {
 export class EthAddress {
   static SIZE_IN_BYTES = 20;
 
-  constructor(private buffer: Buffer) {
+  constructor(public readonly buffer: Buffer) {
     if (buffer.length != EthAddress.SIZE_IN_BYTES) {
       throw new Error(
         `Unexpected buffer size ${buffer.length} (expected ${EthAddress.SIZE_IN_BYTES} bytes)`
