@@ -27,14 +27,14 @@ template <typename Params> class OpeningPair {
  */
 template <typename Params> class OpeningClaim {
     using CK = typename Params::CK;
-    using Commitment = typename Params::Commitment;
+    using CommitmentAffine = typename Params::C;
     using Fr = typename Params::Fr;
 
   public:
     // (query r, evaluation v = p(r))
     OpeningPair<Params> opening_pair;
     // commitment to univariate polynomial p(X)
-    Commitment commitment;
+    CommitmentAffine commitment;
 
     /**
      * @brief inefficiently check that the claim is correct by recomputing the commitment
@@ -52,11 +52,7 @@ template <typename Params> class OpeningClaim {
         }
         // Note: real_commitment is a raw type, while commitment may be a linear combination.
         auto real_commitment = ck->commit(polynomial);
-        if (real_commitment != commitment) {
-            // if (commitment != real_commitment) {
-            return false;
-        }
-        return true;
+        return (real_commitment == commitment);
     };
 
     bool operator==(const OpeningClaim& other) const = default;
@@ -81,19 +77,15 @@ template <typename Params> class OpeningClaim {
  *
  * @tparam CommitmentKey
  */
-template <typename Params> struct MLEOpeningClaim {
-    using Commitment = typename Params::Commitment;
+template <typename Params> class MLEOpeningClaim {
+    using CommitmentAffine = typename Params::C;
     using Fr = typename Params::Fr;
 
-    MLEOpeningClaim(auto commitment, auto evaluation)
-        : commitment(commitment)
-        , evaluation(evaluation)
-    {}
-
+  public:
     // commitment to a univariate polynomial
     // whose coefficients are the multi-linear evaluations
     // of C = [f]
-    Commitment commitment;
+    CommitmentAffine commitment;
     // v  = f(u) = ∑ᵢ aᵢ⋅Lᵢ(u)
     // v↺ = g(u) = a₁⋅L₀(u) + … + aₙ₋₁⋅Lₙ₋₂(u)
     Fr evaluation;

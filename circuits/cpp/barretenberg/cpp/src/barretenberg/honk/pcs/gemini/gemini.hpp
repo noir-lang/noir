@@ -4,6 +4,7 @@
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
 
 #include "barretenberg/common/assert.hpp"
 #include <memory>
@@ -113,7 +114,7 @@ template <typename Params> class MultilinearReductionScheme {
                                              std::span<const Fr> mle_opening_point,
                                              const Polynomial&& batched_shifted,       /* unshifted */
                                              const Polynomial&& batched_to_be_shifted, /* to-be-shifted */
-                                             const auto& transcript)
+                                             ProverTranscript<Fr>& transcript)
     {
         const size_t num_variables = mle_opening_point.size(); // m
 
@@ -165,19 +166,17 @@ template <typename Params> class MultilinearReductionScheme {
         /*
          * Create commitments C₁,…,Cₘ₋₁ to polynomials FOLD_i, i = 1,...,d-1 and add to transcript
          */
-        std::vector<Commitment> commitments;
+        std::vector<CommitmentAffine> commitments;
         commitments.reserve(num_variables - 1);
         for (size_t l = 0; l < num_variables - 1; ++l) {
             commitments.emplace_back(ck->commit(fold_polynomials[l + 2]));
-            transcript->add_element("FOLD_" + std::to_string(l + 1),
-                                    static_cast<CommitmentAffine>(commitments[l]).to_buffer());
+            transcript.send_to_verifier("Gemini:FOLD_" + std::to_string(l + 1), commitments[l]);
         }
 
         /*
          * Generate evaluation challenge r, and compute rₗ = r^{2ˡ} for l = 0, 1, ..., m-1
          */
-        transcript->apply_fiat_shamir("r");
-        const Fr r_challenge = Fr::serialize_from_buffer(transcript->get_challenge("r").begin());
+        const Fr r_challenge = transcript.get_challenge("Gemini:r");
         std::vector<Fr> r_squares = squares_of_r(r_challenge, num_variables);
 
         /*
@@ -223,7 +222,7 @@ template <typename Params> class MultilinearReductionScheme {
             const Polynomial& A_l = fold_polynomials[l + 1];
 
             fold_polynomial_evals.emplace_back(A_l.evaluate(-r_squares[l]));
-            transcript->add_element("a_" + std::to_string(l), fold_polynomial_evals[l].to_buffer());
+            transcript.send_to_verifier("Gemini:a_" + std::to_string(l), fold_polynomial_evals[l]);
         }
 
         // Compute evaluation A₀(r)
@@ -259,17 +258,33 @@ template <typename Params> class MultilinearReductionScheme {
                                                            const Fr batched_evaluation,           /* all */
                                                            Commitment& batched_f,                 /* unshifted */
                                                            Commitment& batched_g,                 /* to-be-shifted */
-                                                           const Proof<Params>& proof,
-                                                           const auto& transcript)
+                                                           VerifierTranscript<Fr>& transcript)
     {
         const size_t num_variables = mle_opening_point.size();
 
+        // Get polynomials Fold_i, i = 1,...,m-1 from transcript
+        std::vector<CommitmentAffine> commitments;
+        commitments.reserve(num_variables - 1);
+        for (size_t i = 0; i < num_variables - 1; ++i) {
+            auto commitment =
+                transcript.template receive_from_prover<CommitmentAffine>("Gemini:FOLD_" + std::to_string(i + 1));
+            commitments.emplace_back(commitment);
+        }
+
         // compute vector of powers of random evaluation point r
-        const Fr r = Fr::serialize_from_buffer(transcript->get_challenge("r").begin());
+        const Fr r = transcript.get_challenge("Gemini:r");
         std::vector<Fr> r_squares = squares_of_r(r, num_variables);
 
+        // Get evaluations a_i, i = 0,...,m-1 from transcript
+        std::vector<Fr> evaluations;
+        evaluations.reserve(num_variables);
+        for (size_t i = 0; i < num_variables; ++i) {
+            auto eval = transcript.template receive_from_prover<Fr>("Gemini:a_" + std::to_string(i));
+            evaluations.emplace_back(eval);
+        }
+
         // Compute evaluation A₀(r)
-        auto a_0_pos = compute_eval_pos(batched_evaluation, mle_opening_point, r_squares, proof.evaluations);
+        auto a_0_pos = compute_eval_pos(batched_evaluation, mle_opening_point, r_squares, evaluations);
 
         // C₀_r_pos = ∑ⱼ ρʲ⋅[fⱼ] + r⁻¹⋅∑ⱼ ρᵏ⁺ʲ [gⱼ]
         // C₀_r_pos = ∑ⱼ ρʲ⋅[fⱼ] - r⁻¹⋅∑ⱼ ρᵏ⁺ʲ [gⱼ]
@@ -281,39 +296,15 @@ template <typename Params> class MultilinearReductionScheme {
         // ( [A₀₊], r, A₀(r) )
         fold_polynomial_opening_claims.emplace_back(OpeningClaim<Params>{ { r, a_0_pos }, c0_r_pos });
         // ( [A₀₋], -r, A₀(-r) )
-        fold_polynomial_opening_claims.emplace_back(OpeningClaim<Params>{ { -r, proof.evaluations[0] }, c0_r_neg });
+        fold_polynomial_opening_claims.emplace_back(OpeningClaim<Params>{ { -r, evaluations[0] }, c0_r_neg });
         for (size_t l = 0; l < num_variables - 1; ++l) {
             // ([A₀₋], −r^{2ˡ}, Aₗ(−r^{2ˡ}) )
             fold_polynomial_opening_claims.emplace_back(
-                OpeningClaim<Params>{ { -r_squares[l + 1], proof.evaluations[l + 1] }, proof.commitments[l] });
+                OpeningClaim<Params>{ { -r_squares[l + 1], evaluations[l + 1] }, commitments[l] });
         }
 
         return fold_polynomial_opening_claims;
     };
-
-    /**
-     * @brief Reconstruct Gemini proof from transcript
-     *
-     * @param transcript
-     * @return Proof
-     * @details Proof consists of:
-     * - d Fold poly evaluations a_0, ..., a_{d-1}
-     * - (d-1) Fold polynomial commitments [Fold^(1)], ..., [Fold^(d-1)]
-     */
-    static Proof<Params> reconstruct_proof_from_transcript(const auto& transcript, const size_t log_n)
-    {
-        Proof<Params> proof;
-        for (size_t i = 0; i < log_n; i++) {
-            std::string label = "a_" + std::to_string(i);
-            proof.evaluations.emplace_back(transcript->get_field_element(label));
-        };
-        for (size_t i = 1; i < log_n; i++) {
-            std::string label = "FOLD_" + std::to_string(i);
-            proof.commitments.emplace_back(transcript->get_group_element(label));
-        };
-
-        return proof;
-    }
 
     static std::vector<Fr> powers_of_rho(const Fr rho, const size_t num_powers)
     {

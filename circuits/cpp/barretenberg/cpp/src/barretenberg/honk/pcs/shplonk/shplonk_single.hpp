@@ -2,6 +2,7 @@
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "shplonk.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
 
 namespace honk::pcs::shplonk {
 
@@ -33,10 +34,9 @@ template <typename Params> class SingleBatchOpeningScheme {
     static ProverOutput<Params> reduce_prove(std::shared_ptr<CK> ck,
                                              std::span<const OpeningPair<Params>> opening_pairs,
                                              std::span<const Polynomial> witness_polynomials,
-                                             const auto& transcript)
+                                             ProverTranscript<Fr>& transcript)
     {
-        transcript->apply_fiat_shamir("nu");
-        Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
+        Fr nu = transcript.get_challenge("Shplonk:nu");
 
         const size_t num_opening_pairs = opening_pairs.size();
 
@@ -63,23 +63,20 @@ template <typename Params> class SingleBatchOpeningScheme {
             current_nu *= nu;
         }
 
-        // [Q]
-        Commitment Q_commitment = ck->commit(Q);
-        transcript->add_element("Q", static_cast<CommitmentAffine>(Q_commitment).to_buffer());
+        // commit to Q(X) and add [Q] to the transcript
+        auto Q_commitment = ck->commit(Q);
+        transcript.send_to_verifier("Shplonk:Q", Q_commitment);
 
-        // generate random evaluation challenge "z"
-        transcript->apply_fiat_shamir("z");
-        const Fr z_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
+        // generate random evaluation challenge zeta_challenge
+        const Fr z_challenge = transcript.get_challenge("Shplonk:z");
 
         // {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
         std::vector<Fr> inverse_vanishing_evals;
         inverse_vanishing_evals.reserve(num_opening_pairs);
-        {
-            for (const auto& pair : opening_pairs) {
-                inverse_vanishing_evals.emplace_back(z_challenge - pair.query);
-            }
-            Fr::batch_invert(inverse_vanishing_evals);
+        for (const auto& pair : opening_pairs) {
+            inverse_vanishing_evals.emplace_back(z_challenge - pair.query);
         }
+        Fr::batch_invert(inverse_vanishing_evals);
 
         // G(X) = Q(X) - Q_z(X) = Q(X) - ∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ ),
         // s.t. G(r) = 0
@@ -116,12 +113,15 @@ template <typename Params> class SingleBatchOpeningScheme {
      * @return OpeningClaim
      */
     static OpeningClaim<Params> reduce_verify(std::span<const OpeningClaim<Params>> claims,
-                                              const Proof<Params>& proof,
-                                              const auto& transcript)
+                                              VerifierTranscript<Fr>& transcript)
     {
         const size_t num_claims = claims.size();
-        const Fr nu = Fr::serialize_from_buffer(transcript->get_challenge("nu").begin());
-        const Fr z_challenge = Fr::serialize_from_buffer(transcript->get_challenge("z").begin());
+
+        const Fr nu = transcript.get_challenge("Shplonk:nu");
+
+        auto Q_commitment = transcript.template receive_from_prover<CommitmentAffine>("Shplonk:Q");
+
+        const Fr z_challenge = transcript.get_challenge("Shplonk:z");
 
         // compute simulated commitment to [G] as a linear combination of
         // [Q], { [fⱼ] }, [1]:
@@ -133,17 +133,15 @@ template <typename Params> class SingleBatchOpeningScheme {
 
         // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
         //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
-        Commitment G_commitment = proof;
+        Commitment G_commitment = Q_commitment;
 
         // {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
         std::vector<Fr> inverse_vanishing_evals;
         inverse_vanishing_evals.reserve(num_claims);
-        {
-            for (const auto& claim : claims) {
-                inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.query);
-            }
-            Fr::batch_invert(inverse_vanishing_evals);
+        for (const auto& claim : claims) {
+            inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.query);
         }
+        Fr::batch_invert(inverse_vanishing_evals);
 
         Fr current_nu{ Fr::one() };
         for (size_t j = 0; j < num_claims; ++j) {

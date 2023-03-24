@@ -2,6 +2,7 @@
 
 #include "../claim.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
 
 #include <memory>
 #include <utility>
@@ -17,6 +18,7 @@ namespace honk::pcs::kzg {
 template <typename Params> class BilinearAccumulator {
     using VK = typename Params::VK;
     using Fr = typename Params::Fr;
+    using CommitmentAffine = typename Params::C;
     using Commitment = typename Params::Commitment;
 
   public:
@@ -43,7 +45,7 @@ template <typename Params> class BilinearAccumulator {
 
     bool operator==(const BilinearAccumulator& other) const = default;
 
-    Commitment lhs, rhs;
+    CommitmentAffine lhs, rhs;
 };
 
 template <typename Params> class UnivariateOpeningScheme {
@@ -67,14 +69,14 @@ template <typename Params> class UnivariateOpeningScheme {
     static void reduce_prove(std::shared_ptr<CK> ck,
                              const OpeningPair<Params>& opening_pair,
                              const Polynomial& polynomial,
-                             const auto& transcript)
+                             ProverTranscript<Fr>& transcript)
     {
         Polynomial quotient(polynomial);
         quotient[0] -= opening_pair.evaluation;
         quotient.factor_roots(opening_pair.query);
-        Commitment proof = ck->commit(quotient);
+        CommitmentAffine quotient_commitment = ck->commit(quotient);
 
-        transcript->add_element("W", static_cast<CommitmentAffine>(proof).to_buffer());
+        transcript.send_to_verifier("KZG:W", quotient_commitment);
     };
 
     /**
@@ -85,9 +87,10 @@ template <typename Params> class UnivariateOpeningScheme {
      * @param proof π, a commitment to Q(X) = ( P(X) - v )/( X - r)
      * @return Accumulator {C − v⋅[1]₁ + r⋅π, −π}
      */
-    static Accumulator reduce_verify(const OpeningClaim<Params>& claim, const Commitment& proof)
+    static Accumulator reduce_verify(const OpeningClaim<Params>& claim, VerifierTranscript<Fr>& verifier_transcript)
     {
-        return Accumulator(claim, proof);
+        auto quotient_commitment = verifier_transcript.template receive_from_prover<CommitmentAffine>("KZG:W");
+        return Accumulator(claim, quotient_commitment);
     };
 };
 } // namespace honk::pcs::kzg

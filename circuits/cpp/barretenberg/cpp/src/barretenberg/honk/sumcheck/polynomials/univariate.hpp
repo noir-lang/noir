@@ -211,6 +211,18 @@ template <class Fr, size_t _length> class Univariate {
     }
 };
 
+template <typename B, class Fr, size_t _length> inline void read(B& it, Univariate<Fr, _length>& univariate)
+{
+    using serialize::read;
+    read(it, univariate.evaluations);
+}
+
+template <typename B, class Fr, size_t _length> inline void write(B& it, Univariate<Fr, _length> const& univariate)
+{
+    using serialize::write;
+    write(it, univariate.evaluations);
+}
+
 template <class Fr, size_t view_length> class UnivariateView {
   public:
     std::span<const Fr, view_length> evaluations;

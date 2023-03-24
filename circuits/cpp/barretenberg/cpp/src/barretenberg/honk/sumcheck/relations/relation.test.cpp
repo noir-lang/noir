@@ -93,9 +93,7 @@ template <class FF> class SumcheckRelation : public testing::Test {
      */
     RelationParameters<FF> compute_mock_relation_parameters()
     {
-        return { .zeta = FF::random_element(),
-                 .alpha = FF::random_element(),
-                 .beta = FF::random_element(),
+        return { .beta = FF::random_element(),
                  .gamma = FF::random_element(),
                  .public_input_delta = FF::random_element() };
     }

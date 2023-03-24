@@ -27,7 +27,7 @@
     Also, the length of the output in this specific implementation is fixed at 32 bytes which is the only
     version relevant to Barretenberg.
 */
-
+#pragma once
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>

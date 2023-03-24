@@ -78,7 +78,8 @@ std::array<std::span<FF>, NUM_POLYNOMIALS> construct_full_polynomials(std::array
 // The below two methods are used in the test ComputeUnivariateProver
 static Univariate<FF, max_relation_length> compute_round_univariate(
     std::array<std::array<FF, input_polynomial_length>, NUM_POLYNOMIALS>& input_polynomials,
-    const RelationParameters<FF>& relation_parameters)
+    const RelationParameters<FF>& relation_parameters,
+    const FF alpha)
 {
     size_t round_size = 1;
     auto relations = std::tuple(
@@ -126,15 +127,16 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
                                                        id_3,
                                                        lagrange_first,
                                                        lagrange_last);
-    PowUnivariate<FF> pow_zeta(relation_parameters.zeta);
+    PowUnivariate<FF> pow_zeta(1);
     Univariate<FF, max_relation_length> round_univariate =
-        round.compute_univariate(full_polynomials, relation_parameters, pow_zeta);
+        round.compute_univariate(full_polynomials, relation_parameters, pow_zeta, alpha);
     return round_univariate;
 }
 
 static Univariate<FF, max_relation_length> compute_expected_round_univariate(
     std::array<Univariate<FF, input_polynomial_length>, NUM_POLYNOMIALS>& input_univariates,
-    const RelationParameters<FF>& relation_parameters)
+    const RelationParameters<FF>& relation_parameters,
+    const FF alpha)
 {
     BarycentricData<FF, input_polynomial_length, max_relation_length> barycentric_2_to_max =
         BarycentricData<FF, input_polynomial_length, max_relation_length>();
@@ -177,14 +179,15 @@ static Univariate<FF, max_relation_length> compute_expected_round_univariate(
          (w_o_univariate + sigma_3_univariate * relation_parameters.beta + relation_parameters.gamma));
     auto expected_grand_product_initialization_relation = (z_perm_shift_univariate * lagrange_last_univariate);
     Univariate<FF, max_relation_length> expected_round_univariate =
-        expected_arithmetic_relation + expected_grand_product_computation_relation * relation_parameters.alpha +
-        expected_grand_product_initialization_relation * relation_parameters.alpha * relation_parameters.alpha;
+        expected_arithmetic_relation + expected_grand_product_computation_relation * alpha +
+        expected_grand_product_initialization_relation * alpha.sqr();
     return expected_round_univariate;
 }
 
 // The below two methods are used in the test ComputeUnivariateVerifier
 static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_values,
-                                       const RelationParameters<FF>& relation_parameters)
+                                       const RelationParameters<FF>& relation_parameters,
+                                       const FF alpha)
 {
     std::vector<FF> purported_evaluations;
     purported_evaluations.resize(NUM_POLYNOMIALS);
@@ -213,14 +216,15 @@ static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_va
                                ArithmeticRelation,
                                GrandProductComputationRelation,
                                GrandProductInitializationRelation>(relations);
-    PowUnivariate<FF> pow_univariate(relation_parameters.zeta);
-    FF full_purported_value =
-        round.compute_full_honk_relation_purported_value(purported_evaluations, relation_parameters, pow_univariate);
+    PowUnivariate<FF> pow_univariate(1);
+    FF full_purported_value = round.compute_full_honk_relation_purported_value(
+        purported_evaluations, relation_parameters, pow_univariate, alpha);
     return full_purported_value;
 }
 
 static FF compute_full_purported_value_expected(std::array<FF, NUM_POLYNOMIALS>& input_values,
-                                                const RelationParameters<FF>& relation_parameters)
+                                                const RelationParameters<FF>& relation_parameters,
+                                                const FF alpha)
 {
     FF w_l = input_values[0];
     FF w_r = input_values[1];
@@ -251,9 +255,9 @@ static FF compute_full_purported_value_expected(std::array<FF, NUM_POLYNOMIALS>&
         (w_r + sigma_2 * relation_parameters.beta + relation_parameters.gamma) *
         (w_o + sigma_3 * relation_parameters.beta + relation_parameters.gamma);
     auto expected_grand_product_initialization_relation = z_perm_shift * lagrange_last;
-    auto expected_full_purported_value =
-        expected_arithmetic_relation + expected_grand_product_computation_relation * relation_parameters.alpha +
-        expected_grand_product_initialization_relation * relation_parameters.alpha * relation_parameters.alpha;
+    auto expected_full_purported_value = expected_arithmetic_relation +
+                                         expected_grand_product_computation_relation * alpha +
+                                         expected_grand_product_initialization_relation * alpha.sqr();
     return expected_full_purported_value;
 }
 
@@ -265,35 +269,39 @@ TEST(SumcheckRound, ComputeUnivariateProver)
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_polynomials[i] = { FF::random_element(), FF::random_element() };
             }
-            const RelationParameters<FF> relation_parameters =
-                RelationParameters<FF>{ .zeta = FF::random_element(),
-                                        .alpha = FF::random_element(),
-                                        .beta = FF::random_element(),
-                                        .gamma = FF::random_element(),
-                                        .public_input_delta = FF::random_element() };
-            auto round_univariate = compute_round_univariate(input_polynomials, relation_parameters);
+
+            const FF alpha = FF::random_element();
+            const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
+                .beta = FF::random_element(), .gamma = FF::random_element(), .public_input_delta = FF::random_element()
+            };
+
+            auto round_univariate = compute_round_univariate(input_polynomials, relation_parameters, alpha);
+
             // Compute round_univariate manually
             std::array<Univariate<FF, input_polynomial_length>, NUM_POLYNOMIALS> input_univariates;
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_univariates[i] = Univariate<FF, input_polynomial_length>(input_polynomials[i]);
             }
-            auto expected_round_univariate = compute_expected_round_univariate(input_univariates, relation_parameters);
+            auto expected_round_univariate =
+                compute_expected_round_univariate(input_univariates, relation_parameters, alpha);
             EXPECT_EQ(round_univariate, expected_round_univariate);
         } else {
             std::array<std::array<FF, input_polynomial_length>, NUM_POLYNOMIALS> input_polynomials;
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_polynomials[i] = { 1, 2 };
             }
+            const FF alpha = 1;
             const RelationParameters<FF> relation_parameters =
-                RelationParameters<FF>{ .zeta = 1, .alpha = 1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
-            auto round_univariate = compute_round_univariate(input_polynomials, relation_parameters);
+                RelationParameters<FF>{ .beta = 1, .gamma = 1, .public_input_delta = 1 };
+            auto round_univariate = compute_round_univariate(input_polynomials, relation_parameters, alpha);
             // Compute round_univariate manually
             std::array<Univariate<FF, input_polynomial_length>, NUM_POLYNOMIALS> input_univariates;
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_univariates[i] = Univariate<FF, input_polynomial_length>(input_polynomials[i]);
             }
             // expected_round_univariate = { 6, 26, 66, 132, 230, 366 }
-            auto expected_round_univariate = compute_expected_round_univariate(input_univariates, relation_parameters);
+            auto expected_round_univariate =
+                compute_expected_round_univariate(input_univariates, relation_parameters, alpha);
             EXPECT_EQ(round_univariate, expected_round_univariate);
         };
     };
@@ -309,28 +317,27 @@ TEST(SumcheckRound, ComputeUnivariateVerifier)
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_values[i] = FF::random_element();
             }
-            const RelationParameters<FF> relation_parameters =
-                RelationParameters<FF>{ .zeta = FF::random_element(),
-                                        .alpha = FF::random_element(),
-                                        .beta = FF::random_element(),
-                                        .gamma = FF::random_element(),
-                                        .public_input_delta = FF::random_element() };
-            auto full_purported_value = compute_full_purported_value(input_values, relation_parameters);
+            const FF alpha = FF::random_element();
+            const RelationParameters<FF> relation_parameters = RelationParameters<FF>{
+                .beta = FF::random_element(), .gamma = FF::random_element(), .public_input_delta = FF::random_element()
+            };
+            auto full_purported_value = compute_full_purported_value(input_values, relation_parameters, alpha);
             // Compute round_univariate manually
             auto expected_full_purported_value =
-                compute_full_purported_value_expected(input_values, relation_parameters);
+                compute_full_purported_value_expected(input_values, relation_parameters, alpha);
             EXPECT_EQ(full_purported_value, expected_full_purported_value);
         } else {
             std::array<FF, NUM_POLYNOMIALS> input_values;
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_values[i] = FF(2);
             }
+            const FF alpha = 1;
             const RelationParameters<FF> relation_parameters =
-                RelationParameters<FF>{ .zeta = 2, .alpha = 1, .beta = 1, .gamma = 1, .public_input_delta = 1 };
-            auto full_purported_value = compute_full_purported_value(input_values, relation_parameters);
+                RelationParameters<FF>{ .beta = 1, .gamma = 1, .public_input_delta = 1 };
+            auto full_purported_value = compute_full_purported_value(input_values, relation_parameters, alpha);
             // Compute round_univariate manually
             auto expected_full_purported_value =
-                compute_full_purported_value_expected(input_values, relation_parameters);
+                compute_full_purported_value_expected(input_values, relation_parameters, alpha);
             EXPECT_EQ(full_purported_value, expected_full_purported_value);
         };
     };

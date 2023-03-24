@@ -175,7 +175,8 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      */
     Univariate<FF, MAX_RELATION_LENGTH> compute_univariate(auto& polynomials,
                                                            const RelationParameters<FF>& relation_parameters,
-                                                           const PowUnivariate<FF>& pow_univariate)
+                                                           const PowUnivariate<FF>& pow_univariate,
+                                                           const FF alpha)
     {
         // For each edge_idx = 2i, we need to multiply the whole contribution by zeta^{2^{2i}}
         // This means that each univariate for each relation needs an extra multiplication.
@@ -191,7 +192,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
             pow_challenge *= pow_univariate.zeta_pow_sqr;
         }
 
-        auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(relation_parameters.alpha);
+        auto result = batch_over_relations<Univariate<FF, MAX_RELATION_LENGTH>>(alpha);
 
         reset_accumulators<>();
 
@@ -207,9 +208,10 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      * checked against the final value of the target total sum, defined as sigma_d.
      */
     // TODO(#224)(Cody): Input should be an array?
-    FF compute_full_honk_relation_purported_value(std::vector<FF>& purported_evaluations,
+    FF compute_full_honk_relation_purported_value(std::span<const FF> purported_evaluations,
                                                   const RelationParameters<FF>& relation_parameters,
-                                                  const PowUnivariate<FF>& pow_univariate)
+                                                  const PowUnivariate<FF>& pow_univariate,
+                                                  const FF alpha)
     {
         accumulate_relation_evaluations<>(purported_evaluations, relation_parameters);
 
@@ -218,7 +220,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         FF output = 0;
         for (auto& evals : evaluations) {
             output += evals * running_challenge;
-            running_challenge *= relation_parameters.alpha;
+            running_challenge *= alpha;
         }
         output *= pow_univariate.partial_evaluation_constant;
 
@@ -304,7 +306,7 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
      */
     template <size_t relation_idx = 0>
     // TODO(#224)(Cody): Input should be an array?
-    void accumulate_relation_evaluations(std::vector<FF>& purported_evaluations,
+    void accumulate_relation_evaluations(std::span<const FF> purported_evaluations,
                                          const RelationParameters<FF>& relation_parameters)
     {
         std::get<relation_idx>(relations).add_full_relation_value_contribution(

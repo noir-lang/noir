@@ -66,7 +66,7 @@ template <class FF> class VerifierTests : public testing::Test {
         circuit_verification_key->commitments.insert({ "SIGMA_2", commitments[6] });
         circuit_verification_key->commitments.insert({ "SIGMA_3", commitments[7] });
 
-        StandardVerifier verifier(circuit_verification_key, create_manifest(0, circuit_proving_key->log_circuit_size));
+        StandardVerifier verifier(circuit_verification_key);
 
         // std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
         //     std::make_unique<KateCommitmentScheme<standard_settings>>();
@@ -192,8 +192,7 @@ template <class FF> class VerifierTests : public testing::Test {
 
         // TODO(#223)(Cody): This should be more generic
         std::vector<barretenberg::polynomial> witness_polynomials;
-        auto prover = StandardProver(
-            std::move(witness_polynomials), proving_key, create_manifest(0, proving_key->log_circuit_size));
+        auto prover = StandardProver(std::move(witness_polynomials), proving_key);
 
         std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
             std::make_unique<pcs::kzg::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");

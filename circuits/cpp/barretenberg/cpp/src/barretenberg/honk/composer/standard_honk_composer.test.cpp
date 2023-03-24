@@ -335,7 +335,6 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
     // Generate beta and gamma
     fr beta = fr::random_element();
     fr gamma = fr::random_element();
-    fr zeta = fr::random_element();
 
     // Compute public input delta
     const auto public_inputs = composer.circuit_constructor.get_public_inputs();
@@ -343,8 +342,6 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
         honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, prover.key->circuit_size);
 
     sumcheck::RelationParameters<fr> params{
-        .zeta = zeta,
-        .alpha = fr::one(),
         .beta = beta,
         .gamma = gamma,
         .public_input_delta = public_input_delta,

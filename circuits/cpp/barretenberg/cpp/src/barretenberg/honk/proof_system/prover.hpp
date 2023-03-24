@@ -11,6 +11,9 @@
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -28,9 +31,7 @@ using Fr = barretenberg::fr;
 template <typename settings> class Prover {
 
   public:
-    Prover(std::vector<barretenberg::polynomial>&& wire_polys,
-           std::shared_ptr<bonk::proving_key> input_key = nullptr,
-           const transcript::Manifest& manifest = transcript::Manifest());
+    Prover(std::vector<barretenberg::polynomial>&& wire_polys, std::shared_ptr<bonk::proving_key> input_key = nullptr);
 
     void execute_preamble_round();
     void execute_wire_commitments_round();
@@ -51,7 +52,11 @@ template <typename settings> class Prover {
     plonk::proof& export_proof();
     plonk::proof& construct_proof();
 
-    transcript::StandardTranscript transcript;
+    ProverTranscript<Fr> transcript;
+
+    std::vector<Fr> public_inputs;
+
+    sumcheck::RelationParameters<Fr> relation_parameters;
 
     std::vector<barretenberg::polynomial> wire_polynomials;
     barretenberg::polynomial z_permutation;
@@ -79,10 +84,10 @@ template <typename settings> class Prover {
     // This makes 'settings' accesible from Prover
     using settings_ = settings;
 
+    sumcheck::SumcheckOutput<Fr> sumcheck_output;
     pcs::gemini::ProverOutput<pcs::kzg::Params> gemini_output;
     pcs::shplonk::ProverOutput<pcs::kzg::Params> shplonk_output;
 
-    using Transcript = transcript::StandardTranscript;
     using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
     using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;

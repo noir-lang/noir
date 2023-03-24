@@ -66,7 +66,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     using VK = typename Params::VK;
 
     using Fr = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
+    using CommitmentAffine = typename Params::C;
     using Polynomial = typename Params::Polynomial;
     using Transcript = transcript::StandardTranscript;
 
@@ -78,7 +78,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     std::shared_ptr<CK> ck() { return commitment_key; }
     std::shared_ptr<VK> vk() { return verification_key; }
 
-    Commitment commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
+    CommitmentAffine commit(const Polynomial& polynomial) { return commitment_key->commit(polynomial); }
 
     Polynomial random_polynomial(const size_t n)
     {
@@ -122,7 +122,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
         auto& [x, y] = claim.opening_pair;
         Fr y_expected = witness.evaluate(x);
         EXPECT_EQ(y, y_expected) << "OpeningClaim: evaluations mismatch";
-        Commitment commitment_expected = commit(witness);
+        CommitmentAffine commitment_expected = commit(witness);
         EXPECT_EQ(commitment, commitment_expected) << "OpeningClaim: commitment mismatch";
     }
 
