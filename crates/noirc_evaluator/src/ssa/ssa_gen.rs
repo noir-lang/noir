@@ -24,6 +24,8 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
+use super::node::CopyString;
+
 pub(crate) struct IrGenerator {
     pub(crate) context: SsaContext,
     pub(crate) function_context: Option<FuncIndex>,
@@ -181,7 +183,7 @@ impl IrGenerator {
                     let id = *id;
                     if !self.context.function_already_compiled(id) {
                         let index = self.context.get_function_index();
-                        self.create_function(id, index)?;
+                        self.create_function(id, index, None)?;
                     }
 
                     let expect_msg = "Expected called function to already be ssa_gen'd";
@@ -194,6 +196,16 @@ impl IrGenerator {
                     });
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Node(function_node_id))
+                }
+                Definition::Oracle(name, func_id) => {
+                    let id = *func_id;
+                    let name_copy = CopyString::from_string(name);
+                    let opcode = builtin::Opcode::Oracle(name_copy, id);
+                    if !self.context.function_already_compiled(id) {
+                        let index = self.context.get_function_index();
+                        self.create_function(id, index, Some(opcode))?;
+                    }
+                    Ok(Value::Node(self.context.get_function_node_id(id).unwrap()))
                 }
             }
         }

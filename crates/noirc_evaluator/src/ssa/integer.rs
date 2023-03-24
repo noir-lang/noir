@@ -246,12 +246,8 @@ fn block_overflow(
     //since we process the block from the start, the block value map is not relevant
     let mut value_map = HashMap::new();
     for mut ins in instructions {
-        if matches!(
-            ins.operation,
-            Operation::Nop | Operation::Call { .. } | Operation::Result { .. }
-        ) {
-            //For now we skip completely functions from overflow; that means arguments are NOT truncated.
-            //The reasoning is that this is handled by doing the overflow strategy after the function has been inlined
+        if matches!(ins.operation, Operation::Nop) {
+            //TODO: checks if function arguments need truncate
             continue;
         }
 
@@ -486,11 +482,9 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         }
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
-        Operation::Call { .. } => ins.res_type.max_size(), //n.b. functions should have been inlined
+        Operation::Call { .. } => BigUint::zero(),
         Operation::Return(_) => ins.res_type.max_size(),
-        Operation::Result { .. } => {
-            unreachable!("Functions must have been inlined before checking for overflows")
-        }
+        Operation::Result { .. } => ins.res_type.max_size(),
         Operation::Intrinsic(opcode, _) => opcode.get_max_value(),
     };
 

@@ -3,8 +3,11 @@ use crate::ssa::{
     node::{NodeId, ObjectType},
 };
 use acvm::{acir::BlackBoxFunc, FieldElement};
+use noirc_frontend::monomorphization::ast::FuncId;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
+
+use super::node::CopyString;
 
 /// Opcode here refers to either a black box function
 /// defined in ACIR, or a function which has its
@@ -17,6 +20,7 @@ pub(crate) enum Opcode {
     ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
+    Oracle(CopyString, FuncId),
 }
 
 impl std::fmt::Display for Opcode {
@@ -45,25 +49,26 @@ impl Opcode {
         }
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> String {
         match self {
-            Opcode::LowLevel(op) => op.name(),
+            Opcode::LowLevel(op) => op.name().to_owned(),
             Opcode::ToBits(endianness) => {
                 if *endianness == Endian::Little {
-                    "to_le_bits"
+                    "to_le_bits".to_owned()
                 } else {
-                    "to_be_bits"
+                    "to_be_bits".to_owned()
                 }
             }
             Opcode::ToRadix(endianness) => {
                 if *endianness == Endian::Little {
-                    "to_le_radix"
+                    "to_le_radix".to_owned()
                 } else {
-                    "to_be_radix"
+                    "to_be_radix".to_owned()
                 }
             }
-            Opcode::Println(_) => "println",
-            Opcode::Sort => "arraysort",
+            Opcode::Println(_) => "println".to_owned(),
+            Opcode::Sort => "arraysort".to_owned(),
+            Opcode::Oracle(name, _) => name.to_string(),
         }
     }
 
@@ -95,6 +100,7 @@ impl Opcode {
             Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
                 BigUint::zero()
             } //pointers do not overflow
+            Opcode::Oracle(_, _) => BigUint::zero(), // External call -  no type
         }
     }
 
@@ -128,6 +134,7 @@ impl Opcode {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
+            Opcode::Oracle(_, _) => todo!(),
         }
     }
 }

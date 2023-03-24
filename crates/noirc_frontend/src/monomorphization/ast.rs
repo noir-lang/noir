@@ -44,6 +44,7 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
+    Oracle(String, FuncId),
 }
 
 /// ID of a local definition, e.g. from a let binding or

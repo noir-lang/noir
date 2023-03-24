@@ -41,12 +41,13 @@ impl SsaFunction {
         name: &str,
         block_id: BlockId,
         idx: FuncIndex,
+        opcode: Option<builtin::Opcode>,
         ctx: &mut SsaContext,
     ) -> SsaFunction {
         SsaFunction {
             entry_block: block_id,
             id,
-            node_id: ctx.push_function_id(id, name),
+            node_id: ctx.push_function_id(id, name, opcode),
             name: name.to_string(),
             arguments: Vec::new(),
             result_types: Vec::new(),
@@ -143,6 +144,7 @@ impl IrGenerator {
         &mut self,
         func_id: FuncId,
         index: FuncIndex,
+        opcode: Option<builtin::Opcode>,
     ) -> Result<ObjectType, RuntimeError> {
         let current_block = self.context.current_block;
         let current_function = self.function_context;
@@ -150,7 +152,7 @@ impl IrGenerator {
 
         let function = &mut self.program[func_id];
         let mut func =
-            SsaFunction::new(func_id, &function.name, func_block, index, &mut self.context);
+            SsaFunction::new(func_id, &function.name, func_block, index, opcode, &mut self.context);
 
         //arguments:
         for (param_id, mutable, name, typ) in std::mem::take(&mut function.parameters) {
@@ -231,7 +233,10 @@ impl IrGenerator {
         let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
-            return self.call_low_level(opcode, arguments);
+            if !matches!(opcode, builtin::Opcode::Oracle(_, _)) {
+                let (len, typ) = opcode.get_result_type(&arguments, &self.context);
+                return self.call_low_level(opcode, arguments, vec![typ; len as usize]);
+            }
         }
 
         let predicate = AssumptionId::dummy();
@@ -332,8 +337,11 @@ impl IrGenerator {
         &mut self,
         op: builtin::Opcode,
         args: Vec<NodeId>,
+        res_type: Vec<ObjectType>,
     ) -> Result<Vec<NodeId>, RuntimeError> {
-        let (len, elem_type) = op.get_result_type(&args, &self.context);
+        //let (len, elem_type) = op.get_result_type(&args, &self.context);
+        let (len, elem_type) =
+            (res_type.len() as u32, *res_type.first().unwrap_or(&ObjectType::NotAnObject));
 
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array

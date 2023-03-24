@@ -1,3 +1,5 @@
+use crate::ssa::mem::Memory;
+use crate::ssa::node::{self, FunctionKind, NodeObject};
 use crate::Evaluator;
 use crate::{
     errors::RuntimeError,
@@ -22,6 +24,7 @@ use internal_var_cache::InternalVarCache;
 pub(crate) use constraints::range_constraint;
 mod acir_mem;
 use acir_mem::AcirMem;
+use iter_extended::vecmap;
 
 #[derive(Default)]
 pub(crate) struct Acir {
@@ -103,13 +106,98 @@ impl Acir {
             Operation::Store { .. } => {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
+            Operation::Call { func, arguments, returned_arrays, predicate, location } => {
+                //TODO : handle predicate
+                if let NodeObject::Function(
+                    FunctionKind::Builtin(builtin::Opcode::Oracle(name, func_id)),
+                    ..,
+                ) = ctx[*func]
+                {
+                    let mut inputs = Vec::new();
+                    for argument in arguments {
+                        let ivar = self
+                            .var_cache
+                            .get_or_compute_internal_var(*argument, evaluator, ctx)
+                            .unwrap();
+                        if let Some(a) = Memory::deref(ctx, *argument) {
+                            let array = &ctx.mem[a];
+                            for i in 0..array.len {
+                                let arr_element = self
+                                    .memory
+                                    .load_array_element_constant_index(array, i)
+                                    .expect("array index out of bounds");
+                                inputs.push(arr_element.expression().clone());
+                            }
+                        } else {
+                            inputs.push(ivar.expression().clone());
+                        }
+                    }
+                    let ssa_func = ctx.ssa_func(func_id).unwrap();
+                    let mut outputs = Vec::new();
+                    let mut ret_arrays = returned_arrays.iter();
+                    for (i, typ) in ssa_func.result_types.iter().enumerate() {
+                        match typ {
+                            node::ObjectType::Pointer(a) => {
+                                let ret_array = ret_arrays.next().unwrap();
+                                assert_eq!(ret_array.1, i as u32);
+                                let a_witess = vecmap(0..ctx.mem[ret_array.0].len, |_| {
+                                    evaluator.add_witness_to_cs()
+                                });
+                                self.memory.map_array(ret_array.0, &a_witess, ctx);
+                                outputs.extend(a_witess);
+                            }
+                            _ => outputs.push(evaluator.add_witness_to_cs()),
+                        }
+                    }
+                    let mut ivar =
+                        self.var_cache.get_or_compute_internal_var(ins.id, evaluator, ctx).unwrap();
+                    if let Some(w) = outputs.first() {
+                        ivar.set_witness(*w);
+                        self.var_cache.update(ivar);
+                    }
+
+                    //todo push oracle opcode:
+                    // inputs
+                    // outputs
+                    // name
+                } else {
+                    unreachable!();
+                }
+
+                None
+            }
+            Operation::Result { call_instruction, index } => {
+                let mut cached_witness = None;
+                if let NodeObject::Function(
+                    FunctionKind::Builtin(builtin::Opcode::Oracle(name, func_id)),
+                    ..,
+                ) = ctx[*call_instruction]
+                {
+                    let ssa_func = ctx.ssa_func(func_id).unwrap();
+                    let mut idx = 0;
+                    for (i, typ) in ssa_func.result_types.iter().enumerate() {
+                        if i == *index as usize {
+                            cached_witness = Some(Witness(idx));
+                            break;
+                        }
+                        match typ {
+                            node::ObjectType::Pointer(a) => idx += ctx.mem[*a].len,
+                            _ => idx += 1,
+                        }
+                    }
+                }
+                let mut ivar = InternalVar::zero_expr();
+                ivar.set_id(ins.id);
+                if let Some(w) = cached_witness {
+                    ivar.set_witness(w);
+                }
+                Some(ivar)
+            }
             Operation::Nop => None,
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
             | i @ Operation::Jmp(_)
-            | i @ Operation::Phi { .. }
-            | i @ Operation::Call { .. }
-            | i @ Operation::Result { .. } => {
+            | i @ Operation::Phi { .. } => {
                 unreachable!("Invalid instruction: {:?}", i);
             }
         };

@@ -1103,10 +1103,19 @@ impl SsaContext {
         }
     }
 
-    pub(crate) fn push_function_id(&mut self, func_id: FuncId, name: &str) -> NodeId {
+    pub(crate) fn push_function_id(
+        &mut self,
+        func_id: FuncId,
+        name: &str,
+        opcode: Option<builtin::Opcode>,
+    ) -> NodeId {
+        let kind = match opcode {
+            Some(op) => FunctionKind::Builtin(op),
+            None => FunctionKind::Normal(func_id),
+        };
         let index = self.nodes.insert_with(|index| {
             let node_id = NodeId(index);
-            NodeObject::Function(FunctionKind::Normal(func_id), node_id, name.to_owned())
+            NodeObject::Function(kind, node_id, name.to_owned())
         });
 
         NodeId(index)

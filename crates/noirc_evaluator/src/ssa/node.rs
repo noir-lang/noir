@@ -119,6 +119,30 @@ pub(crate) enum NodeObject {
     Function(FunctionKind, NodeId, /*name:*/ String),
 }
 
+#[derive(Default, Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub(crate) struct CopyString {
+    pub(crate) str: [char; 32],
+    len: usize,
+}
+
+impl CopyString {
+    pub(crate) fn from_string(name: &String) -> CopyString {
+        if name.len() > 32 {
+            unreachable!("ICE: unsuported len");
+        }
+        let mut result = CopyString::default();
+        for (i, c) in name.chars().enumerate() {
+            result.str[i] = c;
+        }
+        result.len = name.len();
+        result
+    }
+
+    pub(crate) fn to_string(&self) -> String {
+        self.str.iter().take(self.len).collect()
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum FunctionKind {
     Normal(FuncId),
