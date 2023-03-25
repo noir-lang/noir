@@ -4,8 +4,9 @@ use crate::{
 };
 
 use super::fs::{create_named_dir, write_to_file};
-use super::NargoConfig;
+use super::{NargoConfig, CARGO_PKG_VERSION};
 use clap::Args;
+use const_format::formatcp;
 use std::path::{Path, PathBuf};
 
 /// Create a new binary project
@@ -17,11 +18,13 @@ pub(crate) struct NewCommand {
     path: Option<PathBuf>,
 }
 
-const SETTINGS: &str = r#"[package]
+const SETTINGS: &str = formatcp!(
+    r#"[package]
 authors = [""]
-compiler_version = "0.1"
+compiler_version = "{CARGO_PKG_VERSION}"
 
-[dependencies]"#;
+[dependencies]"#,
+);
 
 const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
     constrain x != y;
