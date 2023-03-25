@@ -17,6 +17,25 @@ pub(crate) struct NewCommand {
     path: Option<PathBuf>,
 }
 
+const SETTINGS: &str = r#"[package]
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]"#;
+
+const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
+    constrain x != y;
+}
+
+#[test]
+fn test_main() {
+    main(1, 2);
+    
+    // Uncomment to make test fail
+    // main(1, 1);
+}
+"#;
+
 pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {
     let package_dir = config.program_dir.join(args.package_name);
 
@@ -26,17 +45,6 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
 
     let src_dir = package_dir.join(Path::new(SRC_DIR));
     create_named_dir(&src_dir, "src");
-
-    const EXAMPLE: &str =
-        concat!("fn main(x : Field, y : pub Field) {\n", "    constrain x != y;\n", "}");
-
-    const SETTINGS: &str = concat!(
-        "[package]\n",
-        "authors = [\"\"]\n",
-        "compiler_version = \"0.1\"\n",
-        "\n",
-        "[dependencies]"
-    );
 
     write_to_file(SETTINGS.as_bytes(), &package_dir.join(PKG_FILE));
     write_to_file(EXAMPLE.as_bytes(), &src_dir.join("main.nr"));
