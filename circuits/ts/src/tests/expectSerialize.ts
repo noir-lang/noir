@@ -1,5 +1,5 @@
-import { CircuitsWasm } from "../wasm/circuits_wasm.js";
-import { uint8ArrayToNum } from "../utils/serialize.js";
+import { CircuitsWasm } from '../wasm/circuits_wasm.js';
+import { uint8ArrayToNum } from '../utils/serialize.js';
 
 /**
  * Simplify e.g. 0x0003 into 0x3.
@@ -9,10 +9,8 @@ import { uint8ArrayToNum } from "../utils/serialize.js";
 function simplifyHexValues(input: string) {
   const regex = /0x[\dA-Fa-f]+/g;
   const matches = input.match(regex) || [];
-  const simplifiedMatches = matches.map(
-    (match) => "0x" + BigInt(match).toString(16)
-  );
-  const result = input.replace(regex, () => simplifiedMatches.shift() || "");
+  const simplifiedMatches = matches.map(match => '0x' + BigInt(match).toString(16));
+  const result = input.replace(regex, () => simplifiedMatches.shift() || '');
   return result;
 }
 
@@ -22,38 +20,26 @@ function simplifyHexValues(input: string) {
  * @param serializeMethod - Method to use buffer with.
  * @param wasm - Optional circuit wasm.
  */
-async function callWasm(
-  inputBuf: Buffer,
-  serializeMethod: string,
-  wasm?: CircuitsWasm
-): Promise<Buffer> {
+async function callWasm(inputBuf: Buffer, serializeMethod: string, wasm?: CircuitsWasm): Promise<Buffer> {
   wasm = wasm || (await CircuitsWasm.new());
-  const inputBufPtr = wasm.call("bbmalloc", inputBuf.length);
+  const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
   wasm.writeMemory(inputBufPtr, inputBuf);
-  const outputBufSizePtr = wasm.call("bbmalloc", 4);
+  const outputBufSizePtr = wasm.call('bbmalloc', 4);
 
   // Get a string version of our object. As a quick and dirty test,
   // we compare a snapshot of its string form to its previous form.
-  const outputBufPtr = wasm.call(
-    serializeMethod,
-    inputBufPtr,
-    outputBufSizePtr
-  );
+  const outputBufPtr = wasm.call(serializeMethod, inputBufPtr, outputBufSizePtr);
 
   // Read the size pointer
-  const outputBufSize = uint8ArrayToNum(
-    wasm.getMemorySlice(outputBufSizePtr, outputBufSizePtr + 4)
-  );
+  const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(outputBufSizePtr, outputBufSizePtr + 4));
 
   // Copy into our own buffer
-  const outputBuf = Buffer.from(
-    wasm.getMemorySlice(outputBufPtr, outputBufPtr + outputBufSize)
-  );
+  const outputBuf = Buffer.from(wasm.getMemorySlice(outputBufPtr, outputBufPtr + outputBufSize));
 
   // Free memory
-  wasm.call("bbfree", outputBufPtr);
-  wasm.call("bbfree", outputBufSizePtr);
-  wasm.call("bbfree", inputBufPtr);
+  wasm.call('bbfree', outputBufPtr);
+  wasm.call('bbfree', outputBufSizePtr);
+  wasm.call('bbfree', inputBufPtr);
 
   return outputBuf;
 }
@@ -63,13 +49,9 @@ async function callWasm(
  * @param inputBuf - Buffer to write.
  * @param serializeMethod - Method to use buffer with.
  */
-export async function expectSerializeToMatchSnapshot(
-  inputBuf: Buffer,
-  serializeMethod: string,
-  wasm?: CircuitsWasm
-) {
+export async function expectSerializeToMatchSnapshot(inputBuf: Buffer, serializeMethod: string, wasm?: CircuitsWasm) {
   const outputBuf = await callWasm(inputBuf, serializeMethod, wasm);
-  const outputStr = simplifyHexValues(Buffer.from(outputBuf).toString("utf-8"));
+  const outputStr = simplifyHexValues(Buffer.from(outputBuf).toString('utf-8'));
   expect(outputStr).toMatchSnapshot();
 }
 
@@ -79,13 +61,11 @@ export async function expectSerializeToMatchSnapshot(
  * @param inputObj - Object to check.
  * @param serializeMethod - Wasm method to send and get back the object.
  */
-export async function expectReserializeToMatchObject<
-  T extends { toBuffer: () => Buffer }
->(
+export async function expectReserializeToMatchObject<T extends { toBuffer: () => Buffer }>(
   inputObj: T,
   serializeMethod: string,
   deserialize: (buf: Buffer) => T,
-  wasm?: CircuitsWasm
+  wasm?: CircuitsWasm,
 ) {
   const outputBuf = await callWasm(inputObj.toBuffer(), serializeMethod, wasm);
   const deserializedObj = deserialize(outputBuf);

@@ -1,8 +1,4 @@
-import {
-  AppendOnlyTreeSnapshot,
-  BaseRollupPublicInputs,
-  ConstantBaseRollupData,
-} from "../structs/base_rollup.js";
+import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from '../structs/base_rollup.js';
 import {
   EMITTED_EVENTS_LENGTH,
   KERNEL_L1_MSG_STACK_LENGTH,
@@ -13,8 +9,8 @@ import {
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
   VK_TREE_HEIGHT,
-} from "../structs/constants.js";
-import { FunctionData } from "../structs/function_data.js";
+} from '../structs/constants.js';
+import { FunctionData } from '../structs/function_data.js';
 import {
   AccumulatedData,
   ConstantData,
@@ -23,7 +19,7 @@ import {
   OptionallyRevealedData,
   PreviousKernelData,
   PrivateKernelPublicInputs,
-} from "../structs/kernel.js";
+} from '../structs/kernel.js';
 import {
   AffineElement,
   AggregationObject,
@@ -34,23 +30,14 @@ import {
   MembershipWitness,
   UInt8Vector,
   RollupTypes,
-} from "../structs/shared.js";
-import { ContractDeploymentData, TxContext } from "../structs/tx.js";
-import {
-  CommitmentMap,
-  G1AffineElement,
-  VerificationKey,
-} from "../structs/verification_key.js";
-import { range } from "../utils/jsUtils.js";
-import { numToUInt32BE } from "../utils/serialize.js";
+} from '../structs/shared.js';
+import { ContractDeploymentData, TxContext } from '../structs/tx.js';
+import { CommitmentMap, G1AffineElement, VerificationKey } from '../structs/verification_key.js';
+import { range } from '../utils/jsUtils.js';
+import { numToUInt32BE } from '../utils/serialize.js';
 
 export function makeTxContext(seed: number): TxContext {
-  const deploymentData = new ContractDeploymentData(
-    fr(seed),
-    fr(seed + 1),
-    fr(seed + 2),
-    makeEthAddress(seed + 3)
-  );
+  const deploymentData = new ContractDeploymentData(fr(seed), fr(seed + 1), fr(seed + 2), makeEthAddress(seed + 3));
   return new TxContext(false, false, true, deploymentData);
 }
 
@@ -72,9 +59,7 @@ export function makeAccumulatedData(seed = 1): AccumulatedData {
     range(KERNEL_PUBLIC_CALL_STACK_LENGTH, seed + 0x400).map(fr),
     range(KERNEL_L1_MSG_STACK_LENGTH, seed + 0x500).map(fr),
     range(KERNEL_NEW_CONTRACTS_LENGTH, seed + 0x600).map(makeNewContractData),
-    range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(
-      makeOptionallyRevealedData
-    )
+    range(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, seed + 0x700).map(makeOptionallyRevealedData),
   );
 }
 
@@ -86,13 +71,13 @@ export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
   return new OptionallyRevealedData(
     fr(seed),
     new FunctionData(seed + 1, true, true),
-    range(EMITTED_EVENTS_LENGTH, seed + 0x100).map((x) => fr(x)),
+    range(EMITTED_EVENTS_LENGTH, seed + 0x100).map(x => fr(x)),
     fr(seed + 2),
     makeEthAddress(seed + 3),
     true,
     false,
     true,
-    false
+    false,
   );
 }
 
@@ -101,28 +86,19 @@ export function makeAggregationObject(seed = 1): AggregationObject {
     new AffineElement(new Fq(seed), new Fq(seed + 1)),
     new AffineElement(new Fq(seed + 0x100), new Fq(seed + 0x101)),
     range(4, seed + 2).map(fr),
-    range(6, seed + 6)
+    range(6, seed + 6),
   );
 }
 
-export function makePrivateKernelPublicInputs(
-  seed = 1
-): PrivateKernelPublicInputs {
-  return new PrivateKernelPublicInputs(
-    makeAccumulatedData(seed),
-    makeConstantData(seed + 0x100),
-    true
-  );
+export function makePrivateKernelPublicInputs(seed = 1): PrivateKernelPublicInputs {
+  return new PrivateKernelPublicInputs(makeAccumulatedData(seed), makeConstantData(seed + 0x100), true);
 }
 
 export function makeDynamicSizeBuffer(size: number, fill: number) {
   return new UInt8Vector(Buffer.alloc(size, fill));
 }
 
-export function makeMembershipWitness<N extends number>(
-  size: number,
-  start: number
-): MembershipWitness<N> {
+export function makeMembershipWitness<N extends number>(size: number, start: number): MembershipWitness<N> {
   return new MembershipWitness(size, start, range(size, start).map(fr));
 }
 
@@ -135,7 +111,7 @@ export function makeVerificationKey(): VerificationKey {
       A: new G1AffineElement(fr(0x200), fr(0x300)),
     }),
     /* recursive proof */ true,
-    range(5, 400)
+    range(5, 400),
   );
 }
 export function makePreviousKernelData(seed = 1): PreviousKernelData {
@@ -144,20 +120,15 @@ export function makePreviousKernelData(seed = 1): PreviousKernelData {
     makeDynamicSizeBuffer(16, seed + 0x80),
     makeVerificationKey(),
     0x42,
-    range(VK_TREE_HEIGHT, 0x1000).map(fr)
+    range(VK_TREE_HEIGHT, 0x1000).map(fr),
   );
 }
 
 export function makeConstantBaseRollupData(seed = 1): ConstantBaseRollupData {
   return ConstantBaseRollupData.from({
-    startTreeOfHistoricPrivateDataTreeRootsSnapshot:
-      makeAppendOnlyTreeSnapshot(seed),
-    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(
-      seed + 0x100
-    ),
-    treeOfHistoricL1ToL2MsgTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(
-      seed + 0x200
-    ),
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed),
+    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
+    treeOfHistoricL1ToL2MsgTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
     privateKernelVkTreeRoot: fr(seed + 0x301),
     publicKernelVkTreeRoot: fr(seed + 0x302),
     baseRollupVkHash: fr(seed + 0x303),
@@ -187,7 +158,7 @@ export function makeBaseRollupPublicInputs(seed = 0) {
     fr(seed + 0x602),
     fr(seed + 0x603),
     fr(seed + 0x604),
-    fr(seed + 0x605)
+    fr(seed + 0x605),
   );
 }
 

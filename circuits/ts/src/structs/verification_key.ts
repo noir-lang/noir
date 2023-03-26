@@ -1,5 +1,5 @@
-import { serializeToBuffer } from "../utils/serialize.js";
-import { ComposerType, Fr } from "./shared.js";
+import { serializeToBuffer } from '../utils/serialize.js';
+import { ComposerType, Fr } from './shared.js';
 
 /**
  * Curve data.
@@ -59,7 +59,7 @@ export class VerificationKey {
     /**
      * Recursion stack.
      */
-    public recursiveProofPublicInputIndices: number[]
+    public recursiveProofPublicInputIndices: number[],
   ) {}
 
   /**
@@ -73,10 +73,7 @@ export class VerificationKey {
       this.numPublicInputs,
       this.commitments,
       this.containsRecursiveProof,
-      serializeToBuffer(
-        this.recursiveProofPublicInputIndices.length,
-        this.recursiveProofPublicInputIndices
-      )
+      serializeToBuffer(this.recursiveProofPublicInputIndices.length, this.recursiveProofPublicInputIndices),
     );
   }
 }

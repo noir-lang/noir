@@ -1,10 +1,6 @@
-import { BufferReader } from "../utils/buffer_reader.js";
-import { checkLength, range } from "../utils/jsUtils.js";
-import {
-  Bufferable,
-  numToUInt32BE,
-  serializeToBuffer,
-} from "../utils/serialize.js";
+import { BufferReader } from '../utils/buffer_reader.js';
+import { checkLength, range } from '../utils/jsUtils.js';
+import { Bufferable, numToUInt32BE, serializeToBuffer } from '../utils/serialize.js';
 
 abstract class Field {
   public static SIZE_IN_BYTES = 32;
@@ -14,16 +10,12 @@ abstract class Field {
   constructor(input: Buffer | number) {
     if (Buffer.isBuffer(input)) {
       if (input.length != Field.SIZE_IN_BYTES) {
-        throw new Error(
-          `Unexpected buffer size ${input.length} (expected ${Field.SIZE_IN_BYTES} bytes)`
-        );
+        throw new Error(`Unexpected buffer size ${input.length} (expected ${Field.SIZE_IN_BYTES} bytes)`);
       }
       this.buffer = input;
     } else {
       if (BigInt(input) > this.maxValue()) {
-        throw new Error(
-          `Input value ${input} too large (expected ${this.maxValue()})`
-        );
+        throw new Error(`Input value ${input} too large (expected ${this.maxValue()})`);
       }
       this.buffer = numToUInt32BE(input, 32);
     }
@@ -32,7 +24,7 @@ abstract class Field {
   abstract maxValue(): bigint;
 
   toString() {
-    return "0x" + this.buffer.toString("hex");
+    return '0x' + this.buffer.toString('hex');
   }
 
   toBuffer() {
@@ -46,9 +38,7 @@ export class Fr extends Field {
    * @returns 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000n
    */
   maxValue() {
-    return (
-      0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n - 1n
-    );
+    return 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n - 1n;
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -64,9 +54,7 @@ export class Fq extends Field {
    * @returns 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000n
    */
   maxValue() {
-    return (
-      0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n - 1n
-    );
+    return 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n - 1n;
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -97,14 +85,12 @@ export class EthAddress {
 
   constructor(public readonly buffer: Buffer) {
     if (buffer.length != EthAddress.SIZE_IN_BYTES) {
-      throw new Error(
-        `Unexpected buffer size ${buffer.length} (expected ${EthAddress.SIZE_IN_BYTES} bytes)`
-      );
+      throw new Error(`Unexpected buffer size ${buffer.length} (expected ${EthAddress.SIZE_IN_BYTES} bytes)`);
     }
   }
 
   toString() {
-    return "0x" + this.buffer.toString("hex");
+    return '0x' + this.buffer.toString('hex');
   }
 
   toBuffer() {
@@ -114,7 +100,7 @@ export class EthAddress {
 
 export class MembershipWitness<N extends number> {
   constructor(pathSize: N, public leafIndex: UInt32, public siblingPath: Fr[]) {
-    checkLength(this.siblingPath, pathSize, "MembershipWitness.siblingPath");
+    checkLength(this.siblingPath, pathSize, 'MembershipWitness.siblingPath');
   }
 
   toBuffer() {
@@ -125,7 +111,7 @@ export class MembershipWitness<N extends number> {
     return new MembershipWitness(
       size,
       start,
-      range(size, start).map((x) => new Fr(numToUInt32BE(x, 32)))
+      range(size, start).map(x => new Fr(numToUInt32BE(x, 32))),
     );
   }
 }
@@ -139,20 +125,14 @@ export class AggregationObject {
     public p1: AffineElement,
     publicInputsData: Fr[],
     proofWitnessIndicesData: UInt32[],
-    public hasData = false
+    public hasData = false,
   ) {
     this.publicInputs = new Vector(publicInputsData);
     this.proofWitnessIndices = new Vector(proofWitnessIndicesData);
   }
 
   toBuffer() {
-    return serializeToBuffer(
-      this.p0,
-      this.p1,
-      this.publicInputs,
-      this.proofWitnessIndices,
-      this.hasData
-    );
+    return serializeToBuffer(this.p0, this.p1, this.publicInputs, this.proofWitnessIndices, this.hasData);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): AggregationObject {
@@ -162,7 +142,7 @@ export class AggregationObject {
       reader.readObject(AffineElement),
       reader.readVector(Fr),
       reader.readNumberVector(),
-      reader.readBoolean()
+      reader.readBoolean(),
     );
   }
 }

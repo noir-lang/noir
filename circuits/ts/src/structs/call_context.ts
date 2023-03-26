@@ -1,5 +1,5 @@
-import { serializeToBuffer } from "../utils/serialize.js";
-import { AztecAddress, EthAddress } from "./shared.js";
+import { serializeToBuffer } from '../utils/serialize.js';
+import { AztecAddress, EthAddress } from './shared.js';
 
 /**
  * Call context.
@@ -12,7 +12,7 @@ export class CallContext {
     public portalContractAddress: EthAddress,
     public isDelegateCall: boolean,
     public isStaticCall: boolean,
-    public isContractDeployment: boolean
+    public isContractDeployment: boolean,
   ) {}
   /**
    * Serialize this as a buffer.
@@ -25,7 +25,7 @@ export class CallContext {
       this.portalContractAddress.toBuffer(),
       this.isDelegateCall,
       this.isStaticCall,
-      this.isContractDeployment
+      this.isContractDeployment,
     );
   }
 }

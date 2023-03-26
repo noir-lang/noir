@@ -1,1 +1,1 @@
-export { CircuitsWasm } from "./circuits_wasm.js";
+export { CircuitsWasm } from './circuits_wasm.js';

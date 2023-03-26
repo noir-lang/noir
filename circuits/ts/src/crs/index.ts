@@ -1,15 +1,14 @@
-import { readFile } from "fs/promises";
-import { existsSync } from "fs";
+import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 
-import { dirname } from "path";
-import { fileURLToPath } from "url";
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * The path to our SRS object, assuming that we are in aztec3-circuits/ts folder.
  */
 const SRS_DEV_PATH =
-  dirname(fileURLToPath(import.meta.url)) +
-  "../cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat";
+  dirname(fileURLToPath(import.meta.url)) + '../cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
 /**
  * Downloader for CRS from the web or local.
  */
@@ -21,7 +20,7 @@ export class NetCrs {
     /**
      * The number of circuit gates.
      */
-    public readonly numPoints: number
+    public readonly numPoints: number,
   ) {}
 
   /**
@@ -33,14 +32,11 @@ export class NetCrs {
     const g1End = g1Start + (this.numPoints + 1) * 64 - 1;
 
     // Download required range of data.
-    const response = await fetch(
-      "https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat",
-      {
-        headers: {
-          Range: `bytes=${g1Start}-${g1End}`,
-        },
-      }
-    );
+    const response = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat', {
+      headers: {
+        Range: `bytes=${g1Start}-${g1End}`,
+      },
+    });
 
     this.data = new Uint8Array(await response.arrayBuffer());
 
@@ -54,14 +50,11 @@ export class NetCrs {
     const g2Start = 28 + 5040000 * 64;
     const g2End = g2Start + 128 - 1;
 
-    const response2 = await fetch(
-      "https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat",
-      {
-        headers: {
-          Range: `bytes=${g2Start}-${g2End}`,
-        },
-      }
-    );
+    const response2 = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat', {
+      headers: {
+        Range: `bytes=${g2Start}-${g2End}`,
+      },
+    });
 
     this.g2Data = new Uint8Array(await response2.arrayBuffer());
   }
@@ -95,7 +88,7 @@ export class FileCrs {
      * The number of circuit gates.
      */
     public readonly numPoints: number,
-    private path: string
+    private path: string,
   ) {}
 
   /**
@@ -141,11 +134,9 @@ export class Crs {
     /**
      * The number of circuit gates.
      */
-    public readonly numPoints: number
+    public readonly numPoints: number,
   ) {
-    this.crs = existsSync(SRS_DEV_PATH)
-      ? new FileCrs(numPoints, SRS_DEV_PATH)
-      : new NetCrs(numPoints);
+    this.crs = existsSync(SRS_DEV_PATH) ? new FileCrs(numPoints, SRS_DEV_PATH) : new NetCrs(numPoints);
   }
 
   /**

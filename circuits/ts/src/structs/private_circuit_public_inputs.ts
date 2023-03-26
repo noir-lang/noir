@@ -1,6 +1,6 @@
-import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../utils/serialize.js";
-import { CallContext } from "./call_context.js";
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
+import { CallContext } from './call_context.js';
 import {
   ARGS_LENGTH,
   EMITTED_EVENTS_LENGTH,
@@ -10,9 +10,9 @@ import {
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
-} from "./constants.js";
-import { Fr } from "./shared.js";
-import { ContractDeploymentData } from "./tx.js";
+} from './constants.js';
+import { Fr } from './shared.js';
+import { ContractDeploymentData } from './tx.js';
 
 /**
  * Public inputs to a private circuit.
@@ -33,28 +33,24 @@ export class PrivateCircuitPublicInputs {
     public historicPrivateDataTreeRoot: Fr,
     public historicPrivateNullifierTreeRoot: Fr,
     public historicContractTreeRoot: Fr,
-    public contractDeploymentData: ContractDeploymentData
+    public contractDeploymentData: ContractDeploymentData,
   ) {
-    assertLength(this, "args", ARGS_LENGTH);
-    assertLength(this, "returnValues", RETURN_VALUES_LENGTH);
-    assertLength(this, "emittedEvents", EMITTED_EVENTS_LENGTH);
-    assertLength(this, "newCommitments", NEW_COMMITMENTS_LENGTH);
-    assertLength(this, "newNullifiers", NEW_NULLIFIERS_LENGTH);
-    assertLength(this, "privateCallStack", PRIVATE_CALL_STACK_LENGTH);
-    assertLength(this, "publicCallStack", PUBLIC_CALL_STACK_LENGTH);
-    assertLength(this, "l1MsgStack", L1_MSG_STACK_LENGTH);
+    assertLength(this, 'args', ARGS_LENGTH);
+    assertLength(this, 'returnValues', RETURN_VALUES_LENGTH);
+    assertLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
+    assertLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
+    assertLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
+    assertLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
+    assertLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
+    assertLength(this, 'l1MsgStack', L1_MSG_STACK_LENGTH);
   }
   /**
    * Create PrivateCircuitPublicInputs from a fields dictionary.
    * @param fields - The dictionary.
    * @returns A PrivateCircuitPublicInputs object.
    */
-  static from(
-    fields: FieldsOf<PrivateCircuitPublicInputs>
-  ): PrivateCircuitPublicInputs {
-    return new PrivateCircuitPublicInputs(
-      ...PrivateCircuitPublicInputs.getFields(fields)
-    );
+  static from(fields: FieldsOf<PrivateCircuitPublicInputs>): PrivateCircuitPublicInputs {
+    return new PrivateCircuitPublicInputs(...PrivateCircuitPublicInputs.getFields(fields));
   }
   /**
    * Serialize into a field array. Low-level utility.

@@ -1,0 +1,73 @@
+# This file uses YAML anchors and aliases to prevent repetition of blocks of config:
+# https://support.atlassian.com/bitbucket-cloud/docs/yaml-anchors/
+#
+# Two primary anchors are checkout and setup_env, called as the first step of almost all jobs:
+# - checkout: A custom checkout step to reduce the amount of data downloaded to improve speed.
+# - setup_env: Sets up the common environment used by all build steps.
+#
+
+version: 2.1
+parameters:
+  workflow:
+    type: string
+    default: "system"
+
+# This build step checks out the code from the repository. It has a hardcoded readonly key to allow the checkout.
+# Initially it just fetches the repo metadata for the current commit hash to a depth of 50 commits.
+# We need historical commit hashes to calculate diffs between previous and current commits.
+# It then checks out the fetched head to actually download the data.
+checkout: &checkout
+  run:
+    name: "Checkout code"
+    command: |
+      cd $HOME
+      mkdir -p .ssh
+      chmod 0700 .ssh
+      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
+
+      # A read only key for cloning the repository.
+      echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
+
+      chmod 0600 .ssh/id_rsa
+
+      # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
+      # Shallow checkout this commit.
+      mkdir -p project
+      cd project
+      git init
+      git remote add origin $CIRCLE_REPOSITORY_URL
+      # Only download metadata when fetching.
+      git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
+      git checkout FETCH_HEAD
+      # Pull in build-system submodule.
+      git submodule update --init build-system
+
+# Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
+# It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
+# the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
+setup_env: &setup_env
+  run:
+    name: "Setup environment"
+    command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
+
+jobs:
+  foundation:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build foundation
+
+workflows:
+  system:
+    when:
+      equal: [system, << pipeline.parameters.workflow >>]
+    jobs:
+      - foundation:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-[a-zA-Z-]+\.[0-9]+)?/

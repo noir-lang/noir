@@ -1,8 +1,8 @@
-import { expectSerializeToMatchSnapshot } from "../tests/expectSerialize.js";
-import { fr } from "../tests/factories.js";
-import { range } from "../utils/jsUtils.js";
-import { numToUInt32BE } from "../utils/serialize.js";
-import { CallContext } from "./call_context.js";
+import { expectSerializeToMatchSnapshot } from '../tests/expectSerialize.js';
+import { fr } from '../tests/factories.js';
+import { range } from '../utils/jsUtils.js';
+import { numToUInt32BE } from '../utils/serialize.js';
+import { CallContext } from './call_context.js';
 import {
   ARGS_LENGTH,
   EMITTED_EVENTS_LENGTH,
@@ -12,10 +12,10 @@ import {
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   L1_MSG_STACK_LENGTH,
-} from "./constants.js";
-import { PrivateCircuitPublicInputs } from "./private_circuit_public_inputs.js";
-import { EthAddress, Fr } from "./shared.js";
-import { ContractDeploymentData } from "./tx.js";
+} from './constants.js';
+import { PrivateCircuitPublicInputs } from './private_circuit_public_inputs.js';
+import { EthAddress, Fr } from './shared.js';
+import { ContractDeploymentData } from './tx.js';
 
 /**
  * Create sequential test data for ContractDeploymentData.
@@ -26,7 +26,7 @@ function contractDeploymentData() {
     new Fr(numToUInt32BE(1, 32)),
     new Fr(numToUInt32BE(2, 32)),
     new Fr(numToUInt32BE(3, 32)),
-    new EthAddress(numToUInt32BE(4, 20))
+    new EthAddress(numToUInt32BE(4, 20)),
   );
 }
 
@@ -42,7 +42,7 @@ function privateCircuitPublicInputs() {
       new EthAddress(numToUInt32BE(3, /* eth address is 20 bytes */ 20)),
       true,
       true,
-      true
+      true,
     ),
     args: range(ARGS_LENGTH, 0x100).map(fr),
     emittedEvents: range(EMITTED_EVENTS_LENGTH, 0x200).map(fr), // TODO not in spec
@@ -59,12 +59,12 @@ function privateCircuitPublicInputs() {
   });
 }
 
-describe("basic PrivateCircuitPublicInputs serialization", () => {
+describe('basic PrivateCircuitPublicInputs serialization', () => {
   it(`serializes a trivial PrivateCircuitPublicInputs and prints it`, async () => {
     // Test the data case: writing (mostly) sequential numbers
     await expectSerializeToMatchSnapshot(
       privateCircuitPublicInputs().toBuffer(),
-      "abis__test_roundtrip_serialize_private_circuit_public_inputs"
+      'abis__test_roundtrip_serialize_private_circuit_public_inputs',
     );
   });
 });

@@ -1,0 +1,17 @@
+class ConsoleLogger {
+    constructor(prefix, logger = console.log) {
+        this.prefix = prefix;
+        this.logger = logger;
+    }
+    log(...args) {
+        this.logger(`${this.prefix}:`, ...args);
+    }
+}
+export function createLogger(prefix) {
+    if (prefix) {
+        const logger = new ConsoleLogger(prefix, console.log);
+        return (...args) => logger.log(...args);
+    }
+    return console.log;
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY29uc29sZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9sb2cvY29uc29sZS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFQSxNQUFNLGFBQWE7SUFDakIsWUFBb0IsTUFBYyxFQUFVLFNBQW1DLE9BQU8sQ0FBQyxHQUFHO1FBQXRFLFdBQU0sR0FBTixNQUFNLENBQVE7UUFBVSxXQUFNLEdBQU4sTUFBTSxDQUF3QztJQUFHLENBQUM7SUFFdkYsR0FBRyxDQUFDLEdBQUcsSUFBVztRQUN2QixJQUFJLENBQUMsTUFBTSxDQUFDLEdBQUcsSUFBSSxDQUFDLE1BQU0sR0FBRyxFQUFFLEdBQUcsSUFBSSxDQUFDLENBQUM7SUFDMUMsQ0FBQztDQUNGO0FBRUQsTUFBTSxVQUFVLFlBQVksQ0FBQyxNQUFjO0lBQ3pDLElBQUksTUFBTSxFQUFFO1FBQ1YsTUFBTSxNQUFNLEdBQUcsSUFBSSxhQUFhLENBQUMsTUFBTSxFQUFFLE9BQU8sQ0FBQyxHQUFHLENBQUMsQ0FBQztRQUN0RCxPQUFPLENBQUMsR0FBRyxJQUFXLEVBQUUsRUFBRSxDQUFDLE1BQU0sQ0FBQyxHQUFHLENBQUMsR0FBRyxJQUFJLENBQUMsQ0FBQztLQUNoRDtJQUNELE9BQU8sT0FBTyxDQUFDLEdBQUcsQ0FBQztBQUNyQixDQUFDIn0=

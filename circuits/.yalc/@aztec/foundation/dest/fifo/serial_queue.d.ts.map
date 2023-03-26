@@ -1,0 +1,1 @@
+{"version":3,"file":"serial_queue.d.ts","sourceRoot":"","sources":["../../src/fifo/serial_queue.ts"],"names":[],"mappings":"AAEA;;GAEG;AACH,qBAAa,WAAW;IACtB,OAAO,CAAC,QAAQ,CAAC,KAAK,CAAyC;IAC/D,OAAO,CAAC,cAAc,CAAiB;IAEhC,KAAK;IAIL,MAAM;IAIN,MAAM;IAKN,GAAG;IAKV;;;OAGG;IACI,GAAG,CAAC,CAAC,EAAE,EAAE,EAAE,MAAM,OAAO,CAAC,CAAC,CAAC,GAAG,OAAO,CAAC,CAAC,CAAC;IAclC,SAAS;CAGvB"}

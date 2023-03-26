@@ -1,13 +1,9 @@
-import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../utils/serialize.js";
-import { AppendOnlyTreeSnapshot } from "./base_rollup.js";
-import {
-  CONTRACT_TREE_HEIGHT,
-  NULLIFIER_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
-} from "./constants.js";
-import { PreviousRollupData } from "./merge_rollup.js";
-import { AggregationObject, Fr } from "./shared.js";
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
+import { AppendOnlyTreeSnapshot } from './base_rollup.js';
+import { CONTRACT_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
+import { PreviousRollupData } from './merge_rollup.js';
+import { AggregationObject, Fr } from './shared.js';
 
 export class RootRollupInputs {
   constructor(
@@ -23,19 +19,11 @@ export class RootRollupInputs {
     public newNullifiersSubtreeSiblingPath: Fr[],
     public newContractsSubtreeSiblingPath: Fr[],
 
-    public proverId: Fr
+    public proverId: Fr,
   ) {
-    assertLength(
-      this,
-      "newCommitmentsSubtreeSiblingPath",
-      PRIVATE_DATA_TREE_HEIGHT
-    );
-    assertLength(
-      this,
-      "newNullifiersSubtreeSiblingPath",
-      NULLIFIER_TREE_HEIGHT
-    );
-    assertLength(this, "newContractsSubtreeSiblingPath", CONTRACT_TREE_HEIGHT);
+    assertLength(this, 'newCommitmentsSubtreeSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
+    assertLength(this, 'newNullifiersSubtreeSiblingPath', NULLIFIER_TREE_HEIGHT);
+    assertLength(this, 'newContractsSubtreeSiblingPath', CONTRACT_TREE_HEIGHT);
   }
 
   toBuffer() {
@@ -46,7 +34,7 @@ export class RootRollupInputs {
       this.newCommitmentsSubtreeSiblingPath,
       this.newNullifiersSubtreeSiblingPath,
       this.newContractsSubtreeSiblingPath,
-      this.proverId
+      this.proverId,
     );
   }
 }
@@ -81,7 +69,7 @@ export class RootRollupPublicInputs {
     public newNullifiersHash: Fr,
     public newL1MsgsHash: Fr,
     public newContractDataHash: Fr,
-    public proverContributionsHash: Fr // TODO: spec how funds are distributed to provers.
+    public proverContributionsHash: Fr, // TODO: spec how funds are distributed to provers.
   ) {}
 
   static getFields(fields: FieldsOf<RootRollupPublicInputs>) {
@@ -109,11 +97,7 @@ export class RootRollupPublicInputs {
     return serializeToBuffer(...RootRollupPublicInputs.getFields(this));
   }
 
-  static from(
-    fields: FieldsOf<RootRollupPublicInputs>
-  ): RootRollupPublicInputs {
-    return new RootRollupPublicInputs(
-      ...RootRollupPublicInputs.getFields(fields)
-    );
+  static from(fields: FieldsOf<RootRollupPublicInputs>): RootRollupPublicInputs {
+    return new RootRollupPublicInputs(...RootRollupPublicInputs.getFields(fields));
   }
 }

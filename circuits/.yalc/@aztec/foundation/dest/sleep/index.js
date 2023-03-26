@@ -1,0 +1,27 @@
+import { InterruptError } from '../errors/index.js';
+export class InterruptableSleep {
+    constructor() {
+        this.interruptResolve = () => { };
+        this.interruptPromise = new Promise(resolve => (this.interruptResolve = resolve));
+        this.timeouts = [];
+    }
+    async sleep(ms) {
+        let timeout;
+        const promise = new Promise(resolve => (timeout = setTimeout(() => resolve(false), ms)));
+        this.timeouts.push(timeout);
+        const shouldThrow = await Promise.race([promise, this.interruptPromise]);
+        clearTimeout(timeout);
+        this.timeouts.splice(this.timeouts.indexOf(timeout), 1);
+        if (shouldThrow) {
+            throw new InterruptError('Interrupted.');
+        }
+    }
+    interrupt(sleepShouldThrow = false) {
+        this.interruptResolve(sleepShouldThrow);
+        this.interruptPromise = new Promise(resolve => (this.interruptResolve = resolve));
+    }
+}
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9zcmMvc2xlZXAvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBTyxFQUFFLGNBQWMsRUFBRSxNQUFNLG9CQUFvQixDQUFDO0FBRXBELE1BQU0sT0FBTyxrQkFBa0I7SUFBL0I7UUFDVSxxQkFBZ0IsR0FBbUMsR0FBRyxFQUFFLEdBQUUsQ0FBQyxDQUFDO1FBQzVELHFCQUFnQixHQUFHLElBQUksT0FBTyxDQUFVLE9BQU8sQ0FBQyxFQUFFLENBQUMsQ0FBQyxJQUFJLENBQUMsZ0JBQWdCLEdBQUcsT0FBTyxDQUFDLENBQUMsQ0FBQztRQUN0RixhQUFRLEdBQXFCLEVBQUUsQ0FBQztJQWtCMUMsQ0FBQztJQWhCUSxLQUFLLENBQUMsS0FBSyxDQUFDLEVBQVU7UUFDM0IsSUFBSSxPQUF3QixDQUFDO1FBQzdCLE1BQU0sT0FBTyxHQUFHLElBQUksT0FBTyxDQUFVLE9BQU8sQ0FBQyxFQUFFLENBQUMsQ0FBQyxPQUFPLEdBQUcsVUFBVSxDQUFDLEdBQUcsRUFBRSxDQUFDLE9BQU8sQ0FBQyxLQUFLLENBQUMsRUFBRSxFQUFFLENBQUMsQ0FBQyxDQUFDLENBQUM7UUFDbEcsSUFBSSxDQUFDLFFBQVEsQ0FBQyxJQUFJLENBQUMsT0FBTyxDQUFDLENBQUM7UUFDNUIsTUFBTSxXQUFXLEdBQUcsTUFBTSxPQUFPLENBQUMsSUFBSSxDQUFDLENBQUMsT0FBTyxFQUFFLElBQUksQ0FBQyxnQkFBZ0IsQ0FBQyxDQUFDLENBQUM7UUFDekUsWUFBWSxDQUFDLE9BQU8sQ0FBQyxDQUFDO1FBQ3RCLElBQUksQ0FBQyxRQUFRLENBQUMsTUFBTSxDQUFDLElBQUksQ0FBQyxRQUFRLENBQUMsT0FBTyxDQUFDLE9BQU8sQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFDO1FBQ3hELElBQUksV0FBVyxFQUFFO1lBQ2YsTUFBTSxJQUFJLGNBQWMsQ0FBQyxjQUFjLENBQUMsQ0FBQztTQUMxQztJQUNILENBQUM7SUFFTSxTQUFTLENBQUMsZ0JBQWdCLEdBQUcsS0FBSztRQUN2QyxJQUFJLENBQUMsZ0JBQWdCLENBQUMsZ0JBQWdCLENBQUMsQ0FBQztRQUN4QyxJQUFJLENBQUMsZ0JBQWdCLEdBQUcsSUFBSSxPQUFPLENBQUMsT0FBTyxDQUFDLEVBQUUsQ0FBQyxDQUFDLElBQUksQ0FBQyxnQkFBZ0IsR0FBRyxPQUFPLENBQUMsQ0FBQyxDQUFDO0lBQ3BGLENBQUM7Q0FDRjtBQUVELE1BQU0sVUFBVSxLQUFLLENBQUMsRUFBVTtJQUM5QixPQUFPLElBQUksT0FBTyxDQUFDLE9BQU8sQ0FBQyxFQUFFLENBQUMsVUFBVSxDQUFDLE9BQU8sRUFBRSxFQUFFLENBQUMsQ0FBQyxDQUFDO0FBQ3pELENBQUMifQ==

@@ -1,19 +1,9 @@
-import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../utils/serialize.js";
-import {
-  AppendOnlyTreeSnapshot,
-  BaseRollupPublicInputs,
-  ConstantBaseRollupData,
-} from "./base_rollup.js";
-import { VK_TREE_HEIGHT } from "./constants.js";
-import {
-  AggregationObject,
-  Fr,
-  UInt32,
-  UInt8Vector,
-  RollupTypes,
-} from "./shared.js";
-import { VerificationKey } from "./verification_key.js";
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
+import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from './base_rollup.js';
+import { VK_TREE_HEIGHT } from './constants.js';
+import { AggregationObject, Fr, UInt32, UInt8Vector, RollupTypes } from './shared.js';
+import { VerificationKey } from './verification_key.js';
 
 export class PreviousRollupData {
   constructor(
@@ -24,27 +14,18 @@ export class PreviousRollupData {
      * The index of the rollup circuit's vk in a big tree of rollup circuit vks.
      */
     public vkIndex: UInt32,
-    public vkSiblingPath: Fr[]
+    public vkSiblingPath: Fr[],
   ) {
-    assertLength(this, "vkSiblingPath", VK_TREE_HEIGHT);
+    assertLength(this, 'vkSiblingPath', VK_TREE_HEIGHT);
   }
 
   toBuffer() {
-    return serializeToBuffer(
-      this.publicInputs,
-      this.proof,
-      this.vk,
-      this.vkIndex,
-      this.vkSiblingPath
-    );
+    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
   }
 }
 
 export class MergeRollupInputs {
-  constructor(
-    public previousRollupData: [PreviousRollupData, PreviousRollupData],
-    public proverId: Fr
-  ) {}
+  constructor(public previousRollupData: [PreviousRollupData, PreviousRollupData], public proverId: Fr) {}
 
   toBuffer() {
     return serializeToBuffer(this.previousRollupData, this.proverId);
@@ -79,7 +60,7 @@ export class MergeRollupPublicInputs {
     public newNullifiersHash: Fr,
     public newL1MsgsHash: Fr,
     public newContractDataHash: Fr,
-    public proverContributionsHash: Fr
+    public proverContributionsHash: Fr,
   ) {}
 
   static getFields(fields: FieldsOf<MergeRollupPublicInputs>) {
@@ -104,11 +85,7 @@ export class MergeRollupPublicInputs {
     return serializeToBuffer(...MergeRollupPublicInputs.getFields(this));
   }
 
-  static from(
-    fields: FieldsOf<MergeRollupPublicInputs>
-  ): MergeRollupPublicInputs {
-    return new MergeRollupPublicInputs(
-      ...MergeRollupPublicInputs.getFields(fields)
-    );
+  static from(fields: FieldsOf<MergeRollupPublicInputs>): MergeRollupPublicInputs {
+    return new MergeRollupPublicInputs(...MergeRollupPublicInputs.getFields(fields));
   }
 }

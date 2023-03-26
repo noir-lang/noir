@@ -15,7 +15,7 @@ export function serializeBufferArrayToVector(arr: Buffer[]) {
  */
 type DeserializeFn<T> = (
   buf: Buffer,
-  offset: number
+  offset: number,
 ) => {
   /**
    * The deserialized type.
@@ -33,11 +33,7 @@ type DeserializeFn<T> = (
  * @param n - The number.
  * @returns The endian-corrected number.
  */
-export function deserializeArrayFromVector<T>(
-  deserialize: DeserializeFn<T>,
-  vector: Buffer,
-  offset = 0
-) {
+export function deserializeArrayFromVector<T>(deserialize: DeserializeFn<T>, vector: Buffer, offset = 0) {
   let pos = offset;
   const size = vector.readUInt32BE(pos);
   pos += 4;
@@ -130,12 +126,12 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
       ret = [...ret, ...serializeToBufferArray(...obj)];
     } else if (Buffer.isBuffer(obj)) {
       ret.push(obj);
-    } else if (typeof obj === "boolean") {
+    } else if (typeof obj === 'boolean') {
       ret.push(boolToBuffer(obj));
-    } else if (typeof obj === "number") {
+    } else if (typeof obj === 'number') {
       // Note: barretenberg assumes everything is big-endian
       ret.push(numToUInt32BE(obj)); // TODO: Are we always passsing numbers as UInt32?
-    } else if (typeof obj === "string") {
+    } else if (typeof obj === 'string') {
       ret.push(numToUInt32BE(obj.length));
       ret.push(Buffer.from(obj));
     } else {

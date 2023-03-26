@@ -18,14 +18,13 @@ export function range(n: number, offset = 0) {
  * @param member - A member string.
  * @param length - The length.
  */
-export function assertLength<
-  F extends string,
-  T extends { [f in F]: { length: number } }
->(obj: T, member: F, length: number) {
+export function assertLength<F extends string, T extends { [f in F]: { length: number } }>(
+  obj: T,
+  member: F,
+  length: number,
+) {
   if (obj[member].length !== length) {
-    throw new Error(
-      `Expected ${member} to have length ${length}! Was: ${obj[member].length}`
-    );
+    throw new Error(`Expected ${member} to have length ${length}! Was: ${obj[member].length}`);
   }
 }
 
@@ -35,15 +34,9 @@ export function assertLength<
  * @param expected Expected length.
  * @param label Optional name for the collection to use in the error message.
  */
-export function checkLength(
-  arr: { length: number },
-  expected: number,
-  label = "array"
-) {
+export function checkLength(arr: { length: number }, expected: number, label = 'array') {
   if (arr.length !== expected) {
-    throw new Error(
-      `Invalid length for ${label} (got ${arr.length}, expected ${expected})`
-    );
+    throw new Error(`Invalid length for ${label} (got ${arr.length}, expected ${expected})`);
   }
 }
 

@@ -1,5 +1,5 @@
-import { assertLength, checkLength } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../utils/serialize.js";
+import { assertLength, checkLength } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
 import {
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
@@ -10,25 +10,18 @@ import {
   KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
   VK_TREE_HEIGHT,
   EMITTED_EVENTS_LENGTH,
-} from "./constants.js";
-import { FunctionData } from "./function_data.js";
-import {
-  AggregationObject,
-  AztecAddress,
-  EthAddress,
-  Fr,
-  UInt8Vector,
-  UInt32,
-} from "./shared.js";
-import { TxContext } from "./tx.js";
-import { VerificationKey } from "./verification_key.js";
+} from './constants.js';
+import { FunctionData } from './function_data.js';
+import { AggregationObject, AztecAddress, EthAddress, Fr, UInt8Vector, UInt32 } from './shared.js';
+import { TxContext } from './tx.js';
+import { VerificationKey } from './verification_key.js';
 
 export class OldTreeRoots {
   constructor(
     public privateDataTreeRoot: Fr,
     public nullifierTreeRoot: Fr,
     public contractTreeRoot: Fr,
-    public privateKernelVkTreeRoot: Fr // future enhancement
+    public privateKernelVkTreeRoot: Fr, // future enhancement
   ) {}
 
   toBuffer() {
@@ -36,7 +29,7 @@ export class OldTreeRoots {
       this.privateDataTreeRoot,
       this.nullifierTreeRoot,
       this.contractTreeRoot,
-      this.privateKernelVkTreeRoot
+      this.privateKernelVkTreeRoot,
     );
   }
 }
@@ -54,15 +47,11 @@ export class NewContractData {
   constructor(
     public contractAddress: AztecAddress,
     public portalContractAddress: EthAddress,
-    public functionTreeRoot: Fr
+    public functionTreeRoot: Fr,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(
-      this.contractAddress,
-      this.portalContractAddress,
-      this.functionTreeRoot
-    );
+    return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.functionTreeRoot);
   }
 }
 
@@ -76,9 +65,9 @@ export class OptionallyRevealedData {
     public payFeeFromL1: boolean,
     public payFeeFromPublicL2: boolean,
     public calledFromL1: boolean,
-    public calledFromPublicL2: boolean
+    public calledFromPublicL2: boolean,
   ) {
-    assertLength(this, "emittedEvents", EMITTED_EVENTS_LENGTH);
+    assertLength(this, 'emittedEvents', EMITTED_EVENTS_LENGTH);
   }
 
   toBuffer() {
@@ -91,7 +80,7 @@ export class OptionallyRevealedData {
       this.payFeeFromL1,
       this.payFeeFromPublicL2,
       this.calledFromL1,
-      this.calledFromPublicL2
+      this.calledFromPublicL2,
     );
   }
 }
@@ -111,19 +100,15 @@ export class AccumulatedData {
 
     public newContracts: NewContractData[],
 
-    public optionallyRevealedData: OptionallyRevealedData[]
+    public optionallyRevealedData: OptionallyRevealedData[],
   ) {
-    assertLength(this, "newCommitments", KERNEL_NEW_COMMITMENTS_LENGTH);
-    assertLength(this, "newNullifiers", KERNEL_NEW_NULLIFIERS_LENGTH);
-    assertLength(this, "privateCallStack", KERNEL_PRIVATE_CALL_STACK_LENGTH);
-    assertLength(this, "publicCallStack", KERNEL_PUBLIC_CALL_STACK_LENGTH);
-    assertLength(this, "l1MsgStack", KERNEL_L1_MSG_STACK_LENGTH);
-    assertLength(this, "newContracts", KERNEL_NEW_CONTRACTS_LENGTH);
-    assertLength(
-      this,
-      "optionallyRevealedData",
-      KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH
-    );
+    assertLength(this, 'newCommitments', KERNEL_NEW_COMMITMENTS_LENGTH);
+    assertLength(this, 'newNullifiers', KERNEL_NEW_NULLIFIERS_LENGTH);
+    assertLength(this, 'privateCallStack', KERNEL_PRIVATE_CALL_STACK_LENGTH);
+    assertLength(this, 'publicCallStack', KERNEL_PUBLIC_CALL_STACK_LENGTH);
+    assertLength(this, 'l1MsgStack', KERNEL_L1_MSG_STACK_LENGTH);
+    assertLength(this, 'newContracts', KERNEL_NEW_CONTRACTS_LENGTH);
+    assertLength(this, 'optionallyRevealedData', KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH);
   }
 
   toBuffer() {
@@ -136,17 +121,13 @@ export class AccumulatedData {
       this.publicCallStack,
       this.l1MsgStack,
       this.newContracts,
-      this.optionallyRevealedData
+      this.optionallyRevealedData,
     );
   }
 }
 
 export class PrivateKernelPublicInputs {
-  constructor(
-    public end: AccumulatedData,
-    public constants: ConstantData,
-    public isPrivateKernel: true
-  ) {}
+  constructor(public end: AccumulatedData, public constants: ConstantData, public isPrivateKernel: true) {}
 
   toBuffer() {
     return serializeToBuffer(this.end, this.constants, this.isPrivateKernel);
@@ -159,9 +140,9 @@ export class PreviousKernelData {
     public proof: UInt8Vector,
     public vk: VerificationKey,
     public vkIndex: UInt32, // the index of the kernel circuit's vk in a big tree of kernel circuit vks
-    public vkSiblingPath: Fr[]
+    public vkSiblingPath: Fr[],
   ) {
-    checkLength(this.vkSiblingPath, VK_TREE_HEIGHT, "vkSiblingPath");
+    checkLength(this.vkSiblingPath, VK_TREE_HEIGHT, 'vkSiblingPath');
   }
 
   /**
@@ -169,12 +150,6 @@ export class PreviousKernelData {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(
-      this.publicInputs,
-      this.proof,
-      this.vk,
-      this.vkIndex,
-      this.vkSiblingPath
-    );
+    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
   }
 }

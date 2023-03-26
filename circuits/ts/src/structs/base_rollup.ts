@@ -1,27 +1,17 @@
-import { BufferReader } from "../utils/buffer_reader.js";
-import { assertLength, FieldsOf } from "../utils/jsUtils.js";
-import { serializeToBuffer } from "../utils/serialize.js";
+import { BufferReader } from '../utils/buffer_reader.js';
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-} from "./constants.js";
-import { PreviousKernelData } from "./kernel.js";
-import {
-  AggregationObject,
-  Fr,
-  MembershipWitness,
-  RollupTypes,
-  UInt32,
-} from "./shared.js";
+} from './constants.js';
+import { PreviousKernelData } from './kernel.js';
+import { AggregationObject, Fr, MembershipWitness, RollupTypes, UInt32 } from './shared.js';
 
 export class NullifierLeafPreimage {
-  constructor(
-    public leafValue: Fr,
-    public nextValue: Fr,
-    public nextIndex: UInt32
-  ) {}
+  constructor(public leafValue: Fr, public nextValue: Fr, public nextIndex: UInt32) {}
 
   toBuffer() {
     return serializeToBuffer(this.leafValue, this.nextValue, this.nextIndex);
@@ -52,15 +42,11 @@ export class ConstantBaseRollupData {
     public privateKernelVkTreeRoot: Fr,
     public publicKernelVkTreeRoot: Fr,
     public baseRollupVkHash: Fr,
-    public mergeRollupVkHash: Fr
+    public mergeRollupVkHash: Fr,
   ) {}
 
-  static from(
-    fields: FieldsOf<ConstantBaseRollupData>
-  ): ConstantBaseRollupData {
-    return new ConstantBaseRollupData(
-      ...ConstantBaseRollupData.getFields(fields)
-    );
+  static from(fields: FieldsOf<ConstantBaseRollupData>): ConstantBaseRollupData {
+    return new ConstantBaseRollupData(...ConstantBaseRollupData.getFields(fields));
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): ConstantBaseRollupData {
@@ -72,7 +58,7 @@ export class ConstantBaseRollupData {
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
-      reader.readFr()
+      reader.readFr(),
     );
   }
 
@@ -102,33 +88,23 @@ export class BaseRollupInputs {
 
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
     public lowNullifierLeafPreimages: NullifierLeafPreimage[],
-    public lowNullifierMembershipWitness: MembershipWitness<
-      typeof NULLIFIER_TREE_HEIGHT
-    >[],
+    public lowNullifierMembershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>[],
 
     public historicPrivateDataTreeRootMembershipWitnesses: [
       MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>
+      MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
     ],
     public historicContractsTreeRootMembershipWitnesses: [
       MembershipWitness<typeof CONTRACT_TREE_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof CONTRACT_TREE_ROOTS_TREE_HEIGHT>
+      MembershipWitness<typeof CONTRACT_TREE_ROOTS_TREE_HEIGHT>,
     ],
 
     public constants: ConstantBaseRollupData,
 
-    public proverId: Fr
+    public proverId: Fr,
   ) {
-    assertLength(
-      this,
-      "lowNullifierLeafPreimages",
-      2 * KERNEL_NEW_NULLIFIERS_LENGTH
-    );
-    assertLength(
-      this,
-      "lowNullifierMembershipWitness",
-      2 * KERNEL_NEW_NULLIFIERS_LENGTH
-    );
+    assertLength(this, 'lowNullifierLeafPreimages', 2 * KERNEL_NEW_NULLIFIERS_LENGTH);
+    assertLength(this, 'lowNullifierMembershipWitness', 2 * KERNEL_NEW_NULLIFIERS_LENGTH);
   }
 
   static from(fields: FieldsOf<BaseRollupInputs>): BaseRollupInputs {
@@ -176,7 +152,7 @@ export class BaseRollupPublicInputs {
     public newNullifiersHash: Fr,
     public newL1MsgsHash: Fr,
     public newContractDataHash: Fr,
-    public proverContributionsHash: Fr
+    public proverContributionsHash: Fr,
   ) {}
 
   /**
@@ -198,7 +174,7 @@ export class BaseRollupPublicInputs {
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
-      reader.readFr()
+      reader.readFr(),
     );
   }
 
@@ -223,7 +199,7 @@ export class BaseRollupPublicInputs {
       this.newNullifiersHash,
       this.newL1MsgsHash,
       this.newContractDataHash,
-      this.proverContributionsHash
+      this.proverContributionsHash,
     );
   }
 }

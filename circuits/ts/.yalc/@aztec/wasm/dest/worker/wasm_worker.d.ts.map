@@ -1,1 +1,0 @@
-{"version":3,"file":"wasm_worker.d.ts","sourceRoot":"","sources":["../../src/worker/wasm_worker.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,uBAAuB,CAAC;AAChD,OAAO,EAAE,UAAU,EAAE,MAAM,wBAAwB,CAAC;AAEpD;;GAEG;AACH,MAAM,MAAM,UAAU,GAAG,OAAO,CAAC,UAAU,CAAC,GAAG;IAAE,aAAa,IAAI,IAAI,CAAA;CAAE,CAAC"}

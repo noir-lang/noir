@@ -1,4 +1,4 @@
-import { Fq, Fr } from "../structs/shared.js";
+import { Fq, Fr } from '../structs/shared.js';
 
 export class BufferReader {
   private index: number;
@@ -7,9 +7,7 @@ export class BufferReader {
   }
 
   public static asReader(bufferOrReader: Buffer | BufferReader) {
-    return Buffer.isBuffer(bufferOrReader)
-      ? new BufferReader(bufferOrReader)
-      : bufferOrReader;
+    return Buffer.isBuffer(bufferOrReader) ? new BufferReader(bufferOrReader) : bufferOrReader;
   }
 
   public readNumber(): number {
@@ -41,9 +39,7 @@ export class BufferReader {
     });
   }
 
-  public readVector<T>(itemDeserializer: {
-    fromBuffer: (reader: BufferReader) => T;
-  }): T[] {
+  public readVector<T>(itemDeserializer: { fromBuffer: (reader: BufferReader) => T }): T[] {
     const size = this.readNumber();
     const result = new Array<T>(size);
     for (let i = 0; i < size; i++) {
@@ -56,7 +52,7 @@ export class BufferReader {
     size: number,
     itemDeserializer: {
       fromBuffer: (reader: BufferReader) => T;
-    }
+    },
   ): T[] {
     const result = new Array<T>(size);
     for (let i = 0; i < size; i++) {
@@ -65,9 +61,7 @@ export class BufferReader {
     return result;
   }
 
-  public readObject<T>(deserializer: {
-    fromBuffer: (reader: BufferReader) => T;
-  }): T {
+  public readObject<T>(deserializer: { fromBuffer: (reader: BufferReader) => T }): T {
     return deserializer.fromBuffer(this);
   }
 

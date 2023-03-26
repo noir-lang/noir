@@ -1,5 +1,5 @@
-import { serializeToBuffer } from "../utils/serialize.js";
-import { EthAddress, Fr } from "./shared.js";
+import { serializeToBuffer } from '../utils/serialize.js';
+import { EthAddress, Fr } from './shared.js';
 
 /**
  * Contract deployment data in a TxContext
@@ -10,7 +10,7 @@ export class ContractDeploymentData {
     public constructorVkHash: Fr,
     public functionTreeRoot: Fr,
     public contractAddressSalt: Fr,
-    public portalContractAddress: EthAddress
+    public portalContractAddress: EthAddress,
   ) {}
 
   toBuffer() {
@@ -18,7 +18,7 @@ export class ContractDeploymentData {
       this.constructorVkHash,
       this.functionTreeRoot,
       this.contractAddressSalt,
-      this.portalContractAddress
+      this.portalContractAddress,
     );
   }
 }
@@ -32,7 +32,7 @@ export class TxContext {
     public isFeePaymentTx: false,
     public isRebatePaymentTx: false,
     public isContractDeployment: true,
-    public contractDeploymentData: ContractDeploymentData
+    public contractDeploymentData: ContractDeploymentData,
   ) {}
 
   /**
@@ -44,7 +44,7 @@ export class TxContext {
       this.isFeePaymentTx,
       this.isRebatePaymentTx,
       this.isContractDeployment,
-      this.contractDeploymentData
+      this.contractDeploymentData,
     );
   }
 }
