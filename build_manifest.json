@@ -57,21 +57,28 @@
     "projectDir": "yarn-project/aztec-cli",
     "dockerfile": "aztec-cli/Dockerfile",
     "rebuildPatterns": ["^yarn-project/aztec-cli/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["aztec.js"]
+  },
+  "aztec-rpc": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/aztec-rpc",
+    "dockerfile": "aztec-rpc/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/aztec-rpc/"],
+    "dependencies": ["aztec-node"]
   },
   "aztec.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec.js",
     "dockerfile": "aztec.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/aztec.js/"],
-    "dependencies": ["yarn-project-base", "foundation"]
+    "dependencies": ["aztec-rpc"]
   },
   "end-to-end": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/end-to-end",
     "dockerfile": "end-to-end/Dockerfile",
     "rebuildPatterns": ["^yarn-project/end-to-end/"],
-    "dependencies": ["yarn-project-base", "foundation"]
+    "dependencies": ["aztec.js"]
   },
   "ethereum.js": {
     "buildDir": "yarn-project",
@@ -80,11 +87,18 @@
     "rebuildPatterns": ["^yarn-project/ethereum.js/"],
     "dependencies": ["yarn-project-base", "foundation"]
   },
-  "kernel-simulator": {
+  "foundation": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/kernel-simulator",
-    "dockerfile": "kernel-simulator/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/kernel-simulator/"],
+    "projectDir": "yarn-project/foundation",
+    "dockerfile": "foundation/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/foundation/"],
+    "dependencies": []
+  },
+  "kernel-prover": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/kernel-prover",
+    "dockerfile": "kernel-prover/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/kernel-prover/"],
     "dependencies": ["yarn-project-base"]
   },
   "key-store": {
@@ -92,13 +106,6 @@
     "projectDir": "yarn-project/key-store",
     "dockerfile": "key-store/Dockerfile",
     "rebuildPatterns": ["^yarn-project/key-store/"],
-    "dependencies": ["yarn-project-base"]
-  },
-  "foundation": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/foundation",
-    "dockerfile": "foundation/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/foundation/"],
     "dependencies": ["yarn-project-base"]
   },
   "merkle-tree": {
@@ -140,8 +147,7 @@
       "world-state",
       "p2p",
       "sequencer-client",
-      "ethereum.js",
-      "circuits.js"
+      "ethereum.js"
     ]
   },
   "sequencer-client": {
@@ -156,13 +162,6 @@
       "p2p",
       "archiver"
     ]
-  },
-  "wallet": {
-    "buildDir": "yarn-project",
-    "projectDir": "yarn-project/wallet",
-    "dockerfile": "wallet/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/wallet/"],
-    "dependencies": ["yarn-project-base"]
   },
   "world-state": {
     "buildDir": "yarn-project",

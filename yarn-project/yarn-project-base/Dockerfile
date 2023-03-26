@@ -15,6 +15,7 @@ WORKDIR /usr/src/yarn-project
 COPY acir-simulator/package.json acir-simulator/package.json
 COPY archiver/package.json archiver/package.json
 COPY aztec-cli/package.json aztec-cli/package.json
+COPY aztec-rpc/package.json aztec-rpc/package.json
 COPY aztec-node/package.json aztec-node/package.json
 COPY aztec.js/package.json aztec.js/package.json
 COPY docs/package.json docs/package.json
@@ -24,7 +25,7 @@ COPY ethereum.js/package.json ethereum.js/package.json
 # Note: foundation has its own lock file, we need to copy it and build
 COPY foundation/package.json foundation/package.json
 COPY foundation/yarn.lock foundation/yarn.lock
-COPY kernel-simulator/package.json kernel-simulator/package.json
+COPY kernel-prover/package.json kernel-prover/package.json
 COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
 COPY noir-contracts/package.json noir-contracts/package.json
@@ -33,7 +34,6 @@ COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY prover-client/package.json prover-client/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
-COPY wallet/package.json wallet/package.json
 COPY world-state/package.json world-state/package.json
 COPY package.json tsconfig.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn

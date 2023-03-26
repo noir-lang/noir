@@ -15,7 +15,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/acir-simulator@workspace:acir-simulator":
+"@aztec/acir-simulator@workspace:^, @aztec/acir-simulator@workspace:acir-simulator":
   version: 0.0.0-use.local
   resolution: "@aztec/acir-simulator@workspace:acir-simulator"
   dependencies:
@@ -81,7 +81,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/aztec-node@workspace:aztec-node":
+"@aztec/aztec-node@workspace:^, @aztec/aztec-node@workspace:aztec-node":
   version: 0.0.0-use.local
   resolution: "@aztec/aztec-node@workspace:aztec-node"
   dependencies:
@@ -105,16 +105,39 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/aztec-rpc@workspace:^, @aztec/aztec-rpc@workspace:aztec-rpc":
+  version: 0.0.0-use.local
+  resolution: "@aztec/aztec-rpc@workspace:aztec-rpc"
+  dependencies:
+    "@aztec/acir-simulator": "workspace:^"
+    "@aztec/aztec-node": "workspace:^"
+    "@aztec/kernel-prover": "workspace:^"
+    "@aztec/p2p": "workspace:^"
+    "@jest/globals": ^29.4.3
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.4.0
+    "@types/node": ^18.7.23
+    jest: ^28.1.3
+    sha3: ^2.1.4
+    ts-jest: ^28.0.7
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^4.9.5
+  languageName: unknown
+  linkType: soft
+
 "@aztec/aztec.js@workspace:^, @aztec/aztec.js@workspace:aztec.js":
   version: 0.0.0-use.local
   resolution: "@aztec/aztec.js@workspace:aztec.js"
   dependencies:
+    "@aztec/aztec-rpc": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
     "@types/node": ^18.7.23
     jest: ^28.1.3
+    jest-mock-extended: ^3.0.3
     ts-jest: ^28.0.7
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -170,8 +193,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/end-to-end@workspace:end-to-end"
   dependencies:
+    "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
@@ -254,10 +279,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/kernel-simulator@workspace:kernel-simulator":
+"@aztec/kernel-prover@workspace:^, @aztec/kernel-prover@workspace:kernel-prover":
   version: 0.0.0-use.local
-  resolution: "@aztec/kernel-simulator@workspace:kernel-simulator"
+  resolution: "@aztec/kernel-prover@workspace:kernel-prover"
   dependencies:
+    "@aztec/acir-simulator": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
@@ -327,7 +354,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-contracts@workspace:noir-contracts":
+"@aztec/noir-contracts@workspace:^, @aztec/noir-contracts@workspace:noir-contracts":
   version: 0.0.0-use.local
   resolution: "@aztec/noir-contracts@workspace:noir-contracts"
   dependencies:
@@ -401,22 +428,6 @@ __metadata:
     concurrently: ^7.6.0
     jest: ^28.1.3
     jest-mock-extended: ^3.0.3
-    ts-jest: ^28.0.7
-    ts-node: ^10.9.1
-    tslib: ^2.4.0
-    typescript: ^4.9.5
-  languageName: unknown
-  linkType: soft
-
-"@aztec/wallet@workspace:wallet":
-  version: 0.0.0-use.local
-  resolution: "@aztec/wallet@workspace:wallet"
-  dependencies:
-    "@jest/globals": ^29.4.3
-    "@rushstack/eslint-patch": ^1.1.4
-    "@types/jest": ^29.4.0
-    "@types/node": ^18.7.23
-    jest: ^28.1.3
     ts-jest: ^28.0.7
     ts-node: ^10.9.1
     tslib: ^2.4.0

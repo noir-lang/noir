@@ -14,16 +14,16 @@ PROJECTS=(
   # acir-simulator:yarn-project
   # archiver:yarn-project
   # aztec-cli:yarn-project
+  # aztec-rpc:yarn-project
   # aztec.js:yarn-project
   # end-to-end:yarn-project
   # ethereum.js:yarn-project
-  # kernel-simulator:yarn-project
+  # kernel-prover:yarn-project
   # key-store:yarn-project
   # merkle-tree:yarn-project
   # p2p:yarn-project
   # prover-client:yarn-project
   # aztec-node:yarn-project
   # sequencer-client:yarn-project
-  # wallet:yarn-project
   # world-state:yarn-project
 )

@@ -5,5 +5,13 @@
     "rootDir": "src",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
+  "references": [
+    {
+      "path": "../aztec-rpc/tsconfig.dest.json"
+    },
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    }
+  ],
   "include": ["src"]
 }

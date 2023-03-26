@@ -1,0 +1,12 @@
+{
+  "extends": ".",
+  "references": [
+    {
+      "path": "../acir-simulator/tsconfig.dest.json"
+    },
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
+    }
+  ],
+  "exclude": ["**/*.test.*", "**/fixtures/*"]
+}

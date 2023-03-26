@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./dest/index.js",
   "scripts": {
-    "build": "yarn clean && yarn formatting && tsc -b tsconfig.json",
+    "build": "yarn clean && tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
     "test": "./scripts/start_e2e.sh"
@@ -23,8 +23,10 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "@types/jest": "^29.4.0",
     "jest": "^28.1.3",
     "ts-jest": "^28.0.7",

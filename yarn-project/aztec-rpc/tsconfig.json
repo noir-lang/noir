@@ -1,0 +1,26 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../acir-simulator/tsconfig.dest.json"
+    },
+    {
+      "path": "../aztec-node/tsconfig.dest.json"
+    },
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../kernel-prover/tsconfig.dest.json"
+    },
+    {
+      "path": "../p2p/tsconfig.dest.json"
+    }
+  ],
+  "include": ["src"]
+}
