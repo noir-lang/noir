@@ -25,7 +25,6 @@
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
-    "@aztec/foundation": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@types/jest": "^29.4.0",
     "jest": "^28.1.3",

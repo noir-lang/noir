@@ -196,7 +196,6 @@ __metadata:
   dependencies:
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
-    "@aztec/foundation": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
