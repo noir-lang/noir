@@ -111,6 +111,7 @@ __metadata:
   dependencies:
     "@aztec/acir-simulator": "workspace:^"
     "@aztec/aztec-node": "workspace:^"
+    "@aztec/foundation": "workspace:^"
     "@aztec/kernel-prover": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@jest/globals": ^29.4.3
