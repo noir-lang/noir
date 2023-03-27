@@ -159,6 +159,7 @@ mod test {
             attributes: None,
             location,
             contract_visibility: None,
+            is_unconstrained: false,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
