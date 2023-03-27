@@ -1226,7 +1226,7 @@ mod test {
     use fm::FileId;
     use iter_extended::vecmap;
 
-    use crate::hir::def_map::ModuleId;
+    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
 
@@ -1259,8 +1259,21 @@ mod test {
             path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: LocalModuleId(arena::Index::from_raw_parts(0, 0)),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
 
         let mut errors = Vec::new();
         for func in program.functions {
@@ -1463,7 +1476,9 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId::dummy_id()
+            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
+            // later and do not want to push u32::MAX number of elements before we do.
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
         }
 
         fn module_id(&self) -> ModuleId {
