@@ -1,5 +1,5 @@
 use acvm::ProofSystemCompiler;
-use noirc_driver::{CompileOptions, CompiledProgram, Driver};
+use noirc_driver::{CompileOptions, CompiledContract, CompiledProgram, Driver};
 use std::path::Path;
 
 use clap::Args;
@@ -7,7 +7,7 @@ use clap::Args;
 use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
-use super::fs::program::save_program_to_file;
+use super::fs::program::{save_contract_to_file, save_program_to_file};
 use super::preprocess_cmd::preprocess_with_path;
 use super::NargoConfig;
 
@@ -34,20 +34,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         let compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-
-        // Flatten each contract into a list of its functions, each being assigned a unique name.
-        let compiled_programs = compiled_contracts.into_iter().flat_map(|contract| {
-            let contract_id = format!("{}-{}", args.circuit_name, &contract.name);
-            contract.functions.into_iter().map(move |(function, program)| {
-                let program_name = format!("{}-{}", contract_id, function);
-                (program_name, program)
-            })
-        });
-
-        for (circuit_name, compiled_program) in compiled_programs {
-            save_and_preprocess_program(&compiled_program, &circuit_name, &circuit_dir)?
-        }
-        Ok(())
+        save_and_preprocess_contract(&compiled_contracts, &args.circuit_name, &circuit_dir)
     } else {
         let program = compile_circuit(&config.program_dir, &args.compile_options)?;
         save_and_preprocess_program(&program, &args.circuit_name, &circuit_dir)
@@ -67,6 +54,40 @@ fn save_and_preprocess_program(
 ) -> Result<(), CliError> {
     save_program_to_file(compiled_program, circuit_name, circuit_dir);
     preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
+    Ok(())
+}
+
+/// Save a contract to disk along with proving and verification keys.
+/// - The contract ABI is saved as one file, which contains all of the
+/// functions defined in the contract.
+/// - The proving and verification keys are namespaced since the file
+/// could contain multiple contracts with the same name.
+fn save_and_preprocess_contract(
+    compiled_contracts: &[CompiledContract],
+    circuit_name: &str,
+    circuit_dir: &Path,
+) -> Result<(), CliError> {
+    for compiled_contract in compiled_contracts {
+        // Unique identifier for a contract.
+        let contract_id = format!("{}-{}", circuit_name, &compiled_contract.name);
+
+        // Save contract ABI to file using the contract ID.
+        save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
+
+        for (function_name, contract_function) in &compiled_contract.functions {
+            // Create a name which uniquely identifies this contract function
+            // over multiple contracts.
+            let uniquely_identifying_program_name = format!("{}-{}", contract_id, function_name);
+            // Each program in a contract is preprocessed
+            // Note: This can potentially be quite a long running process
+            preprocess_with_path(
+                &uniquely_identifying_program_name,
+                circuit_dir,
+                &contract_function.function.circuit,
+            )?;
+        }
+    }
+
     Ok(())
 }
 

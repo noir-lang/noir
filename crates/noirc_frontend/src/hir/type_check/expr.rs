@@ -673,9 +673,6 @@ fn check_constructor(
     let typ = constructor.r#type;
     let generics = constructor.struct_generics;
 
-    // Sanity check, this should be caught during name resolution anyway
-    assert_eq!(constructor.fields.len(), typ.borrow().num_fields());
-
     // Sort argument types by name so we can zip with the struct type in the same ordering.
     // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
     // preserve the evaluation order of the source code.
@@ -685,17 +682,20 @@ fn check_constructor(
     let fields = typ.borrow().get_fields(&generics);
 
     for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
-        // Sanity check to ensure we're matching against the same field
-        assert_eq!(param_name, arg_ident.0.contents);
+        // This can be false if the user provided an incorrect field count. That error should
+        // be caught during name resolution so it is fine to skip typechecking if there is a
+        // mismatch here as long as we continue typechecking the rest of the program to the best
+        // of our ability.
+        if param_name == arg_ident.0.contents {
+            let arg_type = type_check_expression(interner, &arg, errors);
 
-        let arg_type = type_check_expression(interner, &arg, errors);
-
-        let span = interner.expr_span(expr_id);
-        arg_type.make_subtype_of(&param_type, span, errors, || TypeCheckError::TypeMismatch {
-            expected_typ: param_type.to_string(),
-            expr_typ: arg_type.to_string(),
-            expr_span: span,
-        });
+            let span = interner.expr_span(expr_id);
+            arg_type.make_subtype_of(&param_type, span, errors, || TypeCheckError::TypeMismatch {
+                expected_typ: param_type.to_string(),
+                expr_typ: arg_type.to_string(),
+                expr_span: span,
+            });
+        }
     }
 
     Type::Struct(typ, generics)

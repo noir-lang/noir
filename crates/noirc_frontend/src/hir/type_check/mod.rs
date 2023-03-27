@@ -75,6 +75,7 @@ mod test {
     use noirc_errors::{Location, Span};
 
     use crate::graph::CrateId;
+    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
@@ -157,6 +158,7 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
+            contract_visibility: None,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
@@ -244,7 +246,11 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId::dummy_id()
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
         }
     }
 
@@ -275,11 +281,24 @@ mod test {
 
         let mut path_resolver = TestPathResolver(HashMap::new());
         for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
-            path_resolver.insert_func(name, id);
+            path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: path_resolver.local_module_id(),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
