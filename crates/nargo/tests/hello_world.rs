@@ -44,7 +44,10 @@ fn hello_world_example() {
     cmd.arg("prove").arg(proof_name);
     cmd.assert().success();
 
-    project_dir.child("proofs").child(format!("{proof_name}.proof")).assert(predicate::path::is_file());
+    project_dir
+        .child("proofs")
+        .child(format!("{proof_name}.proof"))
+        .assert(predicate::path::is_file());
 
     // `nargo verify p`
     let mut cmd = Command::cargo_bin("nargo").unwrap();
