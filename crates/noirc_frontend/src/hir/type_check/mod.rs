@@ -75,6 +75,7 @@ mod test {
     use noirc_errors::{Location, Span};
 
     use crate::graph::CrateId;
+    use crate::hir::def_map::ModuleId;
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
@@ -157,6 +158,7 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
+            contract_visibility: crate::ContractVisibility::Secret,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
@@ -245,6 +247,10 @@ mod test {
 
         fn local_module_id(&self) -> LocalModuleId {
             LocalModuleId::dummy_id()
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
         }
     }
 
