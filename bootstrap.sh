@@ -40,11 +40,6 @@ cd yarn-project
 yarn install --immutable
 cd ..
 
-# make sure to run yarn install from foundation, has its own yarn.lock
-cd yarn-project/foundation
-yarn install --immutable
-cd ../..
-
 # We only bootstrap projects that produce artefacts needed for running end-to-end tests.
 PROJECTS=(
   "yarn-project/foundation:yarn build"
