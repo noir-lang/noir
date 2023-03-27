@@ -319,15 +319,10 @@ pub struct FunctionDefinition {
     pub return_visibility: noirc_abi::AbiVisibility,
 }
 
-/// ContractFunctionType describes the types
-/// smart contract functions that are allowed.
-///
-/// Note:
-/// - All Noir programs in the non-contract context
-///   can be seen as `Secret`.
-/// - It may be possible to have `unconstrained`
-/// functions in regular Noir programs. For now
-/// we leave it as a property of only contract functions.
+/// Describes the types of smart contract functions that are allowed.
+/// - All Noir programs in the non-contract context can be seen as `Secret`.
+/// - It may be possible to have `unconstrained` functions in regular Noir programs.
+///   For now we leave it as a property of only contract functions.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ContractVisibility {
