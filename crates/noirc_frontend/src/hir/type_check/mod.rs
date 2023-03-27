@@ -158,7 +158,7 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
-            contract_visibility: crate::ContractVisibility::Secret,
+            contract_visibility: None,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
