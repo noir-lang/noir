@@ -37,16 +37,17 @@ fn hello_world_example() {
     project_dir.child("Verifier.toml").assert(predicate::path::is_file());
 
     // `nargo prove p`
+    let proof_name = "p";
     project_dir.child("Prover.toml").write_str("x = 1\ny = 2").unwrap();
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("prove").arg("p");
+    cmd.arg("prove").arg(proof_name);
     cmd.assert().success();
 
-    project_dir.child("proofs").child("p.proof").assert(predicate::path::is_file());
+    project_dir.child("proofs").child(format!("{proof_name}.proof")).assert(predicate::path::is_file());
 
     // `nargo verify p`
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("verify").arg("p");
+    cmd.arg("verify").arg(proof_name);
     cmd.assert().success();
 }
