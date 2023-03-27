@@ -173,7 +173,10 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
         // The below also prevents delegatecall/staticcall in the base case
         { this_call_stack_item.public_inputs.call_context.storage_contract_address ==
               this_call_stack_item.contract_address,
-          "Storage contract address must be that of the called contract" }
+          "Storage contract address must be that of the called contract" },
+
+        { private_inputs.previous_kernel.vk->contains_recursive_proof == false,
+          "Mock kernel proof must not contain a recursive proof" }
 
         // TODO: Assert that the previous kernel data is empty. (Or rather, the verify_proof() function needs a valid
         // dummy proof and vk to complete execution, so actually what we want is for that mockvk to be

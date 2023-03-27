@@ -244,6 +244,13 @@ TEST(private_kernel_tests, test_deposit)
 
     private_kernel_circuit(private_kernel_composer, private_inputs);
 
+    Prover final_kernel_prover = private_kernel_composer.create_prover();
+    NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
+
+    TurboVerifier final_kernel_verifier = private_kernel_composer.create_verifier();
+    auto final_result = final_kernel_verifier.verify_proof(final_kernel_proof);
+    EXPECT_EQ(final_result, true);
+
     info("computed witness: ", private_kernel_composer.computed_witness);
     // info("witness: ", private_kernel_composer.witness);
     // info("constant variables: ", private_kernel_composer.constant_variables);
@@ -253,7 +260,7 @@ TEST(private_kernel_tests, test_deposit)
     // bigfield multiply range check failed
     info("failed?: ", private_kernel_composer.failed());
     info("err: ", private_kernel_composer.err());
-    info("n: ", private_kernel_composer.num_gates);
+    info("n: ", private_kernel_composer.get_num_gates());
 }
 
 } // namespace aztec3::circuits::kernel::private_kernel

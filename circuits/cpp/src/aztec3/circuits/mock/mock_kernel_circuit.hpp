@@ -41,6 +41,12 @@ template <typename Composer> void mock_kernel_circuit(Composer& composer, Public
 
     public_inputs.set_public();
 
+    // NOTE: We don't want a recursive proof in the mock kernel proof.
+    // We still add dummy witness indices in the recursive proof indices just so that we don't trigger an assertion in
+    // while setting recursion elements as public inputs. These dummy indices would not be used as we're setting
+    // contains_recursive_proof to be false.
+    composer.contains_recursive_proof = false;
+
     plonk::stdlib::pedersen_commitment<Composer>::compress(fr(witness_t(&composer, 1)), fr(witness_t(&composer, 1)));
 }
 
