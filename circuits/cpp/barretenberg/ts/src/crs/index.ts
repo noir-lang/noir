@@ -76,7 +76,7 @@ export class NetCrs {
   }
 
   /**
-   * G2 points data for verification key
+   * G2 points data for verification key.
    * @returns The points data.
    */
   getG2Data(): Uint8Array {
@@ -125,7 +125,7 @@ export class FileCrs {
   }
 
   /**
-   * G2 points data for verification key
+   * G2 points data for verification key.
    * @returns The points data.
    */
   getG2Data(): Uint8Array {
@@ -166,7 +166,7 @@ export class Crs {
   }
 
   /**
-   * G2 points data for verification key
+   * G2 points data for verification key.
    * @returns The points data.
    */
   getG2Data(): Uint8Array {
