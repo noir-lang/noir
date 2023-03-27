@@ -1,0 +1,27 @@
+{
+  "name": "@aztec/barretenberg-workspace",
+  "packageManager": "yarn@3.4.1",
+  "private": true,
+  "scripts": {
+    "docs": "typedoc --out docs/dist && cd docs && yarn serve",
+    "test": "cd ts && yarn test",
+    "build": "cd foundation && yarn && yarn build && cd ../ts && yarn build",
+    "formatting": "cd ts && yarn formatting",
+    "formatting:fix": "cd ts && yarn formatting:fix"
+  },
+  "workspaces": [
+    "ts",
+    "foundation"
+  ],
+  "prettier": "@aztec/foundation/prettier",
+  "devDependencies": {
+    "eslint": "^8.21.0",
+    "eslint-config-prettier": "^8.8.0",
+    "prettier": "^2.7.1",
+    "typedoc": "^0.23.26",
+    "typescript": "^4.9.5"
+  },
+  "comments": {
+    "purpose": "Workspace for barretenberg/ts. Provides dependencies, while allowing ts/ to be cleanly symlinked."
+  }
+}

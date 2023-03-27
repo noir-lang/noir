@@ -122,7 +122,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
                 }
             };
 
-            EXPECT_EQ(expected, a.get_value());
+            EXPECT_EQ(uint256_t(expected), a.get_value());
             auto prover = composer.create_prover();
             auto verifier = composer.create_verifier();
             plonk::proof proof = prover.construct_proof();

@@ -1,0 +1,3 @@
+[submodule "foundation"]
+	path = foundation
+	url = git@github.com:AztecProtocol/foundation.git
