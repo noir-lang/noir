@@ -293,7 +293,7 @@ mod test {
         def_maps.insert(
             CrateId::dummy_id(),
             CrateDefMap {
-                root: LocalModuleId(arena::Index::from_raw_parts(0, 0)),
+                root: path_resolver.local_module_id(),
                 modules,
                 krate: CrateId::dummy_id(),
                 extern_prelude: HashMap::new(),

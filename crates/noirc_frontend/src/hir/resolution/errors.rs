@@ -246,7 +246,7 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::ParserError(error) => error.into(),
             ResolverError::ContractVisibilityInNormalFunction { span } => Diagnostic::simple_error(
                 "Only functions defined within contracts can set their contract visibility".into(),
-                "Non-contract functions cannot be 'open' or 'unconstrained'".into(),
+                "Non-contract functions cannot be 'open' or 'unsafe'".into(),
                 span,
             ),
         }

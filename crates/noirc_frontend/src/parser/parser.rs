@@ -183,13 +183,13 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// contract_visibility: 'open' | 'unconstrained' | %empty
-fn contract_visibility() -> impl NoirParser<ContractVisibility> {
-    keyword(Keyword::Open).or(keyword(Keyword::Unconstrained)).or_not().map(|token| match token {
-        Some(Token::Keyword(Keyword::Open)) => ContractVisibility::Open,
-        Some(Token::Keyword(Keyword::Unconstrained)) => ContractVisibility::Unconstrained,
-        None => ContractVisibility::Secret,
-        _ => unreachable!("Only open and unconstrained keywords are parsed here"),
+/// contract_visibility: 'open' | 'unsafe' | %empty
+fn contract_visibility() -> impl NoirParser<Option<ContractVisibility>> {
+    keyword(Keyword::Open).or(keyword(Keyword::Unsafe)).or_not().map(|token| match token {
+        Some(Token::Keyword(Keyword::Open)) => Some(ContractVisibility::Open),
+        Some(Token::Keyword(Keyword::Unsafe)) => Some(ContractVisibility::Unsafe),
+        None => None,
+        _ => unreachable!("Only open and unsafe keywords are parsed here"),
     })
 }
 

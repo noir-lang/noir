@@ -644,14 +644,21 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> ContractVisibility {
+    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractVisibility> {
         let mut contract_visibility = func.def.contract_visibility;
-        if !self.in_contract() && contract_visibility != ContractVisibility::Secret {
-            contract_visibility = ContractVisibility::Secret;
+
+        if self.in_contract() && contract_visibility.is_none() {
+            // The default visibility is 'secret' for contract functions without visibility modifiers
+            contract_visibility = Some(ContractVisibility::Secret);
+        }
+
+        if !self.in_contract() && contract_visibility.is_some() {
+            contract_visibility = None;
             self.push_err(ResolverError::ContractVisibilityInNormalFunction {
                 span: func.name_ident().span(),
             })
         }
+
         contract_visibility
     }
 
@@ -1268,7 +1275,7 @@ mod test {
         def_maps.insert(
             CrateId::dummy_id(),
             CrateDefMap {
-                root: LocalModuleId(arena::Index::from_raw_parts(0, 0)),
+                root: path_resolver.local_module_id(),
                 modules,
                 krate: CrateId::dummy_id(),
                 extern_prelude: HashMap::new(),

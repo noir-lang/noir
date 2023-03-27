@@ -205,8 +205,11 @@ impl Driver {
         let functions = try_btree_map(&contract.functions, |function_id| {
             let function_name = self.function_name(*function_id).to_owned();
             let function = self.compile_no_check(options, *function_id)?;
-            let func_type =
-                self.context.def_interner.function_meta(function_id).contract_visibility;
+            let func_meta = self.context.def_interner.function_meta(function_id);
+            let func_type = func_meta
+                .contract_visibility
+                .expect("Expected contract function to have a contract visibility");
+
             Ok((function_name, ContractFunction { func_type, function }))
         })?;
 
