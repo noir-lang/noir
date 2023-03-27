@@ -4,6 +4,7 @@
 
 use acvm::Language;
 use clap::Args;
+use contract::ContractFunction;
 use fm::FileType;
 use iter_extended::{try_btree_map, try_vecmap};
 use noirc_abi::FunctionSignature;
@@ -201,16 +202,21 @@ impl Driver {
         contract: Contract,
         options: &CompileOptions,
     ) -> Result<CompiledContract, ReportedError> {
-        let functions = try_btree_map(&contract.functions, |function| {
-            let function_name = self.function_name(*function).to_owned();
-            let program = self.compile_no_check(options, *function)?;
-            Ok((function_name, program))
+        let functions = try_btree_map(&contract.functions, |function_id| {
+            let function_name = self.function_name(*function_id).to_owned();
+            let function = self.compile_no_check(options, *function_id)?;
+            let func_meta = self.context.def_interner.function_meta(function_id);
+            let func_type = func_meta
+                .contract_visibility
+                .expect("Expected contract function to have a contract visibility");
+
+            Ok((function_name, ContractFunction { func_type, function }))
         })?;
 
         Ok(CompiledContract { name: contract.name, functions })
     }
 
-    /// Returns the FuncId of the 'main' funciton.
+    /// Returns the FuncId of the 'main' function.
     /// - Expects check_crate to be called beforehand
     /// - Panics if no main function is found
     pub fn main_function(&self) -> Result<FuncId, ReportedError> {

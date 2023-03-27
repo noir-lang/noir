@@ -17,7 +17,8 @@ noirc_driver.workspace = true
 noirc_frontend.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
-
+log = "0.4.17"
+wasm-logger = "0.2.0"
 console_error_panic_hook = "0.1.7"
 gloo-utils = { version = "0.1", features = ["serde"] }
 
