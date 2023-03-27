@@ -319,13 +319,26 @@ pub struct FunctionDefinition {
     pub return_visibility: noirc_abi::AbiVisibility,
 }
 
-/// The visibility a function has in the contract it is defined within.
-/// If the function is not defined within a contract, this should always be 'Secret'.
-/// Likewise, if a function does not specify its visibility, it defaults to 'Secret'.
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+/// ContractFunctionType describes the types
+/// smart contract functions that are allowed.
+///
+/// Note:
+/// - All Noir programs in the non-contract context
+///   can be seen as `Secret`.
+/// - It may be possible to have `unconstrained`
+/// functions in regular Noir programs. For now
+/// we leave it as a property of only contract functions.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum ContractVisibility {
-    Open,
+    /// This function will be executed in a private
+    /// context.
     Secret,
+    /// This function will be executed in a public
+    /// context.
+    Open,
+    /// A function which is non-deterministic
+    /// and does not require any constraints.
     Unconstrained,
 }
 

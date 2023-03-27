@@ -202,11 +202,11 @@ impl Driver {
         contract: Contract,
         options: &CompileOptions,
     ) -> Result<CompiledContract, ReportedError> {
-        let functions = try_btree_map(&contract.functions, |function| {
-            let function_name = self.function_name(*function).to_owned();
-            let function = self.compile_no_check(options, *function)?;
-            let func_type = contract::ContractFunctionType::Secret;
-            // Note: currently we mark all of the contract methods as secret as we do not support public functions.
+        let functions = try_btree_map(&contract.functions, |function_id| {
+            let function_name = self.function_name(*function_id).to_owned();
+            let function = self.compile_no_check(options, *function_id)?;
+            let func_type =
+                self.context.def_interner.function_meta(function_id).contract_visibility;
             Ok((function_name, ContractFunction { func_type, function }))
         })?;
 
