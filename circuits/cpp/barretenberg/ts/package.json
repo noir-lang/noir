@@ -2,7 +2,11 @@
   "name": "@aztec/barretenberg.js",
   "version": "0.0.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    "./crs": "./dest/crs/index.js",
+    "./crypto": "./dest/crypto/index.js",
+    "./wasm": "./dest/wasm/index.js"
+  },
   "typedoc": {
     "entryPoint": "./src/index.ts",
     "displayName": "Barretenberg.js",
@@ -15,6 +19,7 @@
     "bundle-deps": "yalc add @aztec/wasm @aztec/log && yalc add -D @aztec/eslint-config",
     "dev-deps": "rm -r node_modules/@aztec/wasm ; yarn link ../../../yarn-project/wasm ; cd ../../../yarn-project/wasm ; yarn build:dev",
     "formatting": "prettier --check ./src && eslint --max-warnings 0 ./src",
+    "formatting:fix": "prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests",
     "test-debug": "NODE_NO_WARNINGS=1 node --inspect-brk --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests --runInBand"
   },

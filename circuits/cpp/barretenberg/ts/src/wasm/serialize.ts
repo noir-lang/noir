@@ -15,7 +15,7 @@ export function serializeBufferArrayToVector(arr: Buffer[]) {
  */
 type DeserializeFn<T> = (
   buf: Buffer,
-  offset: number
+  offset: number,
 ) => {
   /**
    * The deserialized type.
@@ -33,11 +33,7 @@ type DeserializeFn<T> = (
  * @param n - The number.
  * @returns The endian-corrected number.
  */
-export function deserializeArrayFromVector<T>(
-  deserialize: DeserializeFn<T>,
-  vector: Buffer,
-  offset = 0
-) {
+export function deserializeArrayFromVector<T>(deserialize: DeserializeFn<T>, vector: Buffer, offset = 0) {
   let pos = offset;
   const size = vector.readUInt32BE(pos);
   pos += 4;

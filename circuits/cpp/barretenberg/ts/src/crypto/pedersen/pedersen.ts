@@ -1,10 +1,6 @@
-import { BarretenbergWasm } from "../../wasm/index.js";
-import {
-  deserializeArrayFromVector,
-  deserializeField,
-  serializeBufferArrayToVector,
-} from "../../wasm/serialize.js";
-import { Buffer } from "buffer";
+import { BarretenbergWasm } from '../../wasm/index.js';
+import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../wasm/serialize.js';
+import { Buffer } from 'buffer';
 
 /**
  * Combines two 32-byte hashes.
@@ -13,17 +9,13 @@ import { Buffer } from "buffer";
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompress(
-  wasm: BarretenbergWasm,
-  lhs: Uint8Array,
-  rhs: Uint8Array
-): Buffer {
+export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: Uint8Array): Buffer {
   // If not done already, precompute constants.
-  wasm.call("pedersen__init");
+  wasm.call('pedersen__init');
   // TODO check if lhs and rhs are <= 32 bytes?
   wasm.writeMemory(0, lhs);
   wasm.writeMemory(32, rhs);
-  wasm.call("pedersen__compress_fields", 0, 32, 64);
+  wasm.call('pedersen__compress_fields', 0, 32, 64);
   return Buffer.from(wasm.getMemorySlice(64, 96));
 }
 
@@ -34,15 +26,12 @@ export function pedersenCompress(
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompressInputs(
-  wasm: BarretenbergWasm,
-  inputs: Buffer[]
-): Buffer {
+export function pedersenCompressInputs(wasm: BarretenbergWasm, inputs: Buffer[]): Buffer {
   // If not done already, precompute constants.
-  wasm.call("pedersen__init");
+  wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
   wasm.writeMemory(0, inputVectors);
-  wasm.call("pedersen__compress", 0, 0);
+  wasm.call('pedersen__compress', 0, 0);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
 
@@ -53,16 +42,12 @@ export function pedersenCompressInputs(
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompressWithHashIndex(
-  wasm: BarretenbergWasm,
-  inputs: Buffer[],
-  hashIndex: number
-): Buffer {
+export function pedersenCompressWithHashIndex(wasm: BarretenbergWasm, inputs: Buffer[], hashIndex: number): Buffer {
   // If not done already, precompute constants.
-  wasm.call("pedersen__init");
+  wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
   wasm.writeMemory(0, inputVectors);
-  wasm.call("pedersen__compress_with_hash_index", 0, 0, hashIndex);
+  wasm.call('pedersen__compress_with_hash_index', 0, 0, hashIndex);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
 
@@ -74,11 +59,11 @@ export function pedersenCompressWithHashIndex(
  */
 export function pedersenGetHash(wasm: BarretenbergWasm, data: Buffer): Buffer {
   // If not done already, precompute constants.
-  wasm.call("pedersen__init");
-  const mem = wasm.call("bbmalloc", data.length);
+  wasm.call('pedersen__init');
+  const mem = wasm.call('bbmalloc', data.length);
   wasm.writeMemory(mem, data);
-  wasm.call("pedersen__buffer_to_field", mem, data.length, 0);
-  wasm.call("bbfree", mem);
+  wasm.call('pedersen__buffer_to_field', mem, data.length, 0);
+  wasm.call('bbfree', mem);
   return Buffer.from(wasm.getMemorySlice(0, 32));
 }
 
@@ -93,20 +78,16 @@ export function pedersenGetHash(wasm: BarretenbergWasm, data: Buffer): Buffer {
  */
 export function pedersenGetHashTree(wasm: BarretenbergWasm, values: Buffer[]) {
   // If not done already, precompute constants.
-  wasm.call("pedersen__init");
+  wasm.call('pedersen__init');
   const data = serializeBufferArrayToVector(values);
-  const inputPtr = wasm.call("bbmalloc", data.length);
+  const inputPtr = wasm.call('bbmalloc', data.length);
   wasm.writeMemory(inputPtr, data);
 
-  const resultPtr = wasm.call("pedersen__hash_to_tree", inputPtr);
-  const resultNumFields = Buffer.from(
-    wasm.getMemorySlice(resultPtr, resultPtr + 4)
-  ).readUInt32BE(0);
-  const resultData = Buffer.from(
-    wasm.getMemorySlice(resultPtr, resultPtr + 4 + resultNumFields * 32)
-  );
-  wasm.call("bbfree", inputPtr);
-  wasm.call("bbfree", resultPtr);
+  const resultPtr = wasm.call('pedersen__hash_to_tree', inputPtr);
+  const resultNumFields = Buffer.from(wasm.getMemorySlice(resultPtr, resultPtr + 4)).readUInt32BE(0);
+  const resultData = Buffer.from(wasm.getMemorySlice(resultPtr, resultPtr + 4 + resultNumFields * 32));
+  wasm.call('bbfree', inputPtr);
+  wasm.call('bbfree', resultPtr);
 
   return deserializeArrayFromVector(deserializeField, resultData).elem;
 }

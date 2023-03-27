@@ -1,1 +1,1 @@
-export * from "./pedersen/index.js";
+export * from './pedersen/index.js';

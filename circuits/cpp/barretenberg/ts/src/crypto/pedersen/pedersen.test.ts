@@ -1,7 +1,7 @@
-import { BarretenbergWasm } from "../../wasm/index.js";
-import { pedersenGetHashTree } from "./pedersen.js";
+import { BarretenbergWasm } from '../../wasm/barretenberg_wasm.js';
+import { pedersenGetHashTree } from './pedersen.js';
 
-describe("pedersen", () => {
+describe('pedersen', () => {
   let barretenbergWasm!: BarretenbergWasm;
   const values: Buffer[] = [];
 
@@ -16,7 +16,7 @@ describe("pedersen", () => {
     }
   });
 
-  it("hasher_consistency_and_benchmark", () => {
+  it('hasher_consistency_and_benchmark', () => {
     const start1 = new Date().getTime();
     const result = pedersenGetHashTree(barretenbergWasm, values);
     const end1 = new Date().getTime() - start1;

@@ -1,1 +1,1 @@
-export { BarretenbergWasm } from "./barretenberg_wasm.js";
+export { BarretenbergWasm } from './barretenberg_wasm.js';
