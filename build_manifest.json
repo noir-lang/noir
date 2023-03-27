@@ -78,7 +78,7 @@
     "projectDir": "yarn-project/end-to-end",
     "dockerfile": "end-to-end/Dockerfile",
     "rebuildPatterns": ["^yarn-project/end-to-end/"],
-    "dependencies": ["aztec.js"]
+    "dependencies": ["aztec.js", "noir-contracts"]
   },
   "ethereum.js": {
     "buildDir": "yarn-project",
