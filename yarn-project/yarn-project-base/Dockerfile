@@ -22,7 +22,7 @@ COPY docs/package.json docs/package.json
 COPY end-to-end/package.json end-to-end/package.json
 COPY ethereum.js/example/package.json ethereum.js/example/package.json
 COPY ethereum.js/package.json ethereum.js/package.json
-# Note: Foundation has its own lock file, we need to copy it and build.
+# Note: Foundation has its own lock file. We need to copy it and build.
 COPY foundation/package.json foundation/package.json
 COPY foundation/yarn.lock foundation/yarn.lock
 COPY kernel-prover/package.json kernel-prover/package.json
