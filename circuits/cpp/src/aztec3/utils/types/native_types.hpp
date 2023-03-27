@@ -12,6 +12,7 @@
 #include <barretenberg/proof_system/verification_key/verification_key.hpp>
 #include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
+#include <barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp>
 
 namespace aztec3::utils::types {
 
@@ -49,7 +50,7 @@ struct NativeTypes {
     typedef crypto::schnorr::signature schnorr_signature;
     typedef crypto::ecdsa::signature ecdsa_signature;
 
-    typedef stdlib::recursion::native_recursion_output AggregationObject;
+    typedef stdlib::recursion::native_aggregation_state AggregationObject;
     typedef bonk::verification_key_data VKData;
     typedef bonk::verification_key VK;
     typedef plonk::proof Proof;

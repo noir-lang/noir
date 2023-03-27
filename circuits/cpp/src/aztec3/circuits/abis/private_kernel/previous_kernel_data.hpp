@@ -1,9 +1,8 @@
 #pragma once
-#include "../barretenberg/proof.hpp"
 #include "aztec3/circuits/abis/private_kernel/public_inputs.hpp"
-#include "aztec3/circuits/abis/barretenberg/verifier_reference_string.hpp"
-#include "aztec3/circuits/abis/barretenberg/proof.hpp"
+#include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <barretenberg/srs/reference_string/env_reference_string.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
@@ -52,11 +51,12 @@ template <typename NCT> struct PreviousKernelData {
 
 template <typename B> inline void read(B& buf, verification_key& key)
 {
+    auto env_crs = std::make_unique<bonk::EnvReferenceStringFactory>();
     using serialize::read;
     // Note this matches write() below
     verification_key_data data;
     read(buf, data);
-    key = verification_key{ std::move(data), serialize::get_global_verifier_reference_string() };
+    key = verification_key{ std::move(data), env_crs->get_verifier_crs() };
 }
 
 template <typename NCT> void read(uint8_t const*& it, PreviousKernelData<NCT>& kernel_data)

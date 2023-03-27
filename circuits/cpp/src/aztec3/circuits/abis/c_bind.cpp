@@ -2,7 +2,6 @@
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
-#include "aztec3/circuits/abis/barretenberg/verifier_reference_string.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "tx_request.hpp"
 #include "tx_context.hpp"
@@ -323,13 +322,6 @@ WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preima
     read(contract_leaf_preimage_buf, leaf_preimage);
     leaf_preimage.hash();
     NT::fr::serialize_to_buffer(leaf_preimage.hash(), output);
-}
-
-// TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
-WASM_EXPORT void abis__set_global_verifier_reference_string(uint8_t* data)
-{
-    auto vrs = std::make_shared<bonk::VerifierMemReferenceString>(data);
-    serialize::set_global_verifier_reference_string(vrs);
 }
 
 /* Typescript test helpers that call as_string_output() to stress serialization.

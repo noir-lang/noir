@@ -1,10 +1,10 @@
 #pragma once
+#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include "../append_only_tree_snapshot.hpp"
 #include "../append_only_tree_snapshot.hpp"
-#include "../barretenberg/aggregation_object.hpp"
 #include "./constant_base_rollup_data.hpp"
 
 namespace aztec3::circuits::abis {

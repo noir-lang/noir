@@ -50,7 +50,7 @@ template <typename Composer> struct CircuitTypes {
     typedef stdlib::schnorr::signature_bits<Composer> schnorr_signature;
     typedef stdlib::ecdsa::signature<Composer> ecdsa_signature;
 
-    typedef stdlib::recursion::recursion_output<bn254> AggregationObject;
+    typedef stdlib::recursion::aggregation_state<bn254> AggregationObject;
     typedef stdlib::recursion::verification_key<bn254> VK;
     // Notice: no CircuitType for a Proof: we only ever handle native; the verify_proof() function swallows the
     // 'circuit-type-ness' of the proof.

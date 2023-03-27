@@ -6,7 +6,7 @@
 namespace aztec3::circuits::recursion {
 
 using namespace aztec3::utils::types;
-using plonk::stdlib::recursion::recursion_output;
+using plonk::stdlib::recursion::aggregation_state;
 
 // namespace {
 // std::shared_ptr<bonk::DynamicFileReferenceStringFactory> srs;
@@ -61,7 +61,7 @@ TEST(play_tests, test_play_recursive_proof_gen)
     std::shared_ptr<bonk::verification_key> app_vk = app_composer.compute_verification_key();
 
     Composer recursive_composer = Composer("../barretenberg/cpp/srs_db/ignition");
-    recursion_output<bn254> recursion_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
+    aggregation_state<bn254> aggregation_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
 
     if (recursive_composer.failed()) {
         info("Play recursive circuit logic failed: ", recursive_composer.err());
@@ -97,7 +97,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     //*******************************************************************************
 
     Composer recursion_1_composer = Composer("../barretenberg/cpp/srs_db/ignition", 0);
-    recursion_output<bn254> recursion_1_output =
+    aggregation_state<bn254> recursion_1_output =
         play_recursive_circuit_2(recursion_1_composer, app_vk, app_proof, dummy_circuit_vk, dummy_circuit_proof);
 
     if (recursion_1_composer.failed()) {
@@ -113,7 +113,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
     //*******************************************************************************
 
     // Composer recursion_2_composer = Composer("../barretenberg/cpp/srs_db/ignition");
-    // recursion_output<bn254> recursion_2_output = play_recursive_circuit_2<TurboRecursion>(
+    // aggregation_output<bn254> recursion_2_output = play_recursive_circuit_2<TurboRecursion>(
     //     recursion_2_composer, app_vk, app_proof, recursion_1_vk, recursion_1_proof);
 
     // if (recursion_2_composer.failed()) {

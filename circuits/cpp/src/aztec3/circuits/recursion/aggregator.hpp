@@ -8,7 +8,7 @@
 namespace aztec3::circuits::recursion {
 
 // These are all Circuit Types!
-// using plonk::stdlib::recursion::recursion_output;
+// using plonk::stdlib::recursion::aggregation_state;
 using plonk::stdlib::types::recursive_inner_verifier_settings;
 // using plonk::stdlib::recursion::verification_key;
 using plonk::stdlib::recursion::verify_proof;
@@ -18,42 +18,19 @@ using CT = aztec3::utils::types::CircuitTypes<Composer>;
 using NT = aztec3::utils::types::NativeTypes;
 using transcript::Manifest;
 
-// class Aggregator {
-//   public:
-//     // Circuit Types:
-//     using AggregationObject = recursion_output<bn254>;
-
-//     // Native Types:
-//     using Proof = plonk::proof;
-//     using VK = std::shared_ptr<bonk::verification_key>;
-
-//     static AggregationObject aggregate(Composer* composer,
-//                                        const VK& vk,
-//                                        const Proof& proof,
-//                                        const AggregationObject recursion_output = AggregationObject())
-//     {
-//         std::shared_ptr<verification_key<bn254>> recursive_vk = verification_key<bn254>::from_witness(composer, vk);
-//         const transcript::Manifest recursive_manifest = Composer::create_manifest(vk->num_public_inputs);
-
-//         AggregationObject result = verify_proof<bn254, recursive_inner_verifier_settings<bn254>>(
-//             composer, recursive_vk, recursive_manifest, proof, recursion_output);
-
-//         return result;
-//     }
-// };
-
 class Aggregator {
   public:
-    static CT::AggregationObject aggregate(Composer* composer,
-                                           const std::shared_ptr<CT::VK>& vk,
-                                           const NT::Proof& proof,
-                                           const size_t& num_public_inputs,
-                                           const CT::AggregationObject recursion_output = CT::AggregationObject())
+    static CT::AggregationObject aggregate(
+        Composer* composer,
+        const std::shared_ptr<CT::VK>& vk,
+        const NT::Proof& proof,
+        const size_t& num_public_inputs,
+        const CT::AggregationObject previous_aggregation_output = CT::AggregationObject())
     {
         const Manifest recursive_manifest = Composer::create_manifest(num_public_inputs);
 
         CT::AggregationObject result = verify_proof<CT::bn254, recursive_inner_verifier_settings>(
-            composer, vk, recursive_manifest, proof, recursion_output);
+            composer, vk, recursive_manifest, proof, previous_aggregation_output);
 
         return result;
     }

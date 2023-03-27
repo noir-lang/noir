@@ -1,7 +1,7 @@
 #pragma once
 #include "../optionally_revealed_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
-#include "aztec3/circuits/abis/barretenberg/aggregation_object.hpp"
+#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>

@@ -3,7 +3,7 @@
 namespace aztec3::circuits::recursion {
 
 using namespace plonk::stdlib::types;
-// using plonk::stdlib::recursion::recursion_output;
+// using plonk::stdlib::recursion::aggregation_state;
 
 void play_app_circuit(Composer& composer, barretenberg::fr const& a_in, barretenberg::fr const& b_in)
 {

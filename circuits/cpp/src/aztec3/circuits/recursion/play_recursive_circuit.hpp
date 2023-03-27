@@ -15,12 +15,12 @@ CT::AggregationObject play_recursive_circuit(Composer& composer,
 {
     std::shared_ptr<CT::VK> app_vk_ct = CT::VK::from_witness(&composer, app_vk);
 
-    CT::AggregationObject recursion_output =
+    CT::AggregationObject aggregation_output =
         Aggregator::aggregate(&composer, app_vk_ct, app_proof, app_vk->num_public_inputs);
 
-    recursion_output.add_proof_outputs_as_public_inputs();
+    aggregation_output.add_proof_outputs_as_public_inputs();
 
-    return recursion_output;
+    return aggregation_output;
 };
 
 void dummy_circuit(Composer& composer, barretenberg::fr const& a_in, barretenberg::fr const& b_in)
