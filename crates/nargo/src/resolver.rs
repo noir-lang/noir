@@ -79,12 +79,13 @@ impl<'a> Resolver<'a> {
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
         let manifest_path = super::find_package_manifest(dir_path)?;
-        let manifest = super::manifest::parse(manifest_path)?;
+        let manifest = super::manifest::parse(&manifest_path)?;
 
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
-        resolver.resolve_manifest(crate_id, manifest)?;
+        let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
+        resolver.resolve_manifest(crate_id, manifest, pkg_root)?;
 
         add_std_lib(&mut driver);
         Ok(driver)
@@ -100,12 +101,13 @@ impl<'a> Resolver<'a> {
         &mut self,
         parent_crate: CrateId,
         manifest: PackageManifest,
+        pkg_root: &Path,
     ) -> Result<(), DependencyResolutionError> {
         let mut cached_packages: HashMap<PathBuf, (CrateId, CachedDep)> = HashMap::new();
 
         // First download and add these top level dependencies crates to the Driver
         for (dep_pkg_name, pkg_src) in manifest.dependencies.iter() {
-            let (dir_path, dep_meta) = Resolver::cache_dep(pkg_src)?;
+            let (dir_path, dep_meta) = Resolver::cache_dep(pkg_src, pkg_root)?;
 
             let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
 
@@ -127,7 +129,7 @@ impl<'a> Resolver<'a> {
                 return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
             }
             let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_manifest(crate_id, dep_meta.manifest)?;
+            new_res.resolve_manifest(crate_id, dep_meta.manifest, &dependency_path)?;
         }
         Ok(())
     }
@@ -138,7 +140,10 @@ impl<'a> Resolver<'a> {
     ///
     /// If it's a local path, the same applies, however it will not
     /// be downloaded
-    fn cache_dep(dep: &Dependency) -> Result<(PathBuf, CachedDep), DependencyResolutionError> {
+    fn cache_dep(
+        dep: &Dependency,
+        pkg_root: &Path,
+    ) -> Result<(PathBuf, CachedDep), DependencyResolutionError> {
         fn retrieve_meta(
             dir_path: &Path,
             remote: bool,
@@ -157,7 +162,7 @@ impl<'a> Resolver<'a> {
                 Ok((dir_path, meta))
             }
             Dependency::Path { path } => {
-                let dir_path = std::path::PathBuf::from(path);
+                let dir_path = pkg_root.join(path);
                 let meta = retrieve_meta(&dir_path, false)?;
                 Ok((dir_path, meta))
             }
