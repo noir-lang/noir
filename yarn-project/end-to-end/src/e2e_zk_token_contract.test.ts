@@ -1,5 +1,5 @@
 import { AztecAddress, AztecRPCClient, Contract, ContractDeployer, Fr } from '@aztec/aztec.js';
-import abi from '@aztec/noir-contracts/examples/zk_token_contract.json';
+import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { createAztecRPCClient } from './create_aztec_rpc_client.js';
 
 describe('e2e_zk_token_contract', () => {
@@ -23,9 +23,9 @@ describe('e2e_zk_token_contract', () => {
   };
 
   const deployContract = async (initialBalance = 0n) => {
-    const deployer = new ContractDeployer(abi, arc);
+    const deployer = new ContractDeployer(ZkTokenContractAbi, arc);
     const receipt = await deployer.deploy(initialBalance).send().getReceipt();
-    return new Contract(receipt.contractAddress!, abi, arc);
+    return new Contract(receipt.contractAddress!, ZkTokenContractAbi, arc);
   };
 
   beforeEach(async () => {

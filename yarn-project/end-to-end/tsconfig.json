@@ -5,5 +5,16 @@
     "rootDir": "src",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
+  "references": [
+    {
+      "path": "../aztec-node/tsconfig.dest.json"
+    },
+    {
+      "path": "../aztec.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../noir-contracts/tsconfig.dest.json"
+    }
+  ],
   "include": ["src"]
 }

@@ -1,10 +1,11 @@
 import { AztecAddress, AztecRPCClient, ContractDeployer, Fr } from '@aztec/aztec.js';
-import abi from '@aztec/noir-contracts/examples/test_contract.json';
+import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { createAztecRPCClient } from './create_aztec_rpc_client.js';
 
 describe('e2e_deploy_contract', () => {
   let arc: AztecRPCClient;
   let accounts: AztecAddress[];
+  const abi = TestContractAbi;
 
   beforeEach(async () => {
     arc = await createAztecRPCClient(1);

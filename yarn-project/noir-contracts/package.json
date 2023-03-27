@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./examples/": "./examples/"
+    "./examples": "./dest/examples/index.js"
   },
   "typedoc": {
     "entryPoint": "./src/index.ts",
