@@ -33,7 +33,7 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractVisibility, Generics, LValue, NoirStruct, Path, Pattern, Shared,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
     StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
@@ -636,6 +636,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             attributes,
             contract_visibility: self.handle_contract_visibility(func),
+            is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
             parameters: parameters.into(),
@@ -644,22 +645,19 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractVisibility> {
-        let mut contract_visibility = func.def.contract_visibility;
-
-        if self.in_contract() && contract_visibility.is_none() {
-            // The default visibility is 'secret' for contract functions without visibility modifiers
-            contract_visibility = Some(ContractVisibility::Secret);
+    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
+        if func.def.is_open {
+            if self.in_contract() {
+                Some(ContractFunctionType::Open)
+            } else {
+                self.push_err(ResolverError::ContractVisibilityInNormalFunction {
+                    span: func.name_ident().span(),
+                });
+                None
+            }
+        } else {
+            Some(ContractFunctionType::Secret)
         }
-
-        if !self.in_contract() && contract_visibility.is_some() {
-            contract_visibility = None;
-            self.push_err(ResolverError::ContractVisibilityInNormalFunction {
-                span: func.name_ident().span(),
-            })
-        }
-
-        contract_visibility
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {

@@ -4,7 +4,7 @@
 
 use acvm::Language;
 use clap::Args;
-use contract::ContractFunction;
+use contract::{ContractFunction, ContractFunctionType};
 use fm::FileType;
 use iter_extended::{try_btree_map, try_vecmap};
 use noirc_abi::FunctionSignature;
@@ -209,6 +209,8 @@ impl Driver {
             let func_type = func_meta
                 .contract_visibility
                 .expect("Expected contract function to have a contract visibility");
+
+            let func_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
             Ok((function_name, ContractFunction { func_type, function }))
         })?;
