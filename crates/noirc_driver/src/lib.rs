@@ -204,16 +204,10 @@ impl Driver {
     ) -> Result<CompiledContract, ReportedError> {
         let functions = try_btree_map(&contract.functions, |function| {
             let function_name = self.function_name(*function).to_owned();
-            let program = self.compile_no_check(options, *function)?;
-            Ok((
-                function_name,
-                ContractFunction {
-                    // Note: currently we mark all of the contract methods
-                    // as secret as we do not support public functions.
-                    func_type: contract::ContractFunctionType::Secret,
-                    function: program,
-                },
-            ))
+            let function = self.compile_no_check(options, *function)?;
+            let func_type = contract::ContractFunctionType::Secret;
+            // Note: currently we mark all of the contract methods as secret as we do not support public functions.
+            Ok((function_name, ContractFunction { func_type, function }))
         })?;
 
         Ok(CompiledContract { name: contract.name, functions })
