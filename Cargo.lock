@@ -2240,6 +2240,7 @@ dependencies = [
  "noirc_abi",
  "noirc_errors",
  "rustc-hash",
+ "serde",
  "smol_str",
  "strum",
  "strum_macros",

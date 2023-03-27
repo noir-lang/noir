@@ -33,9 +33,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, Generics, LValue, NoirStruct, Path, Pattern, Shared, StructType, Type,
-    TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression,
-    ERROR_IDENT,
+    ArrayLiteral, ContractVisibility, Generics, LValue, NoirStruct, Path, Pattern, Shared,
+    StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
+    UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -635,12 +635,31 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
+            contract_visibility: self.handle_contract_visibility(func),
             location,
             typ,
             parameters: parameters.into(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
         }
+    }
+
+    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractVisibility> {
+        let mut contract_visibility = func.def.contract_visibility;
+
+        if self.in_contract() && contract_visibility.is_none() {
+            // The default visibility is 'secret' for contract functions without visibility modifiers
+            contract_visibility = Some(ContractVisibility::Secret);
+        }
+
+        if !self.in_contract() && contract_visibility.is_some() {
+            contract_visibility = None;
+            self.push_err(ResolverError::ContractVisibilityInNormalFunction {
+                span: func.name_ident().span(),
+            })
+        }
+
+        contract_visibility
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
@@ -1196,6 +1215,11 @@ impl<'a> Resolver<'a> {
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
+
+    fn in_contract(&self) -> bool {
+        let module_id = self.path_resolver.module_id();
+        module_id.module(self.def_maps).is_contract
+    }
 }
 
 // XXX: These tests repeat a lot of code
@@ -1209,6 +1233,7 @@ mod test {
     use fm::FileId;
     use iter_extended::vecmap;
 
+    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
 
@@ -1241,8 +1266,21 @@ mod test {
             path_resolver.insert_func(name.to_owned(), id);
         }
 
-        let def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: path_resolver.local_module_id(),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
 
         let mut errors = Vec::new();
         for func in program.functions {
@@ -1445,7 +1483,13 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId::dummy_id()
+            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
+            // later and do not want to push u32::MAX number of elements before we do.
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
         }
     }
 
