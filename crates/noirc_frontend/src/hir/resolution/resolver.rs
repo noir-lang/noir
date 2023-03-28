@@ -635,7 +635,7 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
-            contract_visibility: self.handle_contract_visibility(func),
+            contract_function_type: self.handle_function_type(func),
             is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
@@ -645,12 +645,12 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
+    fn handle_function_type(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
         if func.def.is_open {
             if self.in_contract() {
                 Some(ContractFunctionType::Open)
             } else {
-                self.push_err(ResolverError::ContractVisibilityInNormalFunction {
+                self.push_err(ResolverError::ContractFunctionTypeInNormalFunction {
                     span: func.name_ident().span(),
                 });
                 None

@@ -123,7 +123,7 @@ pub struct FuncMeta {
 
     /// This function's visibility in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
-    pub contract_visibility: Option<ContractFunctionType>,
+    pub contract_function_type: Option<ContractFunctionType>,
 
     pub is_unconstrained: bool,
 

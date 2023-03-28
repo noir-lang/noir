@@ -146,12 +146,12 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
+/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
+///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
-        .then(contract_visibility())
+        .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
@@ -183,10 +183,10 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// contract_visibility: 'open' | 'unconstrained' | %empty
+/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
 ///
 /// returns (is_unconstrained, is_open) for whether each keyword was present
-fn contract_visibility() -> impl NoirParser<(bool, bool)> {
+fn function_modifiers() -> impl NoirParser<(bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(keyword(Keyword::Open).or_not())

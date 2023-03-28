@@ -207,7 +207,7 @@ impl Driver {
             let function = self.compile_no_check(options, *function_id)?;
             let func_meta = self.context.def_interner.function_meta(function_id);
             let func_type = func_meta
-                .contract_visibility
+                .contract_function_type
                 .expect("Expected contract function to have a contract visibility");
 
             let func_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
