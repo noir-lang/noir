@@ -302,4 +302,35 @@ PublicInputs<NT> private_kernel_circuit(Composer& composer, PrivateInputs<NT> co
     return public_inputs.to_native_type<Composer>();
 };
 
+PublicInputs<NT> private_kernel_native(PrivateInputs<NT> const& private_inputs)
+{
+    // We'll be pushing data to this during execution of this circuit.
+    PublicInputs<NT> public_inputs = PublicInputs<NT>{};
+    info("Ignore print - private inputs: ", &private_inputs);
+
+    // Do this before any functions can modify the inputs.
+    // initialise_end_values(private_inputs, public_inputs);
+
+    // validate_inputs(private_inputs);
+
+    // validate_this_private_call_hash(private_inputs);
+
+    // validate_this_private_call_stack(private_inputs);
+
+    //// TODO (later): do we need to validate this private_call_stack against end.private_call_stack?
+
+    // update_end_values(private_inputs, public_inputs);
+
+    // auto aggregation_object = verify_proofs(composer,
+    //                                        private_inputs,
+    //                                        _private_inputs.private_call.vk->num_public_inputs,
+    //                                        _private_inputs.previous_kernel.vk->num_public_inputs);
+
+    // TODO: kernel vk membership check!
+
+    // public_inputs.end.aggregation_object = aggregation_object;
+
+    return public_inputs;
+};
+
 } // namespace aztec3::circuits::kernel::private_kernel

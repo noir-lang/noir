@@ -36,6 +36,19 @@ template <typename NCT> struct SignedTxRequest {
 
         return signed_tx_request;
     };
+
+    template <typename Composer> SignedTxRequest<NativeTypes> to_native_type() const
+    {
+        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+
+        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+
+        SignedTxRequest<NativeTypes> signed_tx_request = {
+            to_native_type(tx_request),
+        };
+
+        return signed_tx_request;
+    };
 };
 
 template <typename NCT> void read(uint8_t const*& it, SignedTxRequest<NCT>& signed_tx_request)

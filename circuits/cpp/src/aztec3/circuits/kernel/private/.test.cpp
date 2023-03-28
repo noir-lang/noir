@@ -5,6 +5,7 @@
 // #include <barretenberg/numeric/random/engine.hpp>
 #include "index.hpp"
 #include "init.hpp"
+#include "c_bind.h"
 
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 #include <aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp>
@@ -269,7 +270,7 @@ TEST(private_kernel_tests, test_deposit)
 TEST(private_kernel_tests, test_basic_contract_deployment)
 {
     //***************************************************************************
-    // Some private circuit proof (`deposit`, in this case)
+    // Some private circuit proof (`constructor`, in this case)
     //***************************************************************************
 
     const NT::address new_contract_address = 12345;
@@ -439,6 +440,326 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     info("failed?: ", private_kernel_composer.failed());
     info("err: ", private_kernel_composer.err());
     info("n: ", private_kernel_composer.num_gates);
+}
+
+TEST(private_kernel_tests, test_create_proof_cbind_circuit)
+{
+    //***************************************************************************
+    // Some private CIRCUIT proof (`constructor`, in this case)
+    // and the cbind to generate it
+    //***************************************************************************
+
+    const NT::address new_contract_address = 12345;
+    // const NT::fr new_contract_leaf_index = 1;
+    const NT::fr new_portal_contract_address = 23456;
+
+    const NT::fr msg_sender_private_key = 123456789;
+    const NT::address msg_sender =
+        NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+    const NT::address tx_origin = msg_sender;
+
+    Composer constructor_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+    DB db;
+
+    FunctionData<NT> function_data{
+        .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        .is_private = true,
+        .is_constructor = true,
+    };
+
+    CallContext<NT> call_context{
+        .msg_sender = msg_sender,
+        .storage_contract_address = new_contract_address,
+        .tx_origin = msg_sender,
+        .is_delegate_call = false,
+        .is_static_call = false,
+        .is_contract_deployment = true,
+    };
+
+    NativeOracle constructor_oracle =
+        NativeOracle(db, new_contract_address, function_data, call_context, msg_sender_private_key);
+    OracleWrapper constructor_oracle_wrapper = OracleWrapper(constructor_composer, constructor_oracle);
+
+    FunctionExecutionContext constructor_ctx(constructor_composer, constructor_oracle_wrapper);
+
+    auto arg0 = NT::fr(5);
+    auto arg1 = NT::fr(1);
+    auto arg2 = NT::fr(999);
+
+    OptionalPrivateCircuitPublicInputs<NT> opt_constructor_public_inputs =
+        constructor(constructor_ctx, arg0, arg1, arg2);
+
+    ContractDeploymentData<NT> contract_deployment_data{
+        .constructor_vk_hash = 0, // TODO actually get this?
+        .function_tree_root = 0,  // TODO actually get this?
+        .contract_address_salt = 42,
+        .portal_contract_address = new_portal_contract_address,
+    };
+    opt_constructor_public_inputs.contract_deployment_data = contract_deployment_data;
+
+    PrivateCircuitPublicInputs<NT> constructor_public_inputs = opt_constructor_public_inputs.remove_optionality();
+
+    Prover constructor_prover = constructor_composer.create_prover();
+    NT::Proof constructor_proof = constructor_prover.construct_proof();
+    // info("\nconstructor_proof: ", constructor_proof.proof_data);
+
+    std::shared_ptr<NT::VK> constructor_vk = constructor_composer.compute_verification_key();
+
+    //***************************************************************************
+    // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
+    // for a tx to take place - creating a SignedTxRequest.
+    //***************************************************************************
+
+    TxRequest<NT> constructor_tx_request = TxRequest<NT>{
+        .from = tx_origin,
+        .to = new_contract_address,
+        .function_data = function_data,
+        .args = constructor_public_inputs.args,
+        .nonce = 0,
+        .tx_context =
+            TxContext<NT>{
+                .is_fee_payment_tx = false,
+                .is_rebate_payment_tx = false,
+                .is_contract_deployment_tx = false,
+                .contract_deployment_data = contract_deployment_data,
+            },
+        .chain_id = 1,
+    };
+
+    SignedTxRequest<NT> signed_constructor_tx_request = SignedTxRequest<NT>{
+        .tx_request = constructor_tx_request,
+
+        //     .signature = TODO: need a method for signing a TxRequest.
+    };
+
+    //***************************************************************************
+    // We mock a kernel circuit proof for the base case of kernel recursion (because even the first iteration of the
+    // kernel circuit expects to verify some previous kernel circuit).
+    //***************************************************************************
+
+    Composer mock_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+
+    // TODO: we have a choice to make:
+    // Either the `end` state of the mock kernel's public inputs can be set equal to the public call we _want_ to
+    // verify in the first round of recursion, OR, we have some fiddly conditional logic in the circuit to ignore
+    // certain checks if we're handling the 'base case' of the recursion.
+    // I've chosen the former, for now.
+    const CallStackItem<NT, CallType::Private> constructor_call_stack_item{
+        .contract_address = constructor_tx_request.to,
+
+        .function_data = constructor_tx_request.function_data,
+
+        .public_inputs = constructor_public_inputs,
+    };
+
+    std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> initial_kernel_private_call_stack{};
+    initial_kernel_private_call_stack[0] = constructor_call_stack_item.hash();
+
+    uint8_t const* pk_buf;
+    size_t pk_size = private_kernel__init_proving_key(&pk_buf);
+    info("Proving key size: ", pk_size);
+
+    uint8_t const* vk_buf;
+    size_t vk_size = private_kernel__init_verification_key(pk_buf, &vk_buf);
+    info("Verification key size: ", vk_size);
+
+    std::vector<uint8_t> signed_constructor_tx_request_vec;
+    write(signed_constructor_tx_request_vec, signed_constructor_tx_request);
+
+    PrivateCallData<NT> private_constructor_call = PrivateCallData<NT>{
+        .call_stack_item = constructor_call_stack_item,
+        .private_call_stack_preimages = constructor_ctx.get_private_call_stack_items(),
+
+        .proof = constructor_proof,
+        .vk = constructor_vk,
+
+        // .function_leaf_membership_witness TODO
+        // .contract_leaf_membership_witness TODO
+
+        .portal_contract_address = new_portal_contract_address,
+    };
+    std::vector<uint8_t> private_constructor_call_vec;
+    write(private_constructor_call_vec, private_constructor_call);
+
+    uint8_t const* proof_data;
+    size_t proof_data_size;
+    uint8_t const* public_inputs;
+    info("creating proof");
+    size_t public_inputs_size = private_kernel__create_proof(signed_constructor_tx_request_vec.data(),
+                                                             pk_buf,
+                                                             private_constructor_call_vec.data(),
+                                                             pk_buf,
+                                                             false, // proverless
+                                                             &proof_data,
+                                                             &proof_data_size,
+                                                             &public_inputs);
+    info("Proof size: ", proof_data_size);
+    info("PublicInputs size: ", public_inputs_size);
+
+    free((void*)pk_buf);
+    free((void*)vk_buf);
+    free((void*)proof_data);
+    free((void*)public_inputs);
+}
+
+TEST(private_kernel_tests, test_create_proof_cbind_native)
+{
+    //***************************************************************************
+    // Some private NATIVE mocked proof (`constructor`, in this case)
+    // and the cbind to generate valid outputs
+    //***************************************************************************
+
+    const NT::address new_contract_address = 12345;
+    // const NT::fr new_contract_leaf_index = 1;
+    const NT::fr new_portal_contract_address = 23456;
+
+    const NT::fr msg_sender_private_key = 123456789;
+    const NT::address msg_sender =
+        NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+    const NT::address tx_origin = msg_sender;
+
+    Composer constructor_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+    DB db;
+
+    FunctionData<NT> function_data{
+        .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        .is_private = true,
+        .is_constructor = true,
+    };
+
+    CallContext<NT> call_context{
+        .msg_sender = msg_sender,
+        .storage_contract_address = new_contract_address,
+        .tx_origin = msg_sender,
+        .is_delegate_call = false,
+        .is_static_call = false,
+        .is_contract_deployment = true,
+    };
+
+    NativeOracle constructor_oracle =
+        NativeOracle(db, new_contract_address, function_data, call_context, msg_sender_private_key);
+    OracleWrapper constructor_oracle_wrapper = OracleWrapper(constructor_composer, constructor_oracle);
+
+    FunctionExecutionContext constructor_ctx(constructor_composer, constructor_oracle_wrapper);
+
+    auto arg0 = NT::fr(5);
+    auto arg1 = NT::fr(1);
+    auto arg2 = NT::fr(999);
+
+    OptionalPrivateCircuitPublicInputs<NT> opt_constructor_public_inputs =
+        constructor(constructor_ctx, arg0, arg1, arg2);
+
+    ContractDeploymentData<NT> contract_deployment_data{
+        .constructor_vk_hash = 0, // TODO actually get this?
+        .function_tree_root = 0,  // TODO actually get this?
+        .contract_address_salt = 42,
+        .portal_contract_address = new_portal_contract_address,
+    };
+    opt_constructor_public_inputs.contract_deployment_data = contract_deployment_data;
+
+    PrivateCircuitPublicInputs<NT> constructor_public_inputs = opt_constructor_public_inputs.remove_optionality();
+
+    Prover constructor_prover = constructor_composer.create_prover();
+    NT::Proof constructor_proof = constructor_prover.construct_proof();
+    // info("\nconstructor_proof: ", constructor_proof.proof_data);
+
+    std::shared_ptr<NT::VK> constructor_vk = constructor_composer.compute_verification_key();
+
+    //***************************************************************************
+    // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
+    // for a tx to take place - creating a SignedTxRequest.
+    //***************************************************************************
+
+    TxRequest<NT> constructor_tx_request = TxRequest<NT>{
+        .from = tx_origin,
+        .to = new_contract_address,
+        .function_data = function_data,
+        .args = constructor_public_inputs.args,
+        .nonce = 0,
+        .tx_context =
+            TxContext<NT>{
+                .is_fee_payment_tx = false,
+                .is_rebate_payment_tx = false,
+                .is_contract_deployment_tx = false,
+                .contract_deployment_data = contract_deployment_data,
+            },
+        .chain_id = 1,
+    };
+
+    SignedTxRequest<NT> signed_constructor_tx_request = SignedTxRequest<NT>{
+        .tx_request = constructor_tx_request,
+
+        //     .signature = TODO: need a method for signing a TxRequest.
+    };
+
+    //***************************************************************************
+    // We mock a kernel circuit proof for the base case of kernel recursion (because even the first iteration of the
+    // kernel circuit expects to verify some previous kernel circuit).
+    //***************************************************************************
+
+    Composer mock_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+
+    // TODO: we have a choice to make:
+    // Either the `end` state of the mock kernel's public inputs can be set equal to the public call we _want_ to
+    // verify in the first round of recursion, OR, we have some fiddly conditional logic in the circuit to ignore
+    // certain checks if we're handling the 'base case' of the recursion.
+    // I've chosen the former, for now.
+    const CallStackItem<NT, CallType::Private> constructor_call_stack_item{
+        .contract_address = constructor_tx_request.to,
+
+        .function_data = constructor_tx_request.function_data,
+
+        .public_inputs = constructor_public_inputs,
+    };
+
+    std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> initial_kernel_private_call_stack{};
+    initial_kernel_private_call_stack[0] = constructor_call_stack_item.hash();
+
+    uint8_t const* pk_buf;
+    size_t pk_size = private_kernel__init_proving_key(&pk_buf);
+    info("Proving key size: ", pk_size);
+
+    uint8_t const* vk_buf;
+    size_t vk_size = private_kernel__init_verification_key(pk_buf, &vk_buf);
+    info("Verification key size: ", vk_size);
+
+    std::vector<uint8_t> signed_constructor_tx_request_vec;
+    write(signed_constructor_tx_request_vec, signed_constructor_tx_request);
+
+    PrivateCallData<NT> private_constructor_call = PrivateCallData<NT>{
+        .call_stack_item = constructor_call_stack_item,
+        .private_call_stack_preimages = constructor_ctx.get_private_call_stack_items(),
+
+        .proof = constructor_proof,
+        .vk = constructor_vk,
+
+        // .function_leaf_membership_witness TODO
+        // .contract_leaf_membership_witness TODO
+
+        .portal_contract_address = new_portal_contract_address,
+    };
+    std::vector<uint8_t> private_constructor_call_vec;
+    write(private_constructor_call_vec, private_constructor_call);
+
+    uint8_t const* proof_data;
+    size_t proof_data_size;
+    uint8_t const* public_inputs;
+    info("creating proof");
+    size_t public_inputs_size = private_kernel__create_proof(signed_constructor_tx_request_vec.data(),
+                                                             pk_buf,
+                                                             private_constructor_call_vec.data(),
+                                                             pk_buf,
+                                                             true, // proverless
+                                                             &proof_data,
+                                                             &proof_data_size,
+                                                             &public_inputs);
+    info("Proof size: ", proof_data_size);
+    info("PublicInputs size: ", public_inputs_size);
+
+    free((void*)pk_buf);
+    free((void*)vk_buf);
+    free((void*)proof_data);
+    free((void*)public_inputs);
 }
 
 } // namespace aztec3::circuits::kernel::private_kernel
