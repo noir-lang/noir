@@ -114,6 +114,17 @@ jobs:
           name: "Build and test"
           command: build noir-contracts
 
+  world-state:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build world-state
+
   end-to-end:
     machine:
       image: ubuntu-2004:202010-01
@@ -182,4 +193,5 @@ workflows:
             - foundation
           <<: *defaults
       - e2e-deploy-contract: *e2e_test
+      - world-state: *yarn_project
       - noir-contracts: *yarn_project
