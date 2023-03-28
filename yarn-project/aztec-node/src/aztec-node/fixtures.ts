@@ -27,7 +27,7 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { AztecAddress, randomBytes } from '@aztec/foundation';
 import { Rollup, Yeeter } from '@aztec/l1-contracts';
-import { Tx } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
 
 // REFACTOR: Move deployment logic to l1-contracts package, and refactor it out of other integration tests (archiver, sequencer)
 export const deployRollupContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {

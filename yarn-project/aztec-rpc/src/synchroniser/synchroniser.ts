@@ -1,10 +1,10 @@
+import { TxHash } from '@aztec/tx';
 import { AztecNode } from '@aztec/aztec-node';
 import { InterruptableSleep } from '@aztec/foundation';
 import { AccountState } from '../account_state/index.js';
 import { AztecAddress, EthAddress } from '../circuits.js';
 import { Database } from '../database/index.js';
 import { ContractAbi } from '../noir.js';
-import { TxHash } from '../tx/index.js';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;

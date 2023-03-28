@@ -170,6 +170,13 @@
       "l2-block"
     ]
   },
+  "tx": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/tx",
+    "dockerfile": "tx/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/tx/"],
+    "dependencies": ["circuits.js", "l2-block"]
+  },
   "world-state": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/world-state",

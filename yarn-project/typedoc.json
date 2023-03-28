@@ -16,6 +16,7 @@
     "prover-client",
     "aztec-node",
     "sequencer-client",
+    "tx",
     "world-state",
     "merkle-tree"
   ]

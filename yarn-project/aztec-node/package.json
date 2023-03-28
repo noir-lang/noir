@@ -39,6 +39,7 @@
     "@aztec/l1-contracts": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
+    "@aztec/tx": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "tslib": "^2.4.0"
   },

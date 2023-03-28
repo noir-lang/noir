@@ -1,7 +1,7 @@
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Tx } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
 import { AztecNodeConfig } from './config.js';
 import { AztecNode } from '../index.js';
 import { createProvider, createTx, deployRollupContract, deployYeeterContract } from './fixtures.js';

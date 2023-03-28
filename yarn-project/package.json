@@ -30,8 +30,8 @@
     "prover-client",
     "aztec-node",
     "sequencer-client",
-    "world-state",
-    ".yalc/*/*"
+    "tx",
+    "world-state"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {

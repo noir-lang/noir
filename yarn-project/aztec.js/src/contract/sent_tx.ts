@@ -1,5 +1,5 @@
-import { AztecRPCClient, TxHash, TxReceipt } from '@aztec/aztec-rpc';
-import { retryUntil } from '../foundation.js';
+import { AztecRPCClient, TxReceipt, TxHash } from '@aztec/aztec-rpc';
+import { retryUntil } from '@aztec/foundation';
 
 export class SentTx {
   private receipt?: TxReceipt;

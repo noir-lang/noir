@@ -16,7 +16,7 @@ import {
   RootRollupPublicInputs,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { Tx } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { makeEmptyTx } from '../deps/tx.js';
 import { Proof, Prover } from '../prover/index.js';

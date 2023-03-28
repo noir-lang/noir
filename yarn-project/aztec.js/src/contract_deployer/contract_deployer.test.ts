@@ -11,6 +11,7 @@ import {
   TxReceipt,
   TxRequest,
 } from '@aztec/aztec-rpc';
+
 import { ContractDeployer } from './contract_deployer.js';
 
 describe('Contract Deployer', () => {

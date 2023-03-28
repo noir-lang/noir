@@ -1,4 +1,5 @@
-import { P2P, Tx } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
+import { P2P } from '@aztec/p2p';
 import { WorldStateSynchroniser, WorldStateStatus } from '@aztec/world-state';
 import { RunningPromise } from '../deps/running_promise.js';
 import { L2BlockPublisher } from '../publisher/l2-block-publisher.js';

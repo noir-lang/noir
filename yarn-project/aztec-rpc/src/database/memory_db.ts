@@ -1,5 +1,6 @@
+import { TxHash } from '@aztec/tx';
+
 import { MemoryContractDataSource } from '../contract_data_source/index.js';
-import { TxHash } from '../tx/index.js';
 import { Database } from './database.js';
 import { TxDao } from './tx_dao.js';
 

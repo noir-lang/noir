@@ -2,7 +2,8 @@ import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { UInt8Vector } from '@aztec/circuits.js';
 import { KernelProver } from '@aztec/kernel-prover';
-import { Tx } from '@aztec/p2p';
+import { Tx, TxHash } from '@aztec/tx';
+
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { AztecRPCClient } from '../aztec_rpc_client/index.js';
 import {
@@ -20,7 +21,6 @@ import { ContractDao, ContractDataSource } from '../contract_data_source/index.j
 import { KeyStore } from '../key_store/index.js';
 import { ContractAbi } from '../noir.js';
 import { Synchroniser } from '../synchroniser/index.js';
-import { TxHash } from '../tx/index.js';
 
 export class AztecRPCServer implements AztecRPCClient {
   constructor(

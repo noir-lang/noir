@@ -29,11 +29,12 @@ export async function retry<Result>(fn: () => Promise<Result>, name = 'Operation
 // Call `fn` repeatedly until it returns true or timeout.
 // Both `interval` and `timeout` are seconds.
 // Will never timeout if the value is 0.
-export async function retryUntil(fn: () => boolean | Promise<boolean>, name = '', timeout = 0, interval = 1) {
+export async function retryUntil<T>(fn: () => Promise<T | undefined>, name = '', timeout = 0, interval = 1) {
   const timer = new Timer();
   while (true) {
-    if (await fn()) {
-      return;
+    const result = await fn();
+    if (result) {
+      return result;
     }
 
     await sleep(interval * 1000);

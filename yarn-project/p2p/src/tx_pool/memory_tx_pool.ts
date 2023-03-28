@@ -1,5 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation';
-import { Tx } from '../index.js';
+import { Tx } from '@aztec/tx';
+
 import { TxPool } from './index.js';
 
 /**

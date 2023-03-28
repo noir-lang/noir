@@ -26,7 +26,13 @@
     },
     {
       "path": "../sequencer-client/tsconfig.dest.json"
+    },
+    {
+      "path": "../tx/tsconfig.dest.json"
     }
   ],
-  "include": ["src", "test"]
+  "include": [
+    "src",
+    "test"
+  ]
 }

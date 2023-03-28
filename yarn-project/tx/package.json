@@ -1,18 +1,21 @@
 {
-  "name": "@aztec/aztec-rpc",
+  "name": "@aztec/tx",
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "Wallet",
+    "displayName": "TXs",
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
     "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "start": "node ./dest",
+    "start:dev": "tsc-watch -p tsconfig.dest.json --onSuccess 'yarn start'",
     "clean": "rm -rf ./dest .tsbuildinfo",
-    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 10 ./src",
+    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
+    "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
   },
   "jest": {
@@ -29,11 +32,8 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/acir-simulator": "workspace:^",
-    "@aztec/aztec-node": "workspace:^",
-    "@aztec/foundation": "workspace:^",
-    "@aztec/kernel-prover": "workspace:^",
-    "@aztec/tx": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
+    "@aztec/l2-block": "workspace:^",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"
   },
@@ -41,7 +41,7 @@
     "@jest/globals": "^29.4.3",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.4.0",
-    "@types/node": "^18.7.23",
+    "@types/node": "^18.14.6",
     "jest": "^28.1.3",
     "ts-jest": "^28.0.7",
     "ts-node": "^10.9.1",

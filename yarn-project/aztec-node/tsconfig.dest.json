@@ -21,7 +21,13 @@
     },
     {
       "path": "../sequencer-client/tsconfig.dest.json"
+    },
+    {
+      "path": "../tx/tsconfig.dest.json"
     }
   ],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": [
+    "**/*.test.*",
+    "**/fixtures/*"
+  ]
 }

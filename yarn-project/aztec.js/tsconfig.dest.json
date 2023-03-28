@@ -8,5 +8,8 @@
       "path": "../foundation/tsconfig.dest.json"
     }
   ],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": [
+    "**/*.test.*",
+    "**/fixtures/*"
+  ]
 }

@@ -13,5 +13,7 @@
       "path": "../foundation/tsconfig.dest.json"
     }
   ],
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

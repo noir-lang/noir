@@ -1,6 +1,6 @@
 import isNode from 'detect-node';
 
-import { AsyncCallState, AsyncFnState, NodeDataStore, WasmModule, WebDataStore } from '@aztec/wasm';
+import { AsyncCallState, AsyncFnState, NodeDataStore, WasmModule, WebDataStore } from '@aztec/foundation/wasm';
 import { readFile } from 'fs/promises';
 import { fetch } from 'cross-fetch';
 import { dirname } from 'path';

@@ -38,6 +38,7 @@
     "@aztec/l1-contracts": "workspace:^",
     "@aztec/l2-block": "workspace:^",
     "@aztec/p2p": "workspace:^",
+    "@aztec/tx": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "lodash.times": "^4.3.2",
     "tslib": "^2.4.0"

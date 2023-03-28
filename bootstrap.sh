@@ -50,6 +50,7 @@ PROJECTS=(
   "yarn-project/archiver:yarn build"
   "yarn-project/world-state:yarn build"
   "yarn-project/p2p:yarn build"
+  "yarn-project/tx:yarn build"
   "yarn-project/sequencer-client:yarn build"
   "yarn-project/aztec-node:yarn build"
   "yarn-project/key-store:yarn build"

@@ -1,7 +1,8 @@
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
 import { L2BlockSource, Archiver } from '@aztec/archiver';
-import { P2P, P2PClient, Tx } from '@aztec/p2p';
+import { P2P, P2PClient } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
 import { MerkleTrees, WorldStateSynchroniser, ServerWorldStateSynchroniser, MerkleTreeId } from '@aztec/world-state';
 import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNodeConfig } from './config.js';

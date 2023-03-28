@@ -34,11 +34,10 @@ COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY prover-client/package.json prover-client/package.json
 COPY sequencer-client/package.json sequencer-client/package.json
+COPY tx/package.json tx/package.json
 COPY world-state/package.json world-state/package.json
 COPY package.json tsconfig.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn
-# bundled dependencies
-COPY .yalc .yalc
 
 # Although we're attempting to be "zero-install", in practice we still need to build arch specific packages.
 RUN yarn --immutable
@@ -55,9 +54,9 @@ RUN echo "enableNetwork: false" >> .yarnrc.yml
 # - Do a `yarn workspaces focus --production` to install production dependencies from the global cache, to .yarn/cache
 # - A final stage of the build strips away the global cache.
 RUN /bin/bash -c '\
-[ -d /root/.yarn/berry/cache ] && exit 0; \
-cd .yarn/cache && \
-mkdir -p /root/.yarn/berry/cache && \
-for F in *; do \
+  [ -d /root/.yarn/berry/cache ] && exit 0; \
+  cd .yarn/cache && \
+  mkdir -p /root/.yarn/berry/cache && \
+  for F in *; do \
   [[ $F =~ (.*-) ]] && ln $F /root/.yarn/berry/cache/${BASH_REMATCH[1]}8.zip; \
-done'
+  done'

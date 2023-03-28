@@ -16,3 +16,4 @@ The Aztec 3 system consists of the following sub projects.
 - `prover-client`
 - `aztec-node`
 - `sequencer-client`
+- `tx`

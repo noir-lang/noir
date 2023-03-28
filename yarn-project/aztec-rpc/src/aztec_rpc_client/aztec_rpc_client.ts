@@ -1,7 +1,7 @@
-import { Tx } from '@aztec/p2p';
+import { Tx, TxHash } from '@aztec/tx';
 import { AztecAddress, EthAddress, Fr, Signature, TxRequest } from '../circuits.js';
 import { ContractAbi } from '../noir.js';
-import { TxHash, TxReceipt } from '../tx/index.js';
+import { TxReceipt } from '../tx/index.js';
 
 export interface AztecRPCClient {
   addAccount(): Promise<AztecAddress>;
