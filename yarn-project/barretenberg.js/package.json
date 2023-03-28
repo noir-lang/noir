@@ -1,0 +1,58 @@
+{
+  "name": "@aztec/barretenberg.js",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./crs": "./dest/crs/index.js",
+    "./crypto": "./dest/crypto/index.js",
+    "./wasm": "./dest/wasm/index.js"
+  },
+  "typedoc": {
+    "entryPoint": "./src/index.ts",
+    "displayName": "Barretenberg.js",
+    "tsconfig": "./tsconfig.dest.json"
+  },
+  "scripts": {
+    "build": "yarn clean && tsc -b tsconfig.dest.json",
+    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "clean": "rm -rf ./dest .tsbuildinfo",
+    "formatting": "prettier --check ./src && eslint --max-warnings 0 ./src",
+    "formatting:fix": "prettier -w ./src",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests",
+    "test-debug": "NODE_NO_WARNINGS=1 node --inspect-brk --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests --runInBand"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.ts$",
+    "rootDir": "./src"
+  },
+  "dependencies": {
+    "@aztec/foundation": "workspace:^",
+    "cross-fetch": "^3.1.5",
+    "detect-node": "^2.1.0",
+    "eslint": "^8.35.0",
+    "tslib": "^2.4.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.4.3",
+    "@rushstack/eslint-patch": "^1.1.4",
+    "@types/detect-node": "^2.0.0",
+    "@types/jest": "^29.4.0",
+    "@types/node": "^18.7.23",
+    "@typescript-eslint/eslint-plugin": "^5.54.1",
+    "@typescript-eslint/parser": "^5.54.1",
+    "jest": "^28.1.3",
+    "prettier": "^2.8.4",
+    "ts-jest": "^28.0.7",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
+  }
+}

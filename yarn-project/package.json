@@ -13,6 +13,7 @@
     "aztec-cli",
     "aztec-rpc",
     "aztec.js",
+    "barretenberg.js",
     "circuits.js",
     "docs",
     "end-to-end",
