@@ -1189,7 +1189,8 @@ impl<'a> Resolver<'a> {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
             other => {
-                unreachable!("Expected global while evaluating array length, found {:?}", other)
+                dbg!(other);
+                return 0;
             }
         };
 
