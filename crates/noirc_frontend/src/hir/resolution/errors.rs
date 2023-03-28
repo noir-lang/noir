@@ -166,7 +166,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
             ResolverError::NecessaryPub { ident } => {
@@ -178,7 +178,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword is mandatory for the main function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
+                diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(

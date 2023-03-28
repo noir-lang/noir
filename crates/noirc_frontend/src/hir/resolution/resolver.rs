@@ -601,7 +601,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if func.name() != "main" && visibility == noirc_abi::AbiVisibility::Public {
+            if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
@@ -615,8 +615,9 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if func.name() == "main"
-            && *return_type != Type::Unit
+        // 'pub_allowed' also implies 'pub' is required on return types
+        if self.pub_allowed(func)
+            && return_type.as_ref() != &Type::Unit
             && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
@@ -647,6 +648,15 @@ impl<'a> Resolver<'a> {
             parameters: parameters.into(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
+        }
+    }
+
+    /// True if the 'pub' keyword is allowed on parameters in this function
+    fn pub_allowed(&self, func: &NoirFunction) -> bool {
+        if self.in_contract() {
+            !func.def.is_unconstrained && !func.def.is_open
+        } else {
+            func.name() == "main"
         }
     }
 
