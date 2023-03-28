@@ -6,6 +6,7 @@ members = [
     "crates/noirc_errors",
     "crates/noirc_driver",
     "crates/nargo",
+    "crates/nargo_core",
     "crates/fm",
     "crates/arena",
     "crates/noirc_abi",
@@ -28,6 +29,7 @@ arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
+nargo_core = { path = "crates/nargo_core" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }

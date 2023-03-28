@@ -12,7 +12,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-mod backends;
 pub mod cli;
 mod constants;
 mod errors;
@@ -20,7 +19,7 @@ mod git;
 mod manifest;
 mod resolver;
 
-use manifest::InvalidPackageError;
+use nargo_core::manifest::InvalidPackageError;
 
 fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")

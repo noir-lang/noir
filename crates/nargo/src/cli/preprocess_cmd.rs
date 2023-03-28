@@ -34,7 +34,7 @@ pub(crate) fn preprocess_with_path<P: AsRef<Path>>(
     preprocess_dir: P,
     circuit: &Circuit,
 ) -> Result<(PathBuf, PathBuf), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo_core::backends::ConcreteBackend;
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
     // Save a checksum of the circuit to compare against during proving and verification.

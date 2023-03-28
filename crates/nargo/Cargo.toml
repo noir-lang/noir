@@ -16,11 +16,11 @@ clap.workspace = true
 dirs.workspace = true
 url.workspace = true
 iter-extended.workspace = true
+nargo_core.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_abi.workspace = true
 acvm.workspace = true
-cfg-if.workspace = true
 toml.workspace = true
 serde.workspace = true
 thiserror.workspace = true
@@ -31,20 +31,11 @@ termcolor = "1.1.2"
 tempdir = "0.3.7"
 color-eyre = "0.6.2"
 
-
-# Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
-marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
-
 [dev-dependencies]
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
 
 [features]
-default = ["plonk_bn254"]
-# The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = ["aztec_backend"]
-marlin = ["marlin_arkworks_backend/bls12_381"]
-plonk_bn254_wasm = ["aztec_wasm_backend"]
+default = ["nargo_core/plonk_bn254"]
+

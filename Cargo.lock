@@ -2247,17 +2247,14 @@ dependencies = [
  "acvm 0.8.0",
  "assert_cmd",
  "assert_fs",
- "barretenberg_static_lib",
- "barretenberg_wasm",
  "build-data",
- "cfg-if 1.0.0",
  "clap 4.1.8",
  "color-eyre",
  "const_format",
  "dirs 4.0.0",
  "hex",
  "iter-extended",
- "marlin_arkworks_backend",
+ "nargo_core",
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",
@@ -2270,6 +2267,20 @@ dependencies = [
  "thiserror",
  "toml",
  "url",
+]
+
+[[package]]
+name = "nargo_core"
+version = "0.3.2"
+dependencies = [
+ "barretenberg_static_lib",
+ "barretenberg_wasm",
+ "cfg-if 1.0.0",
+ "marlin_arkworks_backend",
+ "rustc_version 0.4.0",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

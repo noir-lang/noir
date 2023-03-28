@@ -74,7 +74,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
             let compiled_program =
                 super::compile_cmd::compile_circuit(program_dir.as_ref(), compile_options)?;
 
-            let backend = crate::backends::ConcreteBackend;
+            let backend = nargo_core::backends::ConcreteBackend;
             let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
             (compiled_program, proving_key, verification_key)
         }
@@ -102,7 +102,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo_core::backends::ConcreteBackend;
     let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
 
     if check_proof {

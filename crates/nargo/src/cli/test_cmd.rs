@@ -31,7 +31,7 @@ fn run_tests(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo_core::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_manifest(program_dir, backend.np_language())?;
 
@@ -78,7 +78,7 @@ fn run_test(
     driver: &Driver,
     config: &CompileOptions,
 ) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo_core::backends::ConcreteBackend;
     let mut blocks = Blocks::default();
 
     let program = driver

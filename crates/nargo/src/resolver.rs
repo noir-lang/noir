@@ -4,15 +4,12 @@ use std::{
 };
 
 use acvm::Language;
+use nargo_core::manifest::{Dependency, PackageManifest};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use thiserror::Error;
 
-use crate::{
-    git::clone_git_repo,
-    manifest::{Dependency, PackageManifest},
-    InvalidPackageError,
-};
+use crate::{git::clone_git_repo, InvalidPackageError};
 
 /// Creates a unique folder name for a GitHub repo
 /// by using it's URL and tag
