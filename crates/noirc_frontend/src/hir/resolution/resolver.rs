@@ -610,7 +610,10 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if func.def.return_visibility != noirc_abi::AbiVisibility::Public && self.pub_allowed(func)
+        // 'pub_allowed' also implies 'pub' is required on return types
+        if self.pub_allowed(func)
+            && return_type.as_ref() != &Type::Unit
+            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
         }
