@@ -33,7 +33,7 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractVisibility, Generics, LValue, NoirStruct, Path, Pattern, Shared,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
     StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
@@ -360,16 +360,16 @@ impl<'a> Resolver<'a> {
         args: Vec<UnresolvedType>,
         new_variables: &mut Generics,
     ) -> Type {
+        if args.is_empty() {
+            if let Some(typ) = self.lookup_generic_or_global_type(&path) {
+                return typ;
+            }
+        }
+
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-
-            if args.is_empty() {
-                if let Some((name, var, _)) = self.find_generic(name) {
-                    return Type::NamedGeneric(var.clone(), name.clone());
-                }
-            }
 
             if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
@@ -405,6 +405,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
+        if path.segments.len() == 1 {
+            let name = &path.last_segment().0.contents;
+            if let Some((name, var, _)) = self.find_generic(name) {
+                return Some(Type::NamedGeneric(var.clone(), name.clone()));
+            }
+        }
+
+        // If we cannot find a local generic of the same name, try to look up a global
+        match self.path_resolver.resolve(self.def_maps, path.clone()) {
+            Ok(ModuleDefId::GlobalId(id)) => {
+                Some(Type::Constant(self.eval_global_as_array_length(id)))
+            }
+            _ => None,
+        }
+    }
+
     fn resolve_array_size(
         &mut self,
         length: Option<UnresolvedTypeExpression>,
@@ -428,22 +445,10 @@ impl<'a> Resolver<'a> {
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                if path.segments.len() == 1 {
-                    let name = &path.last_segment().0.contents;
-                    if let Some((name, var, _)) = self.find_generic(name) {
-                        return Type::NamedGeneric(var.clone(), name.clone());
-                    }
-                }
-
-                // If we cannot find a local generic of the same name, try to look up a global
-                if let Ok(ModuleDefId::GlobalId(id)) =
-                    self.path_resolver.resolve(self.def_maps, path.clone())
-                {
-                    Type::Constant(self.eval_global_as_array_length(id))
-                } else {
+                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
                     Type::Constant(0)
-                }
+                })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
@@ -635,7 +640,8 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
-            contract_visibility: self.handle_contract_visibility(func),
+            contract_function_type: self.handle_function_type(func),
+            is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
             parameters: parameters.into(),
@@ -644,22 +650,19 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn handle_contract_visibility(&mut self, func: &NoirFunction) -> Option<ContractVisibility> {
-        let mut contract_visibility = func.def.contract_visibility;
-
-        if self.in_contract() && contract_visibility.is_none() {
-            // The default visibility is 'secret' for contract functions without visibility modifiers
-            contract_visibility = Some(ContractVisibility::Secret);
+    fn handle_function_type(&mut self, func: &NoirFunction) -> Option<ContractFunctionType> {
+        if func.def.is_open {
+            if self.in_contract() {
+                Some(ContractFunctionType::Open)
+            } else {
+                self.push_err(ResolverError::ContractFunctionTypeInNormalFunction {
+                    span: func.name_ident().span(),
+                });
+                None
+            }
+        } else {
+            Some(ContractFunctionType::Secret)
         }
-
-        if !self.in_contract() && contract_visibility.is_some() {
-            contract_visibility = None;
-            self.push_err(ResolverError::ContractVisibilityInNormalFunction {
-                span: func.name_ident().span(),
-            })
-        }
-
-        contract_visibility
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
