@@ -22,9 +22,12 @@ CT::AggregationObject verify_proofs(Composer& composer,
                                     size_t const& num_private_call_public_inputs,
                                     size_t const& num_private_kernel_public_inputs)
 {
+    // compute P0, P1 for private function proof
     CT::AggregationObject aggregation_object = Aggregator::aggregate(
         &composer, private_inputs.private_call.vk, private_inputs.private_call.proof, num_private_call_public_inputs);
 
+    // computes P0, P1 for previous kernel proof
+    // AND accumulates all of it in P0_agg, P1_agg
     Aggregator::aggregate(&composer,
                           private_inputs.previous_kernel.vk,
                           private_inputs.previous_kernel.proof,
@@ -34,14 +37,29 @@ CT::AggregationObject verify_proofs(Composer& composer,
     return aggregation_object;
 }
 
+/**
+ * @brief fill in the initial `end` (AccumulatedData) values by copying
+ * contents from the previous iteration of this kernel.
+ *
+ * @param private_inputs contains the information from the previous kernel iteration
+ * as well as signed TX request and the private call information
+ * @param public_inputs should be empty here since it is being initialized in this call
+ */
 void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& public_inputs)
 {
+    // TODO: Ensure public inputs is empty here
     public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
 
     // Ensure the arrays are the same as previously, before we start pushing more data onto them in other functions
     // within this circuit:
     auto& end = public_inputs.end;
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
+
+    // TODO
+    // end.aggregation_object = start.aggregation_object;
+
+    // TODO
+    // end.private_call_count = start.private_call_count;
 
     end.new_commitments = start.new_commitments;
     end.new_nullifiers = start.new_nullifiers;
@@ -50,25 +68,38 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs
     end.public_call_stack = start.public_call_stack;
     end.l1_msg_stack = start.l1_msg_stack;
 
+    // TODO
+    // end.new_contracts = start.new_contracts;
+
     end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
+/**
+ * @brief Update the AccumulatedData with new commitments, nullifiers, contracts, etc
+ * and update its running callstack with all items in the current private-circuit/function's
+ * callstack.
+ */
 void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
+    // TODO: private call count
     const auto& new_commitments = private_call_public_inputs.new_commitments;
     const auto& new_nullifiers = private_call_public_inputs.new_nullifiers;
+
+    // TODO: const auto& new_contracts = private_call_public_inputs.new_contracts;
 
     const auto& is_static_call = private_call_public_inputs.call_context.is_static_call;
 
     // No state changes are allowed for static calls:
     is_static_call.must_imply(is_array_empty<Composer>(new_commitments) == true);
     is_static_call.must_imply(is_array_empty<Composer>(new_nullifiers) == true);
+    // TODO: is_static_call.must_imply(is_array_empty<Composer>(new_contracts) == true);
 
+    // TODO: name change (just contract_address)
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
 
-    { // commitments & nullifiers
+    { // commitments, nullifiers, and contracts
         std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
             siloed_new_commitments[i] =
@@ -85,12 +116,17 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
                                            CT::compress({ storage_contract_address.to_field(), new_nullifiers[i] },
                                                         GeneratorIndex::OUTER_NULLIFIER));
         }
+        // TODO contracts
 
+        // Add new commitments/etc to AggregatedData
         push_array_to_array<Composer>(siloed_new_commitments, public_inputs.end.new_commitments);
         push_array_to_array<Composer>(siloed_new_nullifiers, public_inputs.end.new_nullifiers);
+
+        // TODO contracts
     }
 
     { // call stacks
+        // copy the private function circuit's callstack into the AggregatedData
         auto& this_private_call_stack = private_call_public_inputs.private_call_stack;
         push_array_to_array<Composer>(this_private_call_stack, public_inputs.end.private_call_stack);
     }
@@ -110,6 +146,10 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     // }
 }
 
+/**
+ * @brief Ensure that the function/call-stack-item currently being processed by the kernel
+ * matches the one that the previous kernel iteration said should come next.
+ */
 void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
 {
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
@@ -121,6 +161,14 @@ void validate_this_private_call_hash(PrivateInputs<CT> const& private_inputs)
     this_private_call_hash.assert_equal(calculated_this_private_call_hash, "this private_call_hash does not reconcile");
 };
 
+/**
+ * @brief Ensure that the callstack inputs are consistent.
+ *
+ * @details The private function circuit will output a callstack containing just hashes
+ * of CallStackItems, but the kernel circuit also needs the actual item preimages.
+ * So here we just ensure that the callstack preimages in the kernel's private inputs
+ * matches the function's CallStackItem hashes.
+ */
 void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
 {
     auto& stack = private_inputs.private_call.call_stack_item.public_inputs.private_call_stack;
@@ -139,6 +187,7 @@ void validate_this_private_call_stack(PrivateInputs<CT> const& private_inputs)
 
 void validate_inputs(PrivateInputs<CT> const& private_inputs)
 {
+    // this callstack represents the function currently being processed
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
     this_call_stack_item.function_data.is_private.assert_equal(
@@ -146,11 +195,16 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
+    // base case: have not processed any functions yet
     const CT::boolean is_base_case = start.private_call_count == 0;
 
     // TODO: we might want to range-constrain the call_count to prevent some kind of overflow errors
     const CT::boolean is_recursive_case = !is_base_case;
 
+    // Grab stack lengths as output from the previous kernel iteration
+    // These lengths are calculated by counting entries until a non-zero one is encountered
+    // True array length is constant which is a property we need for circuit inputs,
+    // but we want to know "length" in terms of how many nonzero entries have been inserted
     CT::fr start_private_call_stack_length = array_length<Composer>(start.private_call_stack);
     CT::fr start_public_call_stack_length = array_length<Composer>(start.public_call_stack);
     CT::fr start_l1_msg_stack_length = array_length<Composer>(start.l1_msg_stack);
@@ -181,6 +235,11 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
         // TODO: Assert that the previous kernel data is empty. (Or rather, the verify_proof() function needs a valid
         // dummy proof and vk to complete execution, so actually what we want is for that mockvk to be
         // hard-coded into the circuit and assert that that is the one which has been used in the base case).
+        // kernel VK tree contains 16 VKs that would be used to verify kernel proofs depending on the
+        // number of public inputs each of them spits out.
+        // TODO (later): merkle membership check that the vk from the previous data is present at leaf 0.
+
+        // TODO: verify signed tx request against current function being called
     };
     is_base_case.must_imply(base_case_conditions);
 
@@ -192,20 +251,29 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
           "A constructor must be executed as the first tx in the recursion" },
         { start_private_call_stack_length != 0,
           "Cannot execute private kernel circuit with an empty private call stack" }
+        // TODO (later): assert that previous kernel VK matches VK for this input size
+        // TODO (later): membership proof of VK
     };
     is_recursive_case.must_imply(recursive_case_conditions);
+
+    // validate constructor hash
+    // generate contract address
+    // generate contract address nullifier and add to list
+    // create new contract data and add to list
+    // MAYBE: check other contract deployment data:
+    //        function tree, contracts root
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
+PublicInputs<NT> private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
 {
     const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
 
     // We'll be pushing data to this during execution of this circuit.
-    PublicInputs<CT> public_inputs{};
+    PublicInputs<CT> public_inputs = PublicInputs<NT>{}.to_circuit_type(composer);
 
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);
@@ -215,6 +283,8 @@ void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _privat
     validate_this_private_call_hash(private_inputs);
 
     validate_this_private_call_stack(private_inputs);
+
+    // TODO (later): do we need to validate this private_call_stack against end.private_call_stack?
 
     update_end_values(private_inputs, public_inputs);
 
@@ -227,7 +297,9 @@ void private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _privat
 
     public_inputs.end.aggregation_object = aggregation_object;
 
-    // public_inputs.set_public();
+    public_inputs.set_public();
+
+    return public_inputs.to_native_type<Composer>();
 };
 
 } // namespace aztec3::circuits::kernel::private_kernel

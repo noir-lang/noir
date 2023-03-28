@@ -35,11 +35,11 @@ template <typename NCT> struct NewContractData {
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
 
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
-        NewContractData<NativeTypes> new_contract_data = { to_native_type(contract_address),
-                                                           to_native_type(portal_contract_address),
-                                                           to_native_type(function_tree_root) };
+        NewContractData<NativeTypes> new_contract_data = { to_nt(contract_address),
+                                                           to_nt(portal_contract_address),
+                                                           to_nt(function_tree_root) };
 
         return new_contract_data;
     };

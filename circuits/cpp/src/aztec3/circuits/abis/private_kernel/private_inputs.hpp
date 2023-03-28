@@ -30,7 +30,7 @@ template <typename NCT> struct PrivateInputs {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         PrivateInputs<CircuitTypes<Composer>> private_inputs = {
-            // plonk::stdlib::schnorr::convert_signature(&composer, signature),
+            // TODO to_ct(signature),
             signed_tx_request.to_circuit_type(composer),
             previous_kernel.to_circuit_type(composer),
             private_call.to_circuit_type(composer),
