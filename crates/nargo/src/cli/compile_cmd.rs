@@ -74,16 +74,17 @@ fn save_and_preprocess_contract(
         // Save contract ABI to file using the contract ID.
         save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
 
-        for (function_name, contract_function) in &compiled_contract.functions {
+        for contract_function in &compiled_contract.functions {
             // Create a name which uniquely identifies this contract function
             // over multiple contracts.
-            let uniquely_identifying_program_name = format!("{}-{}", contract_id, function_name);
+            let uniquely_identifying_program_name =
+                format!("{}-{}", contract_id, contract_function.name);
             // Each program in a contract is preprocessed
             // Note: This can potentially be quite a long running process
             preprocess_with_path(
                 &uniquely_identifying_program_name,
                 circuit_dir,
-                &contract_function.function.circuit,
+                &contract_function.bytecode,
             )?;
         }
     }
