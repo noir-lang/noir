@@ -10,6 +10,8 @@ use crate::{
         node::{Instruction, Operation},
     },
 };
+use acvm::acir::circuit::opcodes::OracleData;
+use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::{Expression, Witness};
 
 mod operations;
@@ -156,10 +158,13 @@ impl Acir {
                         self.var_cache.update(ivar);
                     }
 
-                    //todo push oracle opcode:
-                    // inputs
-                    // outputs
-                    // name
+                    evaluator.push_opcode(Opcode::Oracle(OracleData {
+                        name: name.to_string(),
+                        inputs,
+                        input_values: Vec::new(),
+                        outputs,
+                        output_values: Vec::new(),
+                    }));
                 } else {
                     unreachable!();
                 }
