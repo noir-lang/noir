@@ -1,5 +1,5 @@
 import { BufferReader } from '../utils/buffer_reader.js';
-import { checkLength, range } from '../utils/jsUtils.js';
+import { assertLength, checkLength, range } from '../utils/jsUtils.js';
 import { Bufferable, numToUInt32BE, serializeToBuffer } from '../utils/serialize.js';
 
 abstract class Field {
@@ -183,6 +183,21 @@ export class AffineElement {
   static fromBuffer(buffer: Buffer | BufferReader): AffineElement {
     const reader = BufferReader.asReader(buffer);
     return new AffineElement(reader.readFq(), reader.readFq());
+  }
+}
+
+/**
+ * ECDSA signature used for transactions.
+ * @see cpp/barretenberg/cpp/src/barretenberg/crypto/ecdsa/ecdsa.hpp
+ */
+export class EcdsaSignature {
+  constructor(public r: Buffer, public s: Buffer) {
+    assertLength(this, 'r', 32);
+    assertLength(this, 's', 32);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.r, this.s);
   }
 }
 

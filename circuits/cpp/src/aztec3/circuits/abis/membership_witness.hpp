@@ -18,6 +18,21 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
     bool operator==(MembershipWitness<NCT, N> const&) const = default;
 
     static MembershipWitness<NCT, N> empty() { return { 0, std::array<fr, N>(N) }; };
+
+    template <typename Composer> MembershipWitness<CircuitTypes<Composer>, N> to_circuit_type(Composer& composer) const
+    {
+        static_assert((std::is_same<NativeTypes, NCT>::value));
+
+        // Capture the composer:
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
+
+        MembershipWitness<CircuitTypes<Composer>, N> witness = {
+            to_ct(leaf_index),
+            map(sibling_path, to_ct),
+        };
+
+        return witness;
+    }
 };
 
 template <typename NCT, unsigned int N> void read(uint8_t const*& it, MembershipWitness<NCT, N>& obj)

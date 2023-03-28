@@ -239,6 +239,9 @@ TEST(private_kernel_tests, test_deposit)
                 // .contract_leaf_membership_witness TODO
 
                 .portal_contract_address = escrow_portal_contract_address,
+
+                // TODO: MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT> function_leaf_membership_witness;
+                // TODO: MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness;
             },
     };
 

@@ -9,6 +9,7 @@
 #include "base_rollup/base_rollup_inputs.hpp"
 #include "base_rollup/base_rollup_public_inputs.hpp"
 #include "private_kernel/previous_kernel_data.hpp"
+#include "private_kernel/private_inputs.hpp"
 
 #include <aztec3/constants.hpp>
 
@@ -376,6 +377,11 @@ WASM_EXPORT const char* abis__test_roundtrip_reserialize_base_rollup_public_inpu
                                                                                    uint32_t* size)
 {
     return as_serialized_output<aztec3::circuits::abis::BaseRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs(uint8_t const* input, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::private_kernel::PrivateInputs<NT>>(input, size);
 }
 
 } // extern "C"

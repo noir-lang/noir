@@ -19,7 +19,6 @@ using std::is_same;
 
 template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
-    // typedef typename NCT::signature Signature;
 
     SignedTxRequest<NCT> signed_tx_request;
     PreviousKernelData<NCT> previous_kernel;
@@ -39,5 +38,33 @@ template <typename NCT> struct PrivateInputs {
         return private_inputs;
     };
 };
+
+template <typename NCT> void read(uint8_t const*& it, PrivateInputs<NCT>& private_inputs)
+{
+    using serialize::read;
+
+    read(it, private_inputs.signed_tx_request);
+    read(it, private_inputs.previous_kernel);
+    read(it, private_inputs.private_call);
+};
+
+template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateInputs<NCT> const& private_inputs)
+{
+    using serialize::write;
+
+    write(buf, private_inputs.signed_tx_request);
+    write(buf, private_inputs.previous_kernel);
+    write(buf, private_inputs.private_call);
+};
+
+template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateInputs<NCT> const& private_inputs)
+{
+    return os << "signed_tx_request:\n"
+              << private_inputs.signed_tx_request << "\n"
+              << "previous_kernel:\n"
+              << private_inputs.previous_kernel << "\n"
+              << "private_call:\n"
+              << private_inputs.private_call << "\n";
+}
 
 } // namespace aztec3::circuits::abis::private_kernel

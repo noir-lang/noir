@@ -78,7 +78,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PreviousKernelData
 
     write(buf, kernel_data.public_inputs);
     write(buf, kernel_data.proof);
-    write(buf, kernel_data.vk);
+    write(buf, *kernel_data.vk);
     write(buf, kernel_data.vk_index);
     write(buf, kernel_data.vk_path);
 };

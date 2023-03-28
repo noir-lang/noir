@@ -1,19 +1,23 @@
-import { assertLength, checkLength } from '../utils/jsUtils.js';
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
+  CONTRACT_TREE_HEIGHT,
+  EMITTED_EVENTS_LENGTH,
+  FUNCTION_TREE_HEIGHT,
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
+  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
   KERNEL_PRIVATE_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
+  PRIVATE_CALL_STACK_LENGTH,
   VK_TREE_HEIGHT,
-  EMITTED_EVENTS_LENGTH,
 } from './constants.js';
 import { FunctionData } from './function_data.js';
-import { AggregationObject, AztecAddress, EthAddress, Fr, UInt8Vector, UInt32 } from './shared.js';
-import { TxContext } from './tx.js';
+import { PrivateCallStackItem } from './private_call_stack_item.js';
+import { AggregationObject, AztecAddress, EthAddress, Fr, MembershipWitness, UInt32, UInt8Vector } from './shared.js';
+import { SignedTxRequest, TxContext } from './tx.js';
 import { VerificationKey } from './verification_key.js';
 
 export class OldTreeRoots {
@@ -142,7 +146,7 @@ export class PreviousKernelData {
     public vkIndex: UInt32, // the index of the kernel circuit's vk in a big tree of kernel circuit vks
     public vkSiblingPath: Fr[],
   ) {
-    checkLength(this.vkSiblingPath, VK_TREE_HEIGHT, 'vkSiblingPath');
+    assertLength(this, 'vkSiblingPath', VK_TREE_HEIGHT);
   }
 
   /**
@@ -151,5 +155,72 @@ export class PreviousKernelData {
    */
   toBuffer() {
     return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
+  }
+}
+
+/**
+ * Private call data.
+ * @see cpp/src/aztec3/circuits/abis/call_stack_item.hpp.
+ */
+export class PrivateCallData {
+  constructor(
+    public callStackItem: PrivateCallStackItem,
+    public privateCallStackPreimages: PrivateCallStackItem[],
+    public proof: UInt8Vector,
+    public vk: VerificationKey,
+    public functionLeafMembershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>,
+    public contractLeafMembershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
+    public portalContractAddress: EthAddress,
+  ) {
+    assertLength(this, 'privateCallStackPreimages', PRIVATE_CALL_STACK_LENGTH);
+  }
+
+  /**
+   * Serialize into a field array. Low-level utility.
+   * @param fields - Object with fields.
+   * @returns The array.
+   */
+  static getFields(fields: FieldsOf<PrivateCallData>) {
+    return [
+      // NOTE: Must have same order as CPP.
+      fields.callStackItem,
+      fields.privateCallStackPreimages,
+      fields.proof,
+      fields.vk,
+      fields.functionLeafMembershipWitness,
+      fields.contractLeafMembershipWitness,
+      fields.portalContractAddress,
+    ] as const;
+  }
+
+  static from(fields: FieldsOf<PrivateCallData>): PrivateCallData {
+    return new PrivateCallData(...PrivateCallData.getFields(fields));
+  }
+
+  /**
+   * Serialize this as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer(): Buffer {
+    return serializeToBuffer(...PrivateCallData.getFields(this));
+  }
+}
+
+/**
+ * Input to the private kernel circuit.
+ */
+export class PrivateKernelInputs {
+  constructor(
+    public signedTxRequest: SignedTxRequest,
+    public previousKernel: PreviousKernelData,
+    public privateCall: PrivateCallData,
+  ) {}
+
+  /**
+   * Serialize this as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(this.signedTxRequest, this.previousKernel, this.privateCall);
   }
 }

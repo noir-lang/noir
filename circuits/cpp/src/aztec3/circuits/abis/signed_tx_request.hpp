@@ -14,20 +14,25 @@ using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 
 template <typename NCT> struct SignedTxRequest {
-    TxRequest<NCT> tx_request;
-    // Signature<NCT> signature; // TODO: import some kind of signature
+    typedef typename NCT::ecdsa_signature Signature;
 
-    template <typename Composer> SignedTxRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    TxRequest<NCT> tx_request;
+    Signature signature;
+
+    template <typename Composer> SignedTxRequest<CircuitTypes<Composer>> to_circuit_type(Composer& /*composer*/) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         // auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
-        SignedTxRequest<CircuitTypes<Composer>> signed_tx_request = {
-            to_circuit_type(tx_request),
-        };
+        SignedTxRequest<CircuitTypes<Composer>> signed_tx_request;
+        // TODO: to_ct(signature) is yielding an error.
+        // = {
+        //     to_circuit_type(tx_request),
+        //     to_ct(signature)
+        // };
 
         return signed_tx_request;
     };
@@ -38,6 +43,7 @@ template <typename NCT> void read(uint8_t const*& it, SignedTxRequest<NCT>& sign
     using serialize::read;
 
     read(it, signed_tx_request.tx_request);
+    read(it, signed_tx_request.signature);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, SignedTxRequest<NCT> const& signed_tx_request)
@@ -45,11 +51,14 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, SignedTxRequest<NC
     using serialize::write;
 
     write(buf, signed_tx_request.tx_request);
+    write(buf, signed_tx_request.signature);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, SignedTxRequest<NCT> const& signed_tx_request)
 {
-    return os << "tx_request: " << signed_tx_request.tx_request << "\n";
+    return os << "tx_request:\n"
+              << signed_tx_request.tx_request << "\n"
+              << "signature: " << signed_tx_request.signature << "\n";
 }
 
 } // namespace aztec3::circuits::abis

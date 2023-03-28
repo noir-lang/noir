@@ -84,7 +84,7 @@ void read(uint8_t const*& it, CallStackItem<NCT, call_type>& call_stack_item)
 
     read(it, call_stack_item.contract_address);
     read(it, call_stack_item.function_data);
-    read(it, call_stack_item.public_inputs_hash);
+    read(it, call_stack_item.public_inputs);
 };
 
 template <typename NCT, CallType call_type>
@@ -94,7 +94,7 @@ void write(std::vector<uint8_t>& buf, CallStackItem<NCT, call_type> const& call_
 
     write(buf, call_stack_item.contract_address);
     write(buf, call_stack_item.function_data);
-    write(buf, call_stack_item.public_inputs_hash);
+    write(buf, call_stack_item.public_inputs);
 };
 
 template <typename NCT, CallType call_type>

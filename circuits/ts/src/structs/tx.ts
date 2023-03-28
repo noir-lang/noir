@@ -1,5 +1,8 @@
+import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { EthAddress, Fr } from './shared.js';
+import { ARGS_LENGTH } from './constants.js';
+import { FunctionData } from './function_data.js';
+import { AztecAddress, EcdsaSignature, EthAddress, Fr } from './shared.js';
 
 /**
  * Contract deployment data in a TxContext
@@ -46,5 +49,63 @@ export class TxContext {
       this.isContractDeployment,
       this.contractDeploymentData,
     );
+  }
+}
+
+/**
+ * Signed transaction request.
+ * @see cpp/src/aztec3/circuits/abis/signed_tx_request.hpp.
+ */
+export class SignedTxRequest {
+  constructor(public txRequest: TxRequest, public signature: EcdsaSignature) {}
+
+  /**
+   * Serialize as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(this.txRequest, this.signature);
+  }
+}
+
+/**
+ * Transaction request.
+ * @see cpp/src/aztec3/circuits/abis/tx_request.hpp.
+ */
+export class TxRequest {
+  constructor(
+    public from: AztecAddress,
+    public to: AztecAddress,
+    public functionData: FunctionData,
+    public args: Fr[],
+    public nonce: Fr,
+    public txContext: TxContext,
+    public chainId: Fr,
+  ) {
+    assertLength(this, 'args', ARGS_LENGTH);
+  }
+
+  static getFields(fields: FieldsOf<TxRequest>) {
+    return [
+      fields.from,
+      fields.to,
+      fields.functionData,
+      fields.args,
+      fields.nonce,
+      fields.txContext,
+      fields.chainId,
+    ] as const;
+  }
+
+  static from(fields: FieldsOf<TxRequest>): TxRequest {
+    return new TxRequest(...TxRequest.getFields(fields));
+  }
+
+  /**
+   * Serialize as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(...TxRequest.getFields(this));
   }
 }
