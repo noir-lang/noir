@@ -28,6 +28,7 @@ COPY key-store/package.json key-store/package.json
 COPY merkle-tree/package.json merkle-tree/package.json
 COPY noir-contracts/package.json noir-contracts/package.json
 COPY l1-contracts/package.json l1-contracts/package.json
+COPY barretenberg.js/package.json barretenberg.js/package.json
 COPY circuits.js/package.json circuits.js/package.json
 COPY p2p/package.json p2p/package.json
 COPY prover-client/package.json prover-client/package.json
