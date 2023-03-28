@@ -17,7 +17,6 @@ pub(crate) enum Opcode {
     ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
-    Zeroed,
 }
 
 impl std::fmt::Display for Opcode {
@@ -42,7 +41,6 @@ impl Opcode {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
             "arraysort" => Some(Opcode::Sort),
-            "zeroed" => Some(Opcode::Zeroed),
             _ => BlackBoxFunc::lookup(op_name).map(Opcode::LowLevel),
         }
     }
@@ -66,7 +64,6 @@ impl Opcode {
             }
             Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
-            Opcode::Zeroed => "zeroed",
         }
     }
 
@@ -95,7 +92,7 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort | Opcode::Zeroed => {
+            Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
                 BigUint::zero()
             } //pointers do not overflow
         }
@@ -131,7 +128,6 @@ impl Opcode {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
-            Opcode::Zeroed => (1, ctx.object_type(args[0])),
         }
     }
 }

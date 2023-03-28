@@ -131,14 +131,6 @@ pub(crate) fn evaluate(
                 unreachable!();
             }
         }
-        Opcode::Zeroed => {
-            let bit_size = ctx.zero();
-            let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianess, evaluator);
-            if let ObjectType::Pointer(a) = res_type {
-                memory_map.map_array(a, &outputs, ctx);
-            }
-        }
     }
 
     // If more than witness is returned,
