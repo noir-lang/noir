@@ -1,4 +1,4 @@
-import { AztecAddress, CallContext, ContractDeploymentData } from './circuits.js';
+import { AztecAddress, CallContext, ContractDeploymentData } from '@aztec/circuits.js';
 import { NoteLoadOracleInputs } from './db_oracle.js';
 
 export interface ACIRCallback {

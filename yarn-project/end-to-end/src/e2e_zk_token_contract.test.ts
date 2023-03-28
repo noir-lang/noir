@@ -1,37 +1,68 @@
-import { AztecAddress, AztecRPCClient, Contract, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { AztecNode } from '@aztec/aztec-node';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, ZERO_FR } from '@aztec/aztec.js';
+import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
+import { WalletProvider } from '@aztec/ethereum.js/provider';
+import { createDebugLogger } from '@aztec/foundation';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { createAztecRPCClient } from './create_aztec_rpc_client.js';
+import { createAztecNode } from './create_aztec_node.js';
+import { createAztecRpcServer } from './create_aztec_rpc_client.js';
+import { createProvider, deployRollupContract, deployYeeterContract } from './deploy_l1_contracts.js';
+
+const ETHEREUM_HOST = 'http://localhost:8545';
+const MNEMONIC = 'test test test test test test test test test test test junk';
+
+const logger = createDebugLogger('aztec:e2e_zk_token_contract');
 
 describe('e2e_zk_token_contract', () => {
-  let arc: AztecRPCClient;
+  let provider: WalletProvider;
+  let node: AztecNode;
+  let aztecRpcServer: AztecRPCServer;
+  let rollupAddress: EthAddress;
+  let yeeterAddress: EthAddress;
   let accounts: AztecAddress[];
   let contract: Contract;
+
+  beforeAll(async () => {
+    provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
+    const ethRpc = new EthereumRpc(provider);
+    logger('Deploying contracts...');
+    rollupAddress = await deployRollupContract(provider, ethRpc);
+    yeeterAddress = await deployYeeterContract(provider, ethRpc);
+    logger('Deployed contracts...');
+  });
+
+  beforeEach(async () => {
+    node = await createAztecNode(rollupAddress, yeeterAddress, ETHEREUM_HOST, provider.getPrivateKey(0)!);
+    aztecRpcServer = await createAztecRpcServer(1, node);
+    accounts = await aztecRpcServer.getAccounts();
+  });
+
+  afterEach(async () => {
+    await node.stop();
+    await aztecRpcServer.stop();
+  });
 
   const expectStorageSlot = async (accountIdx: number, expectedBalance: bigint) => {
     // We only generate 1 note in each test. Balance is the first field of the only note.
     // TBD - how to calculate storage slot?
-    const storageSlot = Fr.ZERO;
-    const [[balance]] = await arc.getStorageAt(contract.address, storageSlot);
-    console.log(`Account ${accountIdx} balance: ${balance}`);
+    const storageSlot = ZERO_FR;
+    const [[balance]] = await aztecRpcServer.getStorageAt(contract.address, storageSlot);
+    logger(`Account ${accountIdx} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
 
   const expectBalance = async (accountIdx: number, expectedBalance: bigint) => {
     const balance = await contract.methods.getBalance().call({ from: accounts[accountIdx] });
-    console.log(`Account ${accountIdx} balance: ${balance}`);
+    logger(`Account ${accountIdx} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
 
   const deployContract = async (initialBalance = 0n) => {
-    const deployer = new ContractDeployer(ZkTokenContractAbi, arc);
+    const deployer = new ContractDeployer(ZkTokenContractAbi, aztecRpcServer);
     const receipt = await deployer.deploy(initialBalance).send().getReceipt();
-    return new Contract(receipt.contractAddress!, ZkTokenContractAbi, arc);
+    return new Contract(receipt.contractAddress!, ZkTokenContractAbi, aztecRpcServer);
   };
-
-  beforeEach(async () => {
-    arc = await createAztecRPCClient(2);
-    accounts = await arc.getAccounts();
-  });
 
   /**
    * Milestone 1.3

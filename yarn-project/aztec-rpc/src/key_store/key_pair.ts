@@ -1,4 +1,5 @@
-import { AztecAddress, Signature } from '../circuits.js';
+import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { Signature } from '../circuits.js';
 import { randomBytes } from '../foundation.js';
 
 export interface KeyPair {

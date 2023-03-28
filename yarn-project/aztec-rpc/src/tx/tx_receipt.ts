@@ -1,11 +1,11 @@
 import { TxHash } from '@aztec/tx';
-import { AztecAddress } from '../circuits.js';
+import { AztecAddress } from '@aztec/circuits.js';
 
 export interface TxReceipt {
   txHash: TxHash;
   // txIndex: number;
-  blockHash: Buffer;
-  blockNumber: number;
+  blockHash: Buffer | undefined;
+  blockNumber: number | undefined;
   from: AztecAddress;
   to?: AztecAddress;
   contractAddress?: AztecAddress;

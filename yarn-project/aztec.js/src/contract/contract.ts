@@ -1,4 +1,5 @@
-import { AztecAddress, AztecRPCClient, ContractAbi } from '@aztec/aztec-rpc';
+import { AztecRPCClient, ContractAbi } from '@aztec/aztec-rpc';
+import { AztecAddress } from '@aztec/circuits.js';
 import { CallMethodOptions } from './call_method.js';
 import { SendMethodOptions } from './send_method.js';
 import { SentTx } from './sent_tx.js';

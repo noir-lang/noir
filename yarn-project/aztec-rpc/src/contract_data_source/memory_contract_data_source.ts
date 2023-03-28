@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress } from '../circuits.js';
+import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { ContractAbi } from '../noir.js';
 import { contractAbiToContractDao, ContractDao } from './contract_dao.js';
 import { ContractDataSource } from './contract_data_source.js';
@@ -26,7 +26,7 @@ export class MemoryContractDataSource implements ContractDataSource {
   }
 
   public getContract(address: AztecAddress) {
-    return Promise.resolve(this.contracts.find(c => c.address.equals(address)));
+    return Promise.resolve(this.contracts.find(c => c.address.toBuffer().equals(address.toBuffer())));
   }
 
   public async getCode(contractAddress: AztecAddress, functionSelector: Buffer) {

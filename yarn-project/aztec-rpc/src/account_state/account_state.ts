@@ -1,6 +1,5 @@
+import { AztecAddress } from '@aztec/circuits.js';
 import { TxHash } from '@aztec/tx';
-
-import { AztecAddress } from '../circuits.js';
 import { Database } from '../database/index.js';
 
 export class AccountState {

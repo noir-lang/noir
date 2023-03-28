@@ -1,5 +1,14 @@
 version: '3'
 services:
+  fork:
+    image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
+    entrypoint: 'anvil -p 8545 --host 0.0.0.0 --chain-id 1337'
+    ports:
+      - '8545:8545'
+
   end-to-end:
     image: aztecprotocol/end-to-end:latest
+    environment:
+      DEBUG: 'aztec:*'
+      ETHEREUM_HOST: http://fork:8545
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}

@@ -224,7 +224,7 @@ export class Archiver implements L2BlockSource {
     if (from > this.l2Blocks.length) {
       return Promise.resolve([]);
     }
-    const startIndex = from - 1;
+    const startIndex = from - INITIAL_ROLLUP_ID;
     const endIndex = startIndex + take;
     return Promise.resolve(this.l2Blocks.slice(startIndex, endIndex));
   }

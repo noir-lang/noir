@@ -7,7 +7,9 @@
     "build": "yarn clean && tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
-    "test": "./scripts/start_e2e.sh"
+    "test": "./scripts/start_e2e.sh",
+    "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test:integration:run\" \"anvil\"",
+    "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --runInBand --config jest.integration.config.json"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -25,6 +27,7 @@
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
+    "@aztec/ethereum.js": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@types/jest": "^29.4.0",
     "jest": "^28.1.3",
@@ -36,6 +39,7 @@
     "@jest/globals": "^29.4.3",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/node": "^18.7.23",
+    "concurrently": "^7.6.0",
     "ts-node": "^10.9.1"
   }
 }

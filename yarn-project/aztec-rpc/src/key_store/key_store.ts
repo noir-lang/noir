@@ -1,4 +1,5 @@
-import { AztecAddress, Signature, TxRequest } from '../circuits.js';
+import { AztecAddress, TxRequest } from '@aztec/circuits.js';
+import { Signature } from '../circuits.js';
 
 export interface KeyStore {
   addAccount(): Promise<AztecAddress>;
