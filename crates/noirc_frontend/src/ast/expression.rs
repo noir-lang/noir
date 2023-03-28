@@ -313,9 +313,11 @@ pub struct FunctionDefinition {
     // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub attribute: Option<Attribute>,
 
-    // The contract visibility is always None if the function is not in a contract.
-    // Otherwise, it is 'secret' (by default), 'open', or 'unsafe'.
-    pub contract_visibility: Option<ContractVisibility>,
+    /// True if this function was defined with the 'open' keyword
+    pub is_open: bool,
+
+    /// True if this function was defined with the 'unconstrained' keyword
+    pub is_unconstrained: bool,
 
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
@@ -327,20 +329,15 @@ pub struct FunctionDefinition {
 
 /// Describes the types of smart contract functions that are allowed.
 /// - All Noir programs in the non-contract context can be seen as `Secret`.
-/// - It may be possible to have `unsafe` functions in regular Noir programs.
-///   For now we leave it as a property of only contract functions.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum ContractVisibility {
+pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
     Secret,
     /// This function will be executed in a public
     /// context.
     Open,
-    /// A function which is non-deterministic
-    /// and does not require any constraints.
-    Unsafe,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
