@@ -20,7 +20,7 @@ pub(crate) enum Opcode {
     ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
-    Oracle(CopyString, FuncId, NodeId),
+    Oracle(CopyString, FuncId, NodeId /*predicate*/),
 }
 
 impl std::fmt::Display for Opcode {
