@@ -1,8 +1,9 @@
+import { Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from './base_rollup.js';
 import { VK_TREE_HEIGHT } from './constants.js';
-import { AggregationObject, Fr, UInt32, UInt8Vector, RollupTypes } from './shared.js';
+import { AggregationObject, UInt32, UInt8Vector, RollupTypes } from './shared.js';
 import { VerificationKey } from './verification_key.js';
 
 export class PreviousRollupData {

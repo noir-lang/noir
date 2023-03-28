@@ -2,7 +2,8 @@ import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { ARGS_LENGTH } from './constants.js';
 import { FunctionData } from './function_data.js';
-import { AztecAddress, EcdsaSignature, EthAddress, Fr } from './shared.js';
+import { EcdsaSignature } from './shared.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 
 /**
  * Contract deployment data in a TxContext

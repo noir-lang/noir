@@ -1,3 +1,4 @@
+import { EthAddress, Fq, Fr, AztecAddress } from '@aztec/foundation';
 import { CallContext, PrivateCircuitPublicInputs } from '../index.js';
 import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from '../structs/base_rollup.js';
 import {
@@ -37,13 +38,9 @@ import {
   AffineElement,
   AggregationObject,
   ComposerType,
-  EthAddress,
-  Fq,
-  Fr,
   MembershipWitness,
   UInt8Vector,
   RollupTypes,
-  AztecAddress,
   EcdsaSignature,
 } from '../structs/shared.js';
 import { ContractDeploymentData, SignedTxRequest, TxContext, TxRequest } from '../structs/tx.js';
@@ -79,7 +76,7 @@ export function makeAccumulatedData(seed = 1): AccumulatedData {
 }
 
 export function makeNewContractData(seed = 1): NewContractData {
-  return new NewContractData(fr(seed), makeEthAddress(seed + 1), fr(seed + 2));
+  return new NewContractData(makeAztecAddress(seed), makeEthAddress(seed + 1), fr(seed + 2));
 }
 
 export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
@@ -177,7 +174,7 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
 
 export function makeCallStackItem(seed = 1): PrivateCallStackItem {
   return new PrivateCallStackItem(
-    fr(seed),
+    makeAztecAddress(seed),
     new FunctionData(seed + 0x1, true, true),
     makePrivateCircuitPublicInputs(seed + 0x10),
   );
@@ -186,8 +183,8 @@ export function makeCallStackItem(seed = 1): PrivateCallStackItem {
 export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicInputs {
   return PrivateCircuitPublicInputs.from({
     callContext: new CallContext(
-      fr(seed + 1),
-      fr(seed + 2),
+      makeAztecAddress(seed + 1),
+      makeAztecAddress(seed + 2),
       new EthAddress(numToUInt32BE(seed + 3, /* eth address is 20 bytes */ 20)),
       true,
       true,
@@ -238,7 +235,7 @@ export function makeEthAddress(seed = 1): EthAddress {
 }
 
 export function makeAztecAddress(seed = 1): AztecAddress {
-  return fr(seed);
+  return new AztecAddress(fr(seed).toBuffer());
 }
 
 export function makeEcdsaSignature(seed = 1): EcdsaSignature {

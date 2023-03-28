@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { Fq, Fr } from '../primitives/fields.js';
+import { Fq, Fr } from '../fields/fields.js';
 import { BufferReader } from './buffer_reader.js';
 import { serializeBufferArrayToVector } from './free_funcs.js';
 

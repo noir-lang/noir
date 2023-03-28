@@ -24,7 +24,7 @@ export class ContractData {
    * @returns Encoded buffer.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.aztecAddress, this.ethAddress.buffer);
+    return serializeToBuffer(this.aztecAddress, this.ethAddress.toBuffer());
   }
 
   /**

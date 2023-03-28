@@ -1,2 +1,2 @@
-export * from './buffer_reader.js';
 export * from './serialize.js';
+export { BufferReader } from '@aztec/foundation';

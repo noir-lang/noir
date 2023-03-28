@@ -1,9 +1,10 @@
+import { Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AppendOnlyTreeSnapshot } from './base_rollup.js';
 import { CONTRACT_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
 import { PreviousRollupData } from './merge_rollup.js';
-import { AggregationObject, Fr } from './shared.js';
+import { AggregationObject } from './shared.js';
 
 export class RootRollupInputs {
   constructor(

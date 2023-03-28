@@ -1,4 +1,4 @@
-import { Fr, Fq } from '../primitives/fields.js';
+import { Fr, Fq } from '../fields/fields.js';
 
 export class BufferReader {
   private index: number;

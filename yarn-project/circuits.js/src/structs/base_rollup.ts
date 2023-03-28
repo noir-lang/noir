@@ -1,4 +1,4 @@
-import { BufferReader } from '../utils/buffer_reader.js';
+import { BufferReader, Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
@@ -8,7 +8,7 @@ import {
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from './constants.js';
 import { PreviousKernelData } from './kernel.js';
-import { AggregationObject, Fr, MembershipWitness, RollupTypes, UInt32 } from './shared.js';
+import { AggregationObject, MembershipWitness, RollupTypes, UInt32 } from './shared.js';
 
 export class NullifierLeafPreimage {
   constructor(public leafValue: Fr, public nextValue: Fr, public nextIndex: UInt32) {}

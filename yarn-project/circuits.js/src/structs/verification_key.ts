@@ -1,5 +1,6 @@
+import { Fr } from '@aztec/foundation';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { ComposerType, Fr } from './shared.js';
+import { ComposerType } from './shared.js';
 
 /**
  * Curve data.

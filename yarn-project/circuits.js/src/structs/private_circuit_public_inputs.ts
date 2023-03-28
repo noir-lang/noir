@@ -1,3 +1,4 @@
+import { Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
@@ -11,7 +12,6 @@ import {
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
 } from './constants.js';
-import { Fr } from './shared.js';
 import { ContractDeploymentData } from './tx.js';
 
 /**

@@ -17,7 +17,7 @@
     "./json-rpc": "./dest/json-rpc/index.js",
     "./log": "./dest/log/index.js",
     "./mutex": "./dest/mutex/index.js",
-    "./primitives": "./dest/primitives/index.js",
+    "./fields": "./dest/fields/index.js",
     "./retry": "./dest/retry/index.js",
     "./running-promise": "./dest/running-promise/index.js",
     "./serialize": "./dest/serialize/index.js",

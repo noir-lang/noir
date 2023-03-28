@@ -16,9 +16,10 @@ import {
 } from './constants.js';
 import { FunctionData } from './function_data.js';
 import { PrivateCallStackItem } from './private_call_stack_item.js';
-import { AggregationObject, AztecAddress, EthAddress, Fr, MembershipWitness, UInt32, UInt8Vector } from './shared.js';
+import { AggregationObject, MembershipWitness, UInt32, UInt8Vector } from './shared.js';
 import { SignedTxRequest, TxContext } from './tx.js';
 import { VerificationKey } from './verification_key.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 
 export class OldTreeRoots {
   constructor(

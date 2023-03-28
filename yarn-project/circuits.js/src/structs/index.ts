@@ -9,3 +9,4 @@ export * from './root_rollup.js';
 export * from './shared.js';
 export * from './tx.js';
 export * from './verification_key.js';
+export { Fr, Fq, AztecAddress, EthAddress } from '@aztec/foundation';

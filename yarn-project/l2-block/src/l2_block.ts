@@ -218,7 +218,8 @@ export class L2Block {
       arr
         .map(
           cd =>
-            `(0x${cd.aztecAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')}, 0x${cd.ethAddress.buffer
+            `(0x${cd.aztecAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')}, 0x${cd.ethAddress
+              .toBuffer()
               .subarray(0, maxBufferSize)
               .toString('hex')})`,
         )
