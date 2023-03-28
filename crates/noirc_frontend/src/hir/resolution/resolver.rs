@@ -826,6 +826,14 @@ impl<'a> Resolver<'a> {
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
             }),
+            ExpressionKind::Variable(path) => {
+                // If the Path is being used as an Expression, then it is referring to a global from a separate module
+                // Otherwise, then it is referring to an Identifier
+                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+                // If the expression is a singular indent, we search the resolver's current scope as normal.
+                let hir_ident = self.get_ident_from_path(path);
+                HirExpression::Ident(hir_ident)
+            }
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
@@ -897,14 +905,6 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Variable(path) => {
-                // If the Path is being used as an Expression, then it is referring to a global from a separate module
-                // Otherwise, then it is referring to an Identifier
-                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-                // If the expression is a singular indent, we search the resolver's current scope as normal.
-                let hir_ident = self.get_ident_from_path(path);
-                HirExpression::Ident(hir_ident)
-            }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();

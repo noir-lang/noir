@@ -119,7 +119,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    let p = then_commit(p, literal_or_constructor(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
@@ -942,10 +942,7 @@ fn field_name() -> impl NoirParser<Ident> {
     }))
 }
 
-fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
+fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
     let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
         .at_least(1)
@@ -975,6 +972,10 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Str(s) => ExpressionKind::string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
+}
+
+fn literal_or_constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
+    literal().or(constructor(expr_parser))
 }
 
 #[cfg(test)]
