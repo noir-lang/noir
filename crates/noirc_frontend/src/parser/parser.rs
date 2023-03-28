@@ -119,7 +119,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal_or_constructor(expression()).map_with_span(Expression::new));
+    let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
@@ -974,8 +974,8 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn literal_or_constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
-    literal().or(constructor(expr_parser))
+fn literal_or_collection(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
+    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]

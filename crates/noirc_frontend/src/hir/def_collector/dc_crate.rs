@@ -149,11 +149,13 @@ impl DefCollector {
             }
         }
 
+        // Must resolve structs before we resolve globals.
+        resolve_structs(context, def_collector.collected_types, crate_id, errors);
+
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
-
-        resolve_structs(context, def_collector.collected_types, crate_id, errors);
+        let file_global_ids =
+            resolve_globals(context, def_collector.collected_globals, crate_id, errors);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -180,6 +182,7 @@ impl DefCollector {
         );
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
+
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -257,6 +260,7 @@ fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, StmtId)> {
     vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
@@ -273,6 +277,7 @@ fn resolve_globals(
         let name = global.stmt_def.pattern.name_ident().clone();
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
+        extend_errors(errors, global.file_id, resolver.take_errors());
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 

@@ -341,7 +341,10 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda),
 
-            HirExpression::MethodCall(_) | HirExpression::Error => unreachable!(),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Encountered HirExpression::MethodCall during monomorphization")
+            }
+            HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
         }
     }
 
