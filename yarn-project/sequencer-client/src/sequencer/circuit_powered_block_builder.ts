@@ -24,16 +24,16 @@ import { Simulator } from '../simulator/index.js';
 import { VerificationKeys } from './vks.js';
 
 // REFACTOR: Move this somewhere generic, and do something less horrible without going through hex strings.
-const frToBigInt = (fr: Fr) => BigInt(`0x${fr.toBuffer().toString('hex')}`);
-const bigintToFr = (num: bigint) => new Fr(Buffer.from(num.toString(16), 'hex'));
+const frToBigInt = (fr: Fr) => fr.value;
+const bigintToFr = (num: bigint) => new Fr(num);
 const bigintToNum = (num: bigint) => Number(num);
 
 // Denotes fields that are not used now, but will be in the future
-const FUTURE_FR = new Fr(0);
+const FUTURE_FR = new Fr(0n);
 const FUTURE_NUM = 0;
 
 // Denotes fields that should be deleted
-const DELETE_FR = new Fr(0);
+const DELETE_FR = new Fr(0n);
 const DELETE_ANY: any = {};
 
 export class CircuitPoweredBlockBuilder {
@@ -62,7 +62,7 @@ export class CircuitPoweredBlockBuilder {
       ].map(tree => this.getTreeSnapshot(tree)),
     );
 
-    const [circuitsOutput, _circuitsProof] = await this.runCircuits(tx);
+    const [circuitsOutput] = await this.runCircuits(tx);
 
     const {
       endPrivateDataTreeSnapshot,
@@ -87,27 +87,22 @@ export class CircuitPoweredBlockBuilder {
       newCommitments: tx.data.end.newCommitments,
       newNullifiers: tx.data.end.newNullifiers,
       newContracts: tx.data.end.newContracts.map(x => x.functionTreeRoot),
-      newContractData: tx.data.end.newContracts.map(
-        n => new ContractData(new Fr(n.contractAddress.toBuffer()), n.portalContractAddress),
-      ),
+      newContractData: tx.data.end.newContracts.map(n => new ContractData(n.contractAddress, n.portalContractAddress)),
     });
     return l2block;
   }
 
   private async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {
     const treeInfo = await this.db.getTreeInfo(id);
-    return new AppendOnlyTreeSnapshot(new Fr(treeInfo.root), Number(treeInfo.size));
+    return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
   private async runCircuits(tx: Tx): Promise<[RootRollupPublicInputs, Proof]> {
     const emptyTx = makeEmptyTx();
 
-    const [_baseRollupInputLeft, baseRollupOutputLeft, baseRollupProofLeft] = await this.baseRollupCircuit(tx, emptyTx);
+    const [, baseRollupOutputLeft, baseRollupProofLeft] = await this.baseRollupCircuit(tx, emptyTx);
 
-    const [_baseRollupInputRight, baseRollupOutputRight, baseRollupProofRight] = await this.baseRollupCircuit(
-      emptyTx,
-      emptyTx,
-    );
+    const [, baseRollupOutputRight, baseRollupProofRight] = await this.baseRollupCircuit(emptyTx, emptyTx);
 
     const rootInput = await this.getRootRollupInput(
       baseRollupOutputLeft,
@@ -189,7 +184,7 @@ export class CircuitPoweredBlockBuilder {
     return new MembershipWitness(
       height,
       Number(index),
-      path.data.map(b => new Fr(b)),
+      path.data.map(b => Fr.fromBuffer(b)),
     );
   }
 
@@ -221,7 +216,7 @@ export class CircuitPoweredBlockBuilder {
       witness: new MembershipWitness(
         NULLIFIER_TREE_HEIGHT,
         prevValueIndex.index,
-        prevValueSiblingPath.data.map(b => new Fr(b)),
+        prevValueSiblingPath.data.map(b => Fr.fromBuffer(b)),
       ),
     };
   }

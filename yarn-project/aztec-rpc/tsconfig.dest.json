@@ -2,6 +2,9 @@
   "extends": ".",
   "references": [
     {
+      "path": "../barretenberg.js/tsconfig.dest.json"
+    },
+    {
       "path": "../acir-simulator/tsconfig.dest.json"
     },
     {

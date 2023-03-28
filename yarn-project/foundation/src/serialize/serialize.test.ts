@@ -1,4 +1,5 @@
 import { randomBytes } from '../crypto/index.js';
+import { Fr } from '../index.js';
 import {
   serializeBufferToVector,
   deserializeBufferFromVector,
@@ -39,15 +40,15 @@ describe('serialize', () => {
   });
 
   it('deserialize field', () => {
-    const fieldBuf = randomBytes(32);
+    const field = Fr.random();
 
-    const recovered = deserializeField(fieldBuf);
-    expect(recovered.elem).toEqual(fieldBuf);
+    const recovered = deserializeField(field.toBuffer());
+    expect(recovered.elem).toEqual(field);
     expect(recovered.adv).toBe(32);
 
-    const paddedBuf = Buffer.concat([randomBytes(10), fieldBuf, randomBytes(20)]);
+    const paddedBuf = Buffer.concat([randomBytes(10), field.toBuffer(), randomBytes(20)]);
     const recovered2 = deserializeField(paddedBuf, 10);
-    expect(recovered2.elem).toEqual(fieldBuf);
+    expect(recovered2.elem).toEqual(field);
     expect(recovered2.adv).toBe(32);
   });
 
@@ -72,8 +73,8 @@ describe('serialize', () => {
     expect(recoveredUintArr2.adv).toEqual(4 + 4 * 3);
 
     // Array of field
-    const fieldArr = [randomBytes(32), randomBytes(32), randomBytes(32)];
-    const fieldArrVec = serializeBufferArrayToVector(fieldArr);
+    const fieldArr = [Fr.random(), Fr.random(), Fr.random()];
+    const fieldArrVec = serializeBufferArrayToVector(fieldArr.map(fr => fr.toBuffer()));
     expect(fieldArrVec.length).toBe(4 + 32 * 3);
 
     const recoveredFieldArr = deserializeArrayFromVector(deserializeField, fieldArrVec);

@@ -2,7 +2,7 @@ import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.
 import { L2BlockSource, L2Block, ContractData } from '@aztec/l2-block';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
-import { randomBytes, sleep } from '@aztec/foundation';
+import { AztecAddress, randomBytes, sleep } from '@aztec/foundation';
 import { jest } from '@jest/globals';
 import { AppendOnlyTreeSnapshot, EthAddress, Fr } from '@aztec/circuits.js';
 import { MerkleTreeDb, MerkleTreeId } from '../index.js';
@@ -25,11 +25,11 @@ const consumeNextBlocks = () => {
 };
 
 const getMockTreeSnapshot = () => {
-  return new AppendOnlyTreeSnapshot(new Fr(randomBytes(32)), 16);
+  return new AppendOnlyTreeSnapshot(Fr.random(), 16);
 };
 
 const getMockContractData = () => {
-  return new ContractData(new Fr(randomBytes(32)), new EthAddress(randomBytes(20)));
+  return new ContractData(AztecAddress.random(), new EthAddress(randomBytes(20)));
 };
 
 const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
@@ -45,9 +45,9 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
     getMockTreeSnapshot(),
     getMockTreeSnapshot(),
     getMockTreeSnapshot(),
-    [new Fr(randomBytes(32))],
-    [new Fr(randomBytes(32))],
-    newContractsCommitments?.map(x => new Fr(x)) ?? [new Fr(randomBytes(32))],
+    [Fr.random()],
+    [Fr.random()],
+    newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
     [getMockContractData()],
   );
   return block;

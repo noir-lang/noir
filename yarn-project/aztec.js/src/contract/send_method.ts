@@ -29,7 +29,7 @@ export class SendMethod {
     const { from } = { ...this.defaultOptions, ...options };
     this.txRequest = await this.arc.createTxRequest(
       this.entry.encodeABI(),
-      this.entry.encodeParameters(this.args).map(p => new Fr(p)),
+      this.entry.encodeParameters(this.args).map(p => Fr.fromBuffer(p)),
       this.contractAddress,
       from || AztecAddress.ZERO,
     );

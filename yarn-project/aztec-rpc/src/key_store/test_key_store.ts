@@ -1,5 +1,5 @@
 import { TxRequest } from '@aztec/circuits.js';
-import { ZERO_FR } from '../circuits.js';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore } from './key_store.js';
 
@@ -23,7 +23,7 @@ export class TestKeyStore implements KeyStore {
   }
 
   signTxRequest(txRequest: TxRequest) {
-    const account = txRequest.from.toBuffer().equals(ZERO_FR.toBuffer())
+    const account = txRequest.from.equals(AztecAddress.ZERO)
       ? this.accounts[0]
       : this.accounts.find(a => a.getPublicKey().toBuffer().equals(txRequest.from.toBuffer()));
     if (!account) {

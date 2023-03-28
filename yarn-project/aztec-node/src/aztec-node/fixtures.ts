@@ -37,16 +37,16 @@ export const createCircuitEthAddress = () => {
 export const createRandomCommitments = (num: number) => {
   return Array(num)
     .fill(0)
-    .map(() => new Fr(randomBytes(32)));
+    .map(() => Fr.random());
 };
 
 export const createOptionallyRetrievedData = () => {
   const func = new FunctionData(0, true, true);
   return new OptionallyRevealedData(
-    new Fr(0),
+    new Fr(0n),
     func,
     createRandomCommitments(EMITTED_EVENTS_LENGTH),
-    new Fr(0),
+    new Fr(0n),
     createCircuitEthAddress(),
     true,
     true,
@@ -62,7 +62,7 @@ export const createOptionallyRetrievedDatas = (num: number) => {
 };
 
 export const createNewContractData = () => {
-  return new NewContractData(AztecAddress.random(), createCircuitEthAddress(), new Fr(randomBytes(32)));
+  return new NewContractData(AztecAddress.random(), createCircuitEthAddress(), Fr.random());
 };
 
 export const createNewContractDatas = (num: number) => {
@@ -72,25 +72,25 @@ export const createNewContractDatas = (num: number) => {
 };
 
 export const createTx = () => {
-  const oldTreeRoots = new OldTreeRoots(new Fr(0), new Fr(0), new Fr(0), new Fr(0));
+  const oldTreeRoots = new OldTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
   const contractDeploymentData = new ContractDeploymentData(
-    new Fr(randomBytes(32)),
-    new Fr(randomBytes(32)),
-    new Fr(randomBytes(32)),
+    Fr.random(),
+    Fr.random(),
+    Fr.random(),
     createCircuitEthAddress(),
   );
   const txContext = new TxContext(false, false, true, contractDeploymentData);
   const constantData = new ConstantData(oldTreeRoots, txContext);
   const aggregationObject = new AggregationObject(
-    new AffineElement(new Fq(0), new Fq(0)),
-    new AffineElement(new Fq(0), new Fq(0)),
+    new AffineElement(new Fq(0n), new Fq(0n)),
+    new AffineElement(new Fq(0n), new Fq(0n)),
     [],
     [],
     false,
   );
   const accumulatedData = new AccumulatedData(
     aggregationObject,
-    new Fr(0),
+    new Fr(0n),
     createRandomCommitments(KERNEL_NEW_COMMITMENTS_LENGTH),
     createRandomCommitments(KERNEL_NEW_NULLIFIERS_LENGTH),
     createRandomCommitments(KERNEL_PRIVATE_CALL_STACK_LENGTH),

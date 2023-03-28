@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./dest/index.js",
   "scripts": {
-    "build": "yarn clean && tsc -b tsconfig.json",
+    "build": "tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
     "test": "./scripts/start_e2e.sh",

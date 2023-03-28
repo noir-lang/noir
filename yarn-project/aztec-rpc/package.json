@@ -9,7 +9,7 @@
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b tsconfig.dest.json",
+    "build": "tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 10 ./src",
@@ -34,6 +34,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/kernel-prover": "workspace:^",
     "@aztec/tx": "workspace:^",
+    "browserify-cipher": "^1.0.1",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"
   },

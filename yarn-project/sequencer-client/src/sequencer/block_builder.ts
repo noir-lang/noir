@@ -6,13 +6,14 @@ import {
   KERNEL_NEW_NULLIFIERS_LENGTH,
   AppendOnlyTreeSnapshot,
   NewContractData,
+  AztecAddress,
 } from '@aztec/circuits.js';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { Tx } from '@aztec/tx';
 import { createDebugLogger } from '@aztec/foundation';
 
 const mapContractData = (n: NewContractData) => {
-  const contractData = new ContractData(new Fr(n.contractAddress.toBuffer()), n.portalContractAddress);
+  const contractData = new ContractData(AztecAddress.fromBuffer(n.contractAddress.toBuffer()), n.portalContractAddress);
   return contractData;
 };
 
@@ -66,9 +67,9 @@ export class BlockBuilder {
       endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       startTreeOfHistoricContractTreeRootsSnapshot,
       endTreeOfHistoricContractTreeRootsSnapshot,
-      newCommitments: this.dataTreeLeaves.map(b => new Fr(b)),
-      newNullifiers: this.nullifierTreeLeaves.map(b => new Fr(b)),
-      newContracts: this.contractTreeLeaves.map(b => new Fr(b)),
+      newCommitments: this.dataTreeLeaves.map(b => Fr.fromBuffer(b)),
+      newNullifiers: this.nullifierTreeLeaves.map(b => Fr.fromBuffer(b)),
+      newContracts: this.contractTreeLeaves.map(b => Fr.fromBuffer(b)),
       newContractData: this.tx.data.end.newContracts.map(mapContractData),
     });
     return l2block;
@@ -76,7 +77,7 @@ export class BlockBuilder {
 
   private async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {
     const treeInfo = await this.db.getTreeInfo(id);
-    return new AppendOnlyTreeSnapshot(new Fr(treeInfo.root), Number(treeInfo.size));
+    return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
   private async updateTrees() {

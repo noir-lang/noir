@@ -51,7 +51,7 @@ export class AcirSimulator {
     const randomFields = (num: number) => {
       return Array(num)
         .fill(0)
-        .map(() => new Fr(0));
+        .map(() => new Fr(0n));
     };
 
     const publicInputs = new PrivateCircuitPublicInputs(

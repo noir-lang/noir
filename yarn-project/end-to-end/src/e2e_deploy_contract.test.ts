@@ -3,7 +3,7 @@ import { AztecAddress, AztecRPCServer, ContractDeployer, Fr } from '@aztec/aztec
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { createDebugLogger, randomBytes } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { createAztecNode } from './create_aztec_node.js';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
@@ -73,7 +73,7 @@ describe('e2e_deploy_contract', () => {
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
    */
   it.skip('should not deploy a contract with the same salt twice', async () => {
-    const contractAddressSalt = new Fr(randomBytes(32));
+    const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(abi, aztecRpcServer, { contractAddressSalt });
 
     {

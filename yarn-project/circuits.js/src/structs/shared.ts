@@ -1,7 +1,7 @@
 import { BufferReader } from '@aztec/foundation';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { assertLength, checkLength, range } from '../utils/jsUtils.js';
-import { Bufferable, numToUInt32BE, serializeToBuffer } from '../utils/serialize.js';
+import { Bufferable, serializeToBuffer } from '../utils/serialize.js';
 
 export class MembershipWitness<N extends number> {
   constructor(pathSize: N, public leafIndex: UInt32, public siblingPath: Fr[]) {
@@ -16,7 +16,7 @@ export class MembershipWitness<N extends number> {
     return new MembershipWitness(
       size,
       start,
-      range(size, start).map(x => new Fr(numToUInt32BE(x, 32))),
+      range(size, start).map(x => new Fr(BigInt(x))),
     );
   }
 }

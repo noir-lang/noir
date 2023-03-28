@@ -1,4 +1,5 @@
 import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
+import { Fr } from '../fields/index.js';
 
 // For serializing bool.
 export function boolToByte(b: boolean) {
@@ -48,7 +49,7 @@ export function serializeBigInt(n: bigint, width = 32) {
 }
 
 export function deserializeBigInt(buf: Buffer, offset = 0, width = 32) {
-  return { elem: toBigIntBE(buf.slice(offset, offset + width)), adv: width };
+  return { elem: toBigIntBE(buf.subarray(offset, offset + width)), adv: width };
 }
 
 export function serializeDate(date: Date) {
@@ -58,7 +59,7 @@ export function serializeDate(date: Date) {
 export function deserializeBufferFromVector(vector: Buffer, offset = 0) {
   const length = vector.readUInt32BE(offset);
   const adv = 4 + length;
-  return { elem: vector.slice(offset + 4, offset + adv), adv };
+  return { elem: vector.subarray(offset + 4, offset + adv), adv };
 }
 
 export function deserializeBool(buf: Buffer, offset = 0) {
@@ -78,7 +79,7 @@ export function deserializeInt32(buf: Buffer, offset = 0) {
 
 export function deserializeField(buf: Buffer, offset = 0) {
   const adv = 32;
-  return { elem: buf.slice(offset, offset + adv), adv };
+  return { elem: Fr.fromBuffer(buf.subarray(offset, offset + adv)), adv };
 }
 
 // For serializing an array of fixed length elements.

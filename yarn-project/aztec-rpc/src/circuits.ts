@@ -1,8 +1,6 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation';
 
-export const ZERO_FR = new Fr(Buffer.alloc(Fr.SIZE_IN_BYTES));
-
 export class Signature {
   public static SIZE = 64;
 

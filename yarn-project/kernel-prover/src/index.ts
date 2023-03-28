@@ -36,7 +36,7 @@ export class KernelProver {
     const createRandomFields = (num: number) => {
       return Array(num)
         .fill(0)
-        .map(() => new Fr(randomBytes(32)));
+        .map(() => Fr.random());
     };
     const createRandomContractData = () => {
       return new NewContractData(AztecAddress.random(), new EthAddress(randomBytes(20)), createRandomFields(1)[0]);
@@ -58,8 +58,8 @@ export class KernelProver {
     );
 
     const aggregationObject = new AggregationObject(
-      new AffineElement(new Fq(0), new Fq(0)),
-      new AffineElement(new Fq(0), new Fq(0)),
+      new AffineElement(new Fq(0n), new Fq(0n)),
+      new AffineElement(new Fq(0n), new Fq(0n)),
       [],
       [],
       false,
@@ -80,7 +80,7 @@ export class KernelProver {
     };
     const accumulatedTxData = new AccumulatedData(
       aggregationObject,
-      new Fr(0),
+      new Fr(0n),
       createRandomFields(KERNEL_NEW_COMMITMENTS_LENGTH),
       createRandomFields(KERNEL_NEW_NULLIFIERS_LENGTH),
       createRandomFields(KERNEL_PRIVATE_CALL_STACK_LENGTH),

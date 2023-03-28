@@ -1,5 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, ZERO_FR } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
@@ -46,7 +46,7 @@ describe('e2e_zk_token_contract', () => {
   const expectStorageSlot = async (accountIdx: number, expectedBalance: bigint) => {
     // We only generate 1 note in each test. Balance is the first field of the only note.
     // TBD - how to calculate storage slot?
-    const storageSlot = ZERO_FR;
+    const storageSlot = Fr.ZERO;
     const [[balance]] = await aztecRpcServer.getStorageAt(contract.address, storageSlot);
     logger(`Account ${accountIdx} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);

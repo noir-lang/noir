@@ -1,4 +1,4 @@
-import { EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 
 export { EthAddress } from '@aztec/circuits.js';
@@ -12,7 +12,7 @@ export class ContractData {
     /**
      * The L2 address of the contract, as a field element (32 bytes).
      */
-    public aztecAddress: Fr,
+    public aztecAddress: AztecAddress,
     /**
      * The L1 address of the contract, (20 bytes).
      */
@@ -34,6 +34,9 @@ export class ContractData {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ContractData(reader.readFr(), new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES)));
+    return new ContractData(
+      AztecAddress.fromBuffer(reader),
+      new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES)),
+    );
   }
 }
