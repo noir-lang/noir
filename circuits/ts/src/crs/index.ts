@@ -1,4 +1,4 @@
-import { readFile } from 'fs/promises';
+import { open } from 'fs/promises';
 import { existsSync } from 'fs';
 
 import { dirname } from 'path';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
  * The path to our SRS object, assuming that we are in aztec3-circuits/ts folder.
  */
 const SRS_DEV_PATH =
-  dirname(fileURLToPath(import.meta.url)) + '../cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
+  dirname(fileURLToPath(import.meta.url)) + '/../../../cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
 /**
  * Downloader for CRS from the web or local.
  */
@@ -27,9 +27,9 @@ export class NetCrs {
    * Download the data.
    */
   async init() {
-    // We need (circuitSize + 1) number of g1 points.
+    // We need numPoints number of g1 points.
     const g1Start = 28;
-    const g1End = g1Start + (this.numPoints + 1) * 64 - 1;
+    const g1End = g1Start + this.numPoints * 64 - 1;
 
     // Download required range of data.
     const response = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat', {
@@ -95,16 +95,23 @@ export class FileCrs {
    * Read the data file.
    */
   async init() {
-    // We need (circuitSize + 1) number of g1 points.
+    // We need numPoints number of g1 points.
     const g1Start = 28;
-    const g1End = g1Start + (this.numPoints + 1) * 64;
-
-    const data = await readFile(this.path);
-    this.data = data.subarray(g1Start, g1End);
+    const g1Length = this.numPoints * 64;
 
     const g2Start = 28 + 5040000 * 64;
-    const g2End = g2Start + 128;
-    this.g2Data = data.subarray(g2Start, g2End);
+    const g2Length = 128;
+    // Lazily seek our data
+    const fileHandle = await open(this.path, 'r');
+    try {
+      this.data = Buffer.alloc(g1Length);
+      await fileHandle.read(this.data, 0, g1Length, g1Start);
+
+      this.g2Data = Buffer.alloc(g2Length);
+      await fileHandle.read(this.g2Data, 0, g2Length, g2Start);
+    } finally {
+      await fileHandle.close();
+    }
   }
 
   /**

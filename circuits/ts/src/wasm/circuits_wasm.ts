@@ -6,6 +6,7 @@ import { fetch } from 'cross-fetch';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { numToUInt32LE } from '../utils/serialize.js';
+import { Crs } from '../crs/index.js';
 
 /**
  * Get the WASM binary for barretenberg.
@@ -102,12 +103,44 @@ export class CircuitsWasm {
             }
           },
         ),
+        // eslint-disable-next-line camelcase
+        env_load_verifier_crs: this.wrapAsyncImportFn(async () => {
+          // TODO optimize
+          const crs = new Crs(0);
+          await crs.init();
+          const crsPtr = wasm.call('bbmalloc', crs.getG2Data().length);
+          wasm.writeMemory(crsPtr, crs.getG2Data());
+          return crsPtr;
+        }),
+        // eslint-disable-next-line camelcase
+        env_load_prover_crs: this.wrapAsyncImportFn(async (numPoints: number) => {
+          const crs = new Crs(numPoints);
+          await crs.init();
+          const crsPtr = wasm.call('bbmalloc', crs.getData().length);
+          wasm.writeMemory(crsPtr, crs.getData());
+          return crsPtr;
+        }),
         memory: module.getRawMemory(),
       }),
       this.loggerName,
     );
     await wasm.init(initial, maximum);
     this.asyncCallState.init(wasm);
+  }
+
+  /**
+   * Wrap an async import funtion.
+   * @param fn - The function.
+   * @returns The AsyncCallState-adapted function.
+   */
+  private wrapAsyncImportFn(fn: (...args: number[]) => Promise<number | void>) {
+    // TODO upstream this utility to asyncCallState?
+    return this.asyncCallState.wrapImportFn((state: AsyncFnState, ...args: number[]) => {
+      if (!state.continuation) {
+        return fn(...args);
+      }
+      return state.result;
+    });
   }
 
   /**

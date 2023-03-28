@@ -28,7 +28,7 @@ async function callWasm(inputBuf: Buffer, serializeMethod: string, wasm?: Circui
 
   // Get a string version of our object. As a quick and dirty test,
   // we compare a snapshot of its string form to its previous form.
-  const outputBufPtr = wasm.call(serializeMethod, inputBufPtr, outputBufSizePtr);
+  const outputBufPtr = await wasm.asyncCall(serializeMethod, inputBufPtr, outputBufSizePtr);
 
   // Read the size pointer
   const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(outputBufSizePtr, outputBufSizePtr + 4));

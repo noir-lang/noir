@@ -6,7 +6,6 @@ import {
   makeConstantBaseRollupData,
   makePreviousKernelData,
 } from '../tests/factories.js';
-import { writeGlobalVerifierReferenceString } from '../tests/writeGlobalVerifierReferenceString.js';
 import { range } from '../utils/jsUtils.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { BaseRollupInputs, BaseRollupPublicInputs, NullifierLeafPreimage } from './base_rollup.js';
@@ -64,7 +63,6 @@ describe('structs/base_rollup', () => {
     });
 
     const wasm = await CircuitsWasm.new();
-    await writeGlobalVerifierReferenceString(wasm, /* example circuit size */ 100);
     await expectSerializeToMatchSnapshot(
       baseRollupInputs.toBuffer(),
       'abis__test_roundtrip_serialize_base_rollup_inputs',
