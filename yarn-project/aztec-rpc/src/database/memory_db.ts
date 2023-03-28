@@ -1,10 +1,10 @@
 import { TxHash } from '@aztec/tx';
 
-import { MemoryContractDataSource } from '../contract_data_source/index.js';
+import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
 import { TxDao } from './tx_dao.js';
 
-export class MemoryDB extends MemoryContractDataSource implements Database {
+export class MemoryDB extends MemoryContractDatabase implements Database {
   private txs: TxDao[] = [];
 
   public getTx(txHash: TxHash) {

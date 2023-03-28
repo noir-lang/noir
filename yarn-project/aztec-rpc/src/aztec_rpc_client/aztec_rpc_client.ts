@@ -4,9 +4,16 @@ import { Signature } from '../circuits.js';
 import { ContractAbi } from '../noir.js';
 import { TxReceipt } from '../tx/index.js';
 
+export interface DeployedContract {
+  abi: ContractAbi;
+  address: AztecAddress;
+  portalAddress: EthAddress;
+}
+
 export interface AztecRPCClient {
   addAccount(): Promise<AztecAddress>;
   getAccounts(): Promise<AztecAddress[]>;
+  addContracts(contracts: DeployedContract[]): Promise<void>;
   getCode(contract: AztecAddress, functionSelector?: Buffer): Promise<string | undefined>;
   createDeploymentTxRequest(
     abi: ContractAbi,

@@ -1,11 +1,9 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import { ARGS_LENGTH, TxRequest, UInt8Vector } from '@aztec/circuits.js';
-import { KernelProver } from '@aztec/kernel-prover';
-import { Tx, TxHash } from '@aztec/tx';
-import { generateFunctionSelector } from '../abi_coder/index.js';
-import { AztecRPCClient } from '../aztec_rpc_client/index.js';
 import {
+  ARGS_LENGTH,
+  TxRequest,
+  UInt8Vector,
   AztecAddress,
   ContractDeploymentData,
   EthAddress,
@@ -13,7 +11,11 @@ import {
   OldTreeRoots,
   TxContext,
 } from '@aztec/circuits.js';
-import { ContractDao } from '../contract_data_source/index.js';
+import { KernelProver } from '@aztec/kernel-prover';
+import { Tx, TxHash } from '@aztec/tx';
+import { generateFunctionSelector } from '../abi_coder/index.js';
+import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
+import { ContractDao } from '../contract_database/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { ContractAbi } from '../noir.js';
 import { Synchroniser } from '../synchroniser/index.js';
@@ -45,6 +47,10 @@ export class AztecRPCServer implements AztecRPCClient {
     this.log(`adding account ${accountPublicKey.toString()}`);
     await this.synchroniser.addAccount(accountPublicKey);
     return accountPublicKey;
+  }
+
+  public async addContracts(contracts: DeployedContract[]) {
+    await Promise.all(contracts.map(c => this.db.addContract(c.address, c.portalAddress, c.abi)));
   }
 
   public getAccounts() {

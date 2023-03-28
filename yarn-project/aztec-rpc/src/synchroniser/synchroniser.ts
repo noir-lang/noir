@@ -136,8 +136,6 @@ export class Synchroniser {
         }
         i++;
       }
-      const contractAddresses = block.newContractData.map(d => new AztecAddress(d.aztecAddress.toBuffer())).flat();
-      await this.db.confirmContractsDeployed(contractAddresses);
       this.log(`Synched block ${block.number}`);
     }
   }
