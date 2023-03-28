@@ -22,8 +22,8 @@ using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
+using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
-using aztec3::circuits::kernel::private_kernel::private_kernel_native;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
 using plonk::TurboComposer;
@@ -120,7 +120,7 @@ WASM_EXPORT size_t private_kernel__create_proof(uint8_t const* signed_tx_request
     NT::Proof private_kernel_proof;
     PublicInputs<NT> public_inputs;
     if (proverless) {
-        public_inputs = private_kernel_native(private_inputs);
+        public_inputs = native_private_kernel_circuit(private_inputs);
         // mocked proof - zeros
         private_kernel_proof = NT::Proof{ std::vector<uint8_t>(42, 0) };
     } else {

@@ -55,7 +55,6 @@ using aztec3::circuits::abis::TxRequest;
 
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
 using aztec3::circuits::abis::private_kernel::ConstantData;
-using aztec3::circuits::abis::private_kernel::Globals;
 using aztec3::circuits::abis::private_kernel::OldTreeRoots;
 using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
@@ -265,6 +264,202 @@ TEST(private_kernel_tests, test_deposit)
     info("failed?: ", private_kernel_composer.failed());
     info("err: ", private_kernel_composer.err());
     info("n: ", private_kernel_composer.get_num_gates());
+}
+
+TEST(private_kernel_tests, test_native_deposit)
+{
+    //***************************************************************************
+    // Some private circuit proof (`deposit`, in this case)
+    //***************************************************************************
+
+    const NT::address escrow_contract_address = 12345;
+    // const NT::fr escrow_contract_leaf_index = 1;
+    const NT::fr escrow_portal_contract_address = 23456;
+
+    const NT::fr msg_sender_private_key = 123456789;
+    const NT::address msg_sender =
+        NT::fr(uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL));
+    const NT::address tx_origin = msg_sender;
+
+    /**
+     * NOTE: this is a bit cheeky. We want to test the _native_ kernel circuit implementation. But I don't want to write
+     * a corresponding _native_ version of every 'app'. So let's just compute the circuit version of the app, and then
+     * convert it to native types, so that it can be fed into the kernel circuit.
+     *
+     */
+    Composer deposit_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+    DB db;
+
+    FunctionData<NT> function_data{
+        .function_selector = 1, // TODO: deduce this from the contract, somehow.
+        .is_private = true,
+        .is_constructor = false,
+    };
+
+    CallContext<NT> call_context{
+        .msg_sender = msg_sender,
+        .storage_contract_address = escrow_contract_address,
+        .tx_origin = msg_sender,
+        .is_delegate_call = false,
+        .is_static_call = false,
+        .is_contract_deployment = false,
+    };
+
+    NativeOracle deposit_oracle =
+        NativeOracle(db, escrow_contract_address, function_data, call_context, msg_sender_private_key);
+    OracleWrapper deposit_oracle_wrapper = OracleWrapper(deposit_composer, deposit_oracle);
+
+    FunctionExecutionContext deposit_ctx(deposit_composer, deposit_oracle_wrapper);
+
+    auto amount = NT::fr(5);
+    auto asset_id = NT::fr(1);
+    auto memo = NT::fr(999);
+
+    OptionalPrivateCircuitPublicInputs<NT> opt_deposit_public_inputs = deposit(deposit_ctx, amount, asset_id, memo);
+    PrivateCircuitPublicInputs<NT> deposit_public_inputs = opt_deposit_public_inputs.remove_optionality();
+
+    Prover deposit_prover = deposit_composer.create_prover();
+    NT::Proof deposit_proof = deposit_prover.construct_proof();
+
+    std::shared_ptr<NT::VK> deposit_vk = deposit_composer.compute_verification_key();
+
+    //***************************************************************************
+    // We can create a TxRequest from some of the above data. Users must sign a TxRequest in order to give permission
+    // for a tx to take place - creating a SignedTxRequest.
+    //***************************************************************************
+
+    TxRequest<NT> deposit_tx_request = TxRequest<NT>{
+        .from = tx_origin,
+        .to = escrow_contract_address,
+        .function_data = function_data,
+        .args = deposit_public_inputs.args,
+        .nonce = 0,
+        .tx_context =
+            TxContext<NT>{
+                .is_fee_payment_tx = false,
+                .is_rebate_payment_tx = false,
+                .is_contract_deployment_tx = false,
+                .contract_deployment_data = ContractDeploymentData<NT>(),
+            },
+        .chain_id = 1,
+    };
+
+    SignedTxRequest<NT> signed_deposit_tx_request = SignedTxRequest<NT>{
+        .tx_request = deposit_tx_request,
+
+        //     .signature = TODO: need a method for signing a TxRequest.
+    };
+
+    //***************************************************************************
+    // We mock a kernel circuit proof for the base case of kernel recursion (because even the first iteration of the
+    // kernel circuit expects to verify some previous kernel circuit).
+    //***************************************************************************
+
+    Composer mock_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+
+    // TODO: we have a choice to make:
+    // Either the `end` state of the mock kernel's public inputs can be set equal to the public call we _want_ to
+    // verify in the first round of recursion, OR, we have some fiddly conditional logic in the circuit to ignore
+    // certain checks if we're handling the 'base case' of the recursion.
+    // I've chosen the former, for now.
+    const CallStackItem<NT, CallType::Private> deposit_call_stack_item{
+        .contract_address = deposit_tx_request.to,
+
+        .function_data = deposit_tx_request.function_data,
+
+        .public_inputs = deposit_public_inputs,
+    };
+
+    std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> initial_kernel_private_call_stack{};
+    initial_kernel_private_call_stack[0] = deposit_call_stack_item.hash();
+
+    // Some test data:
+    PublicInputs<NT> mock_kernel_public_inputs = PublicInputs<NT>{
+        .end =
+            AccumulatedData<NT>{
+                .private_call_stack = initial_kernel_private_call_stack,
+            },
+
+        // These will be constant throughout all recursions, so can be set to those of the first function call - the
+        // deposit tx.
+        .constants =
+            ConstantData<NT>{
+                .old_tree_roots =
+                    OldTreeRoots<NT>{
+                        .private_data_tree_root = deposit_public_inputs.historic_private_data_tree_root,
+                        // .nullifier_tree_root =
+                        // .contract_tree_root =
+                        // .private_kernel_vk_tree_root =
+                    },
+                .tx_context = deposit_tx_request.tx_context,
+            },
+
+        .is_private = true,
+        // .is_public = false,
+        // .is_contract_deployment = false,
+    };
+
+    mock_kernel_circuit(mock_kernel_composer, mock_kernel_public_inputs);
+
+    Prover mock_kernel_prover = mock_kernel_composer.create_prover();
+    NT::Proof mock_kernel_proof = mock_kernel_prover.construct_proof();
+
+    std::shared_ptr<NT::VK> mock_kernel_vk = mock_kernel_composer.compute_verification_key();
+
+    //***************************************************************************
+    // Now we can execute and prove the first kernel iteration, with all the data generated above:
+    // - app proof, public inputs, etc.
+    // - mock kernel proof, public inputs, etc.
+    //***************************************************************************
+
+    // NOTE: WE DON'T USE A COMPOSER HERE, SINCE WE WANT TO TEST THE `native_private_kernel_circuit`
+    // Composer private_kernel_composer = Composer("../barretenberg/cpp/srs_db/ignition");
+
+    PrivateInputs<NT> private_inputs = PrivateInputs<NT>{
+        .signed_tx_request = signed_deposit_tx_request,
+
+        .previous_kernel =
+            PreviousKernelData<NT>{
+                .public_inputs = mock_kernel_public_inputs,
+                .proof = mock_kernel_proof,
+                .vk = mock_kernel_vk,
+            },
+
+        .private_call =
+            PrivateCallData<NT>{
+                .call_stack_item = deposit_call_stack_item,
+                .private_call_stack_preimages = deposit_ctx.get_private_call_stack_items(),
+
+                .proof = deposit_proof,
+                .vk = deposit_vk,
+                // .vk_path TODO
+
+                // TODO: MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT> function_leaf_membership_witness;
+                // TODO: MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness;
+
+                .portal_contract_address = escrow_portal_contract_address,
+            },
+    };
+
+    PublicInputs<NT> public_inputs = native_private_kernel_circuit(private_inputs);
+
+    // Prover final_kernel_prover = private_kernel_composer.create_prover();
+    // NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
+
+    // TurboVerifier final_kernel_verifier = private_kernel_composer.create_verifier();
+    // auto final_result = final_kernel_verifier.verify_proof(final_kernel_proof);
+    // EXPECT_EQ(final_result, true);
+
+    // info("computed witness: ", private_kernel_composer.computed_witness);
+    // info("witness: ", private_kernel_composer.witness);
+    // info("constant variables: ", private_kernel_composer.constant_variables);
+    // info("variables: ", private_kernel_composer.variables);
+
+    // TODO: this fails intermittently, with:
+    // bigfield multiply range check failed
+    // info("failed?: ", private_kernel_composer.failed());
+    // info("err: ", private_kernel_composer.err());
+    // info("n: ", private_kernel_composer.get_num_gates());
 }
 
 TEST(private_kernel_tests, test_basic_contract_deployment)
@@ -761,5 +956,7 @@ TEST(private_kernel_tests, test_create_proof_cbind_native)
     free((void*)proof_data);
     free((void*)public_inputs);
 }
+
+
 
 } // namespace aztec3::circuits::kernel::private_kernel
