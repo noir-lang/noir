@@ -8,7 +8,7 @@ mod ssa;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::transformers::IsBlackBoxSupported,
+    compiler::transformers::IsOpcodeSupported,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -53,7 +53,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
-    is_blackbox_supported: IsBlackBoxSupported,
+    is_opcode_supported: IsOpcodeSupported,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
@@ -70,6 +70,8 @@ pub fn create_circuit(
     // see https://github.com/noir-lang/acvm/pull/56
     let mut param_witnesses = evaluator.param_witnesses;
     let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
+    let return_witnesses_set: BTreeSet<Witness> =
+        return_witnesses.iter().map(|w| w.clone()).collect();
 
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
 
@@ -77,10 +79,11 @@ pub fn create_circuit(
         Circuit {
             current_witness_index: witness_index,
             opcodes: evaluator.opcodes,
-            public_inputs: PublicInputs(evaluator.public_inputs),
+            public_parameters: PublicInputs(evaluator.public_inputs),
+            return_values: PublicInputs(return_witnesses_set),
         },
         np_language,
-        is_blackbox_supported,
+        is_opcode_supported,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
