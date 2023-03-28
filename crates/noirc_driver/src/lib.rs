@@ -244,7 +244,7 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
+        let blackbox_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         match create_circuit(
             program,

@@ -1,3 +1,4 @@
+use crate::brillig::brillig_gen::BrilligGen;
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{
     acir_gen::Acir,
@@ -23,7 +24,7 @@ use std::collections::{HashMap, HashSet};
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
-pub(crate) struct SsaContext {
+pub struct SsaContext {
     pub(crate) first_block: BlockId,
     pub(crate) current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
@@ -703,8 +704,8 @@ impl SsaContext {
         show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        self.log(enable_logging, "SSA:", "\ninline functions");
-        function::inline_all(self)?;
+    //    self.log(enable_logging, "SSA:", "\ninline functions");
+    //    function::inline_all(self)?;
 
         //Optimization
         block::compute_dom(self);
@@ -712,6 +713,13 @@ impl SsaContext {
         // The second cse is recommended because of opportunities occurring from the first one
         // we could use an optimization level that will run more cse pass
         optimizations::full_cse(self, self.first_block, false)?;
+
+        let bc = BrilligGen::ir_to_brillig(self, self.first_block);
+        dbg!(bc);
+        // let mut brillig = BrilligGen::default();
+        // brillig.process_blocks(self, self.first_block);
+        todo!();
+
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
         //Unrolling

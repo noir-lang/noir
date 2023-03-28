@@ -10,14 +10,14 @@ use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub(crate) struct Memory {
+pub struct Memory {
     arrays: Vec<MemArray>,
     pub(crate) last_adr: u32,                    //last address in 'memory'
     pub(crate) memory_map: HashMap<u32, NodeId>, //maps memory address to expression
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ArrayId(u32);
+pub struct ArrayId(u32);
 
 impl ArrayId {
     pub(crate) fn dummy() -> ArrayId {
@@ -26,7 +26,7 @@ impl ArrayId {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MemArray {
+pub struct MemArray {
     pub(crate) id: ArrayId,
     pub(crate) element_type: node::ObjectType, //type of elements
     pub(crate) name: String,
@@ -69,7 +69,7 @@ impl Memory {
     }
 
     //dereference a pointer
-    pub(super) fn deref(ctx: &SsaContext, id: NodeId) -> Option<ArrayId> {
+    pub fn deref(ctx: &SsaContext, id: NodeId) -> Option<ArrayId> {
         ctx.try_get_node(id).and_then(|var| match var.get_type() {
             node::ObjectType::Pointer(a) => Some(a),
             _ => None,

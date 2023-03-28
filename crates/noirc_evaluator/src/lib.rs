@@ -4,11 +4,12 @@
 
 mod errors;
 mod ssa;
+mod brillig;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::transformers::IsBlackBoxSupported,
+    compiler::transformers::IsOpcodeSupported,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
@@ -53,7 +54,7 @@ pub struct Evaluator {
 pub fn create_circuit(
     program: Program,
     np_language: Language,
-    is_blackbox_supported: IsBlackBoxSupported,
+    is_blackbox_supported: IsOpcodeSupported,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {

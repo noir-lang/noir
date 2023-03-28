@@ -1,7 +1,7 @@
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{acir_gen::expression_to_witness, builtin::Endian},
-    Evaluator,
+    Evaluator, brillig::brillig_gen::directive_invert,
 };
 use acvm::{
     acir::{
@@ -9,7 +9,7 @@ use acvm::{
             directives::Directive,
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
-        native_types::{Expression, Linear, Witness},
+        native_types::{Expression, Witness},
     },
     FieldElement,
 };
@@ -266,7 +266,7 @@ pub(crate) fn range_constraint(
         let exp_big = BigUint::from(2_u128).pow(num_bits - 1);
         let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
         evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
-            a: Linear::from(witness).into(),
+            a: Expression::from(witness),
             b: Expression::from_field(exp),
             q: b_witness,
             r: r_witness,
@@ -546,7 +546,7 @@ pub(crate) fn evaluate_udiv(
     }));
 
     //r<b
-    let r_expr = Expression::from(Linear::from_witness(r_witness));
+    let r_expr = Expression::from(r_witness);
     try_range_constraint(r_witness, bit_size, evaluator);
     bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size, evaluator);
     //range check q<=a
@@ -569,10 +569,14 @@ pub(crate) fn evaluate_inverse(
 ) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
-    evaluator.push_opcode(AcirOpcode::Directive(Directive::Invert {
-        x: x_witness,
-        result: inverse_witness,
-    }));
+        let brillig_code = directive_invert();
+        let b_opcode = AcirOpcode::Directive(Directive::Brillig {
+            inputs: vec![Expression::from(x_witness)],
+            outputs: vec![inverse_witness],
+            bytecode: brillig_code, 
+        });
+
+    evaluator.push_opcode(b_opcode);
 
     //x*inverse = 1
     let one = mul(&x_witness.into(), &inverse_witness.into());
