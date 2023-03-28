@@ -8,7 +8,11 @@ use crate::ssa::{
     {block, function, node, optimizations},
 };
 use noirc_frontend::monomorphization::ast::FuncId;
+use std::collections::BTreeMap;
 use std::collections::{hash_map::Entry, HashMap};
+
+use super::builtin;
+use super::node::{FunctionKind, NodeObject};
 
 // Number of allowed times for inlining function calls inside a code block.
 // If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
@@ -58,11 +62,45 @@ fn inline_block(
     decision: &DecisionTree,
 ) -> Result<bool, RuntimeError> {
     let mut call_ins = vec![];
+    let mut modified_nodes: BTreeMap<NodeId, NodeObject> = BTreeMap::new();
     for i in &ctx[block_id].instructions {
         if let Some(ins) = ctx.try_get_instruction(*i) {
             if !ins.is_deleted() {
-                if let Operation::Call { func, arguments, returned_arrays, .. } = &ins.operation {
-                    if to_inline.is_none() || to_inline == ctx.try_get_func_id(*func) {
+                if let Operation::Call { func, arguments, returned_arrays, predicate, .. } =
+                    &ins.operation
+                {
+                    let should_push = to_inline.is_none()
+                        || match &ctx[*func] {
+                            NodeObject::Function(FunctionKind::Normal(_), ..) => {
+                                to_inline == ctx.try_get_func_id(*func)
+                            }
+                            NodeObject::Function(
+                                FunctionKind::Builtin(builtin::Opcode::Oracle(
+                                    oracle_name,
+                                    oracle_func_id,
+                                    _,
+                                )),
+                                func_id,
+                                func_name,
+                            ) => {
+                                if let Some(predicate) = decision.get_assumption_value(*predicate) {
+                                    let modified_oracle_node = NodeObject::Function(
+                                        FunctionKind::Builtin(builtin::Opcode::Oracle(
+                                            *oracle_name,
+                                            *oracle_func_id,
+                                            predicate,
+                                        )),
+                                        *func_id,
+                                        func_name.clone(),
+                                    );
+                                    modified_nodes.insert(*func, modified_oracle_node);
+                                }
+                                false
+                            }
+                            _ => false,
+                        };
+
+                    if should_push {
                         call_ins.push((
                             ins.id,
                             *func,
@@ -74,6 +112,9 @@ fn inline_block(
                 }
             }
         }
+    }
+    for (func, modified_node) in modified_nodes.into_iter() {
+        ctx[func] = modified_node;
     }
     let mut result = true;
     for (ins_id, f, args, arrays, parent_block) in call_ins {

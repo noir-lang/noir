@@ -131,7 +131,7 @@ pub(crate) fn evaluate(
                 unreachable!();
             }
         }
-        Opcode::Oracle(name, _) => unreachable!("Oracle are managed by function call"),
+        Opcode::Oracle(_, _, _) => unreachable!("Oracle are managed by function call"),
     }
 
     // If more than witness is returned,

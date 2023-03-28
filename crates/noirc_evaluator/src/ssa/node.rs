@@ -138,7 +138,7 @@ impl CopyString {
         result
     }
 
-    pub(crate) fn to_string(&self) -> String {
+    pub(crate) fn as_string(&self) -> String {
         self.str.iter().take(self.len).collect()
     }
 }

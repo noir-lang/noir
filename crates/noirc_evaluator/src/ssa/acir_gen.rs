@@ -108,13 +108,31 @@ impl Acir {
             Operation::Store { .. } => {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
-            Operation::Call { func, arguments, returned_arrays, predicate, location } => {
-                //TODO : handle predicate
+            Operation::Call { func, arguments, returned_arrays, .. } => {
                 if let NodeObject::Function(
-                    FunctionKind::Builtin(builtin::Opcode::Oracle(name, func_id)),
+                    FunctionKind::Builtin(builtin::Opcode::Oracle(name, func_id, predicate)),
                     ..,
                 ) = ctx[*func]
                 {
+                    let mut predicate_expr = None;
+                    if !predicate.is_dummy() {
+                        let ivar = self
+                            .var_cache
+                            .get_or_compute_internal_var(predicate, evaluator, ctx)
+                            .unwrap();
+                        if let Some(a) = Memory::deref(ctx, predicate) {
+                            let array = &ctx.mem[a];
+                            for i in 0..array.len {
+                                let arr_element = self
+                                    .memory
+                                    .load_array_element_constant_index(array, i)
+                                    .expect("array index out of bounds");
+                                predicate_expr = Some(arr_element.expression().clone());
+                            }
+                        } else {
+                            predicate_expr = Some(ivar.expression().clone());
+                        }
+                    }
                     let mut inputs = Vec::new();
                     for argument in arguments {
                         let ivar = self
@@ -139,7 +157,7 @@ impl Acir {
                     let mut ret_arrays = returned_arrays.iter();
                     for (i, typ) in ssa_func.result_types.iter().enumerate() {
                         match typ {
-                            node::ObjectType::Pointer(a) => {
+                            node::ObjectType::Pointer(_) => {
                                 let ret_array = ret_arrays.next().unwrap();
                                 assert_eq!(ret_array.1, i as u32);
                                 let a_witess = vecmap(0..ctx.mem[ret_array.0].len, |_| {
@@ -159,7 +177,8 @@ impl Acir {
                     }
 
                     evaluator.push_opcode(Opcode::Oracle(OracleData {
-                        name: name.to_string(),
+                        name: name.as_string(),
+                        predicate: predicate_expr,
                         inputs,
                         input_values: Vec::new(),
                         outputs,
@@ -174,7 +193,7 @@ impl Acir {
             Operation::Result { call_instruction, index } => {
                 let mut cached_witness = None;
                 if let NodeObject::Function(
-                    FunctionKind::Builtin(builtin::Opcode::Oracle(name, func_id)),
+                    FunctionKind::Builtin(builtin::Opcode::Oracle(_name, func_id, _predicate)),
                     ..,
                 ) = ctx[*call_instruction]
                 {

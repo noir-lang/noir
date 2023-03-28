@@ -20,7 +20,7 @@ pub(crate) enum Opcode {
     ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
-    Oracle(CopyString, FuncId),
+    Oracle(CopyString, FuncId, NodeId),
 }
 
 impl std::fmt::Display for Opcode {
@@ -68,7 +68,7 @@ impl Opcode {
             }
             Opcode::Println(_) => "println".to_owned(),
             Opcode::Sort => "arraysort".to_owned(),
-            Opcode::Oracle(name, _) => name.to_string(),
+            Opcode::Oracle(name, ..) => name.as_string(),
         }
     }
 
@@ -100,7 +100,7 @@ impl Opcode {
             Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
                 BigUint::zero()
             } //pointers do not overflow
-            Opcode::Oracle(_, _) => BigUint::zero(), // External call -  no type
+            Opcode::Oracle(..) => BigUint::zero(), // External call -  no type
         }
     }
 
@@ -134,7 +134,7 @@ impl Opcode {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
-            Opcode::Oracle(_, _) => todo!(),
+            Opcode::Oracle(..) => todo!(),
         }
     }
 }

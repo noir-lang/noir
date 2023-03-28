@@ -233,7 +233,7 @@ impl IrGenerator {
         let arguments = self.ssa_gen_expression_list(&call.arguments);
 
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
-            if !matches!(opcode, builtin::Opcode::Oracle(_, _)) {
+            if !matches!(opcode, builtin::Opcode::Oracle(..)) {
                 let (len, typ) = opcode.get_result_type(&arguments, &self.context);
                 return self.call_low_level(opcode, arguments, vec![typ; len as usize]);
             }

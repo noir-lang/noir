@@ -157,7 +157,7 @@ impl<'interner> Monomorphizer<'interner> {
                             meta.attributes.expect("Oracle function must have an oracle attribute");
                         let id = self.queue_function(id, expr_id, typ);
                         match attr {
-                            Attribute::Oracle(name) => Definition::Oracle(name.to_string(), id),
+                            Attribute::Oracle(name) => Definition::Oracle(name, id),
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
                     }
