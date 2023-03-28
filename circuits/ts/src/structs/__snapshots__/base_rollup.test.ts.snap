@@ -6,15 +6,19 @@ exports[`structs/base_rollup serializes and prints BaseRollupInputs 1`] = `
 aggregation_object:
 P0: { 0x100, 0x101 }
 P1: { 0x200, 0x201 }
-public_inputs:
-[
- 0x102
- 0x103
- 0x104
- 0x105
+public_inputs: [
+  0: 0x102
+  1: 0x103
+  2: 0x104
+  3: 0x105
 ]
-proof_witness_indices:
-[ 106 107 108 109 10a 10b ]
+proof_witness_indices: [
+  0: 106
+  1: 107
+  2: 108
+  3: 109
+  4: 10a
+  5: 10b
 has_data: 0
 
 private_call_count: 0x10c
@@ -132,30 +136,26 @@ portal_contract_address: 0x707070707070707070707070707070707070707
 is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
-vk: composer_type: 0
-circuit_size: 65
-num_public_inputs: 66
-commitments: [
- A: { 0x200, 0x300 }
-]
-contains_recursive_proof: 1
-recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
-
+vk: 0x12df80
 vk_index: 42
 vk_path: [ 0x1000 0x1001 0x1002 ]
  public_inputs: end:
 aggregation_object:
 P0: { 0x200, 0x201 }
 P1: { 0x300, 0x301 }
-public_inputs:
-[
- 0x202
- 0x203
- 0x204
- 0x205
+public_inputs: [
+  0: 0x202
+  1: 0x203
+  2: 0x204
+  3: 0x205
 ]
-proof_witness_indices:
-[ 206 207 208 209 20a 20b ]
+proof_witness_indices: [
+  0: 206
+  1: 207
+  2: 208
+  3: 209
+  4: 20a
+  5: 20b
 has_data: 0
 
 private_call_count: 0x20c
@@ -273,15 +273,7 @@ portal_contract_address: 0x707070707070707070707070707070707070707
 is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
-vk: composer_type: 0
-circuit_size: 65
-num_public_inputs: 66
-commitments: [
- A: { 0x200, 0x300 }
-]
-contains_recursive_proof: 1
-recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
-
+vk: 0x136ac0
 vk_index: 42
 vk_path: [ 0x1000 0x1001 0x1002 ]
  ]
@@ -492,15 +484,19 @@ exports[`structs/base_rollup serializes and prints BaseRollupPublicInputs 1`] = 
 end_aggregation_object:
 P0: { 0x100, 0x101 }
 P1: { 0x200, 0x201 }
-public_inputs:
-[
- 0x102
- 0x103
- 0x104
- 0x105
+public_inputs: [
+  0: 0x102
+  1: 0x103
+  2: 0x104
+  3: 0x105
 ]
-proof_witness_indices:
-[ 262 263 264 265 266 267 ]
+proof_witness_indices: [
+  0: 262
+  1: 263
+  2: 264
+  3: 265
+  4: 266
+  5: 267
 has_data: 0
 
 constants:

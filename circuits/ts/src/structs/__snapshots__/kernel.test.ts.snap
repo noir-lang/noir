@@ -5,15 +5,19 @@ exports[`structs/kernel serializes and prints previous_kernel_data 1`] = `
 aggregation_object:
 P0: { 0x1, 0x2 }
 P1: { 0x101, 0x102 }
-public_inputs:
-[
- 0x3
- 0x4
- 0x5
- 0x6
+public_inputs: [
+  0: 0x3
+  1: 0x4
+  2: 0x5
+  3: 0x6
 ]
-proof_witness_indices:
-[ 7 8 9 10 11 12 ]
+proof_witness_indices: [
+  0: 7
+  1: 8
+  2: 9
+  3: 10
+  4: 11
+  5: 12
 has_data: 0
 
 private_call_count: 0xd
@@ -131,15 +135,7 @@ portal_contract_address: 0x808080808080808080808080808080808080808
 is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
-vk: composer_type: 0
-circuit_size: 101
-num_public_inputs: 102
-commitments: [
- A: { 0x200, 0x300 }
-]
-contains_recursive_proof: 1
-recursive_proof_public_input_indices: [ 400 401 402 403 404 ]
-
+vk: 0x12a0c0
 vk_index: 66
 vk_path: [ 0x1000 0x1001 0x1002 ]
 "
