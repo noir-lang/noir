@@ -437,7 +437,7 @@ pub enum Keyword {
     String,
     Return,
     Struct,
-    Unsafe,
+    Unconstrained,
     Use,
     While,
 }
@@ -469,7 +469,7 @@ impl fmt::Display for Keyword {
             Keyword::String => write!(f, "str"),
             Keyword::Return => write!(f, "return"),
             Keyword::Struct => write!(f, "struct"),
-            Keyword::Unsafe => write!(f, "unsafe"),
+            Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
             Keyword::While => write!(f, "while"),
         }
@@ -504,7 +504,7 @@ impl Keyword {
             "str" => Keyword::String,
             "return" => Keyword::Return,
             "struct" => Keyword::Struct,
-            "unsafe" => Keyword::Unsafe,
+            "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
             "while" => Keyword::While,
 
