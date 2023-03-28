@@ -12,8 +12,8 @@ use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::{
-    Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Shared, Type,
-    TypeBinding, UnresolvedGenerics, UnresolvedType,
+    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, Shared,
+    Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -150,9 +150,22 @@ impl DefCollector {
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        let file_global_ids = resolve_globals(context, def_collector.collected_globals, crate_id);
+        //
+        // Additionally, we must resolve integer globals before structs since structs may refer to
+        // the values of integer globals as numeric generics.
+        let (integer_globals, other_globals) =
+            filter_integer_globals(def_collector.collected_globals);
 
+        let mut file_global_ids = resolve_globals(context, integer_globals, crate_id, errors);
+
+        // Must resolve structs before we resolve globals.
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
+
+        // We must wait to resolve non-integer globals until after we resolve structs since structs
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        let mut more_global_ids = resolve_globals(context, other_globals, crate_id, errors);
+
+        file_global_ids.append(&mut more_global_ids);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -179,6 +192,7 @@ impl DefCollector {
         );
 
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
+
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
@@ -252,10 +266,21 @@ where
     errors.extend(new_errors.into_iter().map(|err| err.into().in_file(file)))
 }
 
+/// Separate the globals Vec into two. The first element in the tuple will be the
+/// integer literal globals, and the second will be all other globals.
+fn filter_integer_globals(
+    globals: Vec<UnresolvedGlobal>,
+) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
+    globals
+        .into_iter()
+        .partition(|global| matches!(&global.stmt_def.expression.kind, ExpressionKind::Literal(_)))
+}
+
 fn resolve_globals(
     context: &mut Context,
     globals: Vec<UnresolvedGlobal>,
     crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
 ) -> Vec<(FileId, StmtId)> {
     vecmap(globals, |global| {
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
@@ -272,6 +297,7 @@ fn resolve_globals(
         let name = global.stmt_def.pattern.name_ident().clone();
 
         let hir_stmt = resolver.resolve_global_let(global.stmt_def);
+        extend_errors(errors, global.file_id, resolver.take_errors());
 
         context.def_interner.update_global(global.stmt_id, hir_stmt);
 
