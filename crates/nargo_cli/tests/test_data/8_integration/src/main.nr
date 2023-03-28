@@ -1,3 +1,5 @@
+use dep::std;
+
 fn matrix_mul_2(a: [u32; 4], b: [u32; 4]) ->[u32; 4] {
     let mut c = [0 as u32; 4];
     for i in 0..2 {
@@ -142,14 +144,14 @@ fn too(x: u32) -> u32 {
     (x + 17 as u32) * (x + 3 as u32)
 }
 
-fn test6(x: [u8; 32]) ->  [u32; 8] {
+fn test6(x: [u32; 32]) ->  [u32; 8] {
     let mut sha_m = [0 as u32; 64];
 
     let mut sha_hash = [
         1 as u32, 2, 3, 4, 5, 6, 7, 8
     ];
 
-    let mut buffer = [0 as u8; 64];
+    let mut buffer = [0 as u32; 64];
     for i in 0..32 {  
        buffer[i] = x[i];
     }
@@ -159,14 +161,14 @@ fn test6(x: [u8; 32]) ->  [u32; 8] {
     sha_hash
 }
 
-fn iterate6_1(mut sha_m: [u32; 64], next_chunk: [u8; 64]) -> [u32; 64] {
+fn iterate6_1(mut sha_m: [u32; 64], next_chunk: [u32; 64]) -> [u32; 64] {
     let mut j = 0;
     for i in 0..16 {
         j = (i ) * 4;
-        sha_m[i] = ((next_chunk[j] as u32) << 24 as u32)  
-            | ((next_chunk[j + 1] as u32) << 16 as u32) 
-            | ((next_chunk[j + 2] as u32) << 8 as u32) 
-            | (next_chunk[j + 3] as u32);
+        sha_m[i] = ((next_chunk[j]) << 24 as u32)
+            | ((next_chunk[j + 1]) << 16) 
+            | ((next_chunk[j + 2]) << 8)
+            | (next_chunk[j + 3]);
     }
     for i in 16..64 {
         sha_m[i] = sig1(sha_m[i - 2])+(sha_m[i - 7])+(sig0(sha_m[i - 15]))+(sha_m[i - 16]);
@@ -242,7 +244,13 @@ fn sig1(x: u32) -> u32 {
 }
 
 
-fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32]) {  
+fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u32; 32]) {  
+
+    // let sha_m = (m[0] << 24 as u32)
+    //         | (m[1] << 16 as u32);
+
+    // constrain sha_m != 10;
+    
     let e = matrix_mul_10(a,b);
     constrain e[6] == 1866842232;
     let f = matrix_mul_2(c,d);
