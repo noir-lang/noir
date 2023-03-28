@@ -1,5 +1,4 @@
-import { L2Block, mockRandomL2Block } from '@aztec/archiver';
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { L2Block } from '@aztec/l2-block';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup } from '@aztec/l1-contracts';
@@ -23,19 +22,19 @@ describe('L2BlockPublisher integration', () => {
   beforeAll(async () => {
     ({ ethRpc, rollup } = await deployRollup());
 
-    l2Block = mockRandomL2Block(42);
+    l2Block = L2Block.random(42);
     l2Proof = Buffer.alloc(0);
 
     publisher = new L2BlockPublisher(
-      new EthereumjsTxSender({ 
-        ethereumHost: anvilHost, 
-        requiredConfirmations: 1, 
-        rollupContract: rollup.address, 
-        sequencerPrivateKey: hexStringToBuffer(sequencerPK)
+      new EthereumjsTxSender({
+        ethereumHost: anvilHost,
+        requiredConfirmations: 1,
+        rollupContract: rollup.address,
+        sequencerPrivateKey: hexStringToBuffer(sequencerPK),
       }),
       {
-        sleepTimeMs: 100
-      }
+        sleepTimeMs: 100,
+      },
     );
   });
 
@@ -52,7 +51,6 @@ describe('L2BlockPublisher integration', () => {
     expect(tx.input).toEqual(expectedData);
   });
 });
-
 
 async function deployRollup() {
   // Set up client

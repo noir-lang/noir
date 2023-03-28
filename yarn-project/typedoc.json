@@ -10,6 +10,7 @@
     "ethereum.js",
     "kernel-prover",
     "key-store",
+    "l2-block",
     "noir-contracts",
     "p2p",
     "prover-client",

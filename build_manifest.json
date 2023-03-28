@@ -50,7 +50,7 @@
     "projectDir": "yarn-project/archiver",
     "dockerfile": "archiver/Dockerfile",
     "rebuildPatterns": ["^yarn-project/archiver/"],
-    "dependencies": ["yarn-project-base", "ethereum.js", "l1-contracts"]
+    "dependencies": ["foundation", "ethereum.js", "l1-contracts", "l2-block"]
   },
   "aztec-cli": {
     "buildDir": "yarn-project",
@@ -85,49 +85,56 @@
     "projectDir": "yarn-project/ethereum.js",
     "dockerfile": "ethereum.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/ethereum.js/"],
-    "dependencies": ["yarn-project-base", "foundation"]
+    "dependencies": ["foundation"]
   },
   "foundation": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/foundation",
     "dockerfile": "foundation/Dockerfile",
     "rebuildPatterns": ["^yarn-project/foundation/"],
-    "dependencies": []
+    "dependencies": ["yarn-project-base"]
   },
   "kernel-prover": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/kernel-prover",
     "dockerfile": "kernel-prover/Dockerfile",
     "rebuildPatterns": ["^yarn-project/kernel-prover/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["acir-simulator"]
   },
   "key-store": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/key-store",
     "dockerfile": "key-store/Dockerfile",
     "rebuildPatterns": ["^yarn-project/key-store/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["foundation"]
+  },
+  "l2-block": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/l2-block",
+    "dockerfile": "l2-block/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/l2-block/"],
+    "dependencies": ["foundation"]
   },
   "merkle-tree": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/merkle-tree",
     "dockerfile": "merkle-tree/Dockerfile",
     "rebuildPatterns": ["^yarn-project/merkle-tree/"],
-    "dependencies": ["yarn-project-base", "foundation"]
+    "dependencies": ["foundation"]
   },
   "noir-contracts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-contracts",
     "dockerfile": "noir-contracts/Dockerfile",
     "rebuildPatterns": ["^yarn-project/noir-contracts/"],
-    "dependencies": ["yarn-project-base", "foundation"]
+    "dependencies": ["foundation"]
   },
   "p2p": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/p2p",
     "dockerfile": "p2p/Dockerfile",
     "rebuildPatterns": ["^yarn-project/p2p/"],
-    "dependencies": ["yarn-project-base", "archiver", "foundation"]
+    "dependencies": ["foundation", "l2-block"]
   },
   "prover-client": {
     "buildDir": "yarn-project",
@@ -142,7 +149,7 @@
     "dockerfile": "aztec-node/Dockerfile",
     "rebuildPatterns": ["^yarn-project/aztec-node/"],
     "dependencies": [
-      "yarn-project-base",
+      "foundation",
       "archiver",
       "world-state",
       "p2p",
@@ -156,11 +163,11 @@
     "dockerfile": "sequencer-client/Dockerfile",
     "rebuildPatterns": ["^yarn-project/sequencer-client/"],
     "dependencies": [
-      "yarn-project-base",
-      "world-state",
       "foundation",
+      "world-state",
+      "ethereum.js",
       "p2p",
-      "archiver"
+      "l2-block"
     ]
   },
   "world-state": {
@@ -168,11 +175,6 @@
     "projectDir": "yarn-project/world-state",
     "dockerfile": "world-state/Dockerfile",
     "rebuildPatterns": ["^yarn-project/world-state/"],
-    "dependencies": [
-      "yarn-project-base",
-      "merkle-tree",
-      "archiver",
-      "foundation"
-    ]
+    "dependencies": ["foundation", "merkle-tree", "l2-block"]
   }
 }

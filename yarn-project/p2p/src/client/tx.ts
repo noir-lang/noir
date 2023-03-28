@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/archiver';
+import { L2Block } from '@aztec/l2-block';
 import {
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,

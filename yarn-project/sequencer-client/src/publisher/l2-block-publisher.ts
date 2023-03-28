@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/archiver';
+import { L2Block } from '@aztec/l2-block';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';

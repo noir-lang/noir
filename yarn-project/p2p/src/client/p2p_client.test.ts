@@ -1,5 +1,5 @@
 import { expect, jest } from '@jest/globals';
-import { L2BlockSource } from '@aztec/archiver';
+import { L2BlockSource } from '@aztec/l2-block';
 
 import { P2PClient } from './p2p_client.js';
 import { TxPool } from '../tx_pool/index.js';

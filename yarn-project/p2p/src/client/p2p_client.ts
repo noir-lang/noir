@@ -1,9 +1,8 @@
-import { L2Block, L2BlockSource, L2BlockDownloader } from '@aztec/archiver';
-
-import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
-import { TxPool } from '../tx_pool/index.js';
-import { createTxIds, Tx } from './tx.js';
 import { createDebugLogger } from '@aztec/foundation';
+import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
+import { TxPool } from '../tx_pool/index.js';
+import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
+import { createTxIds, Tx } from './tx.js';
 
 /**
  * Enum defining the possible states of the p2p client.

@@ -32,11 +32,11 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/archiver": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l2-block": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "tslib": "^2.4.0"

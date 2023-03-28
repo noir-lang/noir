@@ -22,6 +22,7 @@
     "foundation",
     "kernel-prover",
     "key-store",
+    "l2-block",
     "merkle-tree",
     "noir-contracts",
     "l1-contracts",

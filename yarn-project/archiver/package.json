@@ -33,6 +33,7 @@
     "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
+    "@aztec/l2-block": "workspace:^",
     "debug": "^4.3.4",
     "tsc-watch": "^6.0.0",
     "tslib": "^2.5.0",

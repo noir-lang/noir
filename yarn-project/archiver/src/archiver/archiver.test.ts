@@ -1,9 +1,10 @@
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
+import { L2Block } from '@aztec/l2-block';
 import { jest } from '@jest/globals';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { encodeFunctionData, Log, PublicClient, toHex, Transaction } from 'viem';
-import { Archiver, mockRandomL2Block } from './archiver.js';
+import { Archiver } from './archiver.js';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
@@ -63,7 +64,7 @@ function makeRollupEvent(blockNum: number) {
  */
 function makeRollupTx(blockNum: number) {
   const proof = `0x`;
-  const block = toHex(mockRandomL2Block(blockNum).encode());
+  const block = toHex(L2Block.random(blockNum).encode());
   const input = encodeFunctionData({ abi: RollupAbi, functionName: 'process', args: [proof, block] });
   return { input } as Transaction<bigint, number>;
 }

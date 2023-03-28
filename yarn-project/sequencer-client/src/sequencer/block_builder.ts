@@ -1,4 +1,4 @@
-import { ContractData, L2Block } from '@aztec/archiver';
+import { ContractData, L2Block } from '@aztec/l2-block';
 import {
   Fr,
   KERNEL_NEW_CONTRACTS_LENGTH,

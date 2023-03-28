@@ -1,4 +1,4 @@
-import { L2Block } from './index.js';
+import { L2Block } from './l2_block.js';
 
 /**
  * Interface of classes allowing for the retrieval of L2 blocks.

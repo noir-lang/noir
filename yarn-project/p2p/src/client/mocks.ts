@@ -1,4 +1,4 @@
-import { L2Block, L2BlockSource, mockRandomL2Block } from '@aztec/archiver';
+import { L2Block, L2BlockSource } from '@aztec/l2-block';
 import { makePrivateKernelPublicInputs } from '@aztec/circuits.js/factories';
 import { Tx } from './tx.js';
 
@@ -12,7 +12,7 @@ export class MockBlockSource implements L2BlockSource {
   constructor(private numBlocks = 100) {
     this.l2Blocks = [];
     for (let i = 0; i < this.numBlocks; i++) {
-      this.l2Blocks.push(mockRandomL2Block(i));
+      this.l2Blocks.push(L2Block.random(i));
     }
   }
 

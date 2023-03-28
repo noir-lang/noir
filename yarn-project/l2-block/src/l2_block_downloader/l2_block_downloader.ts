@@ -1,6 +1,8 @@
 import { InterruptableSleep, Semaphore, MemoryFifo } from '@aztec/foundation';
-import { INITIAL_ROLLUP_ID } from '@aztec/l1-contracts';
 import { L2BlockSource, L2Block } from '../index.js';
+
+// TODO - Fetch it from somewhere else.
+const INITIAL_ROLLUP_ID = 1;
 
 /**
  * Downloads L2 blocks from a L2BlockSource.

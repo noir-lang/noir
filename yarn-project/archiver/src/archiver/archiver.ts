@@ -1,13 +1,11 @@
-import { fr, makeAppendOnlyTreeSnapshot, makeEthAddress } from '@aztec/circuits.js/factories';
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { createDebugLogger } from '@aztec/foundation';
+import { INITIAL_ROLLUP_ID } from '@aztec/l1-contracts';
 import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
+import { L2Block, L2BlockSource } from '@aztec/l2-block';
 import { createPublicClient, decodeFunctionData, getAddress, Hex, hexToBytes, http, Log, PublicClient } from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
-import { ContractData, L2Block } from '../l2_block/l2_block.js';
-import { L2BlockSource } from '../l2_block/l2_block_source.js';
-import { INITIAL_ROLLUP_ID } from '@aztec/l1-contracts';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
@@ -239,34 +237,4 @@ export class Archiver implements L2BlockSource {
     if (this.l2Blocks.length === 0) return Promise.resolve(INITIAL_ROLLUP_ID - 1);
     return Promise.resolve(this.l2Blocks[this.l2Blocks.length - 1].number);
   }
-}
-
-/**
- * Creates a random L2Block with the given block number.
- * @param l2BlockNum - Block number.
- * @returns Random L2Block.
- */
-export function mockRandomL2Block(l2BlockNum: number): L2Block {
-  const newNullifiers = [fr(0x1), fr(0x2), fr(0x3), fr(0x4)];
-  const newCommitments = [fr(0x101), fr(0x102), fr(0x103), fr(0x104)];
-  const newContracts = [fr(0x201)];
-  const newContractsData: ContractData[] = [new ContractData(fr(0x301), makeEthAddress(0x302))];
-
-  return new L2Block(
-    l2BlockNum,
-    makeAppendOnlyTreeSnapshot(0),
-    makeAppendOnlyTreeSnapshot(0),
-    makeAppendOnlyTreeSnapshot(0),
-    makeAppendOnlyTreeSnapshot(0),
-    makeAppendOnlyTreeSnapshot(0),
-    makeAppendOnlyTreeSnapshot(newCommitments.length),
-    makeAppendOnlyTreeSnapshot(newNullifiers.length),
-    makeAppendOnlyTreeSnapshot(newContracts.length),
-    makeAppendOnlyTreeSnapshot(1),
-    makeAppendOnlyTreeSnapshot(1),
-    newCommitments,
-    newNullifiers,
-    newContracts,
-    newContractsData,
-  );
 }

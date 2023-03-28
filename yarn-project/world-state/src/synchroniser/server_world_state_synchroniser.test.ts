@@ -1,5 +1,5 @@
 import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
-import { L2BlockSource, L2Block, ContractData } from '@aztec/archiver';
+import { L2BlockSource, L2Block, ContractData } from '@aztec/l2-block';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
 import { randomBytes, sleep } from '@aztec/foundation';

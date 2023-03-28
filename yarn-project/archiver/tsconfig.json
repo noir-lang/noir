@@ -17,6 +17,9 @@
     },
     {
       "path": "../l1-contracts/tsconfig.dest.json"
+    },
+    {
+      "path": "../l2-block/tsconfig.dest.json"
     }
   ],
   "include": ["src", "test"]
