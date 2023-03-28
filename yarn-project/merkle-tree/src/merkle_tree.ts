@@ -16,4 +16,5 @@ export interface MerkleTree extends SiblingPathSource {
   appendLeaves(leaves: Buffer[]): Promise<void>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
+  getLeafValue(index: bigint): Promise<Buffer | undefined>;
 }

@@ -1,6 +1,7 @@
-import { SiblingPath } from '@aztec/merkle-tree';
+import { LeafData, SiblingPath } from '@aztec/merkle-tree';
 
 export * from './memory_world_state_db.js';
+export { LeafData } from '@aztec/merkle-tree';
 
 /**
  * Defines the possible Merkle tree IDs.
@@ -12,6 +13,8 @@ export enum MerkleTreeId {
   DATA_TREE = 3,
   DATA_TREE_ROOTS_TREE = 4,
 }
+
+export type IndexedMerkleTreeId = MerkleTreeId.NULLIFIER_TREE;
 
 /**
  *  Defines tree information.
@@ -38,6 +41,12 @@ export interface MerkleTreeOperations {
   getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
   appendLeaves(treeId: MerkleTreeId, leaves: Buffer[]): Promise<void>;
   getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath>;
+  getPreviousValueIndex(
+    treeId: IndexedMerkleTreeId,
+    value: bigint,
+  ): Promise<{ index: number; alreadyPresent: boolean }>;
+  getLeafData(treeId: IndexedMerkleTreeId, index: number): LeafData | undefined;
+  findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined>;
 }
 
 /**

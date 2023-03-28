@@ -12,7 +12,7 @@ const indexToKeyLeaf = (name: string, index: bigint) => {
 /**
  * A leaf of a tree.
  */
-interface LeafData {
+export interface LeafData {
   /**
    * A value of the leaf.
    */
@@ -191,7 +191,7 @@ export class IndexedTree implements MerkleTree {
    * @param newValue - The new value to be inserted into the tree.
    * @returns Tuple containing the leaf index and a flag to say if the value is a duplicate.
    */
-  private findIndexOfPreviousValue(newValue: bigint) {
+  public findIndexOfPreviousValue(newValue: bigint) {
     const numLeaves = this.underlying.getNumLeaves();
     const diff: bigint[] = [];
     for (let i = 0; i < numLeaves; i++) {
@@ -298,7 +298,7 @@ export class IndexedTree implements MerkleTree {
    * @param index - Index of the leaf of which to obtain the LeafData copy.
    * @returns A copy of the leaf data at the given index or undefined if the leaf was not found.
    */
-  private getLatestLeafDataCopy(index: number): LeafData | undefined {
+  public getLatestLeafDataCopy(index: number): LeafData | undefined {
     const leaf = this.cachedLeaves[index] ?? this.leaves[index];
     return leaf
       ? ({
@@ -307,5 +307,11 @@ export class IndexedTree implements MerkleTree {
           nextValue: leaf.nextValue,
         } as LeafData)
       : undefined;
+  }
+
+  public async getLeafValue(index: bigint): Promise<Buffer | undefined> {
+    const leaf = this.getLatestLeafDataCopy(Number(index));
+    if (!leaf) return undefined;
+    return toBufferBE(leaf.value, 32);
   }
 }

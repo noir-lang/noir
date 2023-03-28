@@ -21,6 +21,7 @@ import {
   OptionallyRevealedData,
   PrivateKernelPublicInputs,
   TxContext,
+  UInt8Vector,
 } from '@aztec/circuits.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
@@ -120,5 +121,5 @@ export const createTx = () => {
     createOptionallyRetrievedDatas(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH),
   );
   const kernelInputs = new PrivateKernelPublicInputs(accumulatedData, constantData, true);
-  return new Tx(kernelInputs);
+  return new Tx(kernelInputs, new UInt8Vector(Buffer.alloc(0)));
 };

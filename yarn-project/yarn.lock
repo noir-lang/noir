@@ -490,10 +490,12 @@ __metadata:
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
+    "@types/lodash.times": ^4.3.7
     "@types/node": ^18.7.23
     concurrently: ^7.6.0
     jest: ^28.1.3
     jest-mock-extended: ^3.0.3
+    lodash.times: ^4.3.2
     ts-jest: ^28.0.7
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -2258,6 +2260,22 @@ __metadata:
     "@types/level-errors": "*"
     "@types/node": "*"
   checksum: 6740284488b6806ba398bc38842fa789edd5667a342830c544a6b3611ebeed957a08d03dc8bde1e32fe03ac9c439341647c044c1ff0f73a26bcded9ca302a009
+  languageName: node
+  linkType: hard
+
+"@types/lodash.times@npm:^4.3.7":
+  version: 4.3.7
+  resolution: "@types/lodash.times@npm:4.3.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: f31e67c17124614afd392b10e26a5af38f0975edbe4e128c60affa0890a1f2fea502daa4839aee4b1f66b690f925254eff3e9dfcea5d7d3ace7315dba430335f
+  languageName: node
+  linkType: hard
+
+"@types/lodash@npm:*":
+  version: 4.14.192
+  resolution: "@types/lodash@npm:4.14.192"
+  checksum: 31e1f0543a04158d2c429c45efd7c77882736630d0652f82eb337d6159ec0c249c5d175c0af731537b53271e665ff8d76f43221d75d03646d31cb4bd6f0056b1
   languageName: node
   linkType: hard
 
@@ -6085,6 +6103,13 @@ __metadata:
   version: 4.6.2
   resolution: "lodash.merge@npm:4.6.2"
   checksum: ad580b4bdbb7ca1f7abf7e1bce63a9a0b98e370cf40194b03380a46b4ed799c9573029599caebc1b14e3f24b111aef72b96674a56cfa105e0f5ac70546cdc005
+  languageName: node
+  linkType: hard
+
+"lodash.times@npm:^4.3.2":
+  version: 4.3.2
+  resolution: "lodash.times@npm:4.3.2"
+  checksum: d26a9022e025d6061d356d3098fd80cdc062e7bf896bbbb56e643b2ae39156bf19b6167a4b046aa924b6d572a1e717853e552342ce34016fc5183308e329b575
   languageName: node
   linkType: hard
 

@@ -4,6 +4,7 @@ import {
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   PrivateKernelPublicInputs,
+  UInt8Vector,
 } from '@aztec/circuits.js';
 import { Keccak } from 'sha3';
 
@@ -14,7 +15,7 @@ const hash = new Keccak(256);
  */
 export class Tx {
   private _id?: Buffer;
-  constructor(private txData: PrivateKernelPublicInputs) {}
+  constructor(public readonly data: PrivateKernelPublicInputs, public readonly proof: UInt8Vector) {}
 
   /**
    * Construct & return transaction ID.
@@ -28,10 +29,6 @@ export class Tx {
     return this._id;
   }
 
-  get data() {
-    return this.txData;
-  }
-
   /**
    * Utility function to generate tx ID.
    * @param tx - The transaction from which to generate the id.
@@ -41,9 +38,9 @@ export class Tx {
     hash.reset();
     const dataToHash = Buffer.concat(
       [
-        tx.txData.end.newCommitments.map(x => x.toBuffer()),
-        tx.txData.end.newNullifiers.map(x => x.toBuffer()),
-        tx.txData.end.newContracts.map(x => x.functionTreeRoot.toBuffer()),
+        tx.data.end.newCommitments.map(x => x.toBuffer()),
+        tx.data.end.newNullifiers.map(x => x.toBuffer()),
+        tx.data.end.newContracts.map(x => x.functionTreeRoot.toBuffer()),
       ].flat(),
     );
     return hash.update(dataToHash).digest();

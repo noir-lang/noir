@@ -39,12 +39,14 @@
     "@aztec/l2-block": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/world-state": "workspace:^",
+    "lodash.times": "^4.3.2",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.4.3",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.4.0",
+    "@types/lodash.times": "^4.3.7",
     "@types/node": "^18.7.23",
     "concurrently": "^7.6.0",
     "jest": "^28.1.3",

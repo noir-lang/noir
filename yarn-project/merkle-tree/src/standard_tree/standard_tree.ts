@@ -214,6 +214,10 @@ export class StandardMerkleTree implements MerkleTree {
     return Promise.resolve();
   }
 
+  public async getLeafValue(index: bigint): Promise<Buffer | undefined> {
+    return this.getLatestValueAtIndex(this.depth, index);
+  }
+
   /**
    * Clears the catch.
    */
