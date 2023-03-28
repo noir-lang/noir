@@ -25,6 +25,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/barretenberg.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l2-block": "workspace:^",

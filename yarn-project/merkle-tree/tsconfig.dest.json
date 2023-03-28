@@ -1,5 +1,15 @@
 {
   "extends": ".",
-  "exclude": ["**/*.test.*", "**/fixtures/*"],
-  "references": [{ "path": "../foundation/tsconfig.dest.json" }]
+  "exclude": [
+    "**/*.test.*",
+    "**/fixtures/*"
+  ],
+  "references": [
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../barretenberg.js/tsconfig.dest.json"
+    }
+  ]
 }

@@ -15,7 +15,7 @@ export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: U
   // TODO check if lhs and rhs are <= 32 bytes?
   wasm.writeMemory(0, lhs);
   wasm.writeMemory(32, rhs);
-  wasm.call('pedersen__compress_fields', 0, 32, 64);
+  wasm.call('pedersen__hash_pair', 0, 32, 64);
   return Buffer.from(wasm.getMemorySlice(64, 96));
 }
 

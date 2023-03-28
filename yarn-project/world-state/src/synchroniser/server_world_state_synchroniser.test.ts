@@ -6,6 +6,7 @@ import { randomBytes, sleep } from '@aztec/foundation';
 import { jest } from '@jest/globals';
 import { AppendOnlyTreeSnapshot, EthAddress, Fr } from '@aztec/circuits.js';
 import { MerkleTreeDb, MerkleTreeId } from '../index.js';
+import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 
 /**
  * Generic mock implementation.
@@ -56,7 +57,6 @@ const createSynchroniser = (merkleTreeDb: any, rollupSource: any) =>
   new ServerWorldStateSynchroniser(merkleTreeDb as MerkleTreeDb, rollupSource as L2BlockSource);
 
 describe('server_world_state_synchroniser', () => {
-  const pedersen: Pedersen = new Pedersen();
   const rollupSource: Mockify<L2BlockSource> = {
     getLatestBlockNum: jest.fn().mockImplementation(getLatestBlockNumber),
     getL2Blocks: jest.fn().mockImplementation(consumeNextBlocks),
@@ -70,7 +70,11 @@ describe('server_world_state_synchroniser', () => {
       ),
     appendLeaves: jest.fn().mockImplementation(() => Promise.resolve()),
     getSiblingPath: jest.fn().mockImplementation(() => {
-      return Promise.resolve(SiblingPath.ZERO(32, StandardMerkleTree.ZERO_ELEMENT, pedersen));
+      return async () => {
+        const wasm = await BarretenbergWasm.new();
+        const pedersen: Pedersen = new Pedersen(wasm);
+        SiblingPath.ZERO(32, StandardMerkleTree.ZERO_ELEMENT, pedersen);
+      }; //Promise.resolve();
     }),
     commit: jest.fn().mockImplementation(() => Promise.resolve()),
     rollback: jest.fn().mockImplementation(() => Promise.resolve()),

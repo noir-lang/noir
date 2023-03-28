@@ -2,6 +2,12 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
 COPY foundation foundation
 COPY merkle-tree merkle-tree
+COPY barretenberg.js barretenberg.js
+
+WORKDIR /usr/src/yarn-project/foundation
+RUN yarn build
+WORKDIR /usr/src/yarn-project/barretenberg.js
+RUN yarn build
 WORKDIR /usr/src/yarn-project/merkle-tree
 RUN yarn build && yarn formatting && yarn test
 

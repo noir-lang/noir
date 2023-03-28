@@ -2,6 +2,9 @@
   "extends": ".",
   "references": [
     {
+      "path": "../barretenberg.js/tsconfig.dest.json"
+    },
+    {
       "path": "../l2-block/tsconfig.dest.json"
     },
     {
@@ -14,5 +17,8 @@
       "path": "../circuits.js/tsconfig.dest.json"
     }
   ],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": [
+    "**/*.test.*",
+    "**/fixtures/*"
+  ]
 }
