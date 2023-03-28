@@ -53,7 +53,9 @@ pub(crate) fn evaluate(
             witnesses.push(witness);
         }
         evaluator.public_inputs.extend(witnesses.clone());
-        evaluator.param_witnesses.entry(MAIN_RETURN_NAME.to_owned())
+        evaluator
+            .param_witnesses
+            .entry(MAIN_RETURN_NAME.to_owned())
             .or_default()
             .append(&mut witnesses);
     }
