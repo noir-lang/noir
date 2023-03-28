@@ -69,33 +69,35 @@ fn inline_block(
                 if let Operation::Call { func, arguments, returned_arrays, predicate, .. } =
                     &ins.operation
                 {
-                    let should_push = to_inline.is_none()
-                        || match &ctx[*func] {
-                            NodeObject::Function(FunctionKind::Normal(_), ..) => {
-                                to_inline == ctx.try_get_func_id(*func)
-                            }
-                            NodeObject::Function(
+                    let node = &ctx[*func];
+                    if let NodeObject::Function(
+                        FunctionKind::Builtin(builtin::Opcode::Oracle(
+                            oracle_name,
+                            oracle_func_id,
+                            _,
+                        )),
+                        func_id,
+                        func_name,
+                    ) = node
+                    {
+                        if let Some(predicate) = decision.get_assumption_value(*predicate) {
+                            let modified_oracle_node = NodeObject::Function(
                                 FunctionKind::Builtin(builtin::Opcode::Oracle(
-                                    oracle_name,
-                                    oracle_func_id,
-                                    _,
+                                    *oracle_name,
+                                    *oracle_func_id,
+                                    predicate,
                                 )),
-                                func_id,
-                                func_name,
-                            ) => {
-                                if let Some(predicate) = decision.get_assumption_value(*predicate) {
-                                    let modified_oracle_node = NodeObject::Function(
-                                        FunctionKind::Builtin(builtin::Opcode::Oracle(
-                                            *oracle_name,
-                                            *oracle_func_id,
-                                            predicate,
-                                        )),
-                                        *func_id,
-                                        func_name.clone(),
-                                    );
-                                    modified_nodes.insert(*func, modified_oracle_node);
-                                }
-                                false
+                                *func_id,
+                                func_name.clone(),
+                            );
+                            modified_nodes.insert(*func, modified_oracle_node);
+                        }
+                        continue;
+                    }
+                    let should_push = to_inline.is_none()
+                        || match node {
+                            NodeObject::Function(FunctionKind::Normal(id), ..) => {
+                                to_inline == Some(*id)
                             }
                             _ => false,
                         };
