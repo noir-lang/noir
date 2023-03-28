@@ -9,7 +9,7 @@ pub struct CompiledProgram {
     pub abi: noirc_abi::Abi,
 }
 
-fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -19,7 +19,7 @@ where
     circuit_bytes.serialize(s)
 }
 
-fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
+pub(crate) fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {

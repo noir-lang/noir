@@ -6,7 +6,7 @@ use acvm::Language;
 use clap::Args;
 use contract::{ContractFunction, ContractFunctionType};
 use fm::FileType;
-use iter_extended::{try_btree_map, try_vecmap};
+use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
@@ -202,7 +202,7 @@ impl Driver {
         contract: Contract,
         options: &CompileOptions,
     ) -> Result<CompiledContract, ReportedError> {
-        let functions = try_btree_map(&contract.functions, |function_id| {
+        let functions = try_vecmap(&contract.functions, |function_id| {
             let function_name = self.function_name(*function_id).to_owned();
             let function = self.compile_no_check(options, *function_id)?;
             let func_meta = self.context.def_interner.function_meta(function_id);
@@ -212,10 +212,20 @@ impl Driver {
 
             let func_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
-            Ok((function_name, ContractFunction { func_type, function }))
+            Ok((function_name, func_type, function))
         })?;
 
-        Ok(CompiledContract { name: contract.name, functions })
+        let converted_functions: Vec<ContractFunction> = functions
+            .into_iter()
+            .map(|(func_name, func_type, function)| ContractFunction {
+                name: func_name,
+                function_type: func_type,
+                abi: function.abi,
+                bytecode: function.circuit,
+            })
+            .collect();
+
+        Ok(CompiledContract { name: contract.name, functions: converted_functions })
     }
 
     /// Returns the FuncId of the 'main' function.
