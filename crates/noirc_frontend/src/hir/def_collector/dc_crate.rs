@@ -8,8 +8,7 @@ use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
     path_resolver::StandardPathResolver,
 };
-use crate::hir::type_check::type_check;
-use crate::hir::type_check::type_check_func;
+use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId};
 use crate::{
@@ -288,8 +287,7 @@ fn type_check_globals(
     all_errors: &mut Vec<FileDiagnostic>,
 ) {
     for (file_id, stmt_id) in global_ids {
-        let mut errors = vec![];
-        type_check(interner, &stmt_id, &mut errors);
+        let errors = TypeChecker::check_global(&stmt_id, interner);
         extend_errors(all_errors, file_id, errors);
     }
 }
