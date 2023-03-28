@@ -1,8 +1,0 @@
-export function createDispatchFn(targetFn, debug = console.error) {
-    return async ({ fn, args }) => {
-        const target = targetFn();
-        debug(`dispatching to ${target}: ${fn}`, args);
-        return await target[fn](...args);
-    };
-}
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY3JlYXRlX2Rpc3BhdGNoX2ZuLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3RyYW5zcG9ydC9kaXNwYXRjaC9jcmVhdGVfZGlzcGF0Y2hfZm4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBS0EsTUFBTSxVQUFVLGdCQUFnQixDQUFDLFFBQW1CLEVBQUUsS0FBSyxHQUFHLE9BQU8sQ0FBQyxLQUFLO0lBQ3pFLE9BQU8sS0FBSyxFQUFFLEVBQUUsRUFBRSxFQUFFLElBQUksRUFBZSxFQUFFLEVBQUU7UUFDekMsTUFBTSxNQUFNLEdBQUcsUUFBUSxFQUFFLENBQUM7UUFDMUIsS0FBSyxDQUFDLGtCQUFrQixNQUFNLEtBQUssRUFBRSxFQUFFLEVBQUUsSUFBSSxDQUFDLENBQUM7UUFDL0MsT0FBTyxNQUFNLE1BQU0sQ0FBQyxFQUFFLENBQUMsQ0FBQyxHQUFHLElBQUksQ0FBQyxDQUFDO0lBQ25DLENBQUMsQ0FBQztBQUNKLENBQUMifQ==

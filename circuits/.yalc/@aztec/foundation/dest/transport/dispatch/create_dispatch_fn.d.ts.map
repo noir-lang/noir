@@ -1,1 +1,0 @@
-{"version":3,"file":"create_dispatch_fn.d.ts","sourceRoot":"","sources":["../../../src/transport/dispatch/create_dispatch_fn.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,WAAW;IAC1B,EAAE,EAAE,MAAM,CAAC;IACX,IAAI,EAAE,GAAG,EAAE,CAAC;CACb;AAED,wBAAgB,gBAAgB,CAAC,QAAQ,EAAE,MAAM,GAAG,EAAE,KAAK;;;CAAgB,kBAC7C,WAAW,kBAKxC"}

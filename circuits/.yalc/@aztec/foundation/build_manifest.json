@@ -1,7 +1,0 @@
-{
-  "foundation": {
-    "buildDir": ".",
-    "dockerfile": "Dockerfile",
-    "rebuildPatterns": ["*"]
-  }
-}

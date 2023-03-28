@@ -1,1 +1,0 @@
-{"version":3,"file":"semaphore.d.ts","sourceRoot":"","sources":["../../src/fifo/semaphore.ts"],"names":[],"mappings":"AAEA;;GAEG;AACH,qBAAa,SAAS;IACpB,OAAO,CAAC,QAAQ,CAAC,KAAK,CAA6B;gBAEvC,IAAI,EAAE,MAAM;IAIX,OAAO;IAIb,OAAO;CAGf"}

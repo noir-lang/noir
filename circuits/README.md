@@ -66,8 +66,7 @@ The core Aztec 3 C++ code lives in `cpp/src/aztec3/`, and is split into the foll
 
 ### Typescript
 
-This is being actively developed and is not merged into master yet. This code will provide Typescript wrappers for C++ cbinds including interfaces to circuits and to the helper functions that can be used when constructing circuit inputs.
-
+All typescript code was moved from here into `aztec3-packages/yarn-project/circuits.js`.
 
 ## Private Kernel Circuit
 

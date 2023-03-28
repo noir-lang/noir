@@ -1,1 +1,0 @@
-{"version":3,"file":"worker_connector.d.ts","sourceRoot":"","sources":["../../../src/transport/browser/worker_connector.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,SAAS,EAAE,MAAM,2BAA2B,CAAC;AACtD,OAAO,EAAE,iBAAiB,EAAE,MAAM,0BAA0B,CAAC;AAE7D,qBAAa,eAAgB,YAAW,SAAS;IACnC,OAAO,CAAC,MAAM;gBAAN,MAAM,EAAE,MAAM;IAElC,YAAY;CAKb"}
