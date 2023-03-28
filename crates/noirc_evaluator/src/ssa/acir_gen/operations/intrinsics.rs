@@ -3,7 +3,7 @@ use crate::{
         acir_gen::{
             constraints::{bound_constraint_with_offset, to_radix_base},
             operations::sort::evaluate_permutation,
-            AcirMem, InternalVar, InternalVarCache,
+            Acir, AcirMem, InternalVar, InternalVarCache,
         },
         builtin,
         context::SsaContext,
@@ -33,8 +33,7 @@ pub(crate) fn evaluate(
     args: &[NodeId],
     instruction: &Instruction,
     opcode: builtin::Opcode,
-    var_cache: &mut InternalVarCache,
-    memory_map: &mut AcirMem,
+    acir_gen: &mut Acir,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Option<InternalVar> {
@@ -48,28 +47,30 @@ pub(crate) fn evaluate(
         Opcode::ToBits(endianess) => {
             // TODO: document where `0` and `1` are coming from, for args[0], args[1]
             let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
-            let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
+            let l_c =
+                acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
             outputs = to_radix_base(l_c.expression(), 2, bit_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
-                memory_map.map_array(a, &outputs, ctx);
+                acir_gen.memory.map_array(a, &outputs, ctx);
             }
         }
         Opcode::ToRadix(endianess) => {
             // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
             let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
-            let l_c = var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
+            let l_c =
+                acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
             outputs = to_radix_base(l_c.expression(), radix, limb_size, endianess, evaluator);
             if let ObjectType::Pointer(a) = res_type {
-                memory_map.map_array(a, &outputs, ctx);
+                acir_gen.memory.map_array(a, &outputs, ctx);
             }
         }
         Opcode::Println(print_info) => {
             outputs = Vec::new(); // print statements do not output anything
             if print_info.show_output {
                 evaluate_println(
-                    var_cache,
-                    memory_map,
+                    &mut acir_gen.var_cache,
+                    &mut acir_gen.memory,
                     print_info.is_string_output,
                     args,
                     ctx,
@@ -78,9 +79,10 @@ pub(crate) fn evaluate(
             }
         }
         Opcode::LowLevel(op) => {
-            let inputs = prepare_inputs(var_cache, memory_map, args, ctx, evaluator);
+            let inputs = prepare_inputs(acir_gen, args, ctx, evaluator);
             let output_count = op.definition().output_size.0 as u32;
-            outputs = prepare_outputs(memory_map, instruction_id, output_count, ctx, evaluator);
+            outputs =
+                prepare_outputs(&mut acir_gen.memory, instruction_id, output_count, ctx, evaluator);
 
             let func_call = BlackBoxFuncCall {
                 name: op,
@@ -96,10 +98,15 @@ pub(crate) fn evaluate(
             let num_bits = array.element_type.bits();
             for i in 0..array.len {
                 in_expr.push(
-                    memory_map.load_array_element_constant_index(array, i).unwrap().to_expression(),
+                    acir_gen
+                        .memory
+                        .load_array_element_constant_index(array, i)
+                        .unwrap()
+                        .to_expression(),
                 );
             }
-            outputs = prepare_outputs(memory_map, instruction_id, array.len, ctx, evaluator);
+            outputs =
+                prepare_outputs(&mut acir_gen.memory, instruction_id, array.len, ctx, evaluator);
             let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
@@ -119,7 +126,7 @@ pub(crate) fn evaluate(
                 sort_by: vec![0],
             }));
             if let node::ObjectType::Pointer(a) = res_type {
-                memory_map.map_array(a, &outputs, ctx);
+                acir_gen.memory.map_array(a, &outputs, ctx);
             } else {
                 unreachable!();
             }
@@ -142,8 +149,7 @@ pub(crate) fn evaluate(
 
 // Transform the arguments of intrinsic functions into witnesses
 fn prepare_inputs(
-    var_cache: &mut InternalVarCache,
-    memory_map: &mut AcirMem,
+    acir_gen: &mut Acir,
     arguments: &[NodeId],
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
@@ -151,15 +157,14 @@ fn prepare_inputs(
     let mut inputs: Vec<FunctionInput> = Vec::new();
 
     for argument in arguments {
-        inputs.extend(resolve_node_id(argument, var_cache, memory_map, cfg, evaluator))
+        inputs.extend(resolve_node_id(argument, acir_gen, cfg, evaluator))
     }
     inputs
 }
 
 fn resolve_node_id(
     node_id: &NodeId,
-    var_cache: &mut InternalVarCache,
-    memory_map: &mut AcirMem,
+    acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -170,7 +175,7 @@ fn resolve_node_id(
             match node_obj_type {
                 // If the `Variable` represents a Pointer
                 // Then we know that it is an `Array`
-                node::ObjectType::Pointer(a) => resolve_array(a, memory_map, cfg, evaluator),
+                node::ObjectType::Pointer(a) => resolve_array(a, acir_gen, cfg, evaluator),
                 // If it is not a pointer, we attempt to fetch the witness associated with it
                 _ => match v.witness {
                     Some(w) => {
@@ -184,24 +189,19 @@ fn resolve_node_id(
             // Upon the case that the `NodeObject` is not a `Variable`,
             // we attempt to fetch an associated `InternalVar`.
             // Otherwise, this is a internal compiler error.
-            let internal_var = var_cache.get(node_id);
-            match internal_var {
-                Some(var) => {
-                    let witness = var
-                        .clone()
-                        .get_or_compute_witness(evaluator, false)
-                        .expect("unexpected constant expression");
-                    vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
-                }
-                None => unreachable!("invalid input: {:?}", node_object),
-            }
+            let internal_var = acir_gen.var_cache.get(node_id).expect("invalid input").clone();
+            let witness = acir_gen
+                .var_cache
+                .get_or_compute_witness(internal_var, evaluator)
+                .expect("unexpected constant expression");
+            vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
         }
     }
 }
 
 fn resolve_array(
     array_id: ArrayId,
-    acir_mem: &mut AcirMem,
+    acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
@@ -210,16 +210,15 @@ fn resolve_array(
     let array = &cfg.mem[array_id];
     let num_bits = array.element_type.bits();
     for i in 0..array.len {
-        let mut arr_element = acir_mem
+        let mut arr_element = acir_gen
+            .memory
             .load_array_element_constant_index(array, i)
             .expect("array index out of bounds");
-
-        let witness = arr_element.get_or_compute_witness(evaluator, true).expect(
-            "infallible: `None` can only be returned when we disallow constant Expressions.",
-        );
+        let witness =
+            acir_gen.var_cache.get_or_compute_witness_unwrap(arr_element.clone(), evaluator, cfg);
         let func_input = FunctionInput { witness, num_bits };
-
-        acir_mem.insert(array.id, i, arr_element);
+        arr_element.set_witness(witness);
+        acir_gen.memory.insert(array.id, i, arr_element);
 
         inputs.push(func_input)
     }
@@ -295,7 +294,7 @@ fn evaluate_println(
                 log_string = format_field_string(field);
             }
             None => {
-                let mut var = var_cache
+                let var = var_cache
                     .get(&node_id)
                     .unwrap_or_else(|| {
                         panic!(
@@ -306,7 +305,7 @@ fn evaluate_println(
                     .clone();
                 if let Some(field) = var.to_const() {
                     log_string = format_field_string(field);
-                } else if let Some(w) = var.get_or_compute_witness(evaluator, false) {
+                } else if let Some(w) = var_cache.get_or_compute_witness(var, evaluator) {
                     // We check whether there has already been a cached witness for this node. If not, we generate a new witness and include it in the logs
                     // TODO we need a witness because of the directive, but we should use an expression
                     log_witnesses.push(w);

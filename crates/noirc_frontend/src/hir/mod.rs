@@ -20,7 +20,13 @@ pub struct Context {
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
     pub file_manager: FileManager,
+
+    /// Maps a given (contract) module id to the next available storage slot
+    /// for that contract.
+    pub storage_slots: HashMap<def_map::ModuleId, StorageSlot>,
 }
+
+pub type StorageSlot = u32;
 
 impl Context {
     pub fn new(file_manager: FileManager, crate_graph: CrateGraph, language: Language) -> Context {
@@ -29,10 +35,12 @@ impl Context {
             def_maps: HashMap::new(),
             crate_graph,
             file_manager,
+            storage_slots: HashMap::new(),
         };
         ctx.def_interner.set_language(&language);
         ctx
     }
+
     /// Returns the CrateDefMap for a given CrateId.
     /// It is perfectly valid for the compiler to look
     /// up a CrateDefMap and it is not available.
@@ -45,5 +53,21 @@ impl Context {
     /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
         self.crate_graph.iter_keys()
+    }
+
+    fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
+        module_id.module(&self.def_maps)
+    }
+
+    /// Returns the next available storage slot in the given module.
+    /// Returns None if the given module is not a contract module.
+    fn next_storage_slot(&mut self, module_id: def_map::ModuleId) -> Option<StorageSlot> {
+        let module = self.module(module_id);
+
+        module.is_contract.then(|| {
+            let next_slot = self.storage_slots.entry(module_id).or_insert(0);
+            *next_slot += 1;
+            *next_slot
+        })
     }
 }

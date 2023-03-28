@@ -36,6 +36,12 @@ pub struct ModuleId {
     pub local_id: LocalModuleId,
 }
 
+impl ModuleId {
+    pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
+        &def_maps[&self.krate].modules()[self.local_id.0]
+    }
+}
+
 /// Map of all modules and scopes defined within a crate.
 ///
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
