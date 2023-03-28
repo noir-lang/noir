@@ -7,7 +7,7 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
-template <typename NCT> struct ConstantBaseRollupData {
+template <typename NCT> struct ConstantRollupData {
 
     typedef typename NCT::fr fr;
 
@@ -22,9 +22,9 @@ template <typename NCT> struct ConstantBaseRollupData {
     fr base_rollup_vk_hash;
     fr merge_rollup_vk_hash;
 
-    bool operator==(ConstantBaseRollupData<NCT> const&) const = default;
+    bool operator==(ConstantRollupData<NCT> const&) const = default;
 
-    static ConstantBaseRollupData<NCT> empty()
+    static ConstantRollupData<NCT> empty()
     {
         return { AppendOnlyTreeSnapshot<NCT>::empty(),
                  AppendOnlyTreeSnapshot<NCT>::empty(),
@@ -36,7 +36,7 @@ template <typename NCT> struct ConstantBaseRollupData {
     };
 };
 
-template <typename NCT> void read(uint8_t const*& it, ConstantBaseRollupData<NCT>& obj)
+template <typename NCT> void read(uint8_t const*& it, ConstantRollupData<NCT>& obj)
 {
     using serialize::read;
 
@@ -49,7 +49,7 @@ template <typename NCT> void read(uint8_t const*& it, ConstantBaseRollupData<NCT
     read(it, obj.merge_rollup_vk_hash);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantBaseRollupData<NCT> const& obj)
+template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantRollupData<NCT> const& obj)
 {
     using serialize::write;
 
@@ -62,7 +62,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantBaseRollup
     write(buf, obj.merge_rollup_vk_hash);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantBaseRollupData<NCT> const& obj)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollupData<NCT> const& obj)
 {
     return os << "start_tree_of_historic_private_data_tree_roots_snapshot:\n "
               << obj.start_tree_of_historic_private_data_tree_roots_snapshot << "\n"

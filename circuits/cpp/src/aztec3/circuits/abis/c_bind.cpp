@@ -1,4 +1,5 @@
 #include "c_bind.h"
+#include "aztec3/circuits/abis/rollup/base/base_rollup_public_inputs.hpp"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
@@ -6,8 +7,8 @@
 #include "tx_request.hpp"
 #include "tx_context.hpp"
 #include "function_leaf_preimage.hpp"
-#include "base_rollup/base_rollup_inputs.hpp"
-#include "base_rollup/base_rollup_public_inputs.hpp"
+#include "rollup/base/base_rollup_inputs.hpp"
+#include "rollup/base/base_rollup_public_inputs.hpp"
 #include "private_kernel/previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
 

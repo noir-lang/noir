@@ -22,9 +22,9 @@ has_data: 0
 
 private_call_count: 0xd
 new_commitments:
-[ 0x101 0x102 0x103 0x104 0x105 0x106 0x107 0x108 0x109 0x10a 0x10b 0x10c 0x10d 0x10e 0x10f 0x110 ]
+[ 0x101 0x102 0x103 0x104 ]
 new_nullifiers:
-[ 0x201 0x202 0x203 0x204 0x205 0x206 0x207 0x208 0x209 0x20a 0x20b 0x20c 0x20d 0x20e 0x20f 0x210 ]
+[ 0x201 0x202 0x203 0x204 ]
 private_call_stack:
 [ 0x301 0x302 0x303 0x304 0x305 0x306 0x307 0x308 ]
 public_call_stack:
@@ -35,27 +35,6 @@ new_contracts:
 [ contract_address: 0x601
 portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0x603
- contract_address: 0x602
-portal_contract_address: 0x303030303030303030303030303030303030303
-function_tree_root: 0x604
- contract_address: 0x603
-portal_contract_address: 0x404040404040404040404040404040404040404
-function_tree_root: 0x605
- contract_address: 0x604
-portal_contract_address: 0x505050505050505050505050505050505050505
-function_tree_root: 0x606
- contract_address: 0x605
-portal_contract_address: 0x606060606060606060606060606060606060606
-function_tree_root: 0x607
- contract_address: 0x606
-portal_contract_address: 0x707070707070707070707070707070707070707
-function_tree_root: 0x608
- contract_address: 0x607
-portal_contract_address: 0x808080808080808080808080808080808080808
-function_tree_root: 0x609
- contract_address: 0x608
-portal_contract_address: 0x909090909090909090909090909090909090909
-function_tree_root: 0x60a
  ]
 optionally_revealed_data:
 [ call_stack_item_hash: 0x701
@@ -135,7 +114,7 @@ portal_contract_address: 0x808080808080808080808080808080808080808
 is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
-vk: 0x12a180
+vk: 0x12ad40
 vk_index: 66
 vk_path: [ 0x1000 0x1001 0x1002 ]
 "
@@ -187,9 +166,9 @@ has_data: 0
 
 private_call_count: 0x100d
 new_commitments:
-[ 0x1101 0x1102 0x1103 0x1104 0x1105 0x1106 0x1107 0x1108 0x1109 0x110a 0x110b 0x110c 0x110d 0x110e 0x110f 0x1110 ]
+[ 0x1101 0x1102 0x1103 0x1104 ]
 new_nullifiers:
-[ 0x1201 0x1202 0x1203 0x1204 0x1205 0x1206 0x1207 0x1208 0x1209 0x120a 0x120b 0x120c 0x120d 0x120e 0x120f 0x1210 ]
+[ 0x1201 0x1202 0x1203 0x1204 ]
 private_call_stack:
 [ 0x1301 0x1302 0x1303 0x1304 0x1305 0x1306 0x1307 0x1308 ]
 public_call_stack:
@@ -200,27 +179,6 @@ new_contracts:
 [ contract_address: 0x1601
 portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0x1603
- contract_address: 0x1602
-portal_contract_address: 0x303030303030303030303030303030303030303
-function_tree_root: 0x1604
- contract_address: 0x1603
-portal_contract_address: 0x404040404040404040404040404040404040404
-function_tree_root: 0x1605
- contract_address: 0x1604
-portal_contract_address: 0x505050505050505050505050505050505050505
-function_tree_root: 0x1606
- contract_address: 0x1605
-portal_contract_address: 0x606060606060606060606060606060606060606
-function_tree_root: 0x1607
- contract_address: 0x1606
-portal_contract_address: 0x707070707070707070707070707070707070707
-function_tree_root: 0x1608
- contract_address: 0x1607
-portal_contract_address: 0x808080808080808080808080808080808080808
-function_tree_root: 0x1609
- contract_address: 0x1608
-portal_contract_address: 0x909090909090909090909090909090909090909
-function_tree_root: 0x160a
  ]
 optionally_revealed_data:
 [ call_stack_item_hash: 0x1701
@@ -300,7 +258,7 @@ portal_contract_address: 0x808080808080808080808080808080808080808
 is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
-vk: 0x12c1c0
+vk: 0x12cd80
 vk_index: 66
 vk_path: [ 0x1000 0x1001 0x1002 ]
 
@@ -477,7 +435,7 @@ portal_contract_address: 0x4
 proof:
 [ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
 vk:
-0x134c00
+0x1357c0
 function_leaf_membership_witness:
 leaf_index: 8241
 sibling_path: [ 0x2031 0x2032 0x2033 0x2034 ]

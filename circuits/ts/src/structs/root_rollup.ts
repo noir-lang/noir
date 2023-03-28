@@ -19,7 +19,6 @@ export class RootRollupInputs {
     public newNullifiersSubtreeSiblingPath: Fr[],
     public newContractsSubtreeSiblingPath: Fr[],
 
-    public proverId: Fr,
   ) {
     assertLength(this, 'newCommitmentsSubtreeSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
     assertLength(this, 'newNullifiersSubtreeSiblingPath', NULLIFIER_TREE_HEIGHT);
@@ -34,7 +33,6 @@ export class RootRollupInputs {
       this.newCommitmentsSubtreeSiblingPath,
       this.newNullifiersSubtreeSiblingPath,
       this.newContractsSubtreeSiblingPath,
-      this.proverId,
     );
   }
 }

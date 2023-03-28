@@ -1,11 +1,10 @@
 #pragma once
-#include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
-#include "../append_only_tree_snapshot.hpp"
-#include "../append_only_tree_snapshot.hpp"
-#include "./constant_base_rollup_data.hpp"
+#include "../../append_only_tree_snapshot.hpp"
+#include "../../append_only_tree_snapshot.hpp"
+#include "../constant_rollup_data.hpp"
 
 namespace aztec3::circuits::abis {
 
@@ -13,18 +12,15 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
-const uint32_t BASE_ROLLUP_TYPE = 0;
-const uint32_t MERGE_ROLLUP_TYPE = 1;
-
-template <typename NCT> struct BaseRollupPublicInputs {
+template <typename NCT> struct MergeRollupPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::AggregationObject AggregationObject;
 
-    uint32_t rollup_type;
+    fr rollup_subtree_height;
 
     AggregationObject end_aggregation_object;
 
-    ConstantBaseRollupData<NCT> constants;
+    ConstantRollupData<NCT> constants;
 
     // The only tree root actually updated in this circuit is the nullifier tree, because earlier leaves (of
     // low_nullifiers) must be updated to point to the new nullifiers in this circuit.
@@ -35,25 +31,17 @@ template <typename NCT> struct BaseRollupPublicInputs {
     fr new_nullifiers_subtree_root;
     fr new_contract_leaves_subtree_root;
 
-    // Hashes (probably sha256) to make public inputs constant-sized (to then be unpacked on-chain)
-    // UPDATE we should instead just hash all of the below into a single value. See big diagram of sha256 hashing
-    // bottom-right of here.
-    // TODO I've put `fr`, but these hash values' types might need to be two fields if we want all 256-bits, for
-    // security purposes.
-    fr new_commitments_hash;
-    fr new_nullifiers_hash;
-    fr new_l1_msgs_hash;
-    fr new_contract_data_hash;
+    fr calldata_hash;
     fr prover_contributions_hash;
 
-    bool operator==(BaseRollupPublicInputs<NCT> const&) const = default;
+    bool operator==(MergeRollupPublicInputs<NCT> const&) const = default;
 };
 
-template <typename NCT> void read(uint8_t const*& it, BaseRollupPublicInputs<NCT>& obj)
+template <typename NCT> void read(uint8_t const*& it, MergeRollupPublicInputs<NCT>& obj)
 {
     using serialize::read;
 
-    read(it, obj.rollup_type);
+    read(it, obj.rollup_subtree_height);
     read(it, obj.end_aggregation_object);
     read(it, obj.constants);
     read(it, obj.start_nullifier_tree_snapshot);
@@ -61,18 +49,15 @@ template <typename NCT> void read(uint8_t const*& it, BaseRollupPublicInputs<NCT
     read(it, obj.new_commitments_subtree_root);
     read(it, obj.new_nullifiers_subtree_root);
     read(it, obj.new_contract_leaves_subtree_root);
-    read(it, obj.new_commitments_hash);
-    read(it, obj.new_nullifiers_hash);
-    read(it, obj.new_l1_msgs_hash);
-    read(it, obj.new_contract_data_hash);
+    read(it, obj.calldata_hash);
     read(it, obj.prover_contributions_hash);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, BaseRollupPublicInputs<NCT> const& obj)
+template <typename NCT> void write(std::vector<uint8_t>& buf, MergeRollupPublicInputs<NCT> const& obj)
 {
     using serialize::write;
 
-    write(buf, obj.rollup_type);
+    write(buf, obj.rollup_subtree_height);
     write(buf, obj.end_aggregation_object);
     write(buf, obj.constants);
     write(buf, obj.start_nullifier_tree_snapshot);
@@ -80,18 +65,15 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, BaseRollupPublicIn
     write(buf, obj.new_commitments_subtree_root);
     write(buf, obj.new_nullifiers_subtree_root);
     write(buf, obj.new_contract_leaves_subtree_root);
-    write(buf, obj.new_commitments_hash);
-    write(buf, obj.new_nullifiers_hash);
-    write(buf, obj.new_l1_msgs_hash);
-    write(buf, obj.new_contract_data_hash);
+    write(buf, obj.calldata_hash);
     write(buf, obj.prover_contributions_hash);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupPublicInputs<NCT> const& obj)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, MergeRollupPublicInputs<NCT> const& obj)
 {
-    return os << "rollup_type: " << obj.rollup_type
-              << "\n"
-                 "end_aggregation_object:\n"
+    return os << "rollup_subtree_height:\n"
+              << obj.rollup_subtree_height << "\n"
+              << "end_aggregation_object:\n"
               << obj.end_aggregation_object
               << "\n"
                  "constants:\n"
@@ -112,17 +94,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupPub
                  "new_contract_leaves_subtree_root: "
               << obj.new_contract_leaves_subtree_root
               << "\n"
-                 "new_commitments_hash: "
-              << obj.new_commitments_hash
-              << "\n"
-                 "new_nullifiers_hash: "
-              << obj.new_nullifiers_hash
-              << "\n"
-                 "new_l1_msgs_hash: "
-              << obj.new_l1_msgs_hash
-              << "\n"
-                 "new_contract_data_hash: "
-              << obj.new_contract_data_hash
+                 "calldata_hash: "
+              << obj.calldata_hash
               << "\n"
                  "prover_contributions_hash: "
               << obj.prover_contributions_hash << "\n";

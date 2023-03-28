@@ -14,6 +14,7 @@ using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
 using std::is_same;
 
+// @todo Naming should not be previous. Annoying.
 template <typename NCT> struct PreviousKernelData {
     typedef typename NCT::fr fr;
     typedef typename NCT::VK VK;

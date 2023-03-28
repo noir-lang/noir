@@ -17,7 +17,7 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
 
     bool operator==(MembershipWitness<NCT, N> const&) const = default;
 
-    static MembershipWitness<NCT, N> empty() { return { 0, std::array<fr, N>(N) }; };
+    static MembershipWitness<NCT, N> empty() { return { 0, std::array<fr, N>({ 0, { 0 } }) }; };
 
     template <typename Composer> MembershipWitness<CircuitTypes<Composer>, N> to_circuit_type(Composer& composer) const
     {
