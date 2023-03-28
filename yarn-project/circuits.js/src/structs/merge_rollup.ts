@@ -26,10 +26,10 @@ export class PreviousRollupData {
 }
 
 export class MergeRollupInputs {
-  constructor(public previousRollupData: [PreviousRollupData, PreviousRollupData], public proverId: Fr) {}
+  constructor(public previousRollupData: [PreviousRollupData, PreviousRollupData]) {}
 
   toBuffer() {
-    return serializeToBuffer(this.previousRollupData, this.proverId);
+    return serializeToBuffer(this.previousRollupData);
   }
 }
 

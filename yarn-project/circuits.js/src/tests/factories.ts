@@ -40,7 +40,6 @@ import {
   ComposerType,
   MembershipWitness,
   UInt8Vector,
-  RollupTypes,
   EcdsaSignature,
 } from '../structs/shared.js';
 import { ContractDeploymentData, SignedTxRequest, TxContext, TxRequest } from '../structs/tx.js';
@@ -239,19 +238,15 @@ export function makeEcdsaSignature(seed = 1): EcdsaSignature {
 
 export function makeBaseRollupPublicInputs(seed = 0) {
   return new BaseRollupPublicInputs(
-    RollupTypes.Base,
     makeAggregationObject(seed + 0x100),
     makeConstantBaseRollupData(seed + 0x200),
     makeAppendOnlyTreeSnapshot(seed + 0x300),
     makeAppendOnlyTreeSnapshot(seed + 0x400),
-    fr(seed + 0x501),
-    fr(seed + 0x502),
-    fr(seed + 0x503),
-    fr(seed + 0x601),
-    fr(seed + 0x602),
-    fr(seed + 0x603),
-    fr(seed + 0x604),
-    fr(seed + 0x605),
+    makeAppendOnlyTreeSnapshot(seed + 0x500),
+    makeAppendOnlyTreeSnapshot(seed + 0x600),
+    makeAppendOnlyTreeSnapshot(seed + 0x700),
+    makeAppendOnlyTreeSnapshot(seed + 0x800),
+    range(2, seed + 0x901).map(fr) as [Fr, Fr],
   );
 }
 

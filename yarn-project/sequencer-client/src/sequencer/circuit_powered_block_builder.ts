@@ -35,6 +35,7 @@ const FUTURE_NUM = 0;
 // Denotes fields that should be deleted
 const DELETE_FR = new Fr(0n);
 const DELETE_ANY: any = {};
+const TODO_ANY: any = {};
 
 export class CircuitPoweredBlockBuilder {
   constructor(
@@ -138,10 +139,9 @@ export class CircuitPoweredBlockBuilder {
       previousRollupData,
       await this.getTreeSnapshot(MerkleTreeId.DATA_TREE),
       await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
-      DELETE_ANY,
-      DELETE_ANY,
-      DELETE_ANY,
-      DELETE_ANY,
+      TODO_ANY,
+      TODO_ANY,
+      TODO_ANY,
     );
   }
 
@@ -243,7 +243,6 @@ export class CircuitPoweredBlockBuilder {
       );
 
     return BaseRollupInputs.from({
-      proverId: DELETE_FR,
       constants: await this.getConstantBaseRollupData(),
       startNullifierTreeSnapshot: await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
       lowNullifierLeafPreimages: lowNullifierInfos.map(i => i.leafPreimage),
@@ -257,6 +256,6 @@ export class CircuitPoweredBlockBuilder {
         await getDataMembershipWitnessFor(tx1),
         await getDataMembershipWitnessFor(tx2),
       ],
-    });
+    } as BaseRollupInputs);
   }
 }
