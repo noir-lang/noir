@@ -70,8 +70,7 @@ pub fn create_circuit(
     // see https://github.com/noir-lang/acvm/pull/56
     let mut param_witnesses = evaluator.param_witnesses;
     let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
-    let return_witnesses_set: BTreeSet<Witness> =
-        return_witnesses.iter().map(|w| w.clone()).collect();
+    let return_witnesses_set: BTreeSet<Witness> = return_witnesses.iter().copied().collect();
 
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
 
