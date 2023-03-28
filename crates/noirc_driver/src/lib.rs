@@ -4,7 +4,7 @@
 
 use acvm::Language;
 use clap::Args;
-use contract::ContractFunction;
+use contract::{ContractFunction, ContractFunctionType};
 use fm::FileType;
 use iter_extended::{try_btree_map, try_vecmap};
 use noirc_abi::FunctionSignature;
@@ -207,8 +207,10 @@ impl Driver {
             let function = self.compile_no_check(options, *function_id)?;
             let func_meta = self.context.def_interner.function_meta(function_id);
             let func_type = func_meta
-                .contract_visibility
+                .contract_function_type
                 .expect("Expected contract function to have a contract visibility");
+
+            let func_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
             Ok((function_name, ContractFunction { func_type, function }))
         })?;
@@ -244,12 +246,12 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let np_language = self.language.clone();
-        let blackbox_supported = acvm::default_is_black_box_supported(np_language.clone());
+        let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());
 
         match create_circuit(
             program,
             np_language,
-            blackbox_supported,
+            is_opcode_supported,
             options.show_ssa,
             options.show_output,
         ) {

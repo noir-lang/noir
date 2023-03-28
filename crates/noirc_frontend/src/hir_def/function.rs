@@ -6,7 +6,7 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
-use crate::{ContractVisibility, Type};
+use crate::{ContractFunctionType, Type};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -123,7 +123,9 @@ pub struct FuncMeta {
 
     /// This function's visibility in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
-    pub contract_visibility: Option<ContractVisibility>,
+    pub contract_function_type: Option<ContractFunctionType>,
+
+    pub is_unconstrained: bool,
 
     pub parameters: Parameters,
 

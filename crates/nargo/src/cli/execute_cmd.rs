@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use acvm::pwg::block::Blocks;
 use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
@@ -67,7 +68,15 @@ pub(crate) fn execute_program(
     let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let backend = crate::backends::ConcreteBackend;
-    backend.solve(&mut solved_witness, compiled_program.circuit.opcodes.clone())?;
+    let mut blocks = Blocks::default();
+    let (unresolved_opcodes, oracles) = backend.solve(
+        &mut solved_witness,
+        &mut blocks,
+        compiled_program.circuit.opcodes.clone(),
+    )?;
+    if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
+        todo!("Add oracle support to nargo execute")
+    }
 
     Ok(solved_witness)
 }
