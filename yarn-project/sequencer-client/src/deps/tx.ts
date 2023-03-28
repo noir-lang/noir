@@ -1,6 +1,7 @@
 import {
   AffineElement,
   AggregationObject,
+  AztecAddress,
   ConstantData,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
@@ -39,7 +40,7 @@ function makeEmptyEthAddress() {
 }
 
 export function makeEmptyNewContractData(): NewContractData {
-  return new NewContractData(frZero(), makeEmptyEthAddress(), frZero());
+  return new NewContractData(AztecAddress.ZERO, makeEmptyEthAddress(), frZero());
 }
 
 export function makeEmptyAggregationObject(): AggregationObject {
