@@ -14,6 +14,7 @@ import {
   PreviousKernelData,
   PreviousRollupData,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
+  ROLLUP_VK_TREE_HEIGHT,
   RootRollupInputs,
   RootRollupPublicInputs,
   UInt8Vector,
@@ -274,7 +275,7 @@ export class CircuitPoweredBlockBuilder {
 
       // MembershipWitness for a VK tree to be implemented in the future
       FUTURE_NUM,
-      Array(VK_TREE_HEIGHT).fill(FUTURE_FR),
+      new MembershipWitness(ROLLUP_VK_TREE_HEIGHT, FUTURE_NUM, Array(ROLLUP_VK_TREE_HEIGHT).fill(FUTURE_FR)),
     );
   }
 
