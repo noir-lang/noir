@@ -590,7 +590,7 @@ pub(super) enum Opcode {
     Load(ArrayId),
     Store(ArrayId),
     Intrinsic(builtin::Opcode), //Custom implementation of useful primitives
-    UnsafeCall,     //Call an unsafe function
+    UnsafeCall,                 //Call an unsafe function
     Nop,                        // no op
 }
 
@@ -1164,13 +1164,15 @@ impl Operation {
                 predicate: *predicate,
                 location: *location,
             },
-            UnsafeCall { func: func_id, arguments, predicate, location, returned_values } => UnsafeCall {
-                func: f(*func_id),
-                arguments: vecmap(arguments.iter().copied(), f),
-                predicate: *predicate,
-                returned_values: returned_values.clone(),
-                location: *location,
-            },
+            UnsafeCall { func: func_id, arguments, predicate, location, returned_values } => {
+                UnsafeCall {
+                    func: f(*func_id),
+                    arguments: vecmap(arguments.iter().copied(), f),
+                    predicate: *predicate,
+                    returned_values: returned_values.clone(),
+                    location: *location,
+                }
+            }
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1217,8 +1219,7 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call { func, arguments, .. }
-            | UnsafeCall { func, arguments, .. }  => {
+            Call { func, arguments, .. } | UnsafeCall { func, arguments, .. } => {
                 *func = f(*func);
                 for arg in arguments {
                     *arg = f(*arg);

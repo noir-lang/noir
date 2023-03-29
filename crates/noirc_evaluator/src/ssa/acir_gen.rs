@@ -9,8 +9,8 @@ use crate::{
     },
 };
 use acvm::acir::brillig_bytecode::{Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::circuit::opcodes::{Brillig, Opcode as AcirOpcode};
 use acvm::acir::native_types::{Expression, Witness};
-use acvm::acir::circuit::opcodes::{Opcode as AcirOpcode, Brillig};
 mod operations;
 
 mod internal_var;
@@ -150,32 +150,29 @@ pub(crate) fn unsafe_call(
 ) -> Result<Option<InternalVar>, RuntimeError> {
     let f = ctx.try_get_ssa_func(*func).unwrap();
 
-   let mut inputs = Vec::with_capacity(arguments.len());
-   let mut register_load = Vec::with_capacity(arguments.len());
-    for (i,a) in arguments.iter().enumerate() {
-        inputs.push(var_cache.get_or_compute_internal_var_unwrap(*a, evaluator, ctx).to_expression());
-        register_load.push(a.0.into_raw_parts().0 as u32);
+    let mut inputs = Vec::with_capacity(arguments.len());
+    let mut register_load = Vec::with_capacity(arguments.len());
+
+    for (call_argument, func_argument) in arguments.iter().zip(&f.arguments) {
+        inputs.push(
+            var_cache
+                .get_or_compute_internal_var_unwrap(*call_argument, evaluator, ctx)
+                .to_expression(),
+        );
+        register_load.push(func_argument.0 .0.into_raw_parts().0 as u32);
     }
 
-   let mut outputs = Vec::with_capacity(returns.len());
+    let mut outputs = Vec::with_capacity(returns.len());
     for i in returns {
         let var = var_cache.get_or_compute_internal_var_unwrap(*i, evaluator, ctx);
         let witness = var_cache.get_or_compute_witness_unwrap(var, evaluator, ctx);
         outputs.push(witness)
     }
-    
+
     let mut code = f.brillig_code.clone();
-   // code.push(BrilligOpcode::Bootstrap{register_allocation_indices:register_load});
-    let brillig_opcde = AcirOpcode::Brillig(Brillig {
-        inputs,
-        outputs,
-        bytecode: code,
-    });
-
-
+    code.push(BrilligOpcode::Bootstrap { register_allocation_indices: register_load });
+    let brillig_opcde = AcirOpcode::Brillig(Brillig { inputs, outputs, bytecode: code });
     evaluator.push_opcode(brillig_opcde);
 
-
     Ok(None)
-
 }

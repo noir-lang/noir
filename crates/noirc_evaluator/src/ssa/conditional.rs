@@ -719,7 +719,6 @@ impl DecisionTree {
                     predicate: ins_pred,
                     location,
                 } => {
-                    
                     if ctx.under_assumption(ass_value) {
                         assert!(*ins_pred == None);
                         let mut ins2 = ctx.instruction_mut(ins_id);

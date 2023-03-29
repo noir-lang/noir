@@ -9,10 +9,10 @@ use crate::ssa::{
     ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
+use acvm::acir::brillig_bytecode::Opcode as BrilligOpcode;
 use iter_extended::try_vecmap;
 use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
 use std::collections::{HashMap, VecDeque};
-use acvm::acir::brillig_bytecode::{Opcode as BrilligOpcode};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub(crate) struct FuncIndex(pub(crate) usize);
@@ -36,7 +36,7 @@ pub(crate) struct SsaFunction {
     pub(crate) id: FuncId,
     pub(crate) idx: FuncIndex,
     pub(crate) node_id: NodeId,
-    pub(crate) kind : RuntimeType,
+    pub(crate) kind: RuntimeType,
     pub(crate) brillig_code: Vec<BrilligOpcode>,
 
     //signature:
@@ -185,12 +185,12 @@ impl IrGenerator {
 
         // ensure return types are defined in case of recursion call cycle
         let function = &mut self.program[func_id];
-        func.kind = match (oracle_name,function.unconstrained) {
+        func.kind = match (oracle_name, function.unconstrained) {
             (Some(name), _) => RuntimeType::Oracle(name),
             (None, true) => RuntimeType::Unsafe,
             _ => RuntimeType::Acvm,
         };
-        
+
         let return_types = function.return_type.flatten();
         for typ in return_types {
             func.result_types.push(match typ {
@@ -243,10 +243,9 @@ impl IrGenerator {
             let decision = func.compile(self)?; //unroll the function
             func.decision = decision;
         }
-            self.context.functions.insert(func_id, func);
-            self.context.current_block = current_block;
-            self.function_context = current_function;
-        
+        self.context.functions.insert(func_id, func);
+        self.context.current_block = current_block;
+        self.function_context = current_function;
 
         Ok(ObjectType::Function)
     }
@@ -277,34 +276,35 @@ impl IrGenerator {
         //il faut gerer le assign d'un brillig... TODO
         //le reste est simple.
         let func_id = self.context.try_get_func_id(func).unwrap();
-                let ssa_func = self.context.ssa_func(func_id).unwrap();
-                match ssa_func.kind {
-                    RuntimeType::Oracle(_) | RuntimeType::Unsafe => {
-                    //create return values
-                    let mut returned_values = Vec::new();
-                    let types = ssa_func.result_types.clone();
-                    for (i,typ) in types.iter().enumerate() {
-                        let obj = node::Variable::new(*typ, "ret{i}".to_string(), None, self.context.current_block);
-                        let var = self.context.add_variable(obj, None);
-                        returned_values.push(var);
-                    }
-                    let unsafe_call = Operation::UnsafeCall {
-                        func,
+        let ssa_func = self.context.ssa_func(func_id).unwrap();
+        match ssa_func.kind {
+            RuntimeType::Oracle(_) | RuntimeType::Unsafe => {
+                //create return values
+                let mut returned_values = Vec::new();
+                let types = ssa_func.result_types.clone();
+                for (i, typ) in types.iter().enumerate() {
+                    let obj = node::Variable::new(
+                        *typ,
+                        "ret{i}".to_string(),
+                        None,
+                        self.context.current_block,
+                    );
+                    let var = self.context.add_variable(obj, None);
+                    returned_values.push(var);
+                }
+                let unsafe_call = Operation::UnsafeCall {
+                    func,
                     arguments: arguments.clone(),
                     returned_values: returned_values.clone(),
                     predicate: None,
                     location,
-                    };
-                    let call_instruction = self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
-                    return Ok(returned_values);
-                    },
-                    RuntimeType::Acvm => (),
-                }
-                
-           
-            
-            
-        
+                };
+                let call_instruction =
+                    self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
+                return Ok(returned_values);
+            }
+            RuntimeType::Acvm => (),
+        }
 
         let mut call_op = Operation::Call {
             func,

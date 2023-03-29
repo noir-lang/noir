@@ -1,13 +1,14 @@
 use crate::{
+    brillig::brillig_gen::directive_invert,
     errors::RuntimeErrorKind,
     ssa::{acir_gen::expression_to_witness, builtin::Endian},
-    Evaluator, brillig::brillig_gen::directive_invert,
+    Evaluator,
 };
 use acvm::{
     acir::{
         circuit::{
             directives::Directive,
-            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode, Brillig},
+            opcodes::{BlackBoxFuncCall, Brillig, FunctionInput, Opcode as AcirOpcode},
         },
         native_types::{Expression, Witness},
     },
@@ -569,12 +570,12 @@ pub(crate) fn evaluate_inverse(
 ) -> Witness {
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
-        let brillig_code = directive_invert();
-        let b_opcode = AcirOpcode::Brillig(Brillig {
-            inputs: vec![Expression::from(x_witness)],
-            outputs: vec![inverse_witness],
-            bytecode: brillig_code, 
-        });
+    let brillig_code = directive_invert();
+    let b_opcode = AcirOpcode::Brillig(Brillig {
+        inputs: vec![Expression::from(x_witness)],
+        outputs: vec![inverse_witness],
+        bytecode: brillig_code,
+    });
 
     evaluator.push_opcode(b_opcode);
 
