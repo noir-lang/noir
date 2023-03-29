@@ -6,6 +6,7 @@ use acvm::{
     FieldElement,
 };
 use gloo_utils::format::JsValueSerdeExt;
+use js_sys::BigInt;
 use log::{debug, Level};
 use noirc_abi::{input_parser, Abi, MAIN_RETURN_NAME};
 use noirc_driver::{CompileOptions, Driver};
@@ -204,10 +205,7 @@ fn js_map_to_witness_map(js_map: js_sys::Map) -> BTreeMap<Witness, FieldElement>
     let mut witness_skeleton: BTreeMap<Witness, FieldElement> = BTreeMap::new();
     for key_result in js_map.keys() {
         let key = key_result.expect("bad key");
-        let idx;
-        unsafe {
-            idx = key.as_f64().expect("not a number").to_int_unchecked::<u32>();
-        }
+        let idx = js_value_to_u32(&key);
         let hex_str = js_map.get(&key).as_string().expect("not a string");
         let field_element = FieldElement::from_hex(&hex_str).expect("bad hex str");
         witness_skeleton.insert(Witness(idx), field_element);
@@ -233,6 +231,26 @@ fn read_circuit(circuit: js_sys::Uint8Array) -> Circuit {
         Ok(circuit) => circuit,
         Err(err) => panic!("Circuit read err: {}", err),
     }
+}
+
+fn js_value_to_u32(val: &JsValue) -> u32 {
+    if let Ok(val_int) = BigInt::new(&val) {
+        // Seems like the only way in javascript to get the number of bits
+        let num_bits = val_int.to_string(2).unwrap().length();
+
+        if num_bits > 32 {
+            panic!("value can not be greater than a 32 bit number, number of bits is {}", num_bits);
+        }
+
+        // The following lines of code will convert a BigInt into a u32
+        // To do this, we convert it to a Javascript string in base10, then to a utf8 encoded rust string
+        // then we parse the rust string as a u32
+        let val_as_string = val_int.to_string(10).unwrap().as_string().unwrap();
+
+        let value_u32: u32 = val_as_string.parse().unwrap();
+        return value_u32;
+    }
+    panic!("expected a big integer")
 }
 
 #[wasm_bindgen]
