@@ -44,6 +44,7 @@ describe('sequencer/circuit_block_builder', () => {
   let wasm: BarretenbergWasm;
 
   const emptyProof = new UInt8Vector(Buffer.alloc(32, 0));
+  const emptyUnverifiedData = Buffer.alloc(0);
 
   beforeAll(async () => {
     wasm = new BarretenbergWasm();
@@ -83,9 +84,6 @@ describe('sequencer/circuit_block_builder', () => {
       [MerkleTreeId.DATA_TREE, MerkleTreeId.DATA_TREE_ROOTS_TREE],
       [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
     ] as const) {
-      if (rootTree === MerkleTreeId.CONTRACT_TREE_ROOTS_TREE) {
-        await inspectTree(expectsDb, rootTree);
-      }
       const newTreeInfo = await expectsDb.getTreeInfo(newTree);
       await expectsDb.appendLeaves(rootTree, [newTreeInfo.root]);
     }
@@ -109,7 +107,7 @@ describe('sequencer/circuit_block_builder', () => {
 
   it('builds an L2 block', async () => {
     // Assemble a fake transaction, we'll tweak some fields below
-    const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof);
+    const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof, emptyUnverifiedData);
     const txsLeft = [tx, makeEmptyTx()];
     const txsRight = [makeEmptyTx(), makeEmptyTx()];
     const txs = [...txsLeft, ...txsRight];
@@ -128,8 +126,6 @@ describe('sequencer/circuit_block_builder', () => {
     baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
-
-    await inspectTree(expectsDb, MerkleTreeId.CONTRACT_TREE);
 
     // Same for the two txs on the right
     await updateExpectedTreesFromTxs(txsRight);

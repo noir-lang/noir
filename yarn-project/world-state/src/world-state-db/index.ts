@@ -63,7 +63,7 @@ export interface MerkleTreeDb extends MerkleTreeOperations {
  */
 export async function inspectTree(db: MerkleTreeOperations, treeId: MerkleTreeId) {
   const info = await db.getTreeInfo(treeId);
-  let output = [`Tree id=${treeId} size=${info.size} root=0x${info.root.toString('hex')}`];
+  const output = [`Tree id=${treeId} size=${info.size} root=0x${info.root.toString('hex')}`];
   for (let i = 0; i < info.size; i++) {
     output.push(
       ` Leaf ${i}: ${await db.getLeafValue(treeId, BigInt(i)).then(x => x?.toString('hex') ?? '[undefined]')}`,
