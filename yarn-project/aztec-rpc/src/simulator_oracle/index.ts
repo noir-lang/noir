@@ -13,7 +13,7 @@ export class SimulatorOracle implements DBOracle {
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteLoadOracleInputs[]> {
     const noteDaos = await this.db.getNotes(contractAddress, storageSlot);
     return noteDaos.map(noteDao => ({
-      note: noteDao.notePreimage.fields,
+      note: noteDao.notePreimage.items,
       siblingPath: [], // TODO get this from node
       index: noteDao.index,
     }));
