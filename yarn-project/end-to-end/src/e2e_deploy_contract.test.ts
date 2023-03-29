@@ -1,10 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, ContractAbi, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, ContractAbi, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { createDebugLogger } from '@aztec/foundation';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
+import exp from 'constants';
 import { createAztecNode } from './create_aztec_node.js';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { createProvider, deployRollupContract, deployYeeterContract } from './deploy_l1_contracts.js';
@@ -56,15 +57,19 @@ describe('e2e_deploy_contract', () => {
       expect.objectContaining({
         from: accounts[0],
         to: undefined,
-        status: true,
+        status: TxStatus.PENDING,
         error: '',
       }),
     );
     logger(`Receipt received`);
+    const isMined = await tx.isMined();
+    const receiptAfterMined = await tx.getReceipt();
 
-    expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
+    expect(isMined).toBe(true);
+    expect(receiptAfterMined.status).toBe(TxStatus.MINED);
     const contractAddress = receipt.contractAddress!;
     expect(await aztecRpcServer.isContractDeployed(contractAddress)).toBe(true);
+    expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
   }, 30_000);
 
   /**
@@ -77,13 +82,13 @@ describe('e2e_deploy_contract', () => {
 
     {
       const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
-      expect(receipt.status).toBe(true);
+      expect(receipt.status).toBe(TxStatus.MINED);
       expect(receipt.error).toBe('');
     }
 
     {
       const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
-      expect(receipt.status).toBe(false);
+      expect(receipt.status).toBe(TxStatus.DROPPED);
       expect(receipt.error).not.toBe('');
     }
   });

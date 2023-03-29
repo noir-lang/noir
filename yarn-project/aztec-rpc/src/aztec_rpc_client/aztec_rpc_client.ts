@@ -32,7 +32,7 @@ export interface AztecRPCClient {
   signTxRequest(txRequest: TxRequest): Promise<Signature>;
   createTx(txRequest: TxRequest, signature: Signature): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;
-  getTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined>;
+  getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;
   // Uncomment it for milestone 1.5.
   // callTx(functionSelector: Buffer, args: Fr[], to: AztecAddress, from: AztecAddress): Promise<any>;
