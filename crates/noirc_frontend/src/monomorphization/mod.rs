@@ -332,7 +332,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn standard_array(&mut self, array: Vec<node_interner::ExprId>) -> ast::Expression {
         let element_type = Self::convert_type(&self.interner.id_type(array[0]));
         let contents = vecmap(array, |id| self.expr(id));
-        self.aos_to_soa(contents, element_type)
+        Self::aos_to_soa(contents, element_type)
     }
 
     fn repeated_array(
@@ -347,7 +347,7 @@ impl<'interner> Monomorphizer<'interner> {
             .expect("Length of array is unknown when evaluating numeric generic");
 
         let contents = vec![contents; length as usize];
-        self.aos_to_soa(contents, element_type)
+        Self::aos_to_soa(contents, element_type)
     }
 
     /// Convert an array in (potentially) array of structs form into struct of arrays form.
@@ -356,7 +356,6 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// TODO Remove side effects from clones
     fn aos_to_soa(
-        &self,
         array_contents: Vec<ast::Expression>,
         element_type: ast::Type,
     ) -> ast::Expression {
@@ -379,8 +378,8 @@ impl<'interner> Monomorphizer<'interner> {
                         ast::Expression::ExtractTupleField(Box::new(element.clone()), i)
                     });
 
-                    self.aos_to_soa(contents, element_type)
-                }
+                    Self::aos_to_soa(contents, element_type)
+                },
             )),
 
             ast::Type::Array(_, _) | ast::Type::String(_) => {
@@ -395,13 +394,12 @@ impl<'interner> Monomorphizer<'interner> {
         let collection = Box::new(self.expr(index.collection));
         let index = Box::new(self.expr(index.index));
         let location = self.interner.expr_location(&id);
-        self.index_rec(collection, index, element_type, location)
+        Self::aos_to_soa_index(collection, index, element_type, location)
     }
 
     /// Unpack an array index into an array of structs into a struct of arrays index if needed.
     /// E.g. transforms my_pair_array[i] into (my_pair1_array[i], my_pair2_array[i])
-    fn index_rec(
-        &mut self,
+    fn aos_to_soa_index(
         collection: Box<ast::Expression>,
         index: Box<ast::Expression>,
         element_type: ast::Type,
@@ -423,7 +421,7 @@ impl<'interner> Monomorphizer<'interner> {
                     let collection =
                         Box::new(ast::Expression::ExtractTupleField(collection.clone(), i));
 
-                    self.index_rec(collection, index.clone(), element_type, location)
+                    Self::aos_to_soa_index(collection, index.clone(), element_type, location)
                 }))
             }
 
@@ -815,7 +813,9 @@ impl<'interner> Monomorphizer<'interner> {
         let (lvalue, index_lvalue) = self.lvalue(assign.lvalue);
 
         match index_lvalue {
-            Some((index, element_type, location)) => self.aos_to_soa_assign(expression, Box::new(lvalue), index, element_type, location),
+            Some((index, element_type, location)) => {
+                Self::aos_to_soa_assign(expression, Box::new(lvalue), index, element_type, location)
+            }
             None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
         }
     }
@@ -823,12 +823,15 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns the lvalue along with an optional LValue::Index to add to the end, if needed.
     /// This is added to the end separately as part of converting arrays of structs to structs
     /// of arrays.
-    fn lvalue(&mut self, lvalue: HirLValue) -> (ast::LValue, Option<(Box<ast::Expression>, ast::Type, Location)>) {
+    fn lvalue(
+        &mut self,
+        lvalue: HirLValue,
+    ) -> (ast::LValue, Option<(Box<ast::Expression>, ast::Type, Location)>) {
         match lvalue {
             HirLValue::Ident(ident, _) => {
                 let lvalue = ast::LValue::Ident(self.local_ident(&ident).unwrap());
                 (lvalue, None)
-            },
+            }
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
                 let (object, index) = self.lvalue(*object);
@@ -840,7 +843,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.expr_location(&index);
 
                 let (array, prev_index) = self.lvalue(*array);
-                assert!(prev_index.is_none(), "Nested arrays are currently unsupported in noir: location is {location:?}");
+                assert!(
+                    prev_index.is_none(),
+                    "Nested arrays are currently unsupported in noir: location is {location:?}"
+                );
 
                 let index = Box::new(self.expr(index));
                 let element_type = Self::convert_type(&typ);
@@ -849,16 +855,29 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn aos_to_soa_assign(&self, expression: Box<ast::Expression>, lvalue: Box<ast::LValue>, index: Box<ast::Expression>, typ: ast::Type, location: Location) -> ast::Expression {
+    fn aos_to_soa_assign(
+        expression: Box<ast::Expression>,
+        lvalue: Box<ast::LValue>,
+        index: Box<ast::Expression>,
+        typ: ast::Type,
+        location: Location,
+    ) -> ast::Expression {
         match typ {
             ast::Type::Tuple(fields) => {
                 let fields = fields.into_iter().enumerate();
                 ast::Expression::Block(vecmap(fields, |(i, field)| {
                     let expression = ast::Expression::ExtractTupleField(expression.clone(), i);
-                    let lvalue = ast::LValue::MemberAccess { object: lvalue.clone(), field_index: i };
-                    self.aos_to_soa_assign(Box::new(expression), Box::new(lvalue), index.clone(), field, location)
+                    let lvalue =
+                        ast::LValue::MemberAccess { object: lvalue.clone(), field_index: i };
+                    Self::aos_to_soa_assign(
+                        Box::new(expression),
+                        Box::new(lvalue),
+                        index.clone(),
+                        field,
+                        location,
+                    )
                 }))
-            },
+            }
 
             // No changes if the element_type is not a tuple
             element_type => {
