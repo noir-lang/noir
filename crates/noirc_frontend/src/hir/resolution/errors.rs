@@ -62,7 +62,7 @@ pub enum ResolverError {
     #[error("{0}")]
     ParserError(ParserError),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
-    ContractVisibilityInNormalFunction { span: Span },
+    ContractFunctionTypeInNormalFunction { span: Span },
 }
 
 impl ResolverError {
@@ -166,7 +166,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
             ResolverError::NecessaryPub { ident } => {
@@ -178,7 +178,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword is mandatory for the main function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
+                diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
@@ -244,9 +244,9 @@ impl From<ResolverError> for Diagnostic {
                 )
             }
             ResolverError::ParserError(error) => error.into(),
-            ResolverError::ContractVisibilityInNormalFunction { span } => Diagnostic::simple_error(
-                "Only functions defined within contracts can set their contract visibility".into(),
-                "Non-contract functions cannot be 'open' or 'unsafe'".into(),
+            ResolverError::ContractFunctionTypeInNormalFunction { span } => Diagnostic::simple_error(
+                "Only functions defined within contracts can set their contract function type".into(),
+                "Non-contract functions cannot be 'open'".into(),
                 span,
             ),
         }

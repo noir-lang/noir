@@ -15,11 +15,18 @@ mod expr;
 mod stmt;
 
 pub use errors::TypeCheckError;
-use expr::type_check_expression;
+use noirc_errors::Span;
 
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::{
+    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    Type,
+};
 
-pub(crate) use self::stmt::{bind_pattern, type_check};
+pub struct TypeChecker<'interner> {
+    current_function: Option<FuncId>,
+    interner: &'interner mut NodeInterner,
+    errors: Vec<TypeCheckError>,
+}
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
@@ -28,19 +35,19 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
-    // Bind each parameter to its annotated type.
-    // This is locally obvious, but it must be bound here so that the
-    // Definition object of the parameter in the NodeInterner is given the correct type.
-    let mut errors = vec![];
-    for param in meta.parameters.into_iter() {
-        bind_pattern(interner, &param.0, param.1, &mut errors);
-    }
-
-    // Fetch the HirFunction and iterate all of it's statements
     let function_body = interner.function(&func_id);
     let function_body_id = function_body.as_expr();
 
-    let function_last_type = type_check_expression(interner, function_body_id, &mut errors);
+    let mut type_checker = TypeChecker::new(func_id, interner);
+
+    // Bind each parameter to its annotated type.
+    // This is locally obvious, but it must be bound here so that the
+    // Definition object of the parameter in the NodeInterner is given the correct type.
+    for param in meta.parameters.into_iter() {
+        type_checker.bind_pattern(&param.0, param.1);
+    }
+
+    let (function_last_type, mut errors) = type_checker.check_function_body(function_body_id);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in interner.take_delayed_type_check_functions() {
@@ -62,6 +69,51 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     errors
+}
+
+impl<'interner> TypeChecker<'interner> {
+    fn new(current_function: FuncId, interner: &'interner mut NodeInterner) -> Self {
+        Self { current_function: Some(current_function), interner, errors: vec![] }
+    }
+
+    fn check_function_body(mut self, body: &ExprId) -> (Type, Vec<TypeCheckError>) {
+        let body_type = self.check_expression(body);
+        (body_type, self.errors)
+    }
+
+    pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
+        let mut this = Self { current_function: None, interner, errors: vec![] };
+        this.check_statement(id);
+        this.errors
+    }
+
+    fn is_unconstrained(&self) -> bool {
+        self.current_function.map_or(false, |current_function| {
+            self.interner.function_meta(&current_function).is_unconstrained
+        })
+    }
+
+    /// Wrapper of Type::unify using self.errors
+    fn unify(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        span: Span,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        actual.unify(expected, span, &mut self.errors, make_error)
+    }
+
+    /// Wrapper of Type::make_subtype_of using self.errors
+    fn make_subtype_of(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        span: Span,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        actual.make_subtype_of(expected, span, &mut self.errors, make_error)
+    }
 }
 
 // XXX: These tests are all manual currently.
@@ -158,7 +210,8 @@ mod test {
             kind: FunctionKind::Normal,
             attributes: None,
             location,
-            contract_visibility: None,
+            contract_function_type: None,
+            is_unconstrained: false,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),

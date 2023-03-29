@@ -3,6 +3,6 @@ fn main(x : Field, y : pub Field) {
 }
 
 contract Foo {
-    fn double(x: Field) -> Field { x * 2 }
-    fn triple(x: Field) -> Field { x * 3 }
+    fn double(x: Field) -> pub Field { x * 2 }
+    fn triple(x: Field) -> pub Field { x * 3 }
 }

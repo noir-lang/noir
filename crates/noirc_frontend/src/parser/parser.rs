@@ -33,10 +33,9 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, ContractVisibility,
-    FunctionDefinition, Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda,
-    NoirFunction, NoirImpl, NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp,
-    UnresolvedTypeExpression,
+    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
+    Ident, IfExpression, ImportStatement, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl,
+    NoirStruct, Path, PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression,
 };
 
 use chumsky::prelude::*;
@@ -119,7 +118,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
@@ -147,12 +146,12 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      contract_visibility 'fn' ident generics '(' function_parameters ')' function_return_type block
+/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
+///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
-        .then(contract_visibility())
+        .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
@@ -162,7 +161,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .map(
             |(
                 (
-                    ((((attribute, contract_visibility), name), generics), parameters),
+                    ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
                     (return_visibility, return_type),
                 ),
                 body,
@@ -171,7 +170,8 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     span: name.0.span(),
                     name,
                     attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                    contract_visibility,
+                    is_open,
+                    is_unconstrained,
                     generics,
                     parameters,
                     body,
@@ -183,14 +183,14 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// contract_visibility: 'open' | 'unsafe' | %empty
-fn contract_visibility() -> impl NoirParser<Option<ContractVisibility>> {
-    keyword(Keyword::Open).or(keyword(Keyword::Unsafe)).or_not().map(|token| match token {
-        Some(Token::Keyword(Keyword::Open)) => Some(ContractVisibility::Open),
-        Some(Token::Keyword(Keyword::Unsafe)) => Some(ContractVisibility::Unsafe),
-        None => None,
-        _ => unreachable!("Only open and unsafe keywords are parsed here"),
-    })
+/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
+///
+/// returns (is_unconstrained, is_open) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool)> {
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(keyword(Keyword::Open).or_not())
+        .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -942,10 +942,7 @@ fn field_name() -> impl NoirParser<Ident> {
     }))
 }
 
-fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
+fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
     let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
         .at_least(1)
@@ -975,6 +972,10 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Str(s) => ExpressionKind::string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
+}
+
+fn literal_or_collection(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
+    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
 #[cfg(test)]
