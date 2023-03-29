@@ -1,9 +1,9 @@
 import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { ContractAbi } from '../noir.js';
 import { contractAbiToContractDao, ContractDao } from './contract_dao.js';
-import { ContractDataSource } from './contract_database.js';
+import { ContractDatabase } from './contract_database.js';
 
-export class MemoryContractDatabase implements ContractDataSource {
+export class MemoryContractDatabase implements ContractDatabase {
   private contracts: ContractDao[] = [];
 
   public addContract(address: AztecAddress, portalAddress: EthAddress, abi: ContractAbi) {

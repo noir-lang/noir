@@ -1,6 +1,6 @@
 import { Tx } from '@aztec/tx';
 import { P2P } from '@aztec/p2p';
-import { WorldStateSynchroniser, WorldStateStatus } from '@aztec/world-state';
+import { WorldStateSynchroniser, WorldStateStatus, MerkleTreeId } from '@aztec/world-state';
 import { RunningPromise } from '../deps/running_promise.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { createDebugLogger } from '@aztec/foundation';
@@ -54,6 +54,24 @@ export class Sequencer {
   }
 
   /**
+   * Returns true if one of the transaction nullifiers exist.
+   * Nullifiers prevent double spends in a private context.
+   * @param tx - The transaction.
+   * @returns Whether this is a problematic double spend that the L1 contract would reject.
+   */
+  private async isTxDoubleSpend(tx: Tx): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/await-thenable
+    for (const nullifier of tx.data.end.newNullifiers) {
+      // TODO(AD): this is an exhaustive search currently
+      if (!(await this.worldState.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer()))) {
+        // Our nullifier tree has this nullifier already - this transaction is a double spend / not well-formed
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Grabs a single tx from the p2p client, constructs a block, and pushes it to L1.
    */
   protected async work() {
@@ -80,6 +98,13 @@ export class Sequencer {
         return;
       } else {
         this.log(`Processing tx ${tx.txHash.toString()}`);
+      }
+      // TODO(AD) - eventually we should add a limit to how many transactions we
+      // skip in this manner and do something more DDOS-proof (like letting the transaction fail and pay a fee).
+      if (await this.isTxDoubleSpend(tx)) {
+        // Make sure we remove this from the tx pool so we do not consider it again
+        await this.p2pClient.deleteTxs([tx.txHash]);
+        return;
       }
 
       this.state = SequencerState.CREATING_BLOCK;

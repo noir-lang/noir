@@ -13,7 +13,7 @@ export class AztecAddress {
 
   static fromBuffer(bufferOrReader: Buffer | BufferReader) {
     const reader = BufferReader.asReader(bufferOrReader);
-    return new AztecAddress(reader.readBytes(AztecAddress.SIZE_IN_BYTES));
+    return new AztecAddress(reader.readBytes(this.SIZE_IN_BYTES));
   }
 
   public static fromString(address: string) {
@@ -21,7 +21,7 @@ export class AztecAddress {
   }
 
   public static random() {
-    return new AztecAddress(randomBytes(AztecAddress.SIZE_IN_BYTES));
+    return new AztecAddress(randomBytes(this.SIZE_IN_BYTES));
   }
 
   public equals(rhs: AztecAddress) {

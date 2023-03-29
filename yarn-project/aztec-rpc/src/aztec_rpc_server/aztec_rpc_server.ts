@@ -101,10 +101,11 @@ export class AztecRPCServer implements AztecRPCClient {
       portalContract,
     );
     const txContext = new TxContext(false, false, true, contractDeploymentData);
-    const fromAddress = from.toBuffer().equals(Fr.ZERO.toBuffer()) ? (await this.keyStore.getAccounts())[0] : from;
+
+    const fromAddress = from.equals(AztecAddress.ZERO) ? (await this.keyStore.getAccounts())[0] : from;
 
     const contractAddress = generateContractAddress(fromAddress, contractAddressSalt, args);
-    await this.db.addContract(contractAddress, portalContract, abi, false);
+    await this.db.addContract(contractAddress, portalContract, abi);
 
     const txRequestArgs = args.concat(
       Array(ARGS_LENGTH - args.length)
@@ -165,7 +166,7 @@ export class AztecRPCServer implements AztecRPCClient {
   public async createTx(txRequest: TxRequest, signature: Signature) {
     let contractAddress;
 
-    if (txRequest.to.toBuffer().equals(Fr.ZERO.toBuffer())) {
+    if (txRequest.to.equals(AztecAddress.ZERO)) {
       contractAddress = generateContractAddress(
         txRequest.from,
         txRequest.txContext.contractDeploymentData.contractAddressSalt,
@@ -192,6 +193,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const executionResult = await this.acirSimulator.run(
       txRequest,
       Buffer.from(functionDao.bytecode),
+      contractAddress,
       contract.portalAddress,
       oldRoots,
     );

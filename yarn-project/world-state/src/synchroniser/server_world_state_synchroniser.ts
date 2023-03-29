@@ -27,6 +27,10 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, 1000, 100);
   }
 
+  public getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> {
+    return this.merkleTreeDb.getLeafValue(treeId, index);
+  }
+
   public getPreviousValueIndex(
     treeId: MerkleTreeId.NULLIFIER_TREE,
     value: bigint,

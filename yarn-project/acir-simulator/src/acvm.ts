@@ -1,31 +1,82 @@
-import { AztecAddress, CallContext, ContractDeploymentData } from '@aztec/circuits.js';
-import { NoteLoadOracleInputs } from './db_oracle.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+// import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/barretenberg_browser_stopgap_wasm';
+
+export type ACVMField = `0x${string}`;
+
+const ZERO_ACVM_FIELD: ACVMField = `0x${Buffer.alloc(32).toString('hex')}`;
+const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(31)}01`;
+
+export type ACVMWitness = Map<number, ACVMField>;
 
 export interface ACIRCallback {
-  getSecretKey(keyId: Buffer): Promise<Buffer>;
-  getNotes(storageSlot: Buffer): Promise<NoteLoadOracleInputs[]>;
-  getRandomField(): Promise<Buffer>;
-  privateFunctionCall(
-    contractAddress: AztecAddress,
-    functionSelector: string,
-    args: Array<Buffer>,
-  ): Promise<Array<Buffer>>;
-}
-
-export interface ExecutionPreimages {
-  newNotes: Buffer[];
-  nullifiedNotes: Buffer[];
+  getSecretKey(params: ACVMField[]): Promise<ACVMField[]>;
+  getNotes2(params: ACVMField[]): Promise<ACVMField[]>;
+  getRandomField(): Promise<ACVMField[]>;
+  notifyCreatedNote(params: ACVMField[]): Promise<ACVMField[]>;
+  notifyNullifiedNote(params: ACVMField[]): Promise<ACVMField[]>;
 }
 
 export interface ACIRExecutionResult {
-  preimages: ExecutionPreimages;
-  partialWitness: Buffer;
+  partialWitness: ACVMWitness;
 }
 
-export type execute = (
-  acir: Buffer,
-  args: Array<Buffer>,
-  callContext: CallContext,
-  contractDeploymentData: ContractDeploymentData,
-  oracle: ACIRCallback,
-) => Promise<ACIRExecutionResult>;
+export type execute = (acir: Buffer, initialWitness: ACVMWitness, oracle: ACIRCallback) => Promise<ACIRExecutionResult>;
+
+export const acvmMock: execute = (_, initialWitness) => {
+  const partialWitness = new Map<number, ACVMField>();
+  for (let i = 0; i < 100; i++) {
+    if (initialWitness.has(i)) {
+      partialWitness.set(i, initialWitness.get(i)!);
+    } else {
+      partialWitness.set(i, ZERO_ACVM_FIELD);
+    }
+  }
+
+  return Promise.resolve({ partialWitness });
+};
+
+// export const acvmMock: execute = async (acir, initialWitness, callback) => {
+//   const partialWitness = await solveIntermediateWitness(acir, initialWitness, (name: string, args: ACVMField[]) => {
+//     if (!(name in callback)) throw new Error(`Callback ${name} not found`);
+//     return callback[name as keyof ACIRCallback](args);
+//   });
+//   return Promise.resolve({ partialWitness });
+// };
+
+function adaptBufferSize(originalBuf: Buffer) {
+  const buffer = Buffer.alloc(32);
+  if (originalBuf.length > buffer.length) {
+    throw new Error('Buffer does not fit in 32 bytes');
+  }
+  originalBuf.copy(buffer, buffer.length - originalBuf.length);
+  return buffer;
+}
+
+export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number): `0x${string}` {
+  if (typeof value === 'boolean') {
+    return value ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
+  }
+
+  let buffer;
+
+  if (Buffer.isBuffer(value)) {
+    buffer = value;
+  } else if (typeof value === 'number') {
+    buffer = Buffer.alloc(32);
+    buffer.writeUInt32BE(value, 28);
+  } else {
+    buffer = value.toBuffer();
+  }
+
+  return `0x${adaptBufferSize(buffer).toString('hex')}`;
+}
+
+export function fromACVMField(field: `0x${string}`): Fr {
+  const buffer = Buffer.from(field.slice(2), 'hex');
+  return Fr.fromBuffer(buffer);
+}
+
+export interface FunctionWitnessIndexes {
+  paramWitnesses: Record<string, number>;
+  returnWitneses: number[];
+}

@@ -1,4 +1,9 @@
 {
   "extends": ".",
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "exclude": ["**/*.test.*", "**/fixtures/*"],
+  "references": [
+    {
+      "path": "../ethereum.js/tsconfig.dest.json"
+    }
+  ]
 }

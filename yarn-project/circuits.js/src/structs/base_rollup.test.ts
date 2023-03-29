@@ -39,9 +39,18 @@ describe('structs/base_rollup', () => {
       MembershipWitness.mock(NULLIFIER_TREE_HEIGHT, x),
     );
 
-    const newCommitmentsSubtreeSiblingPath = range(PRIVATE_DATA_TREE_HEIGHT, 0x3000).map(x => fr(x));
-    const newNullifiersSubtreeSiblingPath = range(NULLIFIER_TREE_HEIGHT, 0x4000).map(x => fr(x));
-    const newContractsSubtreeSiblingPath = range(CONTRACT_TREE_HEIGHT, 0x5000).map(x => fr(x));
+    const newCommitmentsSubtreeSiblingPath = range(
+      PRIVATE_DATA_TREE_HEIGHT - BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
+      0x3000,
+    ).map(x => fr(x));
+    const newNullifiersSubtreeSiblingPath = range(
+      NULLIFIER_TREE_HEIGHT - BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+      0x4000,
+    ).map(x => fr(x));
+    const newContractsSubtreeSiblingPath = range(
+      CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
+      0x5000,
+    ).map(x => fr(x));
 
     const historicPrivateDataTreeRootMembershipWitnesses: BaseRollupInputs['historicPrivateDataTreeRootMembershipWitnesses'] =
       [

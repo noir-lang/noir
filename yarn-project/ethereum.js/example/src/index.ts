@@ -15,7 +15,7 @@ import { createPermitData } from './create_permit_data.js';
 
 /**
  * Launch forked local chain e.g: `anvil -f https://mainnet.infura.io/v3/<api_key>`
- * Set ETHEREUM_HOST to e.g: `http://localhost:8545`.
+ * Set ETHEREUM_HOST to e.g: `http://127.0.0.1:8545`.
  */
 const { ETHEREUM_HOST } = process.env;
 

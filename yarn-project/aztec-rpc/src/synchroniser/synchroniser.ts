@@ -71,7 +71,7 @@ export class Synchroniser {
   }
 
   public getAccount(account: AztecAddress) {
-    return this.accountStates.find(as => as.publicKey.toBuffer().equals(account.toBuffer()));
+    return this.accountStates.find(as => as.publicKey.equals(account));
   }
 
   public getAccounts() {
@@ -83,6 +83,7 @@ export class Synchroniser {
   }
 
   public async getTxByHash(txHash: TxHash): Promise<TxDao | undefined> {
+
     const tx = await this.db.getTx(txHash);
 
     if (!tx) {
