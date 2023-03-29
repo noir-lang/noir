@@ -7,7 +7,7 @@ use acvm::{
     acir::{
         circuit::{
             directives::Directive,
-            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode, Brillig},
         },
         native_types::{Expression, Witness},
     },
@@ -570,7 +570,7 @@ pub(crate) fn evaluate_inverse(
     // Create a fresh witness - n.b we could check if x is constant or not
     let inverse_witness = evaluator.add_witness_to_cs();
         let brillig_code = directive_invert();
-        let b_opcode = AcirOpcode::Directive(Directive::Brillig {
+        let b_opcode = AcirOpcode::Brillig(Brillig {
             inputs: vec![Expression::from(x_witness)],
             outputs: vec![inverse_witness],
             bytecode: brillig_code, 

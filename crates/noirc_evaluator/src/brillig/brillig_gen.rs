@@ -62,6 +62,30 @@ impl BrilligGen {
         RegisterIndex(self.max_register)
     }
 
+// handle Phi instructions
+    fn handle_phi_instructions(&mut self, current: BlockId, left: BlockId, ctx: &SsaContext) {
+        if matches!(ctx[left].kind, BlockType::ForJoin | BlockType::IfJoin) {
+            for i in &ctx[left].instructions {
+                if let Some(ins) =  ctx.try_get_instruction(*i) {
+                    match &ins.operation {
+                        Operation::Nop => continue,
+                        Operation::Phi { root, block_args } => {
+                            for (id, bid) in block_args {
+                                if *bid == current {
+                                    let destination = self.node_2_register(ctx, ins.id);
+                                    let source = self.node_2_register(ctx, *id);
+                                    self.byte_code.push(BrilligOpcode::Mov { destination, source });
+                                }
+                            }
+                        },
+                        _ => break,
+                    }
+                }
+            }
+        }
+    
+    }
+
     //pm v a faire:
     //si split; on met ses 2 fils en top de la stack
     //sinon, on met le next en bas de la stack
@@ -98,45 +122,79 @@ fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Vec<BlockId>
     //.. process block
     dbg!(&start);
     ctx.print_block(block);
-    
-    //let mut jumps = Vec::new();
-    for i in &block.instructions {
+    for i in block.instructions.iter().take(block.instructions.len()-1) {
         let ins = ctx.try_get_instruction(*i).expect("instruction in instructions list");
         self.instruction_to_bc(ctx, ins);
     }
-    
-    // handle Phi instructions
+
+    //on va faire toutes les instructions, SAUF la derniere , donc on doit avoir AUCUN JUMP
+    // on translate la derniere, si c'est pas un JUMP, on la rajoute, et
+    //on fait le handle phi et on rajoute un new jump vers next block
+    //Si c'est un JUMP=> on fait le handle phi et on rajoute CE jump
+    //en gros, handle_phi doit AUSSI rajouter le jump
+    let jump = block.instructions.last().and_then(|i|
+        {
+            let ins = ctx.try_get_instruction(*i).expect("instruction in instructions list");
+            match ins.operation {
+                Operation::Jne(cond, target) => {
+                    let condition = self.node_2_register(ctx, cond);
+                    Some((BrilligOpcode::JMPIFNOT { condition, destination: 0 }, target))
+                },
+                Operation::Jeq(cond, target) => {
+                    let condition = self.node_2_register(ctx, cond);
+                    Some((BrilligOpcode::JMPIF { condition, destination: 0 }, target))
+                },
+                Operation::Jmp(target) => {
+                    Some((BrilligOpcode::JMP { destination: 0 }, target))
+                },
+                _ => {
+                    self.instruction_to_bc(ctx, ins);
+                    None
+                } 
+            }
+        }
+    ).or_else(|| if let Some(left) = block.left {
+        Some ((BrilligOpcode::JMP { destination: 0 }, left))
+    } else {
+        None
+    });
     if let Some(left) = block.left {
-        if matches!(ctx[left].kind, BlockType::ForJoin | BlockType::IfJoin) {
-            for i in &ctx[left].instructions {
-                if let Some(ins) =  ctx.try_get_instruction(*i) {
-                    match &ins.operation {
-                        Operation::Nop => continue,
-                        Operation::Phi { root, block_args } => {
-                            for (id, bid) in block_args {
-                                if *bid == block_id {
-                                    let destination = self.node_2_register(ctx, ins.id);
-                                    let source = self.node_2_register(ctx, *id);
-                                    self.byte_code.push(BrilligOpcode::Mov { destination, source });
-                                }
-                            }
-                        },
-                        _ => break,
-                    }
-                }
-            }
-        }
+        self.handle_phi_instructions(block_id, left, ctx);
     }
-    //self.,
-    let last = self.byte_code.last();
-    if let Some(last) = last {
-        if let Some(left) = block.left {
-            if !matches!(last, BrilligOpcode::JMP { .. } | BrilligOpcode::JMPIF{..} | BrilligOpcode::JMPIFNOT{..}) {
-                self.byte_code.push( BrilligOpcode::JMP { destination: 0 });
-                self.to_fix.push((self.byte_code.len()-1, left));        
-            }
-        }
-    }
+    if let Some((jmp, target)) = jump {
+        self.to_fix.push((self.byte_code.len(), target)); 
+        self.byte_code.push(jmp);
+    } 
+    
+//rajouter un jump veux dire: block + brillig_jump
+
+
+    // if jump.is_none() {
+    //     if let Some(left) = block.left {
+    //         jump = Some (BrilligOpcode::JMP { destination: 0 }, left)
+    //                     self.byte_code.push( BrilligOpcode::JMP { destination: 0 });
+    //                     self.to_fix.push((self.byte_code.len()-1, left));        
+    //             }
+    // }
+    // // handle Phi instructions
+    // if let Some(left) = block.left {
+    //     self.handle_phi_instructions(block_id, left, ctx);
+    // }
+    // self.to_fix.push((self.byte_code.len(), *block_id));
+    // if let Some(jump) = jump {
+    //     self.byte_code.push(jump);
+    // } else {
+    //     self.byte_code.push( BrilligOpcode::JMP { destination: 0 });
+    //     // let last = self.byte_code.last();
+    //     // if let Some(last) = last {
+    //     //     if let Some(left) = block.left {
+    //     //             self.byte_code.push( BrilligOpcode::JMP { destination: 0 });
+    //     //             self.to_fix.push((self.byte_code.len()-1, left));        
+    //     //     }
+    //     // }
+    // }
+    // //self.,
+  
     let mut result = Vec::new();
     if ctx.get_if_condition(block).is_some() {
           //find exit node:
@@ -148,6 +206,7 @@ fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Vec<BlockId>
        // self.to_fix.push((self.byte_code.len()-1, right));
         result.push(right);
     }
+    
     if let Some(left) = block.left {
         result.push(left);
     }
@@ -155,12 +214,11 @@ fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Vec<BlockId>
     result
 }
 
-fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Option<BrilligOpcode> {
+fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) {
     match &ins.operation {
     //    Binary(Binary { lhs, rhs, operator, predicate }) => todo!(),
         Operation::Binary(bin) => {
-            let code = self.binary(ctx, bin, ins.id, ins.res_type);
-            self.byte_code.push(code);
+            self.binary(ctx, bin, ins.id, ins.res_type);
         },
         Operation::Cast(_) => todo!(),
         Operation::Truncate { value, bit_size, max_bit_size } => unreachable!(),    //no overflow pass
@@ -170,30 +228,9 @@ fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Option<B
             self.byte_code.push(BrilligOpcode::JMPIFNOT { condition, destination: 1 });
         },
         //todo!(),  //assert => jumpif + error => we need an error opcode
-        Operation::Jne(cond, block_id) => {
-            self.to_fix.push((self.byte_code.len(), *block_id));
-            let condition = self.node_2_register(ctx, *cond);
-            return Some(BrilligOpcode::JMPIFNOT {
-                condition,
-                destination: 0,
-            });
-
-        },
-        Operation::Jeq(cond, block_id) => {
-            self.to_fix.push((self.byte_code.len(), *block_id));
-            let condition = self.node_2_register(ctx, *cond);
-            return Some(BrilligOpcode::JMPIF {
-                condition,
-                destination: 0,
-            });
-
-        },
-        Operation::Jmp(block) => {
-            self.to_fix.push((self.byte_code.len(), *block));
-            return Some(BrilligOpcode::JMP {
-                destination: 0,
-            });
-        },
+        Operation::Jne(_,_)
+        | Operation::Jeq(_,_)
+        | Operation::Jmp(_) => unreachable!("a jump can only be at the very end of a block"),
         Operation::Phi { root, block_args } => (),
         Operation::Call { func, arguments, returned_arrays, predicate, location } => {
             // is public function ? yes: call opcode
@@ -221,6 +258,7 @@ fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Option<B
                     todo!("return the memory pointer of the array");
                 }
             }
+            //self.byte_code.push() todo!() STOP opcode !!
         },
         Operation::Result { call_instruction, index } => todo!(),
         Operation::Cond { condition, val_true, val_false } => unreachable!(),
@@ -231,7 +269,7 @@ fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Option<B
         Operation::Nop => (),
 
     }
-    None
+    
 }
 
 
@@ -261,7 +299,7 @@ fn node_2_register(&mut self, ctx: &SsaContext, a: NodeId) -> RegisterMemIndex  
     }
 }
 
-fn binary(&mut self, ctx: &SsaContext, binary: &Binary, id: NodeId, object_type: ObjectType) -> BrilligOpcode {
+fn binary(&mut self, ctx: &SsaContext, binary: &Binary, id: NodeId, object_type: ObjectType) {
     let lhs = self.node_2_register(ctx, binary.lhs);
     let rhs = self.node_2_register(ctx, binary.rhs);
     let result_type = object_type_2_typ(object_type);
@@ -269,30 +307,30 @@ fn binary(&mut self, ctx: &SsaContext, binary: &Binary, id: NodeId, object_type:
     
     match &binary.operator {
         BinaryOp::Add => {
-            BrilligOpcode::BinaryOp {
+            self.byte_code.push(BrilligOpcode::BinaryOp {
                 lhs,
                 rhs,
                 result_type,
                 op: brillig_bytecode::BinaryOp::Add,
                 result,
-            }
+            });
         }
         BinaryOp::SafeAdd => todo!(),
-        BinaryOp::Sub { .. } => BrilligOpcode::BinaryOp {
+        BinaryOp::Sub { .. } => self.byte_code.push(BrilligOpcode::BinaryOp {
             lhs,
             rhs,
             result_type,
             op: brillig_bytecode::BinaryOp::Sub,
             result,
-        },
+        }),
         BinaryOp::SafeSub { max_rhs_value } => todo!(),
-        BinaryOp::Mul => BrilligOpcode::BinaryOp {
+        BinaryOp::Mul => self.byte_code.push(BrilligOpcode::BinaryOp {
             lhs,
             rhs,
             result_type,
             op: brillig_bytecode::BinaryOp::Mul,
             result,
-        },
+        }),
         BinaryOp::SafeMul => todo!(),
         BinaryOp::Urem(_) => {
             let q = self.get_tmp_register();
@@ -310,27 +348,35 @@ fn binary(&mut self, ctx: &SsaContext, binary: &Binary, id: NodeId, object_type:
                 op: brillig_bytecode::BinaryOp::Mul,
                 result: q,
             });
-            BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub, lhs, rhs: RegisterMemIndex::Register(q), result }
+            self.byte_code.push(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub, lhs, rhs: RegisterMemIndex::Register(q), result });
         }
         BinaryOp::Srem(_) => todo!(),
         BinaryOp::Udiv(_) |
         BinaryOp::Sdiv(_) |
         BinaryOp::Div(_) => {
-            BrilligOpcode::BinaryOp {
+            self.byte_code.push(BrilligOpcode::BinaryOp {
                 lhs,
                 rhs,
                 result_type,
                 op: brillig_bytecode::BinaryOp::Div,
                 result,
-            }
+            });
         },
         BinaryOp::Eq => {
-           BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Equal
-        ), lhs, rhs, result}
+            self.byte_code.push(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
+        ), lhs, rhs, result});
         }, //a==b => is_zero()
         BinaryOp::Ne => 
-        BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::NotEqual
-     ), lhs, rhs, result},
+        //BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::NotEqual
+     //), lhs, rhs, result},
+     {
+        self.byte_code.push(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
+        ), lhs, rhs, result});
+        self.byte_code.push(
+            BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Sub, lhs: RegisterMemIndex::Constant(FieldElement::one())
+            , rhs: RegisterMemIndex::Register(result), result}
+        );      
+     }
            // comparison
         BinaryOp::Ule |//<= = >= , <
         BinaryOp::Lte |
@@ -338,10 +384,10 @@ fn binary(&mut self, ctx: &SsaContext, binary: &Binary, id: NodeId, object_type:
             //a<=b : !b<a
             let t = self.get_tmp_register();
             //b<a .. todo
-            BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub,
+            self.byte_code.push(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub,
             lhs: RegisterMemIndex::Constant(FieldElement::one()),
             rhs: RegisterMemIndex::Register(t),
-            result,}
+            result,});
         },
         BinaryOp::Ult |
         BinaryOp::Slt |
