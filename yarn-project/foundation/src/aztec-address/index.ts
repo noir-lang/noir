@@ -5,10 +5,12 @@ import { BufferReader } from '../serialize/buffer_reader.js';
 export class AztecAddress {
   static SIZE_IN_BYTES = 32;
   static ZERO = new AztecAddress(Buffer.alloc(AztecAddress.SIZE_IN_BYTES));
+  static MODULUS = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001n;
+  static MAX_VALUE = AztecAddress.MODULUS - 1n;
 
   constructor(public readonly buffer: Buffer) {
     const value = toBigIntBE(buffer);
-    if (value > Fr.MAX_VALUE) {
+    if (value > AztecAddress.MAX_VALUE) {
       throw new Error(`AztecAddress out of range ${value}.`);
     }
   }
