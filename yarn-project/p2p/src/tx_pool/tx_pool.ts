@@ -15,7 +15,7 @@ export interface TxPool {
    * @param txHash - The hash of the transaction, used as an ID.
    * @returns The transaction, if found, 'undefined' otherwise.
    */
-  getTx(txHash: TxHash): Tx | undefined;
+  getTxByHash(txHash: TxHash): Tx | undefined;
 
   /**
    * Deletes transactions from the pool. Tx hasehs that are not present are ignored.

@@ -20,7 +20,7 @@ describe('In-Memory P2P Client', () => {
   beforeEach(() => {
     txPool = {
       addTxs: jest.fn(),
-      getTx: jest.fn().mockReturnValue(undefined),
+      getTxByHash: jest.fn().mockReturnValue(undefined),
       deleteTxs: jest.fn(),
       getAllTxs: jest.fn().mockReturnValue([]),
     };

@@ -19,6 +19,7 @@ import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
 import { generateContractAddress, selectorToNumber, Signature } from '../circuits.js';
 import { Database } from '../database/database.js';
 import { TxDao } from '../database/tx_dao.js';
+import { TxReceipt, TxStatus } from '../tx/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { ContractAbi, FunctionType } from '../noir.js';
 import { Synchroniser } from '../synchroniser/index.js';
@@ -75,7 +76,7 @@ export class AztecRPCServer implements AztecRPCClient {
 
   public async createDeploymentTxRequest(
     abi: ContractAbi,
-    args: Fr[],
+    args: any[],
     portalContract: EthAddress,
     contractAddressSalt: Fr,
     from: AztecAddress,
@@ -123,7 +124,7 @@ export class AztecRPCServer implements AztecRPCClient {
     );
   }
 
-  public async createTxRequest(functionName: string, args: Fr[], to: AztecAddress, from: AztecAddress) {
+  public async createTxRequest(functionName: string, args: any[], to: AztecAddress, from: AztecAddress) {
     const contract = await this.db.getContract(to);
     if (!contract) {
       throw new Error('Unknown contract.');
@@ -217,8 +218,48 @@ export class AztecRPCServer implements AztecRPCClient {
     await this.node.sendTx(tx);
     return tx.txHash;
   }
+  /**
+   * Fetchs a transaction receipt for a tx
+   * @param txHash - The transaction hash
+   * @returns A recipt of the transaction
+   */
+  public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
+    const localTx = await this.synchroniser.getTxByHash(txHash);
 
-  public getTxReceipt(txHash: TxHash) {
-    return this.synchroniser.getTxReceipt(txHash);
+    if (localTx && localTx.blockHash) {
+      return {
+        txHash: txHash,
+        blockHash: localTx.blockHash,
+        blockNumber: localTx.blockNumber,
+        from: localTx.from,
+        to: localTx.to,
+        contractAddress: localTx.contractAddress,
+        error: '',
+        status: TxStatus.MINED,
+      };
+    }
+
+    const pendingTx = await this.node.getTxByHash(txHash);
+
+    if (pendingTx) {
+      return {
+        txHash: txHash,
+        blockHash: undefined,
+        blockNumber: undefined,
+        from: localTx?.from,
+        to: undefined,
+        contractAddress: undefined,
+        error: '',
+        status: TxStatus.PENDING,
+      };
+    }
+
+    return {
+      txHash: txHash,
+      blockHash: undefined,
+      blockNumber: undefined,
+      error: 'Transaction not found in local tx pool or p2p pools',
+      status: TxStatus.DROPPED,
+    };
   }
 }
