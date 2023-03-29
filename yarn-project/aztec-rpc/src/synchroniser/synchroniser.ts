@@ -1,4 +1,4 @@
-import { TxHash } from '@aztec/tx';
+import { Tx, TxHash } from '@aztec/tx';
 import { AztecNode } from '@aztec/aztec-node';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { AccountState } from '../account_state/index.js';
@@ -13,6 +13,7 @@ import { Database, TxDao } from '../database/index.js';
 import { ContractAbi } from '../noir.js';
 import { L2Block } from '@aztec/l2-block';
 import { keccak } from '@aztec/foundation';
+import { TxReceipt, TxStatus } from '../tx/index.js';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;
@@ -81,12 +82,10 @@ export class Synchroniser {
     await this.db.addContract(contractAddress, portalContract, abi, false);
   }
 
-  public async getTxReceipt(txHash: TxHash) {
+  public async getTxByHash(txHash: TxHash): Promise<TxDao | undefined> {
     const tx = await this.db.getTx(txHash);
+
     if (!tx) {
-      return;
-    }
-    if (!tx.blockHash) {
       return;
     }
 
@@ -95,16 +94,7 @@ export class Synchroniser {
       throw new Error('Unauthorised account.');
     }
 
-    return {
-      txHash: tx.txHash,
-      blockHash: tx.blockHash,
-      blockNumber: tx.blockNumber,
-      from: tx.from,
-      to: tx.to,
-      contractAddress: tx.contractAddress,
-      error: tx.error,
-      status: !tx.error,
-    };
+    return tx;
   }
 
   private async decodeBlocks(l2Blocks: L2Block[]) {

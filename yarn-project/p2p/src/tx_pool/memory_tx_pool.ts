@@ -1,4 +1,4 @@
-import { createDebugLogger, toBigInt } from '@aztec/foundation';
+import { createDebugLogger } from '@aztec/foundation';
 import { Tx, TxHash } from '@aztec/tx';
 
 import { TxPool } from './index.js';
@@ -25,7 +25,7 @@ export class InMemoryTxPool implements TxPool {
    * @param txHash - The generated tx hash.
    * @returns The transaction, if found, 'undefined' otherwise.
    */
-  public getTx(txHash: TxHash): Tx | undefined {
+  public getTxByHash(txHash: TxHash): Tx | undefined {
     const result = this.txs.get(txHash.toBigInt());
     return result;
   }

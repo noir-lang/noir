@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation';
 import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
-import { createTxHashes, Tx } from '@aztec/tx';
+import { createTxHashes, Tx, TxHash } from '@aztec/tx';
 
 import { TxPool } from '../tx_pool/index.js';
 import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
@@ -43,6 +43,12 @@ export interface P2P {
    * @returns An array of Txs.
    */
   getTxs(): Promise<Tx[]>;
+
+  /**
+   * Returns a transaction in the transaction pool by its hash
+   * @returns A single tx or undefined
+   */
+  getTxByhash(txHash: TxHash): Promise<Tx | undefined>;
 
   /**
    * Starts the p2p client.
@@ -173,6 +179,14 @@ export class P2PClient implements P2P {
    */
   public getTxs(): Promise<Tx[]> {
     return Promise.resolve(this.txPool.getAllTxs());
+  }
+
+  /**
+   * Returns a transaction in the transaction pool by its hash
+   * @returns A single tx or undefined
+   */
+  getTxByhash(txHash: TxHash): Promise<Tx | undefined> {
+    return Promise.resolve(this.txPool.getTxByHash(txHash));
   }
 
   /**

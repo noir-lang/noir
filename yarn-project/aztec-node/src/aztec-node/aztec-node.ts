@@ -3,7 +3,7 @@ import { default as memdown } from 'memdown';
 import { Archiver } from '@aztec/archiver';
 import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
 import { P2P, P2PClient } from '@aztec/p2p';
-import { Tx } from '@aztec/tx';
+import { Tx, TxHash } from '@aztec/tx';
 import { MerkleTrees, WorldStateSynchroniser, ServerWorldStateSynchroniser, MerkleTreeId } from '@aztec/world-state';
 import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNodeConfig } from './config.js';
@@ -114,6 +114,15 @@ export class AztecNode {
    */
   public async getTxs() {
     return await this.p2pClient!.getTxs();
+  }
+
+  /**
+   * Method to retrieve a single pending tx
+   * @param txHash - The transaction hash to return.
+   * @returns - The pending tx if it exists
+   */
+  public async getTxByHash(txHash: TxHash) {
+    return await this.p2pClient!.getTxByhash(txHash);
   }
 
   public findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
