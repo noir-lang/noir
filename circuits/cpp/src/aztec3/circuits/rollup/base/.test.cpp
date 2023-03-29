@@ -219,6 +219,24 @@ class base_rollup_tests : public ::testing::Test {
     }
 };
 
+template <size_t N>
+std::array<fr, N> get_sibling_path(stdlib::merkle_tree::MemoryTree tree, size_t leafIndex, size_t subtree_depth_to_skip)
+{
+    std::array<fr, N> siblingPath;
+    auto path = tree.get_hash_path(leafIndex);
+    // slice out the skip
+    leafIndex = leafIndex >> (subtree_depth_to_skip);
+
+    for (size_t i = 0; i < N; i++) {
+        if (leafIndex & (1 << i)) {
+            siblingPath[i] = path[subtree_depth_to_skip + i].first;
+        } else {
+            siblingPath[i] = path[subtree_depth_to_skip + i].second;
+        }
+    }
+    return siblingPath;
+}
+
 TEST_F(base_rollup_tests, no_new_contract_leafs)
 {
     // When there are no contract deployments. The contract tree should be inserting 0 leafs, (not empty leafs);
@@ -228,12 +246,8 @@ TEST_F(base_rollup_tests, no_new_contract_leafs)
 
     BaseRollupInputs emptyInputs = getEmptyBaseRollupInputs();
     auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
-    // fetch sibling path from hash path (only get the second half of the hash path)
-    auto hash_path_of_0 = empty_contract_tree.get_hash_path(0);
-    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_of_0;
-    for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
-        sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
-    }
+    auto sibling_path_of_0 =
+        get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(empty_contract_tree, 0, CONTRACT_SUBTREE_DEPTH);
     // Set the new_contracts_subtree_sibling_path
     emptyInputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
 
@@ -263,26 +277,19 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
     inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
 
     auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
-    // fetch sibling path from hash path (only get the second half of the hash path)
-    auto hash_path_of_0 = empty_contract_tree.get_hash_path(0);
-    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_of_0;
-    for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
-        sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
-    }
+    auto sibling_path_of_0 =
+        get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(empty_contract_tree, 0, CONTRACT_SUBTREE_DEPTH);
     // Set the new_contracts_subtree_sibling_path
     inputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
 
-    // manually create expected end contract tree snapshot
+    // create expected end contract tree snapshot
     auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
         { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
-    auto expected_contracts_subtree = stdlib::merkle_tree::MemoryTree(CONTRACT_SUBTREE_DEPTH);
-    expected_contracts_subtree.update_element(0, expected_contract_leaf);
-    // manually iterate through sibling path to create end snapshot
-    auto leaf_1 = crypto::pedersen_hash::hash_multiple({ expected_contracts_subtree.root(), sibling_path_of_0[0] });
-    auto leaf_2 = crypto::pedersen_hash::hash_multiple({ leaf_1, sibling_path_of_0[1] });
-    auto expected_end_snapshot_root = crypto::pedersen_hash::hash_multiple({ leaf_2, sibling_path_of_0[2] });
+    auto expeted_end_contracts_snapshot_tree = stdlib::merkle_tree::MemoryTree(CONTRACT_TREE_HEIGHT);
+    expeted_end_contracts_snapshot_tree.update_element(0, expected_contract_leaf);
+
     AppendOnlyTreeSnapshot<NT> expected_end_contracts_snapshot = {
-        .root = expected_end_snapshot_root,
+        .root = expeted_end_contracts_snapshot_tree.root(),
         .next_available_leaf_index = 2,
     };
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
@@ -317,31 +324,18 @@ TEST_F(base_rollup_tests, contract_leaf_inserted_in_non_empty_snapshot_tree)
     };
 
     // Set the new_contracts_subtree_sibling_path
-    // fetch sibling path from hash path
-    auto hash_path = start_contract_tree_snapshot.get_hash_path(12);
-    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path;
-    // skip leaf (since we insert subtree of depth 1 aka CONTRACT_SUBTREE_DEPTH)
-    sibling_path[0] =
-        hash_path[CONTRACT_SUBTREE_DEPTH].second; // height = 3. our parent is index 6. so sibling is index 7
-    sibling_path[1] =
-        hash_path[CONTRACT_SUBTREE_DEPTH + 1].first; // height = 2. our parent is index 3. so sibling is index 2
-    sibling_path[2] =
-        hash_path[CONTRACT_SUBTREE_DEPTH + 2].first; // height = 1. our parent is index 1. so sibling is index 0
-
+    auto sibling_path = get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(
+        start_contract_tree_snapshot, 12, CONTRACT_SUBTREE_DEPTH);
     inputs.new_contracts_subtree_sibling_path = sibling_path;
 
-    // manually create expected end contract tree snapshot
+    // create expected end contract tree snapshot
     auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
         { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
-    auto expected_contracts_subtree = stdlib::merkle_tree::MemoryTree(CONTRACT_SUBTREE_DEPTH);
-    expected_contracts_subtree.update_element(0, expected_contract_leaf);
+    auto expeted_end_contracts_snapshot_tree = start_contract_tree_snapshot;
+    expeted_end_contracts_snapshot_tree.update_element(12, expected_contract_leaf);
 
-    // manually iterate through sibling path to create end snapshot
-    auto leaf_1 = crypto::pedersen_hash::hash_multiple({ expected_contracts_subtree.root(), sibling_path[0] });
-    auto leaf_2 = crypto::pedersen_hash::hash_multiple({ sibling_path[1], leaf_1 });
-    auto expected_end_snapshot_root = crypto::pedersen_hash::hash_multiple({ sibling_path[2], leaf_2 });
     AppendOnlyTreeSnapshot<NT> expected_end_contracts_snapshot = {
-        .root = expected_end_snapshot_root,
+        .root = expeted_end_contracts_snapshot_tree.root(),
         .next_available_leaf_index = 14,
     };
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
@@ -363,33 +357,23 @@ TEST_F(base_rollup_tests, new_commitments_tree)
     inputs.kernel_data[0].public_inputs.end.new_commitments = new_commitments_kernel_0;
     inputs.kernel_data[1].public_inputs.end.new_commitments = new_commitments_kernel_1;
 
-    // get sibling path -
-    auto empty_tree = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    // fetch sibling path from hash path (only get the second half of the hash path)
-    auto hash_path = empty_tree.get_hash_path(0);
-    std::array<NT::fr, PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path;
-    for (size_t i = 0; i < PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
-        sibling_path[i] = hash_path[PRIVATE_DATA_SUBTREE_DEPTH + i].second;
-    }
+    // get sibling path
+    auto start_tree = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+    auto sibling_path =
+        get_sibling_path<PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH>(start_tree, 0, PRIVATE_DATA_SUBTREE_DEPTH);
     inputs.new_commitments_subtree_sibling_path = sibling_path;
 
-    // manually create expected commitments subtree
-    auto expected_commitments_subtree = stdlib::merkle_tree::MemoryTree(PRIVATE_DATA_SUBTREE_DEPTH);
+    // create expected commitments snapshot tree
+    auto expected_end_commitments_snapshot_tree = start_tree;
     for (size_t i = 0; i < new_commitments_kernel_0.size(); ++i) {
-        expected_commitments_subtree.update_element(i, new_commitments_kernel_0[i]);
+        expected_end_commitments_snapshot_tree.update_element(i, new_commitments_kernel_0[i]);
     }
     for (size_t i = 0; i < new_commitments_kernel_1.size(); ++i) {
-        expected_commitments_subtree.update_element(KERNEL_NEW_COMMITMENTS_LENGTH + i, new_commitments_kernel_1[i]);
-    }
-
-    // manually create expected end snapshot root - iterate through sibling path to create end snapshot
-    auto leaf = expected_commitments_subtree.root();
-    for (size_t i = 0; i < PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
-        // we are inserting at 0. so all siblings are on the right side.
-        leaf = crypto::pedersen_hash::hash_multiple({ leaf, sibling_path[i] });
+        expected_end_commitments_snapshot_tree.update_element(KERNEL_NEW_COMMITMENTS_LENGTH + i,
+                                                              new_commitments_kernel_1[i]);
     }
     AppendOnlyTreeSnapshot<NT> expected_end_commitments_snapshot = {
-        .root = leaf,
+        .root = expected_end_commitments_snapshot_tree.root(),
         .next_available_leaf_index = 8,
     };
 
