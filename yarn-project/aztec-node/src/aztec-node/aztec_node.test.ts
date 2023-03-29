@@ -6,8 +6,9 @@ import { AztecNodeConfig } from './config.js';
 import { AztecNode } from '../index.js';
 import { createProvider, createTx, deployRollupContract, deployYeeterContract } from './fixtures.js';
 import { createDebugLogger, sleep } from '@aztec/foundation';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 
-const ETHEREUM_HOST = 'http://localhost:8545/';
+const ETHEREUM_HOST = 'http://127.0.0.1:8545/';
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_test');
@@ -52,20 +53,24 @@ describe('AztecNode', () => {
     expect(settledBlock.newContracts.length).toBeGreaterThan(0);
     expect(settledBlock.newContracts[0]).toEqual(tx.data.end.newContracts[0].functionTreeRoot);
 
+    const unverifiedDatas = await waitForUnverifiedData(1);
+    expect(unverifiedDatas.length).toBe(1);
+
     await node.stop();
   }, 30_000);
 
   it('should rollup multiple transactions', async () => {
-    const txs: Tx[] = Array(3).fill(0).map(createTx);
+    const numTxs = 3;
+    const txs: Tx[] = Array(numTxs).fill(0).map(createTx);
     for (let i = 0; i < txs.length; i++) {
       logger(`Sending tx ${i + 1} of ${txs.length}`);
       await node.sendTx(txs[i]);
     }
-    const blocks = await waitForBlocks(3);
+    const blocks = await waitForBlocks(numTxs);
 
     logger(`Received ${blocks.length} settled blocks`);
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < numTxs; i++) {
       const tx = txs[i];
       const block = blocks[i];
       expect(block.number).toBe(i + 1);
@@ -74,17 +79,31 @@ describe('AztecNode', () => {
       logger(`Verified tx ${i + 1}`);
     }
 
+    const unverifiedDatas = await waitForUnverifiedData(numTxs);
+    expect(unverifiedDatas.length).toBe(numTxs);
+
     await node.stop();
   }, 30_000 /* timeout in ms */);
 
   const waitForBlocks = async (take: number) => {
     while (true) {
-      const blocks = await node.getBlocks(1, take);
+      const blocks = await node.getBlocks(INITIAL_L2_BLOCK_NUM, take);
       if (blocks.length < take) {
         await sleep(100);
         continue;
       }
       return blocks;
+    }
+  };
+
+  const waitForUnverifiedData = async (take: number) => {
+    while (true) {
+      const unverifiedDatas = await node.getUnverifiedData(INITIAL_L2_BLOCK_NUM, take);
+      if (unverifiedDatas.length < take) {
+        await sleep(100);
+        continue;
+      }
+      return unverifiedDatas;
     }
   };
 });

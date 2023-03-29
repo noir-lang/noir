@@ -10,7 +10,7 @@ export interface ArchiverConfig extends L1Addresses {
   rpcUrl: string;
 
   /**
-   * The polling interval in ms for retrieving new rollups.
+   * The polling interval in ms for retrieving new L2 blocks and unverified data.
    */
   archiverPollingInterval?: number;
 }

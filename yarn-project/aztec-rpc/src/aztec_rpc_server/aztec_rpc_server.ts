@@ -188,7 +188,7 @@ export class AztecRPCServer implements AztecRPCClient {
       executionResult,
       oldRoots as any, // TODO - remove `as any`
     );
-    const tx = new Tx(publicInputs, new UInt8Vector(Buffer.alloc(0)));
+    const tx = new Tx(publicInputs, new UInt8Vector(Buffer.alloc(0)), Buffer.alloc(0));
     const dao: TxDao = new TxDao(
       new TxHash(tx.txId),
       undefined,

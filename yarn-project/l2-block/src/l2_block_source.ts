@@ -12,7 +12,7 @@ export interface L2BlockSource {
 
   /**
    * Gets the `take` amount of L2 blocks starting from `from`.
-   * @param from - If of the first rollup to return (inclusive).
+   * @param from - Number of the first block to return (inclusive).
    * @param take - The number of blocks to return.
    * @returns The requested L2 blocks.
    */

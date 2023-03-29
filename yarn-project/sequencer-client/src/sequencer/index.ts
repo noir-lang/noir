@@ -2,7 +2,7 @@ import { Tx } from '@aztec/tx';
 import { P2P } from '@aztec/p2p';
 import { WorldStateSynchroniser, WorldStateStatus } from '@aztec/world-state';
 import { RunningPromise } from '../deps/running_promise.js';
-import { L2BlockPublisher } from '../publisher/l2-block-publisher.js';
+import { L1Publisher } from '../publisher/l1-publisher.js';
 import { createDebugLogger } from '@aztec/foundation';
 import { BlockBuilder } from './block_builder.js';
 import { SequencerConfig } from './config.js';
@@ -24,7 +24,7 @@ export class Sequencer {
   private state = SequencerState.STOPPED;
 
   constructor(
-    private publisher: L2BlockPublisher,
+    private publisher: L1Publisher,
     private p2pClient: P2P,
     private worldState: WorldStateSynchroniser,
     config?: SequencerConfig,
@@ -90,12 +90,21 @@ export class Sequencer {
 
       // Publishes new block to the network and awaits the tx to be mined
       this.state = SequencerState.PUBLISHING_BLOCK;
-      const published = await this.publisher.processL2Block(block);
-      if (published) {
+      const publishedL2Block = await this.publisher.processL2Block(block);
+      if (publishedL2Block) {
         this.log(`Successfully published block ${block.number}`);
         this.lastBlockNumber++;
       } else {
         this.log(`Failed to publish block`);
+      }
+
+      // Publishes new unverified data to the network and awaits the tx to be mined
+      this.state = SequencerState.PUBLISHING_UNVERIFIED_DATA;
+      const publishedUnverifiedData = await this.publisher.processUnverifiedData(block.number, tx.unverifiedData);
+      if (publishedUnverifiedData) {
+        this.log(`Successfully published unverifiedData for block ${block.number}`);
+      } else {
+        this.log(`Failed to publish unverifiedData for block ${block.number}`);
       }
     } catch (err) {
       this.log(`Error doing work: ${err}`, 'error');
@@ -124,5 +133,6 @@ export enum SequencerState {
   WAITING_FOR_TXS,
   CREATING_BLOCK,
   PUBLISHING_BLOCK,
+  PUBLISHING_UNVERIFIED_DATA,
   STOPPED,
 }

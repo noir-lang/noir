@@ -25,9 +25,29 @@ import {
 } from '@aztec/circuits.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { AztecAddress, randomBytes } from '@aztec/foundation';
+import { AztecAddress, randomBytes, toBufferBE } from '@aztec/foundation';
 import { Rollup, Yeeter } from '@aztec/l1-contracts';
 import { Tx } from '@aztec/tx';
+
+export const deployRollupContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
+  const deployAccount = provider.getAccount(0);
+  const contract = new Rollup(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
+  await contract.deploy().send().getReceipt();
+  return contract.address;
+};
+
+export const deployYeeterContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
+  const deployAccount = provider.getAccount(0);
+  const contract = new Yeeter(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
+  await contract.deploy().send().getReceipt();
+  return contract.address;
+};
+
+export const createProvider = (host: string, mnemonic: string, accounts: number) => {
+  const walletProvider = WalletProvider.fromHost(host);
+  walletProvider.addAccountsFromMnemonic(mnemonic, accounts);
+  return walletProvider;
+};
 
 // REFACTOR: Use @aztec/circuit.js/factories where possible
 export const createCircuitEthAddress = () => {
@@ -38,6 +58,16 @@ export const createRandomCommitments = (num: number) => {
   return Array(num)
     .fill(0)
     .map(() => Fr.random());
+};
+
+export const createRandomEncryptedNotePreimage = () => {
+  const encryptedNotePreimageBuf = randomBytes(144);
+  return Buffer.concat([toBufferBE(BigInt(encryptedNotePreimageBuf.length), 4), encryptedNotePreimageBuf]);
+};
+
+export const createRandomUnverifiedData = (numPreimages: number) => {
+  const encryptedNotePreimageBuf = createRandomEncryptedNotePreimage();
+  return Buffer.concat(Array(numPreimages).fill(encryptedNotePreimageBuf));
 };
 
 export const createOptionallyRetrievedData = () => {
@@ -100,5 +130,6 @@ export const createTx = () => {
     createOptionallyRetrievedDatas(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH),
   );
   const kernelInputs = new PrivateKernelPublicInputs(accumulatedData, constantData, true);
-  return new Tx(kernelInputs, new UInt8Vector(Buffer.alloc(0)));
+  const unverifiedData = createRandomUnverifiedData(8);
+  return new Tx(kernelInputs, new UInt8Vector(Buffer.alloc(0)), unverifiedData);
 };

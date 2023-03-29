@@ -15,7 +15,14 @@ const hash = new Keccak(256);
  */
 export class Tx {
   private _id?: Buffer;
-  constructor(public readonly data: PrivateKernelPublicInputs, public readonly proof: UInt8Vector) {}
+
+  /**
+   * 
+   * @param data - Tx inputs.
+   * @param proof - Tx proof.
+   * @param unverifiedData  - Information not needed to verify the tx (e.g. encrypted note pre-images etc.)
+   */
+  constructor(public readonly data: PrivateKernelPublicInputs, public readonly proof: UInt8Vector, public readonly unverifiedData: Buffer) {}
 
   /**
    * Construct & return transaction ID.

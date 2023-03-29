@@ -1,4 +1,5 @@
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { randomBytes, toBufferBE } from '@aztec/foundation';
 import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
 import { L2Block } from '@aztec/l2-block';
 import { jest } from '@jest/globals';
@@ -24,10 +25,12 @@ describe('Archiver', () => {
 
     let latestBlockNum = await archiver.getLatestBlockNum();
     expect(latestBlockNum).toEqual(0);
+    let getLatestUnverifiedDataBlockNum = await archiver.getLatestUnverifiedDataBlockNum();
+    expect(getLatestUnverifiedDataBlockNum).toEqual(0);
 
-    const rollupLogs = [1, 2, 3].map(makeRollupEvent);
+    const rollupLogs = [1, 2, 3].map(makeL2BlockProcessedEvent);
     const rollupTxs = [1, 2, 3].map(makeRollupTx);
-    const yeeterLogs = [] as Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>[];
+    const yeeterLogs: Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>[] = [1, 2].map(makeYeetEvent);
 
     publicClient.getFilterLogs.mockResolvedValueOnce(rollupLogs).mockResolvedValueOnce(yeeterLogs);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
@@ -37,17 +40,19 @@ describe('Archiver', () => {
 
     latestBlockNum = await archiver.getLatestBlockNum();
     expect(latestBlockNum).toEqual(3);
+    getLatestUnverifiedDataBlockNum = await archiver.getLatestUnverifiedDataBlockNum();
+    expect(getLatestUnverifiedDataBlockNum).toEqual(2);
 
     await archiver.stop();
   });
 });
 
 /**
- * Makes a fake rollup event for testing purposes.
+ * Makes a fake L2BlockProcessed event for testing purposes.
  * @param blockNum - L2Block number.
- * @returns A rollup event log.
+ * @returns An L2BlockProcessed event log.
  */
-function makeRollupEvent(blockNum: number) {
+function makeL2BlockProcessedEvent(blockNum: number) {
   return { args: { blockNum: BigInt(blockNum) }, transactionHash: `0x${blockNum}` } as unknown as Log<
     bigint,
     number,
@@ -55,6 +60,22 @@ function makeRollupEvent(blockNum: number) {
     typeof RollupAbi,
     'L2BlockProcessed'
   >;
+}
+
+/**
+ * Makes a fake Yeet event for testing purposes.
+ * @param blockNum - L2Block number.
+ * @returns An Yeet event log.
+ */
+function makeYeetEvent(blockNum: number) {
+  return {
+    args: {
+      l2blockNum: BigInt(blockNum),
+      sender: EthAddress.random(),
+      blabber: '0x' + createRandomUnverifiedData(16).toString('hex'),
+    },
+    transactionHash: `0x${blockNum}`,
+  } as unknown as Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>;
 }
 
 /**
@@ -68,3 +89,13 @@ function makeRollupTx(blockNum: number) {
   const input = encodeFunctionData({ abi: RollupAbi, functionName: 'process', args: [proof, block] });
   return { input } as Transaction<bigint, number>;
 }
+
+const createRandomEncryptedNotePreimage = () => {
+  const encryptedNotePreimageBuf = randomBytes(144);
+  return Buffer.concat([toBufferBE(BigInt(encryptedNotePreimageBuf.length), 4), encryptedNotePreimageBuf]);
+};
+
+const createRandomUnverifiedData = (numPreimages: number) => {
+  const encryptedNotePreimageBuf = createRandomEncryptedNotePreimage();
+  return Buffer.concat(Array(numPreimages).fill(encryptedNotePreimageBuf));
+};

@@ -1,10 +1,10 @@
-import { L2Block } from '@aztec/l2-block';
+import { L2Block } from '@aztec/archiver';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup } from '@aztec/l1-contracts';
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
-import { L2BlockPublisher } from '../src/publisher/l2-block-publisher.js';
+import { L1Publisher } from '../src/publisher/l1-publisher.js';
 import { hexStringToBuffer } from '../src/utils.js';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
@@ -12,10 +12,10 @@ const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30
 const deployerPK = '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba';
 const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
 
-describe('L2BlockPublisher integration', () => {
+describe('L1Publisher integration', () => {
   let rollup: Rollup;
   let ethRpc: EthereumRpc;
-  let publisher: L2BlockPublisher;
+  let publisher: L1Publisher;
   let l2Block: L2Block;
   let l2Proof: Buffer;
 
@@ -25,12 +25,12 @@ describe('L2BlockPublisher integration', () => {
     l2Block = L2Block.random(42);
     l2Proof = Buffer.alloc(0);
 
-    publisher = new L2BlockPublisher(
-      new EthereumjsTxSender({
-        ethereumHost: anvilHost,
-        requiredConfirmations: 1,
-        rollupContract: rollup.address,
-        sequencerPrivateKey: hexStringToBuffer(sequencerPK),
+    publisher = new L1Publisher(
+      new EthereumjsTxSender({ 
+        ethereumHost: anvilHost, 
+        requiredConfirmations: 1, 
+        rollupContract: rollup.address, 
+        sequencerPrivateKey: hexStringToBuffer(sequencerPK)
       }),
       {
         sleepTimeMs: 100,

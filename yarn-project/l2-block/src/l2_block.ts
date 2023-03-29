@@ -12,11 +12,6 @@ export { Fr } from '@aztec/circuits.js';
  */
 export class L2Block {
   /**
-   * A yeet to go with the block.
-   */
-  public yeet?: Buffer;
-
-  /**
    * Construct a new L2Block object.
    * The data that goes into the rollup, BUT without the proof.
    * @param number - The number of the L2 block.
@@ -119,14 +114,6 @@ export class L2Block {
       fields.newContracts,
       fields.newContractData,
     );
-  }
-
-  /**
-   * Sets the yeet on this block.
-   * @param yeet - The yeet to set.
-   */
-  setYeet(yeet: Buffer) {
-    this.yeet = yeet;
   }
 
   /**

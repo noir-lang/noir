@@ -2,9 +2,11 @@ import { L2Block, L2BlockSource } from '@aztec/l2-block';
 import { UInt8Vector } from '@aztec/circuits.js';
 import { Tx } from '@aztec/tx';
 import { makePrivateKernelPublicInputs } from '@aztec/circuits.js/factories';
+import { randomBytes } from 'crypto';
+import { toBufferBE } from '@aztec/foundation';
 
 export const MockTx = () => {
-  return new Tx(makePrivateKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)));
+  return new Tx(makePrivateKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), createRandomUnverifiedData(8));
 };
 
 export class MockBlockSource implements L2BlockSource {
@@ -33,3 +35,13 @@ export class MockBlockSource implements L2BlockSource {
     return Promise.resolve();
   }
 }
+
+const createRandomEncryptedNotePreimage = () => {
+  const encryptedNotePreimageBuf = randomBytes(144);
+  return Buffer.concat([toBufferBE(BigInt(encryptedNotePreimageBuf.length), 4), encryptedNotePreimageBuf]);
+};
+
+const createRandomUnverifiedData = (numPreimages: number) => {
+  const encryptedNotePreimageBuf = createRandomEncryptedNotePreimage();
+  return Buffer.concat(Array(numPreimages).fill(encryptedNotePreimageBuf));
+};

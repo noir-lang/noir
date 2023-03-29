@@ -1,6 +1,6 @@
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 
-export const INITIAL_ROLLUP_ID = 1;
+export const INITIAL_L2_BLOCK_NUM = 1;
 
 /**
  * Rollup contract addresses.
