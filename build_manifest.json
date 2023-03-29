@@ -43,7 +43,7 @@
     "projectDir": "yarn-project/acir-simulator",
     "dockerfile": "acir-simulator/Dockerfile",
     "rebuildPatterns": ["^yarn-project/acir-simulator/"],
-    "dependencies": ["yarn-project-base"]
+    "dependencies": ["yarn-project-base", "circuits.js"]
   },
   "archiver": {
     "buildDir": "yarn-project",
