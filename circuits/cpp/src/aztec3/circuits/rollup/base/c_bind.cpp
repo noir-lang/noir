@@ -77,10 +77,8 @@ WASM_EXPORT size_t base_rollup__init_verification_key(uint8_t const* pk_buf, uin
 //}
 
 WASM_EXPORT size_t base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
-                                    bool second_present,
                                     uint8_t const** base_rollup_public_inputs_buf)
 {
-    (void)second_present; // unused
     // TODO accept proving key and use that to initialize composers
     // this info is just to prevent error for unused pk_buf
     // TODO do we want to accept it or just get it from our factory?

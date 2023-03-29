@@ -121,9 +121,7 @@ class base_rollup_tests : public ::testing::Test {
         // size_t proof_data_size;
         uint8_t const* public_inputs_buf;
         info("creating proof");
-        size_t public_inputs_size = base_rollup__sim(base_rollup_inputs_vec.data(),
-                                                     false, // second_present
-                                                     &public_inputs_buf);
+        size_t public_inputs_size = base_rollup__sim(base_rollup_inputs_vec.data(), &public_inputs_buf);
         // info("Proof size: ", proof_data_size);
         info("PublicInputs size: ", public_inputs_size);
 
