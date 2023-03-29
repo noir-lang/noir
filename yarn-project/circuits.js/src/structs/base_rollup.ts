@@ -4,6 +4,8 @@ import { serializeToBuffer } from '../utils/serialize.js';
 import {
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -85,6 +87,10 @@ export class ConstantBaseRollupData {
  * Inputs to the base rollup circuit
  */
 export class BaseRollupInputs {
+  public static PRIVATE_DATA_SUBTREE_HEIGHT = Math.log2(KERNEL_NEW_COMMITMENTS_LENGTH * 2);
+  public static CONTRACT_SUBTREE_HEIGHT = Math.log2(KERNEL_NEW_CONTRACTS_LENGTH * 2);
+  public static NULLIFIER_SUBTREE_HEIGHT = Math.log2(KERNEL_NEW_NULLIFIERS_LENGTH * 2);
+
   constructor(
     public kernelData: [PreviousKernelData, PreviousKernelData],
 
@@ -112,9 +118,21 @@ export class BaseRollupInputs {
   ) {
     assertLength(this, 'lowNullifierLeafPreimages', 2 * KERNEL_NEW_NULLIFIERS_LENGTH);
     assertLength(this, 'lowNullifierMembershipWitness', 2 * KERNEL_NEW_NULLIFIERS_LENGTH);
-    assertLength(this, 'newCommitmentsSubtreeSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
-    assertLength(this, 'newNullifiersSubtreeSiblingPath', NULLIFIER_TREE_HEIGHT);
-    assertLength(this, 'newContractsSubtreeSiblingPath', CONTRACT_TREE_HEIGHT);
+    assertLength(
+      this,
+      'newCommitmentsSubtreeSiblingPath',
+      PRIVATE_DATA_TREE_HEIGHT - BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
+    );
+    assertLength(
+      this,
+      'newNullifiersSubtreeSiblingPath',
+      NULLIFIER_TREE_HEIGHT - BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+    );
+    assertLength(
+      this,
+      'newContractsSubtreeSiblingPath',
+      CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
+    );
   }
 
   static from(fields: FieldsOf<BaseRollupInputs>): BaseRollupInputs {
@@ -155,7 +173,7 @@ export class BaseRollupPublicInputs {
     public endPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
 
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
-    public endNullifierTreeSnapshots: AppendOnlyTreeSnapshot,
+    public endNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
 
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
     public endContractTreeSnapshot: AppendOnlyTreeSnapshot,
@@ -196,7 +214,7 @@ export class BaseRollupPublicInputs {
       this.endPrivateDataTreeSnapshot,
 
       this.startNullifierTreeSnapshot,
-      this.endNullifierTreeSnapshots,
+      this.endNullifierTreeSnapshot,
 
       this.startContractTreeSnapshot,
       this.endContractTreeSnapshot,

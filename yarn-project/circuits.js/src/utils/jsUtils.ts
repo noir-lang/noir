@@ -29,18 +29,6 @@ export function assertLength<F extends string, T extends { [f in F]: { length: n
 }
 
 /**
- * Asserts a collection has a certain length.
- * @param arr Collection to check.
- * @param expected Expected length.
- * @param label Optional name for the collection to use in the error message.
- */
-export function checkLength(arr: { length: number }, expected: number, label = 'array') {
-  if (arr.length !== expected) {
-    throw new Error(`Invalid length for ${label} (got ${arr.length}, expected ${expected})`);
-  }
-}
-
-/**
  * Strips methods of a type.
  */
 export type FieldsOf<T> = {

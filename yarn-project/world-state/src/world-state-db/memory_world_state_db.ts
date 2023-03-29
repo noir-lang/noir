@@ -87,6 +87,10 @@ export class MerkleTrees implements MerkleTreeDb {
     return await this.synchronise(() => this._getTreeInfo(treeId));
   }
 
+  public async getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> {
+    return await this.synchronise(() => this.trees[treeId].getLeafValue(index));
+  }
+
   /**
    * Gets the sibling path for a leaf in a tree.
    * @param treeId - The ID of the tree.

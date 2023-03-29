@@ -2,7 +2,7 @@ import { Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AppendOnlyTreeSnapshot } from './base_rollup.js';
-import { CONTRACT_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
+import { CONTRACT_TREE_ROOTS_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
 import { PreviousRollupData } from './merge_rollup.js';
 import { AggregationObject } from './shared.js';
 
@@ -10,30 +10,31 @@ export class RootRollupInputs {
   constructor(
     public previousRollupData: [PreviousRollupData, PreviousRollupData],
 
-    public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
-    // Note: the start_nullifier_tree_snapshot is contained within previous_rollup_data[0].public_inputs.start_nullifier_tree_snapshot.
-    public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
-
-    // For inserting the new subtrees into their respective trees:
-    // Note: the insertion leaf index can be derived from the above snapshots' `next_available_leaf_index` values.
-    public newCommitmentsSubtreeSiblingPath: Fr[],
-    public newNullifiersSubtreeSiblingPath: Fr[],
-    public newContractsSubtreeSiblingPath: Fr[],
+    public newHistoricPrivateDataTreeRootSiblingPath: Fr[],
+    public newHistoricContractDataTreeRootSiblingPath: Fr[],
   ) {
-    assertLength(this, 'newCommitmentsSubtreeSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
-    assertLength(this, 'newNullifiersSubtreeSiblingPath', NULLIFIER_TREE_HEIGHT);
-    assertLength(this, 'newContractsSubtreeSiblingPath', CONTRACT_TREE_HEIGHT);
+    assertLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
+    assertLength(this, 'newHistoricContractDataTreeRootSiblingPath', CONTRACT_TREE_ROOTS_TREE_HEIGHT);
   }
 
   toBuffer() {
     return serializeToBuffer(
       this.previousRollupData,
-      this.startPrivateDataTreeSnapshot,
-      this.startContractTreeSnapshot,
-      this.newCommitmentsSubtreeSiblingPath,
-      this.newNullifiersSubtreeSiblingPath,
-      this.newContractsSubtreeSiblingPath,
+      this.newHistoricPrivateDataTreeRootSiblingPath,
+      this.newHistoricContractDataTreeRootSiblingPath,
     );
+  }
+
+  static from(fields: FieldsOf<RootRollupInputs>): RootRollupInputs {
+    return new RootRollupInputs(...RootRollupInputs.getFields(fields));
+  }
+
+  static getFields(fields: FieldsOf<RootRollupInputs>) {
+    return [
+      fields.previousRollupData,
+      fields.newHistoricPrivateDataTreeRootSiblingPath,
+      fields.newHistoricContractDataTreeRootSiblingPath,
+    ] as const;
   }
 }
 

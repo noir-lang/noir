@@ -27,6 +27,10 @@ export class Fr {
   toBuffer() {
     return toBufferBE(this.value, Fr.SIZE_IN_BYTES);
   }
+
+  toString() {
+    return '0x' + this.value.toString(16);
+  }
 }
 
 export class Fq {
@@ -52,5 +56,9 @@ export class Fq {
 
   toBuffer() {
     return toBufferBE(this.value, Fq.SIZE_IN_BYTES);
+  }
+
+  toString() {
+    return '0x' + this.value.toString(16);
   }
 }

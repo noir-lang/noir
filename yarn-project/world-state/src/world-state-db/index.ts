@@ -47,6 +47,7 @@ export interface MerkleTreeOperations {
   ): Promise<{ index: number; alreadyPresent: boolean }>;
   getLeafData(treeId: IndexedMerkleTreeId, index: number): LeafData | undefined;
   findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined>;
+  getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined>;
 }
 
 /**
@@ -55,4 +56,18 @@ export interface MerkleTreeOperations {
 export interface MerkleTreeDb extends MerkleTreeOperations {
   commit(): Promise<void>;
   rollback(): Promise<void>;
+}
+
+/**
+ * Outputs a tree leaves to console.log for debugging purposes.
+ */
+export async function inspectTree(db: MerkleTreeOperations, treeId: MerkleTreeId) {
+  const info = await db.getTreeInfo(treeId);
+  let output = [`Tree id=${treeId} size=${info.size} root=0x${info.root.toString('hex')}`];
+  for (let i = 0; i < info.size; i++) {
+    output.push(
+      ` Leaf ${i}: ${await db.getLeafValue(treeId, BigInt(i)).then(x => x?.toString('hex') ?? '[undefined]')}`,
+    );
+  }
+  console.log(output.join('\n'));
 }

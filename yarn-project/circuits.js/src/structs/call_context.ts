@@ -23,7 +23,7 @@ export class CallContext {
     return serializeToBuffer(
       this.msgSender,
       this.storageContractAddress,
-      this.portalContractAddress.toBuffer(),
+      this.portalContractAddress,
       this.isDelegateCall,
       this.isStaticCall,
       this.isContractDeployment,

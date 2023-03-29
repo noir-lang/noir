@@ -493,17 +493,20 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-contracts": "workspace:^"
     "@aztec/l2-block": "workspace:^"
+    "@aztec/merkle-tree": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/tx": "workspace:^"
     "@aztec/world-state": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
+    "@types/lodash.flatmap": ^4.5.7
     "@types/lodash.times": ^4.3.7
     "@types/node": ^18.7.23
     concurrently: ^7.6.0
     jest: ^28.1.3
     jest-mock-extended: ^3.0.3
+    lodash.flatmap: ^4.5.0
     lodash.times: ^4.3.2
     prettier: ^2.8.7
     ts-jest: ^28.0.7
@@ -2276,6 +2279,15 @@ __metadata:
     "@types/level-errors": "*"
     "@types/node": "*"
   checksum: 6740284488b6806ba398bc38842fa789edd5667a342830c544a6b3611ebeed957a08d03dc8bde1e32fe03ac9c439341647c044c1ff0f73a26bcded9ca302a009
+  languageName: node
+  linkType: hard
+
+"@types/lodash.flatmap@npm:^4.5.7":
+  version: 4.5.7
+  resolution: "@types/lodash.flatmap@npm:4.5.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: 2bcccdd30bcb06a400b37a2b731f194f6b11ae49467a98828d86e25dbd10055f8b033c7741755a41de7bc50f49e387ecec952f9871863f77c79582e891945486
   languageName: node
   linkType: hard
 
@@ -6138,6 +6150,13 @@ __metadata:
   dependencies:
     p-locate: ^5.0.0
   checksum: 72eb661788a0368c099a184c59d2fee760b3831c9c1c33955e8a19ae4a21b4116e53fa736dc086cdeb9fce9f7cc508f2f92d2d3aae516f133e16a2bb59a39f5a
+  languageName: node
+  linkType: hard
+
+"lodash.flatmap@npm:^4.5.0":
+  version: 4.5.0
+  resolution: "lodash.flatmap@npm:4.5.0"
+  checksum: c01a47d32e99f8fce75409f0a4a9bd12fbb2d3a46519a0dde14deedb1e527b5ddccc2bf997705c67bdecb915f47749e8a9ffefa7a91c41f0c448e06348ec81c7
   languageName: node
   linkType: hard
 

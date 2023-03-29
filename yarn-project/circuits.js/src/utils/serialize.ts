@@ -107,11 +107,21 @@ export type Bufferable =
   | string
   | {
       /**
+       * Serialize to a buffer of 32 bytes.
+       */
+      toBuffer32: () => Buffer;
+    }
+  | {
+      /**
        * Serialize to a buffer.
        */
       toBuffer: () => Buffer;
     }
   | Bufferable[];
+
+function isSerializableToBuffer32(obj: Object): obj is { toBuffer32: () => Buffer } {
+  return !!(obj as { toBuffer32: () => Buffer }).toBuffer32;
+}
 
 /**
  * Serializes a list of objects contiguously for calling into wasm.
@@ -134,6 +144,8 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
     } else if (typeof obj === 'string') {
       ret.push(numToUInt32BE(obj.length));
       ret.push(Buffer.from(obj));
+    } else if (isSerializableToBuffer32(obj)) {
+      ret.push(obj.toBuffer32());
     } else {
       ret.push(obj.toBuffer());
     }

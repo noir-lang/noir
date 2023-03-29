@@ -1,5 +1,5 @@
-import { EthAddress, Fq, Fr, AztecAddress } from '@aztec/foundation';
-import { CallContext, PrivateCircuitPublicInputs } from '../index.js';
+import { AztecAddress, EthAddress, Fq, Fr } from '@aztec/foundation';
+import { CallContext, PrivateCircuitPublicInputs, RootRollupPublicInputs } from '../index.js';
 import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from '../structs/base_rollup.js';
 import {
   ARGS_LENGTH,
@@ -38,9 +38,9 @@ import {
   AffineElement,
   AggregationObject,
   ComposerType,
+  EcdsaSignature,
   MembershipWitness,
   UInt8Vector,
-  EcdsaSignature,
 } from '../structs/shared.js';
 import { ContractDeploymentData, SignedTxRequest, TxContext, TxRequest } from '../structs/tx.js';
 import { CommitmentMap, G1AffineElement, VerificationKey } from '../structs/verification_key.js';
@@ -246,8 +246,29 @@ export function makeBaseRollupPublicInputs(seed = 0) {
     makeAppendOnlyTreeSnapshot(seed + 0x600),
     makeAppendOnlyTreeSnapshot(seed + 0x700),
     makeAppendOnlyTreeSnapshot(seed + 0x800),
-    range(2, seed + 0x901).map(fr) as [Fr, Fr],
+    [fr(seed + 0x901), fr(seed + 0x902)],
   );
+}
+
+export function makeRootRollupPublicInputs(seed = 0) {
+  return RootRollupPublicInputs.from({
+    startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
+    startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
+    startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x300),
+    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x400),
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x500),
+    endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x600),
+    endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x700),
+    endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x800),
+    endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x900),
+    endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x1000),
+    endAggregationObject: makeAggregationObject(seed + 0x1100),
+    newCommitmentsHash: fr(seed + 0x1200),
+    newContractDataHash: fr(seed + 0x1200),
+    newL1MsgsHash: fr(seed + 0x1200),
+    newNullifiersHash: fr(seed + 0x1200),
+    proverContributionsHash: fr(seed + 0x1200),
+  });
 }
 
 /**
