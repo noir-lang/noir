@@ -362,16 +362,16 @@ impl<'a> Resolver<'a> {
         args: Vec<UnresolvedType>,
         new_variables: &mut Generics,
     ) -> Type {
+        if args.is_empty() {
+            if let Some(typ) = self.lookup_generic_or_global_type(&path) {
+                return typ;
+            }
+        }
+
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-
-            if args.is_empty() {
-                if let Some((name, var, _)) = self.find_generic(name) {
-                    return Type::NamedGeneric(var.clone(), name.clone());
-                }
-            }
 
             if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
@@ -407,6 +407,23 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
+        if path.segments.len() == 1 {
+            let name = &path.last_segment().0.contents;
+            if let Some((name, var, _)) = self.find_generic(name) {
+                return Some(Type::NamedGeneric(var.clone(), name.clone()));
+            }
+        }
+
+        // If we cannot find a local generic of the same name, try to look up a global
+        match self.path_resolver.resolve(self.def_maps, path.clone()) {
+            Ok(ModuleDefId::GlobalId(id)) => {
+                Some(Type::Constant(self.eval_global_as_array_length(id)))
+            }
+            _ => None,
+        }
+    }
+
     fn resolve_array_size(
         &mut self,
         length: Option<UnresolvedTypeExpression>,
@@ -430,22 +447,10 @@ impl<'a> Resolver<'a> {
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                if path.segments.len() == 1 {
-                    let name = &path.last_segment().0.contents;
-                    if let Some((name, var, _)) = self.find_generic(name) {
-                        return Type::NamedGeneric(var.clone(), name.clone());
-                    }
-                }
-
-                // If we cannot find a local generic of the same name, try to look up a global
-                if let Ok(ModuleDefId::GlobalId(id)) =
-                    self.path_resolver.resolve(self.def_maps, path.clone())
-                {
-                    Type::Constant(self.eval_global_as_array_length(id))
-                } else {
+                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
                     Type::Constant(0)
-                }
+                })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
@@ -598,7 +603,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if func.name() != "main" && visibility == noirc_abi::AbiVisibility::Public {
+            if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
             }
 
@@ -612,8 +617,9 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if func.name() == "main"
-            && *return_type != Type::Unit
+        // 'pub_allowed' also implies 'pub' is required on return types
+        if self.pub_allowed(func)
+            && return_type.as_ref() != &Type::Unit
             && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
@@ -644,6 +650,15 @@ impl<'a> Resolver<'a> {
             parameters: parameters.into(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
+        }
+    }
+
+    /// True if the 'pub' keyword is allowed on parameters in this function
+    fn pub_allowed(&self, func: &NoirFunction) -> bool {
+        if self.in_contract() {
+            !func.def.is_unconstrained && !func.def.is_open
+        } else {
+            func.name() == "main"
         }
     }
 
@@ -826,6 +841,14 @@ impl<'a> Resolver<'a> {
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
             }),
+            ExpressionKind::Variable(path) => {
+                // If the Path is being used as an Expression, then it is referring to a global from a separate module
+                // Otherwise, then it is referring to an Identifier
+                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+                // If the expression is a singular indent, we search the resolver's current scope as normal.
+                let hir_ident = self.get_ident_from_path(path);
+                HirExpression::Ident(hir_ident)
+            }
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
@@ -897,14 +920,6 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Variable(path) => {
-                // If the Path is being used as an Expression, then it is referring to a global from a separate module
-                // Otherwise, then it is referring to an Identifier
-                // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-                // If the expression is a singular indent, we search the resolver's current scope as normal.
-                let hir_ident = self.get_ident_from_path(path);
-                HirExpression::Ident(hir_ident)
-            }
             ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
@@ -1186,7 +1201,8 @@ impl<'a> Resolver<'a> {
         let stmt = match self.interner.statement(&global) {
             HirStatement::Let(let_expr) => let_expr,
             other => {
-                unreachable!("Expected global while evaluating array length, found {:?}", other)
+                dbg!(other);
+                return 0;
             }
         };
 

@@ -185,6 +185,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub unconstrained: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
