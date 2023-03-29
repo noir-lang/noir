@@ -75,7 +75,7 @@ export class AztecRPCServer implements AztecRPCClient {
 
   public async createDeploymentTxRequest(
     abi: ContractAbi,
-    args: Fr[],
+    args: any[],
     portalContract: EthAddress,
     contractAddressSalt: Fr,
     from: AztecAddress,
@@ -122,7 +122,7 @@ export class AztecRPCServer implements AztecRPCClient {
     );
   }
 
-  public async createTxRequest(functionName: string, args: Fr[], to: AztecAddress, from: AztecAddress) {
+  public async createTxRequest(functionName: string, args: any[], to: AztecAddress, from: AztecAddress) {
     const contract = await this.db.getContract(to);
     if (!contract) {
       throw new Error('Unknown contract.');

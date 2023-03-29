@@ -23,12 +23,12 @@ export interface AztecRPCClient {
   isContractDeployed(contract: AztecAddress): Promise<boolean>;
   createDeploymentTxRequest(
     abi: ContractAbi,
-    args: Fr[],
+    args: any[],
     portalContract: EthAddress,
     contractAddressSalt: Fr,
     from: AztecAddress,
   ): Promise<TxRequest>;
-  createTxRequest(functionName: string, args: Fr[], to: AztecAddress, from: AztecAddress): Promise<TxRequest>;
+  createTxRequest(functionName: string, args: any[], to: AztecAddress, from: AztecAddress): Promise<TxRequest>;
   signTxRequest(txRequest: TxRequest): Promise<Signature>;
   createTx(txRequest: TxRequest, signature: Signature): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;

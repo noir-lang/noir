@@ -78,7 +78,7 @@ export class TxRequest {
     public from: AztecAddress,
     public to: AztecAddress,
     public functionData: FunctionData,
-    public args: Fr[],
+    public args: any[],
     public nonce: Fr,
     public txContext: TxContext,
     public chainId: Fr,
