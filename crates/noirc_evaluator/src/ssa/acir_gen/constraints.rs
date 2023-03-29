@@ -9,7 +9,7 @@ use acvm::{
             directives::Directive,
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
-        native_types::{Expression, Linear, Witness},
+        native_types::{Expression, Witness},
     },
     FieldElement,
 };
@@ -266,7 +266,7 @@ pub(crate) fn range_constraint(
         let exp_big = BigUint::from(2_u128).pow(num_bits - 1);
         let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
         evaluator.push_opcode(AcirOpcode::Directive(Directive::Quotient {
-            a: Linear::from(witness).into(),
+            a: Expression::from(witness),
             b: Expression::from_field(exp),
             q: b_witness,
             r: r_witness,
@@ -546,7 +546,7 @@ pub(crate) fn evaluate_udiv(
     }));
 
     //r<b
-    let r_expr = Expression::from(Linear::from_witness(r_witness));
+    let r_expr = Expression::from(r_witness);
     try_range_constraint(r_witness, bit_size, evaluator);
     bound_constraint_with_offset(&r_expr, rhs, predicate, bit_size, evaluator);
     //range check q<=a

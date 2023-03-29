@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write, path::Path};
 
-use acvm::{PartialWitnessGenerator, ProofSystemCompiler};
+use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler};
 use clap::Args;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
@@ -79,6 +79,7 @@ fn run_test(
     config: &CompileOptions,
 ) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
+    let mut blocks = Blocks::default();
 
     let program = driver
         .compile_no_check(config, main)
@@ -88,13 +89,20 @@ fn run_test(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    if let Err(error) = backend.solve(&mut solved_witness, program.circuit.opcodes) {
-        let writer = StandardStream::stderr(ColorChoice::Always);
-        let mut writer = writer.lock();
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
-        writeln!(writer, "failed").ok();
-        writer.reset().ok();
-        return Err(error.into());
+    match backend.solve(&mut solved_witness, &mut blocks, program.circuit.opcodes) {
+        Ok((unresolved_opcodes, oracles)) => {
+            if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
+                todo!("Add oracle support to nargo test")
+            }
+            Ok(())
+        }
+        Err(error) => {
+            let writer = StandardStream::stderr(ColorChoice::Always);
+            let mut writer = writer.lock();
+            writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
+            writeln!(writer, "failed").ok();
+            writer.reset().ok();
+            Err(error.into())
+        }
     }
-    Ok(())
 }
