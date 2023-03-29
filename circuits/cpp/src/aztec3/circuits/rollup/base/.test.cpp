@@ -9,6 +9,7 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/constants.hpp"
+#include "barretenberg/common/assert.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
@@ -43,6 +44,7 @@
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/common/test.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -195,9 +197,15 @@ class base_rollup_tests : public ::testing::Test {
         kernel_data[1] = dummy_previous_kernel_with_vk_proof();
 
         BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
-                                              .start_private_data_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
+                                              .start_private_data_tree_snapshot = {
+                                                .root = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT).root(),
+                                                .next_available_leaf_index = 0,
+                                              },
                                               .start_nullifier_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
-                                              .start_contract_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
+                                              .start_contract_tree_snapshot = {
+                                                .root = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT).root(),
+                                                .next_available_leaf_index = 0,
+                                              },
                                               .low_nullifier_leaf_preimages = low_nullifier_leaf_preimages,
                                               .low_nullifier_membership_witness = low_nullifier_membership_witness,
                                               .new_commitments_subtree_sibling_path = { 0 },
@@ -227,12 +235,7 @@ TEST_F(base_rollup_tests, no_new_contract_leafs)
     for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
         sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
     }
-
-    // Set the start_contract_tree_snapshot and new_contracts_subtree_sibling_path
-    emptyInputs.start_contract_tree_snapshot = {
-        .root = empty_contract_tree.root(),
-        .next_available_leaf_index = 0,
-    };
+    // Set the new_contracts_subtree_sibling_path
     emptyInputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
 
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(emptyInputs);
@@ -258,19 +261,16 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
     };
-    // Create a start snapshot tree and derive sibling path of index 0 leaf
+    inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
+
     auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
+    // fetch sibling path from hash path (only get the second half of the hash path)
     auto hash_path_of_0 = empty_contract_tree.get_hash_path(0);
     std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_of_0;
     for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
         sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
     }
-
-    inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
-    inputs.start_contract_tree_snapshot = {
-        .root = empty_contract_tree.root(),
-        .next_available_leaf_index = 0,
-    };
+    // Set the new_contracts_subtree_sibling_path
     inputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
 
     // manually create expected end contract tree snapshot
@@ -293,9 +293,114 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
     run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, new_nullifier_tree) {}
+TEST_F(base_rollup_tests, contract_leaf_inserted_in_non_empty_snapshot_tree)
+{
+    // Same as before except our start_contract_snapshot_tree is not empty
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
 
-TEST_F(base_rollup_tests, new_commitments_tree) {}
+    // Create a "mock" contract deployment
+    NewContractData<NT> new_contract = {
+        .contract_address = fr(1),
+        .portal_contract_address = fr(3),
+        .function_tree_root = fr(2),
+    };
+    inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
+
+    auto start_contract_tree_snapshot = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
+    // insert 12 leaves to the tree (next available leaf index is 12)
+    for (size_t i = 0; i < 12; ++i) {
+        start_contract_tree_snapshot.update_element(i, fr(i));
+    }
+    // set the start_contract_tree_snapshot
+    inputs.start_contract_tree_snapshot = {
+        .root = start_contract_tree_snapshot.root(),
+        .next_available_leaf_index = 12,
+    };
+
+    // Set the new_contracts_subtree_sibling_path
+    // fetch sibling path from hash path
+    auto hash_path = start_contract_tree_snapshot.get_hash_path(12);
+    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path;
+    // skip leaf (since we insert subtree of depth 1 aka CONTRACT_SUBTREE_DEPTH)
+    sibling_path[0] =
+        hash_path[CONTRACT_SUBTREE_DEPTH].second; // height = 3. our parent is index 6. so sibling is index 7
+    sibling_path[1] =
+        hash_path[CONTRACT_SUBTREE_DEPTH + 1].first; // height = 2. our parent is index 3. so sibling is index 2
+    sibling_path[2] =
+        hash_path[CONTRACT_SUBTREE_DEPTH + 2].first; // height = 1. our parent is index 1. so sibling is index 0
+
+    inputs.new_contracts_subtree_sibling_path = sibling_path;
+
+    // manually create expected end contract tree snapshot
+    auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+    auto expected_contracts_subtree = stdlib::merkle_tree::MemoryTree(CONTRACT_SUBTREE_DEPTH);
+    expected_contracts_subtree.update_element(0, expected_contract_leaf);
+
+    // manually iterate through sibling path to create end snapshot
+    auto leaf_1 = crypto::pedersen_hash::hash_multiple({ expected_contracts_subtree.root(), sibling_path[0] });
+    auto leaf_2 = crypto::pedersen_hash::hash_multiple({ sibling_path[1], leaf_1 });
+    auto expected_end_snapshot_root = crypto::pedersen_hash::hash_multiple({ sibling_path[2], leaf_2 });
+    AppendOnlyTreeSnapshot<NT> expected_end_contracts_snapshot = {
+        .root = expected_end_snapshot_root,
+        .next_available_leaf_index = 14,
+    };
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
+
+    ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
+    ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, new_commitments_tree)
+{
+    // Create 4 new mock commitments. Add them to kernel data.
+    // Then get sibling path so we can verify insert them into the tree.
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+
+    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_kernel_0 = { fr(0), fr(1), fr(2), fr(3) };
+    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_kernel_1 = { fr(4), fr(5), fr(6), fr(7) };
+
+    inputs.kernel_data[0].public_inputs.end.new_commitments = new_commitments_kernel_0;
+    inputs.kernel_data[1].public_inputs.end.new_commitments = new_commitments_kernel_1;
+
+    // get sibling path -
+    auto empty_tree = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
+    // fetch sibling path from hash path (only get the second half of the hash path)
+    auto hash_path = empty_tree.get_hash_path(0);
+    std::array<NT::fr, PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path;
+    for (size_t i = 0; i < PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
+        sibling_path[i] = hash_path[PRIVATE_DATA_SUBTREE_DEPTH + i].second;
+    }
+    inputs.new_commitments_subtree_sibling_path = sibling_path;
+
+    // manually create expected commitments subtree
+    auto expected_commitments_subtree = stdlib::merkle_tree::MemoryTree(PRIVATE_DATA_SUBTREE_DEPTH);
+    for (size_t i = 0; i < new_commitments_kernel_0.size(); ++i) {
+        expected_commitments_subtree.update_element(i, new_commitments_kernel_0[i]);
+    }
+    for (size_t i = 0; i < new_commitments_kernel_1.size(); ++i) {
+        expected_commitments_subtree.update_element(KERNEL_NEW_COMMITMENTS_LENGTH + i, new_commitments_kernel_1[i]);
+    }
+
+    // manually create expected end snapshot root - iterate through sibling path to create end snapshot
+    auto leaf = expected_commitments_subtree.root();
+    for (size_t i = 0; i < PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
+        // we are inserting at 0. so all siblings are on the right side.
+        leaf = crypto::pedersen_hash::hash_multiple({ leaf, sibling_path[i] });
+    }
+    AppendOnlyTreeSnapshot<NT> expected_end_commitments_snapshot = {
+        .root = leaf,
+        .next_available_leaf_index = 8,
+    };
+
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
+    ASSERT_EQ(outputs.start_private_data_tree_snapshot, inputs.start_private_data_tree_snapshot);
+    ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_end_commitments_snapshot);
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, new_nullifier_tree) {}
 
 TEST_F(base_rollup_tests, empty_block_calldata_hash)
 {
@@ -376,7 +481,23 @@ TEST_F(base_rollup_tests, calldata_hash)
 
 TEST_F(base_rollup_tests, test_compute_membership_historic) {}
 
-TEST_F(base_rollup_tests, test_compute_and_insert_subtree) {}
+TEST_F(base_rollup_tests, test_constants_dont_change)
+{
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
+    ASSERT_EQ(inputs.constants, outputs.constants);
+    run_cbind(inputs, outputs);
+}
+
+TEST_F(base_rollup_tests, test_aggregate)
+{
+    // TODO: Fix this when aggregation works
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
+    ASSERT_EQ(inputs.kernel_data[0].public_inputs.end.aggregation_object, outputs.end_aggregation_object);
+}
+
+TEST_F(base_rollup_tests, test_proof_verification) {}
 
 TEST_F(base_rollup_tests, test_cbind_0)
 {

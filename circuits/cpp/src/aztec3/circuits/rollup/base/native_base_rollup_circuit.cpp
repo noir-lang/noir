@@ -378,14 +378,13 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
 BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
 {
 
-    // First we compute the contract tree leaves
-
     // Verify the previous kernel proofs
     for (size_t i = 0; i < 2; i++) {
         NT::Proof proof = baseRollupInputs.kernel_data[i].proof;
         assert(verify_kernel_proof(proof));
     }
 
+    // First we compute the contract tree leaves
     std::vector<NT::fr> contract_leaves = calculate_contract_leaves(baseRollupInputs);
 
     // Perform merkle membership check with the provided sibling path up to the root
