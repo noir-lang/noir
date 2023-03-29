@@ -712,6 +712,27 @@ impl DecisionTree {
                     }
                     stack.push(ins_id);
                 }
+                Operation::UnsafeCall {
+                    func: func_id,
+                    arguments,
+                    returned_values,
+                    predicate: ins_pred,
+                    location,
+                } => {
+                    
+                    if ctx.under_assumption(ass_value) {
+                        assert!(*ins_pred == None);
+                        let mut ins2 = ctx.instruction_mut(ins_id);
+                        ins2.operation = Operation::UnsafeCall {
+                            func: *func_id,
+                            arguments: arguments.clone(),
+                            returned_values: returned_values.clone(),
+                            predicate: self.get_assumption_value(predicate),
+                            location: *location,
+                        };
+                    }
+                    stack.push(ins_id);
+                }
                 Operation::Constrain(expr, loc) => {
                     if ctx.under_assumption(ass_value) {
                         let operation = Operation::Cond {

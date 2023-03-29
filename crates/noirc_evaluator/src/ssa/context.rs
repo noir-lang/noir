@@ -232,6 +232,11 @@ impl SsaContext {
                 let name = name.unwrap_or_else(|| self.id_to_string(*func));
                 format!("call {name}({}) _ {returned_arrays:?}", join(arguments))
             }
+            Operation::UnsafeCall { func, arguments, .. } => {
+                let name = self.try_get_func_id(*func).map(|id| self.functions[&id].name.clone());
+                let name = name.unwrap_or_else(|| self.id_to_string(*func));
+                format!("call {name}({})", join(arguments))
+            }
             Operation::Return(values) => format!("return ({})", join(values)),
             Operation::Result { call_instruction, index } => {
                 let call = self.id_to_string(*call_instruction);
@@ -714,11 +719,6 @@ impl SsaContext {
         // we could use an optimization level that will run more cse pass
         optimizations::full_cse(self, self.first_block, false)?;
 
-        let bc = BrilligGen::ir_to_brillig(self, self.first_block);
-        dbg!(bc);
-        // let mut brillig = BrilligGen::default();
-        // brillig.process_blocks(self, self.first_block);
-        todo!();
 
         //flattening
         self.log(enable_logging, "\nCSE:", "\nunrolling:");
@@ -1056,7 +1056,7 @@ impl SsaContext {
     //Returns the instruction used by a IF statement. None if the block is not a IF block.
     pub(crate) fn get_if_condition(&self, block: &BasicBlock) -> Option<&node::Instruction> {
         if let Some(ins) = self.try_get_instruction(*block.instructions.last().unwrap()) {
-            if !block.is_join() && ins.operation.opcode() == super::node::Opcode::Jeq {
+            if !block.is_join() && ins.operation.opcode() == super::node::Opcode::Jne {
                 return Some(ins);
             }
         }

@@ -181,7 +181,7 @@ impl IrGenerator {
                     let id = *id;
                     if !self.context.function_already_compiled(id) {
                         let index = self.context.get_function_index();
-                        self.create_function(id, index)?;
+                        self.create_function(id, index, None)?;
                     }
 
                     let expect_msg = "Expected called function to already be ssa_gen'd";
@@ -761,7 +761,7 @@ impl IrGenerator {
             }
         }
 
-        let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
+        let jump_op = Operation::Jne(condition, block::BlockId::dummy());
         let jump_ins = self.context.new_instruction(jump_op, ObjectType::NotAnObject).unwrap();
 
         //Then block
@@ -780,7 +780,7 @@ impl IrGenerator {
         self.context[entry_block].right = Some(block2);
 
         //Fixup the jump
-        if let node::Instruction { operation: Operation::Jeq(_, target), .. } =
+        if let node::Instruction { operation: Operation::Jne(_, target), .. } =
             self.context.instruction_mut(jump_ins)
         {
             *target = block2;

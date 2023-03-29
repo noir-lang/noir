@@ -1,3 +1,4 @@
+use crate::brillig::brillig_gen::BrilligGen;
 use crate::errors::RuntimeError;
 use crate::ssa::{
     block::BlockId,
@@ -11,6 +12,7 @@ use crate::ssa::{
 use iter_extended::try_vecmap;
 use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
 use std::collections::{HashMap, VecDeque};
+use acvm::acir::brillig_bytecode::{Opcode as BrilligOpcode};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub(crate) struct FuncIndex(pub(crate) usize);
@@ -21,12 +23,21 @@ impl FuncIndex {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum RuntimeType {
+    Acvm,
+    Unsafe,
+    Oracle(String),
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct SsaFunction {
     pub(crate) entry_block: BlockId,
     pub(crate) id: FuncId,
     pub(crate) idx: FuncIndex,
     pub(crate) node_id: NodeId,
+    pub(crate) kind : RuntimeType,
+    pub(crate) brillig_code: Vec<BrilligOpcode>,
 
     //signature:
     pub(crate) name: String,
@@ -52,7 +63,20 @@ impl SsaFunction {
             result_types: Vec::new(),
             decision: DecisionTree::new(ctx),
             idx,
+            kind: RuntimeType::Acvm,
+            brillig_code: Vec::new(),
         }
+    }
+
+    fn unsafe_compile(&self, ctx: &mut SsaContext) -> Vec<BrilligOpcode> {
+        //1. compile the function:
+        let function_cfg = block::bfs(self.entry_block, None, &ctx);
+        block::compute_sub_dom(ctx, &function_cfg);
+        //Optimization
+        //catch the error because the function may not be called ??
+        super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
+        //
+        BrilligGen::ir_to_brillig(&ctx, self.entry_block)
     }
 
     pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
@@ -143,6 +167,7 @@ impl IrGenerator {
         &mut self,
         func_id: FuncId,
         index: FuncIndex,
+        oracle_name: Option<String>,
     ) -> Result<ObjectType, RuntimeError> {
         let current_block = self.context.current_block;
         let current_function = self.function_context;
@@ -160,6 +185,12 @@ impl IrGenerator {
 
         // ensure return types are defined in case of recursion call cycle
         let function = &mut self.program[func_id];
+        func.kind = match (oracle_name,function.unconstrained) {
+            (Some(name), _) => RuntimeType::Oracle(name),
+            (None, true) => RuntimeType::Unsafe,
+            _ => RuntimeType::Acvm,
+        };
+        
         let return_types = function.return_type.flatten();
         for typ in return_types {
             func.result_types.push(match typ {
@@ -206,11 +237,16 @@ impl IrGenerator {
             node::Operation::Return(return_values),
             node::ObjectType::NotAnObject,
         )?;
-        let decision = func.compile(self)?; //unroll the function
-        func.decision = decision;
-        self.context.functions.insert(func_id, func);
-        self.context.current_block = current_block;
-        self.function_context = current_function;
+        if func.kind == RuntimeType::Unsafe {
+            func.brillig_code = func.unsafe_compile(&mut self.context);
+        } else {
+            let decision = func.compile(self)?; //unroll the function
+            func.decision = decision;
+        }
+            self.context.functions.insert(func_id, func);
+            self.context.current_block = current_block;
+            self.function_context = current_function;
+        
 
         Ok(ObjectType::Function)
     }
@@ -229,13 +265,46 @@ impl IrGenerator {
     pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
         let arguments = self.ssa_gen_expression_list(&call.arguments);
-
         if let Some(opcode) = self.context.get_builtin_opcode(func, &call.arguments) {
             return self.call_low_level(opcode, arguments);
         }
-
         let predicate = AssumptionId::dummy();
         let location = call.location;
+        //is_unsafe ? todo le funcid
+        //si oui;
+        //on fait pas un call, mais un brillig; on creer des nodeids en fonctions des return types
+        // (a la place des results)
+        //il faut gerer le assign d'un brillig... TODO
+        //le reste est simple.
+        let func_id = self.context.try_get_func_id(func).unwrap();
+                let ssa_func = self.context.ssa_func(func_id).unwrap();
+                match ssa_func.kind {
+                    RuntimeType::Oracle(_) | RuntimeType::Unsafe => {
+                    //create return values
+                    let mut returned_values = Vec::new();
+                    let types = ssa_func.result_types.clone();
+                    for (i,typ) in types.iter().enumerate() {
+                        let obj = node::Variable::new(*typ, "ret{i}".to_string(), None, self.context.current_block);
+                        let var = self.context.add_variable(obj, None);
+                        returned_values.push(var);
+                    }
+                    let unsafe_call = Operation::UnsafeCall {
+                        func,
+                    arguments: arguments.clone(),
+                    returned_values: returned_values.clone(),
+                    predicate: None,
+                    location,
+                    };
+                    let call_instruction = self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
+                    return Ok(returned_values);
+                    },
+                    RuntimeType::Acvm => (),
+                }
+                
+           
+            
+            
+        
 
         let mut call_op = Operation::Call {
             func,

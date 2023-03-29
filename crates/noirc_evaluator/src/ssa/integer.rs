@@ -487,6 +487,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Load { .. } => unreachable!(),
         Operation::Store { .. } => BigUint::zero(),
         Operation::Call { .. } => ins.res_type.max_size(), //n.b. functions should have been inlined
+        Operation::UnsafeCall { .. } => ins.res_type.max_size(),
         Operation::Return(_) => ins.res_type.max_size(),
         Operation::Result { .. } => {
             unreachable!("Functions must have been inlined before checking for overflows")

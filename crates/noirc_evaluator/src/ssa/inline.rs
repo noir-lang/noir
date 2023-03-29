@@ -430,6 +430,7 @@ impl node::Operation {
         match self {
             //default way to handle arrays during inlining; we map arrays using the stack_frame
             Operation::Binary(_) | Operation::Constrain(..) | Operation::Intrinsic(_,_)
+            | Operation::UnsafeCall { .. }  //TODO.. how should we handle it??
             => {
                 self.map_id_mut(|id| {
                     if let Some(a) = Memory::deref(ctx, id) {

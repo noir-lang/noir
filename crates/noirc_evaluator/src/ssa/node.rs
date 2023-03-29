@@ -358,6 +358,7 @@ impl Instruction {
             Operation::Store { .. } => true,
             Operation::Intrinsic(_, _) => true,
             Operation::Call { .. } => true, //return values are in the return statement
+            Operation::UnsafeCall { .. } => true,
             Operation::Return(_) => true,
             Operation::Result { .. } => false,
         }
@@ -506,6 +507,13 @@ pub(crate) enum Operation {
         predicate: conditional::AssumptionId,
         location: Location,
     },
+    UnsafeCall {
+        func: NodeId,
+        arguments: Vec<NodeId>,
+        returned_values: Vec<NodeId>,
+        predicate: Option<NodeId>,
+        location: Location,
+    },
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result {
         call_instruction: NodeId,
@@ -582,6 +590,7 @@ pub(super) enum Opcode {
     Load(ArrayId),
     Store(ArrayId),
     Intrinsic(builtin::Opcode), //Custom implementation of useful primitives
+    UnsafeCall,     //Call an unsafe function
     Nop,                        // no op
 }
 
@@ -1155,6 +1164,13 @@ impl Operation {
                 predicate: *predicate,
                 location: *location,
             },
+            UnsafeCall { func: func_id, arguments, predicate, location, returned_values } => UnsafeCall {
+                func: f(*func_id),
+                arguments: vecmap(arguments.iter().copied(), f),
+                predicate: *predicate,
+                returned_values: returned_values.clone(),
+                location: *location,
+            },
             Return(values) => Return(vecmap(values.iter().copied(), f)),
             Result { call_instruction, index } => {
                 Result { call_instruction: f(*call_instruction), index: *index }
@@ -1201,7 +1217,8 @@ impl Operation {
                 }
             }
             Nop => (),
-            Call { func, arguments, .. } => {
+            Call { func, arguments, .. }
+            | UnsafeCall { func, arguments, .. }  => {
                 *func = f(*func);
                 for arg in arguments {
                     *arg = f(*arg);
@@ -1255,6 +1272,10 @@ impl Operation {
                 f(*func);
                 arguments.iter().copied().for_each(f)
             }
+            UnsafeCall { func, arguments, returned_values, predicate, location } => {
+                f(*func);
+                arguments.iter().copied().for_each(f)
+            }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
                 f(*call_instruction);
@@ -1280,6 +1301,7 @@ impl Operation {
             Operation::Load { array_id, .. } => Opcode::Load(*array_id),
             Operation::Store { array_id, .. } => Opcode::Store(*array_id),
             Operation::Intrinsic(opcode, _) => Opcode::Intrinsic(*opcode),
+            Operation::UnsafeCall { .. } => Opcode::UnsafeCall,
             Operation::Nop => Opcode::Nop,
         }
     }

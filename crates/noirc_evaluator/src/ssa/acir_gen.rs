@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use acvm::acir::native_types::{Expression, Witness};
-
+use acvm::acir::circuit::opcodes::{Opcode as AcirOpcode};
 mod operations;
 
 mod internal_var;
@@ -22,6 +22,8 @@ use internal_var_cache::InternalVarCache;
 pub(crate) use constraints::range_constraint;
 mod acir_mem;
 use acir_mem::AcirMem;
+
+use super::node::{Node, NodeId};
 
 #[derive(Default)]
 pub(crate) struct Acir {
@@ -103,6 +105,9 @@ impl Acir {
             Operation::Store { .. } => {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
+            Operation::UnsafeCall { func, arguments, returned_values, predicate, location } => {
+                unsafe_call(func, arguments, returned_values, acir_mem, var_cache, evaluator, ctx)?
+            }
             Operation::Nop => None,
             i @ Operation::Jne(..)
             | i @ Operation::Jeq(..)
@@ -132,4 +137,22 @@ impl Acir {
 /// `Expression`.
 pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
     expr.to_witness().unwrap_or_else(|| evaluator.create_intermediate_variable(expr))
+}
+pub(crate) fn unsafe_call(
+    func: &NodeId,
+    arguments: &Vec<NodeId>,
+    returns: &Vec<NodeId>,
+    acir_mem: &mut AcirMem,
+    var_cache: &mut InternalVarCache,
+    evaluator: &mut Evaluator,
+    ctx: &SsaContext,
+) -> Result<Option<InternalVar>, RuntimeError> {
+    let f = ctx.try_get_ssa_func(*func).unwrap();
+
+   dbg!(&f.brillig_code);
+    
+    todo!();
+    // AcirOpcode::Brillig {
+
+    // }
 }
