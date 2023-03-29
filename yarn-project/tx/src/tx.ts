@@ -7,6 +7,7 @@ import {
   UInt8Vector,
 } from '@aztec/circuits.js';
 import { Keccak } from 'sha3';
+import { TxHash } from './tx_hash.js';
 
 const hash = new Keccak(256);
 
@@ -14,34 +15,37 @@ const hash = new Keccak(256);
  * The interface of an L2 transaction.
  */
 export class Tx {
-  private _id?: Buffer;
+  private _hash?: TxHash;
 
   /**
-   * 
+   *
    * @param data - Tx inputs.
    * @param proof - Tx proof.
    * @param unverifiedData  - Information not needed to verify the tx (e.g. encrypted note pre-images etc.)
    */
-  constructor(public readonly data: PrivateKernelPublicInputs, public readonly proof: UInt8Vector, public readonly unverifiedData: Buffer) {}
+  constructor(
+    public readonly data: PrivateKernelPublicInputs,
+    public readonly proof: UInt8Vector,
+    public readonly unverifiedData: Buffer,
+  ) {}
 
   /**
-   * Construct & return transaction ID.
-   * // TODO: actually construct & return tx id.
-   * @returns The transaction's id.
+   * Construct & return transaction hash.
+   * @returns The transaction's hash.
    */
-  get txId() {
-    if (!this._id) {
-      this._id = Tx.createTxId(this);
+  get txHash() {
+    if (!this._hash) {
+      this._hash = Tx.createTxHash(this);
     }
-    return this._id;
+    return this._hash;
   }
 
   /**
-   * Utility function to generate tx ID.
-   * @param tx - The transaction from which to generate the id.
+   * Utility function to generate tx hash.
+   * @param tx - The transaction from which to generate the hash.
    * @returns A hash of the tx data that identifies the tx.
    */
-  static createTxId(tx: Tx) {
+  static createTxHash(tx: Tx): TxHash {
     hash.reset();
     const dataToHash = Buffer.concat(
       [
@@ -50,15 +54,20 @@ export class Tx {
         tx.data.end.newContracts.map(x => x.functionTreeRoot.toBuffer()),
       ].flat(),
     );
-    return hash.update(dataToHash).digest();
+    return new TxHash(hash.update(dataToHash).digest());
   }
 }
 
-export function createTxIds(block: L2Block) {
+/**
+ * Generates transaction hashes for the transactions in an L2 block.
+ * @param block - The L2 block.
+ * @returns An array of hashes, one for each tx.
+ */
+export function createTxHashes(block: L2Block) {
   hash.reset();
   let i = 0;
   const numTxs = Math.floor(block.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
-  const txIds: Buffer[] = [];
+  const txHashes: TxHash[] = [];
   while (i < numTxs) {
     const dataToHash = Buffer.concat(
       [
@@ -73,8 +82,8 @@ export function createTxIds(block: L2Block) {
           .map(x => x.toBuffer()),
       ].flat(),
     );
-    txIds.push(hash.update(dataToHash).digest());
+    txHashes.push(new TxHash(hash.update(dataToHash).digest()));
     i++;
   }
-  return txIds;
+  return txHashes;
 }

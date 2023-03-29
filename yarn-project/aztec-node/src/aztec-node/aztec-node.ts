@@ -1,13 +1,14 @@
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
 import { Archiver } from '@aztec/archiver';
-import { L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
+import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
 import { P2P, P2PClient } from '@aztec/p2p';
 import { Tx } from '@aztec/tx';
 import { MerkleTrees, WorldStateSynchroniser, ServerWorldStateSynchroniser, MerkleTreeId } from '@aztec/world-state';
 import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNodeConfig } from './config.js';
 import { SiblingPath } from '@aztec/merkle-tree';
+import { AztecAddress } from '@aztec/foundation';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -66,6 +67,16 @@ export class AztecNode {
    */
   public async getBlocks(from: number, take: number): Promise<L2Block[]> {
     return (await this.blockSource.getL2Blocks(from, take)) ?? [];
+  }
+
+  /**
+   * Lookup the L2 contract data for this contract.
+   * Contains information such as the ethereum portal address.
+   * @param contractAddress - The contract data address.
+   * @returns The portal address (if we didn't throw an error).
+   */
+  public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    return await this.blockSource.getL2ContractData(contractAddress);
   }
 
   /**

@@ -25,7 +25,9 @@ export class Grumpkin {
     this.wasm.writeMemory(0, scalar);
     this.wasm.call('ecc_grumpkin__batch_mul', mem, 0, numPoints, mem + points.length);
 
-    const result: Buffer = Buffer.from(this.wasm.getMemorySlice(mem + points.length, mem + points.length + points.length));
+    const result: Buffer = Buffer.from(
+      this.wasm.getMemorySlice(mem + points.length, mem + points.length + points.length),
+    );
     this.wasm.call('bbfree', mem);
     return result;
   }

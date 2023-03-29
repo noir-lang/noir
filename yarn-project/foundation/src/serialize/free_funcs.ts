@@ -105,3 +105,14 @@ export function deserializeArrayFromVector<T>(
   }
   return { elem: arr, adv: pos - offset };
 }
+
+/**
+ * Parse a buffer as a big integer.
+ */
+export function toBigInt(buf: Buffer): bigint {
+  const hex = buf.toString('hex');
+  if (hex.length === 0) {
+    return BigInt(0);
+  }
+  return BigInt(`0x${hex}`);
+}

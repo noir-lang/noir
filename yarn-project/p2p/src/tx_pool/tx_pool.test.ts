@@ -7,8 +7,8 @@ describe('In-Memory TX pool', () => {
     const tx1 = MockTx();
 
     pool.addTxs([tx1]);
-    const poolTx = pool.getTx(tx1.txId);
-    expect(poolTx?.txId.toString('hex')).toEqual(tx1.txId.toString('hex'));
+    const poolTx = pool.getTx(tx1.txHash);
+    expect(poolTx?.txHash.toString()).toEqual(tx1.txHash.toString());
   });
 
   it('Removes txs from the pool', () => {
@@ -16,9 +16,9 @@ describe('In-Memory TX pool', () => {
     const tx1 = MockTx();
 
     pool.addTxs([tx1]);
-    pool.deleteTxs([tx1.txId]);
+    pool.deleteTxs([tx1.txHash]);
 
-    const poolTx = pool.getTx(tx1.txId);
+    const poolTx = pool.getTx(tx1.txHash);
     expect(poolTx).toBeFalsy();
   });
 });

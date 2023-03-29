@@ -1,15 +1,16 @@
 import { AztecAddress, AztecRPCClient, ContractAbi, EthAddress, Fr, FunctionType } from '@aztec/aztec-rpc';
 import { ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
 
-export interface ConstructorOptions extends SendMethodOptions {
+export interface DeployOptions extends SendMethodOptions {
   portalContract?: EthAddress;
   contractAddressSalt?: Fr;
 }
 
 /**
- * Extends the SendMethodInteraction to create TxRequest for constructors (deployments).
+ * Creates a TxRequest from a contract ABI, for contract deployment.
+ * Extends the ContractFunctionInteraction class.
  */
-export class ConstructorMethod extends ContractFunctionInteraction {
+export class DeployMethod extends ContractFunctionInteraction {
   constructor(arc: AztecRPCClient, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
@@ -19,7 +20,7 @@ export class ConstructorMethod extends ContractFunctionInteraction {
     super(arc, AztecAddress.ZERO, 'constructor', args, FunctionType.SECRET);
   }
 
-  public async request(options: ConstructorOptions = {}) {
+  public async request(options: DeployOptions = {}) {
     const { portalContract, contractAddressSalt, from } = options;
     this.txRequest = await this.arc.createDeploymentTxRequest(
       this.abi,
@@ -31,15 +32,15 @@ export class ConstructorMethod extends ContractFunctionInteraction {
     return this.txRequest;
   }
 
-  public sign(options: ConstructorOptions = {}) {
+  public sign(options: DeployOptions = {}) {
     return super.sign(options);
   }
 
-  public create(options: ConstructorOptions = {}) {
+  public create(options: DeployOptions = {}) {
     return super.create(options);
   }
 
-  public send(options: ConstructorOptions = {}) {
+  public send(options: DeployOptions = {}) {
     return super.send(options);
   }
 }

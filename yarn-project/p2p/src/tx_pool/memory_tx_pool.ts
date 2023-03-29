@@ -1,26 +1,14 @@
-import { createDebugLogger } from '@aztec/foundation';
-import { Tx } from '@aztec/tx';
+import { createDebugLogger, toBigInt } from '@aztec/foundation';
+import { Tx, TxHash } from '@aztec/tx';
 
 import { TxPool } from './index.js';
-
-/**
- * Helper to tranform Buffer IDs to a bigint.
- */
-// TODO: place in/use from foundation repo
-const toBigInt = (buf: Buffer): bigint => {
-  const hex = buf.toString('hex');
-  if (hex.length === 0) {
-    return BigInt(0);
-  }
-  return BigInt(`0x${hex}`);
-};
 
 /**
  * In-memory implementation of the Transaction Pool.
  */
 export class InMemoryTxPool implements TxPool {
   /**
-   * Our tx pool, stored as a Map in-memory, with K: tx ID and V: the transaction.
+   * Our tx pool, stored as a Map in-memory, with K: tx hash and V: the transaction.
    */
   private txs: Map<bigint, Tx>;
 
@@ -34,11 +22,11 @@ export class InMemoryTxPool implements TxPool {
 
   /**
    * Checks if a transaction exists in the pool and returns it.
-   * @param txId - The generated tx ID.
+   * @param txHash - The generated tx hash.
    * @returns The transaction, if found, 'undefined' otherwise.
    */
-  public getTx(txId: Buffer): Tx | undefined {
-    const result = this.txs.get(toBigInt(txId));
+  public getTx(txHash: TxHash): Tx | undefined {
+    const result = this.txs.get(txHash.toBigInt());
     return result;
   }
 
@@ -47,17 +35,19 @@ export class InMemoryTxPool implements TxPool {
    * @param txs - An array of txs to be added to the pool.
    */
   public addTxs(txs: Tx[]): void {
-    this.log(`Adding tx with id ${txs[0].txId.toString('hex')}`);
-    txs.forEach(tx => this.txs.set(toBigInt(tx.txId), tx));
+    this.log(`Adding tx with id ${txs[0].txHash.toString()}`);
+    txs.forEach(tx => this.txs.set(tx.txHash.toBigInt(), tx));
   }
 
   /**
-   * Deletes transactions from the pool. Tx IDs that are not present are ignored.
-   * @param txIds - An array of tx IDs to be removed from the tx pool.
-   * @returns The number of  transactions that was deleted from the pool.
+   * Deletes transactions from the pool. Tx hashes that are not present are ignored.
+   * @param txHashes - An array of tx hashes to be removed from the tx pool.
+   * @returns The number of transactions that was deleted from the pool.
    */
-  public deleteTxs(txIds: Buffer[]): number {
-    const numTxsRemoved = txIds.map(txId => this.txs.delete(toBigInt(txId))).filter(result => result === true).length;
+  public deleteTxs(txHashes: TxHash[]): number {
+    const numTxsRemoved = txHashes
+      .map(txHash => this.txs.delete(txHash.toBigInt()))
+      .filter(result => result === true).length;
     return numTxsRemoved;
   }
 

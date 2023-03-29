@@ -1,7 +1,7 @@
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
-import { createDebugLogger, toBigIntBE } from '@aztec/foundation';
+import { AztecAddress, createDebugLogger, toBigIntBE } from '@aztec/foundation';
 import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
-import { L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
+import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
 import { createPublicClient, decodeFunctionData, getAddress, Hex, hexToBytes, http, Log, PublicClient } from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
@@ -240,6 +240,23 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
     const endIndex = startIndex + take;
     return Promise.resolve(this.l2Blocks.slice(startIndex, endIndex));
+  }
+
+  /**
+   * Lookup the L2 contract data for this contract.
+   * Contains information such as the ethereum portal address.
+   * @param contractAddress - The contract data address.
+   * @returns The portal address (if we didn't throw an error).
+   */
+  public getL2ContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    for (const block of this.l2Blocks) {
+      for (const contractData of block.newContractData) {
+        if (contractData.aztecAddress === contractAddress) {
+          return Promise.resolve(contractData);
+        }
+      }
+    }
+    return Promise.resolve(undefined);
   }
 
   /**

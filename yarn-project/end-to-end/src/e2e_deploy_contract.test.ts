@@ -62,10 +62,9 @@ describe('e2e_deploy_contract', () => {
     );
     logger(`Receipt received`);
 
+    expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
     const contractAddress = receipt.contractAddress!;
-    const constructor = abi.functions.find(f => f.name === 'constructor')!;
-    const bytecode = await aztecRpcServer.getCode(contractAddress);
-    expect(bytecode).toEqual(constructor.bytecode);
+    expect(await aztecRpcServer.isContractDeployed(contractAddress)).toBe(true);
   }, 30_000);
 
   /**

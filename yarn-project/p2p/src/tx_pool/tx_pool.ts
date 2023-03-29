@@ -1,4 +1,4 @@
-import { Tx } from '@aztec/tx';
+import { Tx, TxHash } from '@aztec/tx';
 
 /**
  * Interface of a transaction pool. The pool includes tx requests and is kept up-to-date by a P2P client.
@@ -12,16 +12,16 @@ export interface TxPool {
 
   /**
    * Checks if a transaction exists in the pool and returns it.
-   * @param txId - The generated tx ID.
+   * @param txHash - The hash of the transaction, used as an ID.
    * @returns The transaction, if found, 'undefined' otherwise.
    */
-  getTx(txId: Buffer): Tx | undefined;
+  getTx(txHash: TxHash): Tx | undefined;
 
   /**
-   * Deletes transactions from the pool. Tx IDs that are not present are ignored.
-   * @param txIds - An array of tx IDs to be removed from the tx pool.
+   * Deletes transactions from the pool. Tx hasehs that are not present are ignored.
+   * @param txHashes - An array of tx hashes to be removed from the tx pool.
    */
-  deleteTxs(txIds: Buffer[]): void;
+  deleteTxs(txHashes: TxHash[]): void;
 
   /**
    * Gets all transactions currently in the tx pool.
