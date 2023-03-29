@@ -13,7 +13,7 @@ use acvm::{
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiType, AbiVisibility, MAIN_RETURN_NAME};
+use noirc_abi::{Abi, AbiType, AbiVisibility};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
@@ -38,10 +38,12 @@ pub struct Evaluator {
     // creating the private/public inputs of the ABI.
     num_witnesses_abi_len: usize,
     param_witnesses: BTreeMap<String, Vec<Witness>>,
-    // This is the list of witness indices which are linked to public inputs.
+    // This is the list of witness indices which are linked to public parameters.
     // Witnesses below `num_witnesses_abi_len` and not included in this set
-    // correspond to private inputs and must not be made public.
-    public_inputs: BTreeSet<Witness>,
+    // correspond to private parameters and must not be made public.
+    public_parameters: BTreeSet<Witness>,
+    return_values: BTreeSet<Witness>,
+
     opcodes: Vec<AcirOpcode>,
 }
 
@@ -62,29 +64,29 @@ pub fn create_circuit(
     // First evaluate the main function
     evaluator.evaluate_main_alt(program.clone(), enable_logging, show_output)?;
 
-    let witness_index = evaluator.current_witness_index();
-
-    let (parameters, return_type) = program.main_function_signature;
-
-    // TODO: remove return value from `param_witnesses` once we track public outputs
-    // see https://github.com/noir-lang/acvm/pull/56
-    let mut param_witnesses = evaluator.param_witnesses;
-    let return_witnesses = param_witnesses.remove(MAIN_RETURN_NAME).unwrap_or_default();
-    let return_witnesses_set: BTreeSet<Witness> = return_witnesses.iter().copied().collect();
-
-    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
-
+    let Evaluator {
+        current_witness_index,
+        param_witnesses,
+        public_parameters,
+        return_values,
+        opcodes,
+        ..
+    } = evaluator;
     let optimized_circuit = acvm::compiler::compile(
         Circuit {
-            current_witness_index: witness_index,
-            opcodes: evaluator.opcodes,
-            public_parameters: PublicInputs(evaluator.public_inputs),
-            return_values: PublicInputs(return_witnesses_set),
+            current_witness_index,
+            opcodes,
+            public_parameters: PublicInputs(public_parameters),
+            return_values: PublicInputs(return_values.clone()),
         },
         np_language,
         is_opcode_supported,
     )
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
+
+    let (parameters, return_type) = program.main_function_signature;
+    let return_witnesses: Vec<Witness> = return_values.into_iter().collect();
+    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
 
     Ok((optimized_circuit, abi))
 }
@@ -101,7 +103,7 @@ impl Evaluator {
         // an intermediate variable.
         let is_intermediate_variable = witness_index.as_usize() > self.num_witnesses_abi_len;
 
-        let is_public_input = self.public_inputs.contains(&witness_index);
+        let is_public_input = self.public_parameters.contains(&witness_index);
 
         !is_intermediate_variable && !is_public_input
     }
@@ -213,7 +215,7 @@ impl Evaluator {
         };
 
         if param_visibility == &AbiVisibility::Public {
-            self.public_inputs.extend(witnesses.clone());
+            self.public_parameters.extend(witnesses.clone());
         }
         self.param_witnesses.insert(name.to_owned(), witnesses);
 
