@@ -1,35 +1,11 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
-use thiserror::Error;
 
-/// Errors covering situations where a package is either missing or malformed.
-#[derive(Debug, Error)]
-pub enum InvalidPackageError {
-    /// Package doesn't have a manifest file
-    #[error("cannot find a Nargo.toml in {}", .0.display())]
-    MissingManifestFile(PathBuf),
-
-    /// Package manifest is unreadable.
-    #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
-    MalformedManifestFile(toml::de::Error),
-
-    /// Package does not contain Noir source files.
-    #[error("cannot find src directory in path {}", .0.display())]
-    NoSourceDir(PathBuf),
-
-    /// Package has neither of `main.nr` and `lib.nr`.
-    #[error("package must contain either a `lib.nr`(Library) or a `main.nr`(Binary).")]
-    ContainsZeroCrates,
-
-    /// Package has both a `main.nr` (for binaries) and `lib.nr` (for libraries)
-    #[error("package cannot contain both a `lib.nr` and a `main.nr`")]
-    ContainsMultipleCrates,
-}
+mod errors;
+pub use self::errors::InvalidPackageError;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PackageManifest {
-    #[allow(dead_code)]
     pub package: PackageMetadata,
     pub dependencies: BTreeMap<String, Dependency>,
 }
@@ -40,6 +16,11 @@ impl PackageManifest {
     // It is better to separate these into different packages.
     pub fn has_local_dependency(&self) -> bool {
         self.dependencies.values().any(|dep| matches!(dep, Dependency::Path { .. }))
+    }
+
+    pub fn from_toml_str(toml_as_string: &str) -> Result<Self, InvalidPackageError> {
+        let manifest = toml::from_str::<PackageManifest>(toml_as_string)?;
+        Ok(manifest)
     }
 }
 
@@ -67,11 +48,6 @@ pub enum Dependency {
     Path { path: String },
 }
 
-pub fn parse_toml_str(toml_as_string: &str) -> Result<PackageManifest, InvalidPackageError> {
-    toml::from_str::<PackageManifest>(toml_as_string)
-        .map_err(InvalidPackageError::MalformedManifestFile)
-}
-
 #[test]
 fn parse_standard_toml() {
     let src = r#"
@@ -86,5 +62,5 @@ fn parse_standard_toml() {
         hello = {path = "./noir_driver"}
     "#;
 
-    assert!(parse_toml_str(src).is_ok());
+    assert!(PackageManifest::from_toml_str(src).is_ok());
 }

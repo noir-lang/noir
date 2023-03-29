@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use nargo_core::manifest::{parse_toml_str, InvalidPackageError, PackageManifest};
+use nargo_core::manifest::{InvalidPackageError, PackageManifest};
 
 /// Parses a Nargo.toml file from it's path
 /// The path to the toml file must be present.
@@ -11,5 +11,5 @@ pub(crate) fn parse<P: AsRef<Path>>(
     let toml_as_string =
         std::fs::read_to_string(&path_to_toml).expect("ice: path given for toml file is invalid");
 
-    parse_toml_str(&toml_as_string)
+    PackageManifest::from_toml_str(&toml_as_string)
 }
