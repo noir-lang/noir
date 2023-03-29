@@ -31,8 +31,8 @@ template <typename NCT> void read(uint8_t const*& it, RootRollupInputs<NCT>& obj
     using serialize::read;
 
     read(it, obj.previous_rollup_data);
-    read(it, obj.new_historic_private_data_tree_roots);
-    read(it, obj.new_historic_contract_tree_roots);
+    read(it, obj.new_historic_private_data_tree_root_sibling_path);
+    read(it, obj.new_historic_contract_tree_root_sibling_path);
 };
 
 template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupInputs<NCT> const& obj)
@@ -40,8 +40,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupInputs<N
     using serialize::write;
 
     write(buf, obj.previous_rollup_data);
-    write(buf, obj.new_historic_private_data_tree_roots);
-    write(buf, obj.new_historic_contract_tree_roots);
+    write(buf, obj.new_historic_private_data_tree_root_sibling_path);
+    write(buf, obj.new_historic_contract_tree_root_sibling_path);
 };
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupInputs<NCT> const& obj)

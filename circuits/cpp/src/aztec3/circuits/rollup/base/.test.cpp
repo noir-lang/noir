@@ -135,13 +135,11 @@ class base_rollup_tests : public ::testing::Test {
             for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
                 ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
             }
-            info("after assert...");
 
-            // TODO why do the post-write buffers not match?
-            //     something in aggregation object [de]serialization?
             info("about to write expected...");
             std::vector<uint8_t> expected_public_inputs_vec;
             write(expected_public_inputs_vec, expected_public_inputs);
+
             info("about to assert buffers eq...");
             ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
             // Just compare the first 10 bytes of the serialized public outputs
@@ -160,7 +158,7 @@ class base_rollup_tests : public ::testing::Test {
         free((void*)vk_buf);
         // free((void*)proof_data);
         // SCARY WARNING TODO FIXME why does this free cause issues
-        // free((void*)public_inputs_buf);
+        free((void*)public_inputs_buf);
         info("finished retesting via cbinds...");
     }
 

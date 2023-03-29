@@ -17,6 +17,8 @@
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 #include "index.hpp"
 #include "init.hpp"
+#include "c_bind.h"
+
 #include "aztec3/circuits/rollup/base/native_base_rollup_circuit.hpp"
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 #include <aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp>
@@ -108,9 +110,71 @@ namespace aztec3::circuits::rollup::root::native_root_rollup_circuit {
 
 class root_rollup_tests : public ::testing::Test {
   protected:
+    void run_cbind(RootRollupInputs& root_rollup_inputs,
+                   RootRollupPublicInputs& expected_public_inputs,
+                   bool compare_pubins = true)
+    {
+        // TODO might be able to get rid of proving key buffer
+        uint8_t const* pk_buf;
+        size_t pk_size = root_rollup__init_proving_key(&pk_buf);
+        info("Proving key size: ", pk_size);
+
+        // TODO might be able to get rid of verification key buffer
+        uint8_t const* vk_buf;
+        size_t vk_size = root_rollup__init_verification_key(pk_buf, &vk_buf);
+        info("Verification key size: ", vk_size);
+
+        std::vector<uint8_t> root_rollup_inputs_vec;
+        write(root_rollup_inputs_vec, root_rollup_inputs);
+
+        // uint8_t const* proof_data;
+        // size_t proof_data_size;
+        uint8_t const* public_inputs_buf;
+        info("creating proof");
+        size_t public_inputs_size = root_rollup__sim(root_rollup_inputs_vec.data(), &public_inputs_buf);
+        // info("Proof size: ", proof_data_size);
+        info("PublicInputs size: ", public_inputs_size);
+
+        if (compare_pubins) {
+            RootRollupPublicInputs public_inputs;
+            info("about to read...");
+            uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
+            read(public_inputs_buf_tmp, public_inputs);
+            info("about to assert...");
+            ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
+            for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
+                ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
+            }
+
+            info("about to write expected...");
+            std::vector<uint8_t> expected_public_inputs_vec;
+            write(expected_public_inputs_vec, expected_public_inputs);
+
+            info("about to assert buffers eq...");
+            ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
+            // Just compare the first 10 bytes of the serialized public outputs
+            if (public_inputs_size > 10) {
+                // for (size_t 0; i < public_inputs_size; i++) {
+                for (size_t i = 0; i < 10; i++) {
+                    ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
+                }
+            }
+        }
+        (void)root_rollup_inputs;     // unused
+        (void)expected_public_inputs; // unused
+        (void)compare_pubins;         // unused
+
+        free((void*)pk_buf);
+        free((void*)vk_buf);
+        // free((void*)proof_data);
+        free((void*)public_inputs_buf);
+        info("finished retesting via cbinds...");
+    }
+
   protected:
     BaseRollupInputs getEmptyBaseRollupInputs()
     {
+        // TODO standardize function naming
         ConstantRollupData constantRollupData = ConstantRollupData::empty();
 
         std::array<NullifierLeafPreimage<NT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
@@ -227,6 +291,7 @@ TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
     }
 
     ASSERT_EQ(hash, calldata_hash);
+    run_cbind(inputs, outputs, true);
 }
 
 template <size_t N>
@@ -344,6 +409,8 @@ TEST_F(root_rollup_tests, blabber)
     std::cout << "data root: " << data_tree.root() << std::endl;
 
     std::cout << r2.base_rollup_public_inputs.end_private_data_tree_snapshot << std::endl;
+
+    run_cbind(rootRollupInputs, outputs, true);
 }
 
 } // namespace aztec3::circuits::rollup::root::native_root_rollup_circuit
