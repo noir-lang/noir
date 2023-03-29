@@ -1,1 +1,1 @@
-pub mod brillig_gen;
+pub(crate) mod brillig_gen;

@@ -20,19 +20,19 @@ pub(crate) enum BlockType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct BlockId(pub(super) arena::Index);
+pub(crate) struct BlockId(pub(super) arena::Index);
 
 impl BlockId {
     pub(super) fn dummy() -> BlockId {
         BlockId(SsaContext::dummy_id())
     }
-    pub fn is_dummy(&self) -> bool {
+    pub(crate) fn is_dummy(&self) -> bool {
         *self == BlockId::dummy()
     }
 }
 
 #[derive(Debug)]
-pub struct BasicBlock {
+pub(crate) struct BasicBlock {
     pub(crate) id: BlockId,
     pub(crate) kind: BlockType,
     pub(crate) dominator: Option<BlockId>, //direct dominator

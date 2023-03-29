@@ -100,7 +100,7 @@ impl Node for Constant {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodeId(pub(crate) arena::Index);
+pub(crate) struct NodeId(pub(crate) arena::Index);
 
 impl NodeId {
     pub(crate) fn dummy() -> NodeId {
@@ -112,7 +112,7 @@ impl NodeId {
 }
 
 #[derive(Debug)]
-pub enum NodeObject {
+pub(crate) enum NodeObject {
     Variable(Variable),
     Instr(Instruction),
     Const(Constant),
@@ -120,13 +120,13 @@ pub enum NodeObject {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum FunctionKind {
+pub(crate) enum FunctionKind {
     Normal(FuncId),
     Builtin(builtin::Opcode),
 }
 
 #[derive(Debug)]
-pub struct Constant {
+pub(crate) struct Constant {
     pub(crate) id: NodeId,
     pub(crate) value: BigUint, //TODO use FieldElement instead
     #[allow(dead_code)]
@@ -141,7 +141,7 @@ impl Constant {
 }
 
 #[derive(Debug)]
-pub struct Variable {
+pub(crate) struct Variable {
     pub(crate) id: NodeId,
     pub(crate) obj_type: ObjectType,
     pub(crate) name: String,
@@ -243,7 +243,7 @@ impl ObjectType {
 }
 
 #[derive(Clone, Debug)]
-pub struct Instruction {
+pub(crate) struct Instruction {
     pub(crate) id: NodeId,
     pub(crate) operation: Operation,
     pub(crate) res_type: ObjectType, //result type

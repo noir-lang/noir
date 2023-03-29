@@ -8,7 +8,7 @@ mod flatten;
 mod function;
 mod inline;
 mod integer;
-pub mod mem;
+pub(crate) mod mem;
 pub(crate) mod node;
 mod optimizations;
 mod ssa_form;

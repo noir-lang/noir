@@ -24,7 +24,7 @@ use std::collections::{HashMap, HashSet};
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
 // everything else just reference objects from these two arena using their index.
-pub struct SsaContext {
+pub(crate) struct SsaContext {
     pub(crate) first_block: BlockId,
     pub(crate) current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
@@ -709,8 +709,8 @@ impl SsaContext {
         show_output: bool,
     ) -> Result<(), RuntimeError> {
         //SSA
-        //    self.log(enable_logging, "SSA:", "\ninline functions");
-        //    function::inline_all(self)?;
+        self.log(enable_logging, "SSA:", "\ninline functions");
+        function::inline_all(self)?;
 
         //Optimization
         block::compute_dom(self);

@@ -24,7 +24,7 @@ impl FuncIndex {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum RuntimeType {
+pub(crate) enum RuntimeType {
     Acvm,
     Unsafe,
     Oracle(String),
@@ -70,13 +70,13 @@ impl SsaFunction {
 
     fn unsafe_compile(&self, ctx: &mut SsaContext) -> Vec<BrilligOpcode> {
         //1. compile the function:
-        let function_cfg = block::bfs(self.entry_block, None, &ctx);
+        let function_cfg = block::bfs(self.entry_block, None, ctx);
         block::compute_sub_dom(ctx, &function_cfg);
         //Optimization
         //catch the error because the function may not be called ??
         super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
         //
-        BrilligGen::ir_to_brillig(&ctx, self.entry_block)
+        BrilligGen::ir_to_brillig(ctx, self.entry_block)
     }
 
     pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
@@ -294,7 +294,7 @@ impl IrGenerator {
                 }
                 let unsafe_call = Operation::UnsafeCall {
                     func,
-                    arguments: arguments.clone(),
+                    arguments: arguments,
                     returned_values: returned_values.clone(),
                     predicate: None,
                     location,

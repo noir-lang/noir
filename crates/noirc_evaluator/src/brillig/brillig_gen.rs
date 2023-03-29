@@ -14,7 +14,7 @@ use acvm::acir::brillig_bytecode::{
 };
 
 #[derive(Default)]
-pub struct BrilligGen {
+pub(crate) struct BrilligGen {
     byte_code: Vec<BrilligOpcode>,
     to_fix: Vec<(usize, BlockId)>,
     blocks: HashMap<BlockId, usize>, //processed blocks and their entry point
@@ -22,7 +22,7 @@ pub struct BrilligGen {
 }
 
 impl BrilligGen {
-    pub fn ir_to_brillig(ctx: &SsaContext, block: BlockId) -> Vec<BrilligOpcode> {
+    pub(crate) fn ir_to_brillig(ctx: &SsaContext, block: BlockId) -> Vec<BrilligOpcode> {
         let mut brillig = BrilligGen::default();
         brillig.byte_code.push(BrilligOpcode::JMP { destination: 2 });
         brillig.byte_code.push(BrilligOpcode::Trap);
@@ -136,11 +136,12 @@ impl BrilligGen {
                 }
             })
             .or_else(|| {
-                if let Some(left) = block.left {
-                    Some((BrilligOpcode::JMP { destination: 0 }, left))
-                } else {
-                    None
-                }
+                block.left.map(|left| (BrilligOpcode::JMP { destination: 0 }, left))
+                // if let Some(left) = block.left {
+                //     Some((BrilligOpcode::JMP { destination: 0 }, left))
+                // } else {
+                //     None
+                // }
             });
         if let Some(left) = block.left {
             self.handle_phi_instructions(block_id, left, ctx);
@@ -364,7 +365,7 @@ fn object_type_2_typ(object_type: ObjectType) -> BrilligType {
     }
 }
 
-pub fn directive_invert() -> Vec<BrilligOpcode> {
+pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {
     vec![
         BrilligOpcode::JMPIFNOT {
             condition: RegisterMemIndex::Register(RegisterIndex(0)),

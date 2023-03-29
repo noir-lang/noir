@@ -241,7 +241,7 @@ impl DecisionTree {
                 sibling = self[assumption.parent].val_true.contains(&block_assumption);
             };
             let mut if_decision = Assumption::new(parent);
-            if let Operation::Jeq(condition, _) = ins.operation {
+            if let Operation::Jne(condition, _) = ins.operation {
                 if_decision.condition = condition;
             } else {
                 unreachable!();
@@ -720,7 +720,7 @@ impl DecisionTree {
                     location,
                 } => {
                     if ctx.under_assumption(ass_value) {
-                        assert!(*ins_pred == None);
+                        assert!(ins_pred.is_none());
                         let mut ins2 = ctx.instruction_mut(ins_id);
                         ins2.operation = Operation::UnsafeCall {
                             func: *func_id,

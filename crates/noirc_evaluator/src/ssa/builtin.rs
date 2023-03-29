@@ -11,7 +11,7 @@ use num_traits::{One, Zero};
 /// function signature defined in Noir, but its
 /// function definition is implemented in the compiler.
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub enum Opcode {
+pub(crate) enum Opcode {
     LowLevel(BlackBoxFunc),
     ToBits(Endian),
     ToRadix(Endian),
@@ -133,7 +133,7 @@ impl Opcode {
 }
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub struct PrintlnInfo {
+pub(crate) struct PrintlnInfo {
     // We store strings as arrays and there is no differentiation between them in the SSA.
     // This bool simply states whether an array that is to be printed should be outputted as a utf8 string
     pub(crate) is_string_output: bool,
@@ -142,7 +142,7 @@ pub struct PrintlnInfo {
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Endian {
+pub(crate) enum Endian {
     Big,
     Little,
 }
