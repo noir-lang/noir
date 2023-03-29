@@ -1,8 +1,8 @@
-import { Fr } from '@aztec/foundation';
+import { BufferReader, Fr } from '@aztec/foundation';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AppendOnlyTreeSnapshot } from './base_rollup.js';
-import { CONTRACT_TREE_ROOTS_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
+import { CONTRACT_TREE_ROOTS_TREE_HEIGHT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT } from './constants.js';
 import { PreviousRollupData } from './merge_rollup.js';
 import { AggregationObject } from './shared.js';
 
@@ -13,7 +13,7 @@ export class RootRollupInputs {
     public newHistoricPrivateDataTreeRootSiblingPath: Fr[],
     public newHistoricContractDataTreeRootSiblingPath: Fr[],
   ) {
-    assertLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_HEIGHT);
+    assertLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     assertLength(this, 'newHistoricContractDataTreeRootSiblingPath', CONTRACT_TREE_ROOTS_TREE_HEIGHT);
   }
 
@@ -60,15 +60,7 @@ export class RootRollupPublicInputs {
     public startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
     public endTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
-    // Hashes (probably sha256) to make public inputs constant-sized
-    // (to then be unpacked on-chain)
-    // UPDATE: we should instead just hash all of the below into a single value. See big diagram of sha256 hashing bottom-right of here.
-    // TODO: I've put `fr`, but these hash values' types might need to be two fields if we want all 256-bits, for security purposes.
-    public newCommitmentsHash: Fr,
-    public newNullifiersHash: Fr,
-    public newL1MsgsHash: Fr,
-    public newContractDataHash: Fr,
-    public proverContributionsHash: Fr, // TODO: spec how funds are distributed to provers.
+    public calldataHash: [Fr, Fr],
   ) {}
 
   static getFields(fields: FieldsOf<RootRollupPublicInputs>) {
@@ -84,11 +76,7 @@ export class RootRollupPublicInputs {
       fields.endTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.startTreeOfHistoricContractTreeRootsSnapshot,
       fields.endTreeOfHistoricContractTreeRootsSnapshot,
-      fields.newCommitmentsHash,
-      fields.newNullifiersHash,
-      fields.newL1MsgsHash,
-      fields.newContractDataHash,
-      fields.proverContributionsHash,
+      fields.calldataHash,
     ] as const;
   }
 
@@ -98,5 +86,23 @@ export class RootRollupPublicInputs {
 
   static from(fields: FieldsOf<RootRollupPublicInputs>): RootRollupPublicInputs {
     return new RootRollupPublicInputs(...RootRollupPublicInputs.getFields(fields));
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader): RootRollupPublicInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new RootRollupPublicInputs(
+      reader.readObject(AggregationObject),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      [reader.readFr(), reader.readFr()],
+    );
   }
 }

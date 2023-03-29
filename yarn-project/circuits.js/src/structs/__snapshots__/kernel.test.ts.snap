@@ -114,7 +114,7 @@ portal_contract_address: 0x808080808080808080808080808080808080808
 is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
-vk: 0x12ad40
+vk: 0x12afc0
 vk_index: 66
 vk_path: [ 0x1000 0x1001 0x1002 ]
 "
@@ -258,7 +258,7 @@ portal_contract_address: 0x808080808080808080808080808080808080808
 is_private: 1
 
 proof: [ 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 81 ]
-vk: 0x12cd80
+vk: 0x12d000
 vk_index: 66
 vk_path: [ 0x1000 0x1001 0x1002 ]
 
@@ -435,7 +435,7 @@ portal_contract_address: 0x4
 proof:
 [ 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 51 ]
 vk:
-0x1357c0
+0x135a40
 function_leaf_membership_witness:
 leaf_index: 8241
 sibling_path: [ 0x2031 0x2032 0x2033 0x2034 ]

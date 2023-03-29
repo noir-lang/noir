@@ -115,7 +115,7 @@ portal_contract_address: 0x707070707070707070707070707070707070707
 is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
-vk: 0x12c940
+vk: 0x12cbc0
 vk_index: 42
 vk_path: [ 0x1000 0x1001 0x1002 ]
  public_inputs: end:
@@ -231,7 +231,7 @@ portal_contract_address: 0x707070707070707070707070707070707070707
 is_private: 1
 
 proof: [ 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ]
-vk: 0x135480
+vk: 0x135700
 vk_index: 42
 vk_path: [ 0x1000 0x1001 0x1002 ]
  ]
