@@ -1,5 +1,4 @@
 #include "c_bind.h"
-#include "aztec3/circuits/abis/rollup/base/base_rollup_public_inputs.hpp"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
@@ -9,6 +8,8 @@
 #include "function_leaf_preimage.hpp"
 #include "rollup/base/base_rollup_inputs.hpp"
 #include "rollup/base/base_rollup_public_inputs.hpp"
+#include "rollup/root/root_rollup_public_inputs.hpp"
+#include "rollup/root/root_rollup_inputs.hpp"
 #include "private_kernel/previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
 
@@ -378,6 +379,24 @@ WASM_EXPORT const char* abis__test_roundtrip_reserialize_base_rollup_public_inpu
                                                                                    uint32_t* size)
 {
     return as_serialized_output<aztec3::circuits::abis::BaseRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_root_rollup_inputs(uint8_t const* rollup_inputs_buf,
+                                                                          uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::RootRollupInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_root_rollup_public_inputs(uint8_t const* rollup_inputs_buf,
+                                                                                 uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::RootRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_reserialize_root_rollup_public_inputs(uint8_t const* rollup_inputs_buf,
+                                                                                   uint32_t* size)
+{
+    return as_serialized_output<aztec3::circuits::abis::RootRollupPublicInputs<NT>>(rollup_inputs_buf, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs(uint8_t const* input, uint32_t* size)

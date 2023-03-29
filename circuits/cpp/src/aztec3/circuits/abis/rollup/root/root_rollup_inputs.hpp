@@ -47,8 +47,9 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupInputs<N
 template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupInputs<NCT> const& obj)
 {
     return os << "previous_rollup_data: " << obj.previous_rollup_data << "\n"
-              << "new_historic_private_data_tree_roots: " << obj.new_historic_private_data_tree_roots << "\n"
-              << "new_historic_contract_tree_roots: " << obj.new_historic_contract_tree_roots << "\n";
+              << "new_historic_private_data_tree_roots: " << obj.new_historic_private_data_tree_root_sibling_path
+              << "\n"
+              << "new_historic_contract_tree_roots: " << obj.new_historic_contract_tree_root_sibling_path << "\n";
 }
 
 } // namespace aztec3::circuits::abis
