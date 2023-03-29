@@ -68,7 +68,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build circuits-wasm-linux-clang 64
+          command: cond_spot_run_build aztec3-circuits-wasm-linux-clang 64
   yarn-project-base:
     machine:
       image: ubuntu-2004:202010-01
@@ -134,6 +134,17 @@ jobs:
       - run:
           name: "Build and test"
           command: build world-state
+
+  merkle-tree:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build merkle-tree
 
   end-to-end:
     machine:
@@ -208,4 +219,5 @@ workflows:
           <<: *defaults
       - e2e-deploy-contract: *e2e_test
       - world-state: *yarn_project
+      - merkle-tree: *yarn_project
       - noir-contracts: *yarn_project

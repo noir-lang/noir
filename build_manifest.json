@@ -1,5 +1,5 @@
 {
-  "circuits-wasm-linux-clang": {
+  "aztec3-circuits-wasm-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
     "rebuildPatterns": ["^circuits/"],
@@ -73,11 +73,18 @@
     "rebuildPatterns": ["^yarn-project/aztec.js/"],
     "dependencies": ["aztec-rpc"]
   },
+  "barretenberg.js": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/barretenberg.js",
+    "dockerfile": "aztec.js/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/barretenberg.js/"],
+    "dependencies": []
+  },
   "end-to-end": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/end-to-end",
     "dockerfile": "end-to-end/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/end-to-end/"],
+    "rebuildPatterns": ["^yarn-project/end-to-end/"],	
     "dependencies": ["aztec.js", "noir-contracts"]
   },
   "ethereum.js": {
@@ -120,7 +127,7 @@
     "projectDir": "yarn-project/merkle-tree",
     "dockerfile": "merkle-tree/Dockerfile",
     "rebuildPatterns": ["^yarn-project/merkle-tree/"],
-    "dependencies": ["foundation"]
+    "dependencies": ["foundation", "barretenberg.js"]
   },
   "noir-contracts": {
     "buildDir": "yarn-project",
