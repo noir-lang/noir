@@ -9,7 +9,6 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/constants.hpp"
-#include "barretenberg/common/assert.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
@@ -479,7 +478,31 @@ TEST_F(base_rollup_tests, calldata_hash)
     run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, test_compute_membership_historic) {}
+TEST_F(base_rollup_tests, test_compute_membership_historic_private_data)
+{
+    // Test membership works for empty trees
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+
+    auto tree = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
+    inputs.constants.start_tree_of_historic_private_data_tree_roots_snapshot = {
+        .root = tree.root(),
+        .next_available_leaf_index = 0,
+    };
+    inputs.kernel_data[0].public_inputs.constants.old_tree_roots.private_data_tree_root = fr(0);
+
+    // fetch sibling path from hash path (only get the second half of the hash path)
+    auto hash_path = tree.get_hash_path(0);
+    std::array<NT::fr, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> sibling_path;
+    for (size_t i = 0; i < PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT; ++i) {
+        sibling_path[i] = hash_path[i].second;
+    }
+    inputs.historic_private_data_tree_root_membership_witnesses[0] = {
+        .leaf_index = 0,
+        .sibling_path = sibling_path,
+    };
+
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
+}
 
 TEST_F(base_rollup_tests, test_constants_dont_change)
 {
@@ -494,7 +517,8 @@ TEST_F(base_rollup_tests, test_aggregate)
     // TODO: Fix this when aggregation works
     BaseRollupInputs inputs = getEmptyBaseRollupInputs();
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
-    ASSERT_EQ(inputs.kernel_data[0].public_inputs.end.aggregation_object, outputs.end_aggregation_object);
+    ASSERT_EQ(inputs.kernel_data[0].public_inputs.end.aggregation_object.public_inputs,
+              outputs.end_aggregation_object.public_inputs);
 }
 
 TEST_F(base_rollup_tests, test_proof_verification) {}
