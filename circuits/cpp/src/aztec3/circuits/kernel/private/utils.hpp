@@ -10,7 +10,6 @@ using namespace plonk::stdlib::types;
 
 namespace aztec3::circuits::kernel::private_kernel::utils {
 
-// TODO rename dummy
-PreviousKernelData<NT> default_previous_kernel();
+PreviousKernelData<NT> dummy_previous_kernel_with_vk_proof();
 
 } // namespace aztec3::circuits::kernel::private_kernel::utils

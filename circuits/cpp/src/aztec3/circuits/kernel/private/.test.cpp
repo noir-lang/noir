@@ -26,6 +26,7 @@
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
 // #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 // #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
+#include "aztec3/circuits/kernel/private/utils.hpp"
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 
@@ -750,10 +751,12 @@ TEST(private_kernel_tests, test_create_proof_cbinds)
     std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> initial_kernel_private_call_stack{};
     initial_kernel_private_call_stack[0] = constructor_call_stack_item.hash();
 
+    // TODO might be able to get rid of proving key buffer
     uint8_t const* pk_buf;
     size_t pk_size = private_kernel__init_proving_key(&pk_buf);
     info("Proving key size: ", pk_size);
 
+    // TODO might be able to get rid of verification key buffer
     uint8_t const* vk_buf;
     size_t vk_size = private_kernel__init_verification_key(pk_buf, &vk_buf);
     info("Verification key size: ", vk_size);
@@ -799,6 +802,24 @@ TEST(private_kernel_tests, test_create_proof_cbinds)
     free((void*)vk_buf);
     free((void*)proof_data);
     free((void*)public_inputs);
+}
+
+TEST(private_kernel_tests, test_dummy_previous_kernel_cbind)
+{
+    uint8_t const* cbind_previous_kernel_buf;
+    size_t cbind_buf_size = private_kernel__dummy_previous_kernel(&cbind_previous_kernel_buf);
+
+    PreviousKernelData<NT> previous_kernel = utils::dummy_previous_kernel_with_vk_proof();
+    std::vector<uint8_t> expected_vec;
+    write(expected_vec, previous_kernel);
+
+    // Just compare the first 10 bytes of the serialized public outputs
+    if (cbind_buf_size > 10) {
+        // for (size_t 0; i < public_inputs_size; i++) {
+        for (size_t i = 0; i < 10; i++) {
+            ASSERT_EQ(cbind_previous_kernel_buf[i], expected_vec[i]);
+        }
+    }
 }
 
 } // namespace aztec3::circuits::kernel::private_kernel

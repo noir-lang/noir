@@ -78,7 +78,7 @@ using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
 
 // using aztec3::circuits::mock::mock_circuit;
-using aztec3::circuits::kernel::private_kernel::utils::default_previous_kernel;
+using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
 using aztec3::circuits::mock::mock_kernel_circuit;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
@@ -94,140 +94,76 @@ using aztec3::circuits::rollup::native_base_rollup::NT;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::private_kernel::NewContractData;
-
-void run_cbind(BaseRollupInputs& base_rollup_inputs,
-               BaseRollupPublicInputs& expected_public_inputs,
-               bool compare_pubins = true)
-{
-    uint8_t const* pk_buf;
-    size_t pk_size = base_rollup__init_proving_key(&pk_buf);
-    info("Proving key size: ", pk_size);
-
-    uint8_t const* vk_buf;
-    size_t vk_size = base_rollup__init_verification_key(pk_buf, &vk_buf);
-    info("Verification key size: ", vk_size);
-
-    std::vector<uint8_t> base_rollup_inputs_vec;
-    write(base_rollup_inputs_vec, base_rollup_inputs);
-
-    // uint8_t const* proof_data;
-    // size_t proof_data_size;
-    uint8_t const* public_inputs_buf;
-    info("creating proof");
-    size_t public_inputs_size = base_rollup__sim(base_rollup_inputs_vec.data(),
-                                                 false, // second_present
-                                                 &public_inputs_buf);
-    // info("Proof size: ", proof_data_size);
-    info("PublicInputs size: ", public_inputs_size);
-
-    if (compare_pubins) {
-        BaseRollupPublicInputs public_inputs;
-        info("about to read...");
-        read(public_inputs_buf, public_inputs);
-        info("about to assert...");
-        ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
-        for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
-            ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
-        }
-        info("after assert...");
-
-        // TODO why do the post-write buffers not match?
-        //      something in aggregation object [de]serialization?
-        // info("about to write expected...");
-        // std::vector<uint8_t> expected_public_inputs_vec;
-        // write(expected_public_inputs_vec, expected_public_inputs);
-        // info("about to assert buffers eq...");
-        // ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
-        //// Just compare the first 10 bytes of the serialized public outputs
-        // if (public_inputs_size > 10) {
-        //    // for (size_t 0; i < public_inputs_size; i++) {
-        //    for (size_t i = 0; i < 10; i++) {
-        //        info("testing byte ", i);
-        //        ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
-        //    }
-        //}
-    }
-    (void)base_rollup_inputs;     // unused
-    (void)expected_public_inputs; // unused
-    (void)compare_pubins;         // unused
-
-    free((void*)pk_buf);
-    free((void*)vk_buf);
-    // free((void*)proof_data);
-    // SCARY WARNING TODO FIXME why does this free cause issues
-    // free((void*)public_inputs_buf);
-    info("finished retesting via cbinds...");
-}
-
 } // namespace
 
 namespace aztec3::circuits::rollup::base::native_base_rollup_circuit {
 
 class base_rollup_tests : public ::testing::Test {
   protected:
-    PreviousKernelData<NT> getEmptyPreviousKernelData()
+    void run_cbind(BaseRollupInputs& base_rollup_inputs,
+                   BaseRollupPublicInputs& expected_public_inputs,
+                   bool compare_pubins = true)
     {
+        // TODO might be able to get rid of proving key buffer
+        uint8_t const* pk_buf;
+        size_t pk_size = base_rollup__init_proving_key(&pk_buf);
+        info("Proving key size: ", pk_size);
 
-        std::array<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts;
-        new_contracts.fill(NewContractData<NT>{
-            .contract_address = fr::zero(), .portal_contract_address = fr::zero(), .function_tree_root = fr::zero() });
+        // TODO might be able to get rid of verification key buffer
+        uint8_t const* vk_buf;
+        size_t vk_size = base_rollup__init_verification_key(pk_buf, &vk_buf);
+        info("Verification key size: ", vk_size);
 
-        std::array<OptionallyRevealedData<NT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data;
+        std::vector<uint8_t> base_rollup_inputs_vec;
+        write(base_rollup_inputs_vec, base_rollup_inputs);
 
-        optionally_revealed_data.fill(OptionallyRevealedData<NT>{ .call_stack_item_hash = fr::zero(),
-                                                                  .function_data = FunctionData<NT>::empty(),
-                                                                  .emitted_events = { 0 },
-                                                                  .vk_hash = fr::zero(),
-                                                                  .portal_contract_address = { 0 },
-                                                                  .pay_fee_from_l1 = false,
-                                                                  .pay_fee_from_public_l2 = false,
-                                                                  .called_from_l1 = false,
-                                                                  .called_from_public_l2 = false });
+        // uint8_t const* proof_data;
+        // size_t proof_data_size;
+        uint8_t const* public_inputs_buf;
+        info("creating proof");
+        size_t public_inputs_size = base_rollup__sim(base_rollup_inputs_vec.data(),
+                                                     false, // second_present
+                                                     &public_inputs_buf);
+        // info("Proof size: ", proof_data_size);
+        info("PublicInputs size: ", public_inputs_size);
 
-        native_base_rollup::AggregationObject agg_obj;
-        // Aggregation Object
-        AccumulatedData<NT> accumulated_data = {
-            .aggregation_object = agg_obj,
-            .private_call_count = fr::zero(),
-            .new_commitments = { 0 },
-            .new_nullifiers = { 0 },
-            .private_call_stack = { 0 },
-            .public_call_stack = { 0 },
-            .l1_msg_stack = { 0 },
-            .new_contracts = new_contracts,
-            .optionally_revealed_data = optionally_revealed_data,
-        };
+        if (compare_pubins) {
+            BaseRollupPublicInputs public_inputs;
+            info("about to read...");
+            uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
+            read(public_inputs_buf_tmp, public_inputs);
+            info("about to assert...");
+            ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
+            for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
+                ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
+            }
+            info("after assert...");
 
-        OldTreeRoots<NT> old_tree_roots = {
-            .private_data_tree_root = fr::zero(),
-            .nullifier_tree_root = fr::zero(),
-            .contract_tree_root = fr::zero(),
-            .private_kernel_vk_tree_root = fr::zero(),
-        };
+            // TODO why do the post-write buffers not match?
+            //     something in aggregation object [de]serialization?
+            info("about to write expected...");
+            std::vector<uint8_t> expected_public_inputs_vec;
+            write(expected_public_inputs_vec, expected_public_inputs);
+            info("about to assert buffers eq...");
+            ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
+            // Just compare the first 10 bytes of the serialized public outputs
+            if (public_inputs_size > 10) {
+                // for (size_t 0; i < public_inputs_size; i++) {
+                for (size_t i = 0; i < 10; i++) {
+                    ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
+                }
+            }
+        }
+        (void)base_rollup_inputs;     // unused
+        (void)expected_public_inputs; // unused
+        (void)compare_pubins;         // unused
 
-        TxContext<NT> tx_context = {
-            .is_fee_payment_tx = false,
-            .is_rebate_payment_tx = false,
-            .is_contract_deployment_tx = false,
-            .contract_deployment_data = {
-                .constructor_vk_hash = fr::zero(),
-                .function_tree_root = fr::zero(),
-                .contract_address_salt = fr::zero(),
-                .portal_contract_address = fr::zero(),
-            },
-        };
-
-        PublicInputs<NT> kernel_public_inputs = {
-            .end = accumulated_data,
-            .constants = { .old_tree_roots = old_tree_roots, .tx_context = tx_context },
-            .is_private = true,
-        };
-
-        PreviousKernelData<NT> kernel_data = {
-            .public_inputs = kernel_public_inputs,
-        };
-
-        return kernel_data;
+        free((void*)pk_buf);
+        free((void*)vk_buf);
+        // free((void*)proof_data);
+        // SCARY WARNING TODO FIXME why does this free cause issues
+        // free((void*)public_inputs_buf);
+        info("finished retesting via cbinds...");
     }
 
   protected:
@@ -258,15 +194,9 @@ class base_rollup_tests : public ::testing::Test {
 
         // Kernels
         std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
-        kernel_data[0] = getEmptyPreviousKernelData();
-        kernel_data[1] = getEmptyPreviousKernelData();
-        // grab a mocked previous kernel and use its proof and vk
-        PreviousKernelData<NT> mocked_kernel0 = default_previous_kernel();
-        PreviousKernelData<NT> mocked_kernel1 = default_previous_kernel();
-        kernel_data[0].proof = mocked_kernel0.proof;
-        kernel_data[0].vk = mocked_kernel0.vk;
-        kernel_data[1].proof = mocked_kernel1.proof;
-        kernel_data[1].vk = mocked_kernel1.vk;
+        // grab mocked previous kernel (need a valid vk, proof, aggobj)
+        kernel_data[0] = dummy_previous_kernel_with_vk_proof();
+        kernel_data[1] = dummy_previous_kernel_with_vk_proof();
 
         BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
                                               .start_private_data_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),

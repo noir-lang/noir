@@ -28,7 +28,7 @@ const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = MerkleTree(NULLIFIER_SUBTREE_DEPTH).
 
 bool verify_kernel_proof(NT::Proof kernel_proof)
 {
-    std::cout << kernel_proof << std::endl; // REMOVE_ME
+    (void)kernel_proof;
     return true;
 }
 
