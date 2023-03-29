@@ -27,7 +27,7 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
 }
 
 fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = nargo_core::backends::ConcreteBackend;
+    let backend = nargo::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
 

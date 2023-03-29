@@ -67,7 +67,7 @@ pub(crate) fn execute_program(
 ) -> Result<WitnessMap, CliError> {
     let mut solved_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    let backend = nargo_core::backends::ConcreteBackend;
+    let backend = nargo::backends::ConcreteBackend;
     let mut blocks = Blocks::default();
     let (unresolved_opcodes, oracles) = backend.solve(
         &mut solved_witness,

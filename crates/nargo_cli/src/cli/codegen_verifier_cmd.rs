@@ -15,7 +15,7 @@ pub(crate) struct CodegenVerifierCommand {
 pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
     let compiled_program = compile_circuit(&config.program_dir, &args.compile_options)?;
 
-    let backend = nargo_core::backends::ConcreteBackend;
+    let backend = nargo::backends::ConcreteBackend;
     #[allow(deprecated)]
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 

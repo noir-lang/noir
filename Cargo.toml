@@ -6,14 +6,14 @@ members = [
     "crates/noirc_errors",
     "crates/noirc_driver",
     "crates/nargo",
-    "crates/nargo_core",
+    "crates/nargo_cli",
     "crates/fm",
     "crates/arena",
     "crates/noirc_abi",
     "crates/iter-extended",
     "crates/wasm",
 ]
-default-members = ["crates/nargo"]
+default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
@@ -29,7 +29,7 @@ arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
-nargo_core = { path = "crates/nargo_core" }
+nargo_cli = { path = "crates/nargo_cli" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }

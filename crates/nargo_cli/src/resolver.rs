@@ -4,7 +4,7 @@ use std::{
 };
 
 use acvm::Language;
-use nargo_core::manifest::{Dependency, PackageManifest};
+use nargo::manifest::{Dependency, PackageManifest};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use thiserror::Error;

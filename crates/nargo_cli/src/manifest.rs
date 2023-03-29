@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use nargo_core::manifest::{InvalidPackageError, PackageManifest};
+use nargo::manifest::{InvalidPackageError, PackageManifest};
 
 /// Parses a Nargo.toml file from it's path
 /// The path to the toml file must be present.

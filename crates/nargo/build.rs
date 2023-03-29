@@ -9,8 +9,4 @@ fn check_rustc_version() {
 
 fn main() {
     check_rustc_version();
-
-    build_data::set_GIT_COMMIT();
-    build_data::set_GIT_DIRTY();
-    build_data::no_debug_rebuilds();
 }
