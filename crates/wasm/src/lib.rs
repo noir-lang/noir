@@ -127,9 +127,9 @@ pub fn compile(args: JsValue) -> JsValue {
             .into_iter()
             .flat_map(|contract| {
                 let contract_id = format!("{}-{}", options.circuit_name, &contract.name);
-                contract.functions.into_iter().map(move |(function, program)| {
-                    let program_name = format!("{}-{}", contract_id, function);
-                    (program_name, program)
+                contract.functions.into_iter().map(move |function| {
+                    let program_name = format!("{}-{}", contract_id, &function.name);
+                    (program_name, function.bytecode)
                 })
             })
             .collect();
