@@ -96,9 +96,9 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf, NT::uint32 leafIndex, 
 {
     for (size_t i = 0; i < siblingPath.size(); i++) {
         if (leafIndex & (1 << i)) {
-            leaf = crypto::pedersen_hash::hash_multiple({ leaf, siblingPath[i] });
-        } else {
             leaf = crypto::pedersen_hash::hash_multiple({ siblingPath[i], leaf });
+        } else {
+            leaf = crypto::pedersen_hash::hash_multiple({ leaf, siblingPath[i] });
         }
     }
     return leaf;
@@ -394,7 +394,7 @@ BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
     // next_available_leaf_index is at the leaf level. We need at the subtree level (say height 3). So divide by 8.
     // (if leaf is at index x, its parent is at index floor >> depth)
     auto leafIndexAtSubtreeDepth =
-        baseRollupInputs.start_private_data_tree_snapshot.next_available_leaf_index >> PRIVATE_DATA_SUBTREE_DEPTH;
+        baseRollupInputs.start_private_data_tree_snapshot.next_available_leaf_index >> (PRIVATE_DATA_SUBTREE_DEPTH);
     check_membership(EMPTY_COMMITMENTS_SUBTREE_ROOT,
                      leafIndexAtSubtreeDepth,
                      baseRollupInputs.new_commitments_subtree_sibling_path,
