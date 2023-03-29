@@ -234,7 +234,7 @@ fn read_circuit(circuit: js_sys::Uint8Array) -> Circuit {
 }
 
 fn js_value_to_u32(val: &JsValue) -> u32 {
-    if let Ok(val_int) = BigInt::new(&val) {
+    if let Ok(val_int) = BigInt::new(val) {
         // Seems like the only way in javascript to get the number of bits
         let num_bits = val_int.to_string(2).unwrap().length();
 
