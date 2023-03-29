@@ -4,23 +4,13 @@ COPY world-state world-state
 # dependencies
 COPY foundation foundation
 COPY barretenberg.js barretenberg.js
+COPY l1-contracts l1-contracts
 COPY circuits.js circuits.js
 COPY l2-block l2-block
 COPY merkle-tree merkle-tree
-# TODO(AD) why do we need to build dependencies? dont tsc project refs solve this?
-WORKDIR /usr/src/yarn-project/foundation
-RUN yarn build
 
-WORKDIR /usr/src/yarn-project/barretenberg.js
-RUN yarn build
 RUN cp /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm dest/wasm/barretenberg.wasm
 
-WORKDIR /usr/src/yarn-project/circuits.js
-RUN yarn build
-WORKDIR /usr/src/yarn-project/l2-block
-RUN yarn build
-WORKDIR /usr/src/yarn-project/merkle-tree
-RUN yarn build
 WORKDIR /usr/src/yarn-project/world-state
 RUN yarn build && yarn formatting && yarn test
 
