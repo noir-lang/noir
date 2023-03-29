@@ -1,7 +1,5 @@
-import { AztecRPCClient, ContractAbi } from '@aztec/aztec-rpc';
-import { EthAddress, Fr } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation';
-import { ContractFunction, SendMethod, SendMethodOptions } from '../contract/index.js';
+import { AztecAddress, AztecRPCClient, ContractAbi, EthAddress, Fr, FunctionType } from '@aztec/aztec-rpc';
+import { ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
 
 export interface ConstructorOptions extends SendMethodOptions {
   portalContract?: EthAddress;
@@ -11,26 +9,21 @@ export interface ConstructorOptions extends SendMethodOptions {
 /**
  * Extends the SendMethodInteraction to create TxRequest for constructors (deployments).
  */
-export class ConstructorMethod extends SendMethod {
-  constructor(
-    arc: AztecRPCClient,
-    private abi: ContractAbi,
-    args: any[] = [],
-    defaultOptions: ConstructorOptions = {},
-  ) {
+export class ConstructorMethod extends ContractFunctionInteraction {
+  constructor(arc: AztecRPCClient, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
       throw new Error('Cannot find constructor in the ABI.');
     }
 
-    super(arc, AztecAddress.ZERO, new ContractFunction(constructorAbi), args, defaultOptions);
+    super(arc, AztecAddress.ZERO, 'constructor', args, FunctionType.SECRET);
   }
 
   public async request(options: ConstructorOptions = {}) {
-    const { portalContract, contractAddressSalt, from } = { ...this.defaultOptions, ...options };
+    const { portalContract, contractAddressSalt, from } = options;
     this.txRequest = await this.arc.createDeploymentTxRequest(
       this.abi,
-      this.entry.encodeParameters(this.args).map(p => Fr.fromBuffer(p)),
+      [],
       portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
       contractAddressSalt || Fr.random(),
       from || AztecAddress.ZERO,

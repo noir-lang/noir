@@ -22,7 +22,7 @@ export interface AztecRPCClient {
     contractAddressSalt: Fr,
     from: AztecAddress,
   ): Promise<TxRequest>;
-  createTxRequest(functionSelector: Buffer, args: Fr[], to: AztecAddress, from: AztecAddress): Promise<TxRequest>;
+  createTxRequest(functionName: string, args: Fr[], to: AztecAddress, from: AztecAddress): Promise<TxRequest>;
   signTxRequest(txRequest: TxRequest): Promise<Signature>;
   createTx(txRequest: TxRequest, signature: Signature): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;

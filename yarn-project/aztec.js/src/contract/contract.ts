@@ -1,16 +1,23 @@
-import { AztecRPCClient, ContractAbi } from '@aztec/aztec-rpc';
-import { AztecAddress } from '@aztec/circuits.js';
-import { CallMethodOptions } from './call_method.js';
-import { SendMethodOptions } from './send_method.js';
-import { SentTx } from './sent_tx.js';
-
-interface FunctionInteraction {
-  call(options?: CallMethodOptions): Promise<any>;
-  send(options?: SendMethodOptions): SentTx;
-}
+import { AztecAddress, AztecRPCClient, ContractAbi, FunctionAbi } from '@aztec/aztec-rpc';
+import { ContractFunctionInteraction } from './contract_function_interaction.js';
 
 export class Contract {
-  public methods: { [name: string]: (...args: any[]) => FunctionInteraction } = {};
+  public methods: { [name: string]: (...args: any[]) => ContractFunctionInteraction } = {};
+  private address?: AztecAddress;
 
-  constructor(public readonly address: AztecAddress, public readonly abi: ContractAbi, private arc: AztecRPCClient) {}
+  constructor(public readonly abi: ContractAbi, private arc: AztecRPCClient) {
+    abi.functions.forEach((f: FunctionAbi) => {
+      this.methods[f.name] = (...args: any[]) => {
+        return new ContractFunctionInteraction(this.arc, this.address!, f.name, args, f.functionType);
+      };
+    });
+  }
+
+  /*
+  TODO implement a function to add the contract in the ARS
+  */
+  attach(address: AztecAddress) {
+    this.address = address;
+    return Promise.resolve();
+  }
 }

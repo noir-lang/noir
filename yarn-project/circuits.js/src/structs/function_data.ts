@@ -5,7 +5,7 @@ import { serializeToBuffer } from '../utils/serialize.js';
  * @see abis/function_data.hpp
  */
 export class FunctionData {
-  constructor(public functionSelector: number, public isPrivate: true, public isConstructor: true) {}
+  constructor(public functionSelector: number, public isPrivate = true, public isConstructor = true) {}
   /**
    * Serialize this as a buffer.
    * @returns The buffer.

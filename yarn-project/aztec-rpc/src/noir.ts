@@ -12,14 +12,16 @@ export interface ABIVariable {
   type: ABIType;
 }
 
+export enum ABIParameterVisibility {
+  PUBLIC = 'public',
+  SECRET = 'secret'
+};
+
 /**
  * A function parameter.
  */
 export interface ABIParameter extends ABIVariable {
-  /**
-   * Whether the parameter is unpacked.
-   */
-  unpacked: boolean;
+  visibility: ABIParameterVisibility;
 }
 
 /**
@@ -86,6 +88,15 @@ export interface StructType extends BasicType<'struct'> {
 }
 
 /**
+ * Noir function types
+ */
+export enum FunctionType {
+  SECRET = 'secret',
+  OPEN = 'open',
+  UNCONSTRAINED = 'unconstrained'
+};
+
+/**
  * The ABI entry of a function.
  */
 export interface FunctionAbi {
@@ -96,7 +107,7 @@ export interface FunctionAbi {
   /**
    * Whether the function is secret.
    */
-  isSecret: boolean;
+  functionType: FunctionType;
   /**
    * Function parameters.
    */
@@ -112,10 +123,14 @@ export interface FunctionAbi {
   /**
    * The verification key of the function.
    */
-  verificationKey: string;
+  verificationKey?: string;
 }
 
 export interface ContractAbi {
+  /**
+   * The name of the contract.
+   */
+  name: string,
   /**
    * The functions of the contract.
    */

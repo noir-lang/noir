@@ -1,5 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, ContractAbi, ContractDeployer, Fr } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/ethereum.js/eth_address';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
@@ -21,7 +21,7 @@ describe('e2e_deploy_contract', () => {
   let rollupAddress: EthAddress;
   let yeeterAddress: EthAddress;
   let accounts: AztecAddress[];
-  const abi = TestContractAbi;
+  const abi = TestContractAbi as ContractAbi;
 
   beforeAll(async () => {
     provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
@@ -74,16 +74,16 @@ describe('e2e_deploy_contract', () => {
    */
   it.skip('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
-    const deployer = new ContractDeployer(abi, aztecRpcServer, { contractAddressSalt });
+    const deployer = new ContractDeployer(abi, aztecRpcServer);
 
     {
-      const receipt = await deployer.deploy().send().getReceipt();
+      const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
       expect(receipt.status).toBe(true);
       expect(receipt.error).toBe('');
     }
 
     {
-      const receipt = await deployer.deploy().send().getReceipt();
+      const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
       expect(receipt.status).toBe(false);
       expect(receipt.error).not.toBe('');
     }

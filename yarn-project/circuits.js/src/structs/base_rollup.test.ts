@@ -26,11 +26,10 @@ describe('structs/base_rollup', () => {
       makePreviousKernelData(0x100),
       makePreviousKernelData(0x200),
     ];
-    
+
     const startPrivateDateTreeSnapshot = makeAppendOnlyTreeSnapshot(0x100);
     const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(0x200);
     const startContractTreeSnapshot = makeAppendOnlyTreeSnapshot(0x300);
-
 
     const lowNullifierLeafPreimages = range(2 * KERNEL_NEW_NULLIFIERS_LENGTH, 0x1000).map(
       x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), x + 0x200),

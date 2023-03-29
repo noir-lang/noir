@@ -1,6 +1,6 @@
 {
   "circuits-wasm-linux-clang": {
-    "buildDir": "circuits",
+    "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
     "rebuildPatterns": ["^circuits/"],
     "dependencies": []

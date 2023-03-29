@@ -1,6 +1,5 @@
-import { AztecRPCClient, Signature, Tx, TxHash, TxRequest } from '@aztec/aztec-rpc';
+import { AztecRPCClient, Signature, Tx, TxHash, TxRequest, FunctionType } from '@aztec/aztec-rpc';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { ContractFunction } from './contract_function.js';
 import { SentTx } from './sent_tx.js';
 
 export interface SendMethodOptions {
@@ -8,11 +7,15 @@ export interface SendMethodOptions {
   nonce?: Fr;
 }
 
+export interface ViewMethodOptions {
+  from?: AztecAddress;
+}
+
 /**
  * This is the class that is returned when calling e.g. `contract.methods.myMethod(arg0, arg1)`.
- * It contains available interactions one can call on a `send` method.
+ * It contains available interactions one can call on a method.
  */
-export class SendMethod {
+export class ContractFunctionInteraction {
   protected txRequest?: TxRequest;
   private signature?: Signature;
   private tx?: Tx;
@@ -20,16 +23,16 @@ export class SendMethod {
   constructor(
     protected arc: AztecRPCClient,
     protected contractAddress: AztecAddress,
-    protected entry: ContractFunction,
+    protected functionName: string,
     protected args: any[],
-    protected defaultOptions: SendMethodOptions = {},
+    protected functionType: FunctionType,
   ) {}
 
   public async request(options: SendMethodOptions = {}) {
-    const { from } = { ...this.defaultOptions, ...options };
+    const { from } = options;
     this.txRequest = await this.arc.createTxRequest(
-      this.entry.encodeABI(),
-      this.entry.encodeParameters(this.args).map(p => Fr.fromBuffer(p)),
+      this.functionName,
+      [], // TODO fill in
       this.contractAddress,
       from || AztecAddress.ZERO,
     );
@@ -55,6 +58,10 @@ export class SendMethod {
   }
 
   public send(options: SendMethodOptions = {}) {
+    if (this.functionType === FunctionType.UNCONSTRAINED) {
+      throw new Error("Can't call send on unconstrained function");
+    }
+
     let promise: Promise<TxHash>;
     if (this.tx) {
       promise = this.arc.sendTx(this.tx);
@@ -68,7 +75,7 @@ export class SendMethod {
     return new SentTx(this.arc, promise);
   }
 
-  public encodeABI() {
-    return this.entry.encodeABI();
+  public view(options: ViewMethodOptions = {}) {
+    return Promise.resolve();
   }
 }

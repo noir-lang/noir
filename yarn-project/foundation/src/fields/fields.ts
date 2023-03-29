@@ -15,7 +15,7 @@ export class Fr {
   }
 
   static random() {
-    const r = toBigIntBE(randomBytes(64)) % Fr.MODULUS;
+    const r = toBigIntBE(randomBytes(Fr.SIZE_IN_BYTES)) % Fr.MODULUS;
     return new Fr(r);
   }
 
