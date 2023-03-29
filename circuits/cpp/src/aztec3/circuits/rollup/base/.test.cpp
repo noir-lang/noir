@@ -215,12 +215,34 @@ class base_rollup_tests : public ::testing::Test {
 TEST_F(base_rollup_tests, no_new_contract_leafs)
 {
     // When there are no contract deployments. The contract tree should be inserting 0 leafs, (not empty leafs);
+    // Initially, the start_contract_tree_snapshot is empty (leaf is 0. hash it up).
+    // Get sibling path of index 0 leaf (for circuit to check membership via sibling path)
+    // No contract leaves -> will insert empty tree -> i.e. end_contract_tree_root = start_contract_tree_root
+
     BaseRollupInputs emptyInputs = getEmptyBaseRollupInputs();
+    auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
+    // fetch sibling path from hash path (only get the second half of the hash path)
+    auto hash_path_of_0 = empty_contract_tree.get_hash_path(0);
+    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_of_0;
+    for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
+        sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
+    }
+
+    // Set the start_contract_tree_snapshot and new_contracts_subtree_sibling_path
+    emptyInputs.start_contract_tree_snapshot = {
+        .root = empty_contract_tree.root(),
+        .next_available_leaf_index = 0,
+    };
+    emptyInputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
+
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(emptyInputs);
 
-    // @todo Check the snaphots are updated accordingly.
-    // ASSERT_EQ(expectedOut, outputs.end_contract_tree_snapshot);
-
+    AppendOnlyTreeSnapshot<NT> expectedEndContractTreeSnapshot = {
+        .root = empty_contract_tree.root(),
+        .next_available_leaf_index = 2,
+    };
+    ASSERT_EQ(outputs.start_contract_tree_snapshot, emptyInputs.start_contract_tree_snapshot);
+    ASSERT_EQ(outputs.end_contract_tree_snapshot, expectedEndContractTreeSnapshot);
     run_cbind(emptyInputs, outputs);
 }
 
@@ -236,19 +258,38 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
     };
-    inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
+    // Create a start snapshot tree and derive sibling path of index 0 leaf
+    auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
+    auto hash_path_of_0 = empty_contract_tree.get_hash_path(0);
+    std::array<NT::fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_of_0;
+    for (size_t i = 0; i < CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH; ++i) {
+        sibling_path_of_0[i] = hash_path_of_0[CONTRACT_SUBTREE_DEPTH + i].second;
+    }
 
+    inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
+    inputs.start_contract_tree_snapshot = {
+        .root = empty_contract_tree.root(),
+        .next_available_leaf_index = 0,
+    };
+    inputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
+
+    // manually create expected end contract tree snapshot
+    auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+    auto expected_contracts_subtree = stdlib::merkle_tree::MemoryTree(CONTRACT_SUBTREE_DEPTH);
+    expected_contracts_subtree.update_element(0, expected_contract_leaf);
+    // manually iterate through sibling path to create end snapshot
+    auto leaf_1 = crypto::pedersen_hash::hash_multiple({ expected_contracts_subtree.root(), sibling_path_of_0[0] });
+    auto leaf_2 = crypto::pedersen_hash::hash_multiple({ leaf_1, sibling_path_of_0[1] });
+    auto expected_end_snapshot_root = crypto::pedersen_hash::hash_multiple({ leaf_2, sibling_path_of_0[2] });
+    AppendOnlyTreeSnapshot<NT> expected_end_contracts_snapshot = {
+        .root = expected_end_snapshot_root,
+        .next_available_leaf_index = 2,
+    };
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
 
-    stdlib::merkle_tree::MemoryTree contract_tree = stdlib::merkle_tree::MemoryTree(2);
-    auto contract_leaf = crypto::pedersen_hash::hash_multiple(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
-
-    contract_tree.update_element(0, contract_leaf);
-
-    // @todo Check the snaphots are updated accordingly.
-    // ASSERT_EQ(contract_tree.root(), outputs.new_contract_leaves_subtree_root);
-
+    ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
+    ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
     run_cbind(inputs, outputs);
 }
 

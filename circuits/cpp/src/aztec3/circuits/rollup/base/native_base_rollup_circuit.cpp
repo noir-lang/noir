@@ -21,7 +21,7 @@
 namespace aztec3::circuits::rollup::native_base_rollup {
 
 const NT::fr EMPTY_COMMITMENTS_SUBTREE_ROOT = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH).root();
-const NT::fr EMPTY_CONTRACTS_SUBTREE_ROOT = MerkleTree(CONTRACT_COMMITMENTS_SUBTREE_DEPTH).root();
+const NT::fr EMPTY_CONTRACTS_SUBTREE_ROOT = MerkleTree(CONTRACT_SUBTREE_DEPTH).root();
 const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = MerkleTree(NULLIFIER_SUBTREE_DEPTH).root();
 
 // TODO: can we aggregate proofs if we do not have a working circuit impl
@@ -121,6 +121,8 @@ AppendOnlySnapshot insert_subtree_to_snapshot_tree(std::array<NT::fr, N> sibling
 {
     // TODO: Sanity check len of siblingPath > height of subtree
     // TODO: Ensure height of subtree is correct (eg 3 for commitments, 1 for contracts)
+
+    // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtreeDepth` levels up.
     auto leafIndexAtDepth = nextAvailableLeafIndex >> subtreeDepth;
     auto new_root = iterate_through_tree_via_sibling_path(subtreeRootToInsert, leafIndexAtDepth, siblingPath);
     // 2^subtreeDepth is the number of leaves added. 2^x = 1 << x
@@ -133,7 +135,7 @@ AppendOnlySnapshot insert_subtree_to_snapshot_tree(std::array<NT::fr, N> sibling
 
 NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 {
-    MerkleTree contracts_tree = MerkleTree(CONTRACT_COMMITMENTS_SUBTREE_DEPTH);
+    MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_DEPTH);
 
     // Compute the merkle root of a contract subtree
     // TODO: consolidate what the tree depth should be
@@ -402,7 +404,7 @@ BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
 
     // check for contracts
     auto leafIndexContractsSubtreeDepth =
-        baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index >> CONTRACT_COMMITMENTS_SUBTREE_DEPTH;
+        baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index >> CONTRACT_SUBTREE_DEPTH;
     check_membership(EMPTY_CONTRACTS_SUBTREE_ROOT,
                      leafIndexContractsSubtreeDepth,
                      baseRollupInputs.new_contracts_subtree_sibling_path,
@@ -431,7 +433,7 @@ BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
         insert_subtree_to_snapshot_tree(baseRollupInputs.new_contracts_subtree_sibling_path,
                                         baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index,
                                         contracts_tree_subroot,
-                                        CONTRACT_COMMITMENTS_SUBTREE_DEPTH);
+                                        CONTRACT_SUBTREE_DEPTH);
 
     // Check nullifiers and check new subtree insertion
     AppendOnlySnapshot end_nullifier_tree_snapshot =
