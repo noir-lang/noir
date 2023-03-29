@@ -6,6 +6,7 @@
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/previous_kernel_data.hpp"
+#include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/constants.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
@@ -13,6 +14,7 @@
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 #include "index.hpp"
 #include "init.hpp"
+#include "c_bind.h"
 
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 #include <aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp>
@@ -76,6 +78,7 @@ using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
 
 // using aztec3::circuits::mock::mock_circuit;
+using aztec3::circuits::kernel::private_kernel::utils::default_previous_kernel;
 using aztec3::circuits::mock::mock_kernel_circuit;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
@@ -91,6 +94,70 @@ using aztec3::circuits::rollup::native_base_rollup::NT;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::private_kernel::NewContractData;
+
+void run_cbind(BaseRollupInputs& base_rollup_inputs,
+               BaseRollupPublicInputs& expected_public_inputs,
+               bool compare_pubins = true)
+{
+    uint8_t const* pk_buf;
+    size_t pk_size = base_rollup__init_proving_key(&pk_buf);
+    info("Proving key size: ", pk_size);
+
+    uint8_t const* vk_buf;
+    size_t vk_size = base_rollup__init_verification_key(pk_buf, &vk_buf);
+    info("Verification key size: ", vk_size);
+
+    std::vector<uint8_t> base_rollup_inputs_vec;
+    write(base_rollup_inputs_vec, base_rollup_inputs);
+
+    // uint8_t const* proof_data;
+    // size_t proof_data_size;
+    uint8_t const* public_inputs_buf;
+    info("creating proof");
+    size_t public_inputs_size = base_rollup__sim(base_rollup_inputs_vec.data(),
+                                                 false, // second_present
+                                                 &public_inputs_buf);
+    // info("Proof size: ", proof_data_size);
+    info("PublicInputs size: ", public_inputs_size);
+
+    if (compare_pubins) {
+        BaseRollupPublicInputs public_inputs;
+        info("about to read...");
+        read(public_inputs_buf, public_inputs);
+        info("about to assert...");
+        ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
+        for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
+            ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
+        }
+        info("after assert...");
+
+        // TODO why do the post-write buffers not match?
+        //      something in aggregation object [de]serialization?
+        // info("about to write expected...");
+        // std::vector<uint8_t> expected_public_inputs_vec;
+        // write(expected_public_inputs_vec, expected_public_inputs);
+        // info("about to assert buffers eq...");
+        // ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
+        //// Just compare the first 10 bytes of the serialized public outputs
+        // if (public_inputs_size > 10) {
+        //    // for (size_t 0; i < public_inputs_size; i++) {
+        //    for (size_t i = 0; i < 10; i++) {
+        //        info("testing byte ", i);
+        //        ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
+        //    }
+        //}
+    }
+    (void)base_rollup_inputs;     // unused
+    (void)expected_public_inputs; // unused
+    (void)compare_pubins;         // unused
+
+    free((void*)pk_buf);
+    free((void*)vk_buf);
+    // free((void*)proof_data);
+    // SCARY WARNING TODO FIXME why does this free cause issues
+    // free((void*)public_inputs_buf);
+    info("finished retesting via cbinds...");
+}
 
 } // namespace
 
@@ -193,7 +260,13 @@ class base_rollup_tests : public ::testing::Test {
         std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
         kernel_data[0] = getEmptyPreviousKernelData();
         kernel_data[1] = getEmptyPreviousKernelData();
-        // @note If using VK when empty, it will fail with segfault.
+        // grab a mocked previous kernel and use its proof and vk
+        PreviousKernelData<NT> mocked_kernel0 = default_previous_kernel();
+        PreviousKernelData<NT> mocked_kernel1 = default_previous_kernel();
+        kernel_data[0].proof = mocked_kernel0.proof;
+        kernel_data[0].vk = mocked_kernel0.vk;
+        kernel_data[1].proof = mocked_kernel1.proof;
+        kernel_data[1].vk = mocked_kernel1.vk;
 
         BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
                                               .start_private_data_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
@@ -221,6 +294,8 @@ TEST_F(base_rollup_tests, no_new_contract_leafs)
 
     // @todo Check the snaphots are updated accordingly.
     // ASSERT_EQ(expectedOut, outputs.end_contract_tree_snapshot);
+
+    run_cbind(emptyInputs, outputs);
 }
 
 TEST_F(base_rollup_tests, contract_leaf_inserted)
@@ -247,6 +322,8 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
 
     // @todo Check the snaphots are updated accordingly.
     // ASSERT_EQ(contract_tree.root(), outputs.new_contract_leaves_subtree_root);
+
+    run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, new_nullifier_tree) {}
@@ -272,6 +349,8 @@ TEST_F(base_rollup_tests, empty_block_calldata_hash)
     }
 
     ASSERT_EQ(hash, calldata_hash);
+
+    run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, calldata_hash)
@@ -325,10 +404,18 @@ TEST_F(base_rollup_tests, calldata_hash)
     }
 
     ASSERT_EQ(hash, calldata_hash);
+    run_cbind(inputs, outputs);
 }
 
 TEST_F(base_rollup_tests, test_compute_membership_historic) {}
 
 TEST_F(base_rollup_tests, test_compute_and_insert_subtree) {}
+
+TEST_F(base_rollup_tests, test_cbind_0)
+{
+    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupPublicInputs ignored_public_inputs;
+    run_cbind(inputs, ignored_public_inputs, false);
+}
 
 } // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit

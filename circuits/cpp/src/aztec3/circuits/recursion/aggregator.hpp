@@ -1,3 +1,4 @@
+#pragma once
 #include <barretenberg/stdlib/types/types.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
