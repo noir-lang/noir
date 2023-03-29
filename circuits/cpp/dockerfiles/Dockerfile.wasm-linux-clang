@@ -4,8 +4,7 @@ WORKDIR /usr/src/aztec3-circuits/cpp/barretenberg/cpp/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
 WORKDIR /usr/src/aztec3-circuits/cpp
 COPY . .
-# TODO Add wasm target when ready: --target aztec3.wasm
 RUN cmake --preset wasm && cmake --build --preset wasm
 
-#FROM alpine:3.17
-#COPY --from=builder /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3.wasm /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3.wasm
+FROM alpine:3.17
+COPY --from=builder /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm
