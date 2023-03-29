@@ -102,7 +102,7 @@ TEST(standard_composer, test_add_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -181,7 +181,7 @@ TEST(standard_composer, test_mul_gate_proofs)
     composer.create_add_gate({ a_idx, b_idx, c_idx, q[0], q[1], q[2], q[3] });
     composer.create_mul_gate({ a_idx, b_idx, d_idx, q[4], q[5], q[6] });
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -223,7 +223,7 @@ TEST(standard_composer, range_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -314,7 +314,7 @@ TEST(standard_composer, and_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -384,7 +384,7 @@ TEST(standard_composer, xor_constraint)
     composer.create_big_add_gate(
         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -428,7 +428,7 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     generate_constraints(2);
     generate_constraints(3);
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 
@@ -445,7 +445,7 @@ TEST(standard_composer, test_range_constraint_fail)
     uint32_t witness_index = composer.add_variable(fr::neg_one());
     composer.decompose_into_base4_accumulators(witness_index, 32);
 
-    plonk::Prover prover = composer.preprocess();
+    plonk::Prover prover = composer.create_prover();
 
     plonk::Verifier verifier = composer.create_verifier();
 

@@ -27,7 +27,7 @@ std::shared_ptr<bonk::proving_key> initialize_proving_key(const CircuitConstruct
                                                           plonk::ComposerType composer_type);
 
 /**
- * @brief Construct lagrange selector polynomials from ciruit selector information and put into polynomial cache
+ * @brief Construct lagrange selector polynomials from circuit selector information and put into polynomial cache
  *
  * @tparam CircuitConstructor The class holding the circuit
  * @param circuit_constructor The object holding the circuit
@@ -35,6 +35,16 @@ std::shared_ptr<bonk::proving_key> initialize_proving_key(const CircuitConstruct
  */
 template <typename CircuitConstructor>
 void construct_lagrange_selector_forms(const CircuitConstructor& circuit_constructor, bonk::proving_key* key);
+
+/**
+ * @brief Fill the last index of each selector polynomial in lagrange form with a non-zero value
+ *
+ * @tparam CircuitConstructor The class holding the circuit
+ * @param circuit_constructor The object holding the circuit
+ * @param key Pointer to the proving key
+ */
+template <typename CircuitConstructor>
+void enforce_nonzero_polynomial_selectors(const CircuitConstructor& circuit_constructor, bonk::proving_key* key);
 
 /**
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into
@@ -65,7 +75,7 @@ std::vector<barretenberg::polynomial> compute_witness_base(const CircuitConstruc
  * (1) commitments to the selector, permutation, and lagrange (first/last) polynomials,
  * (2) sets the polynomial manifest using the data from proving key.
  */
-std::shared_ptr<bonk::verification_key> compute_verification_key_base_common(
+std::shared_ptr<bonk::verification_key> compute_verification_key_common(
     std::shared_ptr<bonk::proving_key> const& proving_key, std::shared_ptr<bonk::VerifierReferenceString> const& vrs);
 
 } // namespace bonk

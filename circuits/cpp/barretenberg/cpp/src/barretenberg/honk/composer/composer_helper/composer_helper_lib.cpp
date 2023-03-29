@@ -7,6 +7,7 @@
 #include "composer_helper_lib.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/circuit_constructors/standard_circuit_constructor.hpp"
+#include "barretenberg/honk/circuit_constructors/turbo_circuit_constructor.hpp"
 namespace bonk {
 
 /**
@@ -68,9 +69,28 @@ void construct_lagrange_selector_forms(const CircuitConstructor& circuit_constru
         // this does not clash with any other values we want to place at the end of of the witness vectors. In later
         // iterations of the Sumcheck, we will be able to efficiently cancel out any checks in the last 2^k rows, so any
         // randomness or unique values should be placed there.
-
         circuit_proving_key->polynomial_store.put(circuit_constructor.selector_names_[j] + "_lagrange",
                                                   std::move(selector_poly_lagrange));
+    }
+}
+
+/**
+ * @brief Fill the last index of each selector polynomial in lagrange form with a non-zero value
+ *
+ * @tparam CircuitConstructor The class holding the circuit
+ * @param circuit_constructor The object holding the circuit
+ * @param key Pointer to the proving key
+ */
+template <typename CircuitConstructor>
+void enforce_nonzero_polynomial_selectors(const CircuitConstructor& circuit_constructor,
+                                          bonk::proving_key* circuit_proving_key)
+{
+    for (size_t j = 0; j < circuit_constructor.num_selectors; ++j) {
+        auto current_selector =
+            circuit_proving_key->polynomial_store.get(circuit_constructor.selector_names_[j] + "_lagrange");
+        current_selector[current_selector.size() - 1] = j + 1;
+        circuit_proving_key->polynomial_store.put(circuit_constructor.selector_names_[j] + "_lagrange",
+                                                  std::move(current_selector));
     }
 }
 
@@ -102,7 +122,6 @@ void compute_monomial_and_coset_selector_forms(bonk::proving_key* circuit_provin
 
         // Remove the selector lagrange forms since they will not be needed beyond this point
         circuit_proving_key->polynomial_store.remove(selector_properties[i].name + "_lagrange");
-
         circuit_proving_key->polynomial_store.put(selector_properties[i].name, std::move(selector_poly));
         circuit_proving_key->polynomial_store.put(selector_properties[i].name + "_fft", std::move(selector_poly_fft));
     }
@@ -175,7 +194,7 @@ std::vector<barretenberg::polynomial> compute_witness_base(const CircuitConstruc
  * (1) commitments to the selector, permutation, and lagrange (first/last) polynomials,
  * (2) sets the polynomial manifest using the data from proving key.
  */
-std::shared_ptr<bonk::verification_key> compute_verification_key_base_common(
+std::shared_ptr<bonk::verification_key> compute_verification_key_common(
     std::shared_ptr<bonk::proving_key> const& proving_key, std::shared_ptr<bonk::VerifierReferenceString> const& vrs)
 {
     auto circuit_verification_key = std::make_shared<bonk::verification_key>(
@@ -206,12 +225,18 @@ std::shared_ptr<bonk::verification_key> compute_verification_key_base_common(
 
     return circuit_verification_key;
 }
+// Ensure we compile all versions so that there are no issues during linkage
+#define COMPILE_FOR_CIRCUIT_CONSTRUCTOR(circuit_constructor)                                                           \
+    template std::shared_ptr<bonk::proving_key> initialize_proving_key<circuit_constructor>(                           \
+        const circuit_constructor&, bonk::ReferenceStringFactory*, const size_t, const size_t, plonk::ComposerType);   \
+    template void construct_lagrange_selector_forms<circuit_constructor>(const circuit_constructor&,                   \
+                                                                         bonk::proving_key*);                          \
+    template std::vector<barretenberg::polynomial> compute_witness_base<circuit_constructor>(                          \
+        const circuit_constructor&, const size_t, const size_t);                                                       \
+    template void enforce_nonzero_polynomial_selectors<circuit_constructor>(const circuit_constructor& constructor,    \
+                                                                            bonk::proving_key* circuit_proving_key);
 
-template std::shared_ptr<bonk::proving_key> initialize_proving_key<StandardCircuitConstructor>(
-    const StandardCircuitConstructor&, bonk::ReferenceStringFactory*, const size_t, const size_t, plonk::ComposerType);
-template void construct_lagrange_selector_forms<StandardCircuitConstructor>(const StandardCircuitConstructor&,
-                                                                            bonk::proving_key*);
-template std::vector<barretenberg::polynomial> compute_witness_base<StandardCircuitConstructor>(
-    const StandardCircuitConstructor&, const size_t, const size_t);
+COMPILE_FOR_CIRCUIT_CONSTRUCTOR(StandardCircuitConstructor)
+COMPILE_FOR_CIRCUIT_CONSTRUCTOR(TurboCircuitConstructor)
 
 } // namespace bonk

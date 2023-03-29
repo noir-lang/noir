@@ -2,6 +2,8 @@
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/safe_uint/safe_uint.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
 
 // This is a global variable, so that the execution handling class could alter it and signal to the input tester that
 // the input should fail
@@ -186,9 +188,7 @@ template <typename Composer> class SafeUintFuzzBase {
          * @param rng PRNG used
          * @return A random instruction
          */
-        template <typename T>
-        inline static Instruction generateRandom(T& rng)
-            requires SimpleRng<T>
+        template <typename T> inline static Instruction generateRandom(T& rng) requires SimpleRng<T>
         {
             // Choose which instruction we are going to generate
             OPCODE instruction_opcode = static_cast<OPCODE>(rng.next() % (OPCODE::_LAST));
@@ -283,8 +283,7 @@ template <typename Composer> class SafeUintFuzzBase {
          * @return Mutated element
          */
         template <typename T>
-        inline static fr mutateFieldElement(fr e, T& rng, HavocSettings& havoc_config)
-            requires SimpleRng<T>
+        inline static fr mutateFieldElement(fr e, T& rng, HavocSettings& havoc_config) requires SimpleRng<T>
         {
             // With a certain probability, we apply changes to the Montgomery form, rather than the plain form. This has
             // merit, since the computation is performed in montgomery form and comparisons are often performed in it,
@@ -377,8 +376,9 @@ template <typename Composer> class SafeUintFuzzBase {
          * @return Mutated instruction
          */
         template <typename T>
-        inline static Instruction mutateInstruction(Instruction instruction, T& rng, HavocSettings& havoc_config)
-            requires SimpleRng<T>
+        inline static Instruction mutateInstruction(Instruction instruction,
+                                                    T& rng,
+                                                    HavocSettings& havoc_config) requires SimpleRng<T>
         {
 #define PUT_RANDOM_BYTE_IF_LUCKY(variable)                                                                             \
     if (rng.next() & 1) {                                                                                              \
@@ -1457,3 +1457,5 @@ extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
     RunWithComposers<SafeUintFuzzBase, FuzzerComposerTypes>(Data, Size, VarianceRNG);
     return 0;
 }
+
+#pragma clang diagnostic pop

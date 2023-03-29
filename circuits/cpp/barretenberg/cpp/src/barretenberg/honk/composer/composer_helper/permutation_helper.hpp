@@ -397,6 +397,7 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
  * @param circuit_constructor
  * @param key
  */
+// TODO(#293): Update this (and all similar functions) to take a smart pointer.
 template <size_t program_width, typename CircuitConstructor>
 void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
 {

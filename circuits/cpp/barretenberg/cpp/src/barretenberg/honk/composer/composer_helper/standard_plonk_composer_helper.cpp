@@ -14,51 +14,6 @@
 namespace bonk {
 
 /**
- * Compute proving key base.
- *
- * 1. Load crs.
- * 2. Initialize this.circuit_proving_key.
- * 3. Create constraint selector polynomials from each of this composer's `selectors` vectors and add them to the
- * proving key.
- *
- * N.B. Need to add the fix for coefficients
- *
- * @param minimum_circuit_size Used as the total number of gates when larger than n + count of public inputs.
- * @param num_reserved_gates The number of reserved gates.
- * @return Pointer to the initialized proving key updated with selector polynomials.
- * */
-template <typename CircuitConstructor>
-std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_proving_key_base(
-    const CircuitConstructor& constructor, const size_t minimum_circuit_size, const size_t num_randomized_gates)
-{
-
-    // Initialize circuit_proving_key
-    // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(
-        constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, plonk::ComposerType::STANDARD);
-    // Compute lagrange selectors
-    construct_lagrange_selector_forms(constructor, circuit_proving_key.get());
-    // Compute selectors in monomial form
-    compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
-
-    return circuit_proving_key;
-}
-
-/**
- * @brief Computes the verification key by computing the:
- * (1) commitments to the selector, permutation, and lagrange (first/last) polynomials,
- * (2) sets the polynomial manifest using the data from proving key.
- */
-
-template <typename CircuitConstructor>
-std::shared_ptr<bonk::verification_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_verification_key_base(
-    std::shared_ptr<bonk::proving_key> const& proving_key, std::shared_ptr<bonk::VerifierReferenceString> const& vrs)
-{
-
-    return compute_verification_key_base_common(proving_key, vrs);
-}
-
-/**
  * Compute witness polynomials (w_1, w_2, w_3, w_4).
  *
  * @details Fills 3 or 4 witness polynomials w_1, w_2, w_3, w_4 with the values of in-circuit variables. The beginning
@@ -87,12 +42,16 @@ void StandardPlonkComposerHelper<CircuitConstructor>::compute_witness(const Circ
 }
 
 /**
- * Compute proving key.
- * Compute the polynomials q_l, q_r, etc. and sigma polynomial.
+ * Compute proving key
  *
- * @return Proving key with saved computed polynomials.
+ * 1. Load crs.
+ * 2. Initialize this.circuit_proving_key.
+ * 3. Create constraint selector polynomials from each of this composer's `selectors` vectors and add them to the
+ * proving key.
+ * 4. Compute sigma polynomial
+ *
+ * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
-
 template <typename CircuitConstructor>
 std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
@@ -100,8 +59,21 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    // Compute q_l, q_r, q_o, etc polynomials
-    StandardPlonkComposerHelper::compute_proving_key_base(circuit_constructor, plonk::ComposerType::STANDARD_HONK);
+    const size_t minimum_circuit_size = 0;
+    const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
+    // Initialize circuit_proving_key
+    // TODO(#229)(Kesha): replace composer types.
+    circuit_proving_key = initialize_proving_key(circuit_constructor,
+                                                 crs_factory_.get(),
+                                                 minimum_circuit_size,
+                                                 num_randomized_gates,
+                                                 plonk::ComposerType::STANDARD);
+    // Compute lagrange selectors
+    construct_lagrange_selector_forms(circuit_constructor, circuit_proving_key.get());
+    // Make all selectors nonzero
+    enforce_nonzero_polynomial_selectors(circuit_constructor, circuit_proving_key.get());
+    // Compute selectors in monomial form
+    compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 
     // Compute sigma polynomials (we should update that late)
     bonk::compute_standard_plonk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
@@ -130,8 +102,7 @@ std::shared_ptr<bonk::verification_key> StandardPlonkComposerHelper<CircuitConst
         compute_proving_key(circuit_constructor);
     }
 
-    circuit_verification_key = StandardPlonkComposerHelper::compute_verification_key_base(
-        circuit_proving_key, crs_factory_->get_verifier_crs());
+    circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->composer_type = circuit_proving_key->composer_type;
     circuit_verification_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());

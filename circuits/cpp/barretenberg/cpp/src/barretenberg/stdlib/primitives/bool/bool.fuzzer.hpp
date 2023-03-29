@@ -1,6 +1,7 @@
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
 // This is a global variable, so that the execution handling class could alter it and signal to the input tester that
 // the input should fail
 bool circuit_should_fail = false;
@@ -71,9 +72,7 @@ template <typename Composer> class BoolFuzzBase {
          * @param rng PRNG used
          * @return A random instruction
          */
-        template <typename T>
-        inline static Instruction generateRandom(T& rng)
-            requires SimpleRng<T>
+        template <typename T> inline static Instruction generateRandom(T& rng) requires SimpleRng<T>
         {
             // Choose which instruction we are going to generate
             OPCODE instruction_opcode = static_cast<OPCODE>(rng.next() % (OPCODE::_LAST));
@@ -130,8 +129,9 @@ template <typename Composer> class BoolFuzzBase {
          * @return Mutated instruction
          */
         template <typename T>
-        inline static Instruction mutateInstruction(Instruction instruction, T& rng, HavocSettings& havoc_config)
-            requires SimpleRng<T>
+        inline static Instruction mutateInstruction(Instruction instruction,
+                                                    T& rng,
+                                                    HavocSettings& havoc_config) requires SimpleRng<T>
         {
             (void)rng;
             (void)havoc_config;
@@ -840,3 +840,5 @@ extern "C" size_t LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
     RunWithComposers<BoolFuzzBase, FuzzerComposerTypes>(Data, Size, VarianceRNG);
     return 0;
 }
+
+#pragma clang diagnostic pop

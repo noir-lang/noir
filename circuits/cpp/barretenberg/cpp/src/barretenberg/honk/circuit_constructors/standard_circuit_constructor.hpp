@@ -11,7 +11,7 @@ inline std::vector<std::string> standard_selector_names()
     return result;
 }
 
-class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_HONK_WIDTH> {
+class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_WIDTH> {
   public:
     // TODO(#216)(Kesha): replace this with Honk enums after we have a verifier and no longer depend on plonk
     // prover/verifier

@@ -8,7 +8,6 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
-#include "barretenberg/proof_system/composer/composer_base.hpp"
 #include "composer_helper_lib.hpp"
 #include "permutation_helper.hpp"
 
@@ -78,18 +77,6 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
 
     plonk::Verifier create_verifier(const CircuitConstructor& circuit_constructor);
     plonk::Prover create_prover(const CircuitConstructor& circuit_constructor);
-
-    // TODO(#216)(Adrian): Seems error prone to provide the number of randomized gates
-    // Cody: Where should this go? In the flavor (or whatever that becomes)?
-    std::shared_ptr<bonk::proving_key> compute_proving_key_base(
-        const CircuitConstructor& circuit_constructor,
-        const size_t minimum_ciricut_size = 0,
-        const size_t num_randomized_gates = NUM_RANDOMIZED_GATES);
-    // This needs to be static as it may be used only to compute the selector commitments.
-
-    static std::shared_ptr<bonk::verification_key> compute_verification_key_base(
-        std::shared_ptr<bonk::proving_key> const& proving_key,
-        std::shared_ptr<bonk::VerifierReferenceString> const& vrs);
 
     void compute_witness(const CircuitConstructor& circuit_constructor, const size_t minimum_circuit_size = 0);
     /**
