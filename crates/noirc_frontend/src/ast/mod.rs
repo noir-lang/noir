@@ -25,8 +25,12 @@ use iter_extended::vecmap;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedType {
     FieldElement(CompTime),
-    Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(CompTime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
+
+    /// [Field; 4] = Array(4, Field)
+    /// The Span is for the array element, not the whole array
+    Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>, Span),
+
+    Integer(CompTime, Signedness, u32), // u32 = Integer(unsigned, 32)
     Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -70,7 +74,7 @@ impl std::fmt::Display for UnresolvedType {
         use UnresolvedType::*;
         match self {
             FieldElement(is_const) => write!(f, "{is_const}Field"),
-            Array(len, typ) => match len {
+            Array(len, typ, _) => match len {
                 None => write!(f, "[{typ}]"),
                 Some(len) => write!(f, "[{typ}; {len}]"),
             },

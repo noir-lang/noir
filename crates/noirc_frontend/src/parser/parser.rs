@@ -613,10 +613,12 @@ fn generic_type_args(
 
 fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     just(Token::LeftBracket)
-        .ignore_then(type_parser)
+        .ignore_then(type_parser.map_with_span(|typ, span| (typ, span)))
         .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
         .then_ignore(just(Token::RightBracket))
-        .map(|(element_type, size)| UnresolvedType::Array(size, Box::new(element_type)))
+        .map(|((element_type, element_span), size)| {
+            UnresolvedType::Array(size, Box::new(element_type), element_span)
+        })
 }
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {

@@ -323,9 +323,10 @@ impl<'a> Resolver<'a> {
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
-            UnresolvedType::Array(size, elem) => {
+            UnresolvedType::Array(size, elem, elem_span) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                let elem = self.resolve_type_inner(*elem, new_variables);
+                let elem = self.resolve_array_element_type(elem, elem_span);
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
@@ -347,6 +348,23 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
+        }
+    }
+
+    /// Verify the given type is valid as an array element.
+    /// Most notably, we currently do not support arrays holding tuple or struct elements,
+    /// only literals are supported. In case the element given is invalid, we default to an
+    /// array of the Error type to avoid issuing further errors.
+    ///
+    /// This function wont catch any instances of generic arrays [T; N] later being resolved to
+    /// have struct types for elements, it is meant as a good approximation before we start
+    /// supporting these.
+    fn resolve_array_element_type(&mut self, typ: Type, span: Span) -> Box<Type> {
+        if typ.valid_as_array_element() {
+            Box::new(typ)
+        } else {
+            self.push_err(ResolverError::InvalidArrayElementType { typ, span });
+            Box::new(Type::Error)
         }
     }
 

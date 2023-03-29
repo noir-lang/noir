@@ -591,6 +591,40 @@ impl Type {
             }
         }
     }
+
+    /// True if this type contains only a single value.
+    /// This is arbitrarily false for functions and true for type variables, as an approximation.
+    /// This function can be removed once we support structs and tuples as array elements.
+    pub(crate) fn valid_as_array_element(&self) -> bool {
+        match self {
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
+            | Type::Bool(_)
+            | Type::Error
+            | Type::Unit
+            | Type::PolymorphicInteger(_, _)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_, _) => true,
+
+            Type::Array(_, _)
+            | Type::String(_)
+            | Type::Constant(_)
+            | Type::Forall(_, _)
+            | Type::Function(_, _) => false,
+
+            Type::Struct(definition, args) => {
+                let def = definition.borrow();
+                if def.num_fields() == 1 {
+                    let fields = vecmap(def.get_fields(args), |(_, field)| field);
+                    assert_eq!(fields.len(), 1);
+                    fields[0].valid_as_array_element()
+                } else {
+                    false
+                }
+            }
+            Type::Tuple(fields) => fields.len() == 1 && fields[0].valid_as_array_element(),
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
