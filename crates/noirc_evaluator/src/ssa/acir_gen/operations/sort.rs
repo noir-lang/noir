@@ -45,7 +45,7 @@ pub(crate) fn evaluate_permutation_with_witness(
 // in_expr: inputs of the sorting network
 // if generate_witness is false, it uses the witness provided in bits instead of generating them
 // in both cases it returns the witness of the network configuration
-// if generate_witnes is true, bits is ignored
+// if generate_witness is true, bits is ignored
 fn permutation_layer(
     in_expr: &Vec<Expression>,
     bits: &[Witness],
@@ -93,7 +93,7 @@ fn permutation_layer(
     let (w1, b1) = permutation_layer(&in_sub1, bits1, generate_witness, evaluator);
     let bits2 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2 + w1.len()..] };
     let (w2, b2) = permutation_layer(&in_sub2, bits2, generate_witness, evaluator);
-    // apply the output swithces
+    // apply the output switches
     for i in 0..(n - 1) / 2 {
         let c = if generate_witness { evaluator.add_witness_to_cs() } else { bits[n1 + i] };
         conf.push(c);
