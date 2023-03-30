@@ -1,11 +1,11 @@
 cfg_if::cfg_if! {
     if #[cfg(feature = "plonk_bn254")] {
-        pub(crate) use aztec_backend::Plonk as ConcreteBackend;
+        pub use aztec_backend::Plonk as ConcreteBackend;
     } else if #[cfg(feature = "plonk_bn254_wasm")] {
-        pub(crate) use aztec_wasm_backend::Plonk as ConcreteBackend;
+        pub use aztec_wasm_backend::Plonk as ConcreteBackend;
     } else if #[cfg(feature = "marlin")] {
         // R1CS_MARLIN_ARKWORKS
-        pub(crate) use marlin_arkworks_backend::Marlin as ConcreteBackend;
+        pub use marlin_arkworks_backend::Marlin as ConcreteBackend;
     } else {
         compile_error!("please specify a backend to compile with");
     }
