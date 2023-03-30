@@ -146,12 +146,12 @@ WASM_EXPORT size_t base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
 //    return base_rollup_proof.proof_data.size();
 //}
 
-WASM_EXPORT size_t private_kernel__verify_proof(uint8_t const* vk_buf, uint8_t const* proof, uint32_t length)
-{
-    (void)vk_buf; // unused
-    (void)proof;  // unused
-    (void)length; // unused
-    return true;
-}
+// WASM_EXPORT size_t private_kernel__verify_proof(uint8_t const* vk_buf, uint8_t const* proof, uint32_t length)
+// {
+//     (void)vk_buf; // unused
+//     (void)proof;  // unused
+//     (void)length; // unused
+//     return true;
+// }
 
 } // extern "C"
