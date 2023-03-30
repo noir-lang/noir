@@ -526,6 +526,9 @@ fn cse_block_with_anchor(
                 match opcode {
                     // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
+                    builtin::Opcode::Rand => (),
+                    builtin::Opcode::Get2Notes => (),
+                    builtin::Opcode::GetNNotes => (),
                     _ => {
                         let args = args.iter().map(|arg| {
                             NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())

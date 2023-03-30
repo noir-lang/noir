@@ -17,6 +17,10 @@ pub(crate) enum Opcode {
     ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
+
+    Rand,
+    Get2Notes,
+    GetNNotes,
 }
 
 impl std::fmt::Display for Opcode {
@@ -37,6 +41,9 @@ impl Opcode {
             "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
             "to_le_radix" => Some(Opcode::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Opcode::ToRadix(Endian::Big)),
+            "rand" => Some(Opcode::Rand),
+            "get_2_notes" => Some(Opcode::Get2Notes),
+            "get_n_notes" => Some(Opcode::GetNNotes),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -64,6 +71,9 @@ impl Opcode {
             }
             Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
+            Opcode::Rand => "rand",
+            Opcode::Get2Notes => "get_2_notes",
+            Opcode::GetNNotes => "get_n_notes",
         }
     }
 
@@ -92,9 +102,13 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
-                BigUint::zero()
-            } //pointers do not overflow
+            Opcode::Rand => ObjectType::NativeField.max_size(),
+            Opcode::Get2Notes
+            | Opcode::GetNNotes
+            | Opcode::ToBits(_)
+            | Opcode::ToRadix(_)
+            | Opcode::Println(_)
+            | Opcode::Sort => BigUint::zero(), //pointers do not overflow
         }
     }
 
@@ -128,6 +142,9 @@ impl Opcode {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
+            Opcode::Rand => (1, ObjectType::NativeField),
+            Opcode::Get2Notes => (1, ObjectType::NotAnObject),
+            Opcode::GetNNotes => (1, ObjectType::NotAnObject),
         }
     }
 }

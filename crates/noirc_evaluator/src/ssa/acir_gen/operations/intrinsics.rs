@@ -16,7 +16,7 @@ use acvm::{
     acir::{
         circuit::{
             directives::{Directive, LogInfo},
-            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+            opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode, OracleData},
         },
         native_types::{Expression, Witness},
     },
@@ -130,6 +130,39 @@ pub(crate) fn evaluate(
             } else {
                 unreachable!();
             }
+        }
+        Opcode::Rand => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "rand".into(),
+                inputs: vec![],
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::Get2Notes => {
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "get_2_notes".into(),
+                inputs: vec![],
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::GetNNotes => {
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "get_n_notes".into(),
+                inputs: vec![],
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
         }
     }
 
