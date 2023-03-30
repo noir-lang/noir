@@ -5,6 +5,7 @@
 #include "private_circuit_public_inputs.hpp"
 #include "tx_request.hpp"
 #include "tx_context.hpp"
+#include "function_data.hpp"
 #include "function_leaf_preimage.hpp"
 #include "rollup/base/base_rollup_inputs.hpp"
 #include "rollup/base/base_rollup_public_inputs.hpp"
@@ -16,12 +17,14 @@
 #include <aztec3/constants.hpp>
 
 #include <aztec3/utils/types/native_types.hpp>
+#include <aztec3/utils/array.hpp>
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 #include <barretenberg/crypto/keccak/keccak.hpp>
 #include <barretenberg/common/serialize.hpp>
 
 namespace {
 
+using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
@@ -235,27 +238,30 @@ WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves
  * hash(function_signature_hash, args_hash, constructor_vk_hash)
  * Return the serialized results in the `output` buffer.
  *
- * @param func_sig_hash_buf function signature field but as a buffer of bytes
- * @param args_hash_buf constructor args hashed to a field but as a buffer of bytes
+ * @param function_data_buf function data struct but as a buffer of bytes
+ * @param args_buf constructor args (array of fields) but as a buffer of bytes
  * @param constructor_vk_hash_buf constructor vk hashed to a field but as a buffer of bytes
  * @param output buffer that will contain the output. The serialized constructor_vk_hash.
  */
-WASM_EXPORT void abis__hash_constructor(uint8_t const* func_sig_hash_buf,
-                                        uint8_t const* args_hash_buf,
+WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
+                                        uint8_t const* args_buf,
                                         uint8_t const* constructor_vk_hash_buf,
                                         uint8_t* output)
 {
-    NT::fr func_sig_hash;
-    NT::fr args_hash;
+    FunctionData<NT> function_data;
+    std::array<NT::fr, aztec3::ARGS_LENGTH> args;
     NT::fr constructor_vk_hash;
 
     using serialize::read;
-    read(func_sig_hash_buf, func_sig_hash);
-    read(args_hash_buf, args_hash);
+    read(function_data_buf, function_data);
+    read(args_buf, args);
     read(constructor_vk_hash_buf, constructor_vk_hash);
 
+    NT::fr function_data_hash = function_data.hash();
+    NT::fr args_hash = NT::compress(args, aztec3::CONSTRUCTOR_ARGS);
+
     std::vector<NT::fr> inputs = {
-        func_sig_hash,
+        function_data_hash,
         args_hash,
         constructor_vk_hash,
     };

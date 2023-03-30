@@ -63,6 +63,12 @@ template <typename Composer> struct CircuitTypes {
         return plonk::stdlib::pedersen_commitment<Composer>::compress(inputs, hash_index);
     }
 
+    template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
+    {
+        std::vector<fr> inputs_vec(std::begin(inputs), std::end(inputs));
+        return plonk::stdlib::pedersen_commitment<Composer>::compress(inputs_vec, hash_index);
+    }
+
     static fr compress(std::vector<fr> const& inputs,
                        std::vector<size_t> const& hash_sub_indices,
                        const size_t hash_index = 0)
@@ -86,6 +92,8 @@ template <typename Composer> struct CircuitTypes {
     };
 
     static byte_array blake2s(const byte_array& input) { return plonk::stdlib::blake2s(input); }
+
+    static byte_array blake3s(const byte_array& input) { return plonk::stdlib::blake3s(input); }
 };
 
 } // namespace aztec3::utils::types

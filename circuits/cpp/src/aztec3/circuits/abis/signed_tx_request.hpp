@@ -19,15 +19,16 @@ template <typename NCT> struct SignedTxRequest {
     TxRequest<NCT> tx_request;
     Signature signature;
 
-    template <typename Composer> SignedTxRequest<CircuitTypes<Composer>> to_circuit_type(Composer& /*composer*/) const
+    template <typename Composer> SignedTxRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         // auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
-        // auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
+        auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         SignedTxRequest<CircuitTypes<Composer>> signed_tx_request;
+        signed_tx_request.tx_request = to_circuit_type(tx_request);
         // TODO: to_ct(signature) is yielding an error.
         // = {
         //     to_circuit_type(tx_request),

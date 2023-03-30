@@ -79,6 +79,7 @@ template <typename Composer> class FunctionExecutionContext {
         , private_circuit_public_inputs(OptionalPrivateCircuitPublicInputs<CT>::create())
     {
         private_circuit_public_inputs.call_context = oracle.get_call_context();
+        private_circuit_public_inputs.contract_deployment_data = oracle.get_contract_deployment_data();
     }
 
     void register_contract(Contract<NT>* contract)

@@ -1,5 +1,6 @@
 #pragma once
 #include <aztec3/circuits/abis/call_context.hpp>
+#include <aztec3/circuits/abis/contract_deployment_data.hpp>
 #include <aztec3/oracle/oracle.hpp>
 
 #include <barretenberg/common/map.hpp>
@@ -12,6 +13,7 @@ namespace aztec3::circuits::apps {
 
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::CallContext;
+using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::oracle::NativeOracle;
 using aztec3::utils::types::CircuitTypes;
 
@@ -60,6 +62,15 @@ template <typename Composer> class OracleWrapperInterface {
         return *call_context;
     };
 
+    ContractDeploymentData<CT>& get_contract_deployment_data()
+    {
+        if (contract_deployment_data) {
+            return *contract_deployment_data;
+        }
+        contract_deployment_data = native_oracle.get_contract_deployment_data().to_circuit_type(composer);
+        return *contract_deployment_data;
+    };
+
     address& get_msg_sender() { return get_call_context().msg_sender; };
 
     address& get_this_contract_address() { return get_call_context().storage_contract_address; };
@@ -104,6 +115,7 @@ template <typename Composer> class OracleWrapperInterface {
 
   private:
     std::optional<CallContext<CT>> call_context;
+    std::optional<ContractDeploymentData<CT>> contract_deployment_data;
     std::optional<fr> msg_sender_private_key;
 
     void validate_msg_sender_private_key()

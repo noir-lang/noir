@@ -193,31 +193,38 @@ TEST(abi_tests, compute_function_tree_root)
 TEST(abi_tests, hash_constructor)
 {
     // Randomize required values
-    NT::fr func_sig_hash = NT::fr::random_element();
-    NT::fr args_hash = NT::fr::random_element();
+    FunctionData<NT> func_data =
+        FunctionData<NT>{ .function_selector = 10, .is_private = true, .is_constructor = false };
+
+    std::array<NT::fr, aztec3::ARGS_LENGTH> args;
+    for (size_t i = 0; i < aztec3::ARGS_LENGTH; i++) {
+        args[i] = fr::random_element();
+    }
     NT::fr constructor_vk_hash = NT::fr::random_element();
 
-    // Serialize values to buffers
-    std::array<uint8_t, sizeof(NT::fr)> func_sig_hash_buf = { 0 };
-    std::array<uint8_t, sizeof(NT::fr)> args_hash_buf = { 0 };
+    // Write the function data and args to a buffer
+    std::vector<uint8_t> func_data_buf;
+    write(func_data_buf, func_data);
+
+    std::vector<uint8_t> args_buf;
+    write(args_buf, args);
+
     std::array<uint8_t, sizeof(NT::fr)> constructor_vk_hash_buf = { 0 };
-    NT::fr::serialize_to_buffer(func_sig_hash, func_sig_hash_buf.data());
-    NT::fr::serialize_to_buffer(args_hash, args_hash_buf.data());
     NT::fr::serialize_to_buffer(constructor_vk_hash, constructor_vk_hash_buf.data());
 
     // create an output buffer for cbind hash results
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
 
     // Make the c_bind call to hash the constructor values
-    abis__hash_constructor(
-        func_sig_hash_buf.data(), args_hash_buf.data(), constructor_vk_hash_buf.data(), output.data());
+    abis__hash_constructor(func_data_buf.data(), args_buf.data(), constructor_vk_hash_buf.data(), output.data());
 
     // Convert buffer to `fr` for comparison to in-test calculated hash
     NT::fr got_hash = NT::fr::serialize_from_buffer(output.data());
 
     // Calculate the expected hash in-test
-    NT::fr expected_hash =
-        NT::compress({ func_sig_hash, args_hash, constructor_vk_hash }, aztec3::GeneratorIndex::CONSTRUCTOR);
+    NT::fr expected_hash = NT::compress(
+        { func_data.hash(), NT::compress(args, aztec3::GeneratorIndex::CONSTRUCTOR_ARGS), constructor_vk_hash },
+        aztec3::GeneratorIndex::CONSTRUCTOR);
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);

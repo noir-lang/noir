@@ -4,6 +4,7 @@
 
 #include <aztec3/circuits/abis/call_context.hpp>
 #include <aztec3/circuits/abis/function_data.hpp>
+#include <aztec3/circuits/abis/contract_deployment_data.hpp>
 
 #include <aztec3/circuits/apps/utxo_datum.hpp>
 
@@ -15,6 +16,7 @@
 namespace aztec3::oracle {
 
 using aztec3::circuits::abis::CallContext;
+using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionData;
 
 using aztec3::circuits::apps::UTXOSLoadDatum;
@@ -37,6 +39,20 @@ template <typename DB> class NativeOracleInterface {
         , actual_contract_address(actual_contract_address)
         , function_data(function_data)
         , call_context(call_context)
+        // , portal_contract_address(portal_contract_address)
+        , msg_sender_private_key(msg_sender_private_key){};
+
+    NativeOracleInterface(DB& db,
+                          NT::address const& actual_contract_address,
+                          FunctionData<NT> const& function_data,
+                          CallContext<NT> const& call_context,
+                          ContractDeploymentData<NT> const& contract_deployment_data,
+                          std::optional<NT::fr> const& msg_sender_private_key = std::nullopt)
+        : db(db)
+        , actual_contract_address(actual_contract_address)
+        , function_data(function_data)
+        , call_context(call_context)
+        , contract_deployment_data(contract_deployment_data)
         // , portal_contract_address(portal_contract_address)
         , msg_sender_private_key(msg_sender_private_key){};
 
@@ -74,6 +90,15 @@ template <typename DB> class NativeOracleInterface {
         return call_context;
     };
 
+    ContractDeploymentData<NT> get_contract_deployment_data()
+    {
+        if (contract_deployment_data_already_got) {
+            throw_or_abort("contract_deployment_data: " + already_got_error);
+        }
+        contract_deployment_data_already_got = true;
+        return contract_deployment_data;
+    };
+
     template <typename NotePreimage>
     UTXOSLoadDatum<NT, NotePreimage> get_utxo_sload_datum(NT::grumpkin_point const storage_slot_point,
                                                           NotePreimage const advice)
@@ -109,6 +134,7 @@ template <typename DB> class NativeOracleInterface {
     FunctionData<NT> function_data;
 
     CallContext<NT> call_context;
+    ContractDeploymentData<NT> contract_deployment_data;
     // NT::fr portal_contract_address;
     std::optional<NT::fr> msg_sender_private_key;
 
@@ -116,6 +142,7 @@ template <typename DB> class NativeOracleInterface {
     bool actual_contract_address_already_got = false;
     bool function_data_already_got = false;
     bool call_context_already_got = false;
+    bool contract_deployment_data_already_got = false;
     // bool portal_contract_address_already_got = false;
     bool msg_sender_private_key_already_got = false;
     std::string already_got_error = "Your circuit has already accessed this value. Don't ask the oracle twice, since "

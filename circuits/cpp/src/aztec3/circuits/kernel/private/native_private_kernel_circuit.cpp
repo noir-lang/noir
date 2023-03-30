@@ -2,18 +2,20 @@
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
+#include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
 
 #include <aztec3/utils/array.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
+using aztec3::circuits::abis::private_kernel::NewContractData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 
 using aztec3::utils::array_length;
 using aztec3::utils::array_pop;
+using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
-// using aztec3::utils::array_push;
 using aztec3::utils::push_array_to_array;
 
 // // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
@@ -71,6 +73,57 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
+    const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
+    const auto& deployer_address = private_call_public_inputs.call_context.msg_sender;
+    const auto& contract_deployment_data =
+        private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
+
+    { // contracts
+        // input storage contract address must be 0 if its a constructor call and non-zero otherwise
+        auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
+
+        if (is_contract_deployment) {
+            ASSERT(storage_contract_address == 0);
+        } else {
+            ASSERT(storage_contract_address != 0);
+        }
+
+        auto private_call_vk_hash =
+            stdlib::recursion::verification_key<CT::bn254>::compress_native(private_inputs.private_call.vk);
+        auto constructor_hash =
+            NT::compress({ private_inputs.signed_tx_request.tx_request.function_data.hash(),
+                           NT::compress<ARGS_LENGTH>(private_call_public_inputs.args, CONSTRUCTOR_ARGS),
+                           private_call_vk_hash },
+                         CONSTRUCTOR);
+
+        if (is_contract_deployment) {
+            ASSERT(contract_deployment_data.constructor_vk_hash == private_call_vk_hash);
+        }
+
+        // compute the contract address
+        auto contract_address = NT::compress({ deployer_address.to_field(),
+                                               contract_deployment_data.contract_address_salt,
+                                               contract_deployment_data.function_tree_root,
+                                               constructor_hash },
+                                             CONTRACT_ADDRESS);
+
+        // compute contract address nullifier
+        auto blake_input = contract_address.to_buffer();
+        auto contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
+
+        // push the contract address nullifier to nullifier vector
+        if (is_contract_deployment) {
+            array_push(public_inputs.end.new_nullifiers, contract_address_nullifier);
+        }
+
+        // Add new contract data if its a contract deployment function
+        auto native_new_contract_data = NewContractData<NT>{ contract_address,
+                                                             portal_contract_address,
+                                                             contract_deployment_data.function_tree_root };
+
+        array_push<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
+                                                                     native_new_contract_data);
+    }
 
     { // commitments & nullifiers
         std::array<NT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;

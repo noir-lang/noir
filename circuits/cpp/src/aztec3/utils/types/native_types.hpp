@@ -13,6 +13,7 @@
 #include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 #include <barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp>
+#include <barretenberg/crypto/blake3s/blake3s.hpp>
 
 namespace aztec3::utils::types {
 
@@ -63,6 +64,12 @@ struct NativeTypes {
         return crypto::pedersen_commitment::compress_native(inputs, hash_index);
     }
 
+    template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
+    {
+        std::vector<fr> inputs_vec(std::begin(inputs), std::end(inputs));
+        return crypto::pedersen_commitment::compress_native(inputs_vec, hash_index);
+    }
+
     static fr compress(const std::vector<std::pair<fr, crypto::generators::generator_index_t>>& input_pairs)
     {
         return crypto::pedersen_commitment::compress_native(input_pairs);
@@ -77,6 +84,10 @@ struct NativeTypes {
     {
         return crypto::pedersen_commitment::commit_native(input_pairs);
     }
+
+    static byte_array blake2s(const byte_array& input) { return blake2::blake2s(input); }
+
+    static byte_array blake3s(const byte_array& input) { return blake3::blake3s(input); }
 };
 
 } // namespace aztec3::utils::types
