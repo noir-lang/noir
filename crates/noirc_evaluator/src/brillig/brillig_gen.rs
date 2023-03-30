@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::mem::Memory;
-use crate::ssa::node::{
-    self, Binary, BinaryOp, Instruction, NodeId, NodeObject, ObjectType, Operation,
-};
+use crate::ssa::node::{Binary, BinaryOp, Instruction, NodeId, NodeObject, ObjectType, Operation};
 use acvm::acir::brillig_bytecode;
 use acvm::FieldElement;
 
@@ -274,7 +272,7 @@ impl BrilligGen {
             op: brillig_bytecode::BinaryOp::Sub,
             result,
         }),
-        BinaryOp::SafeSub { max_rhs_value } => todo!(),
+        BinaryOp::SafeSub { .. } => todo!(),
         BinaryOp::Mul => self.byte_code.push(BrilligOpcode::BinaryOp {
             lhs,
             rhs,
@@ -317,14 +315,14 @@ impl BrilligGen {
             self.byte_code.push(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
         ), lhs, rhs, result});
         }, //a==b => is_zero()
-        BinaryOp::Ne => 
+        BinaryOp::Ne =>
      {
         self.byte_code.push(BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Eq
         ), lhs, rhs, result});
         self.byte_code.push(
             BrilligOpcode::BinaryOp { result_type: BrilligType::Unsigned { bit_size: 1 }, op: brillig_bytecode::BinaryOp::Sub, lhs: RegisterMemIndex::Constant(FieldElement::one())
             , rhs: RegisterMemIndex::Register(result), result}
-        );      
+        );
      }
            // comparison
         BinaryOp::Ule |//<= = >= , <
@@ -342,7 +340,7 @@ impl BrilligGen {
         BinaryOp::Slt |
         BinaryOp::Lt => todo!(), // a<b <=> ! b<=a 
         BinaryOp::And => todo!(),       //bitwise 
-        BinaryOp::Or => todo!(),        
+        BinaryOp::Or => todo!(),
         BinaryOp::Xor => todo!(),
         BinaryOp::Shl => {
             todo!(); //ssa remove it during overflow.. can't we simplify as well?

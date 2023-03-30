@@ -283,24 +283,19 @@ impl IrGenerator {
                 let mut returned_values = Vec::new();
                 let types = ssa_func.result_types.clone();
                 for (i, typ) in types.iter().enumerate() {
-                    let obj = node::Variable::new(
-                        *typ,
-                        "ret{i}".to_string(),
-                        None,
-                        self.context.current_block,
-                    );
+                    let name = format!("ret{i}");
+                    let obj = node::Variable::new(*typ, name, None, self.context.current_block);
                     let var = self.context.add_variable(obj, None);
                     returned_values.push(var);
                 }
                 let unsafe_call = Operation::UnsafeCall {
                     func,
-                    arguments: arguments,
+                    arguments,
                     returned_values: returned_values.clone(),
                     predicate: None,
                     location,
                 };
-                let call_instruction =
-                    self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
+                self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
                 return Ok(returned_values);
             }
             RuntimeType::Acvm => (),

@@ -8,7 +8,7 @@ use crate::{
         node::{Instruction, Operation},
     },
 };
-use acvm::acir::brillig_bytecode::{Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig_bytecode::Opcode as BrilligOpcode;
 use acvm::acir::circuit::opcodes::{Brillig, Opcode as AcirOpcode};
 use acvm::acir::native_types::{Expression, Witness};
 mod operations;
@@ -106,8 +106,17 @@ impl Acir {
             Operation::Store { .. } => {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
-            Operation::UnsafeCall { func, arguments, returned_values, predicate, location } => {
-                unsafe_call(func, arguments, returned_values, acir_mem, var_cache, evaluator, ctx)?
+            Operation::UnsafeCall { func, arguments, returned_values, predicate, .. } => {
+                unsafe_call(
+                    func,
+                    arguments,
+                    returned_values,
+                    predicate,
+                    acir_mem,
+                    var_cache,
+                    evaluator,
+                    ctx,
+                )?
             }
             Operation::Nop => None,
             i @ Operation::Jne(..)
@@ -143,6 +152,7 @@ pub(crate) fn unsafe_call(
     func: &NodeId,
     arguments: &Vec<NodeId>,
     returns: &Vec<NodeId>,
+    predicate: NodeId,
     acir_mem: &mut AcirMem,
     var_cache: &mut InternalVarCache,
     evaluator: &mut Evaluator,

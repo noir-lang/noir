@@ -1,4 +1,3 @@
-use crate::brillig::brillig_gen::BrilligGen;
 use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::{
     acir_gen::Acir,
