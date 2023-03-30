@@ -79,12 +79,20 @@ describe('e2e_deploy_contract', () => {
     const deployer = new ContractDeployer(abi, aztecRpcServer);
 
     {
-      const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
+      const tx = deployer.deploy().send({ contractAddressSalt });
+      const isMined = await tx.isMined();
+      expect(isMined).toBe(true);
+
+      const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       expect(receipt.error).toBe('');
     }
 
     {
+      const tx = deployer.deploy().send({ contractAddressSalt });
+      const isMined = await tx.isMined();
+      expect(isMined).toBe(false);
+
       const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
       expect(receipt.status).toBe(TxStatus.DROPPED);
       expect(receipt.error).not.toBe('');

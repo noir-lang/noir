@@ -1,4 +1,3 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation';
 
 export class Signature {
@@ -9,15 +8,6 @@ export class Signature {
   }
 
   constructor(public readonly buffer: Buffer) {}
-}
-
-export function generateContractAddress(
-  deployerAddress: AztecAddress,
-  salt: Fr,
-  args: Fr[],
-  // functionLeaves: Fr[],
-) {
-  return AztecAddress.random();
 }
 
 export function selectorToNumber(selector: Buffer) {

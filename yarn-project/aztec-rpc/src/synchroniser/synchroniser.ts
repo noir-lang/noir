@@ -1,7 +1,6 @@
 import { AztecNode } from '@aztec/aztec-node';
 import {
   AztecAddress,
-  EthAddress,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
@@ -11,7 +10,6 @@ import { L2Block } from '@aztec/l2-block';
 import { TxHash } from '@aztec/tx';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
-import { ContractAbi } from '../noir.js';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;
@@ -74,10 +72,6 @@ export class Synchroniser {
 
   public getAccounts() {
     return [...this.accountStates];
-  }
-
-  public async addPendingContractAbi(contractAddress: AztecAddress, portalContract: EthAddress, abi: ContractAbi) {
-    await this.db.addContract(contractAddress, portalContract, abi);
   }
 
   public async getTxByHash(txHash: TxHash): Promise<TxDao> {

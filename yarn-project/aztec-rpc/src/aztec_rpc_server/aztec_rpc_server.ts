@@ -11,21 +11,21 @@ import {
   TxRequest,
   UInt8Vector,
 } from '@aztec/circuits.js';
+import { hashVK } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
-import { hashVK, computeFunctionLeaf, computeFunctionTreeRoot } from '@aztec/circuits.js/abis';
 import { createDebugLogger, Fr } from '@aztec/foundation';
 import { KernelProver } from '@aztec/kernel-prover';
 import { Tx, TxHash } from '@aztec/tx';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
-import { generateContractAddress, selectorToNumber, Signature } from '../circuits.js';
+import { selectorToNumber, Signature } from '../circuits.js';
+import { ContractTree } from '../contract_tree/index.js';
 import { Database } from '../database/database.js';
 import { TxDao } from '../database/tx_dao.js';
-import { TxReceipt, TxStatus } from '../tx/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { ContractAbi, FunctionType } from '../noir.js';
 import { Synchroniser } from '../synchroniser/index.js';
-import { keccak256 } from '../foundation.js';
+import { TxReceipt, TxStatus } from '../tx/index.js';
 
 /**
  * Implements a remote Aztec RPC client provider.
@@ -59,7 +59,8 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   public async addContracts(contracts: DeployedContract[]) {
-    await Promise.all(contracts.map(c => this.db.addContract(c.address, c.portalAddress, c.abi)));
+    const trees = contracts.map(c => ContractTree.fromAddress(c.address, c.abi, c.portalAddress, this.circuitsWasm));
+    await Promise.all(trees.map(t => this.db.addContract(t.contract)));
   }
 
   public getAccounts() {
@@ -96,6 +97,23 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('Missing verification key for the constructor.');
     }
 
+    const txRequestArgs = args.concat(
+      Array(ARGS_LENGTH - args.length)
+        .fill(0)
+        .map(() => new Fr(0n)),
+    );
+
+    const fromAddress = from.equals(AztecAddress.ZERO) ? (await this.keyStore.getAccounts())[0] : from;
+    const contractTree = ContractTree.new(
+      abi,
+      txRequestArgs,
+      portalContract,
+      contractAddressSalt,
+      fromAddress,
+      this.circuitsWasm,
+    );
+    const contract = contractTree.contract;
+
     const functionData = new FunctionData(
       selectorToNumber(generateFunctionSelector(constructorAbi.name, constructorAbi.parameters)),
       true,
@@ -108,26 +126,18 @@ export class AztecRPCServer implements AztecRPCClient {
 
     const contractDeploymentData = new ContractDeploymentData(
       constructorVkHash,
-      this.generateFunctionTreeRoot(abi),
+      contractTree.getFunctionTreeRoot(),
       contractAddressSalt,
       portalContract,
     );
+
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
-    const fromAddress = from.equals(AztecAddress.ZERO) ? (await this.keyStore.getAccounts())[0] : from;
-
-    const contractAddress = generateContractAddress(fromAddress, contractAddressSalt, args);
-    await this.db.addContract(contractAddress, portalContract, abi);
-
-    const txRequestArgs = args.concat(
-      Array(ARGS_LENGTH - args.length)
-        .fill(0)
-        .map(() => new Fr(0n)),
-    );
+    await this.db.addContract(contract);
 
     return new TxRequest(
       fromAddress,
-      contractAddress,
+      contract.address,
       functionData,
       txRequestArgs,
       Fr.random(), // nonce
@@ -176,19 +186,8 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   public async createTx(txRequest: TxRequest, signature: Signature) {
-    let contractAddress;
-
-    if (txRequest.to.equals(AztecAddress.ZERO)) {
-      contractAddress = generateContractAddress(
-        txRequest.from,
-        txRequest.txContext.contractDeploymentData.contractAddressSalt,
-        txRequest.args,
-      );
-    } else {
-      contractAddress = txRequest.to;
-    }
-
-    const contract = await this.db.getContract(contractAddress);
+    const contractAddress = txRequest.to;
+    const contract = await this.db.getContract(txRequest.to);
 
     if (!contract) {
       throw new Error('Unknown contract.');
@@ -282,19 +281,5 @@ export class AztecRPCServer implements AztecRPCClient {
       ...partialReceipt,
       status: TxStatus.DROPPED,
     };
-  }
-
-  private generateFunctionTreeRoot(abi: ContractAbi) {
-    const leaves = abi.functions
-      .filter(f => f.functionType !== FunctionType.UNCONSTRAINED)
-      .map(f => {
-        const selector = generateFunctionSelector(f.name, f.parameters);
-        const isPrivate = Buffer.from([f.functionType === FunctionType.SECRET ? 1 : 0]);
-        // All non-unconstrained functions have vks
-        const vkHash = hashVK(this.circuitsWasm, Buffer.from(f.verificationKey!, 'hex'));
-        const acirHash = keccak256(Buffer.from(f.bytecode, 'hex'));
-        return computeFunctionLeaf(this.circuitsWasm, Buffer.concat([selector, isPrivate, vkHash, acirHash]));
-      });
-    return Fr.fromBuffer(computeFunctionTreeRoot(this.circuitsWasm, leaves));
   }
 }
