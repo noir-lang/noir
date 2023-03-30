@@ -13,6 +13,6 @@
 
 namespace aztec3::circuits::rollup::native_root_rollup {
 
-RootRollupPublicInputs root_rollup_circuit(RootRollupInputs rootRollupInputs);
+RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInputs);
 
 } // namespace aztec3::circuits::rollup::native_root_rollup

@@ -14,6 +14,9 @@ namespace aztec3::circuits::abis {
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
+// TODO: The copy constructor for this struct may throw memory access out of bounds
+// Hit when running aztec3-packages/yarn-project/circuits.js/src/rollup/rollup_wasm_wrapper.test.ts."calls
+// root_rollup__sim"
 template <typename NCT> struct RootRollupInputs {
     typedef typename NCT::fr fr;
 

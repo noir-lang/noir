@@ -32,7 +32,7 @@ bool verify_merge_proof(NT::Proof merge_proof)
     return true;
 }
 
-AggregationObject aggregate_proofs(RootRollupInputs rootRollupInputs)
+AggregationObject aggregate_proofs(RootRollupInputs const& rootRollupInputs)
 {
     // TODO: NOTE: for now we simply return the aggregation object from the first proof
     return rootRollupInputs.previous_rollup_data[0].base_rollup_public_inputs.end_aggregation_object;
@@ -44,7 +44,9 @@ bool is_constants_equal(ConstantRollupData left, ConstantRollupData right)
 }
 
 template <size_t N>
-NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath)
+NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
+                                             NT::uint32 leafIndex,
+                                             std::array<NT::fr, N> const& siblingPath)
 {
     for (size_t i = 0; i < siblingPath.size(); i++) {
         if (leafIndex & (1 << i)) {
@@ -57,7 +59,7 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf, NT::uint32 leafIndex, 
 }
 
 template <size_t N>
-void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath, NT::fr root)
+void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> const& siblingPath, NT::fr root)
 {
     auto calculatedRoot = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
     if (calculatedRoot != root) {
@@ -65,7 +67,7 @@ void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> s
     }
 }
 
-std::array<fr, 2> compute_calldata_hash(RootRollupInputs rootRollupInputs)
+std::array<fr, 2> compute_calldata_hash(RootRollupInputs const& rootRollupInputs)
 {
 
     // Compute the calldata hash
@@ -103,8 +105,8 @@ std::array<fr, 2> compute_calldata_hash(RootRollupInputs rootRollupInputs)
 }
 
 template <size_t N>
-AppendOnlySnapshot insert_at_empty_in_snapshot_tree(AppendOnlySnapshot old_snapshot,
-                                                    std::array<NT::fr, N> siblingPath,
+AppendOnlySnapshot insert_at_empty_in_snapshot_tree(AppendOnlySnapshot const& old_snapshot,
+                                                    std::array<NT::fr, N> const& siblingPath,
                                                     NT::fr subtreeRootToInsert)
 {
     // check that the value is zero at the path (unused)
@@ -121,7 +123,7 @@ AppendOnlySnapshot insert_at_empty_in_snapshot_tree(AppendOnlySnapshot old_snaps
 //   - BaseRollupPublicInputs - where we want to put our return values
 //
 // TODO: replace auto
-RootRollupPublicInputs root_rollup_circuit(RootRollupInputs rootRollupInputs)
+RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInputs)
 {
     // TODO: Check the historic trees as well
     // old -> leftmost
@@ -169,6 +171,7 @@ RootRollupPublicInputs root_rollup_circuit(RootRollupInputs rootRollupInputs)
         .end_tree_of_historic_contract_tree_roots_snapshot = end_tree_of_historic_contract_tree_roots_snapshot,
         .calldata_hash = compute_calldata_hash(rootRollupInputs),
     };
+
     return public_inputs;
 }
 
