@@ -6,7 +6,11 @@ import { serializeToBuffer } from '../utils/serialize.js';
  * @see abis/function_data.hpp
  */
 export class FunctionData {
-  constructor(public functionSelector: number, public isPrivate = true, public isConstructor = true) {}
+  constructor(public functionSelector: Buffer, public isPrivate = true, public isConstructor = true) {
+    if (functionSelector.byteLength !== 4) {
+      throw new Error(`Function selector must be 4 bytes long, got ${functionSelector.byteLength} bytes.`);
+    }
+  }
   /**
    * Serialize this as a buffer.
    * @returns The buffer.

@@ -36,7 +36,7 @@ describe('ACIR simulator', () => {
     const txRequest = new TxRequest(
       AztecAddress.ZERO,
       AztecAddress.ZERO,
-      new FunctionData(0, true, true),
+      new FunctionData(Buffer.alloc(4), true, true),
       new Array(ARGS_LENGTH).fill(new Fr(0n)),
       Fr.random(),
       txContext,

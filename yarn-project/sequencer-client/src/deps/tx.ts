@@ -61,7 +61,7 @@ function makeEmptyConstantData(): ConstantData {
 function makeEmptyOptionallyRevealedData(): OptionallyRevealedData {
   return new OptionallyRevealedData(
     frZero(),
-    new FunctionData(0, true, true),
+    new FunctionData(Buffer.alloc(4), true, true),
     times(EMITTED_EVENTS_LENGTH, frZero),
     frZero(),
     makeEmptyEthAddress(),

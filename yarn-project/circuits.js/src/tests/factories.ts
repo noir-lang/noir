@@ -77,6 +77,12 @@ export function makeConstantData(seed = 1): ConstantData {
   return new ConstantData(makeOldTreeRoots(seed), makeTxContext(seed + 4));
 }
 
+export function makeSelector(seed: number) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32BE(seed, 0);
+  return buffer;
+}
+
 export function makeAccumulatedData(seed = 1): AccumulatedData {
   return new AccumulatedData(
     makeAggregationObject(seed),
@@ -98,7 +104,7 @@ export function makeNewContractData(seed = 1): NewContractData {
 export function makeOptionallyRevealedData(seed = 1): OptionallyRevealedData {
   return new OptionallyRevealedData(
     fr(seed),
-    new FunctionData(seed + 1, true, true),
+    new FunctionData(makeSelector(seed + 1), true, true),
     range(EMITTED_EVENTS_LENGTH, seed + 0x100).map(x => fr(x)),
     fr(seed + 2),
     makeEthAddress(seed + 3),
@@ -168,7 +174,7 @@ export function makeTxRequest(seed = 1): TxRequest {
   return TxRequest.from({
     from: makeAztecAddress(seed),
     to: makeAztecAddress(seed + 0x10),
-    functionData: new FunctionData(seed + 0x100, true, true),
+    functionData: new FunctionData(makeSelector(seed + 0x100), true, true),
     args: range(ARGS_LENGTH, seed + 0x200).map(x => fr(x)),
     nonce: fr(seed + 0x300),
     txContext: makeTxContext(seed + 0x400),
@@ -191,7 +197,7 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
 export function makeCallStackItem(seed = 1): PrivateCallStackItem {
   return new PrivateCallStackItem(
     makeAztecAddress(seed),
-    new FunctionData(seed + 0x1, true, true),
+    new FunctionData(makeSelector(seed + 0x1), true, true),
     makePrivateCircuitPublicInputs(seed + 0x10),
   );
 }

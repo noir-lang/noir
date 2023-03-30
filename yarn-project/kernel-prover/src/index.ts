@@ -68,9 +68,12 @@ export class KernelProver {
       false,
     );
     const createOptionallyRevealedData = () => {
+      const selector = Buffer.alloc(4);
+      selector.writeUInt32BE(1, 0);
+
       const optionallyRevealedData = new OptionallyRevealedData(
         createRandomFields(1)[0],
-        new FunctionData(1, true, true),
+        new FunctionData(selector, true, true),
         createRandomFields(EMITTED_EVENTS_LENGTH),
         createRandomFields(1)[0],
         new EthAddress(randomBytes(20)),

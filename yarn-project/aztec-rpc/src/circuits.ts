@@ -9,7 +9,3 @@ export class Signature {
 
   constructor(public readonly buffer: Buffer) {}
 }
-
-export function selectorToNumber(selector: Buffer) {
-  return selector.readUInt32BE();
-}

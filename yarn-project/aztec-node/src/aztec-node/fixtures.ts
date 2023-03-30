@@ -71,7 +71,7 @@ export const createRandomUnverifiedData = (numPreimages: number) => {
 };
 
 export const createOptionallyRetrievedData = () => {
-  const func = new FunctionData(0, true, true);
+  const func = new FunctionData(Buffer.alloc(4), true, true);
   return new OptionallyRevealedData(
     new Fr(0n),
     func,

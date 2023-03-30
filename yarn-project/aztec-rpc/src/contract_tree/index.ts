@@ -8,7 +8,6 @@ import {
 } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
 import { AztecAddress, EthAddress, Fr, keccak } from '@aztec/foundation';
-import { selectorToNumber } from '../circuits.js';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
@@ -57,7 +56,7 @@ export class ContractTree {
     const constructorSelector = generateFunctionSelector(constructorFunc.name, constructorFunc.parameters);
     const constructorHash = hashConstructor(
       wasm,
-      new FunctionData(selectorToNumber(constructorSelector)),
+      new FunctionData(constructorSelector),
       args,
       Buffer.from(constructorFunc.verificationKey!, 'hex'),
     );

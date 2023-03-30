@@ -16,7 +16,7 @@ export interface DBOracle {
 export class PrivateCallStackItem {
   constructor(
     public readonly contractAddress: AztecAddress,
-    public readonly functionSelector: number,
+    public readonly functionSelector: Buffer,
     public readonly publicInputs: PrivateCircuitPublicInputs,
   ) {}
 }

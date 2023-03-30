@@ -48,7 +48,7 @@ describe('abis wasm bindings', () => {
   });
 
   it('hash constructor info', () => {
-    const functionData = new FunctionData(0, true, true);
+    const functionData = new FunctionData(Buffer.alloc(4), true, true);
     const args = [new Fr(0n), new Fr(1n)];
     const vkHash = Buffer.alloc(32);
     const res = hashConstructor(wasm, functionData, args, vkHash);
