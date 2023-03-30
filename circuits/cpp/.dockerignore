@@ -12,7 +12,5 @@ barretenberg/cpp/src/wasi-sdk*
 barretenberg/cpp/src/aztec/rollup/proofs/root_*/fixtures/account
 barretenberg/cpp/src/aztec/rollup/proofs/root_*/fixtures/join_split
 barretenberg/cpp/src/aztec/rollup/proofs/root_*/fixtures/**/proving_key
-barretenberg/cpp/srs_db/ignition/transcript*
-barretenberg/cpp/srs_db/lagrange
-barretenberg/cpp/srs_db/coset_lagrange
-barretenberg/cpp/srs_db/modified_lagrange
+barretenberg/cpp/srs_db/*
+!barretenberg/cpp/srs_db/download_ignition.sh
