@@ -316,6 +316,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
 {
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
+    static const size_t program_width = StandardHonkComposer::program_width;
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
     uint32_t a_idx = composer.add_public_variable(a);
@@ -348,8 +349,9 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
     };
 
     constexpr size_t num_polynomials = honk::StandardArithmetization::NUM_POLYNOMIALS;
-    // Compute grand product polynomial (now all the necessary polynomials are inside the proving key)
-    polynomial z_perm_poly = prover.compute_grand_product_polynomial(beta, gamma);
+    // Compute grand product polynomial
+    polynomial z_perm_poly = prover_library::compute_permutation_grand_product<program_width>(
+        prover.key, prover.wire_polynomials, beta, gamma);
 
     // Create an array of spans to the underlying polynomials to more easily
     // get the transposition.
