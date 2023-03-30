@@ -807,7 +807,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = ret_type.clone();
         let name = lambda_name.to_owned();
 
-        let function = ast::Function { id, name, parameters, body, return_type };
+        let unconstrained = false;
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
 
         ast::Expression::Ident(ast::Ident {
