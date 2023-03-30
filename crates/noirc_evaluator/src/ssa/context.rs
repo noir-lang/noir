@@ -888,7 +888,7 @@ impl SsaContext {
                 };
                 return self.new_instruction(op_a, self.mem[a].element_type);
             } else {
-                unreachable!("Index expression must be for an array");
+                unreachable!("Index expression must be for an array, found {lhs_type:?} instead");
             }
         } else if matches!(lhs_type, ObjectType::Pointer(_)) {
             if let Some(Instruction {

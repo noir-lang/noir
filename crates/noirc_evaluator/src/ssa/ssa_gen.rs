@@ -249,8 +249,7 @@ impl IrGenerator {
                 self.find_variable(Self::lvalue_ident_def(array.as_ref())).unwrap()
             }
             LValue::MemberAccess { object, field_index, .. } => {
-                let ident_def = Self::lvalue_ident_def(object.as_ref());
-                let val = self.find_variable(ident_def).unwrap();
+                let val = self.lvalue_to_value(object);
                 val.get_field_member(*field_index)
             }
         }

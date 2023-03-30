@@ -512,6 +512,9 @@ impl<'interner> TypeChecker<'interner> {
         use crate::BinaryOpKind::{Equal, NotEqual};
         use Type::*;
         match (lhs_type, rhs_type)  {
+            // Avoid reporting errors multiple times
+            (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
+
             // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
             // bindings.
             (PolymorphicInteger(comptime, int), other)
@@ -571,9 +574,6 @@ impl<'interner> TypeChecker<'interner> {
                 let comptime = comptime_x.and(comptime_y, op.location.span);
                 Ok(Bool(comptime))
             }
-
-            // Avoid reporting errors multiple times
-            (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
 
             // Special-case == and != for arrays
             (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
@@ -728,6 +728,8 @@ impl<'interner> TypeChecker<'interner> {
 
         use Type::*;
         match (lhs_type, rhs_type)  {
+            (Error, _) | (_,Error) => Ok(Error),
+
             // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
             // bindings.
             (PolymorphicInteger(comptime, int), other)
@@ -794,7 +796,6 @@ impl<'interner> TypeChecker<'interner> {
             (Tuple(_), _) | (_, Tuple(_)) => Err(make_error("Tuples cannot be used in an infix operation".to_string())),
 
             // An error type on either side will always return an error
-            (Error, _) | (_,Error) => Ok(Error),
             (Unit, _) | (_,Unit) => Ok(Unit),
 
             // The result of two Fields is always a witness

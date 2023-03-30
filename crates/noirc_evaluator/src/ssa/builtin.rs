@@ -19,6 +19,7 @@ pub(crate) enum Opcode {
     Sort,
 
     Rand,
+    NotifyCreatedNote,
     Get2Notes,
     GetNNotes,
 }
@@ -44,6 +45,7 @@ impl Opcode {
             "rand" => Some(Opcode::Rand),
             "get_2_notes" => Some(Opcode::Get2Notes),
             "get_n_notes" => Some(Opcode::GetNNotes),
+            "notify_created_note" => Some(Opcode::NotifyCreatedNote),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -74,6 +76,7 @@ impl Opcode {
             Opcode::Rand => "rand",
             Opcode::Get2Notes => "get_2_notes",
             Opcode::GetNNotes => "get_n_notes",
+            Opcode::NotifyCreatedNote => "notify_created_note",
         }
     }
 
@@ -108,6 +111,7 @@ impl Opcode {
             | Opcode::ToBits(_)
             | Opcode::ToRadix(_)
             | Opcode::Println(_)
+            | Opcode::NotifyCreatedNote
             | Opcode::Sort => BigUint::zero(), //pointers do not overflow
         }
     }
@@ -145,6 +149,7 @@ impl Opcode {
             Opcode::Rand => (1, ObjectType::NativeField),
             Opcode::Get2Notes => (26, ObjectType::NativeField),
             Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),
+            Opcode::NotifyCreatedNote => (0, ObjectType::NotAnObject),
         }
     }
 }
