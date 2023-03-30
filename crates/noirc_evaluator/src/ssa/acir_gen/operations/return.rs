@@ -1,4 +1,4 @@
-use acvm::acir::native_types::Witness;
+use acvm::acir::native_types::{Expression, Witness};
 use noirc_abi::MAIN_RETURN_NAME;
 
 use crate::{
@@ -50,7 +50,7 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            witnesses.push(witness);
+            witnesses.push(evaluator.create_intermediate_variable(Expression::from(witness)));
         }
         evaluator.public_inputs.extend(witnesses.clone());
         evaluator
