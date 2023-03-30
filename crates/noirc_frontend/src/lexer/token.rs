@@ -326,6 +326,7 @@ pub enum Attribute {
     Builtin(String),
     Alternative(String),
     Test,
+    Oracle(String),
 }
 
 impl fmt::Display for Attribute {
@@ -335,6 +336,7 @@ impl fmt::Display for Attribute {
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Alternative(ref k) => write!(f, "#[alternative({k})]"),
             Attribute::Test => write!(f, "#[test]"),
+            Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
         }
     }
 }
@@ -366,6 +368,7 @@ impl Attribute {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
             "alternative" => Token::Attribute(Attribute::Alternative(attribute_name.to_string())),
+            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
@@ -403,6 +406,7 @@ impl AsRef<str> for Attribute {
             Attribute::Builtin(string) => string,
             Attribute::Alternative(string) => string,
             Attribute::Test => "",
+            Attribute::Oracle(string) => string,
         }
     }
 }

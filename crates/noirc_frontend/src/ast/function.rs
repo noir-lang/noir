@@ -16,13 +16,14 @@ pub struct NoirFunction {
 
 /// Currently, we support three types of functions:
 /// - Normal functions
-/// - LowLevel/Foreign which link to an OPCODE in ACIR
+/// - LowLevel/Foreign/Oracle which link to an OPCODE in ACIR
 /// - BuiltIn which are provided by the runtime
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     LowLevel,
     Builtin,
     Normal,
+    Oracle,
 }
 
 impl NoirFunction {
@@ -34,6 +35,10 @@ impl NoirFunction {
     }
     pub fn low_level(def: FunctionDefinition) -> NoirFunction {
         NoirFunction { kind: FunctionKind::LowLevel, def }
+    }
+
+    pub fn oracle(def: FunctionDefinition) -> NoirFunction {
+        NoirFunction { kind: FunctionKind::Oracle, def }
     }
 
     pub fn return_type(&self) -> UnresolvedType {
@@ -78,6 +83,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(Attribute::Alternative(_)) => FunctionKind::Normal,
             Some(Attribute::Test) => FunctionKind::Normal,
+            Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
             None => FunctionKind::Normal,
         };
 

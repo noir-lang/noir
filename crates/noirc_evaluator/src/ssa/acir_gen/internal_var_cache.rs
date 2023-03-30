@@ -38,7 +38,6 @@ impl InternalVarCache {
         if let Some(internal_var) = self.inner.get(&id) {
             return Some(internal_var.clone());
         }
-
         let mut var = match ctx.try_get_node(id)? {
             NodeObject::Const(c) => {
                 // use the InternalVar from constants if exists

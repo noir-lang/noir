@@ -185,6 +185,7 @@ impl IrGenerator {
 
         // ensure return types are defined in case of recursion call cycle
         let function = &mut self.program[func_id];
+        let function_type = Self::from_type(&function.return_type).clone();
         func.kind = match (oracle_name, function.unconstrained) {
             (Some(name), _) => RuntimeType::Oracle(name),
             (None, true) => RuntimeType::Unsafe,
@@ -208,46 +209,75 @@ impl IrGenerator {
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
-        let return_values = try_vecmap(return_values, |mut return_id| {
-            let node_opt = self.context.try_get_node(return_id);
-            let typ = node_opt.map_or(ObjectType::NotAnObject, |node| node.get_type());
-
-            if let Some(ins) = self.context.try_get_instruction(return_id) {
-                if ins.operation.opcode() == Opcode::Results {
-                    // n.b. this required for result instructions, but won't hurt if done for all i
-                    let new_var = node::Variable {
-                        id: NodeId::dummy(),
-                        obj_type: typ,
-                        name: format!("return_{}", return_id.0.into_raw_parts().0),
-                        root: None,
-                        def: None,
-                        witness: None,
-                        parent_block: self.context.current_block,
-                    };
-                    let b_id = self.context.add_variable(new_var, None);
-                    let b_id1 = self.context.handle_assign(b_id, None, return_id, None)?;
-                    return_id = ssa_form::get_current_value(&mut self.context, b_id1);
-                }
-            }
-            func.result_types.push(typ);
-            Ok::<NodeId, RuntimeError>(return_id)
-        })?;
-
-        self.context.new_instruction(
-            node::Operation::Return(return_values),
-            node::ObjectType::NotAnObject,
-        )?;
-        if func.kind == RuntimeType::Unsafe {
-            func.brillig_code = func.unsafe_compile(&mut self.context);
+        if matches!(func.kind, RuntimeType::Oracle(_)) {
+            func.result_types = vec![function_type];
         } else {
-            let decision = func.compile(self)?; //unroll the function
-            func.decision = decision;
+            let return_values = try_vecmap(return_values, |mut return_id| {
+                let node_opt = self.context.try_get_node(return_id);
+                let typ = node_opt.map_or(ObjectType::NotAnObject, |node| node.get_type());
+    
+                if let Some(ins) = self.context.try_get_instruction(return_id) {
+                    if ins.operation.opcode() == Opcode::Results {
+                        // n.b. this required for result instructions, but won't hurt if done for all i
+                        let new_var = node::Variable {
+                            id: NodeId::dummy(),
+                            obj_type: typ,
+                            name: format!("return_{}", return_id.0.into_raw_parts().0),
+                            root: None,
+                            def: None,
+                            witness: None,
+                            parent_block: self.context.current_block,
+                        };
+                        let b_id = self.context.add_variable(new_var, None);
+                        let b_id1 = self.context.handle_assign(b_id, None, return_id, None)?;
+                        return_id = ssa_form::get_current_value(&mut self.context, b_id1);
+                    }
+                }
+                func.result_types.push(typ);
+                Ok::<NodeId, RuntimeError>(return_id)
+            })?;
+    
+            self.context.new_instruction(
+                node::Operation::Return(return_values),
+                node::ObjectType::NotAnObject,
+            )?;
+        }
+        
+        match func.kind {
+            RuntimeType::Unsafe => {
+                func.brillig_code = func.unsafe_compile(&mut self.context);    
+            }
+            RuntimeType::Oracle(_) => {
+
+            }
+            RuntimeType::Acvm => {
+                let decision = func.compile(self)?; //unroll the function
+                func.decision = decision;
+            }
         }
         self.context.functions.insert(func_id, func);
         self.context.current_block = current_block;
         self.function_context = current_function;
 
         Ok(ObjectType::Function)
+    }
+
+    fn from_type(typ: &Type) -> ObjectType {
+        match typ {
+            Type::Field => ObjectType::NativeField,
+            Type::Array(_, _) => todo!(),
+            Type::Integer(sign, size) => {
+                match sign {
+                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*size),
+                    noirc_frontend::Signedness::Signed => ObjectType::Signed(*size),
+                }
+            },
+            Type::Bool => ObjectType::Boolean,
+            Type::String(_) => todo!(),
+            Type::Unit => ObjectType::NotAnObject,
+            Type::Tuple(_) => todo!(),
+            Type::Function(_, _) => todo!(),
+        }
     }
 
     fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {

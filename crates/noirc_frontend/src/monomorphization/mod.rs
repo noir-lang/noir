@@ -20,7 +20,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
-    CompTime, FunctionKind, TypeBinding, TypeBindings,
+    CompTime, FunctionKind, TypeBinding, TypeBindings, token::Attribute,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -149,6 +149,16 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Normal => {
                         let id = self.queue_function(id, expr_id, typ);
                         Definition::Function(id)
+                    }
+
+                    FunctionKind::Oracle => {
+                        let attr =
+                            meta.attributes.expect("Oracle function must have an oracle attribute");
+                        let id = self.queue_function(id, expr_id, typ);
+                        match attr {
+                            Attribute::Oracle(name) => Definition::Oracle(name, id),
+                            _ => unreachable!("Oracle function must have an oracle attribute"),
+                        }
                     }
                 }
             }

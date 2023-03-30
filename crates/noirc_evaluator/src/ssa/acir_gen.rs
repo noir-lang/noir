@@ -1,4 +1,5 @@
 use crate::Evaluator;
+use crate::ssa::function::RuntimeType;
 use crate::{
     errors::RuntimeError,
     ssa::{
@@ -148,6 +149,7 @@ impl Acir {
 pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator) -> Witness {
     expr.to_witness().unwrap_or_else(|| evaluator.create_intermediate_variable(expr))
 }
+
 pub(crate) fn unsafe_call(
     func: &NodeId,
     arguments: &Vec<NodeId>,
@@ -159,6 +161,9 @@ pub(crate) fn unsafe_call(
     ctx: &SsaContext,
 ) -> Result<Option<InternalVar>, RuntimeError> {
     let f = ctx.try_get_ssa_func(*func).unwrap();
+    if matches!(f.kind, RuntimeType::Oracle(_)) {
+        unimplemented!("Oracle functions can, for now, only be called from unsafe function");
+    }
 
     let mut inputs = Vec::with_capacity(arguments.len());
     let mut register_load = Vec::with_capacity(arguments.len());
@@ -181,8 +186,10 @@ pub(crate) fn unsafe_call(
 
     let mut code = f.brillig_code.clone();
     code.push(BrilligOpcode::Bootstrap { register_allocation_indices: register_load });
-    let brillig_opcde = AcirOpcode::Brillig(Brillig { inputs, outputs, bytecode: code });
-    evaluator.push_opcode(brillig_opcde);
+    if predicate != Some(ctx.zero()) {
+        let brillig_opcde = AcirOpcode::Brillig(Brillig { inputs, outputs, bytecode: code });
+        evaluator.push_opcode(brillig_opcde);
+    }
 
     Ok(None)
 }

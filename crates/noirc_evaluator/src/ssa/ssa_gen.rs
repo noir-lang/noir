@@ -24,6 +24,8 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
+use super::node::Instruction;
+
 pub(crate) struct IrGenerator {
     pub(crate) context: SsaContext,
     pub(crate) function_context: Option<FuncIndex>,
@@ -195,6 +197,14 @@ impl IrGenerator {
                     let function_node_id = self.context.get_or_create_opcode_node_id(opcode);
                     Ok(Value::Node(function_node_id))
                 }
+                Definition::Oracle(name, func_id) => {
+                    let id = *func_id;
+                    if !self.context.function_already_compiled(id) {
+                        let index = self.context.get_function_index();
+                        self.create_function(id, index, Some(name.to_string()))?;
+                    }
+                    Ok(Value::Node(self.context.get_function_node_id(id).unwrap()))
+                }
             }
         }
     }
@@ -365,14 +375,22 @@ impl IrGenerator {
         let definition = Definition::Local(id);
         match value {
             Value::Node(node_id) => {
-                let object_type = self.context.object_type(node_id);
-                let value = self.bind_variable(
-                    name.to_owned(),
-                    Some(definition.clone()),
-                    object_type,
-                    node_id,
-                )?;
-                self.variable_values.insert(definition, value);
+                // if let Some(Instruction {
+                //     operation: Operation::UnsafeCall { func, arguments, returned_values, predicate, location },
+                //     ..
+                // }) = self.context.try_get_instruction(node_id) {
+                //     let value = Value::Tuple(returned_values.iter().map(|x| Value::Node(*x)).collect());
+                //     self.variable_values.insert(definition, value);
+                // } else {
+                    let object_type = self.context.object_type(node_id);
+                    let value = self.bind_variable(
+                        name.to_owned(),
+                        Some(definition.clone()),
+                        object_type,
+                        node_id,
+                    )?;
+                    self.variable_values.insert(definition, value);
+                //}
             }
             value @ Value::Tuple(_) => {
                 let value = self.bind_fresh_pattern(name, value)?;
@@ -486,7 +504,23 @@ impl IrGenerator {
                 Ok(Value::Tuple(fields))
             }
             (Value::Node(_), Value::Tuple(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
-            (Value::Tuple(_), Value::Node(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
+            (Value::Tuple(_), Value::Node(rhs_id)) => {
+                unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type");
+                // if let Some(Instruction {
+                //     id,
+                //     operation: Operation::UnsafeCall { func, arguments, returned_values, predicate, location },
+                //     res_type,
+                //     parent_block,
+                //     res_name,
+                //     mark,
+                // }) = self.context.try_get_instruction(rhs_id) {
+                //     todo!();
+                // } else {
+                //     unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type");
+                // }
+            }
+            
+            
         }
     }
 

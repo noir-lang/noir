@@ -5,7 +5,7 @@ mod builtin;
 mod conditional;
 pub(crate) mod context;
 mod flatten;
-mod function;
+pub(crate) mod function;
 mod inline;
 mod integer;
 pub(crate) mod mem;
