@@ -11,6 +11,8 @@ import {
   TxRequest,
   UInt8Vector,
 } from '@aztec/circuits.js';
+import { CircuitsWasm } from '@aztec/circuits.js/wasm';
+import { hashVK, computeFunctionLeaf, computeFunctionTreeRoot } from '@aztec/circuits.js/abis';
 import { createDebugLogger, Fr } from '@aztec/foundation';
 import { KernelProver } from '@aztec/kernel-prover';
 import { Tx, TxHash } from '@aztec/tx';
@@ -23,6 +25,7 @@ import { TxReceipt, TxStatus } from '../tx/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { ContractAbi, FunctionType } from '../noir.js';
 import { Synchroniser } from '../synchroniser/index.js';
+import { keccak256 } from '../foundation.js';
 
 /**
  * Implements a remote Aztec RPC client provider.
@@ -30,12 +33,14 @@ import { Synchroniser } from '../synchroniser/index.js';
  */
 export class AztecRPCServer implements AztecRPCClient {
   private synchroniser: Synchroniser;
+
   constructor(
     private keyStore: KeyStore,
     private acirSimulator: AcirSimulator,
     private kernelProver: KernelProver,
     private node: AztecNode,
     private db: Database,
+    private circuitsWasm: CircuitsWasm,
     private log = createDebugLogger('aztec:rpc_server'),
   ) {
     this.synchroniser = new Synchroniser(node, db);
@@ -86,17 +91,23 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('Cannot find constructor in the ABI.');
     }
 
+    if (!constructorAbi.verificationKey) {
+      throw new Error('Missing verification key for the constructor.');
+    }
+
     const functionData = new FunctionData(
       selectorToNumber(generateFunctionSelector(constructorAbi.name, constructorAbi.parameters)),
       true,
       true,
     );
 
-    const constructorVkHash = Fr.ZERO;
-    const functionTreeRoot = Fr.ZERO;
+    const constructorVkHash = Fr.fromBuffer(
+      hashVK(this.circuitsWasm, Buffer.from(constructorAbi.verificationKey, 'hex')),
+    );
+
     const contractDeploymentData = new ContractDeploymentData(
       constructorVkHash,
-      functionTreeRoot,
+      this.generateFunctionTreeRoot(abi),
       contractAddressSalt,
       portalContract,
     );
@@ -270,5 +281,19 @@ export class AztecRPCServer implements AztecRPCClient {
       ...partialReceipt,
       status: TxStatus.DROPPED,
     };
+  }
+
+  private generateFunctionTreeRoot(abi: ContractAbi) {
+    const leaves = abi.functions
+      .filter(f => f.functionType !== FunctionType.UNCONSTRAINED)
+      .map(f => {
+        const selector = generateFunctionSelector(f.name, f.parameters);
+        const isPrivate = Buffer.from([f.functionType === FunctionType.SECRET ? 1 : 0]);
+        // All non-unconstrained functions have vks
+        const vkHash = hashVK(this.circuitsWasm, Buffer.from(f.verificationKey!, 'hex'));
+        const acirHash = keccak256(Buffer.from(f.bytecode, 'hex'));
+        return computeFunctionLeaf(this.circuitsWasm, Buffer.concat([selector, isPrivate, vkHash, acirHash]));
+      });
+    return Fr.fromBuffer(computeFunctionTreeRoot(this.circuitsWasm, leaves));
   }
 }

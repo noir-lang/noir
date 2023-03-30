@@ -4,8 +4,10 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
+    "./abis": "./dest/abis/index.js",
     "./factories": "./dest/tests/factories.js",
-    "./utils": "./dest/utils/index.js"
+    "./utils": "./dest/utils/index.js",
+    "./wasm": "./dest/wasm/index.js"
   },
   "typedoc": {
     "entryPoint": "./src/index.ts",

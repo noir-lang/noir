@@ -119,7 +119,7 @@ export type Bufferable =
     }
   | Bufferable[];
 
-function isSerializableToBuffer32(obj: Object): obj is { toBuffer32: () => Buffer } {
+function isSerializableToBuffer32(obj: object): obj is { toBuffer32: () => Buffer } {
   return !!(obj as { toBuffer32: () => Buffer }).toBuffer32;
 }
 

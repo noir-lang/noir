@@ -8,6 +8,7 @@ WORKDIR /usr/src/yarn-project/end-to-end
 RUN yarn build && yarn formatting
 # (4) copy bb.js wasm binaries
 RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/barretenberg.js/dest/wasm/barretenberg.wasm
+RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/circuits.js/dest/wasm/aztec3-circuits.wasm
 
 # (5) Prune dev dependencies. See comment in base image.
 RUN yarn cache clean

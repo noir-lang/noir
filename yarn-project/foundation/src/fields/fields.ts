@@ -9,9 +9,9 @@ export class Fr {
   static SIZE_IN_BYTES = 32;
 
   constructor(public readonly value: bigint) {
-    if (value > Fr.MAX_VALUE) {
-      throw new Error(`Fr out of range ${value}.`);
-    }
+    // if (value > Fr.MAX_VALUE) {
+    //   throw new Error(`Fr out of range ${value}.`);
+    // }
   }
 
   static random() {
