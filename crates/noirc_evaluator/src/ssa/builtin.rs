@@ -143,8 +143,8 @@ impl Opcode {
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
             Opcode::Rand => (1, ObjectType::NativeField),
-            Opcode::Get2Notes => (1, ObjectType::NotAnObject),
-            Opcode::GetNNotes => (1, ObjectType::NotAnObject),
+            Opcode::Get2Notes => (26, ObjectType::NativeField),
+            Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),
         }
     }
 }

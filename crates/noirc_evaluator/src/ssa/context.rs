@@ -995,7 +995,7 @@ impl SsaContext {
                 self.new_instruction_inline(op_a, l_type, stack_frame);
             }
         } else {
-            unreachable!("invalid type, expected arrays");
+            unreachable!("invalid type, expected arrays, {l_type:?}, {r_type:?}");
         }
     }
 
