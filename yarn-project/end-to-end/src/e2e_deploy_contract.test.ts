@@ -75,16 +75,17 @@ describe('e2e_deploy_contract', () => {
    * Milestone 1.2
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
    */
-  it.skip('should not deploy a contract with the same salt twice', async () => {
+  it('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(abi, aztecRpcServer);
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });
       const isMined = await tx.isMined();
-      expect(isMined).toBe(true);
 
+      expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
+
       expect(receipt.status).toBe(TxStatus.MINED);
       expect(receipt.error).toBe('');
     }
@@ -93,10 +94,10 @@ describe('e2e_deploy_contract', () => {
       const tx = deployer.deploy().send({ contractAddressSalt });
       const isMined = await tx.isMined();
       expect(isMined).toBe(false);
+      const receipt = await tx.getReceipt();
 
-      const receipt = await deployer.deploy().send({ contractAddressSalt }).getReceipt();
       expect(receipt.status).toBe(TxStatus.DROPPED);
-      expect(receipt.error).not.toBe('');
+      expect(receipt.error).toBe('Tx dropped by P2P node');
     }
-  });
+  }, 30_000);
 });

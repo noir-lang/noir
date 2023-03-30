@@ -63,7 +63,7 @@ export class Sequencer {
     // eslint-disable-next-line @typescript-eslint/await-thenable
     for (const nullifier of tx.data.end.newNullifiers) {
       // TODO(AD): this is an exhaustive search currently
-      if (await this.worldState.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) {
+      if ((await this.worldState.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) !== undefined) {
         // Our nullifier tree has this nullifier already - this transaction is a double spend / not well-formed
         return true;
       }

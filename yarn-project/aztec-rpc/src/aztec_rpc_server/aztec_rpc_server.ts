@@ -280,6 +280,7 @@ export class AztecRPCServer implements AztecRPCClient {
     return {
       ...partialReceipt,
       status: TxStatus.DROPPED,
+      error: 'Tx dropped by P2P node',
     };
   }
 }
