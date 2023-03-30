@@ -251,7 +251,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
   public getL2ContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     for (const block of this.l2Blocks) {
       for (const contractData of block.newContractData) {
-        if (contractData.aztecAddress === contractAddress) {
+        if (contractData.aztecAddress.equals(contractAddress)) {
           return Promise.resolve(contractData);
         }
       }
@@ -281,7 +281,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns The number of the latest L2 block processed by the block source implementation.
    */
-  public getLatestBlockNum(): Promise<number> {
+  public getBlockHeight(): Promise<number> {
     if (this.l2Blocks.length === 0) return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
     return Promise.resolve(this.l2Blocks[this.l2Blocks.length - 1].number);
   }
