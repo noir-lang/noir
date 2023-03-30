@@ -44,4 +44,8 @@ export class AztecAddress {
   equals(rhs: AztecAddress) {
     return this.buffer.equals(rhs.buffer);
   }
+
+  isZero() {
+    return this.equals(AztecAddress.ZERO);
+  }
 }

@@ -66,6 +66,7 @@ export class CircuitsWasm {
           const m = wasm.getMemory();
           const str2 = `${str} (mem: ${(m.length / (1024 * 1024)).toFixed(2)}MB)`;
           wasm.getLogger()(str2);
+          console.log(str2);
         },
         /**
          * Read the data associated with the key located at keyAddr.

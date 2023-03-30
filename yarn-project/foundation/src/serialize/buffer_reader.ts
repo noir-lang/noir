@@ -68,4 +68,24 @@ export class BufferReader {
   public peekBytes(n?: number): Buffer {
     return this.buffer.subarray(this.index, n ? this.index + n : undefined);
   }
+
+  public readString(): string {
+    return this.readBuffer().toString();
+  }
+
+  public readBuffer(): Buffer {
+    const size = this.readNumber();
+    return this.readBytes(size);
+  }
+
+  public readMap<T>(deserializer: { fromBuffer: (reader: BufferReader) => T }): { [key: string]: T } {
+    const numEntries = this.readNumber();
+    const map: { [key: string]: T } = {};
+    for (let i = 0; i < numEntries; i++) {
+      const key = this.readString();
+      const value = this.readObject<T>(deserializer);
+      map[key] = value;
+    }
+    return map;
+  }
 }

@@ -104,7 +104,8 @@
     "charconv": "cpp",
     "span": "cpp",
     "*.inc": "cpp",
-    "*.macros": "cpp"
+    "*.macros": "cpp",
+    "*.tpp": "cpp"
   },
   "solidity.compileUsingRemoteVersion": "v0.6.10+commit.00c0fcaf",
   "search.exclude": {

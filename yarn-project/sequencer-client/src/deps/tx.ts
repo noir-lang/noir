@@ -1,10 +1,10 @@
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
+import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   AccumulatedData,
-  AffineElement,
   AggregationObject,
   AztecAddress,
+  CircuitsWasm,
   ConstantData,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
@@ -45,15 +45,6 @@ function makeEmptyNewContractData(): NewContractData {
   return new NewContractData(AztecAddress.ZERO, makeEmptyEthAddress(), frZero());
 }
 
-function makeEmptyAggregationObject(): AggregationObject {
-  return new AggregationObject(
-    new AffineElement(fqZero(), fqZero()),
-    new AffineElement(fqZero(), fqZero()),
-    times(4, frZero),
-    times(6, () => 0),
-  );
-}
-
 function makeEmptyTxContext(): TxContext {
   const deploymentData = new ContractDeploymentData(frZero(), frZero(), frZero(), makeEmptyEthAddress());
   return new TxContext(false, false, true, deploymentData);
@@ -83,7 +74,7 @@ function makeEmptyOptionallyRevealedData(): OptionallyRevealedData {
 
 function makeEmptyAccumulatedData(): AccumulatedData {
   return new AccumulatedData(
-    makeEmptyAggregationObject(),
+    AggregationObject.makeFake(),
     frZero(),
     times(KERNEL_NEW_COMMITMENTS_LENGTH, frZero),
     times(KERNEL_NEW_NULLIFIERS_LENGTH, frZero),
@@ -112,9 +103,13 @@ export function makeEmptyTx(): Tx {
   return new Tx(makeEmptyPrivateKernelPublicInputs(), makeEmptyProof(), makeEmptyUnverifiedData(), isEmpty);
 }
 
-export function hashNewContractData(wasm: BarretenbergWasm, cd: NewContractData) {
-  return pedersenCompressInputs(
-    wasm,
-    [cd.contractAddress, cd.portalContractAddress, cd.functionTreeRoot].map(x => x.toBuffer()),
-  );
+export function hashNewContractData(wasm: CircuitsWasm | BarretenbergWasm, cd: NewContractData) {
+  if (cd.contractAddress.isZero() && cd.portalContractAddress.isZero() && cd.functionTreeRoot.isZero()) {
+    return Buffer.alloc(32, 0);
+  }
+  return pedersenCompressInputs(wasm as BarretenbergWasm, [
+    cd.contractAddress.toBuffer(),
+    cd.portalContractAddress.toBuffer32(),
+    cd.functionTreeRoot.toBuffer(),
+  ]);
 }

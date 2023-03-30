@@ -1,5 +1,4 @@
 import { VerificationKey } from '@aztec/circuits.js';
-import { makeVerificationKey } from '@aztec/circuits.js/factories';
 
 /**
  * Well-known verification keys
@@ -16,13 +15,12 @@ export interface VerificationKeys {
 }
 
 /**
- * Returns verification keys for each well known circuit.
- * TODO: Actually fetch real values.
+ * Returns mock verification keys for each well known circuit.
  * @returns a VerificationKeys object.
  */
 export function getVerificationKeys(): VerificationKeys {
   return {
-    kernelCircuit: makeVerificationKey(),
-    baseRollupCircuit: makeVerificationKey(),
+    kernelCircuit: VerificationKey.makeFake(),
+    baseRollupCircuit: VerificationKey.makeFake(),
   };
 }

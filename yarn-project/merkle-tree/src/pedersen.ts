@@ -1,4 +1,9 @@
-import { pedersenCompress, pedersenGetHash, pedersenGetHashTree } from '@aztec/barretenberg.js/crypto';
+import {
+  pedersenCompress,
+  pedersenCompressInputs,
+  pedersenGetHash,
+  pedersenGetHashTree,
+} from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 
 import { Hasher } from './hasher.js';
@@ -8,6 +13,9 @@ export class Pedersen implements Hasher {
 
   public compress(lhs: Uint8Array, rhs: Uint8Array): Buffer {
     return pedersenCompress(this.wasm, lhs, rhs);
+  }
+  public compressInputs(inputs: Buffer[]): Buffer {
+    return pedersenCompressInputs(this.wasm, inputs);
   }
   public hashToField(data: Uint8Array): Buffer {
     return pedersenGetHash(this.wasm, Buffer.from(data));

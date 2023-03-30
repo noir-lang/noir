@@ -44,6 +44,10 @@ export class Fr {
   equals(rhs: Fr) {
     return this.value === rhs.value;
   }
+
+  isZero() {
+    return this.value === 0n;
+  }
 }
 
 export class Fq {
@@ -73,5 +77,9 @@ export class Fq {
 
   toString() {
     return '0x' + this.value.toString(16);
+  }
+
+  isZero() {
+    return this.value === 0n;
   }
 }

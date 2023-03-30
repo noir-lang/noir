@@ -94,7 +94,7 @@ export class BaseRollupInputs {
   constructor(
     public kernelData: [PreviousKernelData, PreviousKernelData],
 
-    public startPrivateDateTreeSnapshot: AppendOnlyTreeSnapshot,
+    public startPrivateDataTreeSnapshot: AppendOnlyTreeSnapshot,
     public startNullifierTreeSnapshot: AppendOnlyTreeSnapshot,
     public startContractTreeSnapshot: AppendOnlyTreeSnapshot,
 
@@ -142,7 +142,7 @@ export class BaseRollupInputs {
   static getFields(fields: FieldsOf<BaseRollupInputs>) {
     return [
       fields.kernelData,
-      fields.startPrivateDateTreeSnapshot,
+      fields.startPrivateDataTreeSnapshot,
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.lowNullifierLeafPreimages,

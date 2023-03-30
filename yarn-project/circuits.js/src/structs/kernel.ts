@@ -19,7 +19,7 @@ import { PrivateCallStackItem } from './private_call_stack_item.js';
 import { AggregationObject, MembershipWitness, UInt32, UInt8Vector } from './shared.js';
 import { SignedTxRequest, TxContext } from './tx.js';
 import { VerificationKey } from './verification_key.js';
-import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
+import { AztecAddress, EthAddress, Fr, BufferReader } from '@aztec/foundation';
 
 export class OldTreeRoots {
   constructor(
@@ -37,6 +37,15 @@ export class OldTreeRoots {
       this.privateKernelVkTreeRoot,
     );
   }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): OldTreeRoots {
+    const reader = BufferReader.asReader(buffer);
+    return new OldTreeRoots(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
+  }
 }
 
 export class ConstantData {
@@ -44,6 +53,15 @@ export class ConstantData {
 
   toBuffer() {
     return serializeToBuffer(this.oldTreeRoots, this.txContext);
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): ConstantData {
+    const reader = BufferReader.asReader(buffer);
+    return new ConstantData(reader.readObject(OldTreeRoots), reader.readObject(TxContext));
   }
 }
 
@@ -57,6 +75,15 @@ export class NewContractData {
 
   toBuffer() {
     return serializeToBuffer(this.contractAddress, this.portalContractAddress, this.functionTreeRoot);
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): NewContractData {
+    const reader = BufferReader.asReader(buffer);
+    return new NewContractData(reader.readObject(AztecAddress), new EthAddress(reader.readBytes(32)), reader.readFr());
   }
 }
 
@@ -86,6 +113,25 @@ export class OptionallyRevealedData {
       this.payFeeFromPublicL2,
       this.calledFromL1,
       this.calledFromPublicL2,
+    );
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): OptionallyRevealedData {
+    const reader = BufferReader.asReader(buffer);
+    return new OptionallyRevealedData(
+      reader.readFr(),
+      reader.readObject(FunctionData),
+      reader.readArray(EMITTED_EVENTS_LENGTH, Fr),
+      reader.readFr(),
+      new EthAddress(reader.readBytes(32)),
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readBoolean(),
     );
   }
 }
@@ -129,6 +175,25 @@ export class AccumulatedData {
       this.optionallyRevealedData,
     );
   }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): AccumulatedData {
+    const reader = BufferReader.asReader(buffer);
+    return new AccumulatedData(
+      reader.readObject(AggregationObject),
+      reader.readFr(),
+      reader.readArray(KERNEL_NEW_COMMITMENTS_LENGTH, Fr),
+      reader.readArray(KERNEL_NEW_NULLIFIERS_LENGTH, Fr),
+      reader.readArray(KERNEL_PRIVATE_CALL_STACK_LENGTH, Fr),
+      reader.readArray(KERNEL_PUBLIC_CALL_STACK_LENGTH, Fr),
+      reader.readArray(KERNEL_L1_MSG_STACK_LENGTH, Fr),
+      reader.readArray(KERNEL_NEW_CONTRACTS_LENGTH, NewContractData),
+      reader.readArray(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, OptionallyRevealedData),
+    );
+  }
 }
 
 export class PrivateKernelPublicInputs {
@@ -136,6 +201,15 @@ export class PrivateKernelPublicInputs {
 
   toBuffer() {
     return serializeToBuffer(this.end, this.constants, this.isPrivateKernel);
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelPublicInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new PrivateKernelPublicInputs(reader.readObject(AccumulatedData), reader.readObject(ConstantData), true);
   }
 }
 
@@ -156,6 +230,21 @@ export class PreviousKernelData {
    */
   toBuffer() {
     return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): PreviousKernelData {
+    const reader = BufferReader.asReader(buffer);
+    return new PreviousKernelData(
+      reader.readObject(PrivateKernelPublicInputs),
+      reader.readObject(UInt8Vector),
+      reader.readObject(VerificationKey),
+      reader.readNumber(),
+      reader.readArray(VK_TREE_HEIGHT, Fr),
+    );
   }
 }
 

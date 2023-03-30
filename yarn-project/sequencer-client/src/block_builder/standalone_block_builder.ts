@@ -17,7 +17,7 @@ const mapContractData = (n: NewContractData) => {
   return contractData;
 };
 
-export class BlockBuilder {
+export class StandaloneBlockBuilder {
   private dataTreeLeaves: Buffer[] = [];
   private nullifierTreeLeaves: Buffer[] = [];
   private contractTreeLeaves: Buffer[] = [];

@@ -27,11 +27,20 @@ export interface LeafData {
   nextValue: bigint;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const encodeTreeValue = (leafData: LeafData) => {
   const valueAsBuffer = toBufferBE(leafData.value, 32);
   const indexAsBuffer = toBufferBE(leafData.nextIndex, 32);
   const nextValueAsBuffer = toBufferBE(leafData.nextValue, 32);
   return Buffer.concat([valueAsBuffer, indexAsBuffer, nextValueAsBuffer]);
+};
+
+// TODO: Check which version of hash we need to match the cpp implementation
+const hashEncodedTreeValue = (leaf: LeafData, hasher: Hasher) => {
+  return hasher.hashToField(
+    Buffer.concat([leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32))),
+  );
+  return hasher.compressInputs([leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32)));
 };
 
 const decodeTreeValue = (buf: Buffer) => {
@@ -68,13 +77,7 @@ export class IndexedTree implements MerkleTree {
    * @returns A promise with the new Merkle tree.
    */
   public static async new(db: LevelUp, hasher: Hasher, name: string, depth: number): Promise<IndexedTree> {
-    const underlying = await StandardMerkleTree.new(
-      db,
-      hasher,
-      name,
-      depth,
-      hasher.hashToField(encodeTreeValue(initialLeaf)),
-    );
+    const underlying = await StandardMerkleTree.new(db, hasher, name, depth, hashEncodedTreeValue(initialLeaf, hasher));
     const tree = new IndexedTree(underlying, hasher, db);
     await tree.init();
     return tree;
@@ -88,12 +91,7 @@ export class IndexedTree implements MerkleTree {
    * @returns The newly created tree.
    */
   static async fromName(db: LevelUp, hasher: Hasher, name: string): Promise<IndexedTree> {
-    const underlying = await StandardMerkleTree.fromName(
-      db,
-      hasher,
-      name,
-      hasher.hashToField(encodeTreeValue(initialLeaf)),
-    );
+    const underlying = await StandardMerkleTree.fromName(db, hasher, name, hashEncodedTreeValue(initialLeaf, hasher));
     const tree = new IndexedTree(underlying, hasher, db);
     await tree.initFromDb();
     return tree;
@@ -180,10 +178,11 @@ export class IndexedTree implements MerkleTree {
     previousLeafCopy.nextValue = newLeaf.value;
     this.cachedLeaves[Number(currentSize)] = newLeaf;
     this.cachedLeaves[Number(indexOfPrevious.index)] = previousLeafCopy;
-    const previousTreeValue = encodeTreeValue(previousLeafCopy);
-    const newTreeValue = encodeTreeValue(newLeaf);
-    await this.underlying.updateLeaf(this.hasher.hashToField(previousTreeValue), BigInt(indexOfPrevious.index));
-    await this.underlying.appendLeaves([this.hasher.hashToField(newTreeValue)]);
+    await this.underlying.updateLeaf(
+      hashEncodedTreeValue(previousLeafCopy, this.hasher),
+      BigInt(indexOfPrevious.index),
+    );
+    await this.underlying.appendLeaves([hashEncodedTreeValue(newLeaf, this.hasher)]);
   }
 
   /**
@@ -231,7 +230,7 @@ export class IndexedTree implements MerkleTree {
    */
   private async init() {
     this.leaves.push(initialLeaf);
-    await this.underlying.appendLeaves([this.hasher.hashToField(encodeTreeValue(initialLeaf))]);
+    await this.underlying.appendLeaves([hashEncodedTreeValue(initialLeaf, this.hasher)]);
     await this.commit();
   }
 

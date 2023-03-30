@@ -6,7 +6,13 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '../index.js';
-import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from '../structs/base_rollup.js';
+import {
+  AppendOnlyTreeSnapshot,
+  BaseRollupInputs,
+  BaseRollupPublicInputs,
+  ConstantBaseRollupData,
+  NullifierLeafPreimage,
+} from '../structs/base_rollup.js';
 import {
   ARGS_LENGTH,
   CONTRACT_TREE_HEIGHT,
@@ -23,7 +29,9 @@ import {
   L1_MSG_STACK_LENGTH,
   NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
+  NULLIFIER_TREE_HEIGHT,
   PRIVATE_CALL_STACK_LENGTH,
+  PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
@@ -292,6 +300,69 @@ export function makeRootRollupPublicInputs(seed = 0) {
     makeAppendOnlyTreeSnapshot(seed + 0x1000),
     [fr(seed + 0x1200), fr(seed + 0x1201)],
   );
+}
+
+export function makeBaseRollupInputs(seed = 0) {
+  const kernelData: [PreviousKernelData, PreviousKernelData] = [
+    makePreviousKernelData(seed + 0x100),
+    makePreviousKernelData(seed + 0x200),
+  ];
+
+  const startPrivateDataTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x100);
+  const startNullifierTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x200);
+  const startContractTreeSnapshot = makeAppendOnlyTreeSnapshot(seed + 0x300);
+
+  const lowNullifierLeafPreimages = range(2 * KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x1000).map(
+    x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), x + 0x200),
+  );
+
+  const lowNullifierMembershipWitness = range(2 * KERNEL_NEW_NULLIFIERS_LENGTH, seed + 0x2000).map(x =>
+    makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
+  );
+
+  const newCommitmentsSubtreeSiblingPath = range(
+    PRIVATE_DATA_TREE_HEIGHT - BaseRollupInputs.PRIVATE_DATA_SUBTREE_HEIGHT,
+    seed + 0x3000,
+  ).map(x => fr(x));
+
+  const newNullifiersSubtreeSiblingPath = range(
+    NULLIFIER_TREE_HEIGHT - BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+    seed + 0x4000,
+  ).map(x => fr(x));
+
+  const newContractsSubtreeSiblingPath = range(
+    CONTRACT_TREE_HEIGHT - BaseRollupInputs.CONTRACT_SUBTREE_HEIGHT,
+    seed + 0x5000,
+  ).map(x => fr(x));
+
+  const historicPrivateDataTreeRootMembershipWitnesses: BaseRollupInputs['historicPrivateDataTreeRootMembershipWitnesses'] =
+    [
+      makeMembershipWitness(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, seed + 0x6000),
+      makeMembershipWitness(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT, seed + 0x7000),
+    ];
+
+  const historicContractsTreeRootMembershipWitnesses: BaseRollupInputs['historicContractsTreeRootMembershipWitnesses'] =
+    [
+      makeMembershipWitness(CONTRACT_TREE_ROOTS_TREE_HEIGHT, seed + 0x8000),
+      makeMembershipWitness(CONTRACT_TREE_ROOTS_TREE_HEIGHT, seed + 0x9000),
+    ];
+
+  const constants = makeConstantBaseRollupData(0x100);
+
+  return BaseRollupInputs.from({
+    kernelData,
+    startPrivateDataTreeSnapshot,
+    startNullifierTreeSnapshot,
+    startContractTreeSnapshot,
+    lowNullifierLeafPreimages,
+    lowNullifierMembershipWitness,
+    newCommitmentsSubtreeSiblingPath,
+    newNullifiersSubtreeSiblingPath,
+    newContractsSubtreeSiblingPath,
+    historicPrivateDataTreeRootMembershipWitnesses,
+    historicContractsTreeRootMembershipWitnesses,
+    constants,
+  });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { keccak, randomBytes } from '../crypto/index.js';
+import { BufferReader } from '../index.js';
 
 export class EthAddress {
   public static SIZE_IN_BYTES = 20;
@@ -99,5 +100,14 @@ export class EthAddress {
     const buffer = Buffer.alloc(32);
     this.buffer.copy(buffer, 12);
     return buffer;
+  }
+
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param buffer - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): EthAddress {
+    const reader = BufferReader.asReader(buffer);
+    return new EthAddress(reader.readBuffer());
   }
 }

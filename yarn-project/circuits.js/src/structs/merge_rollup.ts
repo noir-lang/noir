@@ -16,8 +16,7 @@ export class PreviousRollupData {
      */
     public vkIndex: UInt32,
     public vkSiblingPath: MembershipWitness<typeof ROLLUP_VK_TREE_HEIGHT>,
-  ) {
-  }
+  ) {}
 
   toBuffer() {
     return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
