@@ -69,6 +69,7 @@ jobs:
       - run:
           name: "Build"
           command: cond_spot_run_build aztec3-circuits-wasm-linux-clang 64
+
   yarn-project-base:
     machine:
       image: ubuntu-2004:202010-01

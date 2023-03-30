@@ -4,12 +4,15 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/aztec3-circuits-wasm-linux-cla
 
 FROM node:18-alpine
 RUN apk update && apk add --no-cache build-base git python3 curl bash jq
-# COPY --from=0 /usr/src/circuits/barretenberg/cpp/srs_db/ignition /usr/src/circuits/barretenberg/cpp/srs_db/ignition
-# COPY --from=0 /usr/src/circuits/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/circuits/barretenberg/cpp/srs_db/download_ignition.sh
 # COPY --from=0 /usr/src/circuits/build/bin /usr/src/circuits/build/bin
 # COPY --from=1 /usr/src/circuits/build/bin /usr/src/circuits/build-wasm/bin
 # COPY --from=2 /usr/src/l1-contracts /usr/src/l1-contracts
-COPY --from=0 /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm
+
+# TODO: submodule circuits as aztec3-circuits so we don't have two names for the same thing.
+COPY --from=0 /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm
+COPY --from=0 /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db/download_ignition.sh /usr/src/circuits/cpp/barretenberg/cpp/srs_db/download_ignition.sh
+WORKDIR /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+RUN ./download_ignition.sh 1
 
 WORKDIR /usr/src/yarn-project
 
