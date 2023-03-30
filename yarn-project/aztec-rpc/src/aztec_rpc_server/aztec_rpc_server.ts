@@ -225,40 +225,49 @@ export class AztecRPCServer implements AztecRPCClient {
    */
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     const localTx = await this.synchroniser.getTxByHash(txHash);
+    const partialReceipt = {
+      txHash: txHash,
+      blockHash: localTx?.blockHash,
+      blockNumber: localTx?.blockNumber,
+      from: localTx?.from,
+      to: localTx?.to,
+      contractAddress: localTx?.contractAddress,
+      error: '',
+    };
 
     if (localTx && localTx.blockHash) {
       return {
-        txHash: txHash,
-        blockHash: localTx.blockHash,
-        blockNumber: localTx.blockNumber,
-        from: localTx.from,
-        to: localTx.to,
-        contractAddress: localTx.contractAddress,
-        error: '',
+        ...partialReceipt,
         status: TxStatus.MINED,
       };
     }
 
-    const pendingTx = await this.node.getTxByHash(txHash);
-
+    const pendingTx = await this.node.getPendingTxByHash(txHash);
     if (pendingTx) {
       return {
-        txHash: txHash,
-        blockHash: undefined,
-        blockNumber: undefined,
-        from: localTx?.from,
-        to: undefined,
-        contractAddress: undefined,
-        error: '',
+        ...partialReceipt,
         status: TxStatus.PENDING,
       };
     }
 
+    // if the transaction mined it will be removed from the pending pool and there is a race condition here as the synchroniser will not have the tx as mined yet, so it will appear dropped
+    // until the synchroniser picks this up
+
+    const remoteBlockHeight = await this.node.getBlockHeight();
+    const accountBlockHeight = this.synchroniser.getAccount(localTx.from)?.syncedTo || 0;
+
+    if (localTx && remoteBlockHeight > accountBlockHeight) {
+      // there is a pending L2 block, which means the transaction will not be in the tx pool but may be awaiting mine on L1
+      return {
+        ...partialReceipt,
+        status: TxStatus.PENDING,
+      };
+    }
+
+    // TODO we should refactor this once the node can store transactions. At that point we should query the node and not deal with block heights.
+
     return {
-      txHash: txHash,
-      blockHash: undefined,
-      blockNumber: undefined,
-      error: 'Transaction not found in local tx pool or p2p pools',
+      ...partialReceipt,
       status: TxStatus.DROPPED,
     };
   }

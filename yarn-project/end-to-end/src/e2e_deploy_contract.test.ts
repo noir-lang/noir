@@ -65,9 +65,9 @@ describe('e2e_deploy_contract', () => {
 
     expect(isMined).toBe(true);
     expect(receiptAfterMined.status).toBe(TxStatus.MINED);
-    // const contractAddress = receipt.contractAddress!;
-    // expect(await aztecRpcServer.isContractDeployed(contractAddress)).toBe(true);
-    // expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
+    const contractAddress = receipt.contractAddress!;
+    expect(await aztecRpcServer.isContractDeployed(contractAddress)).toBe(true);
+    expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
   }, 30_000);
 
   /**

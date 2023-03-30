@@ -1,7 +1,4 @@
-import { Tx, TxHash } from '@aztec/tx';
 import { AztecNode } from '@aztec/aztec-node';
-import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
-import { AccountState } from '../account_state/index.js';
 import {
   AztecAddress,
   EthAddress,
@@ -9,11 +6,12 @@ import {
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
 } from '@aztec/circuits.js';
+import { createDebugLogger, InterruptableSleep, keccak } from '@aztec/foundation';
+import { L2Block } from '@aztec/l2-block';
+import { TxHash } from '@aztec/tx';
+import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
 import { ContractAbi } from '../noir.js';
-import { L2Block } from '@aztec/l2-block';
-import { keccak } from '@aztec/foundation';
-import { TxReceipt, TxStatus } from '../tx/index.js';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;
@@ -82,11 +80,10 @@ export class Synchroniser {
     await this.db.addContract(contractAddress, portalContract, abi);
   }
 
-  public async getTxByHash(txHash: TxHash): Promise<TxDao | undefined> {
+  public async getTxByHash(txHash: TxHash): Promise<TxDao> {
     const tx = await this.db.getTx(txHash);
-
     if (!tx) {
-      return;
+      throw new Error('Transaction not found in RPC database');
     }
 
     const account = this.getAccount(tx.from);
@@ -125,6 +122,9 @@ export class Synchroniser {
           await this.db.addOrUpdateTx(txDao);
         }
         i++;
+      }
+      for (const key in this.accountStates) {
+        this.accountStates[key].syncToBlock(block);
       }
       this.log(`Synched block ${block.number}`);
     }

@@ -70,6 +70,14 @@ export class AztecNode {
   }
 
   /**
+   * Method to fetch the current block height
+   * @returns The block height as a number.
+   */
+  public async getBlockHeight(): Promise<number> {
+    return await this.blockSource.getBlockHeight();
+  }
+
+  /**
    * Lookup the L2 contract data for this contract.
    * Contains information such as the ethereum portal address.
    * @param contractAddress - The contract data address.
@@ -112,7 +120,7 @@ export class AztecNode {
    * Method to retrieve pending txs.
    * @returns - The pending txs.
    */
-  public async getTxs() {
+  public async getPendingTxs() {
     return await this.p2pClient!.getTxs();
   }
 
@@ -121,7 +129,7 @@ export class AztecNode {
    * @param txHash - The transaction hash to return.
    * @returns - The pending tx if it exists
    */
-  public async getTxByHash(txHash: TxHash) {
+  public async getPendingTxByHash(txHash: TxHash) {
     return await this.p2pClient!.getTxByhash(txHash);
   }
 
