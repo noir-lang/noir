@@ -5,6 +5,7 @@
 #include <random>
 #include <iterator>
 #include <algorithm>
+#include <vector>
 
 #include "../commitment_key.test.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
@@ -14,56 +15,51 @@ template <class Params> class ShplonkTest : public CommitmentTest<Params> {};
 
 TYPED_TEST_SUITE(ShplonkTest, CommitmentSchemeParams);
 
-// Test of Shplonk prover/verifier using real Gemini claim
-TYPED_TEST(ShplonkTest, GeminiShplonk)
+// Test of Shplonk prover/verifier for two polynomials of different size, each opened at a single (different) point
+TYPED_TEST(ShplonkTest, ShplonkSimple)
 {
     using Shplonk = SingleBatchOpeningScheme<TypeParam>;
-    using Gemini = gemini::MultilinearReductionScheme<TypeParam>;
     using Fr = typename TypeParam::Fr;
-    using Commitment = typename TypeParam::Commitment;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
+    using OpeningPair = OpeningPair<TypeParam>;
+    using OpeningClaim = OpeningClaim<TypeParam>;
 
     const size_t n = 16;
-    const size_t log_n = 4;
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
-    const Fr rho = Fr::random_element();
+    // Generate two random (unrelated) polynomials of two different sizes, as well as their evaluations at a (single but
+    // different) random point and their commitments.
+    const auto r1 = Fr::random_element();
+    auto poly1 = this->random_polynomial(n);
+    const auto eval1 = poly1.evaluate(r1);
+    const auto commitment1 = this->commit(poly1);
 
-    const auto u = this->random_evaluation_point(log_n);
-    auto poly = this->random_polynomial(n);
-    const auto commitment = this->commit(poly);
-    const auto eval = poly.evaluate_mle(u);
+    const auto r2 = Fr::random_element();
+    auto poly2 = this->random_polynomial(n / 2);
+    const auto eval2 = poly2.evaluate(r2);
+    const auto commitment2 = this->commit(poly2);
 
-    // Collect multilinear polynomials evaluations, and commitments for input to prover/verifier
-    std::vector<Fr> multilinear_evaluations = { eval };
+    // Aggregate polynomials and their opening pairs
+    std::vector<OpeningPair> opening_pairs = { { r1, eval1 }, { r2, eval2 } };
+    std::vector<Polynomial> polynomials = { poly1, poly2 };
 
-    std::vector<Fr> rhos = Gemini::powers_of_rho(rho, multilinear_evaluations.size());
+    // Execute the shplonk prover functionality
+    const auto [prover_opening_pair, shplonk_prover_witness] =
+        Shplonk::reduce_prove(this->ck(), opening_pairs, polynomials, prover_transcript);
 
-    // Compute batched multivariate evaluation
-    Fr batched_evaluation = multilinear_evaluations[0] * rhos[0];
-
-    Polynomial batched_unshifted(n);
-    Polynomial batched_to_be_shifted(n);
-    batched_unshifted.add_scaled(poly, rhos[0]);
-
-    Commitment batched_commitment_unshifted = commitment * rhos[0];
-    Commitment batched_commitment_to_be_shifted = Commitment::zero();
-
-    auto gemini_prover_output = Gemini::reduce_prove(
-        this->ck(), u, std::move(batched_unshifted), std::move(batched_to_be_shifted), prover_transcript);
-
-    const auto [prover_opening_pair, shplonk_prover_witness] = Shplonk::reduce_prove(
-        this->ck(), gemini_prover_output.opening_pairs, gemini_prover_output.witnesses, prover_transcript);
-
+    // An intermediate check to confirm the opening of the shplonk prover witness Q
     this->verify_opening_pair(prover_opening_pair, shplonk_prover_witness);
+
+    // Aggregate polynomial commitments and their opening pairs
+    std::vector<OpeningClaim> opening_claims;
+    opening_claims.emplace_back(OpeningClaim{ opening_pairs[0], commitment1 });
+    opening_claims.emplace_back(OpeningClaim{ opening_pairs[1], commitment2 });
 
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
 
-    auto gemini_verifier_claim = Gemini::reduce_verify(
-        u, batched_evaluation, batched_commitment_unshifted, batched_commitment_to_be_shifted, verifier_transcript);
-
-    const auto verifier_claim = Shplonk::reduce_verify(gemini_verifier_claim, verifier_transcript);
+    // Execute the shplonk verifier functionality
+    const auto verifier_claim = Shplonk::reduce_verify(opening_claims, verifier_transcript);
 
     this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
 }

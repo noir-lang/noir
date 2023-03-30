@@ -52,12 +52,12 @@ template <typename Params> class SingleBatchOpeningScheme {
         Fr current_nu = Fr::one();
         for (size_t j = 0; j < num_opening_pairs; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
-            const auto& [query, evaluation] = opening_pairs[j];
+            const auto& [challenge, evaluation] = opening_pairs[j];
 
             // tmp = ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( X − xⱼ )
             tmp = witness_polynomials[j];
             tmp[0] -= evaluation;
-            tmp.factor_roots(query);
+            tmp.factor_roots(challenge);
 
             Q.add_scaled(tmp, current_nu);
             current_nu *= nu;
@@ -74,7 +74,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         std::vector<Fr> inverse_vanishing_evals;
         inverse_vanishing_evals.reserve(num_opening_pairs);
         for (const auto& pair : opening_pairs) {
-            inverse_vanishing_evals.emplace_back(z_challenge - pair.query);
+            inverse_vanishing_evals.emplace_back(z_challenge - pair.challenge);
         }
         Fr::batch_invert(inverse_vanishing_evals);
 
@@ -86,7 +86,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         current_nu = Fr::one();
         for (size_t j = 0; j < num_opening_pairs; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
-            const auto& [query, evaluation] = opening_pairs[j];
+            const auto& [challenge, evaluation] = opening_pairs[j];
 
             // tmp = ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )
             tmp = witness_polynomials[j];
@@ -100,7 +100,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         }
 
         // Return opening pair (z, 0) and polynomial G(X) = Q(X) - Q_z(X)
-        return { .opening_pair = { .query = z_challenge, .evaluation = Fr::zero() }, .witness = std::move(G) };
+        return { .opening_pair = { .challenge = z_challenge, .evaluation = Fr::zero() }, .witness = std::move(G) };
     };
 
     /**
@@ -139,7 +139,7 @@ template <typename Params> class SingleBatchOpeningScheme {
         std::vector<Fr> inverse_vanishing_evals;
         inverse_vanishing_evals.reserve(num_claims);
         for (const auto& claim : claims) {
-            inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.query);
+            inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.challenge);
         }
         Fr::batch_invert(inverse_vanishing_evals);
 

@@ -303,23 +303,43 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     Polynomial batched_poly_to_be_shifted(key->circuit_size); // batched to-be-shifted polynomials
     batched_poly_to_be_shifted.add_scaled(prover_polynomials[POLYNOMIAL::Z_PERM], rhos[NUM_UNSHIFTED_POLYS]);
 
-    // Compute d+1 Fold polynomials and their evaluations
-    gemini_output = Gemini::reduce_prove(commitment_key,
-                                         sumcheck_output.challenge_point,
-                                         std::move(batched_poly_unshifted),
-                                         std::move(batched_poly_to_be_shifted),
-                                         transcript);
+    // // Reserve space for d+1 Fold polynomials. At the end of this round, the last d-1 polynomials will
+    // // correspond to Fold^(i). At the end of the full Gemini prover protocol, the first two will
+    // // be the partially evaluated Fold polynomials Fold_{r}^(0) and Fold_{-r}^(0).
+    // fold_polynomials.reserve(key->log_circuit_size + 1);
+    // fold_polynomials.emplace_back(batched_poly_unshifted);
+    // fold_polynomials.emplace_back(batched_poly_to_be_shifted);
+
+    // Compute d-1 polynomials Fold^(i), i = 1, ..., d-1.
+    fold_polynomials = Gemini::compute_fold_polynomials(
+        sumcheck_output.challenge_point, std::move(batched_poly_unshifted), std::move(batched_poly_to_be_shifted));
+
+    // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
+    for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
+        std::string label = "Gemini:FOLD_" + std::to_string(l + 1);
+        auto commitment = commitment_key->commit(fold_polynomials[l + 2]);
+        transcript.send_to_verifier(label, commitment);
+    }
 }
 
 /**
  * - Do Fiat-Shamir to get "r" challenge
- * - Compute evaluations of folded polynomials.
+ * - Compute remaining two partially evaluated Fold polynomials Fold_{r}^(0) and Fold_{-r}^(0).
+ * - Compute and aggregate opening pairs (challenge, evaluation) for each of d Fold polynomials.
+ * - Add d-many Fold evaluations a_i, i = 0, ..., d-1 to the transcript, excluding eval of Fold_{r}^(0)
  * */
 template <typename settings> void Prover<settings>::execute_pcs_evaluation_round()
 {
-    // TODO(luke): This functionality is performed within Gemini::reduce_prove(), called in the previous round. In the
-    // future we could (1) split the Gemini functionality to match the round structure defined here, or (2) remove this
-    // function from the prover. The former may be necessary to maintain the work_queue paradigm.
+    const Fr r_challenge = transcript.get_challenge("Gemini:r");
+
+    gemini_output = Gemini::compute_fold_polynomial_evaluations(
+        sumcheck_output.challenge_point, std::move(fold_polynomials), r_challenge);
+
+    for (size_t l = 0; l < key->log_circuit_size; ++l) {
+        std::string label = "Gemini:a_" + std::to_string(l);
+        const auto& evaluation = gemini_output.opening_pairs[l + 1].evaluation;
+        transcript.send_to_verifier(label, evaluation);
+    }
 }
 
 /**

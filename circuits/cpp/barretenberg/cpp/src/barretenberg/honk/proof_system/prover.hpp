@@ -27,6 +27,7 @@
 namespace honk {
 
 using Fr = barretenberg::fr;
+using Polynomial = Polynomial<Fr>;
 
 template <typename settings> class Prover {
 
@@ -67,6 +68,9 @@ template <typename settings> class Prover {
 
     // Container for spans of all polynomials required by the prover (i.e. all multivariates evaluated by Sumcheck).
     std::array<std::span<Fr>, honk::StandardArithmetization::POLYNOMIAL::COUNT> prover_polynomials;
+
+    // Container for d + 1 Fold polynomials produced by Gemini
+    std::vector<Polynomial> fold_polynomials;
 
     // Honk only needs a small portion of the functionality but may be fine to use existing work_queue
     // NOTE: this is not currently in use, but it may well be used in the future.

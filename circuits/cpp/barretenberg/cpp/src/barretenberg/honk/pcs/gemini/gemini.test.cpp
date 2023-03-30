@@ -55,11 +55,25 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
         // Compute:
         // - (d+1) opening pairs: {r, \hat{a}_0}, {-r^{2^i}, a_i}, i = 0, ..., d-1
         // - (d+1) Fold polynomials Fold_{r}^(0), Fold_{-r}^(0), and Fold^(i), i = 0, ..., d-1
-        auto prover_output = Gemini::reduce_prove(this->ck(),
-                                                  multilinear_evaluation_point,
-                                                  std::move(batched_unshifted),
-                                                  std::move(batched_to_be_shifted),
-                                                  prover_transcript);
+        auto fold_polynomials = Gemini::compute_fold_polynomials(
+            multilinear_evaluation_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
+
+        for (size_t l = 0; l < log_n - 1; ++l) {
+            std::string label = "FOLD_" + std::to_string(l + 1);
+            auto commitment = this->ck()->commit(fold_polynomials[l + 2]);
+            prover_transcript.send_to_verifier(label, commitment);
+        }
+
+        const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
+
+        auto prover_output = Gemini::compute_fold_polynomial_evaluations(
+            multilinear_evaluation_point, std::move(fold_polynomials), r_challenge);
+
+        for (size_t l = 0; l < log_n; ++l) {
+            std::string label = "Gemini:a_" + std::to_string(l);
+            const auto& evaluation = prover_output.opening_pairs[l + 1].evaluation;
+            prover_transcript.send_to_verifier(label, evaluation);
+        }
 
         // Check that the Fold polynomials have been evaluated correctly in the prover
         this->verify_batch_opening_pair(prover_output.opening_pairs, prover_output.witnesses);

@@ -12,7 +12,7 @@ template <typename Params> class OpeningPair {
     using Fr = typename Params::Fr;
 
   public:
-    Fr query;      // r
+    Fr challenge;  // r
     Fr evaluation; // v = p(r)
 
     bool operator==(const OpeningPair& other) const = default;
@@ -31,7 +31,7 @@ template <typename Params> class OpeningClaim {
     using Fr = typename Params::Fr;
 
   public:
-    // (query r, evaluation v = p(r))
+    // (challenge r, evaluation v = p(r))
     OpeningPair<Params> opening_pair;
     // commitment to univariate polynomial p(X)
     CommitmentAffine commitment;
@@ -46,7 +46,7 @@ template <typename Params> class OpeningClaim {
      */
     bool verify(CK* ck, const barretenberg::Polynomial<Fr>& polynomial) const
     {
-        Fr real_eval = polynomial.evaluate(opening_pair.query);
+        Fr real_eval = polynomial.evaluate(opening_pair.challenge);
         if (real_eval != opening_pair.evaluation) {
             return false;
         }

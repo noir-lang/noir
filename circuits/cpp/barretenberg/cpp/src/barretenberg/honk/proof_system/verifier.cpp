@@ -143,7 +143,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
         return false;
     }
 
-    auto [multivariate_query, multivariate_evaluations] = *sumcheck_output;
+    auto [multivariate_challenge, multivariate_evaluations] = *sumcheck_output;
 
     // Execute Gemini/Shplonk verification:
 
@@ -181,7 +181,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     // Produce a Gemini claim consisting of:
     // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
     // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto gemini_claim = Gemini::reduce_verify(multivariate_query,
+    auto gemini_claim = Gemini::reduce_verify(multivariate_challenge,
                                               batched_evaluation,
                                               batched_commitment_unshifted,
                                               batched_commitment_to_be_shifted,

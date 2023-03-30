@@ -31,7 +31,7 @@ template <typename Params> class BilinearAccumulator {
      */
     BilinearAccumulator(const OpeningClaim<Params>& claim, const Commitment& proof)
         : lhs(claim.commitment - (Commitment::one() * claim.opening_pair.evaluation) +
-              (proof * claim.opening_pair.query))
+              (proof * claim.opening_pair.challenge))
         , rhs(-proof)
     {}
 
@@ -73,7 +73,7 @@ template <typename Params> class UnivariateOpeningScheme {
     {
         Polynomial quotient(polynomial);
         quotient[0] -= opening_pair.evaluation;
-        quotient.factor_roots(opening_pair.query);
+        quotient.factor_roots(opening_pair.challenge);
         CommitmentAffine quotient_commitment = ck->commit(quotient);
 
         transcript.send_to_verifier("KZG:W", quotient_commitment);

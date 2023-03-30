@@ -33,9 +33,9 @@ TYPED_TEST(BilinearAccumulationTest, single)
 
     auto witness = this->random_polynomial(n);
     auto commitment = this->commit(witness);
-    auto query = Fr::random_element();
-    auto evaluation = witness.evaluate(query);
-    auto opening_pair = OpeningPair<TypeParam>{ query, evaluation };
+    auto challenge = Fr::random_element();
+    auto evaluation = witness.evaluate(challenge);
+    auto opening_pair = OpeningPair<TypeParam>{ challenge, evaluation };
     auto opening_claim = OpeningClaim<TypeParam>{ opening_pair, commitment };
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
@@ -112,14 +112,28 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
 
     // Run the full prover PCS protocol:
 
-    // Gemini prover output:
-    // - opening pairs: d+1 pairs (r, a_0_pos) and (-r^{2^l}, a_l), l = 0:d-1
-    // - witness: the d+1 polynomials Fold_{r}^(0), Fold_{-r}^(0), Fold^(l), l = 1:d-1
-    auto gemini_prover_output = Gemini::reduce_prove(this->ck(),
-                                                     mle_opening_point,
-                                                     std::move(batched_unshifted),
-                                                     std::move(batched_to_be_shifted),
-                                                     prover_transcript);
+    // Compute:
+    // - (d+1) opening pairs: {r, \hat{a}_0}, {-r^{2^i}, a_i}, i = 0, ..., d-1
+    // - (d+1) Fold polynomials Fold_{r}^(0), Fold_{-r}^(0), and Fold^(i), i = 0, ..., d-1
+    auto fold_polynomials = Gemini::compute_fold_polynomials(
+        mle_opening_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
+
+    for (size_t l = 0; l < log_n - 1; ++l) {
+        std::string label = "FOLD_" + std::to_string(l + 1);
+        auto commitment = this->ck()->commit(fold_polynomials[l + 2]);
+        prover_transcript.send_to_verifier(label, commitment);
+    }
+
+    const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
+
+    auto gemini_prover_output =
+        Gemini::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
+
+    for (size_t l = 0; l < log_n; ++l) {
+        std::string label = "Gemini:a_" + std::to_string(l);
+        const auto& evaluation = gemini_prover_output.opening_pairs[l + 1].evaluation;
+        prover_transcript.send_to_verifier(label, evaluation);
+    }
 
     // Shplonk prover output:
     // - opening pair: (z_challenge, 0)
