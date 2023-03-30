@@ -1,5 +1,6 @@
 #include "index.hpp"
 #include "init.hpp"
+#include "utils.hpp"
 #include "c_bind.h"
 
 #include <aztec3/constants.hpp>
@@ -17,18 +18,11 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
+using aztec3::circuits::abis::BaseRollupInputs;
+using aztec3::circuits::abis::BaseRollupPublicInputs;
+using aztec3::circuits::abis::PreviousRollupData;
+using aztec3::circuits::rollup::base::utils::dummy_previous_rollup_with_vk_proof;
 using aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit;
-using aztec3::circuits::rollup::native_base_rollup::BaseRollupInputs;
-using aztec3::circuits::rollup::native_base_rollup::BaseRollupPublicInputs;
-
-// using aztec3::circuits::abis::SignedTxRequest;
-// using aztec3::circuits::abis::private_kernel::PreviousKernelData;
-// using aztec3::circuits::abis::private_kernel::PrivateCallData;
-// using aztec3::circuits::abis::private_kernel::PrivateInputs;
-// using aztec3::circuits::abis::private_kernel::PublicInputs;
-// using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
-// using aztec3::circuits::kernel::private_kernel::private_kernel_native;
-// using aztec3::circuits::mock::mock_kernel_circuit;
 
 using plonk::TurboComposer;
 using namespace plonk::stdlib::types;
@@ -62,19 +56,20 @@ WASM_EXPORT size_t base_rollup__init_verification_key(uint8_t const* pk_buf, uin
     return vk_vec.size();
 }
 
-//// TODO comment about how public_inputs is a confusing name
-//// returns size of public inputs
-// WASM_EXPORT size_t base_rollup__create_proof(uint8_t const* base_rollup_inputs_buf,
-//                                             uint8_t const* base_rollup_public_inputs_buf,
-//                                             uint8_t const* pk_buf,
-//                                             uint8_t const** proof_data_buf)
-//{
-//    // TODO accept proving key and use that to initialize composers
-//    // this info is just to prevent error for unused pk_buf
-//    // TODO do we want to accept it or just get it from our factory?
-//    (void)pk_buf; // unused
-//    auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
-//}
+WASM_EXPORT size_t base_rollup__dummy_previous_rollup(uint8_t const** previous_rollup_buf)
+{
+    PreviousRollupData<NT> previous_rollup = dummy_previous_rollup_with_vk_proof();
+
+    std::vector<uint8_t> previous_rollup_vec;
+    write(previous_rollup_vec, previous_rollup);
+
+    auto raw_buf = (uint8_t*)malloc(previous_rollup_vec.size());
+    memcpy(raw_buf, (void*)previous_rollup_vec.data(), previous_rollup_vec.size());
+
+    *previous_rollup_buf = raw_buf;
+
+    return previous_rollup_vec.size();
+}
 
 WASM_EXPORT size_t base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
                                     uint8_t const** base_rollup_public_inputs_buf)
@@ -84,10 +79,10 @@ WASM_EXPORT size_t base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
     // TODO do we want to accept it or just get it from our factory?
     // auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
 
-    BaseRollupInputs base_rollup_inputs;
+    BaseRollupInputs<NT> base_rollup_inputs;
     read(base_rollup_inputs_buf, base_rollup_inputs);
 
-    BaseRollupPublicInputs public_inputs = base_rollup_circuit(base_rollup_inputs);
+    BaseRollupPublicInputs<NT> public_inputs = base_rollup_circuit(base_rollup_inputs);
 
     // TODO for circuit proof version of this function
     // NT::Proof base_rollup_proof;
@@ -116,11 +111,11 @@ WASM_EXPORT size_t base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
 //    // TODO do we want to accept it or just get it from our factory?
 //    auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
 //
-//    BaseRollupInputs base_rollup_inputs;
+//    BaseRollupInputs<NT> base_rollup_inputs;
 //    read(base_rollup_inputs_buf, base_rollup_inputs);
 //
 //    NT::Proof base_rollup_proof;
-//    BaseRollupPublicInputs public_inputs;
+//    BaseRollupPublicInputs<NT> public_inputs;
 //    if (proverless) {
 //        public_inputs = base_rollup_circuit(base_rollup_inputs);
 //        // mocked proof - zeros

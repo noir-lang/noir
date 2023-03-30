@@ -12,6 +12,8 @@
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
+
+#include "aztec3/circuits/rollup/base/utils.hpp"
 #include "index.hpp"
 #include "init.hpp"
 #include "c_bind.h"
@@ -81,12 +83,14 @@ using aztec3::circuits::apps::test_apps::escrow::deposit;
 // using aztec3::circuits::mock::mock_circuit;
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
 using aztec3::circuits::mock::mock_kernel_circuit;
+using aztec3::circuits::rollup::base::utils::dummy_base_rollup_inputs_with_vk_proof;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
 
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NullifierLeafPreimage;
+using aztec3::circuits::abis::PreviousRollupData;
 using aztec3::circuits::rollup::native_base_rollup::BaseRollupInputs;
 using aztec3::circuits::rollup::native_base_rollup::BaseRollupPublicInputs;
 using aztec3::circuits::rollup::native_base_rollup::ConstantRollupData;
@@ -162,61 +166,6 @@ class base_rollup_tests : public ::testing::Test {
         free((void*)public_inputs_buf);
         info("finished retesting via cbinds...");
     }
-
-  protected:
-    BaseRollupInputs getEmptyBaseRollupInputs()
-    {
-        ConstantRollupData constantRollupData = ConstantRollupData::empty();
-
-        std::array<NullifierLeafPreimage<NT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
-        std::array<MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH>
-            low_nullifier_membership_witness;
-
-        for (size_t i = 0; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
-            low_nullifier_leaf_preimages[i] = NullifierLeafPreimage<NT>::empty();
-            low_nullifier_membership_witness[i] = MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>::empty();
-        }
-
-        std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>, 2>
-            historic_private_data_tree_root_membership_witnesses = {
-                MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>::empty(),
-                MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>::empty()
-            };
-
-        std::array<MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>, 2>
-            historic_contract_tree_root_membership_witnesses = {
-                MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>::empty(),
-                MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>::empty()
-            };
-
-        // Kernels
-        std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
-        // grab mocked previous kernel (need a valid vk, proof, aggobj)
-        kernel_data[0] = dummy_previous_kernel_with_vk_proof();
-        kernel_data[1] = dummy_previous_kernel_with_vk_proof();
-
-        BaseRollupInputs baseRollupInputs = { .kernel_data = kernel_data,
-                                              .start_private_data_tree_snapshot = {
-                                                .root = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT).root(),
-                                                .next_available_leaf_index = 0,
-                                              },
-                                              .start_nullifier_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
-                                              .start_contract_tree_snapshot = {
-                                                .root = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT).root(),
-                                                .next_available_leaf_index = 0,
-                                              },
-                                              .low_nullifier_leaf_preimages = low_nullifier_leaf_preimages,
-                                              .low_nullifier_membership_witness = low_nullifier_membership_witness,
-                                              .new_commitments_subtree_sibling_path = { 0 },
-                                              .new_nullifiers_subtree_sibling_path = { 0 },
-                                              .new_contracts_subtree_sibling_path = { 0 },
-                                              .historic_private_data_tree_root_membership_witnesses =
-                                                  historic_private_data_tree_root_membership_witnesses,
-                                              .historic_contract_tree_root_membership_witnesses =
-                                                  historic_contract_tree_root_membership_witnesses,
-                                              .constants = constantRollupData };
-        return baseRollupInputs;
-    }
 };
 
 template <size_t N>
@@ -244,7 +193,7 @@ TEST_F(base_rollup_tests, no_new_contract_leafs)
     // Get sibling path of index 0 leaf (for circuit to check membership via sibling path)
     // No contract leaves -> will insert empty tree -> i.e. end_contract_tree_root = start_contract_tree_root
 
-    BaseRollupInputs emptyInputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs emptyInputs = dummy_base_rollup_inputs_with_vk_proof();
     auto empty_contract_tree = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT);
     auto sibling_path_of_0 =
         get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(empty_contract_tree, 0, CONTRACT_SUBTREE_DEPTH);
@@ -266,7 +215,7 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
 {
     // When there is a contract deployment, the contract tree should be inserting 1 leaf.
     // The remaining leafs should be 0 leafs, (not empty leafs);
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
 
     // Create a "mock" contract deployment
     NewContractData<NT> new_contract = {
@@ -302,7 +251,7 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
 TEST_F(base_rollup_tests, contract_leaf_inserted_in_non_empty_snapshot_tree)
 {
     // Same as before except our start_contract_snapshot_tree is not empty
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
 
     // Create a "mock" contract deployment
     NewContractData<NT> new_contract = {
@@ -349,7 +298,7 @@ TEST_F(base_rollup_tests, new_commitments_tree)
 {
     // Create 4 new mock commitments. Add them to kernel data.
     // Then get sibling path so we can verify insert them into the tree.
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
 
     std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_kernel_0 = { fr(0), fr(1), fr(2), fr(3) };
     std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_kernel_1 = { fr(4), fr(5), fr(6), fr(7) };
@@ -390,7 +339,7 @@ TEST_F(base_rollup_tests, empty_block_calldata_hash)
     // calldata_hash should be computed from leafs of 704 0 bytes. (0x00)
     std::vector<uint8_t> zero_bytes_vec(704, 0);
     auto hash = sha256::sha256(zero_bytes_vec);
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
 
     std::array<fr, 2> calldata_hash_fr = outputs.calldata_hash;
@@ -412,7 +361,7 @@ TEST_F(base_rollup_tests, calldata_hash)
 {
     // Execute the base rollup circuit with nullifiers, commitments and a contract deployment. Then check the calldata
     // hash against the expected value.
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     std::vector<uint8_t> input_data(704, 0);
 
     for (uint8_t i = 0; i < 4; ++i) {
@@ -465,7 +414,7 @@ TEST_F(base_rollup_tests, calldata_hash)
 TEST_F(base_rollup_tests, test_compute_membership_historic_private_data)
 {
     // Test membership works for empty trees
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
 
     auto tree = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     inputs.constants.start_tree_of_historic_private_data_tree_roots_snapshot = {
@@ -490,7 +439,7 @@ TEST_F(base_rollup_tests, test_compute_membership_historic_private_data)
 
 TEST_F(base_rollup_tests, test_constants_dont_change)
 {
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
     ASSERT_EQ(inputs.constants, outputs.constants);
     run_cbind(inputs, outputs);
@@ -499,7 +448,7 @@ TEST_F(base_rollup_tests, test_constants_dont_change)
 TEST_F(base_rollup_tests, test_aggregate)
 {
     // TODO: Fix this when aggregation works
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(inputs);
     ASSERT_EQ(inputs.kernel_data[0].public_inputs.end.aggregation_object.public_inputs,
               outputs.end_aggregation_object.public_inputs);
@@ -509,9 +458,28 @@ TEST_F(base_rollup_tests, test_proof_verification) {}
 
 TEST_F(base_rollup_tests, test_cbind_0)
 {
-    BaseRollupInputs inputs = getEmptyBaseRollupInputs();
+    BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     BaseRollupPublicInputs ignored_public_inputs;
     run_cbind(inputs, ignored_public_inputs, false);
+}
+
+TEST(private_kernel_tests, test_dummy_previous_rollup_cbind)
+{
+    uint8_t const* cbind_previous_buf;
+    size_t cbind_buf_size = base_rollup__dummy_previous_rollup(&cbind_previous_buf);
+
+    PreviousRollupData<NT> previous = utils::dummy_previous_rollup_with_vk_proof();
+    std::vector<uint8_t> expected_vec;
+    write(expected_vec, previous);
+
+    // Just compare the first 10 bytes of the serialized public outputs
+    // TODO this is not a good test
+    if (cbind_buf_size > 10) {
+        // for (size_t 0; i < public_inputs_size; i++) {
+        for (size_t i = 0; i < 10; i++) {
+            ASSERT_EQ(cbind_previous_buf[i], expected_vec[i]);
+        }
+    }
 }
 
 } // namespace aztec3::circuits::rollup::base::native_base_rollup_circuit

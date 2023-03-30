@@ -18,8 +18,6 @@ using aztec3::circuits::abis::private_kernel::PublicInputs;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
 using plonk::TurboComposer;
-using namespace plonk::stdlib::types;
-
 } // namespace
 
 namespace aztec3::circuits::kernel::private_kernel::utils {
