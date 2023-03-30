@@ -7,7 +7,7 @@ COPY . .
 WORKDIR /usr/src/yarn-project/sequencer-client
 RUN yarn build && yarn formatting
 # (3) copy bb.js wasm binaries
-RUN cp /usr/src/aztec3-circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/barretenberg.js/dest/wasm/barretenberg.wasm
+RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/barretenberg.js/dest/wasm/barretenberg.wasm
 
 # (4) Prune dev dependencies. See comment in base image.
 RUN yarn cache clean
