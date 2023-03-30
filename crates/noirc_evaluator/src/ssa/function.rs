@@ -269,38 +269,34 @@ impl IrGenerator {
         }
         let predicate = AssumptionId::dummy();
         let location = call.location;
-        //is_unsafe ? todo le funcid
-        //si oui;
-        //on fait pas un call, mais un brillig; on creer des nodeids en fonctions des return types
-        // (a la place des results)
-        //il faut gerer le assign d'un brillig... TODO
-        //le reste est simple.
-        let func_id = self.context.try_get_func_id(func).unwrap();
-        let ssa_func = self.context.ssa_func(func_id).unwrap();
-        match ssa_func.kind {
-            RuntimeType::Oracle(_) | RuntimeType::Unsafe => {
-                //create return values
-                let mut returned_values = Vec::new();
-                let types = ssa_func.result_types.clone();
-                for (i, typ) in types.iter().enumerate() {
-                    let name = format!("ret{i}");
-                    let obj = node::Variable::new(*typ, name, None, self.context.current_block);
-                    let var = self.context.add_variable(obj, None);
-                    returned_values.push(var);
+        if let Some(func_id) = self.context.try_get_func_id(func) {
+            let ssa_func = self.context.ssa_func(func_id).unwrap();
+            match ssa_func.kind {
+                RuntimeType::Oracle(_) | RuntimeType::Unsafe => {
+                    //create return values
+                    let mut returned_values = Vec::new();
+                    let types = ssa_func.result_types.clone();
+                    for (i, typ) in types.iter().enumerate() {
+                        let name = format!("ret{i}");
+                        let obj = node::Variable::new(*typ, name, None, self.context.current_block);
+                        let var = self.context.add_variable(obj, None);
+                        returned_values.push(var);
+                    }
+                    let unsafe_call = Operation::UnsafeCall {
+                        func,
+                        arguments,
+                        returned_values: returned_values.clone(),
+                        predicate: None,
+                        location,
+                    };
+                    self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
+                    return Ok(returned_values);
                 }
-                let unsafe_call = Operation::UnsafeCall {
-                    func,
-                    arguments,
-                    returned_values: returned_values.clone(),
-                    predicate: None,
-                    location,
-                };
-                self.context.new_instruction(unsafe_call, ObjectType::NotAnObject)?;
-                return Ok(returned_values);
+                RuntimeType::Acvm => (),
             }
-            RuntimeType::Acvm => (),
+    
         }
-
+        
         let mut call_op = Operation::Call {
             func,
             arguments: arguments.clone(),
