@@ -51,7 +51,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousRollu
 {
     return os << "merge_rollup_public_inputs: " << obj.base_rollup_public_inputs << "\n"
               << "proof: " << obj.proof << "\n"
-              << "vk: " << obj.vk << "\n"
+              << "vk: " << *(obj.vk) << "\n"
               << "vk_index: " << obj.vk_index << "\n"
               << "vk_sibling_path: " << obj.vk_sibling_path << "\n";
 };

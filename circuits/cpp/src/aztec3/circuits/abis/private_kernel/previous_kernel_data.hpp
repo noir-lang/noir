@@ -88,7 +88,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousKerne
 {
     return os << "public_inputs: " << kernel_data.public_inputs << "\n"
               << "proof: " << kernel_data.proof << "\n"
-              << "vk: " << kernel_data.vk << "\n"
+              << "vk:\n"
+              << *(kernel_data.vk) << "\n"
               << "vk_index: " << kernel_data.vk_index << "\n"
               << "vk_path: " << kernel_data.vk_path << "\n";
 }

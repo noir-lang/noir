@@ -102,7 +102,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateCallDa
               << "proof:\n"
               << obj.proof << "\n"
               << "vk:\n"
-              << obj.vk << "\n"
+              << *(obj.vk) << "\n"
               << "function_leaf_membership_witness:\n"
               << obj.function_leaf_membership_witness << "\n"
               << "contract_leaf_membership_witness:\n"
