@@ -180,8 +180,9 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr_infer(*self.interner.function(&f).as_expr());
+        let unconstrained = meta.is_unconstrained;
 
-        let function = ast::Function { id, name, parameters, body, return_type };
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
     }
 
@@ -341,7 +342,10 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda),
 
-            HirExpression::MethodCall(_) | HirExpression::Error => unreachable!(),
+            HirExpression::MethodCall(_) => {
+                unreachable!("Encountered HirExpression::MethodCall during monomorphization")
+            }
+            HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
         }
     }
 
@@ -732,8 +736,9 @@ impl<'interner> Monomorphizer<'interner> {
         let id = self.next_function_id();
         let return_type = ret_type.clone();
         let name = lambda_name.to_owned();
+        let unconstrained = false;
 
-        let function = ast::Function { id, name, parameters, body, return_type };
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
 
         let typ = ast::Type::Function(parameter_types, Box::new(ret_type));

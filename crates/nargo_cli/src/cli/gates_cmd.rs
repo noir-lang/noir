@@ -25,7 +25,7 @@ fn count_gates_with_path<P: AsRef<Path>>(
 ) -> Result<(), CliError> {
     let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo::backends::ConcreteBackend;
 
     println!(
         "Total ACIR opcodes generated for language {:?}: {}",
