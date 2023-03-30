@@ -16,15 +16,19 @@ using std::is_same;
 template <typename NCT> struct ContractDeploymentData {
     typedef typename NCT::address address;
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
     fr constructor_vk_hash;
     fr function_tree_root;
     fr contract_address_salt;
     address portal_contract_address;
 
-    bool operator==(ContractDeploymentData<NCT> const&) const = default;
-
-    static ContractDeploymentData<NCT> empty() { return { 0, 0, 0, 0 }; };
+    boolean operator==(ContractDeploymentData<NCT> const& other) const
+    {
+        return constructor_vk_hash == other.constructor_vk_hash && function_tree_root == other.function_tree_root &&
+               contract_address_salt == other.contract_address_salt &&
+               portal_contract_address == other.portal_contract_address;
+    };
 
     template <typename Composer>
     ContractDeploymentData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

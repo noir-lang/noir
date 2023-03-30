@@ -20,11 +20,17 @@ template <typename NCT> struct TxRequest {
 
     address from;
     address to;
-    FunctionData<NCT> function_data;
-    std::array<fr, ARGS_LENGTH> args;
+    FunctionData<NCT> function_data = FunctionData<NCT>();
+    std::array<fr, ARGS_LENGTH> args = { 0 };
     fr nonce;
-    TxContext<NCT> tx_context;
+    TxContext<NCT> tx_context = TxContext<NCT>();
     fr chain_id;
+
+    boolean operator==(TxContext<NCT> const& other) const
+    {
+        return from == other.from && to == other.to && function_data == other.function_data && args == other.args &&
+               nonce == other.nonce && tx_context == other.tx_context && chain_id == other.chain_id;
+    };
 
     template <typename Composer> TxRequest<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

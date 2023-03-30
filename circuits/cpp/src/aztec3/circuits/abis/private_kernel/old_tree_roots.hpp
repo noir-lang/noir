@@ -13,11 +13,19 @@ using std::is_same;
 
 template <typename NCT> struct OldTreeRoots {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
     fr private_data_tree_root;
     fr nullifier_tree_root;
     fr contract_tree_root;
     fr private_kernel_vk_tree_root; // TODO: future enhancement
+
+    boolean operator==(OldTreeRoots<NCT> const& other) const
+    {
+        return private_data_tree_root == other.private_data_tree_root &&
+               nullifier_tree_root == other.nullifier_tree_root && contract_tree_root == other.contract_tree_root &&
+               private_kernel_vk_tree_root == other.private_kernel_vk_tree_root;
+    };
 
     template <typename Composer> OldTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

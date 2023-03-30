@@ -17,10 +17,15 @@ template <typename NCT> struct PublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    AccumulatedData<NCT> end;
-    ConstantData<NCT> constants;
+    AccumulatedData<NCT> end = AccumulatedData<NCT>();
+    ConstantData<NCT> constants = ConstantData<NCT>();
 
     boolean is_private = true; // TODO: might need to instantiate from witness!
+
+    boolean operator==(PublicInputs<NCT> const& other) const
+    {
+        return end == other.end && constants == other.constants && is_private == other.is_private;
+    };
 
     template <typename Composer> PublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

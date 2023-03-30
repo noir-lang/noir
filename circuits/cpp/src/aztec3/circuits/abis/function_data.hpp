@@ -22,9 +22,11 @@ template <typename NCT> struct FunctionData {
     boolean is_private = false;
     boolean is_constructor = false;
 
-    bool operator==(FunctionData<NCT> const&) const = default;
-
-    static FunctionData<NCT> empty() { return { 0, 0, 0 }; };
+    boolean operator==(FunctionData<NCT> const& other) const
+    {
+        return function_selector == other.function_selector && is_private == other.is_private &&
+               is_constructor == other.is_constructor;
+    };
 
     template <typename Composer> FunctionData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

@@ -22,6 +22,11 @@ template <typename NCT> struct ConstantData {
     OldTreeRoots<NCT> old_tree_roots;
     TxContext<NCT> tx_context;
 
+    boolean operator==(ConstantData<NCT> const& other) const
+    {
+        return old_tree_roots == other.old_tree_roots && tx_context == other.tx_context;
+    };
+
     template <typename Composer> ConstantData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));

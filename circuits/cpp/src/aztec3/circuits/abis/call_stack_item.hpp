@@ -12,7 +12,6 @@ namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::conditional;
 using std::is_same;
 
@@ -39,11 +38,10 @@ template <typename NCT, CallType call_type> struct CallStackItem {
     FunctionData<NCT> function_data;
     PublicInputs<NCT> public_inputs;
 
-    bool operator==(CallStackItem<NCT, call_type> const&) const = default;
-
-    template <typename T> static CallStackItem<NCT, call_type> empty()
+    boolean operator==(CallContext<NCT> const& other) const
     {
-        return { 0, FunctionData<NCT>::empty(), PublicInputs<NCT>::empty() };
+        return contract_address == other.contract_address && function_data == other.function_data &&
+               public_inputs == other.public_inputs;
     };
 
     template <typename Composer>

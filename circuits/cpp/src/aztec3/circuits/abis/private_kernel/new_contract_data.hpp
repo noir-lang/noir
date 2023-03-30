@@ -20,6 +20,12 @@ template <typename NCT> struct NewContractData {
     address portal_contract_address;
     fr function_tree_root;
 
+    boolean operator==(NewContractData<NCT> const& other) const
+    {
+        return contract_address == other.contract_address && portal_contract_address == other.portal_contract_address &&
+               function_tree_root == other.function_tree_root;
+    };
+
     template <typename Composer> NewContractData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));

@@ -189,7 +189,7 @@ template <typename Composer> class FunctionExecutionContext {
         const CallContext<CT> f_call_context_ct{
             .msg_sender = oracle.get_this_contract_address(), // the sender is `this` contract!
             .storage_contract_address = f_contract_address,
-            .tx_origin = oracle.get_tx_origin(),
+            .portal_contract_address = 0, // TODO
             .is_delegate_call = false,
             .is_static_call = false,
             .is_contract_deployment = false,

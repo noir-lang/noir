@@ -17,22 +17,34 @@ using std::is_same;
 
 template <typename NCT> struct AccumulatedData {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
     typedef typename NCT::AggregationObject AggregationObject;
 
     AggregationObject aggregation_object;
 
     fr private_call_count;
 
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments;
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers;
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments = { 0 };
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers = { 0 };
 
-    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack;
-    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack;
+    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack = { 0 };
+    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
+    std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
 
-    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts;
+    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts = { NewContractData<NCT>() };
 
-    std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data;
+    std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data = {
+        OptionallyRevealedData<NCT>()
+    };
+
+    boolean operator==(AccumulatedData<NCT> const& other) const
+    {
+        return aggregation_object == other.aggregation_object && private_call_count == other.private_call_count &&
+               new_commitments == other.new_commitments && new_nullifiers == other.new_nullifiers &&
+               private_call_stack == other.private_call_stack && public_call_stack == other.public_call_stack &&
+               l1_msg_stack == other.l1_msg_stack && new_contracts == other.new_contracts &&
+               optionally_revealed_data == other.optionally_revealed_data;
+    };
 
     template <typename Composer> AccumulatedData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

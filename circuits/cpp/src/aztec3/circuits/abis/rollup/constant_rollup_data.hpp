@@ -23,17 +23,6 @@ template <typename NCT> struct ConstantRollupData {
     fr merge_rollup_vk_hash;
 
     bool operator==(ConstantRollupData<NCT> const&) const = default;
-
-    static ConstantRollupData<NCT> empty()
-    {
-        return { AppendOnlyTreeSnapshot<NCT>::empty(),
-                 AppendOnlyTreeSnapshot<NCT>::empty(),
-                 AppendOnlyTreeSnapshot<NCT>::empty(),
-                 0,
-                 0,
-                 0,
-                 0 };
-    };
 };
 
 template <typename NCT> void read(uint8_t const*& it, ConstantRollupData<NCT>& obj)

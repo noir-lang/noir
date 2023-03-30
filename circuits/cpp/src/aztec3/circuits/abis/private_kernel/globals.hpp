@@ -8,13 +8,15 @@ namespace aztec3::circuits::abis::private_kernel {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct Globals {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
     fr min_timestamp;
+
+    boolean operator==(Globals<NCT> const& other) const { return min_timestamp == other.min_timestamp; };
 
     template <typename Composer> Globals<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

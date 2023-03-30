@@ -307,7 +307,7 @@ TEST_F(root_rollup_tests, blabber)
         .proof = mocked_kernel0.proof,
         .vk = mocked_kernel0.vk,
         .vk_index = 0,
-        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>::empty(),
+        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>(),
     };
 
     PreviousRollupData<NT> r2 = {
@@ -315,7 +315,7 @@ TEST_F(root_rollup_tests, blabber)
         .proof = mocked_kernel1.proof,
         .vk = mocked_kernel1.vk,
         .vk_index = 1,
-        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>::empty(),
+        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>(),
     };
 
     std::array<PreviousRollupData<NT>, 2> previous_rollup_data = { r1, r2 };

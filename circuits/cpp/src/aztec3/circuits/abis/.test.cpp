@@ -4,6 +4,9 @@
 #include "index.hpp"
 #include <barretenberg/stdlib/types/types.hpp>
 
+#include "private_kernel/previous_kernel_data.hpp"
+#include "private_kernel/private_inputs.hpp"
+
 namespace aztec3::circuits::abis {
 
 using Composer = plonk::stdlib::types::Composer;
@@ -12,7 +15,26 @@ using NT = aztec3::utils::types::NativeTypes;
 
 class abi_tests : public ::testing::Test {};
 
-TEST(abi_tests, test_native_function_data)
+TEST(abi_tests, test_read_write_native_call_context)
+{
+    CallContext<NT> call_context = {
+        .msg_sender = 1,
+        .storage_contract_address = 2,
+        .portal_contract_address = 3,
+        .is_delegate_call = false,
+        .is_static_call = false,
+        .is_contract_deployment = false,
+    };
+
+    info("call_context: ", call_context);
+
+    auto buffer = to_buffer(call_context);
+    auto call_context_2 = from_buffer<CallContext<NT>>(buffer.data());
+
+    EXPECT_EQ(call_context, call_context_2);
+}
+
+TEST(abi_tests, test_read_write_native_function_data)
 {
     FunctionData<NT> function_data = {
         .function_selector = 11,
@@ -27,6 +49,23 @@ TEST(abi_tests, test_native_function_data)
 
     EXPECT_EQ(function_data, function_data_2);
 }
+
+// TEST(abi_tests, test_read_write_native_previous_kernel_data)
+// {
+//     private_kernel::PreviousKernelData<NT> previous_kernel_data = {
+//         .public_inputs = private_kernel::PublicInputs<NT>(),
+//         .proof = NT::Proof(),
+//         .vk = std::make_shared<NT::VK>(), // This won't work - you need to construct a vk from something, and we
+//         don't have that "something" in this test. .vk_index = 0, .vk_path = { 0 },
+//     };
+
+//     info("previous_kernel_data: ", previous_kernel_data);
+
+//     auto buffer = to_buffer(previous_kernel_data);
+//     auto previous_kernel_data_2 = from_buffer<private_kernel::PreviousKernelData<NT>>(buffer.data());
+
+//     EXPECT_EQ(previous_kernel_data, previous_kernel_data_2);
+// }
 
 TEST(abi_tests, test_native_to_circuit_function_data)
 {
@@ -49,7 +88,7 @@ TEST(abi_tests, test_native_call_context)
     CallContext<NT> call_context = {
         .msg_sender = 10,
         .storage_contract_address = 11,
-        .tx_origin = 12,
+        .portal_contract_address = 12,
         .is_delegate_call = false,
         .is_static_call = false,
     };
@@ -62,7 +101,7 @@ TEST(abi_tests, test_native_to_circuit_call_context)
     CallContext<NT> native_call_context = {
         .msg_sender = 10,
         .storage_contract_address = 11,
-        .tx_origin = 12,
+        .portal_contract_address = 12,
         .is_delegate_call = false,
         .is_static_call = false,
     };
@@ -74,116 +113,5 @@ TEST(abi_tests, test_native_to_circuit_call_context)
 
     info("call context: ", circuit_call_context);
 }
-
-// TEST(abi_tests, test_native_public_inputs)
-// {
-//     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .return_values = { 9, 10, 11, 12 },
-//         .emitted_events = { 13, 14, 15, 16 },
-//         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
-//         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
-//         .public_call_stack = { 26, 27, 28, 29 },
-//         .contract_deployment_call_stack = { 30, 31 },
-//         .partial_l1_call_stack = { 32, 33 },
-//         .historic_private_data_tree_root = 38,
-//     };
-
-//     info("public_circuit_public_inputs: ", public_inputs);
-// }
-
-// TEST(abi_tests, test_native_to_circuit_public_circuit_public_inputs)
-// {
-//     PublicCircuitPublicInputs<NT> native_public_inputs = {
-//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .return_values = { 9, 10, 11, 12 },
-//         .emitted_events = { 13, 14, 15, 16 },
-//         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
-//         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
-//         .public_call_stack = { 26, 27, 28, 29 },
-//         .contract_deployment_call_stack = { 30, 31 },
-//         .partial_l1_call_stack = { 32, 33 },
-//         .historic_private_data_tree_root = 38,
-//     };
-
-//     info("public_circuit_public_inputs: ", native_public_inputs);
-
-//     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
-//     PublicCircuitPublicInputs<CT> circuit_public_inputs = native_public_inputs.to_circuit_type(composer);
-
-//     info("public_circuit_public_inputs: ", circuit_public_inputs);
-// }
-
-// TEST(abi_tests, test_native_call_stack_item)
-// {
-//     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .return_values = { 9, 10, 11, 12 },
-//         .emitted_events = { 13, 14, 15, 16 },
-//         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
-//         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
-//         .public_call_stack = { 26, 27, 28, 29 },
-//         .contract_deployment_call_stack = { 30, 31 },
-//         .partial_l1_call_stack = { 32, 33 },
-//         .historic_private_data_tree_root = 38,
-//     };
-
-//     CallStackItem<NT, CallType::Public> call_stack_item = {
-//         .function_data = {
-//             // .contract_address = 10,
-//             .function_selector = 11,
-//             .is_private = false,
-//             .is_constructor = false,
-//         },
-//         .public_inputs = public_inputs,
-//         .call_context = {
-//             .msg_sender = 13,
-//             .storage_contract_address = 14,
-//         },
-//         .is_delegate_call = false,
-//         .is_static_call = false,
-//     };
-
-//     info("call stack item: ", call_stack_item);
-// }
-
-// TEST(abi_tests, test_native_to_circuit_call_stack_item)
-// {
-//     PublicCircuitPublicInputs<NT> public_inputs = {
-//         .args = { 1, 2, 3, 4, 5, 6, 7, 8 },
-//         .return_values = { 9, 10, 11, 12 },
-//         .emitted_events = { 13, 14, 15, 16 },
-//         .state_transitions = { { { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 }, { 21, 22, 23 } } },
-//         .state_reads = { { { 24, 25 }, { 24, 25 }, { 24, 25 }, { 24, 25 } } },
-//         .public_call_stack = { 26, 27, 28, 29 },
-//         .contract_deployment_call_stack = { 30, 31 },
-//         .partial_l1_call_stack = { 32, 33 },
-//         .historic_private_data_tree_root = 38,
-//     };
-
-//     CallStackItem<NT, CallType::Public> native_call_stack_item = {
-//         .function_data = {
-//             // .contract_address = 10,
-//             .function_selector = 11,
-//             .is_private = false,
-//             .is_constructor = false,
-//         },
-//         .public_inputs = public_inputs,
-//         .call_context = {
-//             .msg_sender = 13,
-//             .storage_contract_address = 14,
-//         },
-//         .is_delegate_call = false,
-//         .is_static_call = false,
-//     };
-
-//     info("call stack item: ", native_call_stack_item);
-
-//     Composer composer = Composer("../barretenberg/cpp/srs_db/ignition");
-//     CallStackItem<CT, CallType::Public> circuit_call_stack_item =
-//         native_call_stack_item.to_circuit_type(composer);
-
-//     info("call stack item: ", circuit_call_stack_item);
-// }
 
 } // namespace aztec3::circuits::abis

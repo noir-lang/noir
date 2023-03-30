@@ -20,27 +20,40 @@ using plonk::stdlib::witness_t;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
   public:
-    CallContext<NCT> call_context;
+    CallContext<NCT> call_context = CallContext<NCT>();
 
-    std::array<fr, ARGS_LENGTH> args;
-    std::array<fr, RETURN_VALUES_LENGTH> return_values;
+    std::array<fr, ARGS_LENGTH> args = { 0 };
+    std::array<fr, RETURN_VALUES_LENGTH> return_values = { 0 };
 
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
 
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments;
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers;
+    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = { 0 };
+    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = { 0 };
 
-    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
+    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack = { 0 };
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
 
     fr historic_private_data_tree_root;
     fr historic_nullifier_tree_root;
     fr historic_contract_tree_root;
 
-    ContractDeploymentData<NCT> contract_deployment_data;
+    ContractDeploymentData<NCT> contract_deployment_data = ContractDeploymentData<NCT>();
+
+    boolean operator==(PrivateCircuitPublicInputs<NCT> const& other) const
+    {
+        return call_context == other.call_context && args == other.args && return_values == other.return_values &&
+               emitted_events == other.emitted_events && new_commitments == other.new_commitments &&
+               new_nullifiers == other.new_nullifiers && private_call_stack == other.private_call_stack &&
+               public_call_stack == other.public_call_stack && l1_msg_stack == other.l1_msg_stack &&
+               historic_private_data_tree_root == other.historic_private_data_tree_root &&
+               historic_nullifier_tree_root == other.historic_nullifier_tree_root &&
+               historic_contract_tree_root == other.historic_contract_tree_root &&
+               contract_deployment_data == other.contract_deployment_data;
+    };
 
     template <typename Composer>
     PrivateCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -561,7 +574,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
 
         if (!element) {
-            element = ABIStruct<NativeTypes>::empty().to_circuit_type(
+            element = ABIStruct<NativeTypes>().to_circuit_type(
                 composer); // convert the nullopt value to a circuit witness value of `0`
             (*element).template assert_is_zero<Composer>();
         }

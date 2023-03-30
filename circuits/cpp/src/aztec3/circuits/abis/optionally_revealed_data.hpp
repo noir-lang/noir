@@ -8,7 +8,6 @@ namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> struct OptionallyRevealedData {
     typedef typename NCT::address address;
@@ -16,14 +15,23 @@ template <typename NCT> struct OptionallyRevealedData {
     typedef typename NCT::fr fr;
 
     fr call_stack_item_hash;
-    FunctionData<NCT> function_data;
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
+    FunctionData<NCT> function_data = FunctionData<NCT>();
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
     fr vk_hash;
     address portal_contract_address;
-    boolean pay_fee_from_l1;
-    boolean pay_fee_from_public_l2;
-    boolean called_from_l1;
-    boolean called_from_public_l2;
+    boolean pay_fee_from_l1 = false;
+    boolean pay_fee_from_public_l2 = false;
+    boolean called_from_l1 = false;
+    boolean called_from_public_l2 = false;
+
+    boolean operator==(OptionallyRevealedData<NCT> const& other) const
+    {
+        return call_stack_item_hash == other.call_stack_item_hash && function_data == other.function_data &&
+               emitted_events == other.emitted_events && vk_hash == other.vk_hash &&
+               portal_contract_address == other.portal_contract_address && pay_fee_from_l1 == other.pay_fee_from_l1 &&
+               pay_fee_from_public_l2 == other.pay_fee_from_public_l2 && called_from_l1 == other.called_from_l1 &&
+               called_from_public_l2 == other.called_from_public_l2;
+    };
 
     template <typename Composer>
     OptionallyRevealedData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

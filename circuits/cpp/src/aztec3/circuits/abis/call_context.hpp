@@ -12,7 +12,6 @@ namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> struct CallContext {
     typedef typename NCT::address address;
@@ -22,20 +21,18 @@ template <typename NCT> struct CallContext {
 
     address msg_sender;
     address storage_contract_address;
-    address tx_origin = msg_sender;
+    fr portal_contract_address;
 
-    boolean is_delegate_call;
-    boolean is_static_call;
-    boolean is_contract_deployment;
+    boolean is_delegate_call = false;
+    boolean is_static_call = false;
+    boolean is_contract_deployment = false;
 
     boolean operator==(CallContext<NCT> const& other) const
     {
         return msg_sender == other.msg_sender && storage_contract_address == other.storage_contract_address &&
-               tx_origin == other.tx_origin && is_delegate_call == other.is_delegate_call &&
+               portal_contract_address == other.portal_contract_address && is_delegate_call == other.is_delegate_call &&
                is_static_call == other.is_static_call && is_contract_deployment == other.is_contract_deployment;
     };
-
-    static CallContext<NCT> empty() { return { 0, 0, 0, 0, 0, 0 }; };
 
     template <typename Composer> CallContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
@@ -45,7 +42,7 @@ template <typename NCT> struct CallContext {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
         CallContext<CircuitTypes<Composer>> call_context = {
-            to_ct(msg_sender),       to_ct(storage_contract_address), to_ct(tx_origin),
+            to_ct(msg_sender),       to_ct(storage_contract_address), to_ct(portal_contract_address),
             to_ct(is_delegate_call), to_ct(is_static_call),           to_ct(is_contract_deployment),
 
         };
@@ -59,7 +56,7 @@ template <typename NCT> struct CallContext {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
 
         CallContext<NativeTypes> call_context = {
-            to_nt(msg_sender),       to_nt(storage_contract_address), to_nt(tx_origin),
+            to_nt(msg_sender),       to_nt(storage_contract_address), to_nt(portal_contract_address),
             to_nt(is_delegate_call), to_nt(is_static_call),           to_nt(is_contract_deployment),
         };
 
@@ -69,7 +66,7 @@ template <typename NCT> struct CallContext {
     fr hash() const
     {
         std::vector<fr> inputs = {
-            msg_sender.to_field(), storage_contract_address.to_field(), tx_origin.to_field(), fr(is_delegate_call),
+            msg_sender.to_field(), storage_contract_address.to_field(), portal_contract_address, fr(is_delegate_call),
             fr(is_static_call),    fr(is_contract_deployment),
         };
 
@@ -82,7 +79,7 @@ template <typename NCT> struct CallContext {
 
         msg_sender.to_field().assert_is_zero();
         storage_contract_address.to_field().assert_is_zero();
-        tx_origin.to_field().assert_is_zero();
+        portal_contract_address.assert_is_zero();
         fr(is_delegate_call).assert_is_zero();
         fr(is_static_call).assert_is_zero();
         fr(is_contract_deployment).assert_is_zero();
@@ -94,7 +91,7 @@ template <typename NCT> struct CallContext {
 
         msg_sender.to_field().set_public();
         storage_contract_address.to_field().set_public();
-        tx_origin.to_field().set_public();
+        portal_contract_address.set_public();
         fr(is_delegate_call).set_public();
         fr(is_static_call).set_public();
         fr(is_contract_deployment).set_public();
@@ -107,7 +104,7 @@ template <typename NCT> void read(uint8_t const*& it, CallContext<NCT>& call_con
 
     read(it, call_context.msg_sender);
     read(it, call_context.storage_contract_address);
-    read(it, call_context.tx_origin);
+    read(it, call_context.portal_contract_address);
     read(it, call_context.is_delegate_call);
     read(it, call_context.is_static_call);
     read(it, call_context.is_contract_deployment);
@@ -119,7 +116,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CallContext<NCT> c
 
     write(buf, call_context.msg_sender);
     write(buf, call_context.storage_contract_address);
-    write(buf, call_context.tx_origin);
+    write(buf, call_context.portal_contract_address);
     write(buf, call_context.is_delegate_call);
     write(buf, call_context.is_static_call);
     write(buf, call_context.is_contract_deployment);
@@ -129,7 +126,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<N
 {
     return os << "msg_sender: " << call_context.msg_sender << "\n"
               << "storage_contract_address: " << call_context.storage_contract_address << "\n"
-              << "tx_origin: " << call_context.tx_origin << "\n"
+              << "portal_contract_address: " << call_context.portal_contract_address << "\n"
               << "is_delegate_call: " << call_context.is_delegate_call << "\n"
               << "is_static_call: " << call_context.is_static_call << "\n"
               << "is_contract_deployment: " << call_context.is_contract_deployment << "\n";

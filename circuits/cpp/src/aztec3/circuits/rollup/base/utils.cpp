@@ -29,28 +29,26 @@ namespace aztec3::circuits::rollup::base::utils {
 BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
 {
     // TODO standardize function naming
-    ConstantRollupData<NT> constantRollupData = ConstantRollupData<NT>::empty();
+    ConstantRollupData<NT> constantRollupData = ConstantRollupData<NT>();
 
     std::array<NullifierLeafPreimage<NT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
     std::array<MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH>
         low_nullifier_membership_witness;
 
     for (size_t i = 0; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
-        low_nullifier_leaf_preimages[i] = NullifierLeafPreimage<NT>::empty();
-        low_nullifier_membership_witness[i] = MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>::empty();
+        low_nullifier_leaf_preimages[i] = NullifierLeafPreimage<NT>();
+        low_nullifier_membership_witness[i] = MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>();
     }
 
     std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>, 2>
         historic_private_data_tree_root_membership_witnesses = {
-            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>::empty(),
-            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>::empty()
+            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(),
+            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>()
         };
 
     std::array<MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_contract_tree_root_membership_witnesses = {
-            MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>::empty(),
-            MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>::empty()
-        };
+        historic_contract_tree_root_membership_witnesses = { MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>(),
+                                                             MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>() };
 
     // Kernels
     std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
@@ -63,7 +61,7 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
                                                   .root = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT).root(),
                                                   .next_available_leaf_index = 0,
                                               },
-                                              .start_nullifier_tree_snapshot = AppendOnlyTreeSnapshot<NT>::empty(),
+                                              .start_nullifier_tree_snapshot = AppendOnlyTreeSnapshot<NT>(),
                                               .start_contract_tree_snapshot = {
                                                   .root = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT).root(),
                                                   .next_available_leaf_index = 0,
@@ -95,7 +93,7 @@ PreviousRollupData<NT> dummy_previous_rollup_with_vk_proof()
         .proof = mocked_kernel.proof,
         .vk = mocked_kernel.vk,
         .vk_index = 0,
-        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>::empty(),
+        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>(),
     };
 
     return previous_rollup;

@@ -24,7 +24,14 @@ template <typename NCT> struct TxContext {
     boolean is_rebate_payment_tx = false;
     boolean is_contract_deployment_tx = false;
 
-    ContractDeploymentData<NCT> contract_deployment_data;
+    ContractDeploymentData<NCT> contract_deployment_data = ContractDeploymentData<NCT>();
+
+    boolean operator==(TxContext<NCT> const& other) const
+    {
+        return is_fee_payment_tx == other.is_fee_payment_tx && is_rebate_payment_tx == other.is_rebate_payment_tx &&
+               is_contract_deployment_tx == other.is_contract_deployment_tx &&
+               contract_deployment_data == other.contract_deployment_data;
+    };
 
     template <typename Composer> TxContext<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

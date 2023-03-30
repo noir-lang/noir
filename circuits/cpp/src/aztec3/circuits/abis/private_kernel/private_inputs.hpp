@@ -14,15 +14,21 @@ namespace aztec3::circuits::abis::private_kernel {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
 
-    SignedTxRequest<NCT> signed_tx_request;
-    PreviousKernelData<NCT> previous_kernel;
-    PrivateCallData<NCT> private_call;
+    SignedTxRequest<NCT> signed_tx_request = SignedTxRequest<NCT>();
+    PreviousKernelData<NCT> previous_kernel = PreviousKernelData<NCT>();
+    PrivateCallData<NCT> private_call = PrivateCallData<NCT>();
+
+    boolean operator==(PublicInputs<NCT> const& other) const
+    {
+        return signed_tx_request == other.signed_tx_request && previous_kernel == other.previous_kernel &&
+               private_call == other.private_call;
+    };
 
     template <typename Composer> PrivateInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

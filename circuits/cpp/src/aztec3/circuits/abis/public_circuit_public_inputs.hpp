@@ -21,48 +21,32 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::address address;
 
-    CallContext<NCT> call_context;
+    CallContext<NCT> call_context = CallContext<NCT>();
 
-    std::array<fr, ARGS_LENGTH> args;
-    std::array<fr, RETURN_VALUES_LENGTH> return_values;
+    std::array<fr, ARGS_LENGTH> args = { 0 };
+    std::array<fr, RETURN_VALUES_LENGTH> return_values = { 0 };
 
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events;
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
 
-    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions;
-    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads;
+    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions = StateTransition<NCT>();
+    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads = StateRead<NCT>();
 
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack;
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
 
     fr historic_private_data_tree_root;
 
     address prover_address;
 
-    // bool operator==(PublicCircuitPublicInputs<NCT> const&) const = default;
-
-    // static PublicCircuitPublicInputs<NCT> empty()
-    // {
-    //     PublicCircuitPublicInputs<NCT> pis = {
-    //         std::array<fr, ARGS_LENGTH>::fill(0),
-    //         std::array<fr, RETURN_VALUES_LENGTH>::fill(0),
-
-    //         std::array<fr, EMITTED_EVENTS_LENGTH>::fill(0),
-
-    //         std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH>::fill(StateTransition<NCT>::empty()),
-    //         std::array<StateRead<NCT>, STATE_READS_LENGTH>::fill(StateRead<NCT>::empty()),
-
-    //         std::array<fr, PUBLIC_CALL_STACK_LENGTH>::fill(0),
-
-    //         std::array<fr, CONTRACT_DEPLOYMENT_CALL_STACK_LENGTH>::fill(0),
-    //         std::array<fr, L1_MSG_STACK_LENGTH>::fill(0),
-
-    //         .historic_private_data_tree_root = 0,
-
-    //         .prover_address = 0,
-    //     };
-
-    //     return pis;
-    // };
+    boolean operator==(PublicCircuitPublicInputs<NCT> const& other) const
+    {
+        return call_context == other.call_context && args == other.args && return_values == other.return_values &&
+               emitted_events == other.emitted_events && state_transitions == other.state_transitions &&
+               state_reads == other.state_reads && public_call_stack == other.public_call_stack &&
+               l1_msg_stack == other.l1_msg_stack &&
+               historic_private_data_tree_root == other.historic_private_data_tree_root &&
+               prover_address == other.prover_address;
+    };
 
     template <typename Composer>
     PublicCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const

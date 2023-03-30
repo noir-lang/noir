@@ -32,7 +32,7 @@ TEST(private_to_private_function_call_tests, test_private_to_private_function_ca
     const CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,

@@ -12,13 +12,15 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
 
     typedef typename NCT::fr fr;
     typedef typename NCT::uint32 uint32;
+    typedef typename NCT::boolean boolean;
 
     uint32 leaf_index;
-    std::array<fr, N> sibling_path;
+    std::array<fr, N> sibling_path = { 0 };
 
-    bool operator==(MembershipWitness<NCT, N> const&) const = default;
-
-    static MembershipWitness<NCT, N> empty() { return { 0, std::array<fr, N>({ 0, { 0 } }) }; };
+    boolean operator==(MembershipWitness<NCT, N> const& other) const
+    {
+        return leaf_index == other.leaf_index && sibling_path == other.sibling_path;
+    };
 
     template <typename Composer> MembershipWitness<CircuitTypes<Composer>, N> to_circuit_type(Composer& composer) const
     {

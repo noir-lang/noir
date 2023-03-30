@@ -101,7 +101,7 @@ TEST(private_kernel_tests, test_deposit)
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = escrow_contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,
@@ -300,7 +300,7 @@ TEST(private_kernel_tests, test_native_deposit)
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = escrow_contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = false,
@@ -489,7 +489,7 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = new_contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = true,
@@ -719,7 +719,7 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = new_contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = true,
@@ -930,7 +930,7 @@ TEST(private_kernel_tests, test_create_proof_cbinds)
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = new_contract_address,
-        .tx_origin = msg_sender,
+        .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
         .is_contract_deployment = true,

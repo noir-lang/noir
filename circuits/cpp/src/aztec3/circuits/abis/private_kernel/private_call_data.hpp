@@ -21,6 +21,7 @@ using std::is_same;
 template <typename NCT> struct PrivateCallData {
     typedef typename NCT::address address;
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
     typedef typename NCT::VK VK;
 
     CallStackItem<NCT, CallType::Private> call_stack_item;
@@ -36,6 +37,16 @@ template <typename NCT> struct PrivateCallData {
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness;
 
     fr portal_contract_address; // an ETH address
+
+    boolean operator==(PrivateCallData<NCT> const& other) const
+    {
+        // WARNING: proof skipped!
+        return call_stack_item == other.call_stack_item &&
+               private_call_stack_preimages == other.private_call_stack_preimages && vk == other.vk &&
+               function_leaf_membership_witness == other.function_leaf_membership_witness &&
+               contract_leaf_membership_witness == other.contract_leaf_membership_witness &&
+               portal_contract_address == other.portal_contract_address;
+    };
 
     // WARNING: the `proof` does NOT get converted! (because the current implementation of `verify_proof` takes a proof
     // of native bytes; any conversion to circuit types happens within the `verify_proof` function)

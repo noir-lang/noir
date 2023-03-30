@@ -11,12 +11,12 @@ namespace aztec3::circuits::abis::private_kernel {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 // @todo Naming should not be previous. Annoying.
 template <typename NCT> struct PreviousKernelData {
     typedef typename NCT::fr fr;
+    typedef typename NCT::boolean boolean;
     typedef typename NCT::VK VK;
     typedef typename NCT::uint32 uint32;
 
@@ -27,7 +27,15 @@ template <typename NCT> struct PreviousKernelData {
     // TODO: this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
     // of functions within the contract tree.
     uint32 vk_index;
-    std::array<fr, VK_TREE_HEIGHT> vk_path;
+    std::array<fr, VK_TREE_HEIGHT> vk_path = { 0 };
+
+    boolean operator==(PreviousKernelData<NCT> const& other) const
+    {
+        // WARNING: proof not checked!
+        return public_inputs == other.public_inputs &&
+               // proof == other.proof &&
+               vk == other.vk && vk_index == other.vk_index && vk_path == other.vk_path;
+    };
 
     // WARNING: the `proof` does NOT get converted!
     template <typename Composer> PreviousKernelData<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
@@ -48,6 +56,7 @@ template <typename NCT> struct PreviousKernelData {
 
         return data;
     };
+
 }; // namespace aztec3::circuits::abis::private_kernel
 
 template <typename B> inline void read(B& buf, verification_key& key)
