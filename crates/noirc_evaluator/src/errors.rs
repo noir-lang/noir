@@ -23,7 +23,7 @@ impl RuntimeError {
     }
 
     // Keep one of the two location which is Some, if possible
-    // This is used when we optimize instructions so that we do not loose track of location
+    // This is used when we optimize instructions so that we do not lose track of location
     pub fn merge_location(a: Option<Location>, b: Option<Location>) -> Option<Location> {
         match (a, b) {
             (Some(loc), _) | (_, Some(loc)) => Some(loc),
