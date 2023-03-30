@@ -171,7 +171,8 @@ impl BrilligGen {
         if let Some(left) = block.left {
             result.push(left);
         } else {
-            self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
+           // self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
+           self.byte_code.push(BrilligOpcode::Stop);
         }
         self.blocks.insert(block_id, start);
         result
@@ -224,7 +225,8 @@ impl BrilligGen {
                         todo!("return the memory pointer of the array");
                     }
                 }
-                self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
+                self.byte_code.push(BrilligOpcode::Stop);
+                //self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
             }
             Operation::Result { call_instruction, index } => todo!(),
             Operation::Cond { condition, val_true, val_false } => unreachable!(),
