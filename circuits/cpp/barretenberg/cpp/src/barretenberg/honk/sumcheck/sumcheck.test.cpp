@@ -1,6 +1,6 @@
 #include "sumcheck.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "barretenberg/transcript/transcript_wrappers.hpp"
 #include "relations/arithmetic_relation.hpp"
 #include "relations/grand_product_computation_relation.hpp"
@@ -23,8 +23,8 @@
 using namespace honk;
 using namespace honk::sumcheck;
 using FF = barretenberg::fr;
-const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
-using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
+using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
 
 namespace test_sumcheck_round {
 

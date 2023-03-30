@@ -1,6 +1,6 @@
 #pragma once
 #include "relation.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 
 namespace honk::sumcheck {
@@ -18,10 +18,11 @@ template <typename FF> class GrandProductComputationRelation {
      * This file handles the relation that confirms faithful calculation of the grand
      * product polynomial Z_perm. (Initialization relation Z_perm(0) = 1 is handled elsewhere).
      *
-     *  C(extended_edges(X)...) = ( z_perm(X) + lagrange_first(X) )*P(X) - ( z_perm_shift(X) + delta * lagrange_last(X) )*Q(X),
-     *   where
-     *      P(X) = Prod_{i=1:3} w_i(X) + β*(n*(i-1) + idx(X)) + γ
-     *      Q(X) = Prod_{i=1:3} w_i(X) + β*σ_i(X) + γ
+     *  C(extended_edges(X)...) =
+     *      ( z_perm(X) + lagrange_first(X) )*P(X)
+     *         - ( z_perm_shift(X) + delta * lagrange_last(X))*Q(X),
+     * where P(X) = Prod_{i=1:3} w_i(X) + β*(n*(i-1) + idx(X)) + γ
+     *       Q(X) = Prod_{i=1:3} w_i(X) + β*σ_i(X) + γ
      *
      * @param evals transformed to `evals + C(extended_edges(X)...)*scaling_factor`
      * @param extended_edges an std::array containing the fully extended Univariate edges.

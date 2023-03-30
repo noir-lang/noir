@@ -1,7 +1,7 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "prover.hpp"
 #include "barretenberg/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/transcript/transcript.hpp"
@@ -11,7 +11,7 @@
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
-#include "barretenberg/honk/composer/composer_helper/permutation_helper.hpp"
+#include "barretenberg/proof_system/composer/permutation_helper.hpp"
 #include <vector>
 
 using namespace barretenberg;

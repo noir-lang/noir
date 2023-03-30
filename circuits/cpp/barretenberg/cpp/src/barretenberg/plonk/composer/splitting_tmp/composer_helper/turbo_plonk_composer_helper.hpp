@@ -1,12 +1,12 @@
 #pragma once
 
-#include "composer_helper_lib.hpp"
+#include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 
-namespace bonk {
+namespace plonk {
 template <typename CircuitConstructor> class TurboPlonkComposerHelper {
   public:
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
@@ -132,4 +132,4 @@ template <typename CircuitConstructor> class TurboPlonkComposerHelper {
         return output;
     }
 };
-} // namespace bonk
+} // namespace plonk

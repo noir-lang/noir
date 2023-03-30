@@ -226,8 +226,7 @@ void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
         std::string index = std::to_string(j + 1);
         key->polynomial_store.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
     }
-
-} // namespace honk
+}
 
 /**
  * Compute sigma permutation polynomial in lagrange base

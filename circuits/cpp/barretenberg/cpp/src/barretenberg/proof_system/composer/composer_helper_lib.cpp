@@ -6,8 +6,8 @@
  */
 #include "composer_helper_lib.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/honk/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/honk/circuit_constructors/turbo_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
 namespace bonk {
 
 /**

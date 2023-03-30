@@ -8,6 +8,7 @@ namespace transcript {
 class Transcript;
 }
 
+// TODO(Cody) Fix this namespace.
 namespace bonk {
 
 struct proving_key;

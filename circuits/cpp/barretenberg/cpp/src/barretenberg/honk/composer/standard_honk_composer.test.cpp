@@ -1,7 +1,7 @@
 #include "standard_honk_composer.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include <cstdint>
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
@@ -347,7 +347,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
         .public_input_delta = public_input_delta,
     };
 
-    constexpr size_t num_polynomials = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    constexpr size_t num_polynomials = honk::StandardArithmetization::NUM_POLYNOMIALS;
     // Compute grand product polynomial (now all the necessary polynomials are inside the proving key)
     polynomial z_perm_poly = prover.compute_grand_product_polynomial(beta, gamma);
 
@@ -357,7 +357,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
     // in the list below
     std::array<std::span<const fr>, num_polynomials> evaluations_array;
 
-    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+    using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
     evaluations_array[POLYNOMIAL::W_L] = prover.wire_polynomials[0];
     evaluations_array[POLYNOMIAL::W_R] = prover.wire_polynomials[1];
     evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];

@@ -10,7 +10,7 @@
 #include "../field/field.hpp"
 #include "./bigfield.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
-#include "barretenberg/honk/composer/standard_plonk_composer.hpp"
+#include "barretenberg/plonk/composer/splitting_tmp/standard_plonk_composer.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"

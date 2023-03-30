@@ -16,7 +16,7 @@
 #include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "barretenberg/transcript/transcript_wrappers.hpp"
 #include <string>
 #include "barretenberg/honk/pcs/claim.hpp"
@@ -26,7 +26,7 @@ namespace honk {
 using Fr = barretenberg::fr;
 using Commitment = barretenberg::g1::affine_element;
 using Polynomial = barretenberg::Polynomial<Fr>;
-using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
 
 /**
  * Create Prover from proving key, witness and manifest.
@@ -288,8 +288,8 @@ template <typename settings> void Prover<settings>::execute_relation_check_round
  * */
 template <typename settings> void Prover<settings>::execute_univariatization_round()
 {
-    const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
-    const size_t NUM_UNSHIFTED_POLYS = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
+    const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
+    const size_t NUM_UNSHIFTED_POLYS = honk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
 
     // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
     Fr rho = transcript.get_challenge("rho");

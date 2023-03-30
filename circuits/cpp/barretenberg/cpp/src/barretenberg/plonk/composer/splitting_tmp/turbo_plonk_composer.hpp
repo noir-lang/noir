@@ -1,11 +1,7 @@
 #pragma once
-
-#include "composer_helper/standard_plonk_composer_helper.hpp"
-#include "barretenberg/honk/circuit_constructors/standard_circuit_constructor.hpp"
-#include "barretenberg/srs/reference_string/file_reference_string.hpp"
-#include "barretenberg/transcript/manifest.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
-
+#include "composer_helper/turbo_plonk_composer_helper.hpp"
+#include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
+using namespace bonk;
 namespace plonk {
 /**
  * @brief Standard Plonk Composer has everything required to construct a prover and verifier, just as the legacy
@@ -14,72 +10,72 @@ namespace plonk {
  * @details However, it has a lot of its logic separated into subclasses and simply proxies the calls.
  *
  */
-class StandardPlonkComposer {
+class TurboPlonkComposer {
   public:
     static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
+
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
-    StandardCircuitConstructor circuit_constructor;
+    TurboCircuitConstructor circuit_constructor;
     // Composer helper contains all proof-related material that is separate from circuit creation such as:
     // 1) Proving and verification keys
     // 2) CRS
     // 3) Converting variables to witness vectors/polynomials
-    StandardPlonkComposerHelper<StandardCircuitConstructor> composer_helper;
+    TurboPlonkComposerHelper<TurboCircuitConstructor> composer_helper;
+    size_t& num_gates;
+    std::vector<barretenberg::fr>& variables;
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
-    static constexpr size_t program_width = STANDARD_WIDTH;
+    static constexpr size_t program_width = TurboCircuitConstructor::program_width;
 
     /**Standard methods*/
 
-    StandardPlonkComposer(const size_t size_hint = 0)
+    TurboPlonkComposer(const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , num_gates(circuit_constructor.num_gates)
         , variables(circuit_constructor.variables){};
 
-    StandardPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
-        : StandardPlonkComposer(
+    TurboPlonkComposer(std::string const& crs_path, const size_t size_hint = 0)
+        : TurboPlonkComposer(
               std::unique_ptr<bonk::ReferenceStringFactory>(new bonk::FileReferenceStringFactory(crs_path)),
               size_hint){};
 
-    StandardPlonkComposer(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+    TurboPlonkComposer(std::shared_ptr<bonk::ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(crs_factory)
         , num_gates(circuit_constructor.num_gates)
-        , variables(circuit_constructor.variables)
+        , variables(circuit_constructor.variables){};
 
-    {}
-    StandardPlonkComposer(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
+    TurboPlonkComposer(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(std::move(crs_factory))
         , num_gates(circuit_constructor.num_gates)
-        , variables(circuit_constructor.variables)
+        , variables(circuit_constructor.variables){};
 
-    {}
-
-    StandardPlonkComposer(std::shared_ptr<bonk::proving_key> const& p_key,
-                          std::shared_ptr<bonk::verification_key> const& v_key,
-                          size_t size_hint = 0)
+    TurboPlonkComposer(std::shared_ptr<bonk::proving_key> const& p_key,
+                       std::shared_ptr<bonk::verification_key> const& v_key,
+                       size_t size_hint = 0)
         : circuit_constructor(size_hint)
         , composer_helper(p_key, v_key)
         , num_gates(circuit_constructor.num_gates)
-        , variables(circuit_constructor.variables)
-    {}
+        , variables(circuit_constructor.variables){};
 
-    StandardPlonkComposer(const StandardPlonkComposer& other) = delete;
-    StandardPlonkComposer(StandardPlonkComposer&& other) = default;
-    StandardPlonkComposer& operator=(const StandardPlonkComposer& other) = delete;
+    TurboPlonkComposer(const TurboPlonkComposer& other) = delete;
+    TurboPlonkComposer(TurboPlonkComposer&& other) = default;
+    TurboPlonkComposer& operator=(const TurboPlonkComposer& other) = delete;
     // TODO(#230)(Cody): This constructor started to be implicitly deleted when I added `n` and `variables` members.
     // This is a temporary measure until we can rewrite Plonk and all tests using circuit builder methods in place of
-    // composer methods, where appropriate. StandardPlonkComposer& operator=(StandardPlonkComposer&& other) = default;
-    ~StandardPlonkComposer() = default;
-
-    size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
+    // composer methods, where appropriate. TurboPlonkComposer& operator=(TurboPlonkComposer&& other) = default;
+    ~TurboPlonkComposer() = default;
 
     /**Methods related to circuit construction
      * They simply get proxied to the circuit constructor
      */
+
+    size_t get_num_gates() const { return circuit_constructor.get_num_gates(); }
+
     void assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
     {
         circuit_constructor.assert_equal(a_variable_idx, b_variable_idx, msg);
@@ -95,6 +91,18 @@ class StandardPlonkComposer {
     void create_mul_gate(const mul_triple& in) { circuit_constructor.create_mul_gate(in); }
     void create_bool_gate(const uint32_t a) { circuit_constructor.create_bool_gate(a); }
     void create_poly_gate(const poly_triple& in) { circuit_constructor.create_poly_gate(in); }
+    void create_fixed_group_add_gate(const fixed_group_add_quad& in)
+    {
+        circuit_constructor.create_fixed_group_add_gate(in);
+    }
+    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init)
+    {
+        circuit_constructor.create_fixed_group_add_gate_with_init(in, init);
+    }
+    void create_fixed_group_add_gate_final(const add_quad& in)
+    {
+        circuit_constructor.create_fixed_group_add_gate_final(in);
+    }
     void create_big_add_gate(const add_quad& in) { circuit_constructor.create_big_add_gate(in); }
     void create_big_add_gate_with_bit_extraction(const add_quad& in)
     {
@@ -159,7 +167,6 @@ class StandardPlonkComposer {
     bool check_circuit() { return circuit_constructor.check_circuit(); }
 
     barretenberg::fr get_variable(const uint32_t index) const { return circuit_constructor.get_variable(index); }
-
     /**Proof and verification-related methods*/
 
     std::shared_ptr<bonk::proving_key> compute_proving_key()
@@ -176,7 +183,7 @@ class StandardPlonkComposer {
 
     void compute_witness() { composer_helper.compute_witness(circuit_constructor); };
     // TODO(#230)(Cody): This will not be needed, but maybe something is required for ComposerHelper to be generic?
-    plonk::Verifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
+    plonk::TurboVerifier create_verifier() { return composer_helper.create_verifier(circuit_constructor); }
     /**
      * Preprocess the circuit. Delegates to create_prover.
      *
@@ -187,15 +194,13 @@ class StandardPlonkComposer {
      *
      * @return A new initialized prover.
      */
-    plonk::Prover create_prover() { return composer_helper.create_prover(circuit_constructor); };
+    plonk::TurboProver create_prover() { return composer_helper.create_prover(circuit_constructor); };
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
-        return StandardPlonkComposerHelper<StandardCircuitConstructor>::create_manifest(num_public_inputs);
+        return TurboPlonkComposerHelper<TurboCircuitConstructor>::create_manifest(num_public_inputs);
     }
 
-    size_t& num_gates;
-    std::vector<barretenberg::fr>& variables;
     bool failed() const { return circuit_constructor.failed(); };
     const std::string& err() const { return circuit_constructor.err(); };
     void failure(std::string msg) { circuit_constructor.failure(msg); }

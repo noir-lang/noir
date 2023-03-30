@@ -3,8 +3,6 @@
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
-// #include "standard_honk_composer.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>

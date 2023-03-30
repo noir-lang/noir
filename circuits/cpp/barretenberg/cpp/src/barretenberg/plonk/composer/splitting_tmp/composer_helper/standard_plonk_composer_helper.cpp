@@ -1,6 +1,5 @@
 #include "standard_plonk_composer_helper.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp"
@@ -11,7 +10,7 @@
 #include <cstdint>
 #include <string>
 
-namespace bonk {
+namespace plonk {
 
 /**
  * Compute witness polynomials (w_1, w_2, w_3, w_4).
@@ -173,4 +172,4 @@ plonk::Prover StandardPlonkComposerHelper<CircuitConstructor>::create_prover(
 }
 
 template class StandardPlonkComposerHelper<StandardCircuitConstructor>;
-} // namespace bonk
+} // namespace plonk

@@ -5,13 +5,13 @@
 #include "barretenberg/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
 #include "barretenberg/honk/proof_system/verifier.hpp"
-#include "barretenberg/honk/circuit_constructors/standard_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/proof_system/composer/composer_base.hpp"
-#include "composer_helper_lib.hpp"
-#include "permutation_helper.hpp"
+#include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
+#include "barretenberg/proof_system/composer/permutation_helper.hpp"
 
 #include <utility>
 

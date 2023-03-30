@@ -1,5 +1,5 @@
 #include "relation.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "arithmetic_relation.hpp"
 #include "grand_product_initialization_relation.hpp"
 #include "grand_product_computation_relation.hpp"
@@ -23,7 +23,7 @@ using namespace honk::sumcheck;
  */
 static const size_t input_univariate_length = 2;
 static constexpr size_t FULL_RELATION_LENGTH = 5;
-static const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+static const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
 
 namespace honk_relation_tests {
 
@@ -31,7 +31,7 @@ template <class FF> class SumcheckRelation : public testing::Test {
   public:
     template <size_t t> using Univariate = Univariate<FF, t>;
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
-    using POLYNOMIAL = bonk::StandardArithmetization::POLYNOMIAL;
+    using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
     // TODO(#225)(Adrian): Accept FULL_RELATION_LENGTH as a template parameter for this function only, so that the test
     // can decide to which degree the polynomials must be extended. Possible accept an existing list of "edges" and
     // extend them to the degree.
@@ -173,7 +173,7 @@ TYPED_TEST_SUITE(SumcheckRelation, FieldTypes);
 TYPED_TEST(SumcheckRelation, ArithmeticRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
-    using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
@@ -216,7 +216,7 @@ TYPED_TEST(SumcheckRelation, ArithmeticRelation)
 TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
-    using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
@@ -278,7 +278,7 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
 TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
-    using MULTIVARIATE = bonk::StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;

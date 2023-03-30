@@ -12,8 +12,6 @@ namespace honk {
 class StandardHonkComposer;
 } // namespace honk
 
-namespace bonk {}
-
 #define EXTERN_STDLIB_TYPE(stdlib_type)                                                                                \
     extern template class stdlib_type<plonk::StandardComposer>;                                                        \
     extern template class stdlib_type<honk::StandardHonkComposer>;                                                     \

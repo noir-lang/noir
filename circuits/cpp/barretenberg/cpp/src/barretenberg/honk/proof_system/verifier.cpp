@@ -11,13 +11,13 @@
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
 #include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-#include "barretenberg/honk/composer/composer_helper/permutation_helper.hpp"
+#include "barretenberg/proof_system/composer/permutation_helper.hpp"
 #include <math.h>
 #include <optional>
 #include <string>
@@ -83,9 +83,9 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     using Gemini = pcs::gemini::MultilinearReductionScheme<pcs::kzg::Params>;
     using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<pcs::kzg::Params>;
     using KZG = pcs::kzg::UnivariateOpeningScheme<pcs::kzg::Params>;
-    const size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
-    const size_t NUM_UNSHIFTED = bonk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
-    const size_t NUM_PRECOMPUTED = bonk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
+    const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
+    const size_t NUM_UNSHIFTED = honk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
+    const size_t NUM_PRECOMPUTED = honk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
 
     constexpr auto program_width = program_settings::program_width;
 
@@ -165,7 +165,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
 
     // Construct batched commitment for NON-shifted polynomials
     for (size_t i = 0; i < NUM_PRECOMPUTED; ++i) {
-        auto commitment = key->commitments[bonk::StandardArithmetization::ENUM_TO_COMM[i]];
+        auto commitment = key->commitments[honk::StandardArithmetization::ENUM_TO_COMM[i]];
         batched_commitment_unshifted += commitment * rhos[i];
     }
     // add wire commitments

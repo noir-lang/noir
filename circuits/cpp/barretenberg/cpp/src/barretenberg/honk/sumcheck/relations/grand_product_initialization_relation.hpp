@@ -1,6 +1,6 @@
 #pragma once
 #include "relation.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 
 namespace honk::sumcheck {

@@ -7,7 +7,7 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <span>
@@ -23,7 +23,7 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
 
   public:
     static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
-    static constexpr size_t NUM_POLYNOMIALS = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    static constexpr size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
 
     std::array<FF, NUM_POLYNOMIALS> purported_evaluations;
     Transcript& transcript;

@@ -1,5 +1,5 @@
 #include "turbo_plonk_composer_helper.hpp"
-#include "barretenberg/honk/circuit_constructors/turbo_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/plonk/proof_system/widgets/random_widgets/permutation_widget.hpp"
@@ -10,10 +10,10 @@
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/transition_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp"
-#include "permutation_helper.hpp"
+#include "barretenberg/proof_system/composer/permutation_helper.hpp"
 using namespace barretenberg;
 
-namespace bonk {
+namespace plonk {
 
 /**
  * Compute proving key
@@ -177,4 +177,4 @@ plonk::TurboVerifier TurboPlonkComposerHelper<CircuitConstructor>::create_verifi
 }
 
 template class TurboPlonkComposerHelper<TurboCircuitConstructor>;
-} // namespace bonk
+} // namespace plonk

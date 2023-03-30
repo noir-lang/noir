@@ -12,7 +12,7 @@ template <typename FF> struct SumcheckOutput {
     // u = (u_0, ..., u_{d-1})
     std::vector<FF> challenge_point;
     // Evaluations in `u` of the polynomials used in Sumcheck
-    std::array<FF, bonk::StandardArithmetization::NUM_POLYNOMIALS> evaluations;
+    std::array<FF, honk::StandardArithmetization::NUM_POLYNOMIALS> evaluations;
 
     bool operator==(const SumcheckOutput& other) const = default;
 };

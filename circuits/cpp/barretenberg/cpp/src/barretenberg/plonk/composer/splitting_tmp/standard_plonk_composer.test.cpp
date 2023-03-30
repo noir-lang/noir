@@ -11,7 +11,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-TEST(standard_composer, base_case)
+TEST(standard_plonk_composer_splitting_tmp, base_case)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
@@ -25,7 +25,7 @@ TEST(standard_composer, base_case)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, composer_from_serialized_keys)
+TEST(standard_plonk_composer_splitting_tmp, composer_from_serialized_keys)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
@@ -53,7 +53,7 @@ TEST(standard_composer, composer_from_serialized_keys)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_add_gate_proofs)
+TEST(standard_plonk_composer_splitting_tmp, test_add_gate_proofs)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
@@ -112,7 +112,7 @@ TEST(standard_composer, test_add_gate_proofs)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_mul_gate_proofs)
+TEST(standard_plonk_composer_splitting_tmp, test_mul_gate_proofs)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
@@ -191,7 +191,7 @@ TEST(standard_composer, test_mul_gate_proofs)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, range_constraint)
+TEST(standard_plonk_composer_splitting_tmp, range_constraint)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
@@ -234,7 +234,7 @@ TEST(standard_composer, range_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, range_constraint_fail)
+TEST(standard_plonk_composer_splitting_tmp, range_constraint_fail)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
@@ -254,7 +254,7 @@ TEST(standard_composer, range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_composer, and_constraint)
+TEST(standard_plonk_composer_splitting_tmp, and_constraint)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
@@ -325,7 +325,7 @@ TEST(standard_composer, and_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, xor_constraint)
+TEST(standard_plonk_composer_splitting_tmp, xor_constraint)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
@@ -395,7 +395,7 @@ TEST(standard_composer, xor_constraint)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, big_add_gate_with_bit_extract)
+TEST(standard_plonk_composer_splitting_tmp, big_add_gate_with_bit_extract)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
 
@@ -439,7 +439,7 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_range_constraint_fail)
+TEST(standard_plonk_composer_splitting_tmp, test_range_constraint_fail)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
@@ -456,7 +456,7 @@ TEST(standard_composer, test_range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_composer, test_check_circuit_correct)
+TEST(standard_plonk_composer_splitting_tmp, test_check_circuit_correct)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();
@@ -476,7 +476,7 @@ TEST(standard_composer, test_check_circuit_correct)
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_check_circuit_broken)
+TEST(standard_plonk_composer_splitting_tmp, test_check_circuit_broken)
 {
     plonk::StandardPlonkComposer composer = plonk::StandardPlonkComposer();
     fr a = fr::one();

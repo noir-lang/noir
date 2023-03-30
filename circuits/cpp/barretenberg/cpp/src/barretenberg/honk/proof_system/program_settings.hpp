@@ -4,7 +4,7 @@
 
 #include "../../transcript/transcript_wrappers.hpp"
 #include "../../plonk/proof_system/types/prover_settings.hpp"
-#include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/honk/flavor/flavor.hpp"
 
 namespace honk {
 
@@ -16,7 +16,7 @@ class standard_verifier_settings : public plonk::standard_settings {
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
     static constexpr size_t program_width = 3;
-    static constexpr size_t num_polys = bonk::StandardArithmetization::NUM_POLYNOMIALS;
+    static constexpr size_t num_polys = honk::StandardArithmetization::NUM_POLYNOMIALS;
 };
 
 } // namespace honk
