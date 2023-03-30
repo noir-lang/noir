@@ -125,6 +125,14 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
                                                                      native_new_contract_data);
     }
 
+    {
+        // Nonce nullifier
+        // DANGER: This is terrible. This should not be part of the protocol. This is an intentional bodge to reach a
+        // milestone. This must not be the way we derive nonce nullifiers in production. It can be front-run by other
+        // users. It is not domain separated. Naughty.
+        array_push(public_inputs.end.new_nullifiers, private_inputs.signed_tx_request.tx_request.nonce);
+    }
+
     { // commitments & nullifiers
         std::array<NT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
