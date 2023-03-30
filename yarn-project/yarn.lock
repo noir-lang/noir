@@ -22,7 +22,9 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
+    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#78606b521f3147ec6b88879e738067a3b2b6f2fd"
     "@noir-lang/noir-source-resolver": ^1.1.0
+    "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#bb71df87c9415be387c998b67cb0de4298ab6b6a"
     "@noir-lang/noir_wasm": 0.3.2-29b1f7df
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
@@ -1822,10 +1824,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noir-lang/aztec_backend_wasm@github:joss-aztec/barretenberg_browser_stopgap_wasm_build#78606b521f3147ec6b88879e738067a3b2b6f2fd":
+  version: 0.1.0-4488289
+  resolution: "@noir-lang/aztec_backend_wasm@https://github.com/joss-aztec/barretenberg_browser_stopgap_wasm_build.git#commit=78606b521f3147ec6b88879e738067a3b2b6f2fd"
+  checksum: 50470822845229f268cf9b0bf7a04a72e5328e4fd1197071035e1ba0315dc9d35d104457078f3caec595ac7ca31d715df9b724a1f8ca8797ea75950883e63c74
+  languageName: node
+  linkType: hard
+
 "@noir-lang/noir-source-resolver@npm:^1.1.0":
   version: 1.1.1
   resolution: "@noir-lang/noir-source-resolver@npm:1.1.1"
   checksum: 43acc4c1a720ad0837db68bfac59efe58fe2b7467a8508807857aa738e3095d088547692efba5655f3e89e6c4747307c769e582d6ef5b4d454c7787090601a82
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noir_util_wasm@github:joss-aztec/noir_util_wasm#bb71df87c9415be387c998b67cb0de4298ab6b6a":
+  version: 0.2.0-f4635b0
+  resolution: "@noir-lang/noir_util_wasm@https://github.com/joss-aztec/noir_util_wasm.git#commit=bb71df87c9415be387c998b67cb0de4298ab6b6a"
+  checksum: b939a3fed1237d64885c143fd890de82836ef82caaf6d69bc274afd3f3b6d3595bee2f324bd76d176dd00044b36dfc19f7cb9437d554c6f354510c6cfecc8b8e
   languageName: node
   linkType: hard
 
