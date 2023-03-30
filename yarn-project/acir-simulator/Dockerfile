@@ -4,12 +4,7 @@ COPY acir-simulator acir-simulator
 # dependencies
 COPY foundation foundation
 COPY circuits.js circuits.js
-
-WORKDIR /usr/src/yarn-project/foundation
-RUN yarn build
-
-WORKDIR /usr/src/yarn-project/circuits.js
-RUN yarn build
+COPY noir-contracts noir-contracts
 
 WORKDIR /usr/src/yarn-project/acir-simulator
 RUN yarn build && yarn formatting && yarn test

@@ -33,6 +33,7 @@
     "@aztec/aztec-node": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/kernel-prover": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "@aztec/tx": "workspace:^",
     "browserify-cipher": "^1.0.1",
     "sha3": "^2.1.4",

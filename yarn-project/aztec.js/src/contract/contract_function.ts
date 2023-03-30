@@ -1,4 +1,5 @@
-import { FunctionAbi, generateFunctionSelector } from '@aztec/aztec-rpc';
+import { generateFunctionSelector } from '@aztec/aztec-rpc';
+import { FunctionAbi } from '@aztec/noir-contracts';
 import { encodeParameters } from '../abi_coder/index.js';
 
 export class ContractFunction {

@@ -20,6 +20,7 @@ import {
 import { DBOracle, PrivateCallStackItem } from './db_oracle.js';
 import { frToAztecAddress, frToBoolean, frToEthAddress, WitnessReader, WitnessWriter } from './witness_io.js';
 import { randomBytes } from '@aztec/foundation';
+import { FunctionAbi } from '@aztec/noir-contracts';
 
 export interface ExecutionPreimages {
   newNotes: Array<{ preimage: Fr[]; storageSlot: Fr }>;
@@ -29,6 +30,7 @@ export interface ExecutionPreimages {
 export interface ExecutionResult {
   // Needed for prover
   acir: Buffer;
+  vk: Buffer;
   partialWitness: Map<number, ACVMField>;
   // Needed for the verifier (kernel)
   callStackItem: PrivateCallStackItem;
@@ -42,7 +44,7 @@ export class Execution {
   constructor(
     private db: DBOracle,
     private request: TxRequest,
-    private entryPointACIR: Buffer,
+    private entryPointABI: FunctionAbi,
     private contractAddress: AztecAddress,
     private portalContractAddress: EthAddress,
     private oldRoots: OldTreeRoots,
@@ -59,7 +61,7 @@ export class Execution {
     );
 
     return this.runExternalFunction(
-      this.entryPointACIR,
+      this.entryPointABI,
       this.contractAddress,
       1, // TODO this comes from contract ABI
       this.request.functionData.functionSelector,
@@ -70,13 +72,14 @@ export class Execution {
 
   // Separate function so we can recurse in the future
   private async runExternalFunction(
-    acir: Buffer,
+    abi: FunctionAbi,
     contractAddress: AztecAddress,
     witnessStartIndex: number,
     functionSelector: number,
     args: Fr[],
     callContext: CallContext,
   ): Promise<ExecutionResult> {
+    const acir = Buffer.from(abi.bytecode, 'hex');
     const initialWitness = this.arrangeInitialWitness(args, callContext, witnessStartIndex);
     const newNotePreimages: Array<{ preimage: Fr[]; storageSlot: Fr }> = [];
     const newNullifiers: Fr[] = [];
@@ -117,6 +120,7 @@ export class Execution {
         newNotes: newNotePreimages,
         nullifiedNotes: newNullifiers,
       },
+      vk: Buffer.from(abi.verificationKey!, 'hex'),
       nestedExecutions: nestedExecutionContexts,
     };
   }

@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

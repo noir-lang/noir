@@ -11,6 +11,9 @@
     },
     {
       "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../noir-contracts/tsconfig.dest.json"
     }
   ],
   "include": [

@@ -23,7 +23,7 @@ import { ContractTree } from '../contract_tree/index.js';
 import { Database } from '../database/database.js';
 import { TxDao } from '../database/tx_dao.js';
 import { KeyStore } from '../key_store/index.js';
-import { ContractAbi, FunctionType } from '../noir.js';
+import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
 
@@ -203,7 +203,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const oldRoots = new OldTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
     const executionResult = await this.acirSimulator.run(
       txRequest,
-      Buffer.from(functionDao.bytecode),
+      functionDao,
       contractAddress,
       contract.portalAddress,
       oldRoots,

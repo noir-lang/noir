@@ -14,8 +14,8 @@ export interface ABIVariable {
 
 export enum ABIParameterVisibility {
   PUBLIC = 'public',
-  SECRET = 'secret'
-};
+  SECRET = 'secret',
+}
 
 /**
  * A function parameter.
@@ -93,8 +93,8 @@ export interface StructType extends BasicType<'struct'> {
 export enum FunctionType {
   SECRET = 'secret',
   OPEN = 'open',
-  UNCONSTRAINED = 'unconstrained'
-};
+  UNCONSTRAINED = 'unconstrained',
+}
 
 /**
  * The ABI entry of a function.
@@ -130,7 +130,7 @@ export interface ContractAbi {
   /**
    * The name of the contract.
    */
-  name: string,
+  name: string;
   /**
    * The functions of the contract.
    */

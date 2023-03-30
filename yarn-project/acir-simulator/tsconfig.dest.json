@@ -4,6 +4,9 @@
   "references": [
     {
       "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../noir-contracts/tsconfig.dest.json"
     }
   ]
 }

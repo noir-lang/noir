@@ -20,6 +20,7 @@ __metadata:
   resolution: "@aztec/acir-simulator@workspace:acir-simulator"
   dependencies:
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
     "@noir-lang/noir-source-resolver": ^1.1.0
     "@noir-lang/noir_wasm": 0.3.2-29b1f7df
@@ -117,6 +118,7 @@ __metadata:
     "@aztec/aztec-node": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kernel-prover": "workspace:^"
+    "@aztec/noir-contracts": "workspace:^"
     "@aztec/tx": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
@@ -138,6 +140,7 @@ __metadata:
   dependencies:
     "@aztec/aztec-rpc": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/noir-contracts": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
     "@aztec/tx": "workspace:^"
     "@jest/globals": ^29.4.3

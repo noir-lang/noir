@@ -1,4 +1,4 @@
-import { ABIParameter } from '@aztec/aztec-rpc';
+import { ABIParameter } from '@aztec/noir-contracts';
 
 export * from './hex_string.js';
 

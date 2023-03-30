@@ -1,18 +1,16 @@
 import { mock } from 'jest-mock-extended';
 import {
-  ABIParameterVisibility,
   AztecAddress,
   AztecRPCClient,
-  ContractAbi,
   EthAddress,
   Fr,
-  FunctionType,
   Signature,
   Tx,
   TxHash,
   TxReceipt,
   TxRequest,
 } from '@aztec/aztec-rpc';
+import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/noir-contracts';
 
 import { Contract } from './contract.js';
 

@@ -1,5 +1,5 @@
 import { keccak256 } from '../foundation.js';
-import { ABIParameter } from '../noir.js';
+import { ABIParameter } from '@aztec/noir-contracts';
 
 export function generateFunctionSignature(name: string, parameters: ABIParameter[]) {
   return name === 'constructor' ? name : `${name}(${parameters.map(p => p.type.kind).join(',')})`;

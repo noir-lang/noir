@@ -11,7 +11,7 @@ import { AztecAddress, EthAddress, Fr, keccak } from '@aztec/foundation';
 import { selectorToNumber } from '../circuits.js';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
-import { ContractAbi, FunctionType } from '../noir.js';
+import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 
 function isConstructor({ name }: { name: string }) {
   return name === 'constructor';
