@@ -100,7 +100,7 @@ function makeEmptyUnverifiedData() {
 
 export function makeEmptyTx(): Tx {
   const isEmpty = true;
-  return new Tx(makeEmptyPrivateKernelPublicInputs(), makeEmptyProof(), makeEmptyUnverifiedData(), isEmpty);
+  return new Tx(makeEmptyPrivateKernelPublicInputs(), makeEmptyProof(), makeEmptyUnverifiedData(), undefined, isEmpty);
 }
 
 export function hashNewContractData(wasm: CircuitsWasm | BarretenbergWasm, cd: NewContractData) {

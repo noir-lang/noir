@@ -7,7 +7,7 @@ import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 
 export class TxAuxData {
-  constructor(public notePreImage: NotePreimage, public contractAddress: AztecAddress, public storageSlot: Fr) {}
+  constructor(public notePreimage: NotePreimage, public contractAddress: AztecAddress, public storageSlot: Fr) {}
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
@@ -15,7 +15,7 @@ export class TxAuxData {
   }
 
   toBuffer() {
-    return serializeToBuffer([this.notePreImage, this.contractAddress, this.storageSlot]);
+    return serializeToBuffer([this.notePreimage, this.contractAddress, this.storageSlot]);
   }
 
   public toEncryptedBuffer(ownerPubKey: Point, ephPrivKey: Buffer, grumpkin: Grumpkin) {

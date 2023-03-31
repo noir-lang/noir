@@ -39,4 +39,12 @@ export class ContractData {
       new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES)),
     );
   }
+
+  /**
+   * Generate ContractData with random addresses.
+   * @returns ContractData.
+   */
+  static random() {
+    return new ContractData(AztecAddress.random(), EthAddress.random());
+  }
 }

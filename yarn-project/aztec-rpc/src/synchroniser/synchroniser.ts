@@ -1,12 +1,8 @@
 import { AztecNode } from '@aztec/aztec-node';
-import {
-  AztecAddress,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-} from '@aztec/circuits.js';
-import { createDebugLogger, InterruptableSleep, keccak } from '@aztec/foundation';
-import { L2Block } from '@aztec/l2-block';
+import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { AztecAddress } from '@aztec/circuits.js';
+import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { TxHash } from '@aztec/tx';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
@@ -20,6 +16,7 @@ export class Synchroniser {
   constructor(
     private node: AztecNode,
     private db: Database,
+    private bbWasm: BarretenbergWasm,
     private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
@@ -30,34 +27,23 @@ export class Synchroniser {
 
     this.running = true;
 
-    let fromBlock = from;
     let fromUnverifiedData = from;
 
     const run = async () => {
       while (this.running) {
         try {
-          const blocks = await this.node.getBlocks(fromBlock, take);
           const unverifiedData = await this.node.getUnverifiedData(fromUnverifiedData, take);
 
-          if (!blocks.length && !unverifiedData.length) {
+          if (!unverifiedData.length) {
             await this.interruptableSleep.sleep(retryInterval);
             continue;
           }
 
-          if (blocks.length) {
-            await this.decodeBlocks(blocks);
+          this.log(`Forwarded ${unverifiedData.length} unverified data to ${this.accountStates.length} account states`);
+          for (const accountState of this.accountStates) {
+            await accountState.processUnverifiedData(unverifiedData, fromUnverifiedData, take);
           }
 
-          if (unverifiedData.length) {
-            this.log(
-              `Forwarded ${unverifiedData.length} unverified data to ${this.accountStates.length} account states`,
-            );
-            for (const accountState of this.accountStates) {
-              await accountState.processUnverifiedData(unverifiedData);
-            }
-          }
-
-          fromBlock += blocks.length;
           fromUnverifiedData += unverifiedData.length;
         } catch (err) {
           console.log(err);
@@ -78,12 +64,12 @@ export class Synchroniser {
   }
 
   public async addAccount(privKey: Buffer) {
-    this.accountStates.push(new AccountState(privKey, this.db));
+    this.accountStates.push(new AccountState(privKey, this.db, this.node, new Grumpkin(this.bbWasm)));
     await Promise.resolve();
   }
 
   public getAccount(account: AztecAddress) {
-    return this.accountStates.find(async as => (await as.getPubKey()).toAddress().equals(account));
+    return this.accountStates.find(async as => (await as.getPublicKey()).toAddress().equals(account));
   }
 
   public getAccounts() {
@@ -102,41 +88,5 @@ export class Synchroniser {
     }
 
     return tx;
-  }
-
-  private async decodeBlocks(l2Blocks: L2Block[]) {
-    for (const block of l2Blocks) {
-      let i = 0;
-      const numTxs = Math.floor(block.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
-      while (i < numTxs) {
-        const dataToHash = Buffer.concat(
-          [
-            block.newCommitments
-              .slice(
-                i * KERNEL_NEW_COMMITMENTS_LENGTH,
-                i * KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_COMMITMENTS_LENGTH,
-              )
-              .map(x => x.toBuffer()),
-            block.newNullifiers
-              .slice(i * KERNEL_NEW_NULLIFIERS_LENGTH, i * KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH)
-              .map(x => x.toBuffer()),
-            block.newContracts
-              .slice(i * KERNEL_NEW_CONTRACTS_LENGTH, i * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH)
-              .map(x => x.toBuffer()),
-          ].flat(),
-        );
-        const txDao: TxDao | undefined = await this.db.getTx(new TxHash(keccak(dataToHash)));
-        if (txDao !== undefined) {
-          txDao.blockHash = keccak(block.encode());
-          txDao.blockNumber = block.number;
-          await this.db.addOrUpdateTx(txDao);
-        }
-        i++;
-      }
-      for (const key in this.accountStates) {
-        this.accountStates[key].syncToBlock(block);
-      }
-      this.log(`Synched block ${block.number}`);
-    }
   }
 }

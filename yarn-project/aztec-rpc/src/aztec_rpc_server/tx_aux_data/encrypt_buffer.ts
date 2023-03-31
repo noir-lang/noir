@@ -27,9 +27,12 @@ export function decryptBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grum
   const aesKey = aesSecret.subarray(0, 16);
   const iv = aesSecret.subarray(16, 32);
   const cipher = createDecipheriv('aes-128-cbc', aesKey, iv);
-  const plaintext = Buffer.concat([cipher.update(data.subarray(0, -64)), cipher.final()]);
-  if (!plaintext.subarray(0, 8).equals(iv.subarray(0, 8))) {
+  try {
+    const plaintext = Buffer.concat([cipher.update(data.subarray(0, -64)), cipher.final()]);
+    if (plaintext.subarray(0, 8).equals(iv.subarray(0, 8))) {
+      return plaintext.subarray(8);
+    }
+  } catch (e) {
     return;
   }
-  return plaintext.subarray(8);
 }

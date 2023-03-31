@@ -8,7 +8,6 @@ export enum TxStatus {
 }
 export interface TxReceipt {
   txHash: TxHash;
-  // txIndex: number;
   blockHash: Buffer | undefined;
   blockNumber: number | undefined;
   from?: AztecAddress;

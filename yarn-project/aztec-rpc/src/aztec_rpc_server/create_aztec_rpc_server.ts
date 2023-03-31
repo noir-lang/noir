@@ -16,20 +16,23 @@ export async function createAztecRPCServer(
     db,
     acirSimulator,
     kernelProver,
+    circuitsWasm,
     bbWasm,
   }: {
     keyStore?: KeyStore;
     db?: MemoryDB;
     acirSimulator?: AcirSimulator;
     kernelProver?: KernelProver;
+    circuitsWasm?: CircuitsWasm;
     bbWasm?: BarretenbergWasm;
   } = {},
 ) {
   bbWasm = bbWasm || (await BarretenbergWasm.new());
+  circuitsWasm = circuitsWasm || (await CircuitsWasm.new());
   keyStore = keyStore || new TestKeyStore(new Grumpkin(bbWasm));
   db = db || new MemoryDB();
   acirSimulator = acirSimulator || new AcirSimulator(new SimulatorOracle(db, keyStore));
   kernelProver = kernelProver || new KernelProver();
 
-  return new AztecRPCServer(keyStore, acirSimulator, kernelProver, aztecNode, db, await CircuitsWasm.new());
+  return new AztecRPCServer(keyStore, acirSimulator, kernelProver, aztecNode, db, circuitsWasm, bbWasm);
 }

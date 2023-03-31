@@ -1,58 +1,134 @@
+import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { Point } from '@aztec/foundation';
+import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  createDebugLogger,
+  Fr,
+  keccak,
+  Point,
+  randomBytes,
+  serializeBufferToVector,
+} from '@aztec/foundation';
 import { L2Block, UnverifiedData } from '@aztec/l2-block';
-import { TxHash } from '@aztec/tx';
-import { TxAuxData } from '../aztec_rpc_server/tx_aux_data/tx_aux_data.js';
-import { Database } from '../database/index.js';
-import { TxAuxDataDao } from '../database/tx_aux_data_dao.js';
+import { getTxHash } from '@aztec/tx';
+import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
+import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
 
 export class AccountState {
-  public syncedTo = 0;
-  private grumpkin?: Grumpkin;
-  private pubKey?: Point;
+  public syncedToBlock = 0;
+  private publicKey: Point;
+  private address: AztecAddress;
 
-  constructor(private readonly privKey: Buffer, private db: Database) {
+  constructor(
+    private readonly privKey: Buffer,
+    private db: Database,
+    private node: AztecNode,
+    private grumpkin: Grumpkin,
+    private TXS_PER_BLOCK = 1,
+    private log = createDebugLogger('aztec:aztec_rpc_account_state'),
+  ) {
     if (privKey.length !== 32) {
       throw new Error(`Invalid private key length. Received ${privKey.length}, expected 32`);
     }
+    this.publicKey = Point.fromBuffer(this.grumpkin.mul(Grumpkin.generator, this.privKey));
+    this.address = this.publicKey.toAddress();
   }
 
-  public getTx(txHash: TxHash) {
-    return this.db.getTx(txHash);
+  public async isSynchronised() {
+    const remoteBlockHeight = await this.node.getBlockHeight();
+    return this.syncedToBlock === remoteBlockHeight;
   }
 
-  public syncToBlock(block: L2Block) {
-    this.syncedTo = block.number;
-  }
-  public async getPubKey(): Promise<Point> {
-    if (!this.pubKey) {
-      const grumpkin = await this.getGrumpkin();
-      this.pubKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, this.privKey));
-    }
-    return this.pubKey;
+  public getSyncedToBlock() {
+    return this.syncedToBlock;
   }
 
-  public async processUnverifiedData(unverifiedData: UnverifiedData[]): Promise<void> {
-    let numDecryptedAuxData = 0;
-    for (const data of unverifiedData) {
-      for (const encryptedTxAuxData of data.dataChunks) {
-        const txAuxData = TxAuxData.fromEncryptedBuffer(encryptedTxAuxData, this.privKey, await this.getGrumpkin());
+  public getPublicKey() {
+    return this.publicKey;
+  }
+
+  public getTxs() {
+    return this.db.getTxsByAddress(this.address);
+  }
+
+  public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]) {
+    const chunks = newNotes.map(({ preimage, storageSlot }) => {
+      const notePreimage = new NotePreimage(preimage);
+      const txAuxData = new TxAuxData(notePreimage, contract, storageSlot);
+      // TODO - Should use the correct recipient public key.
+      const recipient = this.publicKey;
+      const ephPrivKey = randomBytes(32);
+      // Deserialized in archiver.ts > processYeetLogs().
+      return serializeBufferToVector(txAuxData.toEncryptedBuffer(recipient, ephPrivKey, this.grumpkin));
+    });
+    return Buffer.concat(chunks);
+  }
+
+  public async processUnverifiedData(unverifiedData: UnverifiedData[], from: number, take: number): Promise<void> {
+    const decrypted: { blockNo: number; txIndices: number[]; txAuxDataDaos: TxAuxDataDao[] }[] = [];
+    const toBlockNo = from + unverifiedData.length - 1;
+    let dataStartIndex = (from - 1) * this.TXS_PER_BLOCK * KERNEL_NEW_COMMITMENTS_LENGTH;
+    for (let blockNo = from; blockNo <= toBlockNo; ++blockNo) {
+      const dataChunks = unverifiedData[blockNo - from].dataChunks;
+      const txIndices: Set<number> = new Set();
+      const txAuxDataDaos: TxAuxDataDao[] = [];
+      for (let i = 0; i < dataChunks.length; ++i) {
+        const txAuxData = TxAuxData.fromEncryptedBuffer(dataChunks[i], this.privKey, this.grumpkin);
         if (txAuxData) {
-          const txAuxDataDao = TxAuxDataDao.fromTxAuxData(txAuxData);
-          await this.db.addTxAuxDataDao(txAuxDataDao);
-          numDecryptedAuxData++;
+          const txIndex = Math.floor(i / KERNEL_NEW_COMMITMENTS_LENGTH);
+          txIndices.add(txIndex);
+          txAuxDataDaos.push({
+            ...txAuxData,
+            nullifier: Fr.random(), // TODO
+            index: dataStartIndex + i,
+          });
         }
       }
+
+      if (txIndices.size) {
+        decrypted.push({ blockNo, txIndices: [...txIndices], txAuxDataDaos });
+        this.log(`Decrypted ${txIndices.size} tx aux data in block ${blockNo}.`);
+      }
+
+      dataStartIndex += dataChunks.length;
     }
-    console.log(`Decrypted ${numDecryptedAuxData} tx aux data in account state`);
+
+    if (decrypted.length) {
+      const txAuxDataDaos = decrypted.map(({ txAuxDataDaos }) => txAuxDataDaos);
+      await this.db.addTxAuxDataBatch(txAuxDataDaos.flat());
+
+      const blocks = await this.node.getBlocks(from, take);
+      const targetBlocks = decrypted.map(({ blockNo }) => blocks.find(b => b.number === blockNo)!);
+      const txIndices = decrypted.map(({ txIndices }) => txIndices);
+      await this.processBlocks(targetBlocks, txIndices, txAuxDataDaos);
+    }
+
+    this.syncedToBlock = toBlockNo;
   }
 
-  private async getGrumpkin(): Promise<Grumpkin> {
-    if (!this.grumpkin) {
-      const wasm = await BarretenbergWasm.new();
-      this.grumpkin = new Grumpkin(wasm);
+  private async processBlocks(blocks: L2Block[], txIndices: number[][], txAuxDataDaos: TxAuxDataDao[][]) {
+    const txDaos: TxDao[] = [];
+    for (let i = 0; i < blocks.length; ++i) {
+      const block = blocks[i];
+      txIndices[i].map((txIndex, j) => {
+        const txHash = getTxHash(block, txIndex);
+        const txAuxData = txAuxDataDaos[i][j];
+        const isContractDeployment = true; // TODO
+        const [to, contractAddress] = isContractDeployment
+          ? [undefined, txAuxData.contractAddress]
+          : [txAuxData.contractAddress, undefined];
+        txDaos.push({
+          txHash,
+          blockHash: keccak(block.encode()),
+          blockNumber: block.number,
+          from: this.address,
+          to,
+          contractAddress,
+          error: '',
+        });
+      });
     }
-    return this.grumpkin;
+    await this.db.addTxs(txDaos);
   }
 }

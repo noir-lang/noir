@@ -97,7 +97,7 @@ describe('e2e_deploy_contract', () => {
       const receipt = await tx.getReceipt();
 
       expect(receipt.status).toBe(TxStatus.DROPPED);
-      expect(receipt.error).toBe('Tx dropped by P2P node');
+      expect(receipt.error).toBe('Tx dropped by P2P node.');
     }
   }, 30_000);
 });

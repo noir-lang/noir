@@ -1,6 +1,11 @@
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { AppendOnlyTreeSnapshot, Fr } from '@aztec/circuits.js';
-import { fr, makeAppendOnlyTreeSnapshot, makeEthAddress } from '@aztec/circuits.js/factories';
+import {
+  AppendOnlyTreeSnapshot,
+  Fr,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+} from '@aztec/circuits.js';
+import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { ContractData } from './contract_data.js';
 
@@ -48,13 +53,19 @@ export class L2Block {
     public newContractData: ContractData[],
   ) {}
 
-  static random(l2BlockNum: number) {
-    const newNullifiers = [fr(0x1), fr(0x2), fr(0x3), fr(0x4)];
-    const newCommitments = [fr(0x101), fr(0x102), fr(0x103), fr(0x104)];
-    const newContracts = [fr(0x201)];
-    const newContractsData: ContractData[] = [
-      new ContractData(AztecAddress.fromBuffer(fr(0x301).toBuffer()), makeEthAddress(0x302)),
-    ];
+  static random(l2BlockNum: number, txsPerBlock = 1) {
+    const newNullifiers = Array(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock)
+      .fill(0)
+      .map(() => Fr.random());
+    const newCommitments = Array(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock)
+      .fill(0)
+      .map(() => Fr.random());
+    const newContracts = Array(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock)
+      .fill(0)
+      .map(() => Fr.random());
+    const newContractsData = Array(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock)
+      .fill(0)
+      .map(() => ContractData.random());
 
     return new L2Block(
       l2BlockNum,
