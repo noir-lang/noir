@@ -44,23 +44,23 @@ pub(crate) fn evaluate(
 
     let outputs;
     match opcode {
-        Opcode::ToBits(endianess) => {
+        Opcode::ToBits(endianness) => {
             // TODO: document where `0` and `1` are coming from, for args[0], args[1]
             let bit_size = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianess, evaluator);
+            outputs = to_radix_base(l_c.expression(), 2, bit_size, endianness, evaluator);
             if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }
         }
-        Opcode::ToRadix(endianess) => {
+        Opcode::ToRadix(endianness) => {
             // TODO: document where `0`, `1` and `2` are coming from, for args[0],args[1], args[2]
             let radix = ctx.get_as_constant(args[1]).unwrap().to_u128() as u32;
             let limb_size = ctx.get_as_constant(args[2]).unwrap().to_u128() as u32;
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
-            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianess, evaluator);
+            outputs = to_radix_base(l_c.expression(), radix, limb_size, endianness, evaluator);
             if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }

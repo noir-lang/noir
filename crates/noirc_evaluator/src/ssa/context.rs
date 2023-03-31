@@ -65,19 +65,19 @@ impl Default for SsaContext {
             constants: HashMap::new(),
         };
         block::create_first_block(&mut pc);
-        pc.one_with_type(node::ObjectType::Boolean);
-        pc.zero_with_type(node::ObjectType::Boolean);
+        pc.one_with_type(ObjectType::boolean());
+        pc.zero_with_type(ObjectType::boolean());
         pc
     }
 }
 
 impl SsaContext {
     pub(crate) fn zero(&self) -> NodeId {
-        self.find_const_with_type(&FieldElement::zero(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::zero(), ObjectType::boolean()).unwrap()
     }
 
     pub(crate) fn one(&self) -> NodeId {
-        self.find_const_with_type(&FieldElement::one(), node::ObjectType::Boolean).unwrap()
+        self.find_const_with_type(&FieldElement::one(), ObjectType::boolean()).unwrap()
     }
 
     pub(crate) fn zero_with_type(&mut self, obj_type: ObjectType) -> NodeId {
@@ -139,7 +139,7 @@ impl SsaContext {
                 predicate: None,
                 location: None,
             };
-            let dummy_store = node::Instruction::new(op_a, node::ObjectType::NotAnObject, None);
+            let dummy_store = node::Instruction::new(op_a, ObjectType::NotAnObject, None);
             let id = self.add_instruction(dummy_store);
             self.dummy_store.insert(a, id);
         }
@@ -621,7 +621,7 @@ impl SsaContext {
             | Binary(node::Binary { operator: Slt, .. })
             | Binary(node::Binary { operator: Sle, .. })
             | Binary(node::Binary { operator: Lt, .. })
-            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::Boolean,
+            | Binary(node::Binary { operator: Lte, .. }) => ObjectType::boolean(),
             Operation::Jne(_, _)
             | Operation::Jeq(_, _)
             | Operation::Jmp(_)
@@ -649,7 +649,7 @@ impl SsaContext {
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
-            obj_type: node::ObjectType::ArrayPointer(array_index),
+            obj_type: ObjectType::ArrayPointer(array_index),
             name: name.to_string(),
             root: None,
             def: def.clone(),
@@ -786,10 +786,14 @@ impl SsaContext {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction(op_b, e_type)?;
                 let op_a = Operation::Store {
@@ -957,8 +961,10 @@ impl SsaContext {
         let e_type = self.mem[array_id].element_type;
         assert_eq!(len, values.len());
         for (i, v) in values.iter().enumerate() {
-            let index =
-                self.get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+            let index = self.get_or_create_const(
+                FieldElement::from(i as i128),
+                ObjectType::unsigned_integer(32),
+            );
             let op_a =
                 Operation::Store { array_id, index, value: *v, predicate: None, location: None };
             self.new_instruction_inline(op_a, e_type, stack_frame);
@@ -979,10 +985,14 @@ impl SsaContext {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
-                let idx_b = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
-                let idx_a = self
-                    .get_or_create_const(FieldElement::from(i as i128), ObjectType::Unsigned(32));
+                let idx_b = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
+                let idx_a = self.get_or_create_const(
+                    FieldElement::from(i as i128),
+                    ObjectType::unsigned_integer(32),
+                );
                 let op_b = Operation::Load { array_id: b, index: idx_b, location: None };
                 let load = self.new_instruction_inline(op_b, e_type, stack_frame);
                 let op_a = Operation::Store {
@@ -1071,13 +1081,13 @@ impl SsaContext {
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
-        if let node::ObjectType::ArrayPointer(adr1) = a_type {
+        if let ObjectType::ArrayPointer(adr1) = a_type {
             let len = self.mem[adr1].len;
             let el_type = self.mem[adr1].element_type;
             let (id, array_id) = self.new_array(&name, el_type, len, None);
             for i in 0..len {
                 let index = self
-                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::NativeField);
+                    .get_or_create_const(FieldElement::from(i as u128), ObjectType::native_field());
                 self.current_block = block1;
                 let op = Operation::Load { array_id: adr1, index, location: None };
                 let v1 = self.new_instruction(op, el_type).unwrap();
@@ -1178,16 +1188,16 @@ impl SsaContext {
     pub(crate) fn convert_type(&mut self, t: &Type) -> ObjectType {
         use noirc_frontend::Signedness;
         match t {
-            Type::Bool => ObjectType::Boolean,
-            Type::Field => ObjectType::NativeField,
+            Type::Bool => ObjectType::boolean(),
+            Type::Field => ObjectType::native_field(),
             Type::Integer(sign, bit_size) => {
                 assert!(
                     *bit_size < super::integer::short_integer_max_bit_size(),
                     "long integers are not yet supported"
                 );
                 match sign {
-                    Signedness::Signed => ObjectType::Signed(*bit_size),
-                    Signedness::Unsigned => ObjectType::Unsigned(*bit_size),
+                    Signedness::Signed => ObjectType::signed_integer(*bit_size),
+                    Signedness::Unsigned => ObjectType::unsigned_integer(*bit_size),
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
@@ -1222,7 +1232,7 @@ impl SsaContext {
                         });
                         let cond = self.add_instruction(Instruction::new(
                             op,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         optimizations::simplify_id(self, cond).unwrap();
@@ -1239,7 +1249,7 @@ impl SsaContext {
                     Operation::Cond { condition: pred, val_true: *cond, val_false: self.one() };
                 let c_ins = self.add_instruction(Instruction::new(
                     operation,
-                    ObjectType::Boolean,
+                    ObjectType::boolean(),
                     Some(stack.block),
                 ));
                 stack.push(c_ins);

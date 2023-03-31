@@ -1,7 +1,7 @@
 //! Noir's Hir is the result of the name resolution step (defined in the
 //! hir module) and is essentially identical to the Ast with some small transformations.
 //! The HIR is the input to the name resolution pass, the type checking pass, and the
-//! monomorphisation pass.
+//! monomorphization pass.
 //!
 //! Name Resolution takes the AST as input and produces the initial Hir which strongly
 //! resembles the Ast except:

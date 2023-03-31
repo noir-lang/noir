@@ -15,7 +15,7 @@ use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::btree_map;
 use noirc_abi::{Abi, AbiType, AbiVisibility, MAIN_RETURN_NAME};
 use noirc_frontend::monomorphization::ast::*;
-use ssa::{node, ssa_gen::IrGenerator};
+use ssa::{node::ObjectType, ssa_gen::IrGenerator};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Default)]
@@ -165,7 +165,7 @@ impl Evaluator {
                 ir_gen.create_new_variable(
                     name.to_owned(),
                     Some(def),
-                    node::ObjectType::NativeField,
+                    ObjectType::native_field(),
                     Some(witness),
                 );
                 vec![witness]
@@ -187,7 +187,7 @@ impl Evaluator {
             AbiType::Boolean => {
                 let witness = self.add_witness_to_cs();
                 ssa::acir_gen::range_constraint(witness, 1, self)?;
-                let obj_type = node::ObjectType::Boolean;
+                let obj_type = ObjectType::boolean();
                 ir_gen.create_new_variable(name.to_owned(), Some(def), obj_type, Some(witness));
 
                 vec![witness]

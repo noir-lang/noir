@@ -87,7 +87,7 @@ fn evaluate_intrinsic(
                 for i in 0..bit_count {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let op = if args[0] & (1 << i) != 0 {
                         Operation::Store {
@@ -136,11 +136,11 @@ fn evaluate_intrinsic(
                 for (i, item) in element.iter().enumerate() {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let value = ctx.get_or_create_const(
                         FieldElement::from(*item as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let op = Operation::Store {
                         array_id: *a,
@@ -369,7 +369,7 @@ fn cse_block_with_anchor(
                                             });
                                             let pred_id = ctx.add_instruction(Instruction::new(
                                                 or_op,
-                                                ObjectType::Boolean,
+                                                ObjectType::boolean(),
                                                 Some(block_id),
                                             ));
                                             new_list.push(pred_id);

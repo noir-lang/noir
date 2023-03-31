@@ -5,7 +5,7 @@ use crate::{
         context::SsaContext,
         flatten::UnrollContext,
         inline::StackFrame,
-        node::{BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
+        node::{Binary, BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
         {block, flatten, node, optimizations},
     },
 };
@@ -171,7 +171,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             )
         } else {
             let not_condition = DecisionTree::new_instruction_after_phi(
@@ -180,7 +180,7 @@ impl DecisionTree {
                 BinaryOp::Sub { max_rhs_value: BigUint::one() },
                 ctx.one(),
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             );
             DecisionTree::new_instruction_after(
                 ctx,
@@ -188,7 +188,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 not_condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 not_condition,
             )
         };
@@ -480,7 +480,7 @@ impl DecisionTree {
                 Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
             let cond = ctx.add_instruction(Instruction::new(
                 operation,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 Some(stack.block),
             ));
             stack.push(cond);
@@ -595,7 +595,7 @@ impl DecisionTree {
                             });
                             cond = ctx.add_instruction(Instruction::new(
                                 op,
-                                ObjectType::Boolean,
+                                ObjectType::boolean(),
                                 Some(stack.block),
                             ));
                             optimizations::simplify_id(ctx, cond).unwrap();
@@ -624,7 +624,7 @@ impl DecisionTree {
                         }
                         if ctx.under_assumption(cond) {
                             let ins2 = ctx.instruction_mut(ins_id);
-                            ins2.operation = Operation::Binary(crate::node::Binary {
+                            ins2.operation = Operation::Binary(Binary {
                                 lhs: binary_op.lhs,
                                 rhs: binary_op.rhs,
                                 operator: binary_op.operator.clone(),
@@ -724,7 +724,7 @@ impl DecisionTree {
                         }
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         stack.push(cond);
@@ -775,7 +775,7 @@ impl DecisionTree {
                 });
                 let cond = ctx.add_instruction(Instruction::new(
                     op,
-                    ObjectType::Boolean,
+                    ObjectType::boolean(),
                     Some(stack_frame.block),
                 ));
                 optimizations::simplify_id(ctx, cond).unwrap();
@@ -808,7 +808,7 @@ impl DecisionTree {
                     });
                     let cond = ctx.add_instruction(Instruction::new(
                         op,
-                        ObjectType::Boolean,
+                        ObjectType::boolean(),
                         Some(stack_frame.block),
                     ));
                     optimizations::simplify_id(ctx, cond).unwrap();
