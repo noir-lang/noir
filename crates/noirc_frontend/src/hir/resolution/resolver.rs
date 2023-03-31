@@ -685,7 +685,7 @@ impl<'a> Resolver<'a> {
             // Don't issue a warning if these are unused
             //
             // We can fail to find the generic in self.generics if it is an implicit one created
-            // by the compiler. This can happen when, e.g. elliding array lengths using the slice
+            // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
             if let Some((name, _, span)) =
                 self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
