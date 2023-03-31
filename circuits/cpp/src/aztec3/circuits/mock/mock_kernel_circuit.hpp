@@ -33,7 +33,7 @@ PublicInputs<NT> mock_kernel_circuit(Composer& composer, PublicInputs<NT> const&
         std::vector<uint32_t> dummy_witness_indices;
         // 16 is the number of values added to `proof_witness_indices` at the end of `verify_proof`.
         for (size_t i = 0; i < 16; ++i) {
-            fr witness = fr(witness_t(&composer, engine.get_random_uint32()));
+            fr witness = fr(witness_t(&composer, i));
             uint32_t witness_index = witness.get_witness_index();
             dummy_witness_indices.push_back(witness_index);
         }
