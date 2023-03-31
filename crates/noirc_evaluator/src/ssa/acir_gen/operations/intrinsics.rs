@@ -171,7 +171,7 @@ pub(crate) fn evaluate(
             }));
         }
         Opcode::GetNotes2 => {
-            outputs = vec![evaluator.add_witness_to_cs()];
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
             let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
                 input.witness.into()
             });
