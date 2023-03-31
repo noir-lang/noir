@@ -5,12 +5,6 @@
 using namespace barretenberg;
 
 namespace bonk {
-#define STANDARD_SELECTOR_REFS                                                                                         \
-    auto& q_m = selectors[StandardSelectors::QM];                                                                      \
-    auto& q_c = selectors[StandardSelectors::QC];                                                                      \
-    auto& q_1 = selectors[StandardSelectors::Q1];                                                                      \
-    auto& q_2 = selectors[StandardSelectors::Q2];                                                                      \
-    auto& q_3 = selectors[StandardSelectors::Q3];
 
 /**
  * Create an addition gate.
@@ -20,7 +14,6 @@ namespace bonk {
  */
 void StandardCircuitConstructor::create_add_gate(const add_triple& in)
 {
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -66,7 +59,6 @@ void StandardCircuitConstructor::create_big_add_gate(const add_quad& in)
 void StandardCircuitConstructor::create_balanced_add_gate(const add_quad& in)
 {
 
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     // (a terms + b terms = temp)
@@ -189,7 +181,6 @@ void StandardCircuitConstructor::create_big_mul_gate(const mul_quad& in)
  */
 void StandardCircuitConstructor::create_mul_gate(const mul_triple& in)
 {
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -212,7 +203,6 @@ void StandardCircuitConstructor::create_mul_gate(const mul_triple& in)
  */
 void StandardCircuitConstructor::create_bool_gate(const uint32_t variable_index)
 {
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ variable_index });
 
     w_l.emplace_back(variable_index);
@@ -235,7 +225,6 @@ void StandardCircuitConstructor::create_bool_gate(const uint32_t variable_index)
  */
 void StandardCircuitConstructor::create_poly_gate(const poly_triple& in)
 {
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -436,7 +425,6 @@ accumulator_triple StandardCircuitConstructor::create_logic_constraint(const uin
 
 void StandardCircuitConstructor::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
-    STANDARD_SELECTOR_REFS
     assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
@@ -494,7 +482,6 @@ void StandardCircuitConstructor::assert_equal_constant(uint32_t const a_idx, fr 
  * */
 bool StandardCircuitConstructor::check_circuit()
 {
-    STANDARD_SELECTOR_REFS
 
     fr gate_sum;
     fr left, right, output;

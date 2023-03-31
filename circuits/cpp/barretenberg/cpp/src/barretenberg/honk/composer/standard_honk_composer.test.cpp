@@ -40,7 +40,7 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         barretenberg::fr right = barretenberg::fr::one();
 
         // Let's check that indices are the same and nothing is lost, first
-        for (size_t j = 0; j < composer.program_width; ++j) {
+        for (size_t j = 0; j < composer.num_wires; ++j) {
             std::string index = std::to_string(j + 1);
             const auto& sigma_j = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
             for (size_t i = 0; i < n; ++i) {
@@ -66,7 +66,7 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         // Now let's check that witness values correspond to the permutation
         composer.compute_witness();
 
-        for (size_t j = 0; j < composer.program_width; ++j) {
+        for (size_t j = 0; j < composer.num_wires; ++j) {
             std::string index = std::to_string(j + 1);
             const auto& permutation_polynomial = proving_key->polynomial_store.get("sigma_" + index + "_lagrange");
             const auto& witness_polynomial = composer.composer_helper.wire_polynomials[j];
@@ -207,11 +207,11 @@ TEST(StandardHonkComposer, AssertEquals)
     auto get_maximum_cycle = [](auto& composer) {
         // Compute the proving key for sigma polynomials
         auto proving_key = composer.compute_proving_key();
-        auto permutation_length = composer.program_width * proving_key->circuit_size;
+        auto permutation_length = composer.num_wires * proving_key->circuit_size;
         std::vector<polynomial> sigma_polynomials;
 
         // Put the sigma polynomials into a vector for easy access
-        for (size_t i = 0; i < composer.program_width; i++) {
+        for (size_t i = 0; i < composer.num_wires; i++) {
             std::string index = std::to_string(i + 1);
             sigma_polynomials.push_back(proving_key->polynomial_store.get("sigma_" + index + "_lagrange"));
         }
@@ -301,7 +301,7 @@ TEST(StandardHonkComposer, VerificationKeyCreation)
     // committed to, we simply check that the verification key now contains the appropriate number of constraint and
     // permutation selector commitments. This method should work with any future arithemtization.
     EXPECT_EQ(verification_key->commitments.size(),
-              composer.circuit_constructor.selectors.size() + composer.program_width * 2 + 2);
+              composer.circuit_constructor.selectors.size() + composer.num_wires * 2 + 2);
 }
 
 /**
@@ -316,7 +316,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
 {
     // Create a composer and a dummy circuit with a few gates
     StandardHonkComposer composer = StandardHonkComposer();
-    static const size_t program_width = StandardHonkComposer::program_width;
+    static const size_t num_wires = StandardHonkComposer::num_wires;
     fr a = fr::one();
     // Using the public variable to check that public_input_delta is computed and added to the relation correctly
     uint32_t a_idx = composer.add_public_variable(a);
@@ -350,8 +350,8 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
 
     constexpr size_t num_polynomials = honk::StandardArithmetization::NUM_POLYNOMIALS;
     // Compute grand product polynomial
-    polynomial z_perm_poly = prover_library::compute_permutation_grand_product<program_width>(
-        prover.key, prover.wire_polynomials, beta, gamma);
+    polynomial z_perm_poly =
+        prover_library::compute_permutation_grand_product<num_wires>(prover.key, prover.wire_polynomials, beta, gamma);
 
     // Create an array of spans to the underlying polynomials to more easily
     // get the transposition.

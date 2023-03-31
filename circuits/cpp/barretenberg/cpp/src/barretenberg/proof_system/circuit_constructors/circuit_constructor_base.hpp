@@ -1,23 +1,27 @@
 #pragma once
-#include "barretenberg/proof_system/composer/composer_base.hpp"
+#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
+#include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <utility>
 
-using namespace bonk;
 namespace bonk {
 static constexpr uint32_t DUMMY_TAG = 0;
 
-template <size_t program_width_> class CircuitConstructorBase {
+template <typename Arithmetization> class CircuitConstructorBase {
   public:
-    static constexpr size_t program_width = program_width_;
+    static constexpr size_t num_wires = Arithmetization::num_wires;
+    // Keeping num_wires, at least temporarily, for backward compatibility
+    static constexpr size_t program_width = Arithmetization::num_wires;
+    static constexpr size_t num_selectors = Arithmetization::num_selectors;
+    // TODO(Cody): selector names are used by composer helper. They can therefore be specified through the proving
+    // system flavor. Getting rid of this also lets us get rid of the weird constructor that's uses the selector names
+    // functions
     std::vector<std::string> selector_names_;
     size_t num_gates = 0;
-    // TODO(#216)(Adrian): It would be better to store an array of size program_width_
-    // to make the composer agnostic of the wire name.
-    std::vector<uint32_t> w_l;
-    std::vector<uint32_t> w_r;
-    std::vector<uint32_t> w_o;
-    std::vector<uint32_t> w_4;
+
+    std::array<std::vector<uint32_t>, num_wires> wires;
+    std::array<std::vector<barretenberg::fr>, num_selectors> selectors;
+
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
     // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
@@ -33,8 +37,6 @@ template <size_t program_width_> class CircuitConstructorBase {
     // DOCTODO(#231): replace with the relevant wiki link.
     std::map<uint32_t, uint32_t> tau;
 
-    size_t num_selectors;
-    std::vector<std::vector<barretenberg::fr>> selectors;
     numeric::random::Engine* rand_engine = nullptr;
     bool _failed = false;
     std::string _err;
@@ -46,10 +48,8 @@ template <size_t program_width_> class CircuitConstructorBase {
     // Cody: This is used by compute_wire_copy_cycles in Plonk.
     // enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000 };
 
-    CircuitConstructorBase(std::vector<std::string> selector_names, size_t num_selectors = 0, size_t size_hint = 0)
+    CircuitConstructorBase(std::vector<std::string> selector_names, size_t size_hint = 0)
         : selector_names_(std::move(selector_names))
-        , num_selectors(num_selectors)
-        , selectors(num_selectors)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);

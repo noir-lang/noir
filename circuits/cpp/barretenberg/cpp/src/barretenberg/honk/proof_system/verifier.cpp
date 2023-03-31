@@ -87,7 +87,7 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     const size_t NUM_UNSHIFTED = honk::StandardArithmetization::NUM_UNSHIFTED_POLYNOMIALS;
     const size_t NUM_PRECOMPUTED = honk::StandardArithmetization::NUM_PRECOMPUTED_POLYNOMIALS;
 
-    constexpr auto program_width = program_settings::program_width;
+    constexpr auto num_wires = program_settings::num_wires;
 
     transcript = VerifierTranscript<FF>{ proof.proof_data };
 
@@ -109,8 +109,8 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
     }
 
     // Get commitments to the wires
-    std::array<CommitmentAffine, program_width> wire_commitments;
-    for (size_t i = 0; i < program_width; ++i) {
+    std::array<CommitmentAffine, num_wires> wire_commitments;
+    for (size_t i = 0; i < num_wires; ++i) {
         wire_commitments[i] = transcript.template receive_from_prover<CommitmentAffine>("W_" + std::to_string(i + 1));
     }
 
@@ -169,11 +169,11 @@ template <typename program_settings> bool Verifier<program_settings>::verify_pro
         batched_commitment_unshifted += commitment * rhos[i];
     }
     // add wire commitments
-    for (size_t i = 0; i < program_width; ++i) {
+    for (size_t i = 0; i < num_wires; ++i) {
         batched_commitment_unshifted += wire_commitments[i] * rhos[NUM_PRECOMPUTED + i];
     }
     // add z_permutation commitment
-    batched_commitment_unshifted += z_permutation_commitment * rhos[NUM_PRECOMPUTED + program_width];
+    batched_commitment_unshifted += z_permutation_commitment * rhos[NUM_PRECOMPUTED + num_wires];
 
     // Construct batched commitment for to-be-shifted polynomials
     batched_commitment_to_be_shifted = z_permutation_commitment * rhos[NUM_UNSHIFTED];

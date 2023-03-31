@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 namespace plonk {
 class settings_base {
@@ -11,6 +12,7 @@ class settings_base {
 
 class standard_settings : public settings_base {
   public:
+    using Arithmetization = arithmetization::Standard;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
     static constexpr size_t program_width = 3;

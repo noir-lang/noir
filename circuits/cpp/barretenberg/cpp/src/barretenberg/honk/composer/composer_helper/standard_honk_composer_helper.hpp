@@ -9,7 +9,7 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
-#include "barretenberg/proof_system/composer/composer_base.hpp"
+#include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
 #include "barretenberg/proof_system/composer/permutation_helper.hpp"
 
@@ -21,7 +21,7 @@ namespace honk {
 template <typename CircuitConstructor> class StandardHonkComposerHelper {
   public:
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
-    static constexpr size_t program_width = CircuitConstructor::program_width;
+    static constexpr size_t num_wires = CircuitConstructor::num_wires;
     std::shared_ptr<bonk::proving_key> circuit_proving_key;
     std::vector<barretenberg::polynomial> wire_polynomials;
     std::shared_ptr<bonk::verification_key> circuit_verification_key;

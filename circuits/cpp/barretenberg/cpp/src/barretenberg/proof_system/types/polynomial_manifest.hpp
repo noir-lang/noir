@@ -5,6 +5,7 @@
 #include <string>
 #include "barretenberg/plonk/proof_system/constants.hpp"
 // ToDo(Arijit): The below namespace should be plonk once all the honk related stuffs are moved out
+// ToDo(Cody): This is now plonk-specific.
 namespace bonk {
 
 enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION, OTHER };

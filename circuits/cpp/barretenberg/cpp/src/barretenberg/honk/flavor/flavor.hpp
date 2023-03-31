@@ -2,6 +2,7 @@
 #include <array>
 #include <string>
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/transcript/manifest.hpp"
 
 namespace honk {
@@ -63,8 +64,9 @@ struct StandardArithmetization {
 namespace honk {
 struct StandardHonk {
   public:
-    using Arithmetization = honk::StandardArithmetization;
-    using MULTIVARIATE = Arithmetization::POLYNOMIAL;
+    // This whole file is broken; changes here are in anticipation of a follow-up rework of the flavor specificaiton.
+    using Arithmetization = arithmetization::Standard;
+    using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
     // // TODO(Cody): Where to specify? is this polynomial manifest size?
     // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
     // TODO(Cody): Maybe relation should be supplied and this should be computed as is done in sumcheck?

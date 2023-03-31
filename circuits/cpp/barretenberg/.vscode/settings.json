@@ -115,8 +115,8 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "eslint.nodePath": "ts/.yarn/sdks",
   "prettier.prettierPath": "ts/.yarn/sdks/prettier/index.js",
-  "[cpp]": {
-    "editor.defaultFormatter": "ms-vscode.cpptools"
+  "[cpp]": { // doesn't conflict with barratenberg.code-workspace settings.
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
   },
   "[terraform]": {
     "editor.defaultFormatter": "hashicorp.terraform"

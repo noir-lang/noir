@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "circuit_constructor_base.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
@@ -11,17 +12,32 @@ inline std::vector<std::string> turbo_selector_names()
                                      "q_5", "q_arith", "q_fixed_base", "q_range", "q_logic" };
     return result;
 }
-class TurboCircuitConstructor : public CircuitConstructorBase<TURBO_WIDTH> {
-
-    enum TurboSelectors { QM, QC, Q1, Q2, Q3, Q4, Q5, QARITH, QFIXED, QRANGE, QLOGIC, NUM };
+class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::Turbo> {
 
   public:
+    std::vector<uint32_t>& w_l = std::get<0>(wires);
+    std::vector<uint32_t>& w_r = std::get<1>(wires);
+    std::vector<uint32_t>& w_o = std::get<2>(wires);
+    std::vector<uint32_t>& w_4 = std::get<3>(wires);
+
+    std::vector<barretenberg::fr>& q_m = std::get<0>(selectors);
+    std::vector<barretenberg::fr>& q_c = std::get<1>(selectors);
+    std::vector<barretenberg::fr>& q_1 = std::get<2>(selectors);
+    std::vector<barretenberg::fr>& q_2 = std::get<3>(selectors);
+    std::vector<barretenberg::fr>& q_3 = std::get<4>(selectors);
+    std::vector<barretenberg::fr>& q_4 = std::get<5>(selectors);
+    std::vector<barretenberg::fr>& q_5 = std::get<6>(selectors);
+    std::vector<barretenberg::fr>& q_arith = std::get<7>(selectors);
+    std::vector<barretenberg::fr>& q_fixed_base = std::get<8>(selectors);
+    std::vector<barretenberg::fr>& q_range = std::get<9>(selectors);
+    std::vector<barretenberg::fr>& q_logic = std::get<10>(selectors);
+
     static constexpr plonk::ComposerType type = plonk::ComposerType::TURBO;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     TurboCircuitConstructor(const size_t size_hint = 0);
     TurboCircuitConstructor(TurboCircuitConstructor&& other) = default;
-    TurboCircuitConstructor& operator=(TurboCircuitConstructor&& other) = default;
+    TurboCircuitConstructor& operator=(TurboCircuitConstructor&& other) = delete;
     ~TurboCircuitConstructor() {}
 
     void create_add_gate(const add_triple& in);

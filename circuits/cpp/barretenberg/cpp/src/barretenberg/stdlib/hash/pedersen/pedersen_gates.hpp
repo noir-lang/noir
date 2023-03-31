@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/proof_system/composer/composer_base.hpp"
+#include "barretenberg/proof_system/arithmetization/gate_data.hpp"
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/point/point.hpp"

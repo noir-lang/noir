@@ -111,9 +111,9 @@ std::shared_ptr<bonk::proving_key> StandardHonkComposerHelper<CircuitConstructor
     StandardHonkComposerHelper::compute_proving_key_base(circuit_constructor, plonk::ComposerType::STANDARD_HONK);
 
     // Compute sigma polynomials (we should update that late)
-    compute_standard_honk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
-                                                                                circuit_proving_key.get());
-    compute_standard_honk_id_polynomials<CircuitConstructor::program_width>(circuit_proving_key.get());
+    compute_standard_honk_sigma_permutations<CircuitConstructor::num_wires>(circuit_constructor,
+                                                                            circuit_proving_key.get());
+    compute_standard_honk_id_polynomials<CircuitConstructor::num_wires>(circuit_proving_key.get());
 
     compute_first_and_last_lagrange_polynomials(circuit_proving_key.get());
 

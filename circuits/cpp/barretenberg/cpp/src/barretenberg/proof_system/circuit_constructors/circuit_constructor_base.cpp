@@ -9,10 +9,10 @@ namespace bonk {
  * @param b_variable_idx Index of a variable in class b.
  * @param msg Class tag.
  * */
-template <size_t program_width_>
-void CircuitConstructorBase<program_width_>::assert_equal(const uint32_t a_variable_idx,
-                                                          const uint32_t b_variable_idx,
-                                                          std::string const& msg)
+template <typename Arithmetization>
+void CircuitConstructorBase<Arithmetization>::assert_equal(const uint32_t a_variable_idx,
+                                                           const uint32_t b_variable_idx,
+                                                           std::string const& msg)
 {
     assert_valid_variables({ a_variable_idx, b_variable_idx });
     bool values_equal = (get_variable(a_variable_idx) == get_variable(b_variable_idx));
@@ -41,6 +41,6 @@ void CircuitConstructorBase<program_width_>::assert_equal(const uint32_t a_varia
         real_variable_tags[a_real_idx] = real_variable_tags[b_real_idx];
 }
 // Standard honk/ plonk instantiation
-template class CircuitConstructorBase<3>;
-template class CircuitConstructorBase<4>;
+template class CircuitConstructorBase<arithmetization::Standard>;
+template class CircuitConstructorBase<arithmetization::Turbo>;
 } // namespace bonk

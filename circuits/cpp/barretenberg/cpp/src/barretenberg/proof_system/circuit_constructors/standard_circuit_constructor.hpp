@@ -1,21 +1,29 @@
 #pragma once
+#include <array>
 #include "circuit_constructor_base.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 
 namespace bonk {
-enum StandardSelectors { QM, Q1, Q2, Q3, QC, NUM };
 inline std::vector<std::string> standard_selector_names()
 {
     std::vector<std::string> result{ "q_m", "q_1", "q_2", "q_3", "q_c" };
     return result;
 }
 
-class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_WIDTH> {
+class StandardCircuitConstructor : public CircuitConstructorBase<arithmetization::Standard> {
   public:
-    // TODO(#216)(Kesha): replace this with Honk enums after we have a verifier and no longer depend on plonk
-    // prover/verifier
-    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK;
+    std::vector<uint32_t>& w_l = std::get<0>(wires);
+    std::vector<uint32_t>& w_r = std::get<1>(wires);
+    std::vector<uint32_t>& w_o = std::get<2>(wires);
+
+    std::vector<barretenberg::fr>& q_m = std::get<0>(selectors);
+    std::vector<barretenberg::fr>& q_1 = std::get<1>(selectors);
+    std::vector<barretenberg::fr>& q_2 = std::get<2>(selectors);
+    std::vector<barretenberg::fr>& q_3 = std::get<3>(selectors);
+    std::vector<barretenberg::fr>& q_c = std::get<4>(selectors);
+
+    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK; // TODO(Cody): Get rid of this.
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     // These are variables that we have used a gate on, to enforce that they are
@@ -24,7 +32,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_WIDTH>
     std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 
     StandardCircuitConstructor(const size_t size_hint = 0)
-        : CircuitConstructorBase(standard_selector_names(), StandardSelectors::NUM, size_hint)
+        : CircuitConstructorBase(standard_selector_names(), size_hint)
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -44,7 +52,7 @@ class StandardCircuitConstructor : public CircuitConstructorBase<STANDARD_WIDTH>
     StandardCircuitConstructor(const StandardCircuitConstructor& other) = delete;
     StandardCircuitConstructor(StandardCircuitConstructor&& other) = default;
     StandardCircuitConstructor& operator=(const StandardCircuitConstructor& other) = delete;
-    StandardCircuitConstructor& operator=(StandardCircuitConstructor&& other) = default;
+    StandardCircuitConstructor& operator=(StandardCircuitConstructor&& other) = delete;
     ~StandardCircuitConstructor() override = default;
 
     void assert_equal_constant(uint32_t const a_idx,

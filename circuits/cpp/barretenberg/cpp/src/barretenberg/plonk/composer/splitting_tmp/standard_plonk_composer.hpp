@@ -29,7 +29,7 @@ class StandardPlonkComposer {
 
     // Leaving it in for now just in case
     bool contains_recursive_proof = false;
-    static constexpr size_t program_width = STANDARD_WIDTH;
+    static constexpr size_t program_width = StandardCircuitConstructor::program_width;
 
     /**Standard methods*/
 

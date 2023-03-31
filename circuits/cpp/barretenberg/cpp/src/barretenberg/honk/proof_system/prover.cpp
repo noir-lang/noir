@@ -81,7 +81,7 @@ Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
  * */
 template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
-    for (size_t i = 0; i < settings::program_width; ++i) {
+    for (size_t i = 0; i < settings::Arithmetization::num_wires; ++i) {
         auto commitment = commitment_key->commit(wire_polynomials[i]);
 
         transcript.send_to_verifier("W_" + std::to_string(i + 1), commitment);

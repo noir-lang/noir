@@ -6,19 +6,6 @@ using namespace barretenberg;
 
 namespace bonk {
 
-#define TURBO_SELECTOR_REFS                                                                                            \
-    auto& q_m = selectors[TurboSelectors::QM];                                                                         \
-    auto& q_c = selectors[TurboSelectors::QC];                                                                         \
-    auto& q_1 = selectors[TurboSelectors::Q1];                                                                         \
-    auto& q_2 = selectors[TurboSelectors::Q2];                                                                         \
-    auto& q_3 = selectors[TurboSelectors::Q3];                                                                         \
-    auto& q_4 = selectors[TurboSelectors::Q4];                                                                         \
-    auto& q_5 = selectors[TurboSelectors::Q5];                                                                         \
-    auto& q_arith = selectors[TurboSelectors::QARITH];                                                                 \
-    auto& q_fixed_base = selectors[TurboSelectors::QFIXED];                                                            \
-    auto& q_range = selectors[TurboSelectors::QRANGE];                                                                 \
-    auto& q_logic = selectors[TurboSelectors::QLOGIC];
-
 /**
  * Turbo circuit initialization, where you can specify the probable number of gates in your circuit.
  *
@@ -26,7 +13,7 @@ namespace bonk {
  * vectors during initialization.
  * */
 TurboCircuitConstructor::TurboCircuitConstructor(const size_t size_hint)
-    : CircuitConstructorBase(turbo_selector_names(), TurboSelectors::NUM, size_hint)
+    : CircuitConstructorBase(turbo_selector_names(), size_hint)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -47,7 +34,6 @@ TurboCircuitConstructor::TurboCircuitConstructor(const size_t size_hint)
  * */
 void TurboCircuitConstructor::create_add_gate(const add_triple& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -79,7 +65,6 @@ void TurboCircuitConstructor::create_add_gate(const add_triple& in)
  * */
 void TurboCircuitConstructor::create_big_add_gate(const add_quad& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -118,7 +103,6 @@ void TurboCircuitConstructor::create_big_add_gate(const add_quad& in)
  * */
 void TurboCircuitConstructor::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -141,7 +125,6 @@ void TurboCircuitConstructor::create_big_add_gate_with_bit_extraction(const add_
 
 void TurboCircuitConstructor::create_big_mul_gate(const mul_quad& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -181,7 +164,6 @@ void TurboCircuitConstructor::create_big_mul_gate(const mul_quad& in)
  */
 void TurboCircuitConstructor::create_balanced_add_gate(const add_quad& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -213,7 +195,6 @@ void TurboCircuitConstructor::create_balanced_add_gate(const add_quad& in)
  * */
 void TurboCircuitConstructor::create_mul_gate(const mul_triple& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -243,7 +224,6 @@ void TurboCircuitConstructor::create_mul_gate(const mul_triple& in)
  * */
 void TurboCircuitConstructor::create_bool_gate(const uint32_t variable_index)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ variable_index });
 
     w_l.emplace_back(variable_index);
@@ -276,7 +256,6 @@ void TurboCircuitConstructor::create_bool_gate(const uint32_t variable_index)
  * */
 void TurboCircuitConstructor::create_poly_gate(const poly_triple& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
@@ -305,7 +284,6 @@ void TurboCircuitConstructor::create_poly_gate(const poly_triple& in)
  * */
 void TurboCircuitConstructor::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -337,7 +315,6 @@ void TurboCircuitConstructor::create_fixed_group_add_gate(const fixed_group_add_
 void TurboCircuitConstructor::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
                                                                     const fixed_group_init_quad& init)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
@@ -373,7 +350,6 @@ void TurboCircuitConstructor::create_fixed_group_add_gate_final(const add_quad& 
  * */
 void TurboCircuitConstructor::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
@@ -407,7 +383,6 @@ std::vector<uint32_t> TurboCircuitConstructor::decompose_into_base4_accumulators
                                                                                  const size_t num_bits,
                                                                                  std::string const& msg)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ witness_index });
 
     ASSERT(num_bits > 0);
@@ -589,7 +564,6 @@ accumulator_triple TurboCircuitConstructor::create_logic_constraint(const uint32
                                                                     const size_t num_bits,
                                                                     const bool is_xor_gate)
 {
-    TURBO_SELECTOR_REFS
     assert_valid_variables({ a, b });
 
     ASSERT(((num_bits >> 1U) << 1U) == num_bits); // Do not allow constraint for an odd number of bits.
@@ -820,14 +794,6 @@ inline bool TurboCircuitConstructor::lazy_fixed_base_gate_check(const size_t gat
 
     constexpr barretenberg::fr grumpkin_curve_b(-17);
     constexpr barretenberg::fr nine(9);
-    auto& q_m = selectors[TurboSelectors::QM];
-    auto& q_c = selectors[TurboSelectors::QC];
-    auto& q_1 = selectors[TurboSelectors::Q1];
-    auto& q_2 = selectors[TurboSelectors::Q2];
-    auto& q_3 = selectors[TurboSelectors::Q3];
-    auto& q_4 = selectors[TurboSelectors::Q4];
-    auto& q_5 = selectors[TurboSelectors::Q5];
-    auto& q_fixed_base = selectors[TurboSelectors::QFIXED];
 
     // Get witness values
     fr wire_1_shifted;
@@ -939,9 +905,6 @@ inline bool TurboCircuitConstructor::lazy_logic_gate_check(const size_t gate_ind
 {
 
     ASSERT(gate_index < num_gates);
-
-    auto& q_c = selectors[TurboSelectors::QC];
-    auto& q_logic = selectors[TurboSelectors::QLOGIC];
 
     fr wire_1_shifted;
     fr wire_2_shifted;
@@ -1079,15 +1042,6 @@ inline fr TurboCircuitConstructor::arithmetic_gate_evaluation(const size_t gate_
 {
     ASSERT(gate_index < num_gates);
 
-    auto& q_m = selectors[TurboSelectors::QM];
-    auto& q_c = selectors[TurboSelectors::QC];
-    auto& q_1 = selectors[TurboSelectors::Q1];
-    auto& q_2 = selectors[TurboSelectors::Q2];
-    auto& q_3 = selectors[TurboSelectors::Q3];
-    auto& q_4 = selectors[TurboSelectors::Q4];
-    auto& q_5 = selectors[TurboSelectors::Q5];
-    auto& q_arith = selectors[TurboSelectors::QARITH];
-
     constexpr barretenberg::fr minus_seven(-7);
 
     constexpr fr two = fr::one() + fr::one();
@@ -1137,8 +1091,6 @@ inline fr TurboCircuitConstructor::range_gate_evaluation(const size_t gate_index
 {
 
     ASSERT(gate_index < num_gates);
-
-    auto& q_range = selectors[TurboSelectors::QRANGE];
 
     fr wire_4_shifted;
     const fr wire_1_value = get_variable(w_l[gate_index]);
@@ -1223,9 +1175,6 @@ inline fr TurboCircuitConstructor::logic_gate_evaluation(const size_t gate_index
 {
 
     ASSERT(gate_index < num_gates);
-
-    auto& q_c = selectors[TurboSelectors::QC];
-    auto& q_logic = selectors[TurboSelectors::QLOGIC];
 
     fr wire_1_shifted;
     fr wire_2_shifted;
@@ -1397,14 +1346,6 @@ inline fr TurboCircuitConstructor::fixed_base_gate_evaluation(const size_t gate_
 
     constexpr barretenberg::fr grumpkin_curve_b(-17);
     constexpr barretenberg::fr three(3);
-    auto& q_m = selectors[TurboSelectors::QM];
-    auto& q_c = selectors[TurboSelectors::QC];
-    auto& q_1 = selectors[TurboSelectors::Q1];
-    auto& q_2 = selectors[TurboSelectors::Q2];
-    auto& q_3 = selectors[TurboSelectors::Q3];
-    auto& q_4 = selectors[TurboSelectors::Q4];
-    auto& q_5 = selectors[TurboSelectors::Q5];
-    auto& q_fixed_base = selectors[TurboSelectors::QFIXED];
 
     // Get witness values
     fr wire_1_shifted;

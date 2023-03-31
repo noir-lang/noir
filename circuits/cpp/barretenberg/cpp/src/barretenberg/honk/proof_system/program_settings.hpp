@@ -15,7 +15,7 @@ class standard_verifier_settings : public plonk::standard_settings {
     typedef transcript::StandardTranscript Transcript;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
-    static constexpr size_t program_width = 3;
+    static constexpr size_t num_wires = honk::StandardHonk::Arithmetization::num_wires;
     static constexpr size_t num_polys = honk::StandardArithmetization::NUM_POLYNOMIALS;
 };
 
