@@ -5,33 +5,51 @@ use acvm::{
 };
 
 use crate::{
-    ssa::acir_gen::{
-        constraints::{add, mul_with_witness, subtract},
-        expression_from_witness,
-    },
+    ssa::acir_gen::constraints::{add, mul_with_witness, subtract},
     Evaluator,
 };
 
 // Generate gates which ensure that out_expr is a permutation of in_expr
 // Returns the control bits of the sorting network used to generate the constrains
-pub fn evaluate_permutation(
+pub(crate) fn evaluate_permutation(
     in_expr: &Vec<Expression>,
     out_expr: &Vec<Expression>,
     evaluator: &mut Evaluator,
 ) -> Vec<Witness> {
-    let (w, b) = permutation_layer(in_expr, evaluator);
-    // we contrain the network output to out_expr
+    let bits = Vec::new();
+    let (w, b) = permutation_layer(in_expr, &bits, true, evaluator);
+    // we constrain the network output to out_expr
+    for (b, o) in b.iter().zip(out_expr) {
+        evaluator.push_opcode(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
+    }
+    w
+}
+
+// Same as evaluate_permutation() but uses the provided witness as network control bits
+pub(crate) fn evaluate_permutation_with_witness(
+    in_expr: &Vec<Expression>,
+    out_expr: &Vec<Expression>,
+    bits: &Vec<Witness>,
+    evaluator: &mut Evaluator,
+) {
+    let (w, b) = permutation_layer(in_expr, bits, false, evaluator);
+    debug_assert_eq!(w, *bits);
+    // we constrain the network output to out_expr
     for (b, o) in b.iter().zip(out_expr) {
         evaluator.opcodes.push(AcirOpcode::Arithmetic(subtract(b, FieldElement::one(), o)));
     }
-    w
 }
 
 // Generates gates for a sorting network
 // returns witness corresponding to the network configuration and the expressions corresponding to the network output
 // in_expr: inputs of the sorting network
-pub fn permutation_layer(
+// if generate_witness is false, it uses the witness provided in bits instead of generating them
+// in both cases it returns the witness of the network configuration
+// if generate_witnes is true, bits is ignored
+fn permutation_layer(
     in_expr: &Vec<Expression>,
+    bits: &[Witness],
+    generate_witness: bool,
     evaluator: &mut Evaluator,
 ) -> (Vec<Witness>, Vec<Expression>) {
     let n = in_expr.len();
@@ -39,13 +57,18 @@ pub fn permutation_layer(
         return (Vec::new(), in_expr.clone());
     }
     let n1 = n / 2;
-    let mut conf = Vec::new();
+
     // witness for the input switches
-    for _ in 0..n1 {
-        conf.push(evaluator.add_witness_to_cs());
-    }
+    let mut conf = iter_extended::vecmap(0..n1, |i| {
+        if generate_witness {
+            evaluator.add_witness_to_cs()
+        } else {
+            bits[i]
+        }
+    });
+
     // compute expressions after the input switches
-    // If inputs are a1,a2, and the switch value is c, then we compute expresions b1,b2 where
+    // If inputs are a1,a2, and the switch value is c, then we compute expressions b1,b2 where
     // b1 = a1+q, b2 = a2-q, q = c(a2-a1)
     let mut in_sub1 = Vec::new();
     let mut in_sub2 = Vec::new();
@@ -53,7 +76,7 @@ pub fn permutation_layer(
         //q = c*(a2-a1);
         let intermediate = mul_with_witness(
             evaluator,
-            &expression_from_witness(conf[i]),
+            &conf[i].into(),
             &subtract(&in_expr[2 * i + 1], FieldElement::one(), &in_expr[2 * i]),
         );
         //b1=a1+q
@@ -66,17 +89,16 @@ pub fn permutation_layer(
     }
     let mut out_expr = Vec::new();
     // compute results for the sub networks
-    let (w1, b1) = permutation_layer(&in_sub1, evaluator);
-    let (w2, b2) = permutation_layer(&in_sub2, evaluator);
+    let bits1 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2..] };
+    let (w1, b1) = permutation_layer(&in_sub1, bits1, generate_witness, evaluator);
+    let bits2 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2 + w1.len()..] };
+    let (w2, b2) = permutation_layer(&in_sub2, bits2, generate_witness, evaluator);
     // apply the output swithces
     for i in 0..(n - 1) / 2 {
-        let c = evaluator.add_witness_to_cs();
+        let c = if generate_witness { evaluator.add_witness_to_cs() } else { bits[n1 + i] };
         conf.push(c);
-        let intermediate = mul_with_witness(
-            evaluator,
-            &expression_from_witness(c),
-            &subtract(&b2[i], FieldElement::one(), &b1[i]),
-        );
+        let intermediate =
+            mul_with_witness(evaluator, &c.into(), &subtract(&b2[i], FieldElement::one(), &b1[i]));
         out_expr.push(add(&intermediate, FieldElement::one(), &b1[i]));
         out_expr.push(subtract(&b2[i], FieldElement::one(), &intermediate));
     }
@@ -95,11 +117,12 @@ mod test {
 
     use acvm::{
         acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
-        FieldElement, OpcodeResolutionError, PartialWitnessGenerator,
+        pwg::block::Blocks,
+        FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
     };
 
     use crate::{
-        ssa::acir_gen::{expression_from_witness, operations::sort::evaluate_permutation},
+        ssa::acir_gen::operations::sort::{evaluate_permutation, permutation_layer},
         Evaluator,
     };
     use rand::prelude::*;
@@ -109,7 +132,7 @@ mod test {
         fn solve_black_box_function_call(
             _initial_witness: &mut BTreeMap<Witness, FieldElement>,
             _func_call: &BlackBoxFuncCall,
-        ) -> Result<(), OpcodeResolutionError> {
+        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
             unreachable!();
         }
     }
@@ -119,12 +142,7 @@ mod test {
     fn test_permutation() {
         let mut rng = rand::thread_rng();
         for n in 2..50 {
-            let mut eval = Evaluator {
-                current_witness_index: 0,
-                num_witnesses_abi_len: 0,
-                public_inputs: Vec::new(),
-                opcodes: Vec::new(),
-            };
+            let mut eval = Evaluator::default();
 
             //we generate random inputs
             let mut input = Vec::new();
@@ -133,7 +151,7 @@ mod test {
             let mut solved_witness: BTreeMap<Witness, FieldElement> = BTreeMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
-                input.push(expression_from_witness(w));
+                input.push(w.into());
                 a_val.push(FieldElement::from(rng.next_u32() as i128));
                 solved_witness.insert(w, a_val[i]);
             }
@@ -142,31 +160,37 @@ mod test {
             for _i in 0..n {
                 let w = eval.add_witness_to_cs();
                 b_wit.push(w);
-                output.push(expression_from_witness(w));
+                output.push(w.into());
             }
             //generate constraints for the inputs
             let w = evaluate_permutation(&input, &output, &mut eval);
-
+            //checks that it generate the same witness
+            let (w1, _) = permutation_layer(&input, &w, false, &mut eval);
+            assert_eq!(w, w1);
             //we generate random network
             let mut c = Vec::new();
             for _i in 0..w.len() {
                 c.push(rng.next_u32() % 2 != 0);
             }
-            // intialise bits
+            // initialize bits
             for i in 0..w.len() {
                 solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
             }
             // compute the network output by solving the constraints
             let backend = MockBackend {};
-            backend
-                .solve(&mut solved_witness, eval.opcodes.clone())
+            let mut blocks = Blocks::default();
+            let (unresolved_opcodes, oracles) = backend
+                .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
                 .expect("Could not solve permutation constraints");
+            assert!(unresolved_opcodes.is_empty() && oracles.is_empty(), "Incomplete solution");
             let mut b_val = Vec::new();
             for i in 0..output.len() {
                 b_val.push(solved_witness[&b_wit[i]]);
             }
             // ensure the outputs are a permutation of the inputs
-            assert_eq!(a_val.sort(), b_val.sort());
+            a_val.sort();
+            b_val.sort();
+            assert_eq!(a_val, b_val);
         }
     }
 }

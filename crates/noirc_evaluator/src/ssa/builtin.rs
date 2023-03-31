@@ -11,10 +11,10 @@ use num_traits::{One, Zero};
 /// function signature defined in Noir, but its
 /// function definition is implemented in the compiler.
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub enum Opcode {
+pub(crate) enum Opcode {
     LowLevel(BlackBoxFunc),
-    ToBits,
-    ToRadix,
+    ToBits(Endian),
+    ToRadix(Endian),
     Println(PrintlnInfo),
     Sort,
 }
@@ -31,10 +31,12 @@ impl Opcode {
     ///
     /// Returns `None` if there is no string that
     /// corresponds to any of the opcodes.
-    pub fn lookup(op_name: &str) -> Option<Opcode> {
+    pub(crate) fn lookup(op_name: &str) -> Option<Opcode> {
         match op_name {
-            "to_le_bits" => Some(Opcode::ToBits),
-            "to_radix" => Some(Opcode::ToRadix),
+            "to_le_bits" => Some(Opcode::ToBits(Endian::Little)),
+            "to_be_bits" => Some(Opcode::ToBits(Endian::Big)),
+            "to_le_radix" => Some(Opcode::ToRadix(Endian::Little)),
+            "to_be_radix" => Some(Opcode::ToRadix(Endian::Big)),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -46,14 +48,26 @@ impl Opcode {
     fn name(&self) -> &str {
         match self {
             Opcode::LowLevel(op) => op.name(),
-            Opcode::ToBits => "to_le_bits",
-            Opcode::ToRadix => "to_radix",
+            Opcode::ToBits(endianness) => {
+                if *endianness == Endian::Little {
+                    "to_le_bits"
+                } else {
+                    "to_be_bits"
+                }
+            }
+            Opcode::ToRadix(endianness) => {
+                if *endianness == Endian::Little {
+                    "to_le_radix"
+                } else {
+                    "to_be_radix"
+                }
+            }
             Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
         }
     }
 
-    pub fn get_max_value(&self) -> BigUint {
+    pub(crate) fn get_max_value(&self) -> BigUint {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
@@ -70,22 +84,30 @@ impl Opcode {
                     BlackBoxFunc::AES => {
                         todo!("ICE: AES is unimplemented")
                     }
+                    BlackBoxFunc::Keccak256 => {
+                        todo!("ICE: Keccak256 is unimplemented")
+                    }
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
                     }
                 }
             }
-            Opcode::ToBits | Opcode::ToRadix | Opcode::Println(_) | Opcode::Sort => BigUint::zero(), //pointers do not overflow
+            Opcode::ToBits(_) | Opcode::ToRadix(_) | Opcode::Println(_) | Opcode::Sort => {
+                BigUint::zero()
+            } //pointers do not overflow
         }
     }
 
     /// Returns the number of elements that the `Opcode` should return
     /// and the type.
-    pub fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
+    pub(crate) fn get_result_type(&self, args: &[NodeId], ctx: &SsaContext) -> (u32, ObjectType) {
         match self {
             Opcode::LowLevel(op) => {
                 match op {
                     BlackBoxFunc::AES => todo!("ICE: AES is unimplemented"),
+                    BlackBoxFunc::Keccak256 => {
+                        todo!("ICE: Keccak256 is unimplemented")
+                    }
                     BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
                         (32, ObjectType::unsigned_integer(8))
                     }
@@ -101,8 +123,8 @@ impl Opcode {
                     }
                 }
             }
-            Opcode::ToBits => (FieldElement::max_num_bits(), ObjectType::boolean()),
-            Opcode::ToRadix => (FieldElement::max_num_bits(), ObjectType::native_field()),
+            Opcode::ToBits(_) => (FieldElement::max_num_bits(), ObjectType::boolean()),
+            Opcode::ToRadix(_) => (FieldElement::max_num_bits(), ObjectType::native_field()),
             Opcode::Println(_) => (0, ObjectType::NotAnObject),
             Opcode::Sort => {
                 let a = super::mem::Memory::deref(ctx, args[0]).unwrap();
@@ -113,10 +135,16 @@ impl Opcode {
 }
 
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq)]
-pub struct PrintlnInfo {
+pub(crate) struct PrintlnInfo {
     // We store strings as arrays and there is no differentiation between them in the SSA.
     // This bool simply states whether an array that is to be printed should be outputted as a utf8 string.
-    pub is_string_output: bool,
+    pub(crate) is_string_output: bool,
     // This is a flag used during `nargo test` to determine whether to display println output.
-    pub show_output: bool,
+    pub(crate) show_output: bool,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum Endian {
+    Big,
+    Little,
 }

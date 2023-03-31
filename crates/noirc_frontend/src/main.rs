@@ -1,3 +1,10 @@
+//! The noir compiler is separated into the following passes which are listed
+//! in order in square brackets. The inputs and outputs of each pass are also given:
+//!
+//! Source file -[Lexing]-> Tokens -[Parsing]-> Ast -[Name Resolution]-> Hir -[Type Checking]-> Hir -[Monomorphization]-> Monomorphized Ast
+//!
+//! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
+//! perform optimizations, convert to ACIR and eventually prove/verify the program.
 use std::path::PathBuf;
 
 use fm::{FileManager, FileType};
@@ -8,7 +15,7 @@ use noirc_frontend::hir::{self, def_map::ModuleDefId};
 // XXX: This is another sandbox test
 fn main() {
     // File Manager
-    let mut fm = FileManager::new();
+    let mut fm = FileManager::default();
     //
     // Add root file to file manager
     let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");

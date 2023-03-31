@@ -1,5 +1,6 @@
-use crate::errors::{RuntimeError, RuntimeErrorKind};
+use crate::errors::RuntimeErrorKind;
 use crate::ssa::{
+    conditional::DecisionTree,
     context::SsaContext,
     mem::ArrayId,
     node::{NodeId, ObjectType, Opcode, Operation},
@@ -7,14 +8,14 @@ use crate::ssa::{
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug)]
-pub enum MemItem {
+pub(super) enum MemItem {
     NonConst(NodeId),
     Const(usize),     //represent a bunch of memory instructions having constant index
     ConstLoad(usize), //represent a bunch of load instructions having constant index
 }
 
 #[derive(Debug)]
-pub enum CseAction {
+pub(super) enum CseAction {
     ReplaceWith(NodeId),
     Remove(NodeId),
     Keep,
@@ -22,7 +23,7 @@ pub enum CseAction {
 
 /// A list of instructions with the same Operation variant
 #[derive(Default, Clone)]
-pub struct Anchor {
+pub(super) struct Anchor {
     map: HashMap<Opcode, HashMap<Operation, NodeId>>, //standard anchor
     cast_map: HashMap<NodeId, HashMap<ObjectType, NodeId>>, //cast anchor
     mem_map: HashMap<ArrayId, Vec<VecDeque<(usize, NodeId)>>>, //Memory anchor: one Vec for each array where Vec[i] contains the list of load and store instructions having index i, and the mem_item position in which they appear
@@ -30,7 +31,12 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn push_cast_front(&mut self, operation: &Operation, id: NodeId, res_type: ObjectType) {
+    pub(super) fn push_cast_front(
+        &mut self,
+        operation: &Operation,
+        id: NodeId,
+        res_type: ObjectType,
+    ) {
         match operation {
             Operation::Cast(cast_id) => {
                 let mut by_type = HashMap::new();
@@ -41,7 +47,7 @@ impl Anchor {
         }
     }
 
-    pub fn push_front(&mut self, operation: &Operation, id: NodeId) {
+    pub(super) fn push_front(&mut self, operation: &Operation, id: NodeId) {
         let op = operation.opcode();
 
         match operation {
@@ -58,12 +64,12 @@ impl Anchor {
         }
     }
 
-    pub fn find_similar_instruction(&self, operation: &Operation) -> Option<NodeId> {
+    pub(super) fn find_similar_instruction(&self, operation: &Operation) -> Option<NodeId> {
         let op = operation.opcode();
         self.map.get(&op).and_then(|inner| inner.get(operation).copied())
     }
 
-    pub fn find_similar_cast(
+    pub(super) fn find_similar_cast(
         &self,
         ir_gen: &SsaContext,
         operator: &Operation,
@@ -93,11 +99,11 @@ impl Anchor {
         &self.mem_map[a]
     }
 
-    pub fn get_mem_all(&self, a: ArrayId) -> &VecDeque<MemItem> {
+    pub(super) fn get_mem_all(&self, a: ArrayId) -> &VecDeque<MemItem> {
         &self.mem_list[&a]
     }
 
-    pub fn use_array(&mut self, a: ArrayId, len: usize) {
+    pub(super) fn use_array(&mut self, a: ArrayId, len: usize) {
         if !self.mem_list.contains_key(&a) {
             let def: VecDeque<(usize, NodeId)> = VecDeque::new();
             self.mem_list.entry(a).or_insert_with(VecDeque::new);
@@ -105,11 +111,11 @@ impl Anchor {
         }
     }
 
-    pub fn push_mem_instruction(
+    pub(super) fn push_mem_instruction(
         &mut self,
         ctx: &SsaContext,
         id: NodeId,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), RuntimeErrorKind> {
         let ins = ctx.instruction(id);
         let (array_id, index, is_load) = Anchor::get_mem_op(&ins.operation);
         self.use_array(array_id, ctx.mem[array_id].len as usize);
@@ -146,7 +152,7 @@ impl Anchor {
         Ok(())
     }
 
-    pub fn find_similar_mem_instruction(
+    pub(super) fn find_similar_mem_instruction(
         &self,
         ctx: &SsaContext,
         op: &Operation,
@@ -163,7 +169,7 @@ impl Anchor {
 
     fn get_mem_op(op: &Operation) -> (ArrayId, NodeId, bool) {
         match op {
-            Operation::Load { array_id, index } => (*array_id, *index, true),
+            Operation::Load { array_id, index, .. } => (*array_id, *index, true),
             Operation::Store { array_id, index, .. } => (*array_id, *index, false),
             _ => unreachable!(),
         }
@@ -250,9 +256,13 @@ impl Anchor {
                             return Some(CseAction::ReplaceWith(a));
                         }
                     }
-                    Operation::Store { index, value, .. } => {
+                    Operation::Store { index, value, predicate, .. } => {
                         if !ctx.maybe_distinct(*index, b_idx) {
-                            return Some(CseAction::ReplaceWith(*value));
+                            if ctx.is_one(DecisionTree::unwrap_predicate(ctx, predicate)) {
+                                return Some(CseAction::ReplaceWith(*value));
+                            } else {
+                                return Some(CseAction::Keep);
+                            }
                         }
                         if ctx.maybe_equal(*index, b_idx) {
                             return Some(CseAction::Keep);

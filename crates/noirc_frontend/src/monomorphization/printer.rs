@@ -1,8 +1,8 @@
-use std::fmt::{Display, Formatter};
-
-use iter_extended::vecmap;
+//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 use super::ast::{Definition, Expression, Function, LValue};
+use iter_extended::vecmap;
+use std::fmt::{Display, Formatter};
 
 #[derive(Default)]
 pub struct AstPrinter {
@@ -82,7 +82,7 @@ impl AstPrinter {
         Ok(())
     }
 
-    fn print_literal(
+    pub fn print_literal(
         &mut self,
         literal: &super::ast::Literal,
         f: &mut Formatter,
@@ -96,7 +96,6 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::Unit => write!(f, "()"),
         }
     }
 

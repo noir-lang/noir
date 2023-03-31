@@ -1,12 +1,12 @@
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiParameter, AbiVisibility, MAIN_RETURN_NAME};
+use noirc_abi::{AbiParameter, AbiType, AbiVisibility};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::node_interner::{ExprId, NodeInterner};
-use crate::Type;
 use crate::{token::Attribute, FunctionKind};
+use crate::{ContractFunctionType, Type};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -53,15 +53,14 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    fn into_abi(self, interner: &NodeInterner) -> Abi {
-        let parameters = vecmap(self.0, |param| {
+    fn into_abi_params(self, interner: &NodeInterner) -> Vec<AbiParameter> {
+        vecmap(self.0, |param| {
             let param_name = get_param_name(&param.0, interner)
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
             let as_abi = param.1.as_abi_type();
             AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
-        });
-        noirc_abi::Abi { parameters }
+        })
     }
 
     pub fn span(&self) -> Span {
@@ -108,14 +107,28 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
+/// A FuncMeta contains the signature of the function and any associated meta data like
+/// the function's Location, FunctionKind, and attributes. If the function's body is
+/// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: HirIdent,
 
     pub kind: FunctionKind,
 
+    /// A function's attributes are the `#[...]` items above the function
+    /// definition, if any. Currently, this is limited to a maximum of only one
+    /// Attribute per function.
     pub attributes: Option<Attribute>,
+
+    /// This function's visibility in its contract.
+    /// If this function is not in a contract, this is always 'Secret'.
+    pub contract_function_type: Option<ContractFunctionType>,
+
+    pub is_unconstrained: bool,
+
     pub parameters: Parameters,
+
     pub return_visibility: AbiVisibility,
 
     /// The type of this function. Either a Type::Function
@@ -140,20 +153,18 @@ impl FuncMeta {
         }
     }
 
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
-        let return_type = self.return_type().clone();
-        let mut abi = self.parameters.into_abi(interner);
+    pub fn into_function_signature(
+        self,
+        interner: &NodeInterner,
+    ) -> (Vec<AbiParameter>, Option<AbiType>) {
+        let return_type = match self.return_type() {
+            Type::Unit => None,
+            typ => Some(typ.as_abi_type()),
+        };
 
-        if return_type != Type::Unit {
-            let return_param = AbiParameter {
-                name: MAIN_RETURN_NAME.into(),
-                typ: return_type.as_abi_type(),
-                visibility: self.return_visibility,
-            };
-            abi.parameters.push(return_param);
-        }
+        let params = self.parameters.into_abi_params(interner);
 
-        abi
+        (params, return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

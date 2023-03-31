@@ -25,10 +25,6 @@ It's not implemented yet, because nothing has been benched
 pub struct Scope<K, V>(pub HashMap<K, V>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
-    pub fn new() -> Self {
-        Scope(HashMap::with_capacity(10))
-    }
-
     pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: std::borrow::Borrow<Q>,
@@ -56,7 +52,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
 
 impl<K: std::hash::Hash + Eq + Clone, V> Default for Scope<K, V> {
     fn default() -> Self {
-        Self::new()
+        Scope(HashMap::with_capacity(10))
     }
 }
 
@@ -66,10 +62,6 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for Scope<K, V> {
 pub struct ScopeTree<K, V>(pub Vec<Scope<K, V>>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
-    pub fn new() -> Self {
-        ScopeTree(vec![Scope::new()])
-    }
-
     pub fn last_index(&self) -> usize {
         self.0.len() - 1
     }
@@ -98,7 +90,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     }
 
     pub fn push_scope(&mut self) {
-        self.0.push(Scope::new())
+        self.0.push(Scope::default())
     }
 
     pub fn pop_scope(&mut self) -> Scope<K, V> {
@@ -108,7 +100,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
 
 impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeTree<K, V> {
     fn default() -> Self {
-        Self::new()
+        ScopeTree(vec![Scope::default()])
     }
 }
 
@@ -117,7 +109,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeTree<K, V> {
 // we only have an API for this with ScopeTree in the resolver.
 impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {
     fn from(scp: Scope<K, V>) -> Self {
-        let mut tree = ScopeTree::new();
+        let mut tree = ScopeTree::default();
         tree.0.push(scp);
         tree
     }
@@ -126,10 +118,6 @@ impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {
 pub struct ScopeForest<K, V>(pub Vec<ScopeTree<K, V>>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
-    pub fn new() -> ScopeForest<K, V> {
-        ScopeForest(vec![ScopeTree::new()])
-    }
-
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
         self.0.last_mut().expect("ice: tried to fetch the current scope, however none was found")
     }
@@ -149,14 +137,17 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     fn extend_current_scope_tree(&mut self) {
         self.current_scope_tree().push_scope()
     }
+
     fn remove_scope_tree_extension(&mut self) -> Scope<K, V> {
         self.current_scope_tree().pop_scope()
     }
+
     /// Starting a function requires a new scope tree, as you do not want the functions scope to
     /// have access to the scope of the caller
     pub fn start_function(&mut self) {
-        self.0.push(ScopeTree::new())
+        self.0.push(ScopeTree::default())
     }
+
     /// Ending a function requires that we removes it's whole tree of scope
     /// This is by design the current scope, which is the last element in the vector
     pub fn end_function(&mut self) -> ScopeTree<K, V> {
@@ -177,7 +168,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
 
 impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeForest<K, V> {
     fn default() -> Self {
-        Self::new()
+        ScopeForest(vec![ScopeTree::default()])
     }
 }
 

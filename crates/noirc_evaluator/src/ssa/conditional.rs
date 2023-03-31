@@ -1,12 +1,15 @@
-use crate::ssa::{
-    block::{BlockId, BlockType},
-    context::SsaContext,
-    flatten::UnrollContext,
-    inline::StackFrame,
-    node::{Binary, BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
-    {block, flatten, node, optimizations},
+use crate::{
+    errors::{RuntimeError, RuntimeErrorKind},
+    ssa::{
+        block::{BlockId, BlockType},
+        context::SsaContext,
+        flatten::UnrollContext,
+        inline::StackFrame,
+        node::{Binary, BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
+        {block, flatten, node, optimizations},
+    },
 };
-use crate::{errors, errors::RuntimeError};
+use noirc_errors::Location;
 use num_bigint::BigUint;
 use num_traits::One;
 
@@ -16,18 +19,18 @@ use num_traits::One;
 const DUPLICATED: &str = "_dup";
 
 #[derive(Debug, Clone)]
-pub struct Assumption {
-    pub parent: AssumptionId,
-    pub val_true: Vec<AssumptionId>,
-    pub val_false: Vec<AssumptionId>,
-    pub condition: NodeId,
-    pub entry_block: BlockId,
-    pub exit_block: BlockId,
+pub(crate) struct Assumption {
+    pub(crate) parent: AssumptionId,
+    pub(crate) val_true: Vec<AssumptionId>,
+    pub(crate) val_false: Vec<AssumptionId>,
+    pub(crate) condition: NodeId,
+    pub(crate) entry_block: BlockId,
+    pub(crate) exit_block: BlockId,
     value: Option<NodeId>,
 }
 
 impl Assumption {
-    pub fn new(parent: AssumptionId) -> Assumption {
+    pub(crate) fn new(parent: AssumptionId) -> Assumption {
         Assumption {
             parent,
             val_true: Vec::new(),
@@ -41,30 +44,30 @@ impl Assumption {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct AssumptionId(pub arena::Index);
+pub(crate) struct AssumptionId(pub(crate) arena::Index);
 
 impl AssumptionId {
-    pub fn dummy() -> AssumptionId {
+    pub(crate) fn dummy() -> AssumptionId {
         AssumptionId(SsaContext::dummy_id())
     }
 }
 
 //temporary data used to build the decision tree
-pub struct TreeBuilder {
-    pub join_to_process: Vec<BlockId>,
-    pub stack: StackFrame,
+pub(crate) struct TreeBuilder {
+    pub(crate) join_to_process: Vec<BlockId>,
+    pub(crate) stack: StackFrame,
 }
 
 impl TreeBuilder {
-    pub fn new(entry: BlockId) -> TreeBuilder {
+    pub(crate) fn new(entry: BlockId) -> TreeBuilder {
         TreeBuilder { join_to_process: Vec::new(), stack: StackFrame::new(entry) }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct DecisionTree {
+pub(crate) struct DecisionTree {
     arena: arena::Arena<Assumption>,
-    pub root: AssumptionId,
+    pub(crate) root: AssumptionId,
 }
 
 impl std::ops::Index<AssumptionId> for DecisionTree {
@@ -82,7 +85,7 @@ impl std::ops::IndexMut<AssumptionId> for DecisionTree {
 }
 
 impl DecisionTree {
-    pub fn new(ctx: &SsaContext) -> DecisionTree {
+    pub(crate) fn new(ctx: &SsaContext) -> DecisionTree {
         let mut tree = DecisionTree { arena: arena::Arena::new(), root: AssumptionId::dummy() };
         let root_id = tree.new_decision_leaf(AssumptionId::dummy());
         tree.root = root_id;
@@ -91,15 +94,15 @@ impl DecisionTree {
         tree
     }
 
-    pub fn new_decision_leaf(&mut self, parent: AssumptionId) -> AssumptionId {
+    pub(crate) fn new_decision_leaf(&mut self, parent: AssumptionId) -> AssumptionId {
         let node = Assumption::new(parent);
         AssumptionId(self.arena.insert(node))
     }
 
-    pub fn is_true_branch(&self, assumption: AssumptionId) -> bool {
+    pub(crate) fn is_true_branch(&self, assumption: AssumptionId) -> bool {
         assert_ne!(assumption, self.root);
         let parent_id = self[assumption].parent;
-        debug_assert!(
+        assert!(
             self[parent_id].val_true.contains(&assumption)
                 != self[parent_id].val_false.contains(&assumption)
         );
@@ -152,7 +155,7 @@ impl DecisionTree {
         ctx.push_instruction_after(id, block_id, after)
     }
 
-    pub fn compute_assumption(&mut self, ctx: &mut SsaContext, block_id: BlockId) -> NodeId {
+    pub(crate) fn compute_assumption(&mut self, ctx: &mut SsaContext, block_id: BlockId) -> NodeId {
         let block = &ctx[block_id];
         let assumption_id = block.assumption;
         let assumption = &self[block.assumption];
@@ -193,7 +196,7 @@ impl DecisionTree {
         ins
     }
 
-    pub fn make_decision_tree(
+    pub(crate) fn make_decision_tree(
         &mut self,
         ctx: &mut SsaContext,
         mut builder: TreeBuilder,
@@ -222,7 +225,7 @@ impl DecisionTree {
         let right = current_block.right;
         // is it an exit block?
         if data.join_to_process.contains(&current) {
-            debug_assert!(current == *data.join_to_process.last().unwrap());
+            assert!(current == *data.join_to_process.last().unwrap());
             block_assumption = assumption.parent;
             data.join_to_process.pop();
         }
@@ -246,7 +249,7 @@ impl DecisionTree {
 
             //find exit node:
             let exit = block::find_join(ctx, current_block.id);
-            debug_assert!(ctx[exit].kind == BlockType::IfJoin);
+            assert!(ctx[exit].kind == BlockType::IfJoin);
             if_decision.entry_block = current;
             if_decision.exit_block = exit;
             if_assumption = Some(if_decision);
@@ -268,10 +271,22 @@ impl DecisionTree {
             self[block_assumption].val_false.push(right_assumption);
             ctx[left.unwrap()].assumption = left_assumption;
             ctx[right.unwrap()].assumption = right_assumption;
-        } else if let Some(left) = left {
-            ctx[left].assumption = block_assumption;
-            result = vec![left];
-            debug_assert!(right.is_none()); //only IF block should have a right at this stage
+        } else {
+            match (left, right) {
+                (Some(l), None) => {
+                    ctx[l].assumption = block_assumption;
+                    result = vec![l];
+                }
+                (Some(l), Some(r)) => {
+                    ctx[l].assumption = block_assumption;
+                    ctx[r].assumption = block_assumption;
+                    result = vec![l, r];
+                }
+                (None, Some(_)) => {
+                    unreachable!("Infallible, only a split block can have right successor")
+                }
+                (None, None) => (),
+            }
         }
 
         ctx[current].assumption = block_assumption;
@@ -293,7 +308,10 @@ impl DecisionTree {
 
             let mut test_and_push = |block_id: BlockId| {
                 if !block_id.is_dummy() && !queue.contains(&block_id) {
-                    queue.push(block_id);
+                    let block = &ctx[block_id];
+                    if !block.is_join() || block.dominator == Some(current) {
+                        queue.push(block_id);
+                    }
                 }
             };
 
@@ -304,7 +322,7 @@ impl DecisionTree {
         Ok(())
     }
 
-    pub fn reduce(
+    pub(crate) fn reduce(
         &mut self,
         ctx: &mut SsaContext,
         node_id: AssumptionId,
@@ -325,7 +343,7 @@ impl DecisionTree {
     }
 
     //reduce if sub graph
-    pub fn reduce_sub_graph(
+    pub(crate) fn reduce_sub_graph(
         &self,
         ctx: &mut SsaContext,
         if_block_id: BlockId,
@@ -374,11 +392,15 @@ impl DecisionTree {
             merged_ins = self.synchronize(ctx, &left_ins, &right_ins, left);
         }
         let mut modified = false;
+        // write the merged instructions to the block
         super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         if modified {
             // A second round is necessary when the synchronization optimizes function calls between the two branches.
             // In that case, the first cse updates the result instructions to the same call and then
             // the second cse can (and must) then simplify identical result instructions.
+            // We clear the list because we want to perform the cse on the block instructions, if we don't it will use the list instead.
+            // We should refactor cse_block so that its behavior is consistent and does not rely on the list being empty.
+            merged_ins.clear();
             super::optimizations::cse_block(ctx, left, &mut merged_ins, &mut modified)?;
         }
         //housekeeping...
@@ -397,7 +419,7 @@ impl DecisionTree {
 
     /// Apply the condition of the block to each instruction
     /// in the block.
-    pub fn apply_condition_to_block(
+    pub(crate) fn apply_condition_to_block(
         &self,
         ctx: &mut SsaContext,
         block: BlockId,
@@ -414,7 +436,7 @@ impl DecisionTree {
 
     /// Applies a condition to each instruction
     /// and places into the stack frame.
-    pub fn apply_condition_to_instructions(
+    pub(crate) fn apply_condition_to_instructions(
         &self,
         ctx: &mut SsaContext,
         instructions: &[NodeId],
@@ -443,6 +465,7 @@ impl DecisionTree {
         stack: &mut StackFrame,
         condition: NodeId,
         error_msg: &str,
+        location: Option<Location>,
     ) -> Result<(), RuntimeError> {
         if ctx.under_assumption(condition) {
             let avoid = stack.stack.contains(&condition).then_some(&condition);
@@ -470,7 +493,10 @@ impl DecisionTree {
             stack.push(ins2);
             Ok(())
         } else {
-            Err(errors::RuntimeErrorKind::Spanless(error_msg.to_string()).into())
+            Err(RuntimeError {
+                location,
+                kind: RuntimeErrorKind::UnstructuredError { message: error_msg.to_string() },
+            })
         }
     }
 
@@ -478,7 +504,7 @@ impl DecisionTree {
     /// For most instructions, this does nothing
     /// but for instructions with side-effects
     /// this will alter the behavior.
-    pub fn apply_condition_to_instruction(
+    pub(crate) fn apply_condition_to_instruction(
         &self,
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
@@ -540,7 +566,7 @@ impl DecisionTree {
                     stack.push(ins_id);
                 }
 
-                Operation::Load { array_id, index } => {
+                Operation::Load { array_id, index, location } => {
                     if let Some(idx) = ctx.get_as_constant(*index) {
                         if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
                             let error = format!(
@@ -548,7 +574,7 @@ impl DecisionTree {
                                 ctx.mem[*array_id].len,
                                 idx.to_u128()
                             );
-                            DecisionTree::short_circuit(ctx, stack, ass_value, &error)?;
+                            DecisionTree::short_circuit(ctx, stack, ass_value, &error, *location)?;
                             return Ok(false);
                         }
                     }
@@ -577,35 +603,37 @@ impl DecisionTree {
                         }
                     }
                     stack.push(ins_id);
-                    match binary_op.operator {
-                        BinaryOp::Udiv
-                        | BinaryOp::Sdiv
-                        | BinaryOp::Urem
-                        | BinaryOp::Srem
-                        | BinaryOp::Div => {
-                            if ctx.is_zero(binary_op.rhs) {
-                                DecisionTree::short_circuit(
-                                    ctx,
-                                    stack,
-                                    cond,
-                                    "attempt to divide by zero",
-                                )?;
-                                return Ok(false);
-                            }
-                            if ctx.under_assumption(cond) {
-                                let ins2 = ctx.instruction_mut(ins_id);
-                                ins2.operation = Operation::Binary(Binary {
-                                    lhs: binary_op.lhs,
-                                    rhs: binary_op.rhs,
-                                    operator: binary_op.operator.clone(),
-                                    predicate: Some(cond),
-                                });
-                            }
+                    let (side_effect, location) = match binary_op.operator {
+                        BinaryOp::Udiv(loc)
+                        | BinaryOp::Sdiv(loc)
+                        | BinaryOp::Urem(loc)
+                        | BinaryOp::Srem(loc)
+                        | BinaryOp::Div(loc) => (true, Some(loc)),
+                        _ => (false, None),
+                    };
+                    if side_effect {
+                        if ctx.is_zero(binary_op.rhs) {
+                            DecisionTree::short_circuit(
+                                ctx,
+                                stack,
+                                cond,
+                                "attempt to divide by zero",
+                                location,
+                            )?;
+                            return Ok(false);
                         }
-                        _ => (),
+                        if ctx.under_assumption(cond) {
+                            let ins2 = ctx.instruction_mut(ins_id);
+                            ins2.operation = Operation::Binary(Binary {
+                                lhs: binary_op.lhs,
+                                rhs: binary_op.rhs,
+                                operator: binary_op.operator.clone(),
+                                predicate: Some(cond),
+                            });
+                        }
                     }
                 }
-                Operation::Store { array_id, index, value } => {
+                Operation::Store { array_id, index, value, predicate, location } => {
                     if !ins.operation.is_dummy_store() {
                         if let Some(idx) = ctx.get_as_constant(*index) {
                             if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
@@ -614,37 +642,22 @@ impl DecisionTree {
                                     ctx.mem[*array_id].len,
                                     idx.to_u128()
                                 );
-                                DecisionTree::short_circuit(ctx, stack, ass_value, &error)?;
+                                DecisionTree::short_circuit(
+                                    ctx, stack, ass_value, &error, *location,
+                                )?;
                                 return Ok(false);
                             }
                         }
                         if !stack.is_new_array(ctx, array_id) && ctx.under_assumption(ass_value) {
-                            let load = Operation::Load { array_id: *array_id, index: *index };
-                            let e_type = ctx.mem[*array_id].element_type;
-                            let dummy = ctx.add_instruction(Instruction::new(
-                                load,
-                                e_type,
-                                Some(stack.block),
-                            ));
-                            let operation = Operation::Cond {
-                                condition: ass_value,
-                                val_true: *value,
-                                val_false: dummy,
-                            };
-                            let cond = ctx.add_instruction(Instruction::new(
-                                operation,
-                                e_type,
-                                Some(stack.block),
-                            ));
-
-                            stack.push(dummy);
-                            stack.push(cond);
-                            //store the conditional value
+                            let pred =
+                                Self::and_conditions(Some(ass_value), *predicate, stack, ctx);
                             let ins2 = ctx.instruction_mut(ins_id);
                             ins2.operation = Operation::Store {
                                 array_id: *array_id,
                                 index: *index,
-                                value: cond,
+                                value: *value,
+                                predicate: pred,
+                                location: *location,
                             };
                         }
                     }
@@ -731,11 +744,87 @@ impl DecisionTree {
         Ok(true)
     }
 
-    pub fn get_assumption_value(&self, assumption: AssumptionId) -> Option<NodeId> {
+    pub(crate) fn get_assumption_value(&self, assumption: AssumptionId) -> Option<NodeId> {
         if assumption == AssumptionId::dummy() {
             None
         } else {
             self[assumption].value
+        }
+    }
+
+    // returns condition1 AND condition2
+    fn and_conditions(
+        condition1: Option<NodeId>,
+        condition2: Option<NodeId>,
+        stack_frame: &mut StackFrame,
+        ctx: &mut SsaContext,
+    ) -> Option<NodeId> {
+        match (condition1, condition2) {
+            (None, None) => None,
+            (Some(cond), other) | (other, Some(cond)) if cond.is_dummy() => {
+                Self::and_conditions(None, other, stack_frame, ctx)
+            }
+            (Some(cond), None) | (None, Some(cond)) => Some(cond),
+            (Some(cond1), Some(cond2)) if cond1 == cond2 => condition1,
+            (Some(cond1), Some(cond2)) => {
+                let op = Operation::Binary(node::Binary {
+                    lhs: cond1,
+                    rhs: cond2,
+                    operator: BinaryOp::Mul,
+                    predicate: None,
+                });
+                let cond = ctx.add_instruction(Instruction::new(
+                    op,
+                    ObjectType::boolean(),
+                    Some(stack_frame.block),
+                ));
+                optimizations::simplify_id(ctx, cond).unwrap();
+                stack_frame.push(cond);
+                Some(cond)
+            }
+        }
+    }
+
+    // returns condition1 OR condition2
+    fn or_conditions(
+        condition1: Option<NodeId>,
+        condition2: Option<NodeId>,
+        stack_frame: &mut StackFrame,
+        ctx: &mut SsaContext,
+    ) -> Option<NodeId> {
+        match (condition1, condition2) {
+            (_condition, None) | (None, _condition) => None,
+            (Some(cond1), Some(cond2)) => {
+                if cond1.is_dummy() || cond2.is_dummy() {
+                    None
+                } else if cond1 == cond2 {
+                    condition1
+                } else {
+                    let op = Operation::Binary(node::Binary {
+                        lhs: cond1,
+                        rhs: cond2,
+                        operator: BinaryOp::Or,
+                        predicate: None,
+                    });
+                    let cond = ctx.add_instruction(Instruction::new(
+                        op,
+                        ObjectType::boolean(),
+                        Some(stack_frame.block),
+                    ));
+                    optimizations::simplify_id(ctx, cond).unwrap();
+                    stack_frame.push(cond);
+                    Some(cond)
+                }
+            }
+        }
+    }
+
+    pub(crate) fn unwrap_predicate(ctx: &SsaContext, predicate: &Option<NodeId>) -> NodeId {
+        let predicate = predicate.unwrap_or(NodeId::dummy());
+        if predicate.is_dummy() {
+            ctx.one()
+        } else {
+            predicate
         }
     }
 
@@ -791,19 +880,18 @@ impl DecisionTree {
         // 3. Merge the blocks using the solution
         let mut left_pos = 0;
         let mut right_pos = 0;
-        let mut result = Vec::new();
+        let mut stack_frame = StackFrame::new(block_id);
         for i in solution {
-            result.extend_from_slice(&left[left_pos..i.left.0]);
+            stack_frame.stack.extend_from_slice(&left[left_pos..i.left.0]);
             left_pos = i.left.0;
-            result.extend_from_slice(&right[right_pos..i.right.0]);
+            stack_frame.stack.extend_from_slice(&right[right_pos..i.right.0]);
             right_pos = i.right.0;
             //merge i:
-            let left_ins = ctx.instruction(left[left_pos]);
-            let right_ins = ctx.instruction(right[right_pos]);
+            let left_ins = ctx.instruction(left[left_pos]).clone();
+            let right_ins = ctx.instruction(right[right_pos]).clone();
             let assumption = &self[ctx[block_id].assumption];
 
-            let mut to_merge = Vec::new();
-            let mut merged_op = match (&left_ins.operation, &right_ins.operation) {
+            let merged_op = match (&left_ins.operation, &right_ins.operation) {
                 (
                     Operation::Call {
                         func: left_func,
@@ -815,6 +903,7 @@ impl DecisionTree {
                     Operation::Call { func: right_func, arguments: right_arg, .. },
                 ) => {
                     debug_assert_eq!(left_func, right_func);
+                    let mut args = Vec::new();
                     for a in left_arg.iter().enumerate() {
                         let op = Operation::Cond {
                             condition: self[assumption.parent].condition,
@@ -822,20 +911,34 @@ impl DecisionTree {
                             val_false: right_arg[a.0],
                         };
                         let typ = ctx.object_type(*a.1);
-                        to_merge.push(Instruction::new(op, typ, Some(block_id)));
+                        let arg_id = ctx.add_instruction(Instruction::new(op, typ, Some(block_id)));
+                        stack_frame.stack.push(arg_id);
+                        args.push(arg_id);
                     }
                     Operation::Call {
                         func: *left_func,
-                        arguments: Vec::new(),
+                        arguments: args,
                         returned_arrays: left_arrays.clone(),
                         predicate: self.root,
                         location: *left_location,
                     }
                 }
                 (
-                    Operation::Store { array_id: left_array, index: left_index, value: left_val },
-                    Operation::Store { value: right_val, .. },
+                    Operation::Store {
+                        array_id: left_array,
+                        index: left_index,
+                        value: left_val,
+                        predicate: left_pred,
+                        location: left_loc,
+                    },
+                    Operation::Store {
+                        value: right_val,
+                        predicate: right_pred,
+                        location: right_loc,
+                        ..
+                    },
                 ) => {
+                    let pred = Self::or_conditions(*left_pred, *right_pred, &mut stack_frame, ctx);
                     let op = Operation::Cond {
                         condition: self[assumption.parent].condition,
                         val_true: *left_val,
@@ -843,45 +946,37 @@ impl DecisionTree {
                     };
                     let merge =
                         Instruction::new(op, ctx.mem[*left_array].element_type, Some(block_id));
-                    to_merge.push(merge);
+                    let merge_id = ctx.add_instruction(merge);
+                    let location = RuntimeError::merge_location(*left_loc, *right_loc);
+                    stack_frame.stack.push(merge_id);
                     Operation::Store {
                         array_id: *left_array,
                         index: *left_index,
-                        value: NodeId::dummy(),
+                        value: merge_id,
+                        predicate: pred,
+                        location,
                     }
                 }
                 _ => unreachable!(),
             };
-
-            let mut merge_ids = Vec::new();
-            for merge in to_merge {
-                let merge_id = ctx.add_instruction(merge);
-                result.push(merge_id);
-                merge_ids.push(merge_id);
-            }
-            if let Operation::Store { value, .. } = &mut merged_op {
-                *value = *merge_ids.last().unwrap();
-            } else {
-                if let Operation::Call { arguments, .. } = &mut merged_op {
-                    *arguments = merge_ids;
-                }
+            if let Opcode::Call(_) = merged_op.opcode() {
                 let left_ins = ctx.instruction_mut(left[left_pos]);
                 left_ins.mark = node::Mark::ReplaceWith(right[right_pos]);
             }
             let ins1 = ctx.instruction_mut(right[right_pos]);
             ins1.operation = merged_op;
-            result.push(ins1.id);
+            stack_frame.stack.push(ins1.id);
             left_pos += 1;
             right_pos += 1;
         }
-        result.extend_from_slice(&left[left_pos..left.len()]);
-        result.extend_from_slice(&right[right_pos..right.len()]);
-        result
+        stack_frame.stack.extend_from_slice(&left[left_pos..left.len()]);
+        stack_frame.stack.extend_from_slice(&right[right_pos..right.len()]);
+        stack_frame.stack
     }
 }
 
 //unroll an if sub-graph
-pub fn unroll_if(
+pub(super) fn unroll_if(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
 ) -> Result<BlockId, RuntimeError> {
@@ -889,7 +984,7 @@ pub fn unroll_if(
     let if_block = &ctx[unroll_ctx.to_unroll];
     let left = if_block.left.unwrap();
     let right = if_block.right.unwrap();
-    debug_assert!(if_block.kind == BlockType::Normal);
+    assert!(if_block.kind == BlockType::Normal);
     let exit = block::find_join(ctx, if_block.id);
 
     //2. create the IF subgraph
@@ -967,10 +1062,11 @@ struct Segment {
 }
 
 impl Segment {
-    pub fn new(left_node: (usize, &NodeId), right_node: (usize, &NodeId)) -> Segment {
+    fn new(left_node: (usize, &NodeId), right_node: (usize, &NodeId)) -> Segment {
         Segment { left: (left_node.0, *left_node.1), right: (right_node.0, *right_node.1) }
     }
-    pub fn intersect(&self, other: &Segment) -> bool {
+
+    fn intersect(&self, other: &Segment) -> bool {
         !((self.right.0 < other.right.0 && self.left.0 < other.left.0)
             || (self.right.0 > other.right.0 && self.left.0 > other.left.0))
     }

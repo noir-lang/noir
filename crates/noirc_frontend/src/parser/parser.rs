@@ -1,3 +1,28 @@
+//! This file contains the bulk of the implementation of noir's parser.
+//!
+//! Noir's parser is built off the [chumsky library](https://docs.rs/chumsky/latest/chumsky/)
+//! for parser combinators. In this technique, parsers are built from smaller parsers that
+//! parse e.g. only a single token. Then there are functions which can combine multiple
+//! parsers together to create a larger one. These functions are called parser combinators.
+//! For example, `a.then(b)` combines two parsers a and b and returns one that parses a
+//! then parses b and fails if either fails. Other combinators like `a.or(b)` exist as well
+//! and are used extensively. Note that these form a PEG grammar so if there are multiple
+//! options as in `a.or(b)` the first matching parse will be chosen.
+//!
+//! Noir's grammar is not formally specified but can be estimated by inspecting each function.
+//! For example, a function `f` parsing `choice((a, b, c))` can be roughly translated to
+//! BNF as `f: a | b | c`.
+//!
+//! Occasionally there will also be recovery strategies present, either via `recover_via(Parser)`
+//! or `recover_with(Strategy)`. The difference between the two functions isn't quite so important,
+//! but both allow the parser to recover from a parsing error, log the error, and return an error
+//! expression instead. These are used to parse cases such as `fn foo( { }` where we know the user
+//! meant to write a function and thus we should log the error and return a function with no parameters,
+//! rather than failing to parse a function and trying to subsequently parse a struct. Generally using
+//! recovery strategies improves parser errors but using them incorrectly can be problematic since they
+//! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
+//! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
+//! current parser to try alternative parsers in a `choice` expression.
 use super::{
     foldl_with_span, parameter_name_recovery, parameter_recovery, parenthesized, then_commit,
     then_commit_ignore, top_level_statement_recovery, ExprParser, ForRange, NoirParser,
@@ -18,9 +43,14 @@ use iter_extended::vecmap;
 use noirc_abi::AbiVisibility;
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
+/// Entry function for the parser - also handles lexing internally.
+///
+/// Given a source_program string, return the ParsedModule Ast representation
+/// of the program along with any parsing errors encountered. If the parsing errors
+/// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
+/// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
 pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnostic>) {
-    let lexer = Lexer::new(source_program);
-    let (tokens, lexing_errors) = lexer.lex();
+    let (tokens, lexing_errors) = Lexer::lex(source_program);
     let mut errors = vecmap(lexing_errors, Into::into);
 
     let (module, parsing_errors) = program().parse_recovery_verbose(tokens);
@@ -29,10 +59,13 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<CustomDiagnosti
     (module.unwrap(), errors)
 }
 
+/// program: module EOF
 fn program() -> impl NoirParser<ParsedModule> {
     module().then_ignore(force(just(Token::EOF)))
 }
 
+/// module: top_level_statement module
+///       | %empty
 fn module() -> impl NoirParser<ParsedModule> {
     recursive(|module_parser| {
         empty()
@@ -54,6 +87,13 @@ fn module() -> impl NoirParser<ParsedModule> {
     })
 }
 
+/// top_level_statement: function_definition
+///                    | struct_definition
+///                    | implementation
+///                    | submodule
+///                    | module_declaration
+///                    | use_statement
+///                    | global_declaration
 fn top_level_statement(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatement> {
@@ -61,7 +101,8 @@ fn top_level_statement(
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         implementation(),
-        submodule(module_parser),
+        submodule(module_parser.clone()),
+        contract(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
         use_statement().then_ignore(force(just(Token::Semicolon))),
         global_declaration().then_ignore(force(just(Token::Semicolon))),
@@ -69,6 +110,7 @@ fn top_level_statement(
     .recover_via(top_level_statement_recovery())
 }
 
+/// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     let p = ignore_then_commit(
         keyword(Keyword::Global).labelled("global"),
@@ -76,22 +118,40 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
     );
     let p = then_commit(p, global_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, literal().map_with_span(Expression::new)); // XXX: this should be a literal
+    let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
 }
 
+/// submodule: 'mod' ident '{' module '}'
 fn submodule(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Mod)
         .ignore_then(ident())
         .then_ignore(just(Token::LeftBrace))
         .then(module_parser)
         .then_ignore(just(Token::RightBrace))
-        .map(|(name, contents)| TopLevelStatement::SubModule(SubModule { name, contents }))
+        .map(|(name, contents)| {
+            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: false })
+        })
 }
 
+/// contract: 'contract' ident '{' module '}'
+fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Contract)
+        .ignore_then(ident())
+        .then_ignore(just(Token::LeftBrace))
+        .then(module_parser)
+        .then_ignore(just(Token::RightBrace))
+        .map(|(name, contents)| {
+            TopLevelStatement::SubModule(SubModule { name, contents, is_contract: true })
+        })
+}
+
+/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
+///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
     attribute()
         .or_not()
+        .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
         .then(ident())
         .then(generics())
@@ -100,13 +160,18 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(block(expression()))
         .map(
             |(
-                ((((attribute, name), generics), parameters), (return_visibility, return_type)),
+                (
+                    ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
+                    (return_visibility, return_type),
+                ),
                 body,
             )| {
                 FunctionDefinition {
                     span: name.0.span(),
                     name,
                     attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                    is_open,
+                    is_unconstrained,
                     generics,
                     parameters,
                     body,
@@ -118,6 +183,21 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
+/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
+///
+/// returns (is_unconstrained, is_open) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool)> {
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(keyword(Keyword::Open).or_not())
+        .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
+}
+
+/// non_empty_ident_list: ident ',' non_empty_ident_list
+///                     | ident
+///
+/// generics: '<' non_empty_ident_list '>'
+///         | %empty
 fn generics() -> impl NoirParser<Vec<Ident>> {
     ident()
         .separated_by(just(Token::Comma))
@@ -592,14 +672,12 @@ where
         let next_precedence =
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
 
-        expression_with_precedence(precedence.next(), expr_parser.clone(), is_type_expression)
-            .then(
-                then_commit(
-                    operator_with_precedence(precedence),
-                    expression_with_precedence(next_precedence, expr_parser, is_type_expression),
-                )
-                .repeated(),
-            )
+        let next_expr =
+            expression_with_precedence(next_precedence, expr_parser, is_type_expression);
+
+        next_expr
+            .clone()
+            .then(then_commit(operator_with_precedence(precedence), next_expr).repeated())
             .foldl(create_infix_expression)
             .boxed()
             .labelled("expression")
@@ -864,10 +942,7 @@ fn field_name() -> impl NoirParser<Ident> {
     }))
 }
 
-fn constructor<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
+fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
     let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
         .at_least(1)
@@ -899,6 +974,10 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
+fn literal_or_collection(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
+    choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
+}
+
 #[cfg(test)]
 mod test {
     use noirc_errors::CustomDiagnostic;
@@ -910,8 +989,7 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let lexer = Lexer::new(program);
-        let (tokens, lexer_errors) = lexer.lex();
+        let (tokens, lexer_errors) = Lexer::lex(program);
         if !lexer_errors.is_empty() {
             return Err(vecmap(lexer_errors, Into::into));
         }
@@ -925,8 +1003,7 @@ mod test {
     where
         P: NoirParser<T>,
     {
-        let lexer = Lexer::new(program);
-        let (tokens, lexer_errors) = lexer.lex();
+        let (tokens, lexer_errors) = Lexer::lex(program);
         let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
 
         let mut errors = vecmap(lexer_errors, Into::into);

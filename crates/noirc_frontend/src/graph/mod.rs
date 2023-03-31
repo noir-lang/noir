@@ -191,7 +191,7 @@ mod tests {
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
         use fm::{FileMap, FILE_EXTENSION};
-        let mut fm = FileMap::new();
+        let mut fm = FileMap::default();
 
         let mut vec_ids = Vec::with_capacity(n);
         for i in 0..n {

@@ -2,7 +2,9 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{Ident, Type};
+use crate::{parser::ParserError, Ident, Shared, StructType, Type};
+
+use super::import::PathResolutionError;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
@@ -15,7 +17,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathUnresolved { span: Span, name: String, segment: Ident },
+    PathResolutionError(PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
@@ -50,6 +52,17 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
+    #[error("Incorrect amount of arguments to generic type constructor")]
+    IncorrectGenericCount {
+        span: Span,
+        struct_type: Shared<StructType>,
+        actual: usize,
+        expected: usize,
+    },
+    #[error("{0}")]
+    ParserError(ParserError),
+    #[error("Function is not defined in a contract yet sets its contract visibility")]
+    ContractFunctionTypeInNormalFunction { span: Span },
 }
 
 impl ResolverError {
@@ -92,22 +105,7 @@ impl From<ResolverError> for Diagnostic {
                 String::new(),
                 span,
             ),
-            ResolverError::PathUnresolved { span, name, segment } => {
-                let mut diag = Diagnostic::simple_error(
-                    format!("could not resolve path '{name}'"),
-                    String::new(),
-                    span,
-                );
-                // XXX: When the secondary and primary labels have spans that
-                // overlap, you cannot differentiate between them.
-                // This error is an example of this.
-                diag.add_secondary(
-                    format!("could not resolve `{}` in path", &segment.0.contents),
-                    segment.0.span(),
-                );
-
-                diag
-            }
+            ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { span, expected, got } => Diagnostic::simple_error(
                 format!("expected {expected} got {got}"),
                 String::new(),
@@ -168,7 +166,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword only has effects on arguments to the main function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
+                diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
             ResolverError::NecessaryPub { ident } => {
@@ -180,7 +178,7 @@ impl From<ResolverError> for Diagnostic {
                     ident.0.span(),
                 );
 
-                diag.add_note("The `pub` keyword is mandatory for the main function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
+                diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
             ResolverError::ExpectedComptimeVariable { name, span } => Diagnostic::simple_error(
@@ -233,6 +231,22 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::GenericsOnSelfType { span } => Diagnostic::simple_error(
                 "Cannot apply generics to Self type".into(),
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
+                span,
+            ),
+            ResolverError::IncorrectGenericCount { span, struct_type, actual, expected } => {
+                let expected_plural = if expected == 1 { "" } else { "s" };
+                let actual_plural = if actual == 1 { "is" } else { "are" };
+
+                Diagnostic::simple_error(
+                    format!("The struct type {} has {expected} generic{expected_plural} but {actual} {actual_plural} given here", struct_type.borrow()),
+                    "Incorrect number of generic arguments".into(),
+                    span,
+                )
+            }
+            ResolverError::ParserError(error) => error.into(),
+            ResolverError::ContractFunctionTypeInNormalFunction { span } => Diagnostic::simple_error(
+                "Only functions defined within contracts can set their contract function type".into(),
+                "Non-contract functions cannot be 'open'".into(),
                 span,
             ),
         }

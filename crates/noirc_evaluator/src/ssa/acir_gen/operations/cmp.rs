@@ -1,6 +1,6 @@
 use crate::{
     ssa::{
-        acir_gen::{acir_mem::AcirMem, constraints, InternalVar},
+        acir_gen::{acir_mem::AcirMem, constraints, Acir, InternalVar},
         context::SsaContext,
         mem::{MemArray, Memory},
         node::NodeId,
@@ -25,8 +25,8 @@ use iter_extended::vecmap;
 // TODO(check this): Types like structs are decomposed before getting to SSA
 // so in reality, the NEQ instruction will be done on the fields
 // of the struct
-pub(crate) fn evaluate_neq(
-    acir_mem: &mut AcirMem,
+pub(super) fn evaluate_neq(
+    acir_gen: &mut Acir,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -34,6 +34,11 @@ pub(crate) fn evaluate_neq(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Expression {
+    // Check whether the `lhs` and `rhs` are trivially equal
+    if lhs == rhs {
+        return Expression::zero();
+    }
+
     // Check whether the `lhs` and `rhs` are Arrays
     if let (Some(a), Some(b)) = (Memory::deref(ctx, lhs), Memory::deref(ctx, rhs)) {
         let array_a = &ctx.mem[a];
@@ -55,41 +60,47 @@ pub(crate) fn evaluate_neq(
             )
         }
 
-        let mut x = InternalVar::from(array_eq(acir_mem, array_a, array_b, evaluator));
+        let x = InternalVar::from(array_eq(&mut acir_gen.memory, array_a, array_b, evaluator));
         // TODO we need a witness because of the directive, but we should use an expression
         // TODO if we change the Invert directive to take an `Expression`, then we
         // TODO can get rid of this extra gate.
-        let x_witness =
-            x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
+        let x_witness = acir_gen
+            .var_cache
+            .get_or_compute_witness(x, evaluator)
+            .expect("unexpected constant expression");
 
         return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
     }
+
+    // Arriving here means that `lhs` and `rhs` are not Arrays
     let l_c = l_c.expect("ICE: unexpected array pointer");
     let r_c = r_c.expect("ICE: unexpected array pointer");
-    // Arriving here means that `lhs` and `rhs` are not Arrays
-    //
-    // Check if `lhs` and `rhs` are constants. If so, we can evaluate whether
-    // they are equal at compile time.
-    if let (Some(l), Some(r)) = (l_c.to_const(), r_c.to_const()) {
-        if l == r {
-            return Expression::default();
-        } else {
-            return Expression::one();
-        }
-    }
-    let mut x = InternalVar::from(constraints::subtract(
+    let x = InternalVar::from(constraints::subtract(
         l_c.expression(),
         FieldElement::one(),
         r_c.expression(),
     ));
-    //todo we need a witness because of the directive, but we should use an expression
-    let x_witness =
-        x.get_or_compute_witness(evaluator, false).expect("unexpected constant expression");
-    Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+
+    // Check if `x` is constant. If so, we can evaluate whether
+    // it is zero at compile time.
+    if let Some(x_const) = x.to_const() {
+        if x_const.is_zero() {
+            Expression::zero()
+        } else {
+            Expression::one()
+        }
+    } else {
+        //todo we need a witness because of the directive, but we should use an expression
+        let x_witness = acir_gen
+            .var_cache
+            .get_or_compute_witness(x, evaluator)
+            .expect("unexpected constant expression");
+        Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+    }
 }
 
-pub(crate) fn evaluate_eq(
-    memory_map: &mut AcirMem,
+pub(super) fn evaluate_eq(
+    acir_gen: &mut Acir,
     lhs: NodeId,
     rhs: NodeId,
     l_c: Option<InternalVar>,
@@ -97,7 +108,7 @@ pub(crate) fn evaluate_eq(
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Expression {
-    let neq = evaluate_neq(memory_map, lhs, rhs, l_c, r_c, ctx, evaluator);
+    let neq = evaluate_neq(acir_gen, lhs, rhs, l_c, r_c, ctx, evaluator);
     constraints::subtract(&Expression::one(), FieldElement::one(), &neq)
 }
 
