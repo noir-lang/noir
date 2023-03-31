@@ -4,10 +4,12 @@ import { TxHash } from '@aztec/tx';
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
 import { NoteDao } from './note_dao.js';
+import { TxAuxDataDao } from './tx_aux_data_dao.js';
 import { TxDao } from './tx_dao.js';
 
 export class MemoryDB extends MemoryContractDatabase implements Database {
   private txs: TxDao[] = [];
+  private txAccountData: TxAuxDataDao[] = [];
   private notes: NoteDao[] = [];
 
   public getTx(txHash: TxHash) {
@@ -36,5 +38,18 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
       this.txs[index] = tx;
     }
     return Promise.resolve();
+  }
+
+  public addTxAuxDataDao(txAuxDataDao: TxAuxDataDao): Promise<void> {
+    this.txAccountData.push(txAuxDataDao);
+    return Promise.resolve();
+  }
+
+  public getStorageAt(contract: AztecAddress, storageSlot: Fr): TxAuxDataDao | undefined {
+    return this.txAccountData.find(
+      txAccountData =>
+        txAccountData.contractAddress.equals(contract) &&
+        txAccountData.storageSlot.toBuffer().equals(storageSlot.toBuffer()),
+    );
   }
 }

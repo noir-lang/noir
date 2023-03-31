@@ -25,7 +25,11 @@ export class AztecAddress {
   }
 
   static fromString(address: string) {
-    return new AztecAddress(Buffer.from(address.replace(/^0x/i, ''), 'hex'));
+    const buf = Buffer.from(address.replace(/^0x/i, ''), 'hex');
+    if (buf.length !== AztecAddress.SIZE_IN_BYTES) {
+      throw new Error(`Invalid length ${buf.length}.`);
+    }
+    return new AztecAddress(buf);
   }
 
   toBuffer() {

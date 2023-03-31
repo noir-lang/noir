@@ -20,7 +20,7 @@ export class Synchroniser {
   constructor(
     private node: AztecNode,
     private db: Database,
-    private log = createDebugLogger('aztec:aztec_rps_synchroniser'),
+    private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
   public start(from = 1, take = 1, retryInterval = 1000) {
@@ -30,19 +30,35 @@ export class Synchroniser {
 
     this.running = true;
 
+    let fromBlock = from;
+    let fromUnverifiedData = from;
+
     const run = async () => {
       while (this.running) {
         try {
-          const blocks = await this.node.getBlocks(from, take);
+          const blocks = await this.node.getBlocks(fromBlock, take);
+          const unverifiedData = await this.node.getUnverifiedData(fromUnverifiedData, take);
 
-          if (!blocks.length) {
+          if (!blocks.length && !unverifiedData.length) {
             await this.interruptableSleep.sleep(retryInterval);
             continue;
           }
 
-          await this.decodeBlocks(blocks);
+          if (blocks.length) {
+            await this.decodeBlocks(blocks);
+          }
 
-          from += blocks.length;
+          if (unverifiedData.length) {
+            this.log(
+              `Forwarded ${unverifiedData.length} unverified data to ${this.accountStates.length} account states`,
+            );
+            for (const accountState of this.accountStates) {
+              await accountState.processUnverifiedData(unverifiedData);
+            }
+          }
+
+          fromBlock += blocks.length;
+          fromUnverifiedData += unverifiedData.length;
         } catch (err) {
           console.log(err);
           await this.interruptableSleep.sleep(retryInterval);
@@ -61,13 +77,13 @@ export class Synchroniser {
     this.log('Stopped');
   }
 
-  public async addAccount(account: AztecAddress) {
-    this.accountStates.push(new AccountState(account, this.db));
+  public async addAccount(privKey: Buffer) {
+    this.accountStates.push(new AccountState(privKey, this.db));
     await Promise.resolve();
   }
 
   public getAccount(account: AztecAddress) {
-    return this.accountStates.find(as => as.publicKey.equals(account));
+    return this.accountStates.find(async as => (await as.getPubKey()).toAddress().equals(account));
   }
 
   public getAccounts() {

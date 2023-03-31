@@ -1,3 +1,4 @@
+import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { AztecAddress, TxRequest } from '@aztec/circuits.js';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore } from './key_store.js';
@@ -5,20 +6,20 @@ import { KeyStore } from './key_store.js';
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
 
-  constructor() {}
+  constructor(private grumpkin: Grumpkin) {}
 
   public addAccount() {
-    const keyPair = ConstantKeyPair.random();
+    const keyPair = ConstantKeyPair.random(this.grumpkin);
     this.accounts.push(keyPair);
-    return Promise.resolve(keyPair.getPublicKey());
+    return Promise.resolve(keyPair.getPublicKey().toAddress());
   }
 
   getAccounts() {
-    return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
+    return Promise.resolve(this.accounts.map(a => a.getPublicKey().toAddress()));
   }
 
   getAccountPrivateKey(address: AztecAddress): Promise<Buffer> {
-    const account = this.accounts.find(a => a.getPublicKey().equals(address));
+    const account = this.accounts.find(a => a.getPublicKey().toAddress().equals(address));
     if (!account) {
       throw new Error('Unknown account.');
     }
@@ -27,13 +28,13 @@ export class TestKeyStore implements KeyStore {
   }
 
   getSigningPublicKeys() {
-    return this.getAccounts();
+    return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
   }
 
   signTxRequest(txRequest: TxRequest) {
     const account = txRequest.from.equals(AztecAddress.ZERO)
       ? this.accounts[0]
-      : this.accounts.find(a => a.getPublicKey().equals(txRequest.from));
+      : this.accounts.find(a => a.getPublicKey().toAddress().equals(txRequest.from));
     if (!account) {
       throw new Error('Unknown account.');
     }

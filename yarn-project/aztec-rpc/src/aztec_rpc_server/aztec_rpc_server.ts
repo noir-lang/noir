@@ -52,10 +52,11 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   public async addAccount() {
-    const accountPublicKey = await this.keyStore.addAccount();
-    this.log(`adding account ${accountPublicKey.toString()}`);
-    await this.synchroniser.addAccount(accountPublicKey);
-    return accountPublicKey;
+    const accountAddress = await this.keyStore.addAccount();
+    const accountPrivateKey = await this.keyStore.getAccountPrivateKey(accountAddress);
+    this.log(`adding account ${accountAddress.toString()}`);
+    await this.synchroniser.addAccount(accountPrivateKey);
+    return accountAddress;
   }
 
   public async addContracts(contracts: DeployedContract[]) {
@@ -63,8 +64,9 @@ export class AztecRPCServer implements AztecRPCClient {
     await Promise.all(trees.map(t => this.db.addContract(t.contract)));
   }
 
-  public getAccounts() {
-    return Promise.resolve(this.synchroniser.getAccounts().map(a => a.publicKey));
+  public async getAccounts(): Promise<AztecAddress[]> {
+    const accounts = this.synchroniser.getAccounts();
+    return await Promise.all(accounts.map(async a => (await a.getPubKey()).toAddress()));
   }
 
   public async getStorageAt(contract: AztecAddress, storageSlot: Fr) {
@@ -214,7 +216,10 @@ export class AztecRPCServer implements AztecRPCClient {
       oldRoots as any, // TODO - remove `as any`
     );
     const tx = new Tx(publicInputs, new UInt8Vector(Buffer.alloc(0)), Buffer.alloc(0));
-    const dao: TxDao = new TxDao(tx.txHash, undefined, undefined, txRequest.from, undefined, txRequest.to, '');
+    const [toContract, newContract] = txRequest.functionData.isConstructor
+      ? [undefined, contractAddress]
+      : [contractAddress, undefined];
+    const dao = new TxDao(tx.txHash, undefined, undefined, txRequest.from, toContract, newContract, '');
     await this.db.addOrUpdateTx(dao);
     return tx;
   }

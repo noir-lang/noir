@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/circuits.js';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { NotePreimage } from './note_preimage.js';
@@ -18,15 +18,19 @@ export class TxAuxData {
     return serializeToBuffer([this.notePreImage, this.contractAddress, this.storageSlot]);
   }
 
-  public toEncryptedBuffer(ownerPubKey: AztecAddress, ephPrivKey: Buffer, grumpkin: Grumpkin) {
+  public toEncryptedBuffer(ownerPubKey: Point, ephPrivKey: Buffer, grumpkin: Grumpkin) {
     return encryptBuffer(this.toBuffer(), ownerPubKey, ephPrivKey, grumpkin);
   }
 
-  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin) {
+  static fromEncryptedBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin): TxAuxData | undefined {
     const buf = decryptBuffer(data, ownerPrivKey, grumpkin);
     if (!buf) {
       return;
     }
     return TxAuxData.fromBuffer(buf);
+  }
+
+  static random() {
+    return new TxAuxData(NotePreimage.random(), AztecAddress.random(), Fr.random());
   }
 }

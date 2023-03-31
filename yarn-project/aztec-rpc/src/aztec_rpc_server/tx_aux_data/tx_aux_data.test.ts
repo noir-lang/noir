@@ -1,11 +1,11 @@
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecAddress, randomBytes } from '@aztec/foundation';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { NotePreimage } from './note_preimage.js';
 import { TxAuxData } from './tx_aux_data.js';
 
-const randomTxAuxData = () => {
+export const randomTxAuxData = () => {
   const fields = Array.from({ length: 5 }).map(() => Fr.random());
   const notePreImage = new NotePreimage(fields);
   const contractAddress = AztecAddress.random();
@@ -24,7 +24,7 @@ describe('tx_aux_data', () => {
     const grumpkin = new Grumpkin(await BarretenbergWasm.new());
     const txAuxData = randomTxAuxData();
     const ownerPrivKey = randomBytes(32);
-    const ownerPubKey = AztecAddress.fromBuffer(grumpkin.mul(Grumpkin.generator, ownerPrivKey));
+    const ownerPubKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, ownerPrivKey));
     const ephPrivKey = randomBytes(32);
     const encrypted = txAuxData.toEncryptedBuffer(ownerPubKey, ephPrivKey, grumpkin);
     const decrypted = TxAuxData.fromEncryptedBuffer(encrypted, ownerPrivKey, grumpkin);

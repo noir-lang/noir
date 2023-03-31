@@ -7,4 +7,10 @@ export class NotePreimage extends Vector<Fr> {
     const reader = BufferReader.asReader(buffer);
     return new NotePreimage(reader.readVector(Fr));
   }
+
+  static random() {
+    const numItems = Math.floor(Math.random() * 10) + 1;
+    const items = Array.from({ length: numItems }, () => Fr.random());
+    return new NotePreimage(items);
+  }
 }
