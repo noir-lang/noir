@@ -185,9 +185,12 @@ impl IrGenerator {
 
         // ensure return types are defined in case of recursion call cycle
         let function = &mut self.program[func_id];
-        let function_type = Self::from_type(&function.return_type).clone();
+        let mut function_type = ObjectType::NotAnObject;
         func.kind = match (oracle_name, function.unconstrained) {
-            (Some(name), _) => RuntimeType::Oracle(name),
+            (Some(name), _) => {
+                function_type = Self::from_type(&function.return_type);
+                RuntimeType::Oracle(name)
+            }             
             (None, true) => RuntimeType::Unsafe,
             _ => RuntimeType::Acvm,
         };

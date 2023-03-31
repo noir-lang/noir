@@ -13,6 +13,7 @@ use acvm::acir::brillig_bytecode::Opcode as BrilligOpcode;
 use acvm::acir::circuit::opcodes::{Brillig, Opcode as AcirOpcode};
 use acvm::acir::native_types::{Expression, Witness};
 mod operations;
+use iter_extended::vecmap;
 
 mod internal_var;
 pub(crate) use internal_var::InternalVar;
@@ -25,7 +26,10 @@ pub(crate) use constraints::range_constraint;
 mod acir_mem;
 use acir_mem::AcirMem;
 
-use super::node::{Node, NodeId};
+use self::operations::load;
+
+use super::mem::{ArrayId, Memory};
+use super::node::{NodeId, self, Node};
 
 #[derive(Default)]
 pub(crate) struct Acir {
@@ -108,13 +112,11 @@ impl Acir {
                 store::evaluate(&ins.operation, acir_mem, var_cache, evaluator, ctx)?
             }
             Operation::UnsafeCall { func, arguments, returned_values, predicate, .. } => {
-                unsafe_call(
+                self.unsafe_call(
                     func,
                     arguments,
                     returned_values,
                     *predicate,
-                    acir_mem,
-                    var_cache,
                     evaluator,
                     ctx,
                 )?
@@ -139,6 +141,57 @@ impl Acir {
 
         Ok(())
     }
+
+
+pub(crate) fn unsafe_call(
+    &mut self,
+    func: &NodeId,
+    arguments: &Vec<NodeId>,
+    returns: &Vec<NodeId>,
+    predicate: Option<NodeId>,
+    evaluator: &mut Evaluator,
+    ctx: &SsaContext,
+) -> Result<Option<InternalVar>, RuntimeError> {
+    let f = ctx.try_get_ssa_func(*func).unwrap();
+    if matches!(f.kind, RuntimeType::Oracle(_)) {
+        unimplemented!("Oracle functions can, for now, only be called from unsafe function");
+    }
+
+    let mut register_load = Vec::with_capacity(arguments.len());
+    let mut inputs = Vec::with_capacity(arguments.len());
+    let mut outputs = Vec::with_capacity(returns.len());
+   // let mut jabber_inputs = Vec::with_capacity(arguments.len());
+   // let mut jabber_outputs = Vec::with_capacity(returns.len());
+
+    for (call_argument, func_argument) in arguments.iter().zip(&f.arguments) {
+        inputs.push(
+            self.var_cache
+                .get_or_compute_internal_var_unwrap(*call_argument, evaluator, ctx)
+                .to_expression(),
+        );
+    //    jabber_inputs.push(jabber_node(call_argument, self, ctx, evaluator));
+        register_load.push(func_argument.0 .0.into_raw_parts().0 as u32);
+    }
+
+    for i in returns {
+        let var = self.var_cache.get_or_compute_internal_var_unwrap(*i, evaluator, ctx);
+        let witness = self.var_cache.get_or_compute_witness_unwrap(var, evaluator, ctx);
+        outputs.push(witness);
+     //   jabber_outputs.push(jabber_output(self, *i, ctx, evaluator));
+    }
+
+    let mut code = f.brillig_code.clone();
+    code.push(BrilligOpcode::Bootstrap { register_allocation_indices: register_load });
+    if predicate != Some(ctx.zero()) {
+        let pred_id = predicate.unwrap_or(ctx.one());
+        let pred_var = self.var_cache.get_or_compute_internal_var_unwrap(pred_id, evaluator, ctx);
+        let brillig_opcde = AcirOpcode::Brillig(Brillig { inputs, outputs, bytecode: code, predicate: Some(pred_var.expression().clone())  });
+        evaluator.push_opcode(brillig_opcde);
+    }
+
+    Ok(None)
+}
+
 }
 
 /// Converts an `Expression` into a `Witness`
@@ -150,46 +203,78 @@ pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator)
     expr.to_witness().unwrap_or_else(|| evaluator.create_intermediate_variable(expr))
 }
 
-pub(crate) fn unsafe_call(
-    func: &NodeId,
-    arguments: &Vec<NodeId>,
-    returns: &Vec<NodeId>,
-    predicate: Option<NodeId>,
-    acir_mem: &mut AcirMem,
-    var_cache: &mut InternalVarCache,
+enum JabberingIn {
+    Simple(Expression),
+    Array(ArrayId, Vec<Expression>)
+}
+
+enum JabberingOut {
+    Simple(Witness),
+    Array(Vec<Witness>)
+}
+
+//expression pour ACIR gate input : on veut convertir un node en expresions
+fn jabber_node(
+    node_id: &NodeId,
+    acir_gen: &mut Acir,
+    cfg: &SsaContext,
     evaluator: &mut Evaluator,
+) -> Result<JabberingIn,RuntimeError> {
+    let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
+    match node_object {
+        node::NodeObject::Variable(v) => {
+            let node_obj_type = node_object.get_type();
+            match node_obj_type {
+                // If the `Variable` represents a Pointer
+                // Then we know that it is an `Array`
+                node::ObjectType::Pointer(a) => return jabber_array(a, acir_gen, cfg, evaluator),
+                // If it is not a pointer, we attempt to fetch the witness associated with it
+                _ => if let Some(w) = v.witness {
+                    return Ok(JabberingIn::Simple(Expression::from(w)));
+                },
+            }
+        }
+        _ => (),
+    }
+    let ivar = acir_gen.var_cache.get_or_compute_internal_var(*node_id, evaluator, cfg).expect("invalid input");
+    Ok(JabberingIn::Simple(ivar.to_expression()))
+}
+
+fn jabber_array(
+    array_id: ArrayId,
+    acir_gen: &mut Acir,
+    cfg: &SsaContext,
+    evaluator: &mut Evaluator,
+) -> Result<JabberingIn, RuntimeError> {
+    let mut inputs = Vec::new();
+
+    let array = &cfg.mem[array_id];
+    for i in 0..array.len {
+        let element = load::evaluate_with_conts_index(array_id, i, &mut acir_gen.memory, &mut acir_gen.var_cache, None, evaluator, cfg)?;
+        inputs.push(element.expression().clone());
+    }
+    Ok(JabberingIn::Array(array_id, inputs))
+}
+
+
+fn jabber_output(
+    acir_gen: &mut Acir,
+    node_id: NodeId,
     ctx: &SsaContext,
-) -> Result<Option<InternalVar>, RuntimeError> {
-    let f = ctx.try_get_ssa_func(*func).unwrap();
-    if matches!(f.kind, RuntimeType::Oracle(_)) {
-        unimplemented!("Oracle functions can, for now, only be called from unsafe function");
+    evaluator: &mut Evaluator,
+) -> JabberingOut {
+    let outputs;
+    if let Some(array) = Memory::deref(ctx, node_id) {
+        let len = ctx.mem[array].len;
+        // Create fresh variables that will link to the output
+        outputs = vecmap(0..len, |_| evaluator.add_witness_to_cs());
+
+        acir_gen.memory.map_array(array, &outputs, ctx);
+        JabberingOut::Array(outputs)
     }
-
-    let mut inputs = Vec::with_capacity(arguments.len());
-    let mut register_load = Vec::with_capacity(arguments.len());
-
-    for (call_argument, func_argument) in arguments.iter().zip(&f.arguments) {
-        inputs.push(
-            var_cache
-                .get_or_compute_internal_var_unwrap(*call_argument, evaluator, ctx)
-                .to_expression(),
-        );
-        register_load.push(func_argument.0 .0.into_raw_parts().0 as u32);
+    else {
+        let ivar = acir_gen.var_cache.get_or_compute_internal_var(node_id, evaluator, ctx).expect("invalid input");
+        let w = acir_gen.var_cache.get_or_compute_witness_unwrap(ivar, evaluator, ctx);
+        JabberingOut::Simple(w)
     }
-
-    let mut outputs = Vec::with_capacity(returns.len());
-    for i in returns {
-        let var = var_cache.get_or_compute_internal_var_unwrap(*i, evaluator, ctx);
-        let witness = var_cache.get_or_compute_witness_unwrap(var, evaluator, ctx);
-        outputs.push(witness)
-    }
-
-    let mut code = f.brillig_code.clone();
-    code.push(BrilligOpcode::Bootstrap { register_allocation_indices: register_load });
-    if predicate != Some(ctx.zero()) {
-        let brillig_opcde = AcirOpcode::Brillig(Brillig { inputs, outputs, bytecode: code });
-        evaluator.push_opcode(brillig_opcde);
-    }
-
-    Ok(None)
 }

@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ssa;
 use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::function::RuntimeType;
@@ -74,7 +73,7 @@ impl BrilligGen {
                 if let Some(ins) = ctx.try_get_instruction(*i) {
                     match &ins.operation {
                         Operation::Nop => continue,
-                        Operation::Phi { root, block_args } => {
+                        Operation::Phi { root: _, block_args } => {
                             for (id, bid) in block_args {
                                 if *bid == current {
                                     let destination = self.node_2_register(ctx, ins.id);

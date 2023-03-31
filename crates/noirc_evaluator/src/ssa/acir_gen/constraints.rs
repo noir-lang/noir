@@ -575,6 +575,7 @@ pub(crate) fn evaluate_inverse(
         inputs: vec![Expression::from(x_witness)],
         outputs: vec![inverse_witness],
         bytecode: brillig_code,
+        predicate: Some(Expression::one()),
     });
 
     evaluator.push_opcode(b_opcode);
