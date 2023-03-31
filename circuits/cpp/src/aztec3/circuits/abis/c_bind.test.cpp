@@ -6,6 +6,8 @@
 
 #include <barretenberg/stdlib/merkle_tree/membership.hpp>
 #include <barretenberg/numeric/random/engine.hpp>
+#include <barretenberg/common/serialize.hpp>
+
 #include <gtest/gtest.h>
 
 namespace {
@@ -188,6 +190,48 @@ TEST(abi_tests, compute_function_tree_root)
     // compare cbind results with direct computation
     NT::fr got_root = NT::fr::serialize_from_buffer(output.data());
     EXPECT_EQ(got_root, plonk::stdlib::merkle_tree::compute_tree_root_native(leaves_frs));
+}
+
+TEST(abi_tests, compute_function_tree)
+{
+    constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
+
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    // these frs will be used to compute the tree directly (without cbind)
+    // all empty slots will have the zero-leaf to ensure full tree
+    std::vector<NT::fr> leaves_frs(FUNCTION_TREE_NUM_LEAVES, zero_leaf);
+
+    // randomize number of non-zero leaves such that `0 < num_nonzero_leaves <= FUNCTION_TREE_NUM_LEAVES`
+    uint8_t num_nonzero_leaves = engine.get_random_uint8() % (FUNCTION_TREE_NUM_LEAVES + 1);
+    // create a vector whose vec.data() can be cast to a single mega-buffer containing all non-zero leaves
+    // initialize the vector with its size so that a leaf's data can be copied in (via `seralize_to_buffer`)
+    // (uint256_t here means nothing; it is just used because it is the right size (32 uint8_ts))
+    std::vector<uint256_t> leaves(num_nonzero_leaves);
+
+    // generate some random leaves
+    // insert them into the vector of leaf fields (for direct tree computation)
+    // insert their serialized form into the vector of 32-bytes chunks/uint256_ts
+    // (to be cast to a single mega uint8_t* buffer and passed to cbind)
+    for (size_t l = 0; l < num_nonzero_leaves; l++) {
+        NT::fr leaf = NT::fr::random_element();
+        leaves_frs[l] = leaf;
+        NT::fr::serialize_to_buffer(leaf, reinterpret_cast<uint8_t*>(&leaves[l]));
+    }
+
+    // (2**h) - 1
+    constexpr size_t num_nodes = (2 << aztec3::FUNCTION_TREE_HEIGHT) - 1;
+
+    // call cbind and get output (root)
+    uint8_t* output = (uint8_t*)malloc(sizeof(NT::fr) * num_nodes);
+    abis__compute_function_tree(reinterpret_cast<uint8_t*>(leaves.data()), num_nonzero_leaves, output);
+
+    using serialize::read;
+    // compare cbind results with direct computation
+    std::vector<NT::fr> got_tree;
+    uint8_t const* output_copy = output;
+    read(output_copy, got_tree);
+
+    EXPECT_EQ(got_tree, plonk::stdlib::merkle_tree::compute_tree_native(leaves_frs));
 }
 
 TEST(abi_tests, hash_constructor)

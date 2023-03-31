@@ -72,6 +72,33 @@ NT::fr compute_root_of_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_
     return plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
 }
 
+// TODO comment
+// TODO code reuse possible with root func above
+template <size_t TREE_HEIGHT>
+std::vector<NT::fr> // array length is num nodes
+compute_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves, NT::fr zero_leaf)
+{
+    const size_t max_leaves = 2 << (TREE_HEIGHT - 1);
+    // cant exceed max leaves
+    ASSERT(num_leaves <= max_leaves);
+
+    // initialize the vector of leaves to a complete-tree-sized vector of zero-leaves
+    std::vector<NT::fr> leaves(max_leaves, zero_leaf);
+
+    // Iterate over the input buffer, extracting each leaf and serializing it from buffer to field
+    // Insert each leaf field into the vector
+    // If num_leaves < perfect tree, remaining leaves will be `zero_leaf`
+    for (size_t l = 0; l < num_leaves; l++) {
+        // each iteration skips to over some number of `fr`s to get to the // next leaf
+        uint8_t const* cur_leaf_ptr = leaves_buf + sizeof(NT::fr) * l;
+        NT::fr leaf = NT::fr::serialize_from_buffer(cur_leaf_ptr);
+        leaves[l] = leaf;
+    }
+
+    // compute the root of this complete tree, return
+    return plonk::stdlib::merkle_tree::compute_tree_native(leaves);
+}
+
 } // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))
@@ -135,6 +162,8 @@ WASM_EXPORT void abis__hash_tx_request(uint8_t const* tx_request_buf, uint8_t* o
 {
     TxRequest<NT> tx_request;
     read(tx_request_buf, tx_request);
+    // TODO consider using write() and read() instead of
+    // serialize to/from everywhere here and in test
     NT::fr::serialize_to_buffer(tx_request.hash(), output);
 }
 
@@ -228,6 +257,17 @@ WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves
 
     // serialize and return root
     NT::fr::serialize_to_buffer(root, output);
+}
+
+// TODO comment
+WASM_EXPORT void abis__compute_function_tree(uint8_t const* function_leaves_buf, uint8_t num_leaves, uint8_t* output)
+{
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    std::vector<NT::fr> tree =
+        compute_partial_left_tree<aztec3::FUNCTION_TREE_HEIGHT>(function_leaves_buf, num_leaves, zero_leaf);
+
+    // serialize and return tree
+    write(output, tree);
 }
 
 /**
