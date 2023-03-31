@@ -20,6 +20,9 @@ pub(crate) enum Opcode {
 
     Rand,
     NotifyCreatedNote,
+    GetSecretKey,
+    GetNotes2,
+    NotifyNullifiedNote,
     Get2Notes,
     GetNNotes,
 }
@@ -43,9 +46,13 @@ impl Opcode {
             "to_le_radix" => Some(Opcode::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Opcode::ToRadix(Endian::Big)),
             "rand" => Some(Opcode::Rand),
+            "notifyCreatedNote" => Some(Opcode::NotifyCreatedNote),
             "get_2_notes" => Some(Opcode::Get2Notes),
             "get_n_notes" => Some(Opcode::GetNNotes),
             "notify_created_note" => Some(Opcode::NotifyCreatedNote),
+            "getSecretKey" => Some(Opcode::GetSecretKey),
+            "notifyNullifiedNote" => Some(Opcode::NotifyNullifiedNote),
+            "getNotes2" => Some(Opcode::GetNotes2),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -74,9 +81,12 @@ impl Opcode {
             Opcode::Println(_) => "println",
             Opcode::Sort => "arraysort",
             Opcode::Rand => "rand",
+            Opcode::NotifyCreatedNote => "notifyCreatedNote",
             Opcode::Get2Notes => "get_2_notes",
             Opcode::GetNNotes => "get_n_notes",
-            Opcode::NotifyCreatedNote => "notify_created_note",
+            Opcode::GetSecretKey => "getSecretKey",
+            Opcode::NotifyNullifiedNote => "notifyNullifiedNote",
+            Opcode::GetNotes2 => "getNotes2",
         }
     }
 
@@ -106,12 +116,15 @@ impl Opcode {
                 }
             }
             Opcode::Rand => ObjectType::NativeField.max_size(),
-            Opcode::Get2Notes
+            Opcode::GetSecretKey => ObjectType::NativeField.max_size(),
+            Opcode::NotifyNullifiedNote => ObjectType::NativeField.max_size(),
+            Opcode::GetNotes2 => ObjectType::NativeField.max_size(),
+            Opcode::NotifyCreatedNote
+            | Opcode::Get2Notes
             | Opcode::GetNNotes
             | Opcode::ToBits(_)
             | Opcode::ToRadix(_)
             | Opcode::Println(_)
-            | Opcode::NotifyCreatedNote
             | Opcode::Sort => BigUint::zero(), //pointers do not overflow
         }
     }
@@ -147,9 +160,12 @@ impl Opcode {
                 (ctx.mem[a].len, ctx.mem[a].element_type)
             }
             Opcode::Rand => (1, ObjectType::NativeField),
+            Opcode::NotifyCreatedNote => (1, ObjectType::NativeField),
+            Opcode::GetSecretKey => (1, ObjectType::NativeField),
+            Opcode::NotifyNullifiedNote => (1, ObjectType::NativeField),
+            Opcode::GetNotes2 => (26, ObjectType::NativeField),
             Opcode::Get2Notes => (26, ObjectType::NativeField),
             Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),
-            Opcode::NotifyCreatedNote => (0, ObjectType::NotAnObject),
         }
     }
 }

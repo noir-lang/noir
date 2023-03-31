@@ -135,8 +135,64 @@ pub(crate) fn evaluate(
             outputs = vec![evaluator.add_witness_to_cs()];
 
             evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
-                name: "rand".into(),
+                name: "getRandomField".into(),
                 inputs: vec![],
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::NotifyCreatedNote => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "notifyCreatedNote".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::NotifyNullifiedNote => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "notifyNullifiedNote".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::GetNotes2 => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "getNotes2".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::GetSecretKey => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "getSecretKey".into(),
+                inputs,
                 input_values: vec![],
                 outputs: outputs.clone(),
                 output_values: vec![],
@@ -164,20 +220,6 @@ pub(crate) fn evaluate(
                 output_values: vec![],
             }));
         }
-        Opcode::NotifyCreatedNote => {
-            outputs = vec![];
-            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
-                input.witness.into()
-            });
-
-            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
-                name: "notify_created_note".into(),
-                inputs,
-                input_values: vec![],
-                outputs: vec![],
-                output_values: vec![],
-            }));
-        },
     }
 
     // If more than witness is returned,

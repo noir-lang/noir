@@ -527,7 +527,11 @@ fn cse_block_with_anchor(
                     // We do not simplify print statements
                     builtin::Opcode::Println(_) => (),
                     builtin::Opcode::Rand => (),
+                    builtin::Opcode::GetSecretKey => (),
+                    builtin::Opcode::NotifyCreatedNote => (),
+                    builtin::Opcode::NotifyNullifiedNote => (),
                     builtin::Opcode::Get2Notes => (),
+                    builtin::Opcode::GetNotes2 => (),
                     builtin::Opcode::GetNNotes => (),
                     _ => {
                         let args = args.iter().map(|arg| {
