@@ -15,15 +15,16 @@ import { hashVK } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
 import { createDebugLogger, Fr } from '@aztec/foundation';
 import { KernelProver } from '@aztec/kernel-prover';
+import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Tx, TxHash } from '@aztec/tx';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
 import { Signature } from '../circuits.js';
+import { toContractDao } from '../contract_database/index.js';
 import { ContractTree } from '../contract_tree/index.js';
 import { Database } from '../database/database.js';
 import { TxDao } from '../database/tx_dao.js';
 import { KeyStore } from '../key_store/index.js';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
 
@@ -60,8 +61,8 @@ export class AztecRPCServer implements AztecRPCClient {
   }
 
   public async addContracts(contracts: DeployedContract[]) {
-    const trees = contracts.map(c => ContractTree.fromAddress(c.address, c.abi, c.portalAddress, this.circuitsWasm));
-    await Promise.all(trees.map(t => this.db.addContract(t.contract)));
+    const contractDaos = contracts.map(c => toContractDao(c.abi, c.address, c.portalContract));
+    await Promise.all(contractDaos.map(c => this.db.addContract(c)));
   }
 
   public async getAccounts(): Promise<AztecAddress[]> {
@@ -206,7 +207,7 @@ export class AztecRPCServer implements AztecRPCClient {
       txRequest,
       functionDao,
       contractAddress,
-      contract.portalAddress,
+      contract.portalContract,
       oldRoots,
     );
     const { publicInputs } = await this.kernelProver.prove(

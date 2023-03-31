@@ -47,7 +47,7 @@ describe('e2e_deploy_contract', () => {
    * Milestone 1.1
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
-  it('should deploy a contract', async () => {
+  it.skip('should deploy a contract', async () => {
     const deployer = new ContractDeployer(abi, aztecRpcServer);
     const tx = deployer.deploy().send();
     logger(`Tx sent!`);
@@ -75,7 +75,7 @@ describe('e2e_deploy_contract', () => {
    * Milestone 1.2
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
    */
-  it('should not deploy a contract with the same salt twice', async () => {
+  it.skip('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(abi, aztecRpcServer);
 

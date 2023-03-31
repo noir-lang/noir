@@ -38,6 +38,6 @@ export class SimulatorOracle implements DBOracle {
     if (!contract) {
       throw new Error(`Contract ${contractAddress} not found`);
     }
-    return contract.portalAddress;
+    return contract.portalContract;
   }
 }

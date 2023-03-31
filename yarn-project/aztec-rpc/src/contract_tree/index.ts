@@ -37,7 +37,7 @@ export class ContractTree {
   static new(
     abi: ContractAbi,
     args: Fr[],
-    portalAddress: EthAddress,
+    portalContract: EthAddress,
     contractAddressSalt: Fr,
     from: AztecAddress,
     wasm: CircuitsWasm,
@@ -71,21 +71,7 @@ export class ContractTree {
       ...abi,
       address,
       functions,
-      portalAddress,
-    };
-    return new ContractTree(contractDao, wasm);
-  }
-
-  static fromAddress(address: AztecAddress, abi: ContractAbi, portalAddress: EthAddress, wasm: CircuitsWasm) {
-    const functions = abi.functions.map(f => ({
-      ...f,
-      selector: generateFunctionSelector(f.name, f.parameters),
-    }));
-    const contractDao: ContractDao = {
-      ...abi,
-      address,
-      functions,
-      portalAddress,
+      portalContract,
     };
     return new ContractTree(contractDao, wasm);
   }

@@ -1,24 +1,23 @@
-import { mock } from 'jest-mock-extended';
 import {
   AztecAddress,
   AztecRPCClient,
-  EthAddress,
-  Fr,
+  DeployedContract,
   Signature,
   Tx,
   TxHash,
   TxReceipt,
   TxRequest,
 } from '@aztec/aztec-rpc';
+import { EthAddress, randomBytes } from '@aztec/foundation';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/noir-contracts';
+import { mock } from 'jest-mock-extended';
 
 import { Contract } from './contract.js';
 
 describe('Contract Class', () => {
   let arc: ReturnType<typeof mock<AztecRPCClient>>;
 
-  const portalContract = EthAddress.random();
-  const contractAddressSalt = Fr.random();
+  const contractAddress = AztecAddress.random();
   const account = AztecAddress.random();
 
   const mockTxRequest = { type: 'TxRequest' } as any as TxRequest;
@@ -26,6 +25,17 @@ describe('Contract Class', () => {
   const mockTx = { type: 'Tx' } as any as Tx;
   const mockTxHash = { type: 'TxHash' } as any as TxHash;
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
+
+  const randomContractAbi = (): ContractAbi => ({
+    name: randomBytes(4).toString('hex'),
+    functions: [],
+  });
+
+  const randomDeployContract = (): DeployedContract => ({
+    abi: randomContractAbi(),
+    address: AztecAddress.random(),
+    portalContract: EthAddress.random(),
+  });
 
   beforeEach(() => {
     arc = mock<AztecRPCClient>();
@@ -38,7 +48,6 @@ describe('Contract Class', () => {
   });
 
   it('should request, sign, craete and send a contract method tx', async () => {
-    const contractAddress = AztecAddress.random();
     const abi: ContractAbi = {
       name: 'FooContract',
       functions: [
@@ -59,8 +68,7 @@ describe('Contract Class', () => {
         },
       ],
     };
-    const fooContract = new Contract(abi, arc);
-    await fooContract.attach(contractAddress);
+    const fooContract = new Contract(contractAddress, abi, arc);
     const sentTx = fooContract.methods.barFunc().send({
       from: account,
     });
@@ -78,5 +86,24 @@ describe('Contract Class', () => {
     expect(arc.createTx).toHaveBeenCalledWith(mockTxRequest, mockSignature);
     expect(arc.sendTx).toHaveBeenCalledTimes(1);
     expect(arc.sendTx).toHaveBeenCalledWith(mockTx);
+  });
+
+  it('should add contract and dependencies to aztec rpc', async () => {
+    const entry = randomDeployContract();
+    const contract = new Contract(entry.address, entry.abi, arc);
+
+    {
+      await contract.attach(entry.portalContract);
+      expect(arc.addContracts).toHaveBeenCalledTimes(1);
+      expect(arc.addContracts).toHaveBeenCalledWith([entry]);
+      arc.addContracts.mockClear();
+    }
+
+    {
+      const dependencies = [randomDeployContract(), randomDeployContract()];
+      await contract.attach(entry.portalContract, dependencies);
+      expect(arc.addContracts).toHaveBeenCalledTimes(1);
+      expect(arc.addContracts).toHaveBeenCalledWith([entry, ...dependencies]);
+    }
   });
 });

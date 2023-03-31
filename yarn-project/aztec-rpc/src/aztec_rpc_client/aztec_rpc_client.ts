@@ -7,7 +7,7 @@ import { TxReceipt } from '../tx/index.js';
 export interface DeployedContract {
   abi: ContractAbi;
   address: AztecAddress;
-  portalAddress: EthAddress;
+  portalContract: EthAddress;
 }
 
 export interface AztecRPCClient {
