@@ -535,7 +535,7 @@ impl DecisionTree {
                 }
             }
             _ => {
-                if let ObjectType::Pointer(a) = ins1.res_type {
+                if let ObjectType::ArrayPointer(a) = ins1.res_type {
                     stack.new_array(a);
                 }
             }
@@ -666,19 +666,19 @@ impl DecisionTree {
                 Operation::Intrinsic(_, _) => {
                     stack.push(ins_id);
                     if ctx.under_assumption(ass_value) {
-                        if let ObjectType::Pointer(a) = ins.res_type {
+                        if let ObjectType::ArrayPointer(a) = ins.res_type {
                             if stack.created_arrays[&a] != stack.block {
                                 let array = &ctx.mem[a].clone();
                                 let name = array.name.to_string() + DUPLICATED;
                                 ctx.new_array(&name, array.element_type, array.len, None);
                                 let array_dup = ctx.mem.last_id();
                                 let ins2 = ctx.instruction_mut(ins_id);
-                                ins2.res_type = ObjectType::Pointer(array_dup);
+                                ins2.res_type = ObjectType::ArrayPointer(array_dup);
 
                                 let mut memcpy_stack = StackFrame::new(stack.block);
                                 ctx.memcpy_inline(
                                     ins.res_type,
-                                    ObjectType::Pointer(array_dup),
+                                    ObjectType::ArrayPointer(array_dup),
                                     &mut memcpy_stack,
                                 );
                                 self.apply_condition_to_instructions(

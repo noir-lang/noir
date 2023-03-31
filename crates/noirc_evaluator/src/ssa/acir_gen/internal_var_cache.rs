@@ -73,7 +73,7 @@ impl InternalVarCache {
                             variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                         InternalVar::from_witness(witness)
                     }
-                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
+                    ObjectType::ArrayPointer(_) | ObjectType::NotAnObject => return None,
                     ObjectType::Function => {
                         unreachable!("ICE: functions should have been removed by this stage")
                     }

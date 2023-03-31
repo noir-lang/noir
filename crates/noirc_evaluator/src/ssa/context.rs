@@ -649,7 +649,7 @@ impl SsaContext {
         //we create a variable pointing to this MemArray
         let new_var = node::Variable {
             id: NodeId::dummy(),
-            obj_type: node::ObjectType::Pointer(array_index),
+            obj_type: node::ObjectType::ArrayPointer(array_index),
             name: name.to_string(),
             root: None,
             def: def.clone(),
@@ -782,7 +782,7 @@ impl SsaContext {
             return Ok(());
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::ArrayPointer(a), ObjectType::ArrayPointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
@@ -834,7 +834,7 @@ impl SsaContext {
         }) = self.try_get_instruction(rhs)
         {
             if index.is_none() {
-                if let ObjectType::Pointer(a) = lhs_type {
+                if let ObjectType::ArrayPointer(a) = lhs_type {
                     ret_array = Some((*func, a, *idx));
                 }
             }
@@ -850,7 +850,7 @@ impl SsaContext {
                 //Issue #579: we initialize the array, unless it is also in arguments in which case it is already initialized.
                 let mut init = false;
                 for i in arguments.clone() {
-                    if let ObjectType::Pointer(b) = self.object_type(i) {
+                    if let ObjectType::ArrayPointer(b) = self.object_type(i) {
                         if a == b {
                             init = true;
                         }
@@ -877,7 +877,7 @@ impl SsaContext {
         }
 
         if let Some(idx) = index {
-            if let ObjectType::Pointer(a) = lhs_type {
+            if let ObjectType::ArrayPointer(a) = lhs_type {
                 //Store
                 let op_a = Operation::Store {
                     array_id: a,
@@ -890,7 +890,7 @@ impl SsaContext {
             } else {
                 unreachable!("Index expression must be for an array");
             }
-        } else if matches!(lhs_type, ObjectType::Pointer(_)) {
+        } else if matches!(lhs_type, ObjectType::ArrayPointer(_)) {
             if let Some(Instruction {
                 operation: Operation::Intrinsic(_, _),
                 res_type: result_type,
@@ -975,7 +975,7 @@ impl SsaContext {
             return;
         }
 
-        if let (ObjectType::Pointer(a), ObjectType::Pointer(b)) = (l_type, r_type) {
+        if let (ObjectType::ArrayPointer(a), ObjectType::ArrayPointer(b)) = (l_type, r_type) {
             let len = self.mem[a].len;
             let e_type = self.mem[b].element_type;
             for i in 0..len {
@@ -1008,10 +1008,10 @@ impl SsaContext {
     ) -> NodeId {
         let lhs_type = self.object_type(lhs);
         let rhs_type = self.object_type(rhs);
-        if let ObjectType::Pointer(a) = lhs_type {
+        if let ObjectType::ArrayPointer(a) = lhs_type {
             //Array
             let b = stack_frame.get_or_default(a);
-            self.memcpy_inline(ObjectType::Pointer(b), rhs_type, stack_frame);
+            self.memcpy_inline(ObjectType::ArrayPointer(b), rhs_type, stack_frame);
             lhs
         } else {
             //new ssa
@@ -1071,7 +1071,7 @@ impl SsaContext {
 
         let name = format!("if_{}_ret{c}", exit_block.0.into_raw_parts().0);
         *c += 1;
-        if let node::ObjectType::Pointer(adr1) = a_type {
+        if let node::ObjectType::ArrayPointer(adr1) = a_type {
             let len = self.mem[adr1].len;
             let el_type = self.mem[adr1].element_type;
             let (id, array_id) = self.new_array(&name, el_type, len, None);

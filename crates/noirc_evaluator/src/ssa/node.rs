@@ -181,7 +181,7 @@ pub(crate) enum ObjectType {
     Boolean,
     Unsigned(u32), //bit size
     Signed(u32),   //bit size
-    Pointer(ArrayId),
+    ArrayPointer(ArrayId),
     Function,
     NotAnObject, //not an object
 }
@@ -212,7 +212,7 @@ impl ObjectType {
             ObjectType::NotAnObject => 0,
             ObjectType::Signed(c) => *c,
             ObjectType::Unsigned(c) => *c,
-            ObjectType::Pointer(_) => 0,
+            ObjectType::ArrayPointer(_) => 0,
             ObjectType::Function => 0,
         }
     }
@@ -229,7 +229,7 @@ impl ObjectType {
 
     pub(crate) fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
-            ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+            ObjectType::NotAnObject | ObjectType::ArrayPointer(_) => {
                 unreachable!()
             }
             ObjectType::NativeField => f,
