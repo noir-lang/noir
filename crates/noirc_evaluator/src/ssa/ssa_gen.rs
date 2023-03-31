@@ -415,7 +415,7 @@ impl IrGenerator {
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
-        let id = if let node::ObjectType::Pointer(a) = obj_type {
+        let id = if let node::ObjectType::ArrayPointer(a) = obj_type {
             let len = self.context.mem[a].len;
             let el_type = self.context.mem[a].element_type;
             self.context.new_array(&variable_name, el_type, len, definition_id).0
@@ -534,7 +534,7 @@ impl IrGenerator {
                 // Evaluate the 'array' expression
                 let expr_node = self.ssa_gen_expression(&indexed_expr.collection)?.unwrap_id();
                 let array = match self.context.object_type(expr_node) {
-                    ObjectType::Pointer(array_id) => &self.context.mem[array_id],
+                    ObjectType::ArrayPointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
                 };
                 let array_id = array.id;

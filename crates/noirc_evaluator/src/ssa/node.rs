@@ -178,7 +178,7 @@ impl Variable {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ObjectType {
     Numeric(NumericType),
-    Pointer(ArrayId),
+    ArrayPointer(ArrayId),
     Function,
     NotAnObject, //not an object
 }
@@ -203,7 +203,7 @@ impl ObjectType {
     pub(crate) fn bits(&self) -> u32 {
         match self {
             ObjectType::NotAnObject => 0,
-            ObjectType::Pointer(_) => 0,
+            ObjectType::ArrayPointer(_) => 0,
             ObjectType::Function => 0,
             ObjectType::Numeric(numeric_type) => match numeric_type {
                 NumericType::Signed(c) | NumericType::Unsigned(c) => *c,
@@ -259,7 +259,7 @@ impl ObjectType {
     pub(crate) fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
             // TODO: document why this is unreachable
-            ObjectType::NotAnObject | ObjectType::Pointer(_) => {
+            ObjectType::NotAnObject | ObjectType::ArrayPointer(_) => {
                 unreachable!()
             }
             ObjectType::Numeric(NumericType::NativeField) => f,

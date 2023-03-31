@@ -50,7 +50,7 @@ pub(crate) fn evaluate(
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
             outputs = to_radix_base(l_c.expression(), 2, bit_size, endianness, evaluator);
-            if let ObjectType::Pointer(a) = res_type {
+            if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }
         }
@@ -61,7 +61,7 @@ pub(crate) fn evaluate(
             let l_c =
                 acir_gen.var_cache.get_or_compute_internal_var_unwrap(args[0], evaluator, ctx);
             outputs = to_radix_base(l_c.expression(), radix, limb_size, endianness, evaluator);
-            if let ObjectType::Pointer(a) = res_type {
+            if let ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             }
         }
@@ -125,7 +125,7 @@ pub(crate) fn evaluate(
                 bits,
                 sort_by: vec![0],
             }));
-            if let node::ObjectType::Pointer(a) = res_type {
+            if let node::ObjectType::ArrayPointer(a) = res_type {
                 acir_gen.memory.map_array(a, &outputs, ctx);
             } else {
                 unreachable!();
@@ -167,7 +167,7 @@ fn resolve_node_id(
             match node_obj_type {
                 // If the `Variable` represents a Pointer
                 // Then we know that it is an `Array`
-                node::ObjectType::Pointer(a) => resolve_array(a, acir_gen, cfg, evaluator),
+                node::ObjectType::ArrayPointer(a) => resolve_array(a, acir_gen, cfg, evaluator),
                 // If it is not a pointer, we attempt to fetch the witness associated with it
                 _ => match v.witness {
                     Some(w) => {
@@ -229,7 +229,7 @@ fn prepare_outputs(
     let outputs = vecmap(0..output_nb, |_| evaluator.add_witness_to_cs());
 
     let l_obj = ctx.try_get_node(pointer).unwrap();
-    if let node::ObjectType::Pointer(a) = l_obj.get_type() {
+    if let node::ObjectType::ArrayPointer(a) = l_obj.get_type() {
         memory_map.map_array(a, &outputs, ctx);
     }
     outputs
@@ -251,7 +251,7 @@ fn evaluate_println(
 
     let obj_type = ctx.object_type(node_id);
     match obj_type {
-        ObjectType::Pointer(array_id) => {
+        ObjectType::ArrayPointer(array_id) => {
             let mem_array = &ctx.mem[array_id];
             let mut field_elements = Vec::new();
             for idx in 0..mem_array.len {
