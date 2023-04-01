@@ -53,6 +53,9 @@ impl IrGenerator {
         // If the return type of the main function was not the Unit type
         // ie nothing. Then we insert a return instruction which will be processed
         // during ACIR generation.
+        //
+        // Note: this will be the only return operation that the ACIR generation
+        // pass will process.
         if self.program.main().return_type != Type::Unit {
             self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
         }

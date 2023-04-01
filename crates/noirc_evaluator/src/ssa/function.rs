@@ -327,7 +327,7 @@ impl IrGenerator {
         })
     }
 
-    //Low-level functions with no more than 2 arguments
+    /// Low-level functions with no more than 2 arguments
     // todo explain why the no more than 2 condition
     fn call_low_level(
         &mut self,
@@ -390,7 +390,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
     unimplemented!("Recursive function call is not supported");
 }
 
-//inline all functions of the call graph such that every inlining operates with a fully flattened function
+/// Inline all functions of the call graph such that every inlining operates with a fully flattened function
 pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     resize_graph(&mut ctx.call_graph, ctx.functions.len());
     let l = ctx.call_graph.len();

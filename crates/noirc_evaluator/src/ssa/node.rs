@@ -513,20 +513,22 @@ impl Instruction {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Operation {
     Binary(Binary),
-    Cast(NodeId), //convert type
+    Cast(NodeId),
     Truncate {
         value: NodeId,
         bit_size: u32,
         max_bit_size: u32,
-    }, //truncate
-
-    Not(NodeId), //(!) Bitwise Not
+    },
+    /// Bitwise Not
+    Not(NodeId),
     Constrain(NodeId, Option<Location>),
-
-    //control flow
-    Jne(NodeId, BlockId), //jump on not equal
-    Jeq(NodeId, BlockId), //jump on equal
-    Jmp(BlockId),         //unconditional jump
+    // Control flow
+    /// Jump on not equal
+    Jne(NodeId, BlockId),
+    /// Jump on equal
+    Jeq(NodeId, BlockId),
+    /// Unconditional jump
+    Jmp(BlockId),
     Phi {
         root: NodeId,
         block_args: Vec<(NodeId, BlockId)>,
@@ -538,17 +540,18 @@ pub(crate) enum Operation {
         predicate: conditional::AssumptionId,
         location: Location,
     },
-    Return(Vec<NodeId>), //Return value(s) from a function block
+    /// Return value(s) from a function block
+    Return(Vec<NodeId>),
+    /// Get result index n from a function call
     Result {
         call_instruction: NodeId,
         index: u32,
-    }, //Get result index n from a function call
+    },
     Cond {
         condition: NodeId,
         val_true: NodeId,
         val_false: NodeId,
     },
-
     Load {
         array_id: ArrayId,
         index: NodeId,
@@ -561,10 +564,11 @@ pub(crate) enum Operation {
         predicate: Option<NodeId>,
         location: Option<Location>,
     },
-
-    Intrinsic(builtin::Opcode, Vec<NodeId>), //Custom implementation of useful primitives which are more performant with Aztec backend
-
-    Nop, // no op
+    /// Custom implementation of useful primitives
+    /// which can be implemented more efficiently
+    /// by the backend
+    Intrinsic(builtin::Opcode, Vec<NodeId>),
+    Nop,
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
