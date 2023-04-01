@@ -50,6 +50,9 @@ impl IrGenerator {
         let value = self.ssa_gen_expression(&main_body)?;
         let node_ids = value.to_node_ids();
 
+        // If the return type of the main function was not the Unit type
+        // ie nothing. Then we insert a return instruction which will be processed
+        // during ACIR generation.
         if self.program.main().return_type != Type::Unit {
             self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
         }
