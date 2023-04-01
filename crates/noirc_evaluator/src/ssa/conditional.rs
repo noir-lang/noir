@@ -231,7 +231,7 @@ impl DecisionTree {
         }
         // is it an IF block?
         if let Some(ins) = ctx.get_if_condition(current_block) {
-            //add a new assumption for the IF
+            // add a new assumption for the IF
             if assumption.parent == AssumptionId::dummy() {
                 //Root assumption
                 parent = block_assumption;
@@ -244,6 +244,7 @@ impl DecisionTree {
             if let Operation::Jeq(condition, _) = ins.operation {
                 if_decision.condition = condition;
             } else {
+                // TODO: clearly document why this is unreachable
                 unreachable!();
             }
 
