@@ -562,6 +562,7 @@ impl SsaContext {
 
         //Basic simplification - we ignore RunTimeErrors when creating an instruction
         //because they must be managed after handling conditionals. For instance if false { b } should not fail whatever b is doing.
+        // TODO: check why are we ignoring runtime errors that `b` could produce
         optimizations::simplify(self, &mut i).ok();
 
         if let Mark::ReplaceWith(replacement) = i.mark {
