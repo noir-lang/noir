@@ -662,11 +662,11 @@ impl IrGenerator {
     }
 
     fn ssa_gen_for(&mut self, for_expr: &For) -> Result<Value, RuntimeError> {
-        //we add the 'i = start' instruction (in the block before the join)
+        // We add the 'i = start' instruction (in the block before the join)
         let start_idx = self.ssa_gen_expression(&for_expr.start_range).unwrap().unwrap_id();
         let end_idx = self.ssa_gen_expression(&for_expr.end_range).unwrap().unwrap_id();
 
-        //We support only const range for now
+        // We support only const range for now
         let iter_def = Definition::Local(for_expr.index_variable);
         let iter_type = self.context.convert_type(&for_expr.index_type);
         let index_name = for_expr.index_name.clone();
@@ -678,10 +678,10 @@ impl IrGenerator {
         let assign = Operation::binary(BinaryOp::Assign, iter_id, start_idx);
         let iter_ass = self.context.new_instruction(assign, iter_type)?;
 
-        //We map the iterator to start_idx so that when we seal the join block, we will get the correct value.
+        // We map the iterator to start_idx so that when we seal the join block, we will get the correct value.
         self.update_variable_id(iter_id, iter_ass, start_idx);
 
-        //join block
+        // join block
         let join_idx =
             block::new_unsealed_block(&mut self.context, block::BlockType::ForJoin, true);
         let exit_id = block::new_sealed_block(&mut self.context, block::BlockType::Normal, true);
