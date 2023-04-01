@@ -68,7 +68,7 @@ impl SsaFunction {
         let mut decision = DecisionTree::new(&ir_gen.context);
         let mut builder = TreeBuilder::new(self.entry_block);
         for (arg, _) in &self.arguments {
-            if let ObjectType::Pointer(a) = ir_gen.context.object_type(*arg) {
+            if let ObjectType::ArrayPointer(a) = ir_gen.context.object_type(*arg) {
                 builder.stack.created_arrays.insert(a, self.entry_block);
             }
         }
@@ -164,7 +164,7 @@ impl IrGenerator {
         for typ in return_types {
             func.result_types.push(match typ {
                 Type::Unit => ObjectType::NotAnObject,
-                Type::Array(_, _) => ObjectType::Pointer(crate::ssa::mem::ArrayId::dummy()),
+                Type::Array(_, _) => ObjectType::ArrayPointer(crate::ssa::mem::ArrayId::dummy()),
                 _ => self.context.convert_type(&typ),
             });
         }
@@ -318,7 +318,7 @@ impl IrGenerator {
                     let elem_type = self.context.convert_type(&elem_type);
                     let array_id = self.context.new_array("", elem_type, len as u32, None).1;
                     returned_arrays.push((array_id, i as u32));
-                    ObjectType::Pointer(array_id)
+                    ObjectType::ArrayPointer(array_id)
                 }
                 other => self.context.convert_type(&other),
             };
@@ -338,7 +338,7 @@ impl IrGenerator {
         let result_type = if len > 1 {
             //We create an array that will contain the result and set the res_type to point to that array
             let result_index = self.new_array(&format!("{op}_result"), elem_type, len, None).1;
-            node::ObjectType::Pointer(result_index)
+            node::ObjectType::ArrayPointer(result_index)
         } else {
             elem_type
         };

@@ -54,7 +54,7 @@ fn verify_with_path<P: AsRef<Path>>(
         None => {
             let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
 
-            let backend = crate::backends::ConcreteBackend;
+            let backend = nargo::backends::ConcreteBackend;
             let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
             (compiled_program, verification_key)
         }
@@ -86,7 +86,7 @@ pub(crate) fn verify_proof(
     let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
-    let backend = crate::backends::ConcreteBackend;
+    let backend = nargo::backends::ConcreteBackend;
     let valid_proof =
         backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
 

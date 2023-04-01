@@ -71,7 +71,7 @@ impl Memory {
     //dereference a pointer
     pub(super) fn deref(ctx: &SsaContext, id: NodeId) -> Option<ArrayId> {
         ctx.try_get_node(id).and_then(|var| match var.get_type() {
-            node::ObjectType::Pointer(a) => Some(a),
+            node::ObjectType::ArrayPointer(a) => Some(a),
             _ => None,
         })
     }
