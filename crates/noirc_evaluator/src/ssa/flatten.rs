@@ -8,6 +8,8 @@ use crate::ssa::{
 use acvm::FieldElement;
 use std::collections::HashMap;
 
+use super::node::Instruction;
+
 //Unroll the CFG
 pub(super) fn unroll_tree(
     ctx: &mut SsaContext,
@@ -91,12 +93,13 @@ pub(super) fn unroll_block(
     Ok(())
 }
 
-//unroll a normal block by generating new instructions into the target block, or by updating its instructions if no target is specified, using and updating the eval_map
+/// Unroll a normal block by generating new instructions into the target block,
+/// or by updating its instructions if no target is specified, using and updating the eval_map
+/// Returns an option to the left block
 pub(super) fn unroll_std_block(
     ctx: &mut SsaContext,
     unroll_ctx: &mut UnrollContext,
-) -> Result<Option<BlockId>, RuntimeError> // The left block
-{
+) -> Result<Option<BlockId>, RuntimeError> {
     if unroll_ctx.to_unroll == unroll_ctx.unroll_into {
         //We update block instructions from the eval_map
         eval_block(unroll_ctx.to_unroll, &unroll_ctx.eval_map, ctx);
@@ -184,13 +187,13 @@ pub(super) fn unroll_join(
     unroll_ctx.unroll_into = new_body;
 
     while {
-        //evaluate the join  block:
+        // evaluate the join  block:
         evaluate_phi(&join_instructions, from, &mut unroll_ctx.eval_map, ssa_ctx)?;
-        evaluate_conditional_jump(
-            *join_instructions.last().unwrap(),
-            &unroll_ctx.eval_map,
-            ssa_ctx,
-        )?
+
+        let last_join_ins = *join_instructions.last().expect("expected at least one instruction");
+        let jump_ins = ssa_ctx.try_get_instruction(last_join_ins).unwrap();
+
+        evaluate_conditional_jump(jump_ins, &unroll_ctx.eval_map, ssa_ctx)?
     } {
         unroll_ctx.to_unroll = body_id;
         from = unroll_until(ssa_ctx, unroll_ctx, end)?;
@@ -221,7 +224,8 @@ impl UnrollContext {
     }
 }
 
-//evaluate phi instruction, coming from 'from' block; retrieve the argument corresponding to the block, evaluates it and update the evaluation map
+/// Evaluate phi instruction, coming from 'from' block; retrieve the
+/// argument corresponding to the block, evaluates it and update the evaluation map
 fn evaluate_phi(
     instructions: &[NodeId],
     from: BlockId,
@@ -253,14 +257,16 @@ fn evaluate_phi(
     Ok(())
 }
 
-//returns true if we should jump
+/// Evaluates a conditional jump instruction.
+/// If the condition is not a constant, then this
+/// function will panic.
+///
+/// Returns true if we should jump
 fn evaluate_conditional_jump(
-    jump: NodeId,
+    jump_ins: &Instruction,
     value_array: &HashMap<NodeId, NodeEval>,
-    ctx: &mut SsaContext,
+    ctx: &SsaContext,
 ) -> Result<bool, RuntimeError> {
-    let jump_ins = ctx.try_get_instruction(jump).unwrap();
-
     let (cond_id, should_jump): (_, fn(FieldElement) -> bool) = match jump_ins.operation {
         Operation::Jeq(cond_id, _) => (cond_id, |field| !field.is_zero()),
         Operation::Jne(cond_id, _) => (cond_id, |field| field.is_zero()),
