@@ -187,7 +187,7 @@ pub(super) fn unroll_join(
     unroll_ctx.unroll_into = new_body;
 
     while {
-        // evaluate the join  block:
+        // evaluate the join block:
         evaluate_phi(&join_instructions, from, &mut unroll_ctx.eval_map, ssa_ctx)?;
 
         let last_join_ins = *join_instructions.last().expect("expected at least one instruction");
