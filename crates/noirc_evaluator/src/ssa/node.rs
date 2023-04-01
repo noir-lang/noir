@@ -254,7 +254,7 @@ impl ObjectType {
         }
     }
 
-    // TODO: the name of this function is misleading
+    // TODO the name of this function is misleading
     // TODO since the type is not being returned
     pub(crate) fn field_to_type(&self, f: FieldElement) -> FieldElement {
         match self {
