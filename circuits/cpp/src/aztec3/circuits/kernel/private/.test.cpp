@@ -251,7 +251,7 @@ TEST(private_kernel_tests, test_deposit)
     Prover final_kernel_prover = private_kernel_composer.create_prover();
     NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
 
-    TurboVerifier final_kernel_verifier = private_kernel_composer.create_verifier();
+    stdlib::types::Verifier final_kernel_verifier = private_kernel_composer.create_verifier();
     auto final_result = final_kernel_verifier.verify_proof(final_kernel_proof);
     EXPECT_EQ(final_result, true);
 
@@ -447,7 +447,7 @@ TEST(private_kernel_tests, test_native_deposit)
     // Prover final_kernel_prover = private_kernel_composer.create_prover();
     // NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
 
-    // TurboVerifier final_kernel_verifier = private_kernel_composer.create_verifier();
+    // stdlib::types::Verifier final_kernel_verifier = private_kernel_composer.create_verifier();
     // auto final_result = final_kernel_verifier.verify_proof(final_kernel_proof);
     // EXPECT_EQ(final_result, true);
 
@@ -674,6 +674,14 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     // Check contract address was correctly computed by the circuit
     EXPECT_EQ(private_kernel_circuit_public_inputs.end.new_contracts[0].contract_address.to_field(),
               expected_contract_address);
+
+    // Create the final kernel proof and verify it natively.
+    stdlib::types::Prover final_kernel_prover = private_kernel_composer.create_prover();
+    NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
+
+    stdlib::types::Verifier final_kernel_verifier = private_kernel_composer.create_verifier();
+    auto final_result = final_kernel_verifier.verify_proof(final_kernel_proof);
+    EXPECT_EQ(final_result, true);
 
     info("computed witness: ", private_kernel_composer.computed_witness);
     // info("witness: ", private_kernel_composer.witness);
