@@ -737,7 +737,9 @@ impl IrGenerator {
         Ok(Value::Node(exit_first))
     }
 
-    //Parse a block of AST statements into ssa form
+    /// Parse a block of AST statements into ssa form
+    /// Returns the ssa Value of the last expression in the
+    /// block which is the return value of the expression.
     fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for expr in block {
@@ -756,11 +758,15 @@ impl IrGenerator {
 
         let condition = self.ssa_gen_expression(if_expr.condition.as_ref())?.unwrap_id();
 
+        // Check if the condition can be evaluated at compile time
         if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
             if cond.is_zero() {
                 if let Some(alt) = &if_expr.alternative {
                     return self.ssa_gen_expression(alt);
                 } else {
+                    // Return a dummy value to signify `None`
+                    // Here the condition is zero which means the
+                    // else branch should be triggered, but there is no else branch.
                     return Ok(Value::dummy());
                 }
             } else {
@@ -768,6 +774,9 @@ impl IrGenerator {
             }
         }
 
+        // TODO: why does this need to be here?
+        // TODO we could just go to Fixup jump and insert the instruction without needing to
+        // TODO mutate jump_ins
         let jump_op = Operation::Jeq(condition, block::BlockId::dummy());
         let jump_ins = self.context.new_instruction(jump_op, ObjectType::NotAnObject).unwrap();
 
