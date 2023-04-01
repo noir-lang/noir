@@ -15,7 +15,7 @@
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
-    "build": "yarn redo-ts-refs && tsc -b tsconfig.dest.json && yarn build:link",
+    "build": "tsc -b tsconfig.dest.json && yarn build:link",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "build:link": "ln -nf src/wasm/aztec3-circuits.wasm dest/wasm/aztec3-circuits.wasm",
     "redo-ts-refs": "../../scripts/update-tsconfig-references tsconfig.dest.json",

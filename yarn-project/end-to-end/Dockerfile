@@ -1,24 +1,23 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
-# (1) project and (2) dependencies
+# Copy in the whole of yarn-project.
 COPY . .
 
-# (3) build
+# Build circuits.js to ensure wasm is in the dest folder.
+WORKDIR /usr/src/yarn-project/circuits.js
+RUN yarn build
+
+# Build end-to-end.
 WORKDIR /usr/src/yarn-project/end-to-end
 RUN yarn build && yarn formatting
-# (4) copy bb.js wasm binaries
-RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/barretenberg.js/dest/wasm/barretenberg.wasm
-RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/circuits.js/dest/wasm/aztec3-circuits.wasm
 
-# (5) Prune dev dependencies. See comment in base image.
+# Prune dev dependencies. See comment in base image.
 RUN yarn cache clean
 RUN yarn workspaces focus --production > /dev/null
 
-# (6) set up entry point
+# Create final, minimal size image.
 FROM node:18-alpine
 RUN apk update && apk add --no-cache curl jq bash
-COPY --from=builder /usr/src/yarn-project /usr/src/yarn-project
-WORKDIR /usr/src/yarn-project/
-RUN yarn install
+COPY --from=builder /usr/src /usr/src
 WORKDIR /usr/src/yarn-project/end-to-end
 ENTRYPOINT ["yarn", "test"]
