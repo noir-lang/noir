@@ -10,9 +10,9 @@ use crate::ssa::{
 use noirc_frontend::monomorphization::ast::FuncId;
 use std::collections::{hash_map::Entry, HashMap};
 
-// Number of allowed times for inlining function calls inside a code block.
-// If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
-// In case of recursive calls, this iterative inlining does not end so we arbitrarily limit it. 100 nested calls should already support very complex programs.
+/// Number of allowed times for inlining function calls inside a code block.
+/// If a function calls another function, the inlining of the first function will leave the second function call that needs to be inlined as well.
+/// In case of recursive calls, this iterative inlining does not end so we arbitrarily limit it. 100 nested calls should already support very complex programs.
 const MAX_INLINE_TRIES: u32 = 100;
 
 //inline main
@@ -50,7 +50,7 @@ pub(super) fn inline_cfg(
     Ok(result)
 }
 
-//Return false if some inlined function performs a function call
+/// Return false if some inlined function performs a function call
 fn inline_block(
     ctx: &mut SsaContext,
     block_id: BlockId,
@@ -98,6 +98,7 @@ pub(crate) struct StackFrame {
     pub(crate) created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
     pub(crate) return_arrays: Vec<ArrayId>,
+    /// Least common ancestor
     lca_cache: HashMap<(BlockId, BlockId), BlockId>,
 }
 
@@ -130,7 +131,7 @@ impl StackFrame {
         self.array_map.get(&array_idx)
     }
 
-    // add instructions to target_block, after/before the provided instruction
+    /// Add instructions to target_block, after/before the provided instruction
     pub(crate) fn apply(
         &mut self,
         ctx: &mut SsaContext,
@@ -155,31 +156,32 @@ impl StackFrame {
         self.zeros[&o_type]
     }
 
-    // returns the lca of x and y, using a cache
+    /// Returns the lca of x and y, using a cache
     pub(crate) fn lca(&mut self, ctx: &SsaContext, x: BlockId, y: BlockId) -> BlockId {
         let ordered_blocks = if x.0 < y.0 { (x, y) } else { (y, x) };
         *self.lca_cache.entry(ordered_blocks).or_insert_with(|| block::lca(ctx, x, y))
     }
 
-    // returns true if the array_id is created in the block of the stack
+    /// Returns true if the array_id is created in the block of the stack
     pub(crate) fn is_new_array(&mut self, ctx: &SsaContext, array_id: &ArrayId) -> bool {
         if self.return_arrays.contains(array_id) {
             //array is defined by the caller
             return false;
         }
+
         if self.created_arrays[array_id] != self.block {
             let lca = self.lca(ctx, self.block, self.created_arrays[array_id]);
             if lca != self.block && lca != self.created_arrays[array_id] {
                 //if the array is defined in a parallel branch, it is new in this branch
                 return true;
             }
-            false
-        } else {
-            true
+            return false;
         }
+
+        true
     }
 
-    //assigns the arrays to the block where they are seen for the first time
+    /// Assigns the arrays to the block where they are seen for the first time
     pub(crate) fn new_array(&mut self, array_id: ArrayId) {
         if let std::collections::hash_map::Entry::Vacant(e) = self.created_arrays.entry(array_id) {
             e.insert(self.block);
@@ -187,8 +189,8 @@ impl StackFrame {
     }
 }
 
-//inline a function call
-//Return false if the inlined function performs a function call
+/// Inline a function call
+/// Return false if the inlined function performs a function call
 fn inline(
     ctx: &mut SsaContext,
     ssa_func: &function::SsaFunction,
@@ -247,7 +249,7 @@ fn inline(
     Ok(result)
 }
 
-//inline the given block of the function body into the target_block
+/// Inline the given block of the function body into the target_block
 fn inline_in_block(
     block_id: BlockId,
     inline_map: &mut HashMap<NodeId, NodeId>,
