@@ -206,7 +206,7 @@ impl DecisionTree {
         self.decision_tree(ctx, entry_block, &mut builder)
     }
 
-    //Returns a boolean to indicate if we should process the children (true) of not (false) of the block
+    /// Returns a boolean to indicate if we should process the children (true) of not (false) of the block
     fn process_block(
         &mut self,
         ctx: &mut SsaContext,
@@ -467,37 +467,36 @@ impl DecisionTree {
         error_msg: &str,
         location: Option<Location>,
     ) -> Result<(), RuntimeError> {
-        if ctx.under_assumption(condition) {
-            let avoid = stack.stack.contains(&condition).then_some(&condition);
-            block::zero_instructions(ctx, &stack.stack, avoid);
-            let nop = stack.stack[0];
-            stack.stack.clear();
-            stack.stack.push(nop);
-            if avoid.is_some() {
-                stack.stack.push(condition);
-            }
-            let operation =
-                Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
-            let cond = ctx.add_instruction(Instruction::new(
-                operation,
-                ObjectType::boolean(),
-                Some(stack.block),
-            ));
-            stack.push(cond);
-            let unreachable = Operation::Constrain(cond, None);
-            let ins2 = ctx.add_instruction(Instruction::new(
-                unreachable,
-                ObjectType::NotAnObject,
-                Some(stack.block),
-            ));
-            stack.push(ins2);
-            Ok(())
-        } else {
-            Err(RuntimeError {
+        if !ctx.under_assumption(condition) {
+            return Err(RuntimeError {
                 location,
                 kind: RuntimeErrorKind::UnstructuredError { message: error_msg.to_string() },
-            })
+            });
         }
+
+        let avoid = stack.stack.contains(&condition).then_some(&condition);
+        block::zero_instructions(ctx, &stack.stack, avoid);
+        let nop = stack.stack[0];
+        stack.stack.clear();
+        stack.stack.push(nop);
+        if avoid.is_some() {
+            stack.stack.push(condition);
+        }
+        let operation = Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
+        let cond = ctx.add_instruction(Instruction::new(
+            operation,
+            ObjectType::boolean(),
+            Some(stack.block),
+        ));
+        stack.push(cond);
+        let unreachable = Operation::Constrain(cond, None);
+        let ins2 = ctx.add_instruction(Instruction::new(
+            unreachable,
+            ObjectType::NotAnObject,
+            Some(stack.block),
+        ));
+        stack.push(ins2);
+        Ok(())
     }
 
     /// Applies a condition to the instruction
