@@ -225,7 +225,7 @@ impl IrGenerator {
         val.to_node_ids()
     }
 
-    //generates an instruction for calling the function
+    /// Generates an instruction for calling the function
     pub(super) fn call(&mut self, call: &Call) -> Result<Vec<NodeId>, RuntimeError> {
         let func = self.ssa_gen_expression(&call.func)?.unwrap_id();
         let arguments = self.ssa_gen_expression_list(&call.arguments);
