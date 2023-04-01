@@ -328,6 +328,7 @@ impl IrGenerator {
     }
 
     //Low-level functions with no more than 2 arguments
+    // todo explain why the no more than 2 condition
     fn call_low_level(
         &mut self,
         op: builtin::Opcode,
@@ -385,6 +386,7 @@ fn get_new_leaf(ctx: &SsaContext, processed: &[FuncIndex]) -> (FuncIndex, FuncId
             return (f.idx, f.id);
         }
     }
+    // todo: should this be a panic or return an error
     unimplemented!("Recursive function call is not supported");
 }
 
