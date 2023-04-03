@@ -26,6 +26,7 @@ import {
   TxContext,
   UInt8Vector,
 } from '@aztec/circuits.js';
+import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
 import times from 'lodash.times';
 
@@ -94,8 +95,9 @@ function makeEmptyPrivateKernelPublicInputs() {
   return new PrivateKernelPublicInputs(makeEmptyAccumulatedData(), makeEmptyConstantData(), true);
 }
 
-function makeEmptyUnverifiedData() {
-  return Buffer.alloc(0);
+export function makeEmptyUnverifiedData(): UnverifiedData {
+  const chunks = [Buffer.alloc(0)];
+  return new UnverifiedData(chunks);
 }
 
 export function makeEmptyTx(): Tx {

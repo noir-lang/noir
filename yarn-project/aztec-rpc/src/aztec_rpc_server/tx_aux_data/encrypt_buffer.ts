@@ -4,14 +4,14 @@ import { numToUInt8 } from '@aztec/foundation/serialize';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation';
 
-export function deriveAESSecret(ecdhPubKey: Point, ecdhPrivKey: Buffer, grumpkin: Grumpkin) {
+export function deriveAESSecret(ecdhPubKey: Point, ecdhPrivKey: Buffer, grumpkin: Grumpkin): Buffer {
   const sharedSecret = grumpkin.mul(ecdhPubKey.toBuffer(), ecdhPrivKey);
   const secretBuffer = Buffer.concat([sharedSecret, numToUInt8(1)]);
   const hash = sha256(secretBuffer);
   return hash;
 }
 
-export function encryptBuffer(data: Buffer, ownerPubKey: Point, ephPrivKey: Buffer, grumpkin: Grumpkin) {
+export function encryptBuffer(data: Buffer, ownerPubKey: Point, ephPrivKey: Buffer, grumpkin: Grumpkin): Buffer {
   const aesSecret = deriveAESSecret(ownerPubKey, ephPrivKey, grumpkin);
   const aesKey = aesSecret.subarray(0, 16);
   const iv = aesSecret.subarray(16, 32);
@@ -21,7 +21,7 @@ export function encryptBuffer(data: Buffer, ownerPubKey: Point, ephPrivKey: Buff
   return Buffer.concat([cipher.update(plaintext), cipher.final(), ephPubKey]);
 }
 
-export function decryptBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin) {
+export function decryptBuffer(data: Buffer, ownerPrivKey: Buffer, grumpkin: Grumpkin): Buffer | undefined {
   const ephPubKey = Point.fromBuffer(data.subarray(-64));
   const aesSecret = deriveAESSecret(ephPubKey, ownerPrivKey, grumpkin);
   const aesKey = aesSecret.subarray(0, 16);

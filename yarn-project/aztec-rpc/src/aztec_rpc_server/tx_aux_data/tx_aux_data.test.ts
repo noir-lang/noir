@@ -21,8 +21,7 @@ describe('tx_aux_data', () => {
     const txAuxData = TxAuxData.random();
     const ownerPrivKey = randomBytes(32);
     const ownerPubKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, ownerPrivKey));
-    const ephPrivKey = randomBytes(32);
-    const encrypted = txAuxData.toEncryptedBuffer(ownerPubKey, ephPrivKey, grumpkin);
+    const encrypted = txAuxData.toEncryptedBuffer(ownerPubKey, grumpkin);
     const decrypted = TxAuxData.fromEncryptedBuffer(encrypted, ownerPrivKey, grumpkin);
     expect(decrypted).not.toBeUndefined();
     expect(decrypted).toEqual(txAuxData);
@@ -31,8 +30,7 @@ describe('tx_aux_data', () => {
   it('return undefined if unable to decrypt the encrypted buffer', () => {
     const txAuxData = TxAuxData.random();
     const ownerPubKey = Point.random();
-    const ephPrivKey = randomBytes(32);
-    const encrypted = txAuxData.toEncryptedBuffer(ownerPubKey, ephPrivKey, grumpkin);
+    const encrypted = txAuxData.toEncryptedBuffer(ownerPubKey, grumpkin);
     const randomPrivKey = randomBytes(32);
     const decrypted = TxAuxData.fromEncryptedBuffer(encrypted, randomPrivKey, grumpkin);
     expect(decrypted).toBeUndefined();

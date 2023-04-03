@@ -27,6 +27,7 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { AztecAddress, randomBytes, toBufferBE } from '@aztec/foundation';
 import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
 
 export const deployRollupContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
@@ -130,6 +131,5 @@ export const createTx = () => {
     createOptionallyRetrievedDatas(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH),
   );
   const kernelInputs = new PrivateKernelPublicInputs(accumulatedData, constantData, true);
-  const unverifiedData = createRandomUnverifiedData(8);
-  return new Tx(kernelInputs, new UInt8Vector(Buffer.alloc(0)), unverifiedData);
+  return new Tx(kernelInputs, new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
 };

@@ -6,7 +6,7 @@ import {
   UInt8Vector,
 } from '@aztec/circuits.js';
 import { keccak } from '@aztec/foundation';
-import { L2Block } from '@aztec/l2-block';
+import { L2Block, UnverifiedData } from '@aztec/l2-block';
 import { TxHash } from './tx_hash.js';
 
 /**
@@ -23,7 +23,7 @@ export class Tx {
   constructor(
     public readonly data: PrivateKernelPublicInputs,
     public readonly proof: UInt8Vector,
-    public readonly unverifiedData: Buffer,
+    public readonly unverifiedData: UnverifiedData,
     private hash?: TxHash,
     public readonly isEmpty = false,
   ) {}

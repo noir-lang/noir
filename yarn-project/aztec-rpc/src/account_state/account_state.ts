@@ -1,15 +1,7 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import {
-  AztecAddress,
-  createDebugLogger,
-  Fr,
-  keccak,
-  Point,
-  randomBytes,
-  serializeBufferToVector,
-} from '@aztec/foundation';
+import { AztecAddress, createDebugLogger, Fr, keccak, Point } from '@aztec/foundation';
 import { L2Block, UnverifiedData } from '@aztec/l2-block';
 import { getTxHash } from '@aztec/tx';
 import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
@@ -52,17 +44,17 @@ export class AccountState {
     return this.db.getTxsByAddress(this.address);
   }
 
-  public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]) {
-    const chunks = newNotes.map(({ preimage, storageSlot }) => {
+  public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]): UnverifiedData {
+    const txAuxDatas = newNotes.map(({ preimage, storageSlot }) => {
       const notePreimage = new NotePreimage(preimage);
-      const txAuxData = new TxAuxData(notePreimage, contract, storageSlot);
+      return new TxAuxData(notePreimage, contract, storageSlot);
+    });
+    const chunks = txAuxDatas.map(txAuxData => {
       // TODO - Should use the correct recipient public key.
       const recipient = this.publicKey;
-      const ephPrivKey = randomBytes(32);
-      // Deserialized in archiver.ts > processYeetLogs().
-      return serializeBufferToVector(txAuxData.toEncryptedBuffer(recipient, ephPrivKey, this.grumpkin));
+      return txAuxData.toEncryptedBuffer(recipient, this.grumpkin);
     });
-    return Buffer.concat(chunks);
+    return new UnverifiedData(chunks);
   }
 
   public async processUnverifiedData(unverifiedData: UnverifiedData[], from: number, take: number): Promise<void> {

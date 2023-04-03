@@ -1,12 +1,9 @@
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
-  AggregationObject,
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
   BaseRollupPublicInputs,
   CircuitsWasm,
   Fr,
-  NewContractData,
   RootRollupPublicInputs,
   UInt8Vector,
 } from '@aztec/circuits.js';
@@ -16,13 +13,14 @@ import {
   makePrivateKernelPublicInputs,
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
+import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
 import { MerkleTreeDb, MerkleTreeId, MerkleTrees } from '@aztec/world-state';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import { default as memdown } from 'memdown';
-import { hashNewContractData, makeEmptyTx } from '../deps/tx.js';
+import { hashNewContractData, makeEmptyTx, makeEmptyUnverifiedData } from '../deps/tx.js';
 import { getVerificationKeys, VerificationKeys } from '../deps/verification_keys.js';
 import { EmptyProver } from '../prover/empty.js';
 import { Prover } from '../prover/index.js';
@@ -51,7 +49,6 @@ describe('sequencer/circuit_block_builder', () => {
   let wasm: CircuitsWasm;
 
   const emptyProof = new UInt8Vector(Buffer.alloc(32, 0));
-  const emptyUnverifiedData = Buffer.alloc(0);
 
   beforeAll(async () => {
     wasm = new CircuitsWasm();
@@ -127,7 +124,7 @@ describe('sequencer/circuit_block_builder', () => {
     await builder.updateRootTrees();
 
     // Assemble a fake transaction, we'll tweak some fields below
-    const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof, emptyUnverifiedData);
+    const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof, makeEmptyUnverifiedData());
     const txsLeft = [tx, makeEmptyTx()];
     const txsRight = [makeEmptyTx(), makeEmptyTx()];
 

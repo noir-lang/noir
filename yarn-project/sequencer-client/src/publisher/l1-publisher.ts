@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/l2-block';
+import { L2Block, UnverifiedData } from '@aztec/l2-block';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
@@ -8,7 +8,7 @@ import { PublisherConfig } from './config.js';
  */
 export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
-  sendYeetTx(l2BlockNum: number, unverifiedData: Buffer): Promise<string | undefined>;
+  sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
   getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
 }
 
@@ -83,7 +83,7 @@ export class L1Publisher implements L2BlockReceiver {
    * @param unverifiedData The unverifiedData to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processUnverifiedData(l2BlockNum: number, unverifiedData: Buffer): Promise<boolean> {
+  public async processUnverifiedData(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<boolean> {
     while (!this.interrupted) {
       if (!(await this.checkFeeDistributorBalance())) {
         this.log(`Fee distributor ETH balance too low, awaiting top up...`);
@@ -142,7 +142,7 @@ export class L1Publisher implements L2BlockReceiver {
     }
   }
 
-  private async sendYeetTx(l2BlockNum: number, unverifiedData: Buffer): Promise<string | undefined> {
+  private async sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
     while (!this.interrupted) {
       try {
         return await this.txSender.sendYeetTx(l2BlockNum, unverifiedData);

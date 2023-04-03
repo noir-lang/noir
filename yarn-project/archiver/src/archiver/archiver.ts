@@ -161,24 +161,8 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
         );
       }
       const unverifiedDataBuf = Buffer.from(hexToBytes(log.args.blabber));
-      let currIndex = 0;
-      const chunks: Buffer[] = [];
-      while (currIndex < unverifiedDataBuf.length) {
-        const nextChunkLength = Number(toBigIntBE(unverifiedDataBuf.slice(currIndex, currIndex + 4)));
-        currIndex += 4;
-        const nextChunk = unverifiedDataBuf.slice(currIndex, currIndex + nextChunkLength);
-        currIndex += nextChunkLength;
-        chunks.push(nextChunk);
-      }
-      if (currIndex !== unverifiedDataBuf.length) {
-        console.error(
-          `Unverified data buffer was not fully consumed. Consumed ${currIndex + 1} bytes. Total length: ${
-            unverifiedDataBuf.length
-          } bytes.`,
-        );
-      }
-      this.unverifiedDatas.push(new UnverifiedData(chunks));
-      this.log(`Added ${chunks.length} chunks of unverifiedData corresponding to block ${blockNum}`);
+      const unverifiedData = UnverifiedData.fromBuffer(unverifiedDataBuf);
+      this.unverifiedDatas.push(unverifiedData);
     }
     this.log('Processed unverifiedData corresponding to ' + logs.length + ' blocks.');
   }

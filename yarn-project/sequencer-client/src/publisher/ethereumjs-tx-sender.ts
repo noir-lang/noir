@@ -1,6 +1,7 @@
 import { EthereumRpc, TxHash, waitForTxReceipt } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { UnverifiedData } from '@aztec/l2-block';
 import { TxSenderConfig } from './config.js';
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender } from './l1-publisher.js';
 
@@ -48,8 +49,8 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
       .then(hash => hash.toString());
   }
 
-  async sendYeetTx(l2BlockNum: number, unverifiedData: Buffer): Promise<string | undefined> {
-    const methodCall = this.yeeterContract.methods.yeet(BigInt(l2BlockNum), unverifiedData);
+  async sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
+    const methodCall = this.yeeterContract.methods.yeet(BigInt(l2BlockNum), unverifiedData.toBuffer());
     const gas = await methodCall.estimateGas();
     return methodCall
       .send({ gas })
