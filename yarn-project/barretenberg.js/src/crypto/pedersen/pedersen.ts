@@ -14,7 +14,7 @@ export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: U
   wasm.call('pedersen__init');
   
   if (lhs.length > 32 || rhs.length > 32) {
-    throw new Error('lhs and rhs must not be greater than 32')
+    throw new Error('lhs and rhs must not be greater than 32 bytes')
   }
   
   wasm.writeMemory(0, lhs);
