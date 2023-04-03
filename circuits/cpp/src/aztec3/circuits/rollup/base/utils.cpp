@@ -1,3 +1,4 @@
+#include "aztec3/constants.hpp"
 #include "index.hpp"
 #include "init.hpp"
 
@@ -29,7 +30,15 @@ namespace aztec3::circuits::rollup::base::utils {
 BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
 {
     // TODO standardize function naming
-    ConstantRollupData<NT> constantRollupData = ConstantRollupData<NT>();
+    ConstantRollupData<NT> constantRollupData;
+    constantRollupData.start_tree_of_historic_private_data_tree_roots_snapshot = {
+        .root = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT).root(),
+        .next_available_leaf_index = 0,
+    };
+    constantRollupData.start_tree_of_historic_contract_tree_roots_snapshot = {
+        .root = native_base_rollup::MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT).root(),
+        .next_available_leaf_index = 0,
+    };
 
     std::array<NullifierLeafPreimage<NT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
     std::array<MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH>
@@ -76,6 +85,7 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
                                               .historic_contract_tree_root_membership_witnesses =
                                                   historic_contract_tree_root_membership_witnesses,
                                               .constants = constantRollupData };
+
     return baseRollupInputs;
 }
 
