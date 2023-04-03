@@ -66,12 +66,12 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
 fn build_placeholder_input_map(
     parameters: Vec<AbiParameter>,
     return_type: Option<AbiType>,
-) -> BTreeMap<String, &'static str> {
-    let default_value = |typ: AbiType| {
+) -> BTreeMap<String, toml::Value> {
+    let default_value = |typ: AbiType| -> toml::Value {
         if matches!(typ, AbiType::Array { .. }) {
-            "[]"
+            toml::Value::Array(Vec::new())
         } else {
-            ""
+            toml::Value::String("".to_owned())
         }
     };
 
