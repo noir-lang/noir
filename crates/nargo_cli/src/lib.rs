@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod backends;
 pub mod cli;
 mod constants;
 mod errors;

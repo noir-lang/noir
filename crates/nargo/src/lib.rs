@@ -6,5 +6,4 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-pub mod backends;
 pub mod manifest;
