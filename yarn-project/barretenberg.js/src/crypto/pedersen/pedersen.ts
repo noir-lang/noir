@@ -12,7 +12,11 @@ import { Buffer } from 'buffer';
 export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: Uint8Array): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
-  // TODO check if lhs and rhs are <= 32 bytes?
+  
+  if (lhs.length > 32 || rhs.length > 32) {
+    throw new Error('lhs and rhs must not be greater than 32')
+  }
+  
   wasm.writeMemory(0, lhs);
   wasm.writeMemory(32, rhs);
   wasm.call('pedersen__hash_pair', 0, 32, 64);
