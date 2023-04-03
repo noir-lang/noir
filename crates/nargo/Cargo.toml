@@ -22,6 +22,7 @@ aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "ht
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
 
 [features]
+default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
 marlin = ["marlin_arkworks_backend/bls12_381"]
