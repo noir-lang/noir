@@ -83,8 +83,15 @@
   "barretenberg.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/barretenberg.js",
-    "dockerfile": "aztec.js/Dockerfile",
+    "dockerfile": "barretenberg.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/barretenberg.js/"],
+    "dependencies": []
+  },
+  "circuits.js": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/circuits.js",
+    "dockerfile": "circuits.js/Dockerfile",
+    "rebuildPatterns": ["^yarn-project/circuits.js/"],
     "dependencies": []
   },
   "end-to-end": {
