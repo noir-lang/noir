@@ -5,7 +5,7 @@ import {
   ProviderRpcError,
   RequestArguments,
 } from './ethereum_provider.js';
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { EthWallet } from '../eth_wallet/index.js';
 import { readFile } from 'fs/promises';
 import { JsonRpcProvider } from './json_rpc_provider.js';

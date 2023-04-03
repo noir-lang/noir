@@ -1,5 +1,5 @@
 import { decryptFromKeyStoreJson, encryptToKeyStoreJson, KeyStoreJson } from './index.js';
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 
 const staticTests: { json: KeyStoreJson; password: string; priv: string }[] = [
   {

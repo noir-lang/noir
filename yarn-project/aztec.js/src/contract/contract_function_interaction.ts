@@ -1,5 +1,5 @@
 import { AztecRPCClient, Signature, Tx, TxHash, TxRequest } from '@aztec/aztec-rpc';
-import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, Fr } from '@aztec/foundation';
 import { FunctionType } from '@aztec/noir-contracts';
 import { SentTx } from './sent_tx.js';
 

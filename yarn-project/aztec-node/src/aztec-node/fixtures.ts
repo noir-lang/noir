@@ -5,9 +5,7 @@ import {
   ConstantData,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
-  EthAddress as CircuitEthAddress,
   Fq,
-  Fr,
   FunctionData,
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
@@ -25,7 +23,7 @@ import {
 } from '@aztec/circuits.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { AztecAddress, randomBytes, toBufferBE } from '@aztec/foundation';
+import { AztecAddress, EthAddress, randomBytes, toBufferBE, Fr } from '@aztec/foundation';
 import { Rollup, Yeeter } from '@aztec/l1-contracts';
 import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
@@ -52,7 +50,7 @@ export const createProvider = (host: string, mnemonic: string, accounts: number)
 
 // REFACTOR: Use @aztec/circuit.js/factories where possible
 export const createCircuitEthAddress = () => {
-  return new CircuitEthAddress(randomBytes(20));
+  return new EthAddress(randomBytes(20));
 };
 
 export const createRandomCommitments = (num: number) => {

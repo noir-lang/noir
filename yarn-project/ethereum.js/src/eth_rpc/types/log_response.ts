@@ -1,5 +1,5 @@
 import { keccak256String } from '../../crypto/index.js';
-import { EthAddress } from '../../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { numberToHex } from '../../hex_string/index.js';
 import { TxHash } from '../tx_hash.js';
 

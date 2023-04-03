@@ -1,4 +1,4 @@
-import { EthAddress } from '../../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { fromRawLogResponse, LogResponse, RawLogResponse, toRawLogResponse } from './log_response.js';
 import { numberToHex } from '../../hex_string/index.js';
 import { TxHash } from '../tx_hash.js';

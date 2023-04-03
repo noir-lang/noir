@@ -1,5 +1,5 @@
 import * as errors from './errors.js';
-import { EthAddress } from '../../../../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { toBigIntBE, toBufferBE } from '../../../../bigint_buffer/index.js';
 import { bufferToHex, hexToBuffer } from '../../../../hex_string/index.js';
 

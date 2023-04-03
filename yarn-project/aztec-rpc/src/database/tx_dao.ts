@@ -1,5 +1,5 @@
 import { TxHash } from '@aztec/tx';
-import { AztecAddress } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation';
 
 export class TxDao {
   constructor(

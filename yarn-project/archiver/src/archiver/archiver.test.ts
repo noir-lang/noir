@@ -1,5 +1,4 @@
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
-import { randomBytes, toBufferBE } from '@aztec/foundation';
+import { EthAddress, randomBytes, toBufferBE } from '@aztec/foundation';
 import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
 import { L2Block } from '@aztec/l2-block';
 import { jest } from '@jest/globals';

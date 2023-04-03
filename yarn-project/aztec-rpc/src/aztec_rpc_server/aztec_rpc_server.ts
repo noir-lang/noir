@@ -3,9 +3,7 @@ import { AztecNode } from '@aztec/aztec-node';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   ARGS_LENGTH,
-  AztecAddress,
   ContractDeploymentData,
-  EthAddress,
   FunctionData,
   OldTreeRoots,
   TxContext,
@@ -14,7 +12,7 @@ import {
 } from '@aztec/circuits.js';
 import { hashVK } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
-import { createDebugLogger, Fr } from '@aztec/foundation';
+import { AztecAddress, EthAddress, createDebugLogger, Fr } from '@aztec/foundation';
 import { KernelProver } from '@aztec/kernel-prover';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Tx, TxHash } from '@aztec/tx';

@@ -1,4 +1,4 @@
-import { keccak, randomBytes } from '../crypto/index.js';
+import { keccak256String, randomBytes } from '../crypto/index.js';
 import { BufferReader } from '../index.js';
 
 export class EthAddress {
@@ -46,7 +46,7 @@ export class EthAddress {
 
   public static checkAddressChecksum(address: string) {
     address = address.replace(/^0x/i, '');
-    const addressHash = keccak(Buffer.from(address.toLowerCase())).toString('hex');
+    const addressHash = keccak256String(address.toLowerCase());
 
     for (let i = 0; i < 40; i++) {
       // The nth letter should be uppercase if the nth digit of casemap is 1.
@@ -66,7 +66,7 @@ export class EthAddress {
     }
 
     address = address.toLowerCase().replace(/^0x/i, '');
-    const addressHash = keccak(Buffer.from(address)).toString();
+    const addressHash = keccak256String(address);
     let checksumAddress = '0x';
 
     for (let i = 0; i < address.length; i++) {

@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { EthereumRpc, LogRequest } from '../eth_rpc/index.js';
 import { AbiDataTypes, ContractAbi, ContractEntryDefinition, ContractFunctionEntry } from './abi/index.js';
 import { EventLog } from './contract_tx_receipt.js';

@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { LogResponse, TransactionReceipt, TxHash } from '../eth_rpc/index.js';
 import { DecodedError } from './decode_error.js';
 

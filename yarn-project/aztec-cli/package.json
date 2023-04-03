@@ -32,6 +32,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/foundation": "workspace:^",
     "commander": "^9.0.0",
     "tslib": "^2.4.0"
   },

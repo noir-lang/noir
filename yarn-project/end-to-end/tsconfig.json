@@ -13,6 +13,9 @@
       "path": "../aztec.js/tsconfig.dest.json"
     },
     {
+      "path": "../ethereum.js/tsconfig.dest.json"
+    },
+    {
       "path": "../noir-contracts/tsconfig.dest.json"
     }
   ],

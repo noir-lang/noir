@@ -4,7 +4,8 @@ import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
 import { AztecAddress, randomBytes, sleep } from '@aztec/foundation';
 import { jest } from '@jest/globals';
-import { AppendOnlyTreeSnapshot, EthAddress, Fr } from '@aztec/circuits.js';
+import { EthAddress, Fr } from '@aztec/foundation';
+import { AppendOnlyTreeSnapshot } from '@aztec/circuits.js';
 import { MerkleTreeDb, MerkleTreeId } from '../index.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 

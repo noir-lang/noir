@@ -1,16 +1,14 @@
 import { ContractData, L2Block } from '@aztec/l2-block';
 import {
-  Fr,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   AppendOnlyTreeSnapshot,
   NewContractData,
-  AztecAddress,
 } from '@aztec/circuits.js';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { Tx } from '@aztec/tx';
-import { createDebugLogger } from '@aztec/foundation';
+import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
 
 const mapContractData = (n: NewContractData) => {
   const contractData = new ContractData(AztecAddress.fromBuffer(n.contractAddress.toBuffer()), n.portalContractAddress);

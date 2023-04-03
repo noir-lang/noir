@@ -5,29 +5,26 @@
       "path": "../archiver/tsconfig.dest.json"
     },
     {
-      "path": "../foundation/tsconfig.dest.json"
-    },
-    {
-      "path": "../p2p/tsconfig.dest.json"
-    },
-    {
-      "path": "../world-state/tsconfig.dest.json"
-    },
-    {
       "path": "../ethereum.js/tsconfig.dest.json"
     },
     {
+      "path": "../foundation/tsconfig.dest.json"
+    },
+    {
       "path": "../l1-contracts/tsconfig.dest.json"
+    },
+    {
+      "path": "../p2p/tsconfig.dest.json"
     },
     {
       "path": "../sequencer-client/tsconfig.dest.json"
     },
     {
       "path": "../tx/tsconfig.dest.json"
+    },
+    {
+      "path": "../world-state/tsconfig.dest.json"
     }
   ],
-  "exclude": [
-    "**/*.test.*",
-    "**/fixtures/*"
-  ]
+  "exclude": ["**/*.test.*", "**/fixtures/*"]
 }

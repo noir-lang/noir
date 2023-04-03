@@ -1,16 +1,14 @@
 import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   AccumulatedData,
   AggregationObject,
-  AztecAddress,
   CircuitsWasm,
   ConstantData,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
-  EthAddress,
   Fq,
-  Fr,
   FunctionData,
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,

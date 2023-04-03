@@ -1,14 +1,16 @@
 import { ExecutionResult } from '@aztec/acir-simulator';
 import {
+  AztecAddress,
+  Fr,
+  EthAddress
+} from "@aztec/foundation";
+import {
   AccumulatedData,
   AffineElement,
   AggregationObject,
-  AztecAddress,
   ConstantData,
   EMITTED_EVENTS_LENGTH,
-  EthAddress,
   Fq,
-  Fr,
   FunctionData,
   KERNEL_L1_MSG_STACK_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,

@@ -1,4 +1,5 @@
-import { AztecAddress, TxRequest } from '@aztec/circuits.js';
+import { AztecAddress } from '@aztec/foundation';
+import { TxRequest } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation';
 import { Signature } from '../circuits.js';
 

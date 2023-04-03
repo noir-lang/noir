@@ -1,4 +1,5 @@
-import { EthAddress, OldTreeRoots, TxRequest, AztecAddress } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress } from '@aztec/foundation';
+import { OldTreeRoots, TxRequest } from '@aztec/circuits.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { DBOracle } from './db_oracle.js';
 import { Execution, ExecutionResult } from './execution.js';

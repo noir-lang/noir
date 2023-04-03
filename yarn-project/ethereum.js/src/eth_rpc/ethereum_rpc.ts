@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { EthSignature } from '../eth_sign/index.js';
 import { TypedData } from '../eth_typed_data/index.js';
 import { hexToBuffer } from '../hex_string/index.js';

@@ -1,5 +1,5 @@
 import { AztecNode, AztecNodeConfig } from '@aztec/aztec-node';
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { EthAddress } from '@aztec/foundation';
 
 export const createAztecNode = async (
   rollupContract: EthAddress,

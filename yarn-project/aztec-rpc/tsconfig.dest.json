@@ -2,9 +2,6 @@
   "extends": ".",
   "references": [
     {
-      "path": "../barretenberg.js/tsconfig.dest.json"
-    },
-    {
       "path": "../acir-simulator/tsconfig.dest.json"
     },
     {
@@ -17,14 +14,14 @@
       "path": "../kernel-prover/tsconfig.dest.json"
     },
     {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
       "path": "../tx/tsconfig.dest.json"
     },
     {
       "path": "../noir-contracts/tsconfig.dest.json"
     },
   ],
-  "exclude": [
-    "**/*.test.*",
-    "**/fixtures/*"
-  ]
+  "exclude": ["**/*.test.*", "**/fixtures/*"]
 }

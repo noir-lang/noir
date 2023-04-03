@@ -1,6 +1,6 @@
+import { Fr } from '@aztec/foundation';
 import {
   AppendOnlyTreeSnapshot,
-  Fr,
   KERNEL_NEW_COMMITMENTS_LENGTH,
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
@@ -8,8 +8,6 @@ import {
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { ContractData } from './contract_data.js';
-
-export { Fr } from '@aztec/circuits.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.

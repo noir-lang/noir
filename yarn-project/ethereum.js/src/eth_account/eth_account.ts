@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { mnemonicToSeedSync } from 'bip39';
 import hdkey from 'hdkey';
 import { default as elliptic } from 'elliptic';

@@ -1,4 +1,5 @@
-import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
+
 import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/aztec_backend_wasm';
 
 export type ACVMField = `0x${string}`;

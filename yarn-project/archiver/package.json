@@ -22,6 +22,11 @@
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    },
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
@@ -29,8 +34,6 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/circuits.js": "workspace:^",
-    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
     "@aztec/l2-block": "workspace:^",

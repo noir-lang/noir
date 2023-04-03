@@ -28,7 +28,7 @@ function makeImports(name: string, importPath: string) {
           ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('EthAddress')),
         ]),
       ),
-      ts.factory.createStringLiteral(getImport(importPath, 'eth_address')),
+      ts.factory.createStringLiteral('@aztec/foundation'),
     ),
     ts.factory.createImportDeclaration(
       undefined,

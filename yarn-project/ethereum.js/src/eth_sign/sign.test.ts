@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { hashMessage } from './hash_message.js';
 import { recoverFromSigBuffer, recoverFromSignature, recoverFromVRS, sign } from './sign.js';
 

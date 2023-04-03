@@ -1,8 +1,7 @@
 import { AztecNode } from '@aztec/aztec-node';
+import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { AztecAddress } from '@aztec/circuits.js';
-import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { TxHash } from '@aztec/tx';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';

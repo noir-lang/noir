@@ -16,7 +16,7 @@
 */
 
 import { abiCoder } from './index.js';
-import { EthAddress } from '../../../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 
 const tests = [
   {

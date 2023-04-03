@@ -1,11 +1,10 @@
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { EthAddress } from '@aztec/foundation';
 import { fileURLToPath } from 'url';
 import { createPublicClient, getAddress, http } from 'viem';
 import { localhost } from 'viem/chains';
 import { Archiver } from './archiver/index.js';
 
 export * from './archiver/index.js';
-export * from '@aztec/l2-block';
 
 const {
   ETHEREUM_HOST = 'http://127.0.0.1:8545/',

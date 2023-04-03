@@ -31,6 +31,7 @@
   "dependencies": {
     "@aztec/acir-simulator": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/kernel-prover": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",

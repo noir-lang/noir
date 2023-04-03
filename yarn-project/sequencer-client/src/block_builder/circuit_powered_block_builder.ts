@@ -8,7 +8,6 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  Fr,
   MembershipWitness,
   NullifierLeafPreimage,
   NULLIFIER_TREE_HEIGHT,
@@ -21,7 +20,7 @@ import {
   UInt8Vector,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { toBigIntBE } from '@aztec/foundation';
+import { Fr, toBigIntBE } from '@aztec/foundation';
 import { Tx } from '@aztec/tx';
 import { MerkleTreeDb, MerkleTreeId } from '@aztec/world-state';
 import flatMap from 'lodash.flatmap';

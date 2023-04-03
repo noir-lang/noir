@@ -1,4 +1,4 @@
-import { EthAddress } from '../eth_address/index.js';
+import { EthAddress } from '@aztec/foundation';
 import { EthAccount } from '../eth_account/index.js';
 import { EthWallet } from './eth_wallet.js';
 
