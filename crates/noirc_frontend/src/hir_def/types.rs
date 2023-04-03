@@ -24,7 +24,7 @@ pub enum Type {
     /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
     Integer(CompTime, Signedness, u32),
 
-    /// The primitive `bool` type. Like other primitive types, whether bools are known at CompTime
+    /// The primitive `bool` type. Like other primitive types, whether booleans are known at CompTime
     /// is also tracked. Unlike the other primitives however, it isn't as useful since it is
     /// primarily only used when converting between a bool and an integer type for indexing arrays.
     Bool(CompTime),

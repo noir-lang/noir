@@ -65,15 +65,12 @@ impl InternalVarCache {
             NodeObject::Variable(variable) => {
                 let variable_type = variable.get_type();
                 match variable_type {
-                    ObjectType::Boolean
-                    | ObjectType::NativeField
-                    | ObjectType::Signed(..)
-                    | ObjectType::Unsigned(..) => {
+                    ObjectType::Numeric(..) => {
                         let witness =
                             variable.witness.unwrap_or_else(|| evaluator.add_witness_to_cs());
                         InternalVar::from_witness(witness)
                     }
-                    ObjectType::Pointer(_) | ObjectType::NotAnObject => return None,
+                    ObjectType::ArrayPointer(_) | ObjectType::NotAnObject => return None,
                     ObjectType::Function => {
                         unreachable!("ICE: functions should have been removed by this stage")
                     }

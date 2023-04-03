@@ -74,12 +74,12 @@ impl IrGenerator {
 
     pub(crate) fn get_object_type_from_abi(&self, el_type: &noirc_abi::AbiType) -> ObjectType {
         match el_type {
-            noirc_abi::AbiType::Field => ObjectType::NativeField,
+            noirc_abi::AbiType::Field => ObjectType::native_field(),
             noirc_abi::AbiType::Integer { sign, width, .. } => match sign {
-                noirc_abi::Sign::Unsigned => ObjectType::Unsigned(*width),
-                noirc_abi::Sign::Signed => ObjectType::Signed(*width),
+                noirc_abi::Sign::Unsigned => ObjectType::unsigned_integer(*width),
+                noirc_abi::Sign::Signed => ObjectType::signed_integer(*width),
             },
-            noirc_abi::AbiType::Boolean => ObjectType::Boolean,
+            noirc_abi::AbiType::Boolean => ObjectType::boolean(),
             noirc_abi::AbiType::Array { .. } => {
                 unreachable!("array of arrays are not supported for now")
             }
@@ -319,7 +319,8 @@ impl IrGenerator {
                 Value::Node(v_id)
             }
             Type::String(len) => {
-                let obj_type = ObjectType::Unsigned(8);
+                // Strings are a packed array of utf-8 encoded bytes
+                let obj_type = ObjectType::unsigned_integer(8);
                 let len = *len;
                 let (v_id, _) = self.new_array(base_name, obj_type, len.try_into().unwrap(), def);
                 Value::Node(v_id)
@@ -414,7 +415,7 @@ impl IrGenerator {
         obj_type: node::ObjectType,
         value_id: NodeId,
     ) -> Result<Value, RuntimeError> {
-        let id = if let node::ObjectType::Pointer(a) = obj_type {
+        let id = if let node::ObjectType::ArrayPointer(a) = obj_type {
             let len = self.context.mem[a].len;
             let el_type = self.context.mem[a].element_type;
             self.context.new_array(&variable_name, el_type, len, definition_id).0
@@ -533,7 +534,7 @@ impl IrGenerator {
                 // Evaluate the 'array' expression
                 let expr_node = self.ssa_gen_expression(&indexed_expr.collection)?.unwrap_id();
                 let array = match self.context.object_type(expr_node) {
-                    ObjectType::Pointer(array_id) => &self.context.mem[array_id],
+                    ObjectType::ArrayPointer(array_id) => &self.context.mem[array_id],
                     other => unreachable!("Expected Pointer type, found {:?}", other),
                 };
                 let array_id = array.id;
@@ -594,7 +595,7 @@ impl IrGenerator {
                 for (pos, object) in elements.into_iter().enumerate() {
                     let lhs_adr = self.context.get_or_create_const(
                         FieldElement::from((pos as u32) as u128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let store = Operation::Store {
                         array_id,
@@ -687,7 +688,7 @@ impl IrGenerator {
         self.update_variable_id(iter_id, iter_id, phi); //is it still needed?
 
         let not_equal = Operation::binary(BinaryOp::Ne, phi, end_idx);
-        let cond = self.context.new_instruction(not_equal, ObjectType::Boolean)?;
+        let cond = self.context.new_instruction(not_equal, ObjectType::boolean())?;
 
         let to_fix = self.context.new_instruction(Operation::Nop, ObjectType::NotAnObject)?;
 
