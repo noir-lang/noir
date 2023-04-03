@@ -10,6 +10,17 @@ cfg_if::cfg_if! {
         compile_error!("please specify a backend to compile with");
     }
 }
-// XXX: This works  because there are only two features, we want to say only one of these can be enabled. (feature xor)
-#[cfg(all(feature = "plonk", feature = "marlin"))]
-compile_error!("feature \"plonk\"  and feature \"marlin\" cannot be enabled at the same time");
+
+// As we have 3 feature flags we must test all 3 potential pairings to ensure they're mutually exclusive.
+#[cfg(all(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
+compile_error!(
+    "feature \"plonk_bn254\"  and feature \"plonk_bn254_wasm\" cannot be enabled at the same time"
+);
+#[cfg(all(feature = "plonk_bn254_wasm", feature = "marlin"))]
+compile_error!(
+    "feature \"plonk_bn254_wasm\"  and feature \"marlin\" cannot be enabled at the same time"
+);
+#[cfg(all(feature = "plonk_bn254", feature = "marlin"))]
+compile_error!(
+    "feature \"plonk_bn254\"  and feature \"marlin\" cannot be enabled at the same time"
+);
