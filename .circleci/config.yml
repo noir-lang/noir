@@ -114,6 +114,28 @@ jobs:
           name: "Build and test"
           command: build aztec.js
 
+  barretenberg-js:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build barretenberg.js
+
+  l2-block:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build l2-block
+
   noir-contracts:
     machine:
       image: ubuntu-2004:202010-01
@@ -147,6 +169,17 @@ jobs:
           name: "Build and test"
           command: build merkle-tree
 
+  p2p:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build p2p
+
   acir-simulator:
     machine:
       image: ubuntu-2004:202010-01
@@ -168,6 +201,17 @@ jobs:
       - run:
           name: "Build and test"
           command: build archiver
+  
+  aztec-rpc:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build aztec-rpc
 
   circuits-js:
     machine:
@@ -266,7 +310,11 @@ workflows:
       - world-state: *yarn_project
       - acir-simulator: *yarn_project
       - archiver: *yarn_project
+      - aztec-rpc: *yarn_project
+      - barretenberg-js: *yarn_project
+      - l2-block: *yarn_project
       - merkle-tree: *yarn_project
+      - p2p: *yarn_project
       - noir-contracts: *yarn_project
       - sequencer-client: *yarn_project
       - circuits-js: *yarn_project
