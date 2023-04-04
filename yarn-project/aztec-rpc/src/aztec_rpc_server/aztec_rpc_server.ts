@@ -256,7 +256,7 @@ export class AztecRPCServer implements AztecRPCClient {
     }
 
     const leaves = await tree.getFunctionLeaves();
-    const functionTree = this.getFunctionTree(leaves);
+    const functionTree = await this.getFunctionTree(leaves);
     let rowSize = Math.ceil(functionTree.length / 2);
     let rowOffset = 0;
     let index = functionIndex;

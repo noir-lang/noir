@@ -103,7 +103,7 @@ jobs:
           name: "Build and test"
           command: build foundation
 
-  aztec-js:
+  aztec-js: 
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -168,6 +168,17 @@ jobs:
       - run:
           name: "Build and test"
           command: build archiver
+
+  circuits-js:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build circuits.js
 
   sequencer-client:
     machine:
@@ -258,3 +269,4 @@ workflows:
       - merkle-tree: *yarn_project
       - noir-contracts: *yarn_project
       - sequencer-client: *yarn_project
+      - circuits-js: *yarn_project

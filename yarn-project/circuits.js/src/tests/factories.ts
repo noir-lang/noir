@@ -251,6 +251,10 @@ export function makeEthAddress(seed = 1): EthAddress {
   return new EthAddress(Buffer.alloc(20, seed));
 }
 
+export function makeBytes(size = 32, seed = 1): Buffer {
+  return Buffer.alloc(size, seed);
+}
+
 export function makeAztecAddress(seed = 1): AztecAddress {
   return new AztecAddress(fr(seed).toBuffer());
 }
