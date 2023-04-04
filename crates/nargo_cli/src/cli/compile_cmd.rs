@@ -65,21 +65,38 @@ fn save_and_preprocess_program(
 /// - The proving and verification keys are namespaced since the file
 /// could contain multiple contracts with the same name. The verification key is saved inside
 /// of the ABI.
-// TODO: we also save it to disk, so its saved twice, find a nice abstraction for this
-// TODO possibly make preprocessed data have Optional fields
 fn save_and_preprocess_contract(
     compiled_contracts: &mut [CompiledContract],
     circuit_name: &str,
     circuit_dir: &Path,
 ) -> Result<(), CliError> {
     for compiled_contract in compiled_contracts {
+        // Preprocess all contract data
+        // We are patching the verification key in our contract functions
+        // so when we save it to disk, the ABI will have the verification key.
+        let mut contract_preprocess_data = Vec::new();
+        for contract_function in &mut compiled_contract.functions {
+            let preprocessed_data = PreprocessedData::from(&contract_function.bytecode);
+            contract_function.verification_key = Some(preprocessed_data.verification_key.clone());
+            contract_preprocess_data.push(preprocessed_data);
+        }
+
         // Unique identifier for a contract.
         let contract_id = format!("{}-{}", circuit_name, &compiled_contract.name);
 
         // Save contract ABI to file using the contract ID.
+        // This includes the verification key.
         save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
 
-        for contract_function in &mut compiled_contract.functions {
+        // Save preprocessed data to disk
+        //
+        // TODO: This also includes the verification key, for now we save it in twice
+        // TODO, once in ABI and once to disk as we did before.
+        // TODO: A possible fix is to use optional fields in PreprocessedData
+        // TODO struct. Then make VK None before saving so it is not saved to disk
+        for (contract_function, preprocessed_data) in
+            compiled_contract.functions.iter().zip(contract_preprocess_data)
+        {
             // Create a name which uniquely identifies this contract function
             // over multiple contracts.
             let uniquely_identifying_program_name =
@@ -87,13 +104,11 @@ fn save_and_preprocess_contract(
             // Each program in a contract is preprocessed
             // Note: This can potentially be quite a long running process
 
-            let preprocessed_data = PreprocessedData::from(&contract_function.bytecode);
             save_preprocess_data(
                 &preprocessed_data,
                 &uniquely_identifying_program_name,
                 circuit_dir,
             )?;
-            contract_function.verification_key = Some(preprocessed_data.verification_key);
         }
     }
 
