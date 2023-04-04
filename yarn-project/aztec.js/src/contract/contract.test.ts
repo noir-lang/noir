@@ -26,6 +26,63 @@ describe('Contract Class', () => {
   const mockTx = { type: 'Tx' } as any as Tx;
   const mockTxHash = { type: 'TxHash' } as any as TxHash;
   const mockTxReceipt = { type: 'TxReceipt' } as any as TxReceipt;
+  const mockViewResultValue = 1;
+
+  const defaultAbi: ContractAbi = {
+    name: 'FooContract',
+    functions: [
+      {
+        name: 'bar',
+        functionType: FunctionType.SECRET,
+        parameters: [
+          {
+            name: 'value',
+            type: {
+              kind: 'field',
+            },
+            visibility: ABIParameterVisibility.PUBLIC,
+          },
+          {
+            name: 'value',
+            type: {
+              kind: 'field',
+            },
+            visibility: ABIParameterVisibility.SECRET,
+          },
+        ],
+        returnTypes: [],
+        bytecode: '0af',
+      },
+      {
+        name: 'baz',
+        functionType: FunctionType.OPEN,
+        parameters: [],
+        returnTypes: [],
+        bytecode: '0be',
+      },
+      {
+        name: 'qux',
+        functionType: FunctionType.UNCONSTRAINED,
+        parameters: [
+          {
+            name: 'value',
+            type: {
+              kind: 'field',
+            },
+            visibility: ABIParameterVisibility.PUBLIC,
+          },
+        ],
+        returnTypes: [
+          {
+            kind: 'integer',
+            sign: '',
+            width: 32,
+          },
+        ],
+        bytecode: '0cd',
+      },
+    ],
+  };
 
   const randomContractAbi = (): ContractAbi => ({
     name: randomBytes(4).toString('hex'),
@@ -45,32 +102,15 @@ describe('Contract Class', () => {
     arc.signTxRequest.mockResolvedValue(mockSignature);
     arc.createTx.mockResolvedValue(mockTx);
     arc.sendTx.mockResolvedValue(mockTxHash);
+    arc.viewTx.mockResolvedValue(mockViewResultValue);
     arc.getTxReceipt.mockResolvedValue(mockTxReceipt);
   });
 
   it('should request, sign, craete and send a contract method tx', async () => {
-    const abi: ContractAbi = {
-      name: 'FooContract',
-      functions: [
-        {
-          name: 'barFunc',
-          functionType: FunctionType.SECRET,
-          parameters: [
-            {
-              name: 'value',
-              type: {
-                kind: 'field',
-              },
-              visibility: ABIParameterVisibility.PUBLIC,
-            },
-          ],
-          returnTypes: [],
-          bytecode: '0af',
-        },
-      ],
-    };
-    const fooContract = new Contract(contractAddress, abi, arc);
-    const sentTx = fooContract.methods.barFunc().send({
+    const fooContract = new Contract(contractAddress, defaultAbi, arc);
+    const param0 = 12;
+    const param1 = 345n;
+    const sentTx = fooContract.methods.bar(param0, param1).send({
       from: account,
     });
     const txHash = await sentTx.getTxHash();
@@ -80,13 +120,38 @@ describe('Contract Class', () => {
     expect(receipt).toBe(mockTxReceipt);
     expect(arc.createDeploymentTxRequest).toHaveBeenCalledTimes(0);
     expect(arc.createTxRequest).toHaveBeenCalledTimes(1);
-    expect(arc.createTxRequest).toHaveBeenCalledWith('barFunc', [], contractAddress, account);
+    expect(arc.createTxRequest).toHaveBeenCalledWith('bar', [param0, param1], contractAddress, account);
     expect(arc.signTxRequest).toHaveBeenCalledTimes(1);
     expect(arc.signTxRequest).toHaveBeenCalledWith(mockTxRequest);
     expect(arc.createTx).toHaveBeenCalledTimes(1);
     expect(arc.createTx).toHaveBeenCalledWith(mockTxRequest, mockSignature);
     expect(arc.sendTx).toHaveBeenCalledTimes(1);
     expect(arc.sendTx).toHaveBeenCalledWith(mockTx);
+  });
+
+  it('should call view on an unconstrained function', async () => {
+    const fooContract = new Contract(contractAddress, defaultAbi, arc);
+    const result = await fooContract.methods.qux(123n).view({
+      from: account,
+    });
+    expect(arc.viewTx).toHaveBeenCalledTimes(1);
+    expect(arc.viewTx).toHaveBeenCalledWith('qux', [123n], contractAddress, account);
+    expect(result).toBe(mockViewResultValue);
+  });
+
+  it('should not call send on an unconstrained function', () => {
+    const fooContract = new Contract(contractAddress, defaultAbi, arc);
+    expect(() =>
+      fooContract.methods.qux().send({
+        from: account,
+      }),
+    ).toThrow();
+  });
+
+  it('should not call view on a secret or open function', () => {
+    const fooContract = new Contract(contractAddress, defaultAbi, arc);
+    expect(() => fooContract.methods.bar().view()).toThrow();
+    expect(() => fooContract.methods.baz().view()).toThrow();
   });
 
   it('should add contract and dependencies to aztec rpc', async () => {

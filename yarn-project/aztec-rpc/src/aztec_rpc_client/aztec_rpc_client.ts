@@ -34,6 +34,5 @@ export interface AztecRPCClient {
   sendTx(tx: Tx): Promise<TxHash>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;
-  // Uncomment it for milestone 1.5.
-  // callTx(functionSelector: Buffer, args: Fr[], to: AztecAddress, from: AztecAddress): Promise<any>;
+  viewTx(functionName: string, args: any[], to: AztecAddress, from: AztecAddress): Promise<any>;
 }

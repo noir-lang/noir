@@ -30,10 +30,14 @@ export class ContractFunctionInteraction {
   ) {}
 
   public async request(options: SendMethodOptions = {}) {
+    if (this.functionType === FunctionType.UNCONSTRAINED) {
+      throw new Error("Can't call `request` on an unconstrained function.");
+    }
+
     const { from } = options;
     this.txRequest = await this.arc.createTxRequest(
       this.functionName,
-      [], // TODO fill in
+      this.args,
       this.contractAddress,
       from || AztecAddress.ZERO,
     );
@@ -41,6 +45,10 @@ export class ContractFunctionInteraction {
   }
 
   public async sign(options: SendMethodOptions = {}) {
+    if (this.functionType === FunctionType.UNCONSTRAINED) {
+      throw new Error("Can't call `sign` on an unconstrained function.");
+    }
+
     if (!this.txRequest) {
       await this.request(options);
     }
@@ -50,6 +58,10 @@ export class ContractFunctionInteraction {
   }
 
   public async create(options: SendMethodOptions = {}) {
+    if (this.functionType === FunctionType.UNCONSTRAINED) {
+      throw new Error("Can't call `create` on an unconstrained function.");
+    }
+
     if (!this.signature) {
       await this.sign(options);
     }
@@ -60,7 +72,7 @@ export class ContractFunctionInteraction {
 
   public send(options: SendMethodOptions = {}) {
     if (this.functionType === FunctionType.UNCONSTRAINED) {
-      throw new Error("Can't call send on unconstrained function");
+      throw new Error("Can't call `send` on an unconstrained function.");
     }
 
     let promise: Promise<TxHash>;
@@ -77,6 +89,11 @@ export class ContractFunctionInteraction {
   }
 
   public view(options: ViewMethodOptions = {}) {
-    return Promise.resolve();
+    if (this.functionType !== FunctionType.UNCONSTRAINED) {
+      throw new Error('Can only call `view` on an unconstrained function.');
+    }
+
+    const { from } = options;
+    return this.arc.viewTx(this.functionName, this.args, this.contractAddress, from || AztecAddress.ZERO);
   }
 }
