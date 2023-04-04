@@ -42,7 +42,7 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
 }
 
 fn setup_driver(program_dir: &Path) -> Result<Driver, DependencyResolutionError> {
-    let backend = nargo::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     Resolver::resolve_root_manifest(program_dir, backend.np_language())
 }
 
