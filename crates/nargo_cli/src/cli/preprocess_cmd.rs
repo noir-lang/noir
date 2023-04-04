@@ -8,7 +8,7 @@ use crate::{constants::TARGET_DIR, errors::CliError};
 
 use super::fs::{
     keys::save_key_to_dir,
-    program::{read_program_from_file, save_acir_hash_to_dir},
+    program::{read_program_from_file, save_acir_checksum_to_dir},
 };
 use super::NargoConfig;
 
@@ -38,8 +38,8 @@ pub(crate) fn preprocess_with_path<P: AsRef<Path>>(
     let (proving_key, verification_key) = backend.preprocess(circuit);
 
     // Save a checksum of the circuit to compare against during proving and verification.
-    // If hash doesn't match then the circuit has been updated and keys are stale.
-    save_acir_hash_to_dir(circuit, key_name, &preprocess_dir);
+    // If the checksums don't match then the circuit has been updated and keys are stale.
+    save_acir_checksum_to_dir(circuit, key_name, &preprocess_dir);
 
     let pk_path = save_key_to_dir(&proving_key, key_name, &preprocess_dir, true)?;
     let vk_path = save_key_to_dir(&verification_key, key_name, preprocess_dir, false)?;
