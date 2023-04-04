@@ -3,7 +3,7 @@
   "packageManager": "yarn@3.4.1",
   "private": true,
   "scripts": {
-    "prepare": "workspaces-to-typescript-project-references --tsconfigPath tsconfig.dest.json && prettier -w */tsconfig.dest.json",
+    "prepare": "yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.dest.json && prettier -w */tsconfig.dest.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
     "formatting": "yarn workspaces foreach -v run formatting",
     "formatting:fix": "yarn workspaces foreach -v run formatting:fix",

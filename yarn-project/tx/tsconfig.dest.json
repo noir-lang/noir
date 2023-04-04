@@ -1,5 +1,10 @@
 {
-  "extends": ".",
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
   "references": [
     {
       "path": "../circuits.js/tsconfig.dest.json"
@@ -11,5 +16,6 @@
       "path": "../l2-block/tsconfig.dest.json"
     }
   ],
+  "include": ["src"],
   "exclude": ["**/*.test.*", "**/fixtures/*"]
 }

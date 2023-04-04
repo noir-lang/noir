@@ -9,6 +9,7 @@
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
+    "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
     "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "start": "node ./dest",
@@ -29,6 +30,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/ethereum.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-contracts": "workspace:^",
     "@aztec/l2-block": "workspace:^",

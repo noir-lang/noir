@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 const contexts = [
   'TSMethodDefinition',
   'MethodDefinition',
@@ -26,6 +28,15 @@ const contexts = [
   'EnumExpression',
 ];
 
+function getFirstExisting(files) {
+  for (const file of files) {
+    if (fs.existsSync(file)) {
+      return file;
+    }
+  }
+  throw new Error('Found no existing file of: ' + files.join(', '));
+}
+
 module.exports = {
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   root: true,
@@ -36,7 +47,8 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       parserOptions: {
-        project: true,
+        // hacky workaround for CI not having the same tsconfig setup
+        project: getFirstExisting(['./tsconfig.json', '../tsconfig.json', './tsconfig.dest.json']),
       },
     },
   ],

@@ -1,6 +1,10 @@
 {
-  "extends": ".",
-  "exclude": ["**/*.test.*", "**/fixtures/*"],
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
   "references": [
     {
       "path": "../aztec-node/tsconfig.dest.json"
@@ -14,5 +18,7 @@
     {
       "path": "../noir-contracts/tsconfig.dest.json"
     }
-  ]
+  ],
+  "include": ["src"],
+  "exclude": ["**/*.test.*", "**/fixtures/*"]
 }

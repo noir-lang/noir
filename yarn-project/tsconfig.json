@@ -5,6 +5,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "rootDir": ".",
     "declaration": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -14,5 +15,6 @@
     "importHelpers": true,
     "resolveJsonModule": true,
     "composite": true
-  }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.json"]
 }

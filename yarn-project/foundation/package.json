@@ -27,6 +27,7 @@
     "./wasm": "./dest/wasm/index.js"
   },
   "scripts": {
+    "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
     "build": "tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
@@ -38,7 +39,8 @@
     "preset": "ts-jest/presets/default-esm",
     "globals": {
       "ts-jest": {
-        "useESM": true
+        "useESM": true,
+        "tsconfig": "../tsconfig.json"
       }
     },
     "moduleNameMapper": {

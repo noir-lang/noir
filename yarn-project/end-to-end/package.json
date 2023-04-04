@@ -4,7 +4,8 @@
   "type": "module",
   "exports": "./dest/index.js",
   "scripts": {
-    "build": "tsc -b tsconfig.json",
+    "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
+    "build": "tsc -b tsconfig.dest.json",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
     "test": "./scripts/start_e2e.sh",
@@ -15,7 +16,8 @@
     "preset": "ts-jest/presets/default-esm",
     "globals": {
       "ts-jest": {
-        "useESM": true
+        "useESM": true,
+        "tsconfig": "../tsconfig.json"
       }
     },
     "moduleNameMapper": {
@@ -28,6 +30,8 @@
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/ethereum.js": "workspace:^",
+    "@aztec/foundation": "workspace:^",
+    "@aztec/l1-contracts": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@types/jest": "^29.4.0",
     "jest": "^28.1.3",

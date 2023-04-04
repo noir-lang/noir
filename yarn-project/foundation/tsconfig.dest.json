@@ -1,5 +1,11 @@
 {
-  "extends": ".",
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
   "exclude": ["**/*.test.*", "**/fixtures/*"],
+  "include": ["src"],
   "references": []
 }

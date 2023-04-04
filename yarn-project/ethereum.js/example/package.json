@@ -5,18 +5,20 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "prepare": "",
     "start": "yarn build && NODE_NO_WARNINGS=1 node ./dest",
     "build": "tsc -b tsconfig.json",
     "clean": "rm -rf ./dest .tsbuildinfo"
   },
   "dependencies": {
     "@aztec/ethereum.js": "workspace:^",
-    "@aztec/foundation": "workspace:^",
-    "source-map-support": "^0.5.21"
+    "@aztec/foundation": "workspace:^"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/node": "^18.15.0",
+    "@types/source-map-support": "^0.5.6",
+    "source-map-support": "^0.5.21",
     "typescript": "^4.9.5"
   }
 }

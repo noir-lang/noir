@@ -1,4 +1,4 @@
-import { UnverifiedData } from "./unverified_data.js";
+import { UnverifiedData } from './unverified_data.js';
 
 /**
  * Interface of classes allowing for the retrieval of unverified data.

@@ -43,6 +43,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/archiver@workspace:archiver"
   dependencies:
+    "@aztec/ethereum.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-contracts": "workspace:^"
     "@aztec/l2-block": "workspace:^"
@@ -91,10 +92,12 @@ __metadata:
   resolution: "@aztec/aztec-node@workspace:aztec-node"
   dependencies:
     "@aztec/archiver": "workspace:^"
+    "@aztec/barretenberg.js": "workspace:^"
     "@aztec/ethereum.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-contracts": "workspace:^"
     "@aztec/l2-block": "workspace:^"
+    "@aztec/merkle-tree": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
     "@aztec/tx": "workspace:^"
@@ -118,9 +121,11 @@ __metadata:
   dependencies:
     "@aztec/acir-simulator": "workspace:^"
     "@aztec/aztec-node": "workspace:^"
+    "@aztec/barretenberg.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kernel-prover": "workspace:^"
+    "@aztec/l2-block": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/tx": "workspace:^"
     "@jest/globals": ^29.4.3
@@ -142,10 +147,9 @@ __metadata:
   resolution: "@aztec/aztec.js@workspace:aztec.js"
   dependencies:
     "@aztec/aztec-rpc": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
-    "@aztec/sequencer-client": "workspace:^"
-    "@aztec/tx": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
@@ -236,6 +240,8 @@ __metadata:
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
     "@aztec/ethereum.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/l1-contracts": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
     "@rushstack/eslint-patch": ^1.1.4
@@ -258,6 +264,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     "@rushstack/eslint-patch": ^1.2.0
     "@types/node": ^18.15.0
+    "@types/source-map-support": ^0.5.6
     source-map-support: ^0.5.21
     typescript: ^4.9.5
   languageName: unknown
@@ -267,7 +274,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/ethereum.js@workspace:ethereum.js"
   dependencies:
-    "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.2.0
     "@types/elliptic": ^6.4.14
@@ -464,6 +470,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/p2p@workspace:p2p"
   dependencies:
+    "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l2-block": "workspace:^"
     "@aztec/tx": "workspace:^"
@@ -2490,6 +2497,15 @@ __metadata:
   dependencies:
     "@types/node": "*"
   checksum: f3c8e0dcaf11d833292b7dd19db567ef41b23036b2fb9ea7335cba100aac8c56e1346171fae6c63885f6c0e1048550506fd165628bc0001902fea010a16d3842
+  languageName: node
+  linkType: hard
+
+"@types/source-map-support@npm:^0.5.6":
+  version: 0.5.6
+  resolution: "@types/source-map-support@npm:0.5.6"
+  dependencies:
+    source-map: ^0.6.0
+  checksum: b2b52b3e4901e52df30ebd23056885a352462c0d6fd73418e793684665a7602168e7c337241f0391562e8c1051ff37cbcb9b7d775990ee1f2a0d8a6ffa2cb22a
   languageName: node
   linkType: hard
 

@@ -9,6 +9,7 @@
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
+    "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
     "build": "tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
@@ -19,7 +20,8 @@
     "preset": "ts-jest/presets/default-esm",
     "globals": {
       "ts-jest": {
-        "useESM": true
+        "useESM": true,
+        "tsconfig": "../tsconfig.json"
       }
     },
     "moduleNameMapper": {
@@ -30,10 +32,9 @@
   },
   "dependencies": {
     "@aztec/aztec-rpc": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
-    "@aztec/sequencer-client": "workspace:^",
-    "@aztec/tx": "workspace:^",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

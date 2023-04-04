@@ -1,9 +1,16 @@
 {
   "extends": ".",
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
   "references": [
     {
       "path": "../foundation/tsconfig.dest.json"
     }
   ],
+  "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/fixtures/*"]
 }
