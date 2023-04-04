@@ -31,7 +31,7 @@ export default new ContractAbi([
       {
         indexed: true,
         internalType: 'uint256',
-        name: 'blockNum',
+        name: 'l2BlockNum',
         type: 'uint256',
       },
       {
@@ -43,30 +43,12 @@ export default new ContractAbi([
       {
         indexed: false,
         internalType: 'bytes',
-        name: 'blabber',
+        name: 'data',
         type: 'bytes',
       },
     ],
-    name: 'Yeet',
+    name: 'UnverifiedData',
     type: 'event',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_blockNum',
-        type: 'uint256',
-      },
-      {
-        internalType: 'bytes',
-        name: '_blabber',
-        type: 'bytes',
-      },
-    ],
-    name: 'yeet',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
   },
   {
     inputs: [
@@ -86,7 +68,25 @@ export default new ContractAbi([
         type: 'bytes',
       },
     ],
-    name: 'yeetContractDeployment',
+    name: 'emitContractDeployment',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_l2BlockNum',
+        type: 'uint256',
+      },
+      {
+        internalType: 'bytes',
+        name: '_data',
+        type: 'bytes',
+      },
+    ],
+    name: 'emitUnverifiedData',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',

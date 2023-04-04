@@ -53,7 +53,7 @@ export class StandaloneBlockBuilder {
     );
     this.log(`contract address ${this.tx.data.end.newContracts[0].contractAddress.toString()}`);
 
-    const l2block = L2Block.fromFields({
+    const l2Block = L2Block.fromFields({
       number: this.nextBlockNum,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
@@ -70,7 +70,7 @@ export class StandaloneBlockBuilder {
       newContracts: this.contractTreeLeaves.map(b => Fr.fromBuffer(b)),
       newContractData: this.tx.data.end.newContracts.map(mapContractData),
     });
-    return l2block;
+    return l2Block;
   }
 
   private async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {

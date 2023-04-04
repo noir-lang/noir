@@ -23,8 +23,8 @@ import {
 } from '@aztec/circuits.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { AztecAddress, EthAddress, randomBytes, toBufferBE, Fr } from '@aztec/foundation';
-import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { AztecAddress, EthAddress, Fr, randomBytes, toBufferBE } from '@aztec/foundation';
+import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
 
@@ -35,9 +35,9 @@ export const deployRollupContract = async (provider: WalletProvider, ethRpc: Eth
   return contract.address;
 };
 
-export const deployYeeterContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
+export const deployUnverifiedDataEmitterContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
   const deployAccount = provider.getAccount(0);
-  const contract = new Yeeter(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
+  const contract = new UnverifiedDataEmitter(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
   await contract.deploy().send().getReceipt();
   return contract.address;
 };

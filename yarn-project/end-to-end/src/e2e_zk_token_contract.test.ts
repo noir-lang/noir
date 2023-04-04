@@ -7,7 +7,7 @@ import { createDebugLogger } from '@aztec/foundation';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { createAztecNode } from './create_aztec_node.js';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
-import { createProvider, deployRollupContract, deployYeeterContract } from './deploy_l1_contracts.js';
+import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
 import { ContractAbi } from '@aztec/noir-contracts';
 
 const ETHEREUM_HOST = 'http://localhost:8545';
@@ -20,7 +20,7 @@ describe('e2e_zk_token_contract', () => {
   let node: AztecNode;
   let aztecRpcServer: AztecRPCServer;
   let rollupAddress: EthAddress;
-  let yeeterAddress: EthAddress;
+  let unverifiedDataEmitterAddress: EthAddress;
   let accounts: AztecAddress[];
   let contract: Contract;
 
@@ -29,12 +29,17 @@ describe('e2e_zk_token_contract', () => {
     const ethRpc = new EthereumRpc(provider);
     logger('Deploying contracts...');
     rollupAddress = await deployRollupContract(provider, ethRpc);
-    yeeterAddress = await deployYeeterContract(provider, ethRpc);
+    unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
     logger('Deployed contracts...');
   });
 
   beforeEach(async () => {
-    node = await createAztecNode(rollupAddress, yeeterAddress, ETHEREUM_HOST, provider.getPrivateKey(0)!);
+    node = await createAztecNode(
+      rollupAddress,
+      unverifiedDataEmitterAddress,
+      ETHEREUM_HOST,
+      provider.getPrivateKey(0)!,
+    );
     aztecRpcServer = await createAztecRpcServer(1, node);
     accounts = await aztecRpcServer.getAccounts();
   });

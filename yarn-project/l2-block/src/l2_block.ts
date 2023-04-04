@@ -205,7 +205,7 @@ export class L2Block {
   /**
    * Inspect for debugging purposes..
    * @param maxBufferSize - The number of bytes to be extracted from buffer.
-   * @returns A human-friendly string representation of the l2block.
+   * @returns A human-friendly string representation of the l2Block.
    */
   inspect(maxBufferSize = 4): string {
     const inspectTreeSnapshot = (s: AppendOnlyTreeSnapshot): string =>

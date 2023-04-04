@@ -12,10 +12,10 @@ export interface L1Addresses {
   rollupContract: EthAddress;
 
   /**
-   * Yeeter contract address.
+   * UnverifiedDataEmitter contract address.
    */
-  yeeterContract: EthAddress;
+  unverifiedDataEmitterContract: EthAddress;
 }
 
 export * from './ethereumjs-contracts/Rollup.js';
-export * from './ethereumjs-contracts/Yeeter.js';
+export * from './ethereumjs-contracts/UnverifiedDataEmitter.js';

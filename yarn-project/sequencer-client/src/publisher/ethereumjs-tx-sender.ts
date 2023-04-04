@@ -1,6 +1,6 @@
 import { EthereumRpc, TxHash, waitForTxReceipt } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { UnverifiedData } from '@aztec/l2-block';
 import { TxSenderConfig } from './config.js';
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender } from './l1-publisher.js';
@@ -11,7 +11,7 @@ import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender } from './l1-publis
 export class EthereumjsTxSender implements L1PublisherTxSender {
   private ethRpc: EthereumRpc;
   private rollupContract: Rollup;
-  private yeeterContract: Yeeter;
+  private unverifiedDataEmitterContract: UnverifiedDataEmitter;
   private confirmations: number;
 
   constructor(config: TxSenderConfig) {
@@ -19,7 +19,7 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
       rpcUrl,
       publisherPrivateKey,
       rollupContract: rollupContractAddress,
-      yeeterContract: yeeterContractAddress,
+      unverifiedDataEmitterContract: unverifiedDataEmitterContractAddress,
       requiredConfirmations,
     } = config;
     const provider = WalletProvider.fromHost(rpcUrl);
@@ -28,7 +28,7 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
     this.rollupContract = new Rollup(this.ethRpc, rollupContractAddress, {
       from: provider.getAccount(0),
     });
-    this.yeeterContract = new Yeeter(this.ethRpc, yeeterContractAddress, {
+    this.unverifiedDataEmitterContract = new UnverifiedDataEmitter(this.ethRpc, unverifiedDataEmitterContractAddress, {
       from: provider.getAccount(0),
     });
     this.confirmations = requiredConfirmations;
@@ -49,8 +49,11 @@ export class EthereumjsTxSender implements L1PublisherTxSender {
       .then(hash => hash.toString());
   }
 
-  async sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
-    const methodCall = this.yeeterContract.methods.yeet(BigInt(l2BlockNum), unverifiedData.toBuffer());
+  async sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
+    const methodCall = this.unverifiedDataEmitterContract.methods.emitUnverifiedData(
+      BigInt(l2BlockNum),
+      unverifiedData.toBuffer(),
+    );
     const gas = await methodCall.estimateGas();
     return methodCall
       .send({ gas })

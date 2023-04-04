@@ -8,7 +8,7 @@ import { PublisherConfig } from './config.js';
  */
 export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
-  sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
+  sendEmitUnverifiedDataTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined>;
   getTransactionReceipt(txHash: string): Promise<{ status: boolean; transactionHash: string } | undefined>;
 }
 
@@ -145,7 +145,7 @@ export class L1Publisher implements L2BlockReceiver {
   private async sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
     while (!this.interrupted) {
       try {
-        return await this.txSender.sendYeetTx(l2BlockNum, unverifiedData);
+        return await this.txSender.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
       } catch (err) {
         this.log(`Error sending tx to L1`, err);
         await this.sleepOrInterrupted();

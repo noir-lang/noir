@@ -5,9 +5,9 @@
       "source": "foundry",
       "buildFile": "../../l1-contracts/out/Rollup.sol/Rollup.json"
     },
-    "Yeeter": {
+    "UnverifiedDataEmitter": {
       "source": "foundry",
-      "buildFile": "../../l1-contracts/out/Yeeter.sol/Yeeter.json"
+      "buildFile": "../../l1-contracts/out/UnverifiedDataEmitter.sol/UnverifiedDataEmitter.json"
     }
   }
 }

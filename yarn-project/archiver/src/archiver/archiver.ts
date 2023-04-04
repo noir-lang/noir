@@ -1,5 +1,5 @@
-import { createDebugLogger, toBigIntBE, AztecAddress, EthAddress } from '@aztec/foundation';
-import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
+import { AztecAddress, EthAddress, createDebugLogger } from '@aztec/foundation';
+import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
 import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
 import { createPublicClient, decodeFunctionData, getAddress, Hex, hexToBytes, http, Log, PublicClient } from 'viem';
 import { localhost } from 'viem/chains';
@@ -19,23 +19,23 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * An array containing all the `unverifiedData` that have been fetched so far.
    * Note: Index in the "outer" array equals to (corresponding L2 block's number - INITIAL_L2_BLOCK_NUM).
    */
-  private unverifiedDatas: UnverifiedData[] = [];
+  private unverifiedData: UnverifiedData[] = [];
 
   private unwatchBlocks: (() => void) | undefined;
-  private unwatchYeets: (() => void) | undefined;
+  private unwatchUnverifiedData: (() => void) | undefined;
 
   /**
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
-   * @param yeeterAddress - Ethereum address of the yeeter contract.
+   * @param unverifiedDataEmitterAddress - Ethereum address of the unverifiedDataEmitter contract.
    * @param pollingInterval - The interval for polling for rollup events.
    * @param log - A logger.
    */
   constructor(
     private readonly publicClient: PublicClient,
     private readonly rollupAddress: EthAddress,
-    private readonly yeeterAddress: EthAddress,
+    private readonly unverifiedDataEmitterAddress: EthAddress,
     private readonly pollingInterval = 10_000,
     private readonly log = createDebugLogger('aztec:archiver'),
   ) {}
@@ -53,7 +53,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     const archiver = new Archiver(
       publicClient,
       config.rollupContract,
-      config.yeeterContract,
+      config.unverifiedDataEmitterContract,
       config.archiverPollingInterval,
     );
     await archiver.start();
@@ -74,7 +74,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
   }
 
   /**
-   * Fetches all the L2BlockProcessed and Yeet events since genesis and processes them.
+   * Fetches all the L2BlockProcessed and UnverifiedData events since genesis and processes them.
    */
   private async runInitialSync() {
     const blockFilter = await this.publicClient.createContractEventFilter({
@@ -84,18 +84,18 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       eventName: 'L2BlockProcessed',
     });
 
-    const yeetFilter = await this.publicClient.createContractEventFilter({
-      address: getAddress(this.yeeterAddress.toString()),
-      abi: YeeterAbi,
-      eventName: 'Yeet',
+    const unverifieddataFilter = await this.publicClient.createContractEventFilter({
+      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
+      abi: UnverifiedDataEmitterAbi,
+      eventName: 'UnverifiedData',
       fromBlock: 0n,
     });
 
-    const blockLogs = await this.publicClient.getFilterLogs({ filter: blockFilter });
-    const yeetLogs = await this.publicClient.getFilterLogs({ filter: yeetFilter });
+    const l2BlockProcessedLogs = await this.publicClient.getFilterLogs({ filter: blockFilter });
+    const unverifiedDataLogs = await this.publicClient.getFilterLogs({ filter: unverifieddataFilter });
 
-    await this.processBlockLogs(blockLogs);
-    this.processYeetLogs(yeetLogs);
+    await this.processBlockLogs(l2BlockProcessedLogs);
+    this.processUnverifiedDataLogs(unverifiedDataLogs);
   }
 
   /**
@@ -111,11 +111,11 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       pollingInterval: this.pollingInterval,
     });
 
-    this.unwatchYeets = this.publicClient.watchContractEvent({
-      address: getAddress(this.yeeterAddress.toString()),
-      abi: YeeterAbi,
-      eventName: 'Yeet',
-      onLogs: logs => this.processYeetLogs(logs),
+    this.unwatchUnverifiedData = this.publicClient.watchContractEvent({
+      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
+      abi: UnverifiedDataEmitterAbi,
+      eventName: 'UnverifiedData',
+      onLogs: logs => this.processUnverifiedDataLogs(logs),
       pollingInterval: this.pollingInterval,
     });
   }
@@ -144,24 +144,26 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
   }
 
   /**
-   * Processes newly received Yeet events.
-   * @param logs - Yeet event logs.
+   * Processes newly received UnverifiedData events.
+   * @param logs - UnverifiedData event logs.
    */
-  private processYeetLogs(logs: Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>[]) {
+  private processUnverifiedDataLogs(
+    logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>[],
+  ) {
     for (const log of logs) {
-      const blockNum = log.args.blockNum;
-      if (blockNum !== BigInt(this.unverifiedDatas.length + INITIAL_L2_BLOCK_NUM)) {
+      const l2BlockNum = log.args.l2BlockNum;
+      if (l2BlockNum !== BigInt(this.unverifiedData.length + INITIAL_L2_BLOCK_NUM)) {
         throw new Error(
           'Block number mismatch. Expected: ' +
-            (this.unverifiedDatas.length + INITIAL_L2_BLOCK_NUM) +
+            (this.unverifiedData.length + INITIAL_L2_BLOCK_NUM) +
             ' but got: ' +
-            blockNum +
+            l2BlockNum +
             '.',
         );
       }
-      const unverifiedDataBuf = Buffer.from(hexToBytes(log.args.blabber));
+      const unverifiedDataBuf = Buffer.from(hexToBytes(log.args.data));
       const unverifiedData = UnverifiedData.fromBuffer(unverifiedDataBuf);
-      this.unverifiedDatas.push(unverifiedData);
+      this.unverifiedData.push(unverifiedData);
     }
     this.log('Processed unverifiedData corresponding to ' + logs.length + ' blocks.');
   }
@@ -182,8 +184,8 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       data,
     });
     if (functionName !== 'process') throw new Error(`Unexpected method called ${functionName}`);
-    const [, l2blockHex] = args! as [Hex, Hex];
-    const block = L2Block.decode(Buffer.from(hexToBytes(l2blockHex)));
+    const [, l2BlockHex] = args! as [Hex, Hex];
+    const block = L2Block.decode(Buffer.from(hexToBytes(l2BlockHex)));
     if (BigInt(block.number) !== l2BlockNum) {
       throw new Error(`Block number mismatch: expected ${l2BlockNum} but got ${block.number}`);
     }
@@ -196,12 +198,12 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    */
   public stop(): Promise<void> {
     this.log('Stopping...');
-    if (this.unwatchBlocks === undefined || this.unwatchYeets === undefined) {
+    if (this.unwatchBlocks === undefined || this.unwatchUnverifiedData === undefined) {
       throw new Error('Archiver is not running.');
     }
 
     this.unwatchBlocks();
-    this.unwatchYeets();
+    this.unwatchUnverifiedData();
 
     this.log('Stopped.');
     return Promise.resolve();
@@ -252,12 +254,12 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     if (from < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Invalid block range ${from}`);
     }
-    if (from > this.unverifiedDatas.length) {
+    if (from > this.unverifiedData.length) {
       return Promise.resolve([]);
     }
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
     const endIndex = startIndex + take;
-    return Promise.resolve(this.unverifiedDatas.slice(startIndex, endIndex));
+    return Promise.resolve(this.unverifiedData.slice(startIndex, endIndex));
   }
 
   /**
@@ -274,7 +276,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * @returns The L2 block number associated with the latest unverified data.
    */
   public getLatestUnverifiedDataBlockNum(): Promise<number> {
-    if (this.unverifiedDatas.length === 0) return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
-    return Promise.resolve(this.unverifiedDatas.length + INITIAL_L2_BLOCK_NUM - 1);
+    if (this.unverifiedData.length === 0) return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
+    return Promise.resolve(this.unverifiedData.length + INITIAL_L2_BLOCK_NUM - 1);
   }
 }

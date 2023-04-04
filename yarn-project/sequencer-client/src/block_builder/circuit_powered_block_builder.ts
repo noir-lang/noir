@@ -89,7 +89,7 @@ export class CircuitPoweredBlockBuilder {
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );
 
-    const l2block = L2Block.fromFields({
+    const l2Block = L2Block.fromFields({
       number: blockNumber,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
@@ -107,7 +107,7 @@ export class CircuitPoweredBlockBuilder {
       newContractData,
     });
 
-    return [l2block, proof];
+    return [l2Block, proof];
   }
 
   protected async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {

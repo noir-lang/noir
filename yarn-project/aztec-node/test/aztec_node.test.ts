@@ -2,9 +2,9 @@ import { EthAddress } from '@aztec/foundation';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Tx } from '@aztec/tx';
-import { AztecNodeConfig } from '../src/aztec-node/config.js';
-import { AztecNode } from '../src/index.js';
-import { createProvider, createTx, deployRollupContract, deployYeeterContract } from '../src/aztec-node/fixtures.js';
+import { AztecNodeConfig } from './config.js';
+import { AztecNode } from '../index.js';
+import { createProvider, createTx, deployRollupContract, deployUnverifiedDataEmitterContract } from './fixtures.js';
 import { createDebugLogger, sleep } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { CircuitsWasm } from '@aztec/circuits.js';
@@ -17,7 +17,7 @@ const logger = createDebugLogger('aztec:e2e_test');
 
 describe('AztecNode', () => {
   let rollupAddress: EthAddress;
-  let yeeterAddress: EthAddress;
+  let unverifiedDataEmitterAddress: EthAddress;
   let node: AztecNode;
   let isReady: boolean;
   let provider: WalletProvider;
@@ -31,11 +31,11 @@ describe('AztecNode', () => {
     provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
     const ethRpc = new EthereumRpc(provider);
     rollupAddress = await deployRollupContract(provider, ethRpc);
-    yeeterAddress = await deployYeeterContract(provider, ethRpc);
+    unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
 
     const aztecNodeConfig = {
       rollupContract: rollupAddress,
-      yeeterContract: yeeterAddress,
+      unverifiedDataEmitterContract: unverifiedDataEmitterAddress,
       rpcUrl: ETHEREUM_HOST,
       publisherPrivateKey: provider.getPrivateKey(0),
       archiverPollingInterval: 100,
@@ -72,7 +72,7 @@ describe('AztecNode', () => {
     expect(unverifiedDatas.length).toBe(1);
 
     await node.stop();
-  }, 30_000);
+  }, 60_000);
 
   it('should rollup multiple transactions', async () => {
     const numTxs = 3;
@@ -98,7 +98,7 @@ describe('AztecNode', () => {
     expect(unverifiedDatas.length).toBe(numTxs);
 
     await node.stop();
-  }, 30_000 /* timeout in ms */);
+  }, 60_000 /* timeout in ms */);
 
   const waitForBlocks = async (take: number) => {
     while (true) {

@@ -3,13 +3,13 @@ import { EthAddress } from '@aztec/foundation';
 
 export const createAztecNode = async (
   rollupContract: EthAddress,
-  yeeterContract: EthAddress,
+  unverifiedDataEmitterContract: EthAddress,
   rpcUrl: string,
   publisherPrivateKey: Buffer,
 ) => {
   const config: AztecNodeConfig = {
     rollupContract,
-    yeeterContract,
+    unverifiedDataEmitterContract,
     rpcUrl,
     publisherPrivateKey,
     retryIntervalMs: 1000,

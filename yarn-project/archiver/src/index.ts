@@ -9,7 +9,7 @@ export * from './archiver/index.js';
 const {
   ETHEREUM_HOST = 'http://127.0.0.1:8545/',
   ROLLUP_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-  YEETER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+  UNVERIFIED_DATA_EMITTER_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
 } = process.env;
 
 /**
@@ -18,7 +18,7 @@ const {
 // eslint-disable-next-line require-await
 async function main() {
   const rollupAddress = getAddress(ROLLUP_ADDRESS);
-  const yeeterAddress = getAddress(YEETER_ADDRESS);
+  const unverifiedDataEmitterAddress = getAddress(UNVERIFIED_DATA_EMITTER_ADDRESS);
 
   const publicClient = createPublicClient({
     chain: localhost,
@@ -28,7 +28,7 @@ async function main() {
   const archiver = new Archiver(
     publicClient,
     EthAddress.fromString(rollupAddress),
-    EthAddress.fromString(yeeterAddress),
+    EthAddress.fromString(unverifiedDataEmitterAddress),
   );
 
   const shutdown = async () => {

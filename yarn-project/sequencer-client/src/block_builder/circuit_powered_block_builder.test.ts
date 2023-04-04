@@ -159,9 +159,9 @@ describe('sequencer/circuit_block_builder', () => {
     );
 
     // Actually build a block!
-    const [l2block, proof] = await builder.buildL2Block(blockNumber, tx);
+    const [l2Block, proof] = await builder.buildL2Block(blockNumber, tx);
 
-    expect(l2block.number).toEqual(blockNumber);
+    expect(l2Block.number).toEqual(blockNumber);
     expect(proof).toEqual(emptyProof);
   });
 
@@ -174,8 +174,8 @@ describe('sequencer/circuit_block_builder', () => {
 
     const tx = makeEmptyTx();
 
-    const [l2block] = await builder.buildL2Block(blockNumber, tx);
-    expect(l2block.number).toEqual(blockNumber);
+    const [l2Block] = await builder.buildL2Block(blockNumber, tx);
+    expect(l2Block.number).toEqual(blockNumber);
 
     const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
     expect(contractTreeAfter.root).toEqual(contractTreeBefore.root);
@@ -193,8 +193,8 @@ describe('sequencer/circuit_block_builder', () => {
     await setTxOldTreeRoots(tx);
     tx.data.end.newContracts = [makeNewContractData(0x1000)];
 
-    const [l2block] = await builder.buildL2Block(blockNumber, tx);
-    expect(l2block.number).toEqual(blockNumber);
+    const [l2Block] = await builder.buildL2Block(blockNumber, tx);
+    expect(l2Block.number).toEqual(blockNumber);
 
     await updateExpectedTreesFromTxs([tx]);
     const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);

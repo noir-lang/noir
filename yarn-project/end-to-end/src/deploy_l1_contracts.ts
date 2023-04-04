@@ -1,6 +1,6 @@
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 
 export const deployRollupContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
   const deployAccount = provider.getAccount(0);
@@ -9,9 +9,9 @@ export const deployRollupContract = async (provider: WalletProvider, ethRpc: Eth
   return contract.address;
 };
 
-export const deployYeeterContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
+export const deployUnverifiedDataEmitterContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
   const deployAccount = provider.getAccount(0);
-  const contract = new Yeeter(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
+  const contract = new UnverifiedDataEmitter(ethRpc, undefined, { from: deployAccount, gas: 1000000 });
   await contract.deploy().send().getReceipt();
   return contract.address;
 };

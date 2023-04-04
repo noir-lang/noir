@@ -1,14 +1,14 @@
 import { EthAddress, randomBytes, toBufferBE } from '@aztec/foundation';
-import { RollupAbi, YeeterAbi } from '@aztec/l1-contracts/viem';
 import { L2Block } from '@aztec/l2-block';
 import { jest } from '@jest/globals';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { encodeFunctionData, Log, PublicClient, toHex, Transaction } from 'viem';
 import { Archiver } from './archiver.js';
+import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';
-  const yeeterAddress = '0x0000000000000000000000000000000000000000';
+  const unverifiedDataEmitterAddress = '0x0000000000000000000000000000000000000000';
   let publicClient: MockProxy<PublicClient>;
 
   beforeEach(() => {
@@ -19,7 +19,7 @@ describe('Archiver', () => {
     const archiver = new Archiver(
       publicClient,
       EthAddress.fromString(rollupAddress),
-      EthAddress.fromString(yeeterAddress),
+      EthAddress.fromString(unverifiedDataEmitterAddress),
     );
 
     let latestBlockNum = await archiver.getBlockHeight();
@@ -29,9 +29,15 @@ describe('Archiver', () => {
 
     const rollupLogs = [1, 2, 3].map(makeL2BlockProcessedEvent);
     const rollupTxs = [1, 2, 3].map(makeRollupTx);
-    const yeeterLogs: Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>[] = [1, 2].map(makeYeetEvent);
+    const unverifiedDataEmitterLogs: Log<
+      bigint,
+      number,
+      undefined,
+      typeof UnverifiedDataEmitterAbi,
+      'UnverifiedData'
+    >[] = [1, 2].map(makeUnverifiedDataEvent);
 
-    publicClient.getFilterLogs.mockResolvedValueOnce(rollupLogs).mockResolvedValueOnce(yeeterLogs);
+    publicClient.getFilterLogs.mockResolvedValueOnce(rollupLogs).mockResolvedValueOnce(unverifiedDataEmitterLogs);
     rollupTxs.forEach(tx => publicClient.getTransaction.mockResolvedValueOnce(tx));
     publicClient.watchContractEvent.mockReturnValue(jest.fn());
 
@@ -62,19 +68,19 @@ function makeL2BlockProcessedEvent(blockNum: number) {
 }
 
 /**
- * Makes a fake Yeet event for testing purposes.
+ * Makes a fake UnverifiedData event for testing purposes.
  * @param blockNum - L2Block number.
- * @returns An Yeet event log.
+ * @returns An UnverifiedData event log.
  */
-function makeYeetEvent(blockNum: number) {
+function makeUnverifiedDataEvent(blockNum: number) {
   return {
     args: {
-      l2blockNum: BigInt(blockNum),
+      l2BlockNum: BigInt(blockNum),
       sender: EthAddress.random(),
-      blabber: '0x' + createRandomUnverifiedData(16).toString('hex'),
+      data: '0x' + createRandomUnverifiedData(16).toString('hex'),
     },
     transactionHash: `0x${blockNum}`,
-  } as unknown as Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>;
+  } as unknown as Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>;
 }
 
 /**
