@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use acvm::ProofSystemCompiler;
 use clap::Args;
+use nargo::ops::{preprocess_circuit, PreprocessedData};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 
@@ -75,7 +75,8 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
                 super::compile_cmd::compile_circuit(program_dir.as_ref(), compile_options)?;
 
             let backend = crate::backends::ConcreteBackend;
-            let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
+            let PreprocessedData { proving_key, verification_key, .. } =
+                preprocess_circuit(&backend, &compiled_program.circuit)?;
             (compiled_program, proving_key, verification_key)
         }
     };
@@ -103,7 +104,8 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     )?;
 
     let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
+    let proof =
+        nargo::ops::prove(&backend, &compiled_program.circuit, solved_witness, &proving_key)?;
 
     if check_proof {
         let no_proof_name = "".into();

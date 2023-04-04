@@ -1,9 +1,10 @@
-use super::{create_named_dir, load_hex_data, program::checksum_acir, write_to_file};
+use super::{create_named_dir, load_hex_data, write_to_file};
 use crate::{
     constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
 use acvm::acir::circuit::Circuit;
+use nargo::ops::checksum_acir;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn save_key_to_dir<P: AsRef<Path>>(
@@ -61,11 +62,9 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::fetch_pk_and_vk;
-    use crate::cli::fs::{
-        keys::save_key_to_dir,
-        program::{checksum_acir, save_acir_checksum_to_dir},
-    };
+    use crate::cli::fs::{keys::save_key_to_dir, program::save_acir_checksum_to_dir};
     use acvm::acir::circuit::Circuit;
+    use nargo::ops::checksum_acir;
     use tempdir::TempDir;
 
     #[test]

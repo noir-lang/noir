@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use acvm::{acir::circuit::Circuit, checksum_constraint_system};
 use noirc_driver::{CompiledContract, CompiledProgram};
 
 use crate::{constants::ACIR_CHECKSUM, errors::CliError};
@@ -34,9 +33,6 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
     circuit_path
 }
 
-pub(crate) fn checksum_acir(circuit: &Circuit) -> [u8; 4] {
-    checksum_constraint_system(circuit).to_be_bytes()
-}
 pub(crate) fn save_acir_checksum_to_dir<P: AsRef<Path>>(
     acir_checksum: [u8; 4],
     hash_name: &str,
