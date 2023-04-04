@@ -161,3 +161,24 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
 export function serializeToBuffer(...objs: Bufferable[]): Buffer {
   return Buffer.concat(serializeToBufferArray(...objs));
 }
+
+/**
+ * Returns a user-friendly JSON representation of an object, showing buffers as hex strings.
+ * @param obj - Object to json-stringify.
+ * @returns A JSON string.
+ */
+export function toFriendlyJSON(obj: object): string {
+  return JSON.stringify(
+    obj,
+    (key, value) => {
+      if (value !== null && typeof value === 'object' && value.type === 'Buffer' && Array.isArray(value.data)) {
+        return '0x' + Buffer.from(value.data).toString('hex');
+      } else if (typeof value === 'bigint') {
+        return value.toString();
+      } else {
+        return value;
+      }
+    },
+    2,
+  );
+}

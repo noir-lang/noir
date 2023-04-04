@@ -1,5 +1,5 @@
 import { expectSerializeToMatchSnapshot } from '../tests/expectSerialize.js';
-import { makePreviousKernelData, makePrivateKernelInputs } from '../tests/factories.js';
+import { makePreviousKernelData, makePrivateKernelInputs, makePrivateKernelPublicInputs } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 
 describe('structs/kernel', () => {
@@ -19,6 +19,16 @@ describe('structs/kernel', () => {
     await expectSerializeToMatchSnapshot(
       kernelInputs.toBuffer(),
       'abis__test_roundtrip_serialize_private_kernel_inputs',
+      wasm,
+    );
+  });
+
+  it(`serializes and prints private_kernel_public_inputs`, async () => {
+    const wasm = await CircuitsWasm.new();
+    const kernelInputs = makePrivateKernelPublicInputs();
+    await expectSerializeToMatchSnapshot(
+      kernelInputs.toBuffer(),
+      'abis__test_roundtrip_serialize_private_kernel_public_inputs',
       wasm,
     );
   });

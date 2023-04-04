@@ -17,9 +17,10 @@ import {
 import { FunctionData } from './function_data.js';
 import { PrivateCallStackItem } from './private_call_stack_item.js';
 import { AggregationObject, MembershipWitness, UInt32, UInt8Vector } from './shared.js';
-import { SignedTxRequest, TxContext } from './tx.js';
+import { ContractDeploymentData, SignedTxRequest, TxContext } from './tx.js';
 import { VerificationKey } from './verification_key.js';
 import { AztecAddress, EthAddress, Fr, BufferReader } from '@aztec/foundation';
+import times from 'lodash.times';
 
 export class OldTreeRoots {
   constructor(
@@ -211,6 +212,10 @@ export class PrivateKernelPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelPublicInputs(reader.readObject(AccumulatedData), reader.readObject(ConstantData), true);
   }
+
+  static makeEmpty() {
+    return new PrivateKernelPublicInputs(makeEmptyAccumulatedData(), makeEmptyConstantData(), true);
+  }
 }
 
 export class PreviousKernelData {
@@ -244,6 +249,19 @@ export class PreviousKernelData {
       reader.readObject(VerificationKey),
       reader.readNumber(),
       reader.readArray(VK_TREE_HEIGHT, Fr),
+    );
+  }
+
+  /**
+   * Creates an empty instance, valid enough to be accepted by circuits
+   */
+  static makeEmpty() {
+    return new PreviousKernelData(
+      PrivateKernelPublicInputs.makeEmpty(),
+      makeEmptyProof(),
+      VerificationKey.makeFake(),
+      0,
+      Array(VK_TREE_HEIGHT).fill(frZero()),
     );
   }
 }
@@ -313,4 +331,64 @@ export class PrivateKernelInputs {
   toBuffer() {
     return serializeToBuffer(this.signedTxRequest, this.previousKernel, this.privateCall);
   }
+}
+
+// Helper functions for making empty structs (delete them eventually to use real data or factories instances)
+// or move them somewhere generic, or within each struct
+
+function frZero() {
+  return Fr.fromBuffer(Buffer.alloc(32, 0));
+}
+
+function makeEmptyEthAddress() {
+  return new EthAddress(Buffer.alloc(20, 0));
+}
+
+function makeEmptyNewContractData(): NewContractData {
+  return new NewContractData(AztecAddress.ZERO, makeEmptyEthAddress(), frZero());
+}
+
+function makeEmptyTxContext(): TxContext {
+  const deploymentData = new ContractDeploymentData(frZero(), frZero(), frZero(), makeEmptyEthAddress());
+  return new TxContext(false, false, true, deploymentData);
+}
+
+function makeEmptyOldTreeRoots(): OldTreeRoots {
+  return new OldTreeRoots(frZero(), frZero(), frZero(), frZero());
+}
+
+function makeEmptyConstantData(): ConstantData {
+  return new ConstantData(makeEmptyOldTreeRoots(), makeEmptyTxContext());
+}
+
+function makeEmptyOptionallyRevealedData(): OptionallyRevealedData {
+  return new OptionallyRevealedData(
+    frZero(),
+    new FunctionData(Buffer.alloc(4), true, true),
+    times(EMITTED_EVENTS_LENGTH, frZero),
+    frZero(),
+    makeEmptyEthAddress(),
+    false,
+    false,
+    false,
+    false,
+  );
+}
+
+function makeEmptyAccumulatedData(): AccumulatedData {
+  return new AccumulatedData(
+    AggregationObject.makeFake(),
+    frZero(),
+    times(KERNEL_NEW_COMMITMENTS_LENGTH, frZero),
+    times(KERNEL_NEW_NULLIFIERS_LENGTH, frZero),
+    times(KERNEL_PRIVATE_CALL_STACK_LENGTH, frZero),
+    times(KERNEL_PUBLIC_CALL_STACK_LENGTH, frZero),
+    times(KERNEL_L1_MSG_STACK_LENGTH, frZero),
+    times(KERNEL_NEW_CONTRACTS_LENGTH, makeEmptyNewContractData),
+    times(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH, makeEmptyOptionallyRevealedData),
+  );
+}
+
+export function makeEmptyProof() {
+  return new UInt8Vector(Buffer.alloc(0));
 }

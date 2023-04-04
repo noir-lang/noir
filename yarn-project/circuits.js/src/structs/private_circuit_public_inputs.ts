@@ -52,6 +52,28 @@ export class PrivateCircuitPublicInputs {
   static from(fields: FieldsOf<PrivateCircuitPublicInputs>): PrivateCircuitPublicInputs {
     return new PrivateCircuitPublicInputs(...PrivateCircuitPublicInputs.getFields(fields));
   }
+
+  public static empty() {
+    const frArray = (num: number) =>
+      Array(num)
+        .fill(0)
+        .map(() => Fr.ZERO);
+    return new PrivateCircuitPublicInputs(
+      CallContext.empty(),
+      frArray(ARGS_LENGTH),
+      frArray(RETURN_VALUES_LENGTH),
+      frArray(EMITTED_EVENTS_LENGTH),
+      frArray(NEW_COMMITMENTS_LENGTH),
+      frArray(NEW_NULLIFIERS_LENGTH),
+      frArray(PRIVATE_CALL_STACK_LENGTH),
+      frArray(PUBLIC_CALL_STACK_LENGTH),
+      frArray(L1_MSG_STACK_LENGTH),
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      ContractDeploymentData.empty(),
+    );
+  }
   /**
    * Serialize into a field array. Low-level utility.
    * @param fields - Object with fields.

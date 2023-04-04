@@ -9,6 +9,7 @@ import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNodeConfig } from './config.js';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { AztecAddress } from '@aztec/foundation';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -47,7 +48,8 @@ export class AztecNode {
     await Promise.all([p2pClient.start(), worldStateSynchroniser.start()]);
 
     // now create the sequencer
-    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser);
+    const wasm = await CircuitsWasm.new();
+    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser, wasm);
     return new AztecNode(p2pClient, archiver, archiver, merkleTreeDB, worldStateSynchroniser, sequencer);
   }
 
@@ -136,6 +138,7 @@ export class AztecNode {
   public findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
     return this.merkleTreeDB.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue);
   }
+
   public getContractPath(leafIndex: bigint): Promise<SiblingPath> {
     return this.merkleTreeDB.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex);
   }

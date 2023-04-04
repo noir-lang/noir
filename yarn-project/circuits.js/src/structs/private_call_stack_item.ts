@@ -17,4 +17,8 @@ export class PrivateCallStackItem {
   toBuffer() {
     return serializeToBuffer(this.contractAddress, this.functionData, this.publicInputs);
   }
+
+  public static empty() {
+    return new PrivateCallStackItem(AztecAddress.ZERO, FunctionData.empty(), PrivateCircuitPublicInputs.empty());
+  }
 }

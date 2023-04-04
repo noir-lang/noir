@@ -149,7 +149,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    */
   private processYeetLogs(logs: Log<bigint, number, undefined, typeof YeeterAbi, 'Yeet'>[]) {
     for (const log of logs) {
-      const blockNum = log.args.l2blockNum;
+      const blockNum = log.args.blockNum;
       if (blockNum !== BigInt(this.unverifiedDatas.length + INITIAL_L2_BLOCK_NUM)) {
         throw new Error(
           'Block number mismatch. Expected: ' +
@@ -178,7 +178,7 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
     const { input: data } = await this.publicClient.getTransaction({ hash: txHash });
     // TODO: File a bug in viem who complains if we dont remove the ctor from the abi here
     const { functionName, args } = decodeFunctionData({
-      abi: RollupAbi.filter(item => item.type !== 'constructor'),
+      abi: RollupAbi.filter(item => item.type.toString() !== 'constructor'),
       data,
     });
     if (functionName !== 'process') throw new Error(`Unexpected method called ${functionName}`);

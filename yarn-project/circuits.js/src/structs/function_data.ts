@@ -19,6 +19,9 @@ export class FunctionData {
     return serializeToBuffer(this.functionSelector, this.isPrivate, this.isConstructor);
   }
 
+  public static empty() {
+    return new FunctionData(Buffer.alloc(4, 0));
+  }
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.

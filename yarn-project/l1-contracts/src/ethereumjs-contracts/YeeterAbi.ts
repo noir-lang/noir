@@ -22,7 +22,7 @@ export default new ContractAbi([
         type: 'bytes',
       },
     ],
-    name: 'ContractDeploymentYeet',
+    name: 'ContractDeployment',
     type: 'event',
   },
   {
@@ -31,7 +31,7 @@ export default new ContractAbi([
       {
         indexed: true,
         internalType: 'uint256',
-        name: 'l2blockNum',
+        name: 'blockNum',
         type: 'uint256',
       },
       {
@@ -54,7 +54,7 @@ export default new ContractAbi([
     inputs: [
       {
         internalType: 'uint256',
-        name: '_l2blockNum',
+        name: '_blockNum',
         type: 'uint256',
       },
       {

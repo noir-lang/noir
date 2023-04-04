@@ -29,4 +29,8 @@ export class CallContext {
       this.isContractDeployment,
     );
   }
+
+  public static empty() {
+    return new CallContext(AztecAddress.ZERO, AztecAddress.ZERO, EthAddress.ZERO, false, false, false);
+  }
 }

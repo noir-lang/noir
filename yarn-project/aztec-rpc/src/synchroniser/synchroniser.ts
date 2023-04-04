@@ -1,10 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
+import { AztecAddress, createDebugLogger, InterruptableSleep, keccak } from '@aztec/foundation';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { TxHash } from '@aztec/tx';
+import { TxHash, createTxHashes } from '@aztec/tx';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
+import { L2Block } from '@aztec/l2-block';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;
@@ -19,20 +20,22 @@ export class Synchroniser {
     private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
-  public start(from = 1, take = 1, retryInterval = 1000) {
+  public start(fromBlock = 1, take = 1, retryInterval = 1000) {
     if (this.running) {
       return;
     }
 
     this.running = true;
-
-    let fromUnverifiedData = from;
+    let fromUnverifiedData = fromBlock;
 
     const run = async () => {
       while (this.running) {
         try {
-          const unverifiedData = await this.node.getUnverifiedData(fromUnverifiedData, take);
+          // TODO: Blocks should be processed as part of getUnverifiedData
+          const blocks = await this.node.getBlocks(fromBlock, take);
+          await this.decodeBlocks(blocks);
 
+          const unverifiedData = await this.node.getUnverifiedData(fromUnverifiedData, take);
           if (!unverifiedData.length) {
             await this.interruptableSleep.sleep(retryInterval);
             continue;
@@ -87,5 +90,27 @@ export class Synchroniser {
     }
 
     return tx;
+  }
+
+  // TODO: Drop in favor of AccountState.processBlocks
+  private async decodeBlocks(l2Blocks: L2Block[]) {
+    for (const block of l2Blocks) {
+      for (const txHash of createTxHashes(block)) {
+        const txDao: TxDao | undefined = await this.db.getTx(txHash);
+        if (txDao !== undefined) {
+          txDao.blockHash = keccak(block.encode());
+          txDao.blockNumber = block.number;
+          await this.db.addTx(txDao);
+          this.log(`Added tx with hash ${txHash.toString()} from block ${block.number}`);
+        } else {
+          this.log(`Tx with hash ${txHash.toString()} from block ${block.number} not found in db`);
+        }
+      }
+
+      for (const key in this.accountStates) {
+        this.accountStates[key].syncToBlock(block);
+      }
+      this.log(`Synched block ${block.number}`);
+    }
   }
 }

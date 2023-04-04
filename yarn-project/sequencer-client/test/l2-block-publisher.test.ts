@@ -1,7 +1,7 @@
 import { L2Block } from '@aztec/archiver';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Rollup } from '@aztec/l1-contracts';
+import { Rollup, Yeeter } from '@aztec/l1-contracts';
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
 import { L1Publisher } from '../src/publisher/l1-publisher.js';
@@ -14,26 +14,28 @@ const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
 
 describe('L1Publisher integration', () => {
   let rollup: Rollup;
+  let yeeter: Yeeter;
   let ethRpc: EthereumRpc;
   let publisher: L1Publisher;
   let l2Block: L2Block;
   let l2Proof: Buffer;
 
   beforeAll(async () => {
-    ({ ethRpc, rollup } = await deployRollup());
+    ({ ethRpc, rollup, yeeter } = await deployRollup());
 
     l2Block = L2Block.random(42);
     l2Proof = Buffer.alloc(0);
 
     publisher = new L1Publisher(
-      new EthereumjsTxSender({ 
-        ethereumHost: anvilHost, 
-        requiredConfirmations: 1, 
-        rollupContract: rollup.address, 
-        sequencerPrivateKey: hexStringToBuffer(sequencerPK)
+      new EthereumjsTxSender({
+        rpcUrl: anvilHost,
+        requiredConfirmations: 1,
+        rollupContract: rollup.address,
+        yeeterContract: yeeter.address,
+        publisherPrivateKey: hexStringToBuffer(sequencerPK),
       }),
       {
-        sleepTimeMs: 100,
+        retryIntervalMs: 100,
       },
     );
   });
@@ -60,12 +62,16 @@ async function deployRollup() {
   const [sequencer, deployer] = provider.getAccounts();
   const ethRpc = new EthereumRpc(provider);
 
-  // Deploy rollup contract
+  // Deploy rollup and yeeter contracts
   const deployedRollup = new Rollup(ethRpc, undefined, { from: deployer, gas: 1e6 });
   await deployedRollup.deploy().send().getReceipt();
 
+  const deployedYeeter = new Yeeter(ethRpc, undefined, { from: deployer, gas: 1e6 });
+  await deployedYeeter.deploy().send().getReceipt();
+
   // Create new instance so we can attach the sequencer as sender
   const rollup = new Rollup(ethRpc, deployedRollup.address, { from: sequencer });
+  const yeeter = new Yeeter(ethRpc, deployedYeeter.address, { from: sequencer });
 
-  return { rollup, deployer, sequencer, ethRpc };
+  return { rollup, deployer, yeeter, sequencer, ethRpc };
 }

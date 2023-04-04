@@ -1,5 +1,4 @@
-import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
-import { PrivateCircuitPublicInputs } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 
 export interface NoteLoadOracleInputs {
   note: Fr[];
@@ -12,12 +11,4 @@ export interface DBOracle {
   getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteLoadOracleInputs[]>;
   getBytecode(contractAddress: AztecAddress, functionSelector: Buffer): Promise<Buffer>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
-}
-
-export class PrivateCallStackItem {
-  constructor(
-    public readonly contractAddress: AztecAddress,
-    public readonly functionSelector: Buffer,
-    public readonly publicInputs: PrivateCircuitPublicInputs,
-  ) {}
 }

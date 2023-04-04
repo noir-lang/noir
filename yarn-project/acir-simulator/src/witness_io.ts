@@ -62,9 +62,7 @@ export function writeInputs(
 
   const writer = new WitnessWriter(witnessStartIndex, witness);
 
-  writer.writeFieldArray(
-    new Array(ARGS_LENGTH).fill(Fr.fromBuffer(Buffer.alloc(Fr.SIZE_IN_BYTES))).map((value, i) => args[i] || value),
-  );
+  writer.writeFieldArray(args);
 
   writer.writeField(callContext.isContractDeployment);
   writer.writeField(callContext.isDelegateCall);

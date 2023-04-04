@@ -1,4 +1,4 @@
-import { BufferReader } from '@aztec/foundation';
+import { BufferReader, randomBytes } from '@aztec/foundation';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { assertLength, range } from '../utils/jsUtils.js';
 import { Bufferable, serializeToBuffer } from '../utils/serialize.js';
@@ -124,6 +124,10 @@ export class EcdsaSignature {
 
   toBuffer() {
     return serializeToBuffer(this.r, this.s);
+  }
+
+  public static random() {
+    return new EcdsaSignature(randomBytes(32), randomBytes(32));
   }
 }
 

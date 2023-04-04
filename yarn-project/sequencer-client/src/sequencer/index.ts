@@ -1,10 +1,14 @@
-import { Tx } from '@aztec/tx';
-import { P2P } from '@aztec/p2p';
-import { WorldStateSynchroniser, WorldStateStatus, MerkleTreeId } from '@aztec/world-state';
-import { RunningPromise } from '../deps/running_promise.js';
-import { L1Publisher } from '../publisher/l1-publisher.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation';
-import { StandaloneBlockBuilder } from '../block_builder/standalone_block_builder.js';
+import { P2P } from '@aztec/p2p';
+import { Tx } from '@aztec/tx';
+import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
+import { CircuitPoweredBlockBuilder } from '../block_builder/circuit_powered_block_builder.js';
+import { RunningPromise } from '../deps/running_promise.js';
+import { getVerificationKeys } from '../deps/verification_keys.js';
+import { EmptyProver } from '../prover/empty.js';
+import { L1Publisher } from '../publisher/l1-publisher.js';
+import { WasmCircuitSimulator } from '../simulator/wasm.js';
 import { SequencerConfig } from './config.js';
 
 /**
@@ -22,15 +26,24 @@ export class Sequencer {
   private pollingIntervalMs: number;
   private lastBlockNumber = -1;
   private state = SequencerState.STOPPED;
+  private blockBuilder: CircuitPoweredBlockBuilder;
 
   constructor(
     private publisher: L1Publisher,
     private p2pClient: P2P,
     private worldState: WorldStateSynchroniser,
+    wasm: CircuitsWasm,
     config?: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.pollingIntervalMs = config?.transactionPollingInterval ?? 1_000;
+    this.blockBuilder = new CircuitPoweredBlockBuilder(
+      this.worldState,
+      getVerificationKeys(),
+      new WasmCircuitSimulator(wasm),
+      new EmptyProver(),
+      wasm,
+    );
   }
 
   public async start() {
@@ -62,6 +75,8 @@ export class Sequencer {
   private async isTxDoubleSpend(tx: Tx): Promise<boolean> {
     // eslint-disable-next-line @typescript-eslint/await-thenable
     for (const nullifier of tx.data.end.newNullifiers) {
+      // Skip nullifier if it's empty
+      if (nullifier.isZero()) continue;
       // TODO(AD): this is an exhaustive search currently
       if ((await this.worldState.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) !== undefined) {
         // Our nullifier tree has this nullifier already - this transaction is a double spend / not well-formed
@@ -103,6 +118,7 @@ export class Sequencer {
       // skip in this manner and do something more DDOS-proof (like letting the transaction fail and pay a fee).
       if (await this.isTxDoubleSpend(tx)) {
         // Make sure we remove this from the tx pool so we do not consider it again
+        this.log(`Deleting double spend tx ${tx.txHash.toString()}`);
         await this.p2pClient.deleteTxs([tx.txHash]);
         return;
       }
@@ -148,8 +164,8 @@ export class Sequencer {
   }
 
   protected async buildBlock(tx: Tx) {
-    const blockBuilder = new StandaloneBlockBuilder(this.worldState, this.lastBlockNumber + 1, tx);
-    return await blockBuilder.buildL2Block();
+    const [block] = await this.blockBuilder.buildL2Block(this.lastBlockNumber + 1, tx);
+    return block;
   }
 }
 

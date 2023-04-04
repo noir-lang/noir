@@ -24,7 +24,7 @@ export const YeeterAbi = [
         type: 'bytes',
       },
     ],
-    name: 'ContractDeploymentYeet',
+    name: 'ContractDeployment',
     type: 'event',
   },
   {
@@ -33,7 +33,7 @@ export const YeeterAbi = [
       {
         indexed: true,
         internalType: 'uint256',
-        name: 'l2blockNum',
+        name: 'blockNum',
         type: 'uint256',
       },
       {
@@ -56,7 +56,7 @@ export const YeeterAbi = [
     inputs: [
       {
         internalType: 'uint256',
-        name: '_l2blockNum',
+        name: '_blockNum',
         type: 'uint256',
       },
       {

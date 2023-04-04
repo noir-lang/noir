@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import { AztecAddress, Fr, serializeBufferArrayToVector } from '@aztec/foundation';
 import { CircuitsWasm } from '../wasm/index.js';
 import { FunctionData, FUNCTION_SELECTOR_NUM_BYTES, NullifierLeafPreimage, TxRequest } from '../index.js';
+import { serializeToBuffer } from '../utils/serialize.js';
 
 export function hashTxRequest(wasm: CircuitsWasm, txRequest: TxRequest) {
   const data = txRequest.toBuffer();
@@ -42,7 +43,8 @@ export function computeFunctionTreeRoot(wasm: CircuitsWasm, fnLeafs: Buffer[]) {
 
 export function hashConstructor(wasm: CircuitsWasm, functionData: FunctionData, args: Fr[], constructorVKHash: Buffer) {
   const functionDataBuf = functionData.toBuffer();
-  const inputVector = serializeBufferArrayToVector(args.map(fr => fr.toBuffer()));
+  // writes length to buffer output
+  const inputVector = serializeToBuffer(args.map(fr => fr.toBuffer()));
   const memLoc1 = functionDataBuf.length;
   const memLoc2 = memLoc1 + inputVector.length;
   const memLoc3 = memLoc2 + constructorVKHash.length;

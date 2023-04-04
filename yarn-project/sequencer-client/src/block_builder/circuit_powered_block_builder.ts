@@ -1,4 +1,3 @@
-import { createDebugLogger } from '@aztec/foundation';
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
@@ -18,15 +17,15 @@ import {
   UInt8Vector,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { Fr, toBigIntBE } from '@aztec/foundation';
+import { Fr, createDebugLogger, toBigIntBE } from '@aztec/foundation';
 import { Tx } from '@aztec/tx';
-import { MerkleTreeDb, MerkleTreeId } from '@aztec/world-state';
+import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
 import { hashNewContractData, makeEmptyTx } from '../deps/tx.js';
+import { VerificationKeys } from '../deps/verification_keys.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
-import { VerificationKeys } from '../deps/verification_keys.js';
 import { ContractData, L2Block } from '@aztec/l2-block';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
@@ -43,8 +42,7 @@ const DELETE_NUM = 0;
 
 export class CircuitPoweredBlockBuilder {
   constructor(
-    protected db: MerkleTreeDb,
-    protected nextRollupId: number,
+    protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
     protected simulator: Simulator,
     protected prover: Prover,
@@ -52,7 +50,7 @@ export class CircuitPoweredBlockBuilder {
     protected debug = createDebugLogger('aztec:sequencer'),
   ) {}
 
-  public async buildL2Block(tx: Tx): Promise<[L2Block, UInt8Vector]> {
+  public async buildL2Block(blockNumber: number, tx: Tx): Promise<[L2Block, UInt8Vector]> {
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -92,7 +90,7 @@ export class CircuitPoweredBlockBuilder {
     );
 
     const l2block = L2Block.fromFields({
-      number: this.nextRollupId,
+      number: blockNumber,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,

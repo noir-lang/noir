@@ -26,7 +26,7 @@ export class DeployMethod extends ContractFunctionInteraction {
     const { portalContract, contractAddressSalt, from } = options;
     this.txRequest = await this.arc.createDeploymentTxRequest(
       this.abi,
-      [],
+      this.args,
       portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
       contractAddressSalt || Fr.random(),
       from || AztecAddress.ZERO,

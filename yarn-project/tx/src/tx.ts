@@ -3,8 +3,9 @@ import {
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_NULLIFIERS_LENGTH,
   PrivateKernelPublicInputs,
-  UInt8Vector,
+  UInt8Vector
 } from '@aztec/circuits.js';
+import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { keccak } from '@aztec/foundation';
 import { L2Block, UnverifiedData } from '@aztec/l2-block';
 import { TxHash } from './tx_hash.js';
@@ -49,7 +50,8 @@ export class Tx {
       [
         tx.data.end.newCommitments.map(x => x.toBuffer()),
         tx.data.end.newNullifiers.map(x => x.toBuffer()),
-        tx.data.end.newContracts.map(x => x.functionTreeRoot.toBuffer()),
+        // Keep this line in sync with newContractData from createTxHashes
+        tx.data.end.newContracts.map(x => serializeToBuffer(x.contractAddress, x.portalContractAddress)),
       ].flat(),
     );
     return new TxHash(keccak(dataToHash));
@@ -77,12 +79,10 @@ export function getTxHash(block: L2Block, txIndex: number) {
           txIndex * KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH,
         )
         .map(x => x.toBuffer()),
-      block.newContracts
-        .slice(
-          txIndex * KERNEL_NEW_CONTRACTS_LENGTH,
-          txIndex * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH,
-        )
-        .map(x => x.toBuffer()),
+      // Keep this in sync with createTxHash
+      block.newContractData
+        .slice(txIndex * KERNEL_NEW_CONTRACTS_LENGTH, txIndex * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH)
+        .map(x => serializeToBuffer(x.aztecAddress, x.ethAddress)),
     ].flat(),
   );
   return new TxHash(keccak(dataToHash));

@@ -292,20 +292,20 @@ export function makeRootRollupInputs(seed = 0) {
 }
 
 export function makeRootRollupPublicInputs(seed = 0) {
-  return new RootRollupPublicInputs(
-    makeAggregationObject(seed),
-    makeAppendOnlyTreeSnapshot(seed + 0x100),
-    makeAppendOnlyTreeSnapshot(seed + 0x200),
-    makeAppendOnlyTreeSnapshot(seed + 0x300),
-    makeAppendOnlyTreeSnapshot(seed + 0x400),
-    makeAppendOnlyTreeSnapshot(seed + 0x500),
-    makeAppendOnlyTreeSnapshot(seed + 0x600),
-    makeAppendOnlyTreeSnapshot(seed + 0x700),
-    makeAppendOnlyTreeSnapshot(seed + 0x800),
-    makeAppendOnlyTreeSnapshot(seed + 0x900),
-    makeAppendOnlyTreeSnapshot(seed + 0x1000),
-    [fr(seed + 0x1200), fr(seed + 0x1201)],
-  );
+  return RootRollupPublicInputs.from({
+    startContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x100),
+    startNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x200),
+    startPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x300),
+    startTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x400),
+    startTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x500),
+    endContractTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x600),
+    endNullifierTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x700),
+    endPrivateDataTreeSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x800),
+    endTreeOfHistoricContractTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x900),
+    endTreeOfHistoricPrivateDataTreeRootsSnapshot: makeAppendOnlyTreeSnapshot(seed + 0x1000),
+    endAggregationObject: makeAggregationObject(seed + 0x1100),
+    calldataHash: [new Fr(0n), new Fr(0n)],
+  });
 }
 
 export function makeBaseRollupInputs(seed = 0) {

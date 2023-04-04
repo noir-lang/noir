@@ -1,5 +1,5 @@
-import { AztecRPCClient, Signature, Tx, TxHash, TxRequest } from '@aztec/aztec-rpc';
-import { AztecAddress, Fr } from '@aztec/foundation';
+import { AztecRPCClient, Tx, TxHash, TxRequest } from '@aztec/aztec-rpc';
+import { AztecAddress, EcdsaSignature, Fr } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/noir-contracts';
 import { SentTx } from './sent_tx.js';
 
@@ -18,7 +18,7 @@ export interface ViewMethodOptions {
  */
 export class ContractFunctionInteraction {
   protected txRequest?: TxRequest;
-  private signature?: Signature;
+  private signature?: EcdsaSignature;
   private tx?: Tx;
 
   constructor(

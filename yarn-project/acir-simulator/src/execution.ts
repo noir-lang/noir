@@ -1,9 +1,17 @@
 import { ACVMField, acvm, toACVMField, fromACVMField, ZERO_ACVM_FIELD } from './acvm.js';
-import { AztecAddress, CallContext, EthAddress, Fr, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { DBOracle, PrivateCallStackItem } from './db_oracle.js';
+import {
+  AztecAddress,
+  CallContext,
+  EthAddress,
+  Fr,
+  FunctionData,
+  OldTreeRoots,
+  PrivateCallStackItem,
+  TxRequest,
+} from '@aztec/circuits.js';
+import { DBOracle } from './db_oracle.js';
 import { writeInputs, extractPublicInputs, frToAztecAddress } from './witness_io.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
-import { encodeArguments } from './arguments.js';
 
 export interface ExecutionPreimages {
   newNotes: Array<{ preimage: Fr[]; storageSlot: Fr }>;
@@ -43,13 +51,11 @@ export class Execution {
       this.request.functionData.isConstructor,
     );
 
-    const encodedArgs = encodeArguments(this.entryPointABI, this.request.args);
-
     return this.runExternalFunction(
       this.entryPointABI,
       this.contractAddress,
       this.request.functionData.functionSelector,
-      encodedArgs,
+      this.request.args,
       callContext,
     );
   }
@@ -93,7 +99,7 @@ export class Execution {
 
     const publicInputs = extractPublicInputs(partialWitness, acir);
 
-    const callStackItem = new PrivateCallStackItem(contractAddress, functionSelector, publicInputs);
+    const callStackItem = new PrivateCallStackItem(contractAddress, new FunctionData(functionSelector), publicInputs);
 
     return {
       acir,

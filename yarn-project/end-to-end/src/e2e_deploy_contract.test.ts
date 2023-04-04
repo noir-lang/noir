@@ -1,5 +1,6 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, EthAddress, AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { EthAddress } from '@aztec/foundation';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { createDebugLogger } from '@aztec/foundation';
@@ -22,7 +23,7 @@ describe('e2e_deploy_contract', () => {
   let accounts: AztecAddress[];
   const abi = TestContractAbi as ContractAbi;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
     const ethRpc = new EthereumRpc(provider);
     logger('Deploying contracts...');
@@ -35,7 +36,7 @@ describe('e2e_deploy_contract', () => {
     node = await createAztecNode(rollupAddress, yeeterAddress, ETHEREUM_HOST, provider.getPrivateKey(0)!);
     aztecRpcServer = await createAztecRpcServer(1, node);
     accounts = await aztecRpcServer.getAccounts();
-  });
+  }, 10_000);
 
   afterEach(async () => {
     await node.stop();
@@ -46,10 +47,10 @@ describe('e2e_deploy_contract', () => {
    * Milestone 1.1
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
-  it.skip('should deploy a contract', async () => {
+  it('should deploy a contract', async () => {
     const deployer = new ContractDeployer(abi, aztecRpcServer);
     const tx = deployer.deploy().send();
-    logger(`Tx sent!`);
+    logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
     expect(receipt).toEqual(
       expect.objectContaining({
@@ -59,7 +60,7 @@ describe('e2e_deploy_contract', () => {
         error: '',
       }),
     );
-    logger(`Receipt received`);
+    logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
     const isMined = await tx.isMined();
     const receiptAfterMined = await tx.getReceipt();
 
@@ -71,10 +72,27 @@ describe('e2e_deploy_contract', () => {
   }, 30_000);
 
   /**
+   * Currently not passing as the rollup contract gets a state root hash that doesn't match the one
+   * generated locally by the sequencer, due to mismatches in the nullifier tree.
+   */
+  it.skip('should deploy one contract after another', async () => {
+    const deployer = new ContractDeployer(abi, aztecRpcServer);
+
+    for (let index = 0; index < 2; index++) {
+      logger(`Deploying contract ${index + 1}...`);
+      const tx = deployer.deploy().send({ contractAddressSalt: Fr.random() });
+      const isMined = await tx.isMined();
+      expect(isMined).toBe(true);
+      const receipt = await tx.getReceipt();
+      expect(receipt.status).toBe(TxStatus.MINED);
+    }
+  }, 30_000);
+
+  /**
    * Milestone 1.2
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
    */
-  it.skip('should not deploy a contract with the same salt twice', async () => {
+  it('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(abi, aztecRpcServer);
 

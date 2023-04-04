@@ -2,6 +2,7 @@ import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { AztecAddress, TxRequest } from '@aztec/circuits.js';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore } from './key_store.js';
+import { Point } from '@aztec/foundation';
 
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
@@ -19,12 +20,23 @@ export class TestKeyStore implements KeyStore {
   }
 
   getAccountPrivateKey(address: AztecAddress): Promise<Buffer> {
+    const account = this.getAccount(address);
+
+    return account.getPrivateKey();
+  }
+
+  getAccountPublicKey(address: AztecAddress): Promise<Point> {
+    const account = this.getAccount(address);
+
+    return Promise.resolve(account.getPublicKey());
+  }
+
+  private getAccount(address: AztecAddress) {
     const account = this.accounts.find(a => a.getPublicKey().toAddress().equals(address));
     if (!account) {
       throw new Error('Unknown account.');
     }
-
-    return account.getPrivateKey();
+    return account;
   }
 
   getSigningPublicKeys() {

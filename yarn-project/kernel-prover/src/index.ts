@@ -1,114 +1,86 @@
 import { ExecutionResult } from '@aztec/acir-simulator';
 import {
-  AztecAddress,
-  Fr,
-  EthAddress
-} from "@aztec/foundation";
-import {
-  AccumulatedData,
-  AffineElement,
-  AggregationObject,
-  ConstantData,
-  EMITTED_EVENTS_LENGTH,
-  Fq,
-  FunctionData,
-  KERNEL_L1_MSG_STACK_LENGTH,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH,
-  KERNEL_PRIVATE_CALL_STACK_LENGTH,
-  KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  NewContractData,
   OldTreeRoots,
-  OptionallyRevealedData,
   PrivateKernelPublicInputs,
   TxRequest,
+  CircuitsWasm,
+  SignedTxRequest,
+  PrivateCallData,
+  PRIVATE_CALL_STACK_LENGTH,
+  PrivateCallStackItem,
+  PreviousKernelData,
+  UInt8Vector,
+  EcdsaSignature,
+  MembershipWitness,
+  CONTRACT_TREE_HEIGHT,
+  privateKernelSim,
+  FUNCTION_TREE_HEIGHT,
+  VerificationKey,
+  makeEmptyProof,
 } from '@aztec/circuits.js';
-import { randomBytes } from 'crypto';
+import { createDebugLogger, Fr } from '@aztec/foundation';
+
+export interface FunctionTreeInfo {
+  root: Buffer;
+  membershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>;
+}
 
 export class KernelProver {
-  prove(
+  constructor(private log = createDebugLogger('aztec:kernel_prover')) {}
+  async prove(
     txRequest: TxRequest,
-    txSignature: unknown,
+    txSignature: EcdsaSignature,
     executionResult: ExecutionResult,
     oldRoots: OldTreeRoots,
+    wasm: CircuitsWasm,
+    getFunctionTreeInfo: (callStackItem: PrivateCallStackItem) => Promise<FunctionTreeInfo>,
+    getContractSiblingPath: (committment: Buffer) => Promise<MembershipWitness<typeof CONTRACT_TREE_HEIGHT>>,
   ): Promise<{ publicInputs: PrivateKernelPublicInputs; proof: Buffer }> {
     // TODO: implement this
-    const createRandomFields = (num: number) => {
-      return Array(num)
+    const signedTxRequest = new SignedTxRequest(txRequest, txSignature);
+
+    const functionTreeInfo = await getFunctionTreeInfo(executionResult.callStackItem);
+    const contractLeafMembershipWitness = txRequest.functionData.isConstructor
+      ? this.createRandomMembershipWitness()
+      : await getContractSiblingPath(functionTreeInfo.root);
+
+    const privateCallData = new PrivateCallData(
+      executionResult.callStackItem,
+      Array(PRIVATE_CALL_STACK_LENGTH)
         .fill(0)
-        .map(() => Fr.random());
-    };
-    const createRandomContractData = () => {
-      return new NewContractData(AztecAddress.random(), new EthAddress(randomBytes(20)), createRandomFields(1)[0]);
-    };
-    const newNullifiers = createRandomFields(KERNEL_NEW_NULLIFIERS_LENGTH);
-    const newContracts = [];
-    if (txRequest.functionData.isConstructor) {
-      newContracts.push(
-        new NewContractData(
-          txRequest.to,
-          txRequest.txContext.contractDeploymentData.portalContractAddress,
-          txRequest.txContext.contractDeploymentData.functionTreeRoot,
-        ),
-      );
-      newNullifiers[0] = Fr.fromBuffer(txRequest.to.toBuffer());
-    }
-
-    newContracts.push(
-      ...Array(KERNEL_NEW_CONTRACTS_LENGTH - newContracts.length)
-        .fill(0)
-        .map(() => createRandomContractData()),
+        .map(() => PrivateCallStackItem.empty()),
+      new UInt8Vector(Buffer.alloc(42)),
+      VerificationKey.fromBuffer(executionResult.vk),
+      functionTreeInfo.membershipWitness,
+      contractLeafMembershipWitness,
+      txRequest.txContext.contractDeploymentData.portalContractAddress,
     );
 
-    const aggregationObject = new AggregationObject(
-      new AffineElement(new Fq(0n), new Fq(0n)),
-      new AffineElement(new Fq(0n), new Fq(0n)),
-      [],
-      [],
-      false,
-    );
-    const createOptionallyRevealedData = () => {
-      const selector = Buffer.alloc(4);
-      selector.writeUInt32BE(1, 0);
-
-      const optionallyRevealedData = new OptionallyRevealedData(
-        createRandomFields(1)[0],
-        new FunctionData(selector, true, true),
-        createRandomFields(EMITTED_EVENTS_LENGTH),
-        createRandomFields(1)[0],
-        new EthAddress(randomBytes(20)),
-        true,
-        true,
-        true,
-        true,
-      );
-      return optionallyRevealedData;
-    };
-    const accumulatedTxData = new AccumulatedData(
-      aggregationObject,
-      new Fr(0n),
-      createRandomFields(KERNEL_NEW_COMMITMENTS_LENGTH),
-      newNullifiers, // first element should be a stubbed "real" nullfiier for the contract address
-      createRandomFields(KERNEL_PRIVATE_CALL_STACK_LENGTH),
-      createRandomFields(KERNEL_PUBLIC_CALL_STACK_LENGTH),
-      createRandomFields(KERNEL_L1_MSG_STACK_LENGTH),
-      newContracts,
-      Array(KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH)
-        .fill(0)
-        .map(() => createOptionallyRevealedData()),
-    );
-
-    const publicInputs = new PrivateKernelPublicInputs(
-      accumulatedTxData,
-      new ConstantData(oldRoots, txRequest.txContext),
-      true,
-    );
+    const previousKernelData: PreviousKernelData = PreviousKernelData.makeEmpty();
+    this.log(`Executing private kernel simulation...`);
+    const publicInputs = await privateKernelSim(wasm, signedTxRequest, previousKernelData, privateCallData);
+    this.log(`Skipping private kernel proving...`);
+    // const proof = await privateKernelProve(wasm, signedTxRequest, previousKernelData, privateCallData);
+    const proof = makeEmptyProof().buffer;
+    this.log('Kernel Prover Completed!');
 
     return Promise.resolve({
       publicInputs,
-      proof: Buffer.alloc(0),
+      proof,
     });
+  }
+
+  private createDummyVk() {
+    return VerificationKey.makeFake();
+  }
+
+  private createRandomMembershipWitness() {
+    return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
+      CONTRACT_TREE_HEIGHT,
+      0,
+      Array(CONTRACT_TREE_HEIGHT)
+        .fill(0)
+        .map(() => Fr.random()),
+    );
   }
 }

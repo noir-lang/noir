@@ -1,12 +1,12 @@
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
+import { EcdsaSignature } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation';
-import { Signature } from '../circuits.js';
 import { randomBytes } from '../foundation.js';
 
 export interface KeyPair {
   getPublicKey(): Point;
   getPrivateKey(): Promise<Buffer>;
-  signMessage(message: Buffer): Promise<Signature>;
+  signMessage(message: Buffer): Promise<EcdsaSignature>;
 }
 
 export class ConstantKeyPair implements KeyPair {
@@ -31,6 +31,6 @@ export class ConstantKeyPair implements KeyPair {
       throw new Error('Cannot sign over empty message.');
     }
 
-    return Promise.resolve(Signature.random());
+    return Promise.resolve(EcdsaSignature.random());
   }
 }

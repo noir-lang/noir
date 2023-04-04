@@ -3,7 +3,7 @@
 exports[`basic PrivateCircuitPublicInputs serialization serializes a trivial PrivateCircuitPublicInputs and prints it 1`] = `
 "call_context: msg_sender: 0x1
 storage_contract_address: 0x2
-tx_origin: 0x3
+portal_contract_address: 0x3
 is_delegate_call: 1
 is_static_call: 1
 is_contract_deployment: 1

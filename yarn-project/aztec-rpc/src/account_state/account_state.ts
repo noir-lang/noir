@@ -81,6 +81,8 @@ export class AccountState {
       if (txIndices.size) {
         decrypted.push({ blockNo, txIndices: [...txIndices], txAuxDataDaos });
         this.log(`Decrypted ${txIndices.size} tx aux data in block ${blockNo}.`);
+      } else {
+        this.log(`No tx aux data found in block ${blockNo}`);
       }
 
       dataStartIndex += dataChunks.length;
@@ -105,6 +107,7 @@ export class AccountState {
       const block = blocks[i];
       txIndices[i].map((txIndex, j) => {
         const txHash = getTxHash(block, txIndex);
+        this.log(`Processing tx ${txHash.toString()} from block ${block.number}`);
         const txAuxData = txAuxDataDaos[i][j];
         const isContractDeployment = true; // TODO
         const [to, contractAddress] = isContractDeployment
@@ -122,5 +125,10 @@ export class AccountState {
       });
     }
     await this.db.addTxs(txDaos);
+  }
+
+  // TODO: Remove in favor of processUnverifiedData advancing this pointer
+  public syncToBlock(block: { number: number }) {
+    this.syncedToBlock = block.number;
   }
 }

@@ -7,6 +7,10 @@ COPY . .
 WORKDIR /usr/src/yarn-project/circuits.js
 RUN yarn build
 
+# Build barretenberg.js to ensure wasm is in the dest folder.
+WORKDIR /usr/src/yarn-project/barretenberg.js
+RUN yarn build
+
 # Build end-to-end.
 WORKDIR /usr/src/yarn-project/end-to-end
 RUN yarn build && yarn formatting

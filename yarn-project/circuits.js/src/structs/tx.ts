@@ -26,6 +26,9 @@ export class ContractDeploymentData {
     );
   }
 
+  public static empty() {
+    return new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
+  }
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
@@ -47,9 +50,9 @@ export class ContractDeploymentData {
  */
 export class TxContext {
   constructor(
-    public isFeePaymentTx: false,
-    public isRebatePaymentTx: false,
-    public isContractDeployment: true,
+    public isFeePaymentTx: boolean,
+    public isRebatePaymentTx: boolean,
+    public isContractDeployment: boolean,
     public contractDeploymentData: ContractDeploymentData,
   ) {}
 
@@ -72,7 +75,12 @@ export class TxContext {
    */
   static fromBuffer(buffer: Buffer | BufferReader): TxContext {
     const reader = BufferReader.asReader(buffer);
-    return new TxContext(false, false, true, reader.readObject(ContractDeploymentData));
+    return new TxContext(
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readObject(ContractDeploymentData),
+    );
   }
 }
 
@@ -101,7 +109,7 @@ export class TxRequest {
     public from: AztecAddress,
     public to: AztecAddress,
     public functionData: FunctionData,
-    public args: any[],
+    public args: Fr[],
     public nonce: Fr,
     public txContext: TxContext,
     public chainId: Fr,
