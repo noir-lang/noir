@@ -5,6 +5,7 @@ export * from './function_data.js';
 export * from './kernel.js';
 export * from './merge_rollup.js';
 export * from './private_circuit_public_inputs.js';
+export * from './private_call_stack_item.js';
 export * from './root_rollup.js';
 export * from './shared.js';
 export * from './tx.js';

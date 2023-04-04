@@ -19,18 +19,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/acir-simulator@workspace:acir-simulator"
   dependencies:
+    "@aztec/barretenberg.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/merkle-tree": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.4.3
-    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#78606b521f3147ec6b88879e738067a3b2b6f2fd"
-    "@noir-lang/noir-source-resolver": ^1.1.0
+    "@noir-lang/aztec_backend_wasm": "github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2007d1c309da9d41c3ad38cc8696613678e910c"
     "@noir-lang/noir_util_wasm": "github:joss-aztec/noir_util_wasm#bb71df87c9415be387c998b67cb0de4298ab6b6a"
-    "@noir-lang/noir_wasm": 0.3.2-29b1f7df
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.4.0
     "@types/node": ^18.7.23
     jest: ^28.1.3
+    levelup: ^5.1.1
+    memdown: ^6.1.1
     toml: ^3.0.0
     ts-jest: ^28.0.7
     ts-node: ^10.9.1
@@ -1875,10 +1877,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noir-lang/aztec_backend_wasm@github:joss-aztec/barretenberg_browser_stopgap_wasm_build#78606b521f3147ec6b88879e738067a3b2b6f2fd":
-  version: 0.1.0-4488289
-  resolution: "@noir-lang/aztec_backend_wasm@https://github.com/joss-aztec/barretenberg_browser_stopgap_wasm_build.git#commit=78606b521f3147ec6b88879e738067a3b2b6f2fd"
-  checksum: 50470822845229f268cf9b0bf7a04a72e5328e4fd1197071035e1ba0315dc9d35d104457078f3caec595ac7ca31d715df9b724a1f8ca8797ea75950883e63c74
+"@noir-lang/aztec_backend_wasm@github:joss-aztec/barretenberg_browser_stopgap_wasm_build#f2007d1c309da9d41c3ad38cc8696613678e910c":
+  version: 0.1.0-bd2335d
+  resolution: "@noir-lang/aztec_backend_wasm@https://github.com/joss-aztec/barretenberg_browser_stopgap_wasm_build.git#commit=f2007d1c309da9d41c3ad38cc8696613678e910c"
+  checksum: 82b5fef659da6911fd38ad534866ed61b2ea174df8fe75f323102562f979b390265da0d80a3ed7d4694a6ce0e2b35c5bad4d65a194d6ea933b1c2c40c3244638
   languageName: node
   linkType: hard
 

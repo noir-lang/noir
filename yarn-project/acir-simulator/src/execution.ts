@@ -1,21 +1,25 @@
-import { ACVMField, acvm, toACVMField, fromACVMField, ZERO_ACVM_FIELD } from './acvm.js';
-import {
-  AztecAddress,
-  CallContext,
-  EthAddress,
-  Fr,
-  FunctionData,
-  OldTreeRoots,
-  PrivateCallStackItem,
-  TxRequest,
-} from '@aztec/circuits.js';
+import { ACVMField, acvm, toACVMField, fromACVMField, ZERO_ACVM_FIELD } from './acvm/index.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
+import { CallContext, OldTreeRoots, TxRequest, PrivateCallStackItem, FunctionData } from '@aztec/circuits.js';
 import { DBOracle } from './db_oracle.js';
-import { writeInputs, extractPublicInputs, frToAztecAddress } from './witness_io.js';
+import { writeInputs, extractPublicInputs, frToAztecAddress } from './acvm/witness_io.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
 
+interface NewNoteData {
+  preimage: Fr[];
+  storageSlot: Fr;
+  owner: { x: Fr; y: Fr };
+}
+
+interface NewNullifierData {
+  preimage: Fr[];
+  storageSlot: Fr;
+  nullifier: Fr;
+}
+
 export interface ExecutionPreimages {
-  newNotes: Array<{ preimage: Fr[]; storageSlot: Fr }>;
-  nullifiedNotes: Fr[];
+  newNotes: NewNoteData[];
+  nullifiedNotes: NewNullifierData[];
 }
 
 export interface ExecutionResult {
@@ -54,7 +58,7 @@ export class Execution {
     return this.runExternalFunction(
       this.entryPointABI,
       this.contractAddress,
-      this.request.functionData.functionSelector,
+      this.request.functionData,
       this.request.args,
       callContext,
     );
@@ -64,42 +68,48 @@ export class Execution {
   private async runExternalFunction(
     abi: FunctionAbi,
     contractAddress: AztecAddress,
-    functionSelector: Buffer,
+    functionData: FunctionData,
     args: Fr[],
     callContext: CallContext,
   ): Promise<ExecutionResult> {
     const acir = Buffer.from(abi.bytecode, 'hex');
     const initialWitness = writeInputs(args, callContext, this.request.txContext, this.oldRoots);
-    const newNotePreimages: Array<{ preimage: Fr[]; storageSlot: Fr }> = [];
-    const newNullifiers: Fr[] = [];
+    const newNotePreimages: NewNoteData[] = [];
+    const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
 
     const { partialWitness } = await acvm(acir, initialWitness, {
       getSecretKey: ([address]: ACVMField[]) => {
         return this.getSecretKey(contractAddress, address);
       },
-      getNotes2: async ([storageSlot]: ACVMField[]) => {
+      getNotes2: async ([, storageSlot]: ACVMField[]) => {
         return await this.getNotes(contractAddress, storageSlot, 2);
       },
       getRandomField: () => Promise.resolve([toACVMField(Fr.random())]),
-      notifyCreatedNote: (params: ACVMField[]) => {
-        const [storageSlot, ...acvmPreimage] = params;
-        const preimage = acvmPreimage.map(f => fromACVMField(f));
+      notifyCreatedNote: ([storageSlot, ownerX, ownerY, ...acvmPreimage]: ACVMField[]) => {
         newNotePreimages.push({
-          preimage,
+          preimage: acvmPreimage.map(f => fromACVMField(f)),
           storageSlot: fromACVMField(storageSlot),
+          owner: {
+            x: fromACVMField(ownerX),
+            y: fromACVMField(ownerY),
+          },
         });
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
-      notifyNullifiedNote: ([nullifier]: ACVMField[]) => {
-        newNullifiers.push(fromACVMField(nullifier));
+      notifyNullifiedNote: ([slot, nullifier, ...acvmPreimage]: ACVMField[]) => {
+        newNullifiers.push({
+          preimage: acvmPreimage.map(f => fromACVMField(f)),
+          storageSlot: fromACVMField(slot),
+          nullifier: fromACVMField(nullifier),
+        });
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);
 
-    const callStackItem = new PrivateCallStackItem(contractAddress, new FunctionData(functionSelector), publicInputs);
+    const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs);
 
     return {
       acir,
@@ -115,15 +125,13 @@ export class Execution {
   }
 
   private async getNotes(contractAddress: AztecAddress, storageSlot: ACVMField, count: number) {
-    const notes = await this.db.getNotes(contractAddress, fromACVMField(storageSlot));
-    const mapped = notes
-      .slice(0, count)
-      .flatMap(note => [
-        toACVMField(note.index),
-        ...note.note.map(f => toACVMField(f)),
-        toACVMField(this.oldRoots.privateDataTreeRoot),
-        ...note.siblingPath.map(f => toACVMField(f)),
-      ]);
+    const notes = await this.db.getNotes(contractAddress, fromACVMField(storageSlot), count);
+    const mapped = notes.flatMap(noteGetData => [
+      ...noteGetData.preimage.map(f => toACVMField(f)),
+      toACVMField(noteGetData.index),
+      ...noteGetData.siblingPath.map(f => toACVMField(f)),
+      toACVMField(this.oldRoots.privateDataTreeRoot),
+    ]);
     return mapped;
   }
 

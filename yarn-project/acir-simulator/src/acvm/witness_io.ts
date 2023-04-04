@@ -1,12 +1,10 @@
-import { ACVMField, ACVMWitness, fromACVMField, toACVMField } from './acvm.js';
+import { ACVMField, ACVMWitness, fromACVMField, toACVMField } from './fields.js';
+import { AztecAddress, Fr, EthAddress } from '@aztec/foundation';
 import {
   ARGS_LENGTH,
-  AztecAddress,
   CallContext,
   ContractDeploymentData,
   EMITTED_EVENTS_LENGTH,
-  EthAddress,
-  Fr,
   L1_MSG_STACK_LENGTH,
   NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,

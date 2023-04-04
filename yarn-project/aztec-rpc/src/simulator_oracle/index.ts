@@ -10,10 +10,10 @@ export class SimulatorOracle implements DBOracle {
     return this.keyStore.getAccountPrivateKey(address);
   }
 
-  async getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteLoadOracleInputs[]> {
+  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, n: number): Promise<NoteLoadOracleInputs[]> {
     const noteDaos = await this.db.getTxAuxData(contractAddress, storageSlot);
-    return noteDaos.map(noteDao => ({
-      note: noteDao.notePreimage.items,
+    return noteDaos.slice(0, n).map(noteDao => ({
+      preimage: noteDao.notePreimage.items,
       siblingPath: [], // TODO get this from node
       index: noteDao.index,
     }));
