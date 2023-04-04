@@ -41,6 +41,15 @@
       }
     },
     {
+      "name": "clang15-dbg",
+      "displayName": "Debugging build with Clang-15",
+      "description": "Build with globally installed Clang-15 in debug mode",
+      "inherits": "clang15",
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
       "name": "gcc",
       "displayName": "Build with GCC",
       "description": "Build with globally installed GCC",
@@ -131,6 +140,11 @@
       "configurePreset": "clang15"
     },
     {
+      "name": "clang15-dbg",
+      "inherits": "default",
+      "configurePreset": "clang15-dbg"
+    },
+    {
       "name": "gcc",
       "inherits": "default",
       "configurePreset": "gcc"
@@ -180,6 +194,11 @@
       "name": "clang15",
       "inherits": "default",
       "configurePreset": "clang15"
+    },
+    {
+      "name": "clang15-dbg",
+      "inherits": "default",
+      "configurePreset": "clang15-dbg"
     },
     {
       "name": "gcc",
