@@ -85,7 +85,7 @@ fn save_and_preprocess_contract(
         let contract_id = format!("{}-{}", circuit_name, &compiled_contract.name);
 
         // Save contract ABI to file using the contract ID.
-        // This includes the verification key.
+        // This includes the verification keys for each contract function.
         save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
 
         // Save preprocessed data to disk
