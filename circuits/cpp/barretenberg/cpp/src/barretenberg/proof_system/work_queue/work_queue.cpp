@@ -247,18 +247,23 @@ void work_queue::process_queue()
             using namespace barretenberg;
             const size_t n = key->circuit_size;
             polynomial& wire = key->polynomial_store.get(item.tag);
-            polynomial wire_fft(4 * n + 4);
 
             polynomial wire_copy(wire, n);
             wire_copy.coset_fft_with_generator_shift(key->small_domain, item.constant);
 
-            for (size_t i = 0; i < n; ++i) {
-                wire_fft[4 * i + item.index] = wire_copy[i];
+            if (item.index != 0) {
+                polynomial& old_wire_fft = key->polynomial_store.get(item.tag + "_fft");
+                for (size_t i = 0; i < n; ++i) {
+                    old_wire_fft[4 * i + item.index] = wire_copy[i];
+                }
+                old_wire_fft[4 * n + item.index] = wire_copy[0];
+            } else {
+                polynomial wire_fft(4 * n + 4);
+                for (size_t i = 0; i < n; ++i) {
+                    wire_fft[4 * i + item.index] = wire_copy[i];
+                }
+                key->polynomial_store.put(item.tag + "_fft", std::move(wire_fft));
             }
-            wire_fft[4 * n + item.index] = wire_copy[0];
-
-            key->polynomial_store.put(item.tag + "_fft", 4 * n + 4);
-
             break;
         }
         case WorkType::FFT: {

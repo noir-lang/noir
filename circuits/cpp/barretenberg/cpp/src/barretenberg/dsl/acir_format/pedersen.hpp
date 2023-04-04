@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/stdlib/types/types.hpp"
 
 namespace acir_format {
 
@@ -13,7 +13,7 @@ struct PedersenConstraint {
     friend bool operator==(PedersenConstraint const& lhs, PedersenConstraint const& rhs) = default;
 };
 
-void create_pedersen_constraint(plonk::TurboComposer& composer, const PedersenConstraint& input);
+void create_pedersen_constraint(plonk::stdlib::types::Composer& composer, const PedersenConstraint& input);
 
 template <typename B> inline void read(B& buf, PedersenConstraint& constraint)
 {
@@ -27,8 +27,8 @@ template <typename B> inline void write(B& buf, PedersenConstraint const& constr
 {
     using serialize::write;
     write(buf, constraint.scalars);
-    read(buf, constraint.result_x);
-    read(buf, constraint.result_y);
+    write(buf, constraint.result_x);
+    write(buf, constraint.result_y);
 }
 
 } // namespace acir_format

@@ -1,13 +1,12 @@
 #include "merkle_membership_constraint.hpp"
 #include "barretenberg/stdlib/merkle_tree/membership.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace acir_format {
 
-void create_merkle_check_membership_constraint(plonk::TurboComposer& composer, const MerkleMembershipConstraint& input)
+void create_merkle_check_membership_constraint(Composer& composer, const MerkleMembershipConstraint& input)
 {
     // Convert value from a witness index into a field element.
     // This is the hash of the message. In Barretenberg, this would be input.value = hash_value(message)
@@ -23,7 +22,7 @@ void create_merkle_check_membership_constraint(plonk::TurboComposer& composer, c
     // We are given the HashPath as a Vec<fr>
     // We want to first convert it into a Vec<(fr, fr)> then cast this to hash_path
     // struct which requires the method create_witness_hashpath
-    hash_path<plonk::TurboComposer> hash_path;
+    hash_path<Composer> hash_path;
 
     // In Noir we accept a hash path that only contains one hash per tree level
     // It is ok to reuse the leaf as it will be overridden in check_subtree_membership when computing the current root

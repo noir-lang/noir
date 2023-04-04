@@ -1,12 +1,11 @@
 #include "blake2s_constraint.hpp"
 #include "round.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 
 namespace acir_format {
 
-void create_blake2s_constraints(plonk::TurboComposer& composer, const Blake2sConstraint& constraint)
+void create_blake2s_constraints(Composer& composer, const Blake2sConstraint& constraint)
 {
 
     // Create byte array struct
@@ -27,7 +26,7 @@ void create_blake2s_constraints(plonk::TurboComposer& composer, const Blake2sCon
         arr.write(element_bytes);
     }
 
-    byte_array_ct output_bytes = plonk::stdlib::blake2s<plonk::TurboComposer>(arr);
+    byte_array_ct output_bytes = plonk::stdlib::blake2s<Composer>(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();

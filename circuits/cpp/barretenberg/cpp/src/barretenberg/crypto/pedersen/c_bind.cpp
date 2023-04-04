@@ -1,5 +1,6 @@
 #include "c_bind.hpp"
 #include "pedersen.hpp"
+#include "pedersen_lookup.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/timer.hpp"
 #include "barretenberg/common/mem.hpp"
@@ -21,11 +22,27 @@ WASM_EXPORT void pedersen__compress_fields(uint8_t const* left, uint8_t const* r
     barretenberg::fr::serialize_to_buffer(r, result);
 }
 
+WASM_EXPORT void pedersen_plookup_compress_fields(uint8_t const* left, uint8_t const* right, uint8_t* result)
+{
+    auto lhs = barretenberg::fr::serialize_from_buffer(left);
+    auto rhs = barretenberg::fr::serialize_from_buffer(right);
+    auto r = crypto::pedersen::lookup::compress_native({ lhs, rhs });
+    barretenberg::fr::serialize_to_buffer(r, result);
+}
+
 WASM_EXPORT void pedersen__compress(uint8_t const* inputs_buffer, uint8_t* output)
 {
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
     auto r = crypto::pedersen::compress_native(to_compress);
+    barretenberg::fr::serialize_to_buffer(r, output);
+}
+
+WASM_EXPORT void pedersen_plookup_compress(uint8_t const* inputs_buffer, uint8_t* output)
+{
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    auto r = crypto::pedersen::lookup::compress_native(to_compress);
     barretenberg::fr::serialize_to_buffer(r, output);
 }
 
@@ -42,6 +59,15 @@ WASM_EXPORT void pedersen__commit(uint8_t const* inputs_buffer, uint8_t* output)
     std::vector<grumpkin::fq> to_compress;
     read(inputs_buffer, to_compress);
     grumpkin::g1::affine_element pedersen_hash = crypto::pedersen::commit_native(to_compress);
+
+    write(output, pedersen_hash);
+}
+
+WASM_EXPORT void pedersen_plookup_commit(uint8_t const* inputs_buffer, uint8_t* output)
+{
+    std::vector<grumpkin::fq> to_compress;
+    read(inputs_buffer, to_compress);
+    grumpkin::g1::affine_element pedersen_hash = crypto::pedersen::lookup::commit_native(to_compress);
 
     write(output, pedersen_hash);
 }

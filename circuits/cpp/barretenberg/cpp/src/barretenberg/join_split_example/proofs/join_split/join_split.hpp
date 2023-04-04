@@ -21,7 +21,7 @@ void init_verification_key(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_f
 void init_verification_key(std::shared_ptr<bonk::VerifierMemReferenceString> const& crs,
                            bonk::verification_key_data&& vk_data);
 
-plonk::TurboProver new_join_split_prover(join_split_tx const& tx, bool mock);
+stdlib::types::Prover new_join_split_prover(join_split_tx const& tx, bool mock);
 
 bool verify_proof(plonk::proof const& proof);
 

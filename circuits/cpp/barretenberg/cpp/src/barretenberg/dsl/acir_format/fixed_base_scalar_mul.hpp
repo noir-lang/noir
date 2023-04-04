@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/stdlib/types/types.hpp"
 
 namespace acir_format {
 
@@ -12,7 +12,7 @@ struct FixedBaseScalarMul {
     friend bool operator==(FixedBaseScalarMul const& lhs, FixedBaseScalarMul const& rhs) = default;
 };
 
-void create_fixed_base_constraint(plonk::TurboComposer& composer, const FixedBaseScalarMul& input);
+void create_fixed_base_constraint(plonk::stdlib::types::Composer& composer, const FixedBaseScalarMul& input);
 
 template <typename B> inline void read(B& buf, FixedBaseScalarMul& constraint)
 {

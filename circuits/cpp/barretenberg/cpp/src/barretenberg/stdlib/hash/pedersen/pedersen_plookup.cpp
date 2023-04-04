@@ -54,7 +54,7 @@ template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, 
     if (p1_constant || p2_constant) {
         field_t lambda = (p2.y - p1.y) / (p2.x - p1.x);
         field_t x_3 = lambda.madd(lambda, -(p2.x + p1.x));
-        field_t y_3 = lambda.madd(p1.x - x_3, p1.y);
+        field_t y_3 = lambda.madd(p1.x - x_3, -p1.y);
         return point{ x_3, y_3 };
     }
 

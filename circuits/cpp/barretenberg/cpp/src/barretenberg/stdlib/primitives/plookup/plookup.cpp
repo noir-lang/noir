@@ -78,7 +78,7 @@ field_t<Composer> plookup_<Composer>::read_from_2_to_1_table(const MultiTableId 
 {
     const auto lookup = get_lookup_accumulators(id, key_a, key_b, true);
 
-    return lookup[ColumnIdx::C2][0];
+    return lookup[ColumnIdx::C3][0];
 }
 
 template <typename Composer>

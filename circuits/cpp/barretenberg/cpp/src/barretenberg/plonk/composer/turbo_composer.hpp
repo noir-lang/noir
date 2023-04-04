@@ -23,6 +23,9 @@ class TurboComposer : public ComposerBase {
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
+
+    virtual size_t get_total_circuit_size() const override { return num_gates; };
+
     void compute_witness() override;
 
     TurboProver create_prover();

@@ -417,7 +417,6 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     for (auto& widget : transition_widgets) {
         alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
     }
-
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif

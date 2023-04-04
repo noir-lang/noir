@@ -1,12 +1,11 @@
 #include "hash_to_field.hpp"
 #include "round.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 
 namespace acir_format {
 
-void create_hash_to_field_constraints(plonk::TurboComposer& composer, const HashToFieldConstraint constraint)
+void create_hash_to_field_constraints(Composer& composer, const HashToFieldConstraint constraint)
 {
 
     // Create byte array struct
@@ -31,7 +30,7 @@ void create_hash_to_field_constraints(plonk::TurboComposer& composer, const Hash
     // Hash To Field using blake2s.
     // Note: It does not need to be blake2s in the future
 
-    byte_array_ct out_bytes = plonk::stdlib::blake2s<plonk::TurboComposer>(arr);
+    byte_array_ct out_bytes = plonk::stdlib::blake2s<Composer>(arr);
 
     field_ct out(out_bytes);
     field_ct normalised_out = out.normalize();

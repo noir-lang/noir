@@ -1,13 +1,12 @@
 #include "ecdsa_secp256k1.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 
 namespace acir_format {
 
-crypto::ecdsa::signature ecdsa_convert_signature(plonk::TurboComposer& composer, std::vector<uint32_t> signature)
+crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector<uint32_t> signature)
 {
 
     crypto::ecdsa::signature signature_cr;
@@ -42,7 +41,7 @@ crypto::ecdsa::signature ecdsa_convert_signature(plonk::TurboComposer& composer,
     return signature_cr;
 }
 
-secp256k1_ct::g1_ct ecdsa_convert_inputs(plonk::TurboComposer* ctx, const secp256k1::g1::affine_element& input)
+secp256k1_ct::g1_ct ecdsa_convert_inputs(Composer* ctx, const secp256k1::g1::affine_element& input)
 {
     uint256_t x_u256(input.x);
     uint256_t y_u256(input.y);
@@ -61,7 +60,7 @@ secp256k1_ct::g1_ct ecdsa_convert_inputs(plonk::TurboComposer* ctx, const secp25
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-byte_array_ct ecdsa_vector_of_bytes_to_byte_array(plonk::TurboComposer& composer, std::vector<uint32_t> vector_of_bytes)
+byte_array_ct ecdsa_vector_of_bytes_to_byte_array(Composer& composer, std::vector<uint32_t> vector_of_bytes)
 {
     byte_array_ct arr(&composer);
 
@@ -77,13 +76,13 @@ byte_array_ct ecdsa_vector_of_bytes_to_byte_array(plonk::TurboComposer& composer
     }
     return arr;
 }
-witness_ct ecdsa_index_to_witness(plonk::TurboComposer& composer, uint32_t index)
+witness_ct ecdsa_index_to_witness(Composer& composer, uint32_t index)
 {
     fr value = composer.get_variable(index);
     return { &composer, value };
 }
 
-void create_ecdsa_verify_constraints(plonk::TurboComposer& composer, const EcdsaSecp256k1Constraint& input)
+void create_ecdsa_verify_constraints(Composer& composer, const EcdsaSecp256k1Constraint& input)
 {
 
     auto new_sig = ecdsa_convert_signature(composer, input.signature);
@@ -98,15 +97,15 @@ void create_ecdsa_verify_constraints(plonk::TurboComposer& composer, const Ecdsa
     std::vector<uint8_t> rr(new_sig.r.begin(), new_sig.r.end());
     std::vector<uint8_t> ss(new_sig.s.begin(), new_sig.s.end());
 
-    stdlib::ecdsa::signature<plonk::TurboComposer> sig{ stdlib::byte_array<plonk::TurboComposer>(&composer, rr),
-                                                        stdlib::byte_array<plonk::TurboComposer>(&composer, ss) };
+    stdlib::ecdsa::signature<Composer> sig{ stdlib::byte_array<Composer>(&composer, rr),
+                                            stdlib::byte_array<Composer>(&composer, ss) };
 
     pub_key_x_fq.assert_is_in_field();
     pub_key_y_fq.assert_is_in_field();
 
     secp256k1_ct::g1_bigfr_ct public_key = secp256k1_ct::g1_bigfr_ct(pub_key_x_fq, pub_key_y_fq);
 
-    bool_ct signature_result = stdlib::ecdsa::verify_signature<plonk::TurboComposer,
+    bool_ct signature_result = stdlib::ecdsa::verify_signature<Composer,
                                                                secp256k1_ct,
                                                                secp256k1_ct::fq_ct,
                                                                secp256k1_ct::bigfr_ct,

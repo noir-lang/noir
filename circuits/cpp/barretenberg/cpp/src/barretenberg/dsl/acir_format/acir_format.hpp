@@ -9,6 +9,7 @@
 #include "merkle_membership_constraint.hpp"
 #include "pedersen.hpp"
 #include "hash_to_field.hpp"
+#include "barretenberg/stdlib/types/types.hpp"
 
 namespace acir_format {
 
@@ -35,20 +36,21 @@ struct acir_format {
     friend bool operator==(acir_format const& lhs, acir_format const& rhs) = default;
 };
 
-void read_witness(TurboComposer& composer, std::vector<barretenberg::fr> witness);
+void read_witness(plonk::stdlib::types::Composer& composer, std::vector<barretenberg::fr> witness);
 
-void create_circuit(TurboComposer& composer, const acir_format& constraint_system);
+void create_circuit(plonk::stdlib::types::Composer& composer, const acir_format& constraint_system);
 
-TurboComposer create_circuit(const acir_format& constraint_system,
-                             std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory);
+plonk::stdlib::types::Composer create_circuit(const acir_format& constraint_system,
+                                              std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory);
 
-TurboComposer create_circuit_with_witness(const acir_format& constraint_system,
-                                          std::vector<fr> witness,
-                                          std::unique_ptr<ReferenceStringFactory>&& crs_factory);
+plonk::stdlib::types::Composer create_circuit_with_witness(const acir_format& constraint_system,
+                                                           std::vector<fr> witness,
+                                                           std::unique_ptr<ReferenceStringFactory>&& crs_factory);
 
-TurboComposer create_circuit_with_witness(const acir_format& constraint_system, std::vector<fr> witness);
+plonk::stdlib::types::Composer create_circuit_with_witness(const acir_format& constraint_system,
+                                                           std::vector<fr> witness);
 
-void create_circuit_with_witness(TurboComposer& composer,
+void create_circuit_with_witness(plonk::stdlib::types::Composer& composer,
                                  const acir_format& constraint_system,
                                  std::vector<fr> witness);
 

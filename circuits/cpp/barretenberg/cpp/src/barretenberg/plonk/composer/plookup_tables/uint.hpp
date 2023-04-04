@@ -64,7 +64,7 @@ inline BasicTable generate_and_rotate_table(BasicTableId id, const size_t table_
         }
     }
 
-    table.get_values_from_key = &get_xor_rotate_values_from_key<bits_per_slice, num_rotated_output_bits>;
+    table.get_values_from_key = &get_and_rotate_values_from_key<bits_per_slice, num_rotated_output_bits>;
 
     table.column_1_step_size = base;
     table.column_2_step_size = base;

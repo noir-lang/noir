@@ -13,7 +13,11 @@ enum ComposerType {
 // This variable sets the composer (TURBO or ULTRA) of the entire stdlib and rollup modules.
 // To switch to using a new composer, only changing this variable should activate the new composer
 // throughout the stdlib and circuits.
+#ifdef USE_TURBO
 static constexpr uint32_t SYSTEM_COMPOSER = ComposerType::TURBO;
+#else
+static constexpr uint32_t SYSTEM_COMPOSER = ComposerType::PLOOKUP;
+#endif
 
 enum MerkleHashType {
     FIXED_BASE_PEDERSEN,

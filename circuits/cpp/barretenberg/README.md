@@ -132,6 +132,12 @@ cmake --build --preset wasm --target ecc_tests
 wasmtime --dir=.. ./bin/ecc_tests
 ```
 
+To add gtest filter parameters in a wasm context:
+
+```
+wasmtime --dir=.. ./bin/ecc_tests run --gtest_filter=filtertext
+```
+
 ### Fuzzing build
 
 For detailed instructions look in cpp/docs/Fuzzing.md
@@ -160,11 +166,13 @@ cmake --build --preset coverage
 ```
 
 Then run tests (on the mainframe always use taskset and nice to limit your influence on the server. Profiling instrumentation is very heavy):
+
 ```
 taskset 0xffffff nice -n10 make test
 ```
 
 And generate report:
+
 ```
 make create_full_coverage_report
 ```
@@ -174,4 +182,5 @@ The report will land in the build directory in the all_test_coverage_report dire
 Alternatively you can build separate test binaries, e.g. honk_tests or numeric_tests and run **make test** just for them or even just for a single test. Then the report will just show coverage for those binaries.
 
 ### VS Code configuration
+
 A default configuration for VS Code is provided by the file [`barretenberg.code-workspace`](barretenberg.code-workspace). These settings can be overridden by placing configuration files in `.vscode/`.

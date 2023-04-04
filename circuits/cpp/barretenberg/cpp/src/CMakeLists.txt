@@ -91,7 +91,7 @@ if(WASM)
         $<TARGET_OBJECTS:stdlib_aes128_objects>
         $<TARGET_OBJECTS:stdlib_merkle_tree_objects>
         $<TARGET_OBJECTS:acir_format_objects>
-        $<TARGET_OBJECTS:turbo_proofs_objects>
+        $<TARGET_OBJECTS:acir_proofs_objects>
     )
 
     # With binaryen installed, it seems its wasm backend optimiser gets invoked automatically.
@@ -105,18 +105,24 @@ if(WASM)
         -nostartfiles -O2 -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
     )
 
-    find_program(WASM_OPT wasm-opt)
+    # TODO(blaine): Figure out how to Asyncify the wasm output.
+    # Binaryen's Asyncify transform produces wasm that has too many local variables to run in a WebAssembly
+    # instance. This likely would be "solved" by enabling the optimizations to reduce the number of locals,
+    # but using any optimization level results in a wasm file that takes an unusable amount of time to solve the
+    # most simple prood.
 
-    if(NOT WASM_OPT)
-        message(FATAL_ERROR "wasm-opt executable not found. Please install binaryen.")
-    endif()
+    # find_program(WASM_OPT wasm-opt)
 
-    add_custom_command(
-        TARGET barretenberg.wasm
-        POST_BUILD
-        COMMAND wasm-opt "$<TARGET_FILE:barretenberg.wasm>" -O2 --asyncify -o "$<TARGET_FILE:barretenberg.wasm>"
-        VERBATIM
-    )
+    # if(NOT WASM_OPT)
+    #     message(FATAL_ERROR "wasm-opt executable not found. Please install binaryen.")
+    # endif()
+
+    # add_custom_command(
+    #     TARGET barretenberg.wasm
+    #     POST_BUILD
+    #     COMMAND wasm-opt "$<TARGET_FILE:barretenberg.wasm>" -O0 --asyncify -o "$<TARGET_FILE:barretenberg.wasm>"
+    #     VERBATIM
+    # )
 
     if(INSTALL_BARRETENBERG)
         install(TARGETS barretenberg.wasm DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -151,7 +157,7 @@ if(WASM)
         $<TARGET_OBJECTS:stdlib_aes128_objects>
         $<TARGET_OBJECTS:stdlib_merkle_tree_objects>
         $<TARGET_OBJECTS:acir_format_objects>
-        $<TARGET_OBJECTS:turbo_proofs_objects>
+        $<TARGET_OBJECTS:acir_proofs_objects>
     )
 else()
     # For use when compiling dependent cpp projects
@@ -183,7 +189,7 @@ else()
         $<TARGET_OBJECTS:stdlib_aes128_objects>
         $<TARGET_OBJECTS:stdlib_merkle_tree_objects>
         $<TARGET_OBJECTS:acir_format_objects>
-        $<TARGET_OBJECTS:turbo_proofs_objects>
+        $<TARGET_OBJECTS:acir_proofs_objects>
         $<TARGET_OBJECTS:env_objects>
     )
 

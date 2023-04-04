@@ -800,11 +800,17 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 
     EXPECT_TRUE(result.valid);
 
-    // The below part detects any changes in the join-split circuit
+// The below part detects any changes in the join-split circuit
+#ifdef USE_TURBO
     constexpr uint32_t CIRCUIT_GATE_COUNT = 64000;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65536;
     const uint256_t VK_HASH("bb2062d006d31d3234766277711eb28577d5f6082d0f484b87e8235628f8e864");
+#else
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 522850;
+    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
+    const uint256_t VK_HASH("012959f86e485f3a8f0b06c900082fca1c34b535cdf4f1088f03154ea655b401");
 
+#endif
     auto number_of_gates_js = result.number_of_gates;
     auto vk_hash_js = get_verification_key()->sha256_hash();
 
@@ -2613,11 +2619,15 @@ TEST_F(join_split_tests, test_send_two_virtual_notes_full_proof)
 // Miscellaneous
 // *************************************************************************************************************
 
-TEST_F(join_split_tests, serialzed_proving_key_size)
+TEST_F(join_split_tests, serialized_proving_key_size)
 {
     uint8_t* ptr;
     auto len = join_split__get_new_proving_key_data(&ptr);
+#ifdef USE_TURBO
     EXPECT_LE(len, 2 * 170 * 1024 * 1024);
+#else
+    EXPECT_LE(len, 2315258552);
+#endif
 }
 
 } // namespace join_split_example::proofs::join_split

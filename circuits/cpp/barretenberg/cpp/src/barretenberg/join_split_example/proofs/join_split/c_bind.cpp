@@ -42,9 +42,10 @@ WASM_EXPORT void join_split__release_key()
 
 WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
 {
-    // Computing the size of the serialized key is non trivial. We know it's ~331mb.
-    // Allocate a buffer large enough to hold it, and abort if we overflow.
-    // This is to keep memory usage down.
+// Computing the size of the serialized key is non trivial. We know it's ~331mb.
+// Allocate a buffer large enough to hold it, and abort if we overflow.
+// This is to keep memory usage down.
+#ifdef USE_TURBO
     size_t total_buf_len = 350 * 1024 * 1024;
     auto raw_buf = (uint8_t*)malloc(total_buf_len);
     auto raw_buf_end = raw_buf;
@@ -56,6 +57,15 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
         std::abort();
     }
     return len;
+#else
+    auto proving_key = get_proving_key();
+    auto buffer = to_buffer(*proving_key);
+    auto raw_buf = (uint8_t*)malloc(buffer.size());
+    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
+    *output = raw_buf;
+
+    return static_cast<uint32_t>(buffer.size());
+#endif
 }
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
@@ -93,7 +103,7 @@ WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool moc
 {
     auto tx = from_buffer<join_split_tx>(join_split_buf);
     auto prover = new_join_split_prover(tx, mock);
-    auto heapProver = new plonk::TurboProver(std::move(prover));
+    auto heapProver = new stdlib::types::Prover(std::move(prover));
     return heapProver;
 }
 

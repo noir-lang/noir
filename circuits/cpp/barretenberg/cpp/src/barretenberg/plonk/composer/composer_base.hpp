@@ -107,6 +107,7 @@ class ComposerBase {
     virtual ~ComposerBase(){};
 
     virtual size_t get_num_gates() const { return num_gates; }
+    virtual size_t get_total_circuit_size() const = 0;
     virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }
     virtual std::shared_ptr<proving_key> compute_proving_key_base(const ComposerType type = STANDARD,

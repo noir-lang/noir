@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/stdlib/types/types.hpp"
 
 namespace acir_format {
 
@@ -25,7 +25,7 @@ struct SchnorrConstraint {
     friend bool operator==(SchnorrConstraint const& lhs, SchnorrConstraint const& rhs) = default;
 };
 
-void create_schnorr_verify_constraints(plonk::TurboComposer& composer, const SchnorrConstraint& input);
+void create_schnorr_verify_constraints(plonk::stdlib::types::Composer& composer, const SchnorrConstraint& input);
 
 template <typename B> inline void read(B& buf, SchnorrConstraint& constraint)
 {

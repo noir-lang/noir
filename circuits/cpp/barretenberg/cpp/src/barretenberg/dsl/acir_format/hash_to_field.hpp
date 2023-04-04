@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/stdlib/types/types.hpp"
 
 namespace acir_format {
 
@@ -19,7 +19,7 @@ struct HashToFieldConstraint {
     friend bool operator==(HashToFieldConstraint const& lhs, HashToFieldConstraint const& rhs) = default;
 };
 
-void create_hash_to_field_constraints(plonk::TurboComposer& composer, HashToFieldConstraint constraint);
+void create_hash_to_field_constraints(plonk::stdlib::types::Composer& composer, HashToFieldConstraint constraint);
 
 template <typename B> inline void read(B& buf, HashToFieldInput& constraint)
 {

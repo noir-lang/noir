@@ -1,12 +1,11 @@
 #include "schnorr_verify.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 
 namespace acir_format {
 
-crypto::schnorr::signature convert_signature(plonk::TurboComposer& composer, std::vector<uint32_t> signature)
+crypto::schnorr::signature convert_signature(Composer& composer, std::vector<uint32_t> signature)
 {
 
     crypto::schnorr::signature signature_cr;
@@ -43,7 +42,7 @@ crypto::schnorr::signature convert_signature(plonk::TurboComposer& composer, std
 // vector of bytes here, assumes that the witness indices point to a field element which can be represented
 // with just a byte.
 // notice that this function truncates each field_element to a byte
-byte_array_ct vector_of_bytes_to_byte_array(plonk::TurboComposer& composer, std::vector<uint32_t> vector_of_bytes)
+byte_array_ct vector_of_bytes_to_byte_array(Composer& composer, std::vector<uint32_t> vector_of_bytes)
 {
     byte_array_ct arr(&composer);
 
@@ -59,13 +58,13 @@ byte_array_ct vector_of_bytes_to_byte_array(plonk::TurboComposer& composer, std:
     }
     return arr;
 }
-witness_ct index_to_witness(plonk::TurboComposer& composer, uint32_t index)
+witness_ct index_to_witness(Composer& composer, uint32_t index)
 {
     fr value = composer.get_variable(index);
     return { &composer, value };
 }
 
-void create_schnorr_verify_constraints(plonk::TurboComposer& composer, const SchnorrConstraint& input)
+void create_schnorr_verify_constraints(Composer& composer, const SchnorrConstraint& input)
 {
 
     auto new_sig = convert_signature(composer, input.signature);

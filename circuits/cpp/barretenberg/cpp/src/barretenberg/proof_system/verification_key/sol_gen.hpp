@@ -96,29 +96,29 @@ inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<verification_k
     print_u256("0x20", key->num_public_inputs, "vk.num_inputs");
     print_u256("0x40", key->domain.root, "vk.work_root");
     print_u256("0x60", key->domain.domain_inverse, "vk.domain_inverse");
-    print_g1("0x80", "0xa0", key->constraint_selectors.at("Q_1"), "vk.Q1");
-    print_g1("0xc0", "0xe0", key->constraint_selectors.at("Q_2"), "vk.Q2");
-    print_g1("0x100", "0x120", key->constraint_selectors.at("Q_3"), "vk.Q3");
-    print_g1("0x140", "0x160", key->constraint_selectors.at("Q_4"), "vk.Q4");
-    print_g1("0x180", "0x1a0", key->constraint_selectors.at("Q_M"), "vk.Q_M");
-    print_g1("0x1c0", "0x1e0", key->constraint_selectors.at("Q_C"), "vk.Q_C");
-    print_g1("0x200", "0x220", key->constraint_selectors.at("Q_ARITHMETIC"), "vk.Q_ARITHMETIC");
-    print_g1("0x240", "0x260", key->constraint_selectors.at("Q_SORT"), "vk.QSORT");
-    print_g1("0x280", "0x2a0", key->constraint_selectors.at("Q_ELLIPTIC"), "vk.Q_ELLIPTIC");
-    print_g1("0x2c0", "0x2e0", key->constraint_selectors.at("Q_AUX"), "vk.Q_AUX");
-    print_g1("0x300", "0x320", key->permutation_selectors.at("SIGMA_1"), "vk.SIGMA1");
-    print_g1("0x340", "0x360", key->permutation_selectors.at("SIGMA_2"), "vk.SIGMA2");
-    print_g1("0x380", "0x3a0", key->permutation_selectors.at("SIGMA_3"), "vk.SIGMA3");
-    print_g1("0x3c0", "0x3e0", key->permutation_selectors.at("SIGMA_4"), "vk.SIGMA4");
-    print_g1("0x400", "0x420", key->constraint_selectors.at("TABLE_1"), "vk.TABLE1");
-    print_g1("0x440", "0x460", key->constraint_selectors.at("TABLE_2"), "vk.TABLE2");
-    print_g1("0x480", "0x4a0", key->constraint_selectors.at("TABLE_3"), "vk.TABLE3");
-    print_g1("0x4c0", "0x4e0", key->constraint_selectors.at("TABLE_4"), "vk.TABLE4");
-    print_g1("0x500", "0x520", key->constraint_selectors.at("TABLE_TYPE"), "vk.TABLE_TYPE");
-    print_g1("0x540", "0x560", key->permutation_selectors.at("ID_1"), "vk.ID1");
-    print_g1("0x580", "0x5a0", key->permutation_selectors.at("ID_2"), "vk.ID2");
-    print_g1("0x5c0", "0x5e0", key->permutation_selectors.at("ID_3"), "vk.ID3");
-    print_g1("0x600", "0x620", key->permutation_selectors.at("ID_4"), "vk.ID4");
+    print_g1("0x80", "0xa0", key->commitments.at("Q_1"), "vk.Q1");
+    print_g1("0xc0", "0xe0", key->commitments.at("Q_2"), "vk.Q2");
+    print_g1("0x100", "0x120", key->commitments.at("Q_3"), "vk.Q3");
+    print_g1("0x140", "0x160", key->commitments.at("Q_4"), "vk.Q4");
+    print_g1("0x180", "0x1a0", key->commitments.at("Q_M"), "vk.Q_M");
+    print_g1("0x1c0", "0x1e0", key->commitments.at("Q_C"), "vk.Q_C");
+    print_g1("0x200", "0x220", key->commitments.at("Q_ARITHMETIC"), "vk.Q_ARITHMETIC");
+    print_g1("0x240", "0x260", key->commitments.at("Q_SORT"), "vk.QSORT");
+    print_g1("0x280", "0x2a0", key->commitments.at("Q_ELLIPTIC"), "vk.Q_ELLIPTIC");
+    print_g1("0x2c0", "0x2e0", key->commitments.at("Q_AUX"), "vk.Q_AUX");
+    print_g1("0x300", "0x320", key->commitments.at("SIGMA_1"), "vk.SIGMA1");
+    print_g1("0x340", "0x360", key->commitments.at("SIGMA_2"), "vk.SIGMA2");
+    print_g1("0x380", "0x3a0", key->commitments.at("SIGMA_3"), "vk.SIGMA3");
+    print_g1("0x3c0", "0x3e0", key->commitments.at("SIGMA_4"), "vk.SIGMA4");
+    print_g1("0x400", "0x420", key->commitments.at("TABLE_1"), "vk.TABLE1");
+    print_g1("0x440", "0x460", key->commitments.at("TABLE_2"), "vk.TABLE2");
+    print_g1("0x480", "0x4a0", key->commitments.at("TABLE_3"), "vk.TABLE3");
+    print_g1("0x4c0", "0x4e0", key->commitments.at("TABLE_4"), "vk.TABLE4");
+    print_g1("0x500", "0x520", key->commitments.at("TABLE_TYPE"), "vk.TABLE_TYPE");
+    print_g1("0x540", "0x560", key->commitments.at("ID_1"), "vk.ID1");
+    print_g1("0x580", "0x5a0", key->commitments.at("ID_2"), "vk.ID2");
+    print_g1("0x5c0", "0x5e0", key->commitments.at("ID_3"), "vk.ID3");
+    print_g1("0x600", "0x620", key->commitments.at("ID_4"), "vk.ID4");
     os <<
         "            mstore(add(_vk, 0x640), " << (key->contains_recursive_proof ? "0x01" : "0x00") << ") // vk.contains_recursive_proof\n"
         "            mstore(add(_vk, 0x660), " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ") // vk.recursive_proof_public_input_indices\n"
@@ -136,10 +136,10 @@ inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<verification_k
 
 /**
  * @brief Wrapper method to output a solidity verification key. Composer type determined from key
- * 
- * @param os 
- * @param key 
- * @param class_name 
+ *
+ * @param os
+ * @param key
+ * @param class_name
  */
 inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> const& key, std::string const& class_name)
 {

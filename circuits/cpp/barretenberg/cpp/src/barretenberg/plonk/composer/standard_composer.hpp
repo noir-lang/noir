@@ -79,6 +79,8 @@ class StandardComposer : public ComposerBase {
     StandardComposer& operator=(StandardComposer&& other) = default;
     ~StandardComposer() {}
 
+    virtual size_t get_total_circuit_size() const override { return num_gates; };
+
     void assert_equal_constant(uint32_t const a_idx,
                                barretenberg::fr const& b,
                                std::string const& msg = "assert equal constant");

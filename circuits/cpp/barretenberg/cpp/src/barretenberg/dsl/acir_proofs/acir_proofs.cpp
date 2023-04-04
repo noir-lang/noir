@@ -1,15 +1,35 @@
 
-#include "turbo_proofs.hpp"
+#include "acir_proofs.hpp"
 #include "barretenberg/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/stdlib/types/types.hpp"
 #include "barretenberg/srs/reference_string/pippenger_reference_string.hpp"
+#include "barretenberg/proof_system/verification_key/sol_gen.hpp"
 
 using namespace plonk::stdlib::types;
 
-namespace turbo_proofs {
+namespace acir_proofs {
 
-uint32_t turbo_get_exact_circuit_size(uint8_t const* constraint_system_buf)
+size_t get_solidity_verifier(uint8_t const* g2x, uint8_t const* vk_buf, uint8_t** output_buf)
+{
+    auto crs = std::make_shared<VerifierMemReferenceString>(g2x);
+    bonk::verification_key_data vk_data;
+    read(vk_buf, vk_data);
+    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
+
+    std::ostringstream stream;
+    // TODO(blaine): Should we just use "VerificationKey" generically?
+    output_vk_sol(stream, verification_key, "UltraVerificationKey");
+
+    auto content_str = stream.str();
+    auto raw_buf = (uint8_t*)malloc(content_str.size());
+    memcpy(raw_buf, (void*)content_str.data(), content_str.size());
+    *output_buf = raw_buf;
+
+    return content_str.size();
+}
+
+uint32_t get_exact_circuit_size(uint8_t const* constraint_system_buf)
 {
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
     auto crs_factory = std::make_unique<bonk::ReferenceStringFactory>();
@@ -19,9 +39,19 @@ uint32_t turbo_get_exact_circuit_size(uint8_t const* constraint_system_buf)
     return static_cast<uint32_t>(num_gates);
 }
 
-size_t turbo_init_proving_key(uint8_t const* constraint_system_buf, uint8_t const** pk_buf)
+uint32_t get_total_circuit_size(uint8_t const* constraint_system_buf)
 {
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
+    auto crs_factory = std::make_unique<bonk::ReferenceStringFactory>();
+    auto composer = create_circuit(constraint_system, std::move(crs_factory));
+
+    return static_cast<uint32_t>(composer.get_total_circuit_size());
+}
+
+size_t init_proving_key(uint8_t const* constraint_system_buf, uint8_t const** pk_buf)
+{
+    auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
+
     // We know that we don't actually need any CRS to create a proving key, so just feed in a nothing.
     // Hacky, but, right now it needs *something*.
     auto crs_factory = std::make_unique<ReferenceStringFactory>();
@@ -36,7 +66,7 @@ size_t turbo_init_proving_key(uint8_t const* constraint_system_buf, uint8_t cons
     return buffer.size();
 }
 
-size_t turbo_init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const* pk_buf, uint8_t const** vk_buf)
+size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const* pk_buf, uint8_t const** vk_buf)
 {
     std::shared_ptr<ProverReferenceString> crs;
     bonk::proving_key_data pk_data;
@@ -47,13 +77,13 @@ size_t turbo_init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t 
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
-    TurboComposer composer(proving_key, nullptr);
+    Composer composer(proving_key, nullptr);
     auto verification_key =
         plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 
     // The composer_type has not yet been set. We need to set the composer_type for when we later read in and
     // construct the verification key so that we have the correct polynomial manifest
-    verification_key->composer_type = ComposerType::TURBO;
+    verification_key->composer_type = ComposerType::PLOOKUP;
 
     auto buffer = to_buffer(*verification_key);
     auto raw_buf = (uint8_t*)malloc(buffer.size());
@@ -63,12 +93,12 @@ size_t turbo_init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t 
     return buffer.size();
 }
 
-size_t turbo_new_proof(void* pippenger,
-                       uint8_t const* g2x,
-                       uint8_t const* pk_buf,
-                       uint8_t const* constraint_system_buf,
-                       uint8_t const* witness_buf,
-                       uint8_t** proof_data_buf)
+size_t new_proof(void* pippenger,
+                 uint8_t const* g2x,
+                 uint8_t const* pk_buf,
+                 uint8_t const* constraint_system_buf,
+                 uint8_t const* witness_buf,
+                 uint8_t** proof_data_buf)
 {
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
 
@@ -83,18 +113,20 @@ size_t turbo_new_proof(void* pippenger,
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
-    TurboComposer composer(proving_key, nullptr);
+    Composer composer(proving_key, nullptr);
+
     create_circuit_with_witness(composer, constraint_system, witness);
 
     auto prover = composer.create_prover();
-    auto heapProver = new TurboProver(std::move(prover));
+
+    auto heapProver = new stdlib::types::Prover(std::move(prover));
     auto& proof_data = heapProver->construct_proof().proof_data;
     *proof_data_buf = proof_data.data();
 
     return proof_data.size();
 }
 
-bool turbo_verify_proof(
+bool verify_proof(
     uint8_t const* g2x, uint8_t const* vk_buf, uint8_t const* constraint_system_buf, uint8_t* proof, uint32_t length)
 {
     bool verified = false;
@@ -103,13 +135,12 @@ bool turbo_verify_proof(
     try {
 #endif
         auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-
         auto crs = std::make_shared<VerifierMemReferenceString>(g2x);
         bonk::verification_key_data vk_data;
         read(vk_buf, vk_data);
         auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
 
-        TurboComposer composer(nullptr, verification_key);
+        Composer composer(nullptr, verification_key);
         create_circuit(composer, constraint_system);
         plonk::proof pp = { std::vector<uint8_t>(proof, proof + length) };
 
@@ -125,4 +156,4 @@ bool turbo_verify_proof(
     return verified;
 }
 
-} // namespace turbo_proofs
+} // namespace acir_proofs

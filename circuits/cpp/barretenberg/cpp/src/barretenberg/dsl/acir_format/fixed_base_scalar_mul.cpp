@@ -1,11 +1,10 @@
 #include "fixed_base_scalar_mul.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
 using namespace plonk::stdlib::types;
 
 namespace acir_format {
 
-void create_fixed_base_constraint(plonk::TurboComposer& composer, const FixedBaseScalarMul& input)
+void create_fixed_base_constraint(Composer& composer, const FixedBaseScalarMul& input)
 {
 
     field_ct scalar_as_field = field_ct::from_witness_index(&composer, input.scalar);
