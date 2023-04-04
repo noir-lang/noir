@@ -1,5 +1,5 @@
-import { serializeBufferArrayToVector, toBigIntBE } from "@aztec/foundation";
-import { randomBytes } from "crypto";
+import { toBigIntBE } from '@aztec/foundation';
+import { randomBytes } from 'crypto';
 
 /**
  * Data container of unverified data corresponding to one L2 block.
@@ -12,7 +12,28 @@ export class UnverifiedData {
   constructor(public readonly dataChunks: Buffer[]) {}
 
   public toBuffer(): Buffer {
-    return serializeBufferArrayToVector(this.dataChunks);
+    // Determine total length of all chunks
+    let totalLength = 0;
+    for (const buffer of this.dataChunks) {
+      totalLength += buffer.length;
+    }
+
+    // Create a new buffer with enough space to hold all serialized chunks
+    const serializedBuffer = Buffer.allocUnsafe(totalLength + 4 * this.dataChunks.length);
+
+    // Serialize each buffer into the new buffer with prefix
+    let offset = 0;
+    for (const buffer of this.dataChunks) {
+      // Write the length of the buffer as a 4-byte prefix
+      serializedBuffer.writeInt32BE(buffer.length, offset);
+      offset += 4;
+
+      // Write the contents of the buffer
+      buffer.copy(serializedBuffer, offset);
+      offset += buffer.length;
+    }
+
+    return serializedBuffer;
   }
 
   public static fromBuffer(buf: Buffer): UnverifiedData {
