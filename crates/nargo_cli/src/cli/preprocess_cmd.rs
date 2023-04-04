@@ -31,7 +31,7 @@ pub(crate) fn run(args: PreprocessCommand, config: NargoConfig) -> Result<(), Cl
 /// The result of preprocessing the ACIR bytecode.
 /// The proving, verification key and circuit are backend specific.
 ///
-/// The circuit is backend specific because ath the end of compilation
+/// The circuit is backend specific because at the end of compilation
 /// an optimization pass is applied which will transform the bytecode into
 /// a format that the backend will accept; removing unsupported gates
 /// is one example of this.
