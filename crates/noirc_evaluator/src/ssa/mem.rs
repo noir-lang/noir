@@ -25,15 +25,24 @@ impl ArrayId {
     }
 }
 
+/// MemArray represents a contiguous array of elements of the same type.
 #[derive(Debug, Clone)]
 pub(crate) struct MemArray {
+    /// The unique identifier of a `MemArray` instance.
     pub(crate) id: ArrayId,
-    pub(crate) element_type: node::ObjectType, //type of elements
+    /// The type of each array element. All elements of a `MemArray` are of
+    /// the same type.
+    pub(crate) element_type: node::ObjectType,
+    /// The name of the variable to which the array is assigned.
     pub(crate) name: String,
+    /// A reference to where the array is defined.
     pub(crate) def: Definition,
-    pub(crate) len: u32,     //number of elements
-    pub(crate) adr: u32,     //base address of the array
-    pub(crate) max: BigUint, //Max possible value of array elements
+    /// The number of elements in the array.
+    pub(crate) len: u32,
+    /// The base address of the array.
+    pub(crate) adr: u32,
+    /// The max possible value of each element.
+    pub(crate) max: BigUint,
 }
 
 impl MemArray {
