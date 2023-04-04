@@ -353,7 +353,7 @@ export class CircuitPoweredBlockBuilder {
 
     const tree = MerkleTreeId.NULLIFIER_TREE;
     const prevValueIndex = await this.db.getPreviousValueIndex(tree, frToBigInt(nullifier));
-    const prevValueInfo = this.db.getLeafData(tree, prevValueIndex.index);
+    const prevValueInfo = await this.db.getLeafData(tree, prevValueIndex.index);
     if (!prevValueInfo) throw new Error(`Nullifier tree should have one initial leaf`);
     const prevValueSiblingPath = await this.db.getSiblingPath(tree, BigInt(prevValueIndex.index));
 

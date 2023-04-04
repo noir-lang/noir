@@ -27,8 +27,10 @@ export interface WorldStateStatus {
 /**
  * Defines the interface for a world state synchroniser.
  */
-export interface WorldStateSynchroniser extends MerkleTreeOperations {
+export interface WorldStateSynchroniser {
   start(): void;
   status(): Promise<WorldStateStatus>;
   stop(): Promise<void>;
+  getLatest(): MerkleTreeOperations;
+  getCommitted(): MerkleTreeOperations;
 }

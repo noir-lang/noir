@@ -101,16 +101,16 @@ export class IndexedTree implements MerkleTree {
    * Returns the root of the tree.
    * @returns The root of the tree.
    */
-  public getRoot(): Buffer {
-    return this.underlying.getRoot();
+  public getRoot(includeUncommitted: boolean): Buffer {
+    return this.underlying.getRoot(includeUncommitted);
   }
 
   /**
    * Returns the number of leaves in the tree.
    * @returns The number of leaves in the tree.
    */
-  public getNumLeaves(): bigint {
-    return this.underlying.getNumLeaves();
+  public getNumLeaves(includeUncommitted: boolean): bigint {
+    return this.underlying.getNumLeaves(includeUncommitted);
   }
 
   /**
@@ -148,8 +148,8 @@ export class IndexedTree implements MerkleTree {
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
-  public async getSiblingPath(index: bigint): Promise<SiblingPath> {
-    return await this.underlying.getSiblingPath(index);
+  public async getSiblingPath(index: bigint, includeUncommitted: boolean): Promise<SiblingPath> {
+    return await this.underlying.getSiblingPath(index, includeUncommitted);
   }
 
   /**
@@ -159,8 +159,8 @@ export class IndexedTree implements MerkleTree {
    */
   private async appendLeaf(leaf: Buffer): Promise<void> {
     const newValue = toBigIntBE(leaf);
-    const indexOfPrevious = this.findIndexOfPreviousValue(newValue);
-    const previousLeafCopy = this.getLatestLeafDataCopy(indexOfPrevious.index);
+    const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
+    const previousLeafCopy = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
     if (previousLeafCopy === undefined) {
       throw new Error(`Previous leaf not found!`);
     }
@@ -173,7 +173,7 @@ export class IndexedTree implements MerkleTree {
       return;
     }
     // insert a new leaf at the highest index and update the values of our previous leaf copy
-    const currentSize = this.underlying.getNumLeaves();
+    const currentSize = this.underlying.getNumLeaves(true);
     previousLeafCopy.nextIndex = BigInt(currentSize);
     previousLeafCopy.nextValue = newLeaf.value;
     this.cachedLeaves[Number(currentSize)] = newLeaf;
@@ -190,11 +190,11 @@ export class IndexedTree implements MerkleTree {
    * @param newValue - The new value to be inserted into the tree.
    * @returns Tuple containing the leaf index and a flag to say if the value is a duplicate.
    */
-  public findIndexOfPreviousValue(newValue: bigint) {
-    const numLeaves = this.underlying.getNumLeaves();
+  public findIndexOfPreviousValue(newValue: bigint, includeUncommitted: boolean) {
+    const numLeaves = this.underlying.getNumLeaves(includeUncommitted);
     const diff: bigint[] = [];
     for (let i = 0; i < numLeaves; i++) {
-      const storedLeaf = this.getLatestLeafDataCopy(i)!;
+      const storedLeaf = this.getLatestLeafDataCopy(i, includeUncommitted)!;
       if (storedLeaf.value > newValue) {
         diff.push(newValue);
       } else if (storedLeaf.value === newValue) {
@@ -297,8 +297,8 @@ export class IndexedTree implements MerkleTree {
    * @param index - Index of the leaf of which to obtain the LeafData copy.
    * @returns A copy of the leaf data at the given index or undefined if the leaf was not found.
    */
-  public getLatestLeafDataCopy(index: number): LeafData | undefined {
-    const leaf = this.cachedLeaves[index] ?? this.leaves[index];
+  public getLatestLeafDataCopy(index: number, includeUncommitted: boolean): LeafData | undefined {
+    const leaf = !includeUncommitted ? this.leaves[index] : this.cachedLeaves[index] ?? this.leaves[index];
     return leaf
       ? ({
           value: leaf.value,
@@ -308,8 +308,8 @@ export class IndexedTree implements MerkleTree {
       : undefined;
   }
 
-  public getLeafValue(index: bigint): Promise<Buffer | undefined> {
-    const leaf = this.getLatestLeafDataCopy(Number(index));
+  public getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined> {
+    const leaf = this.getLatestLeafDataCopy(Number(index), includeUncommitted);
     if (!leaf) return Promise.resolve(undefined);
     return Promise.resolve(toBufferBE(leaf.value, 32));
   }

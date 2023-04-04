@@ -13,15 +13,14 @@ import {
   makePrivateKernelPublicInputs,
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
-import { UnverifiedData } from '@aztec/l2-block';
 import { Tx } from '@aztec/tx';
-import { MerkleTreeDb, MerkleTreeId, MerkleTrees } from '@aztec/world-state';
-import { mock, MockProxy } from 'jest-mock-extended';
+import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
+import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import { default as memdown } from 'memdown';
 import { hashNewContractData, makeEmptyTx, makeEmptyUnverifiedData } from '../deps/tx.js';
-import { getVerificationKeys, VerificationKeys } from '../deps/verification_keys.js';
+import { VerificationKeys, getVerificationKeys } from '../deps/verification_keys.js';
 import { EmptyProver } from '../prover/empty.js';
 import { Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
@@ -34,8 +33,8 @@ export const createMemDown = () => memdown();
 
 describe('sequencer/circuit_block_builder', () => {
   let builder: TestSubject;
-  let builderDb: MerkleTreeDb;
-  let expectsDb: MerkleTreeDb;
+  let builderDb: MerkleTreeOperations;
+  let expectsDb: MerkleTreeOperations;
   let vks: VerificationKeys;
 
   let simulator: MockProxy<Simulator>;
@@ -57,8 +56,8 @@ describe('sequencer/circuit_block_builder', () => {
 
   beforeEach(async () => {
     blockNumber = 3;
-    builderDb = await MerkleTrees.new(levelup(createMemDown()));
-    expectsDb = await MerkleTrees.new(levelup(createMemDown()));
+    builderDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
+    expectsDb = await MerkleTrees.new(levelup(createMemDown())).then(t => t.asLatest());
     vks = getVerificationKeys();
     simulator = mock<Simulator>();
     prover = mock<Prover>();
@@ -87,9 +86,6 @@ describe('sequencer/circuit_block_builder', () => {
       [MerkleTreeId.DATA_TREE, MerkleTreeId.DATA_TREE_ROOTS_TREE],
       [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
     ] as const) {
-      if (rootTree === MerkleTreeId.CONTRACT_TREE_ROOTS_TREE) {
-        await inspectTree(expectsDb, rootTree);
-      }
       const newTreeInfo = await expectsDb.getTreeInfo(newTree);
       await expectsDb.appendLeaves(rootTree, [newTreeInfo.root]);
     }

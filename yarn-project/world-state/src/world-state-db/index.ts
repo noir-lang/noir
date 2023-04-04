@@ -35,26 +35,84 @@ export interface TreeInfo {
 }
 
 /**
- * Defines the interface for Merkle Tree operations.
+ * Adds a last boolean flag in each function on the type.
+ */
+type WithIncludeUncommitted<F> = F extends (...args: [...infer Rest]) => infer Return
+  ? (...args: [...Rest, boolean]) => Return
+  : F;
+
+type MerkleTreeSetters = 'appendLeaves';
+
+/**
+ * Defines the interface for operations on a set of Merkle Trees configuring whether to return committed or uncommitted data.
+ */
+export type MerkleTreeDbOperations = {
+  [Property in keyof MerkleTreeOperations as Exclude<Property, MerkleTreeSetters>]: WithIncludeUncommitted<
+    MerkleTreeOperations[Property]
+  >;
+} & Pick<MerkleTreeOperations, MerkleTreeSetters>;
+
+/**
+ * Defines the interface for operations on a set of Merkle Trees.
  */
 export interface MerkleTreeOperations {
-  getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
+  /**
+   * Appends leaves to a given tree
+   * @param treeId - The tree to be updated
+   * @param leaves - The set of leaves to be appended
+   */
   appendLeaves(treeId: MerkleTreeId, leaves: Buffer[]): Promise<void>;
+  /**
+   * Returns information about the given tree
+   * @param treeId - The tree to be queried
+   */
+  getTreeInfo(treeId: MerkleTreeId): Promise<TreeInfo>;
+  /**
+   * Gets sibling path for a leaf.
+   * @param treeId - The tree to be queried for a sibling path
+   * @param index - The index of the leaf for which a sibling path should be returned
+   */
   getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath>;
+  /**
+   * Returns the previous index for a given value in an indexed tree
+   * @param treeId - The tree for which the previous value index is required
+   * @param value - The value to be queried
+   */
   getPreviousValueIndex(
     treeId: IndexedMerkleTreeId,
     value: bigint,
   ): Promise<{ index: number; alreadyPresent: boolean }>;
-  getLeafData(treeId: IndexedMerkleTreeId, index: number): LeafData | undefined;
+  /**
+   * Returns the data at a specific leaf
+   * @param treeId - The tree for which leaf data should be returned
+   * @param index - The index of the leaf required
+   */
+  getLeafData(treeId: IndexedMerkleTreeId, index: number): Promise<LeafData | undefined>;
+  /**
+   * Returns the index containing a leaf value
+   * @param treeId - The tree for which the index should be returned
+   * @param value - The value to search for in the tree
+   */
   findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined>;
+  /**
+   * Gets the value for a leaf in the tree.
+   * @param treeId - The tree for which the index should be returned
+   * @param index - The index of the leaf
+   */
   getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined>;
 }
 
 /**
  * Defines the interface for a database that stores Merkle trees.
  */
-export interface MerkleTreeDb extends MerkleTreeOperations {
+export interface MerkleTreeDb extends MerkleTreeDbOperations {
+  /**
+   * Commits pending changes to the underlying store
+   */
   commit(): Promise<void>;
+  /**
+   * Rolls back pending changes
+   */
   rollback(): Promise<void>;
 }
 

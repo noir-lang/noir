@@ -51,45 +51,68 @@ describe('StandardMerkleTreeSpecific', () => {
     expect(await tree.getSiblingPath(0n)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
 
     await tree.appendLeaves([values[0]]);
-    expect(tree.getNumLeaves()).toEqual(1n);
-    expect(tree.getRoot()).toEqual(pedersen.compress(pedersen.compress(values[0], zeroTreeLeafHash), level1ZeroHash));
-    expect(await tree.getSiblingPath(0n)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
+    expect(tree.getNumLeaves(true)).toEqual(1n);
+    expect(tree.getNumLeaves(false)).toEqual(0n);
+    expect(tree.getRoot(true)).toEqual(
+      pedersen.compress(pedersen.compress(values[0], zeroTreeLeafHash), level1ZeroHash),
+    );
+    expect(await tree.getSiblingPath(0n, true)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
+    expect(tree.getRoot(false)).toEqual(pedersen.compress(level1ZeroHash, level1ZeroHash));
+    expect(await tree.getSiblingPath(0n, false)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
 
     await tree.appendLeaves([values[1]]);
-    expect(tree.getNumLeaves()).toEqual(2n);
-    expect(tree.getRoot()).toEqual(pedersen.compress(pedersen.compress(values[0], values[1]), level1ZeroHash));
-    expect(await tree.getSiblingPath(1n)).toEqual(new SiblingPath([values[0], level1ZeroHash]));
+    expect(tree.getNumLeaves(true)).toEqual(2n);
+    expect(tree.getRoot(true)).toEqual(pedersen.compress(pedersen.compress(values[0], values[1]), level1ZeroHash));
+    expect(await tree.getSiblingPath(1n, true)).toEqual(new SiblingPath([values[0], level1ZeroHash]));
+    expect(tree.getNumLeaves(false)).toEqual(0n);
+    expect(tree.getRoot(false)).toEqual(pedersen.compress(level1ZeroHash, level1ZeroHash));
+    expect(await tree.getSiblingPath(1n, false)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
 
     await tree.appendLeaves([values[2]]);
-    expect(tree.getNumLeaves()).toEqual(3n);
-    expect(tree.getRoot()).toEqual(
+    expect(tree.getNumLeaves(true)).toEqual(3n);
+    expect(tree.getRoot(true)).toEqual(
       pedersen.compress(pedersen.compress(values[0], values[1]), pedersen.compress(values[2], zeroTreeLeafHash)),
     );
-    expect(await tree.getSiblingPath(2n)).toEqual(
+    expect(await tree.getSiblingPath(2n, true)).toEqual(
       new SiblingPath([zeroTreeLeafHash, pedersen.compress(values[0], values[1])]),
     );
+    expect(tree.getNumLeaves()).toEqual(0n);
+    expect(tree.getRoot()).toEqual(pedersen.compress(level1ZeroHash, level1ZeroHash));
+    expect(await tree.getSiblingPath(2n)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
 
     await tree.appendLeaves([values[3]]);
-    expect(tree.getNumLeaves()).toEqual(4n);
-    expect(tree.getRoot()).toEqual(
+    expect(tree.getNumLeaves(true)).toEqual(4n);
+    expect(tree.getRoot(true)).toEqual(
       pedersen.compress(pedersen.compress(values[0], values[1]), pedersen.compress(values[2], values[3])),
     );
-    expect(await tree.getSiblingPath(3n)).toEqual(
+    expect(await tree.getSiblingPath(3n, true)).toEqual(
       new SiblingPath([values[2], pedersen.compress(values[0], values[1])]),
     );
+    expect(tree.getNumLeaves(false)).toEqual(0n);
+    expect(tree.getRoot(false)).toEqual(pedersen.compress(level1ZeroHash, level1ZeroHash));
+    expect(await tree.getSiblingPath(3n, false)).toEqual(new SiblingPath([zeroTreeLeafHash, level1ZeroHash]));
     // Lifted from memory_tree.test.cpp to ensure consistency.
     //expect(root.toString('hex')).toEqual('0bf2e78afd70f72b0e6eafb03c41faef167a82441b05e517cdf35d813302061f');
-    expect(await tree.getSiblingPath(0n)).toEqual(
+    expect(await tree.getSiblingPath(0n, true)).toEqual(
       new SiblingPath([values[1], pedersen.compress(values[2], values[3])]),
     );
-    expect(await tree.getSiblingPath(1n)).toEqual(
+    expect(await tree.getSiblingPath(1n, true)).toEqual(
       new SiblingPath([values[0], pedersen.compress(values[2], values[3])]),
     );
-    expect(await tree.getSiblingPath(2n)).toEqual(
+    expect(await tree.getSiblingPath(2n, true)).toEqual(
       new SiblingPath([values[3], pedersen.compress(values[0], values[1])]),
     );
-    expect(await tree.getSiblingPath(3n)).toEqual(
+    expect(await tree.getSiblingPath(3n, true)).toEqual(
       new SiblingPath([values[2], pedersen.compress(values[0], values[1])]),
     );
+
+    await tree.commit();
+    // now committed state should equal uncommitted state
+    expect(await tree.getSiblingPath(0n, false)).toEqual(await tree.getSiblingPath(0n, true));
+    expect(await tree.getSiblingPath(1n, false)).toEqual(await tree.getSiblingPath(1n, true));
+    expect(await tree.getSiblingPath(2n, false)).toEqual(await tree.getSiblingPath(2n, true));
+    expect(await tree.getSiblingPath(3n, false)).toEqual(await tree.getSiblingPath(3n, true));
+    expect(tree.getNumLeaves(false)).toEqual(tree.getNumLeaves(true));
+    expect(tree.getRoot(false)).toEqual(tree.getRoot(true));
   });
 });

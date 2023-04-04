@@ -136,10 +136,10 @@ export class AztecNode {
   }
 
   public findContractIndex(leafValue: Buffer): Promise<bigint | undefined> {
-    return this.merkleTreeDB.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue);
+    return this.merkleTreeDB.findLeafIndex(MerkleTreeId.CONTRACT_TREE, leafValue, false);
   }
 
   public getContractPath(leafIndex: bigint): Promise<SiblingPath> {
-    return this.merkleTreeDB.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex);
+    return this.merkleTreeDB.getSiblingPath(MerkleTreeId.CONTRACT_TREE, leafIndex, false);
   }
 }

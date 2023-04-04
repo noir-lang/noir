@@ -38,7 +38,7 @@ export class Sequencer {
   ) {
     this.pollingIntervalMs = config?.transactionPollingInterval ?? 1_000;
     this.blockBuilder = new CircuitPoweredBlockBuilder(
-      this.worldState,
+      this.worldState.getLatest(),
       getVerificationKeys(),
       new WasmCircuitSimulator(wasm),
       new EmptyProver(),
@@ -78,7 +78,10 @@ export class Sequencer {
       // Skip nullifier if it's empty
       if (nullifier.isZero()) continue;
       // TODO(AD): this is an exhaustive search currently
-      if ((await this.worldState.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) !== undefined) {
+      if (
+        (await this.worldState.getLatest().findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer())) !==
+        undefined
+      ) {
         // Our nullifier tree has this nullifier already - this transaction is a double spend / not well-formed
         return true;
       }

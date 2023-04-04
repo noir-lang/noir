@@ -114,16 +114,16 @@ export class StandardMerkleTree implements MerkleTree {
    * Returns the root of the tree.
    * @returns The root of the tree.
    */
-  public getRoot(): Buffer {
-    return this.cache[indexToKeyHash(this.name, 0, 0n)] ?? this.root;
+  public getRoot(includeUncommitted = false): Buffer {
+    return !includeUncommitted ? this.root : this.cache[indexToKeyHash(this.name, 0, 0n)] ?? this.root;
   }
 
   /**
    * Returns the number of leaves in the tree.
    * @returns The number of leaves in the tree.
    */
-  public getNumLeaves() {
-    return this.cachedSize ?? this.size;
+  public getNumLeaves(includeUncommitted = false) {
+    return !includeUncommitted ? this.size : this.cachedSize ?? this.size;
   }
 
   /**
@@ -148,12 +148,12 @@ export class StandardMerkleTree implements MerkleTree {
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
-  public async getSiblingPath(index: bigint) {
+  public async getSiblingPath(index: bigint, includeUncommitted = false) {
     const path = new SiblingPath();
     let level = this.depth;
     while (level > 0) {
       const isRight = index & 0x01n;
-      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n);
+      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, includeUncommitted);
       path.data.push(sibling);
       level -= 1;
       index >>= 1n;
@@ -167,7 +167,7 @@ export class StandardMerkleTree implements MerkleTree {
    * @returns Empty promise.
    */
   public async appendLeaves(leaves: Buffer[]): Promise<void> {
-    const numLeaves = this.getNumLeaves();
+    const numLeaves = this.getNumLeaves(true);
     for (let i = 0; i < leaves.length; i++) {
       const index = numLeaves + BigInt(i);
       await this.addLeafToCacheAndHashToRoot(leaves[i], index);
@@ -182,7 +182,7 @@ export class StandardMerkleTree implements MerkleTree {
    */
   public async updateLeaf(leaf: Buffer, index: bigint) {
     await this.addLeafToCacheAndHashToRoot(leaf, index);
-    const numLeaves = this.getNumLeaves();
+    const numLeaves = this.getNumLeaves(true);
     if (index >= numLeaves) {
       this.cachedSize = index + 1n;
     }
@@ -198,8 +198,8 @@ export class StandardMerkleTree implements MerkleTree {
     for (const key of keys) {
       batch.put(key, this.cache[key]);
     }
-    this.size = this.getNumLeaves();
-    this.root = this.getRoot();
+    this.size = this.getNumLeaves(true);
+    this.root = this.getRoot(true);
     await this.writeMeta(batch);
     await batch.write();
     this.clearCache();
@@ -214,8 +214,8 @@ export class StandardMerkleTree implements MerkleTree {
     return Promise.resolve();
   }
 
-  public getLeafValue(index: bigint): Promise<Buffer | undefined> {
-    return Promise.resolve(this.getLatestValueAtIndex(this.depth, index));
+  public getLeafValue(index: bigint, includeUncommitted = false): Promise<Buffer | undefined> {
+    return this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
   }
 
   /**
@@ -238,7 +238,7 @@ export class StandardMerkleTree implements MerkleTree {
     let level = this.depth;
     while (level > 0) {
       const isRight = index & 0x01n;
-      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n);
+      const sibling = await this.getLatestValueAtIndex(level, isRight ? index - 1n : index + 1n, true);
       const lhs = isRight ? sibling : current;
       const rhs = isRight ? current : sibling;
       current = this.hasher.compress(lhs, rhs);
@@ -256,9 +256,9 @@ export class StandardMerkleTree implements MerkleTree {
    * @returns The latest value at the given index.
    * Note: If the value is not in the cache, it will be fetched from the database.
    */
-  private async getLatestValueAtIndex(level: number, index: bigint): Promise<Buffer> {
+  private async getLatestValueAtIndex(level: number, index: bigint, includeUncommitted = false): Promise<Buffer> {
     const key = indexToKeyHash(this.name, level, index);
-    if (this.cache[key] !== undefined) {
+    if (includeUncommitted && this.cache[key] !== undefined) {
       return this.cache[key];
     }
     const committed = await this.dbGet(key);
@@ -282,7 +282,7 @@ export class StandardMerkleTree implements MerkleTree {
    * @param batch - The batch to which to write the meta data.
    */
   private async writeMeta(batch?: LevelUpChain<string, Buffer>) {
-    const data = encodeMeta(this.getRoot(), this.depth, this.getNumLeaves());
+    const data = encodeMeta(this.getRoot(true), this.depth, this.getNumLeaves(true));
     if (batch) {
       batch.put(this.name, data);
     } else {
