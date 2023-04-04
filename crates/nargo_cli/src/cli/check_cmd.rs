@@ -27,7 +27,7 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
 }
 
 fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = nargo::backends::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
 
     let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
 
@@ -66,12 +66,12 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
 fn build_placeholder_input_map(
     parameters: Vec<AbiParameter>,
     return_type: Option<AbiType>,
-) -> BTreeMap<String, &'static str> {
-    let default_value = |typ: AbiType| {
+) -> BTreeMap<String, toml::Value> {
+    let default_value = |typ: AbiType| -> toml::Value {
         if matches!(typ, AbiType::Array { .. }) {
-            "[]"
+            toml::Value::Array(Vec::new())
         } else {
-            ""
+            toml::Value::String("".to_owned())
         }
     };
 

@@ -43,7 +43,7 @@ pub(crate) struct PreprocessedData {
 
 impl From<&Circuit> for PreprocessedData {
     fn from(circuit: &Circuit) -> Self {
-        let backend = nargo::backends::ConcreteBackend;
+        let backend = crate::backends::ConcreteBackend;
         let (proving_key, verification_key) = backend.preprocess(circuit);
         let program_hash = hash_acir(circuit);
 
