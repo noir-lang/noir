@@ -8,7 +8,7 @@ use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::{save_contract_to_file, save_program_to_file};
-use super::preprocess_cmd::preprocess_with_path;
+use super::preprocess_cmd::{preprocess, save_preprocess_data};
 use super::NargoConfig;
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -31,10 +31,10 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
         let mut driver = setup_driver(&config.program_dir)?;
-        let compiled_contracts = driver
+        let mut compiled_contracts = driver
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
-        save_and_preprocess_contract(&compiled_contracts, &args.circuit_name, &circuit_dir)
+        save_and_preprocess_contract(&mut compiled_contracts, &args.circuit_name, &circuit_dir)
     } else {
         let program = compile_circuit(&config.program_dir, &args.compile_options)?;
         save_and_preprocess_program(&program, &args.circuit_name, &circuit_dir)
@@ -53,7 +53,9 @@ fn save_and_preprocess_program(
     circuit_dir: &Path,
 ) -> Result<(), CliError> {
     save_program_to_file(compiled_program, circuit_name, circuit_dir);
-    preprocess_with_path(circuit_name, circuit_dir, &compiled_program.circuit)?;
+
+    let preprocessed_data = preprocess(&compiled_program.circuit);
+    save_preprocess_data(&preprocessed_data, circuit_name, circuit_dir)?;
     Ok(())
 }
 
@@ -61,9 +63,12 @@ fn save_and_preprocess_program(
 /// - The contract ABI is saved as one file, which contains all of the
 /// functions defined in the contract.
 /// - The proving and verification keys are namespaced since the file
-/// could contain multiple contracts with the same name.
+/// could contain multiple contracts with the same name. The verification key is saved inside
+/// of the ABI.
+// TODO: we also save it to disk, so its saved twice, find a nice abstraction for this
+// TODO possibly make preprocessed data have Optional fields
 fn save_and_preprocess_contract(
-    compiled_contracts: &[CompiledContract],
+    compiled_contracts: &mut [CompiledContract],
     circuit_name: &str,
     circuit_dir: &Path,
 ) -> Result<(), CliError> {
@@ -74,18 +79,21 @@ fn save_and_preprocess_contract(
         // Save contract ABI to file using the contract ID.
         save_contract_to_file(compiled_contract, &contract_id, circuit_dir);
 
-        for contract_function in &compiled_contract.functions {
+        for contract_function in &mut compiled_contract.functions {
             // Create a name which uniquely identifies this contract function
             // over multiple contracts.
             let uniquely_identifying_program_name =
                 format!("{}-{}", contract_id, contract_function.name);
             // Each program in a contract is preprocessed
             // Note: This can potentially be quite a long running process
-            preprocess_with_path(
+
+            let preprocessed_data = preprocess(&contract_function.bytecode);
+            save_preprocess_data(
+                &preprocessed_data,
                 &uniquely_identifying_program_name,
                 circuit_dir,
-                &contract_function.bytecode,
             )?;
+            contract_function.verification_key = Some(preprocessed_data.verification_key);
         }
     }
 
