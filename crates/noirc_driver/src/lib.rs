@@ -215,18 +215,17 @@ impl Driver {
             Ok((function_name, func_type, function))
         })?;
 
-        let converted_functions: Vec<ContractFunction> = functions
-            .into_iter()
-            .map(|(func_name, func_type, function)| ContractFunction {
-                name: func_name,
-                function_type: func_type,
+        let converted_functions = vec_map(
+            functions,
+            |(name, function_type, function)| ContractFunction {
+                name,
+                function_type,
                 abi: function.abi,
                 bytecode: function.circuit,
                 // Since we have not called the proving system yet
                 // we do not have a verification key
                 verification_key: None,
-            })
-            .collect();
+            });
 
         Ok(CompiledContract { name: contract.name, functions: converted_functions })
     }
