@@ -1,5 +1,4 @@
 import {
-  ARGS_LENGTH,
   AztecAddress,
   ContractDeploymentData,
   EthAddress,

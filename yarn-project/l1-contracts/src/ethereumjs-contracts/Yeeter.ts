@@ -1,6 +1,6 @@
 // THIS IS GENERATED CODE, DO NOT EDIT!
 /* eslint-disable */
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { EthAddress } from '@aztec/foundation';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { Contract, ContractTxReceipt, EventLog, Options, TxCall, TxSend } from '@aztec/ethereum.js/contract';
 import * as Bytes from '@aztec/ethereum.js/contract/bytes.js';

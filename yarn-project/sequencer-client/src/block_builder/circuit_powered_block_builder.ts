@@ -1,6 +1,4 @@
 import { createDebugLogger } from '@aztec/foundation';
-import { ContractData, L2Block } from '@aztec/archiver';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
@@ -29,6 +27,7 @@ import { hashNewContractData, makeEmptyTx } from '../deps/tx.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
 import { VerificationKeys } from '../deps/verification_keys.js';
+import { ContractData, L2Block } from '@aztec/l2-block';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);

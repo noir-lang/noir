@@ -1,7 +1,7 @@
 #!/bin/bash
-set -e
+set -eu
 
-export CLEAN=$1
+export CLEAN=${1:-}
 
 # Remove all untracked files and directories.
 if [ -n "$CLEAN" ]; then
@@ -36,15 +36,20 @@ cd circuits/cpp
 ./bootstrap.sh
 cd ../..
 
-\. ~/.nvm/nvm.sh
+if [ "$(uname)" = "Darwin" ]; then
+  # works around https://github.com/AztecProtocol/aztec3-packages/issues/158
+  echo "Note: not sourcing nvm on Mac, see github #158"
+else
+  \. ~/.nvm/nvm.sh
+fi
 nvm install
 
 # Until we push .yarn/cache, we still need to install.
 cd yarn-project
 yarn install --immutable
+yarn build
 cd ..
 
-# We only bootstrap projects that produce artefacts needed for running end-to-end tests.
 PROJECTS=(
   "yarn-project/foundation:yarn build"
   "yarn-project/ethereum.js:yarn build"

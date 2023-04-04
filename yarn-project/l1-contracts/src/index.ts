@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/ethereum.js/eth_address';
+import { EthAddress } from '@aztec/foundation';
 
 export const INITIAL_L2_BLOCK_NUM = 1;
 

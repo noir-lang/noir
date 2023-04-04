@@ -6,6 +6,9 @@
     },
     {
       "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../l1-contracts/tsconfig.dest.json"
     }
   ],
   "exclude": ["**/*.test.*", "**/fixtures/*"]

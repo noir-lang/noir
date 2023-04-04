@@ -5,16 +5,16 @@
       "path": "../barretenberg.js/tsconfig.dest.json"
     },
     {
-      "path": "../l2-block/tsconfig.dest.json"
-    },
-    {
-      "path": "../merkle-tree/tsconfig.dest.json"
+      "path": "../circuits.js/tsconfig.dest.json"
     },
     {
       "path": "../foundation/tsconfig.dest.json"
     },
     {
-      "path": "../circuits.js/tsconfig.dest.json"
+      "path": "../l2-block/tsconfig.dest.json"
+    },
+    {
+      "path": "../merkle-tree/tsconfig.dest.json"
     }
   ],
   "exclude": ["**/*.test.*", "**/fixtures/*"]
