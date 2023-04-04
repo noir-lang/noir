@@ -34,7 +34,7 @@ pub struct CompiledContract {
 /// as a separate noir program.
 ///
 /// A contract function unlike a regular Noir program
-/// however can have addition properties.
+/// however can have additional properties.
 /// One of these being a function type.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
