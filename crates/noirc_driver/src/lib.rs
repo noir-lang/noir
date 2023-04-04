@@ -6,7 +6,7 @@ use acvm::Language;
 use clap::Args;
 use contract::{ContractFunction, ContractFunctionType};
 use fm::FileType;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
@@ -215,9 +215,8 @@ impl Driver {
             Ok((function_name, func_type, function))
         })?;
 
-        let converted_functions = vec_map(
-            functions,
-            |(name, function_type, function)| ContractFunction {
+        let converted_functions =
+            vecmap(functions, |(name, function_type, function)| ContractFunction {
                 name,
                 function_type,
                 abi: function.abi,
