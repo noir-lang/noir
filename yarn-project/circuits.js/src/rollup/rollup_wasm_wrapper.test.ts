@@ -17,17 +17,6 @@ describe.skip('rollup/rollup_wasm_wrapper', () => {
     rollupWasm = new RollupWasmWrapper(wasm);
   });
 
-  it('should new malloc, transfer and slice mem', async () => {
-    const ptr = wasm.call('bbmalloc', 4);
-    const data = await wasm.asyncCall('private_kernel__dummy_previous_kernel', ptr);
-    const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(ptr, ptr + 4));
-    console.log(`size ${outputBufSize}`);
-    wasm.call('bbfree', ptr);
-    const result = Buffer.from(wasm.getMemorySlice(data, data + outputBufSize));
-    const kernel = PreviousKernelData.fromBuffer(result);
-    console.log(`kernel `, kernel);
-  });
-
   const makeBaseRollupInputsForCircuit = () => {
     const input = makeBaseRollupInputs();
     for (const kd of input.kernelData) {

@@ -12,6 +12,7 @@ import { boolToBuffer, serializeToBuffer, uint8ArrayToNum } from '../utils/seria
 import { CircuitsWasm } from '../wasm/index.js';
 
 export async function getDummyPreviousKernelData(wasm: CircuitsWasm) {
+  wasm.call('pedersen__init');
   const ptr = wasm.call('bbmalloc', 4);
   const data = await wasm.asyncCall('private_kernel__dummy_previous_kernel', ptr);
   const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(ptr, ptr + 4));

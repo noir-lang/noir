@@ -280,8 +280,8 @@ export class AztecRPCServer implements AztecRPCClient {
     } as FunctionTreeInfo;
   }
 
-  private getFunctionTree(leaves: Buffer[]) {
-    return computeFunctionTree(
+  private async getFunctionTree(leaves: Buffer[]) {
+    return await computeFunctionTree(
       this.circuitsWasm,
       leaves.map(x => new Fr(toBigIntBE(x))),
     );

@@ -11,7 +11,7 @@ describe('abis wasm bindings', () => {
     wasm = await CircuitsWasm.new();
   });
 
-  it.skip('gets dummy kernel data', async () => {
+  it('gets dummy kernel data', async () => {
     await expect(getDummyPreviousKernelData(wasm)).resolves.toBeDefined();
   });
 
