@@ -1,3 +1,4 @@
+#include "aztec3/constants.hpp"
 #include "init.hpp"
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
@@ -5,6 +6,7 @@
 #include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
 
 #include <aztec3/utils/array.hpp>
+#include <aztec3/circuits/hash.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
@@ -17,6 +19,9 @@ using aztec3::utils::array_pop;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
+
+using aztec3::circuits::compute_constructor_hash;
+using aztec3::circuits::compute_contract_address;
 
 // // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // // private_call.call_stack_item.public_inputs!
@@ -88,27 +93,24 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
             ASSERT(storage_contract_address != 0);
         }
 
-        auto private_call_vk_hash =
-            stdlib::recursion::verification_key<CT::bn254>::compress_native(private_inputs.private_call.vk);
-        auto constructor_hash =
-            NT::compress({ private_inputs.signed_tx_request.tx_request.function_data.hash(),
-                           NT::compress<ARGS_LENGTH>(private_call_public_inputs.args, CONSTRUCTOR_ARGS),
-                           private_call_vk_hash },
-                         CONSTRUCTOR);
+        auto private_call_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
+            private_inputs.private_call.vk, GeneratorIndex::VK);
+
+        auto constructor_hash = compute_constructor_hash(private_inputs.signed_tx_request.tx_request.function_data,
+                                                         private_call_public_inputs.args,
+                                                         private_call_vk_hash);
 
         if (is_contract_deployment) {
             ASSERT(contract_deployment_data.constructor_vk_hash == private_call_vk_hash);
         }
 
-        // compute the contract address
-        auto contract_address = NT::compress({ deployer_address.to_field(),
-                                               contract_deployment_data.contract_address_salt,
-                                               contract_deployment_data.function_tree_root,
-                                               constructor_hash },
-                                             CONTRACT_ADDRESS);
+        auto contract_address = compute_contract_address<NT>(deployer_address,
+                                                             contract_deployment_data.contract_address_salt,
+                                                             contract_deployment_data.function_tree_root,
+                                                             constructor_hash);
 
         // compute contract address nullifier
-        auto blake_input = contract_address.to_buffer();
+        auto blake_input = contract_address.to_field().to_buffer();
         auto contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
 
         // push the contract address nullifier to nullifier vector
@@ -136,18 +138,18 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
     { // commitments & nullifiers
         std::array<NT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
-            siloed_new_commitments[i] = new_commitments[i] == 0
-                                            ? 0
-                                            : NT::compress({ storage_contract_address.to_field(), new_commitments[i] },
-                                                           GeneratorIndex::OUTER_COMMITMENT);
+            siloed_new_commitments[i] =
+                new_commitments[i] == 0
+                    ? 0
+                    : add_contract_address_to_commitment<NT>(storage_contract_address, new_commitments[i]);
         }
 
         std::array<NT::fr, NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers;
         for (size_t i = 0; i < new_nullifiers.size(); ++i) {
-            siloed_new_nullifiers[i] = new_nullifiers[i] == 0
-                                           ? 0
-                                           : NT::compress({ storage_contract_address.to_field(), new_nullifiers[i] },
-                                                          GeneratorIndex::OUTER_NULLIFIER);
+            siloed_new_nullifiers[i] =
+                new_nullifiers[i] == 0
+                    ? 0
+                    : add_contract_address_to_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
         }
 
         push_array_to_array(siloed_new_commitments, public_inputs.end.new_commitments);

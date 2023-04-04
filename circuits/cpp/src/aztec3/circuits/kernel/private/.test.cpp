@@ -530,7 +530,8 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
 
     // Now we can derive the vk:
     std::shared_ptr<NT::VK> constructor_vk = dummy_constructor_composer.compute_verification_key();
-    auto constructor_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(constructor_vk);
+    auto constructor_vk_hash =
+        stdlib::recursion::verification_key<CT::bn254>::compress_native(constructor_vk, GeneratorIndex::VK);
 
     // Now, we can proceed with the proper (non-dummy) invokation of our constructor circuit:
 
@@ -768,7 +769,8 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
 
     // Now we can derive the vk:
     std::shared_ptr<NT::VK> constructor_vk = dummy_constructor_composer.compute_verification_key();
-    auto constructor_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(constructor_vk);
+    auto constructor_vk_hash =
+        stdlib::recursion::verification_key<CT::bn254>::compress_native(constructor_vk, GeneratorIndex::VK);
 
     // Now, we can proceed with the proper (non-dummy) invokation of our constructor circuit:
 

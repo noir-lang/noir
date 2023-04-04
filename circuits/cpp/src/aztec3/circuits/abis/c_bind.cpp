@@ -15,6 +15,7 @@
 #include "private_kernel/private_inputs.hpp"
 #include "private_kernel/public_inputs.hpp"
 
+#include <aztec3/circuits/hash.hpp>
 #include <aztec3/constants.hpp>
 
 #include <aztec3/utils/types/native_types.hpp>
@@ -25,6 +26,8 @@
 
 namespace {
 
+using aztec3::circuits::compute_constructor_hash;
+using aztec3::circuits::compute_contract_address;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::TxContext;
@@ -298,16 +301,8 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     read(args_buf, args);
     read(constructor_vk_hash_buf, constructor_vk_hash);
 
-    NT::fr function_data_hash = function_data.hash();
-    NT::fr args_hash = NT::compress(args, aztec3::CONSTRUCTOR_ARGS);
+    NT::fr constructor_hash = compute_constructor_hash(function_data, args, constructor_vk_hash);
 
-    std::vector<NT::fr> inputs = {
-        function_data_hash,
-        args_hash,
-        constructor_vk_hash,
-    };
-
-    NT::fr constructor_hash = NT::compress(inputs, aztec3::GeneratorIndex::CONSTRUCTOR);
     NT::fr::serialize_to_buffer(constructor_hash, output);
 }
 
@@ -343,14 +338,9 @@ WASM_EXPORT void abis__compute_contract_address(uint8_t const* deployer_address_
     read(function_tree_root_buf, function_tree_root);
     read(constructor_hash_buf, constructor_hash);
 
-    std::vector<NT::fr> inputs = {
-        deployer_address,
-        contract_address_salt,
-        function_tree_root,
-        constructor_hash,
-    };
+    NT::address contract_address =
+        compute_contract_address<NT>(deployer_address, contract_address_salt, function_tree_root, constructor_hash);
 
-    NT::address contract_address = NT::fr(NT::compress(inputs, aztec3::GeneratorIndex::CONTRACT_ADDRESS));
     NT::fr::serialize_to_buffer(contract_address, output);
 }
 

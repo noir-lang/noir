@@ -1,3 +1,4 @@
+#include "aztec3/constants.hpp"
 #include "init.hpp"
 
 #include <barretenberg/stdlib/primitives/field/array.hpp>
@@ -5,6 +6,8 @@
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
+
+#include <aztec3/circuits/hash.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
@@ -17,6 +20,11 @@ using plonk::stdlib::array_pop;
 using plonk::stdlib::array_push;
 using plonk::stdlib::is_array_empty;
 using plonk::stdlib::push_array_to_array;
+
+using aztec3::circuits::add_contract_address_to_commitment;
+using aztec3::circuits::add_contract_address_to_nullifier;
+using aztec3::circuits::compute_constructor_hash;
+using aztec3::circuits::compute_contract_address;
 
 // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // private_call.call_stack_item.public_inputs!
@@ -112,25 +120,22 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
             .must_imply(storage_contract_address != CT::fr(0),
                         "storage_contract_address is zero for a private function");
 
-        auto private_call_vk_hash = private_inputs.private_call.vk->compress();
-        auto constructor_hash =
-            CT::compress({ private_inputs.signed_tx_request.tx_request.function_data.hash(),
-                           CT::compress<ARGS_LENGTH>(private_call_public_inputs.args, CONSTRUCTOR_ARGS),
-                           private_call_vk_hash },
-                         CONSTRUCTOR);
+        auto private_call_vk_hash = private_inputs.private_call.vk->compress(GeneratorIndex::VK);
+        auto constructor_hash = compute_constructor_hash<CT>(private_inputs.signed_tx_request.tx_request.function_data,
+                                                             private_call_public_inputs.args,
+                                                             private_call_vk_hash);
 
         is_contract_deployment.must_imply(contract_deployment_data.constructor_vk_hash == private_call_vk_hash,
                                           "constructor_vk_hash does not match private call vk hash");
 
         // compute the contract address
-        auto contract_address = CT::compress({ deployer_address.to_field(),
-                                               contract_deployment_data.contract_address_salt,
-                                               contract_deployment_data.function_tree_root,
-                                               constructor_hash },
-                                             CONTRACT_ADDRESS);
+        auto contract_address = compute_contract_address<CT>(deployer_address,
+                                                             contract_deployment_data.contract_address_salt,
+                                                             contract_deployment_data.function_tree_root,
+                                                             constructor_hash);
 
         // compute contract address nullifier
-        auto blake_input = CT::byte_array(contract_address);
+        auto blake_input = CT::byte_array(contract_address.to_field());
         auto contract_address_nullifier = CT::fr(CT::blake3s(blake_input));
 
         // push the contract address nullifier to nullifier vector
@@ -152,19 +157,17 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     { // commitments, nullifiers, and contracts
         std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
-            siloed_new_commitments[i] =
-                CT::fr::conditional_assign(new_commitments[i] == 0,
-                                           0,
-                                           CT::compress({ storage_contract_address.to_field(), new_commitments[i] },
-                                                        GeneratorIndex::OUTER_COMMITMENT));
+            siloed_new_commitments[i] = CT::fr::conditional_assign(
+                new_commitments[i] == 0,
+                0,
+                add_contract_address_to_commitment<CT>(storage_contract_address, new_commitments[i]));
         }
         std::array<CT::fr, NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers;
         for (size_t i = 0; i < new_nullifiers.size(); ++i) {
-            siloed_new_nullifiers[i] =
-                CT::fr::conditional_assign(new_nullifiers[i] == 0,
-                                           0,
-                                           CT::compress({ storage_contract_address.to_field(), new_nullifiers[i] },
-                                                        GeneratorIndex::OUTER_NULLIFIER));
+            siloed_new_nullifiers[i] = CT::fr::conditional_assign(
+                new_nullifiers[i] == 0,
+                0,
+                add_contract_address_to_nullifier<CT>(storage_contract_address, new_nullifiers[i]));
         }
 
         // Add new commitments/etc to AggregatedData
