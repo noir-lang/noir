@@ -222,6 +222,9 @@ impl Driver {
                 function_type: func_type,
                 abi: function.abi,
                 bytecode: function.circuit,
+                // Since we have not called the proving system yet
+                // we do not have a verification key
+                verification_key: None,
             })
             .collect();
 

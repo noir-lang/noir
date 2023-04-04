@@ -51,6 +51,8 @@ pub struct ContractFunction {
         deserialize_with = "crate::program::deserialize_circuit"
     )]
     pub bytecode: Circuit,
+
+    pub verification_key: Option<Vec<u8>>,
 }
 
 impl ContractFunctionType {
