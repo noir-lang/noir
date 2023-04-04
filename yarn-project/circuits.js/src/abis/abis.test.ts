@@ -18,55 +18,60 @@ describe('abis wasm bindings', () => {
   beforeEach(async () => {
     wasm = await CircuitsWasm.new();
   });
-  it('hashes a tx request', () => {
+  it('hashes a tx request', async () => {
     const txRequest = makeTxRequest();
-    const hash = hashTxRequest(wasm, txRequest);
+    const hash = await hashTxRequest(wasm, txRequest);
     expect(hash).toMatchSnapshot();
   });
 
-  it('computes a function selector', () => {
+  it('computes a function selector', async () => {
     const funcSig = 'transfer(address,uint256)';
-    const res = computeFunctionSelector(wasm, funcSig);
+    const res = await computeFunctionSelector(wasm, funcSig);
     expect(res).toMatchSnapshot();
   });
 
-  it('hashes VK', () => {
+  it('hashes VK', async () => {
     const vk = makeVerificationKey();
-    const res = hashVK(wasm, vk.toBuffer());
+    const res = await hashVK(wasm, vk.toBuffer());
     expect(res).toMatchSnapshot();
   });
 
-  it('computes a function leaf', () => {
+  it('computes a function leaf', async () => {
     const leaf = Buffer.alloc(32);
-    const res = computeFunctionLeaf(wasm, leaf);
+    const res = await computeFunctionLeaf(wasm, leaf);
     expect(res).toMatchSnapshot();
   });
 
-  it('computes function tree root', () => {
-    const res = computeFunctionTreeRoot(wasm, [Buffer.alloc(32), Buffer.alloc(32), Buffer.alloc(32), Buffer.alloc(32)]);
+  it('computes function tree root', async () => {
+    const res = await computeFunctionTreeRoot(wasm, [
+      Buffer.alloc(32),
+      Buffer.alloc(32),
+      Buffer.alloc(32),
+      Buffer.alloc(32),
+    ]);
     expect(res).toMatchSnapshot();
   });
 
-  it('hash constructor info', () => {
+  it('hash constructor info', async () => {
     const functionData = new FunctionData(Buffer.alloc(4), true, true);
     const args = [new Fr(0n), new Fr(1n)];
     const vkHash = Buffer.alloc(32);
-    const res = hashConstructor(wasm, functionData, args, vkHash);
+    const res = await hashConstructor(wasm, functionData, args, vkHash);
     expect(res).toMatchSnapshot();
   });
 
-  it('computes a contract address', () => {
+  it('computes a contract address', async () => {
     const deployerAddr = makeAztecAddress(1);
     const contractAddrSalt = randomBytes(32);
     const treeRoot = randomBytes(32);
     const constructorHash = randomBytes(32);
-    const res = computeContractAddress(wasm, deployerAddr, contractAddrSalt, treeRoot, constructorHash);
+    const res = await computeContractAddress(wasm, deployerAddr, contractAddrSalt, treeRoot, constructorHash);
     expect(res).toMatchSnapshot();
   });
 
-  it('computes contract leaf', () => {
+  it('computes contract leaf', async () => {
     const leafPreImage = new NullifierLeafPreimage(fr(2), fr(2 + 0x100), 2 + 0x200);
-    const res = computeContractLeaf(wasm, leafPreImage);
+    const res = await computeContractLeaf(wasm, leafPreImage);
     expect(res).toMatchSnapshot();
   });
 });

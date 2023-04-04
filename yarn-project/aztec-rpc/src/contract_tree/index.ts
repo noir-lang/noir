@@ -16,17 +16,23 @@ function isConstructor({ name }: { name: string }) {
   return name === 'constructor';
 }
 
-function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
-  return functions
-    .filter(f => f.functionType !== FunctionType.UNCONSTRAINED && !isConstructor(f))
-    .map(f => {
-      const selector = generateFunctionSelector(f.name, f.parameters);
-      const isPrivate = f.functionType === FunctionType.SECRET;
-      // All non-unconstrained functions have vks
-      const vkHash = hashVK(wasm, Buffer.from(f.verificationKey!, 'hex'));
-      const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
-      return computeFunctionLeaf(wasm, Buffer.concat([selector, Buffer.from([isPrivate ? 1 : 0]), vkHash, acirHash]));
-    });
+async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
+  const filteredFunctions = functions.filter(f => f.functionType !== FunctionType.UNCONSTRAINED && !isConstructor(f));
+  const result: Buffer[] = [];
+  for (let i = 0; i < filteredFunctions.length; i++) {
+    const f = filteredFunctions[i];
+    const selector = generateFunctionSelector(f.name, f.parameters);
+    const isPrivate = f.functionType === FunctionType.SECRET;
+    // All non-unconstrained functions have vks
+    const vkHash = await hashVK(wasm, Buffer.from(f.verificationKey!, 'hex'));
+    const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
+    const fnLeaf = await computeFunctionLeaf(
+      wasm,
+      Buffer.concat([selector, Buffer.from([isPrivate ? 1 : 0]), vkHash, acirHash]),
+    );
+    result.push(fnLeaf);
+  }
+  return result;
 }
 
 export class ContractTree {
@@ -34,7 +40,7 @@ export class ContractTree {
 
   constructor(public readonly contract: ContractDao, private wasm: CircuitsWasm) {}
 
-  static new(
+  static async new(
     abi: ContractAbi,
     args: Fr[],
     portalContract: EthAddress,
@@ -51,12 +57,13 @@ export class ContractTree {
       ...f,
       selector: generateFunctionSelector(f.name, f.parameters),
     }));
-    const leaves = generateFunctionLeaves(functions, wasm);
-    const root = Fr.fromBuffer(computeFunctionTreeRoot(wasm, leaves));
+    const leaves = await generateFunctionLeaves(functions, wasm);
+    const functionTreeRoot = await computeFunctionTreeRoot(wasm, leaves);
+    const root = Fr.fromBuffer(functionTreeRoot);
     const constructorSelector = generateFunctionSelector(constructorFunc.name, constructorFunc.parameters);
-    const vkHash = hashVK(wasm, Buffer.from(constructorFunc.verificationKey!, 'hex'));
-    const constructorHash = hashConstructor(wasm, new FunctionData(constructorSelector), args, vkHash);
-    const address = computeContractAddress(
+    const vkHash = await hashVK(wasm, Buffer.from(constructorFunc.verificationKey!, 'hex'));
+    const constructorHash = await hashConstructor(wasm, new FunctionData(constructorSelector), args, vkHash);
+    const address = await computeContractAddress(
       wasm,
       from,
       contractAddressSalt.toBuffer(),
@@ -72,15 +79,16 @@ export class ContractTree {
     return new ContractTree(contractDao, wasm);
   }
 
-  getFunctionLeaves() {
+  async getFunctionLeaves() {
     if (!this.functionLeaves) {
-      this.functionLeaves = generateFunctionLeaves(this.contract.functions, this.wasm);
+      this.functionLeaves = await generateFunctionLeaves(this.contract.functions, this.wasm);
     }
     return this.functionLeaves;
   }
 
-  getFunctionTreeRoot() {
-    const leaves = this.getFunctionLeaves();
-    return Fr.fromBuffer(computeFunctionTreeRoot(this.wasm, leaves));
+  async getFunctionTreeRoot() {
+    const leaves = await this.getFunctionLeaves();
+    const treeRoot = await computeFunctionTreeRoot(this.wasm, leaves);
+    return Fr.fromBuffer(treeRoot);
   }
 }

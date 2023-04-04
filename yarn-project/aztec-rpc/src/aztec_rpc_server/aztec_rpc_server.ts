@@ -113,7 +113,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const flatArgs = encodeArguments(constructorAbi, args);
 
     const fromAddress = from.equals(AztecAddress.ZERO) ? (await this.keyStore.getAccounts())[0] : from;
-    const contractTree = ContractTree.new(
+    const contractTree = await ContractTree.new(
       abi,
       flatArgs,
       portalContract,
@@ -129,13 +129,13 @@ export class AztecRPCServer implements AztecRPCClient {
       true,
     );
 
-    const constructorVkHash = Fr.fromBuffer(
-      hashVK(this.circuitsWasm, Buffer.from(constructorAbi.verificationKey, 'hex')),
-    );
+    const constructorVkHash = await hashVK(this.circuitsWasm, Buffer.from(constructorAbi.verificationKey, 'hex'));
+
+    const functionTreeRoot = await contractTree.getFunctionTreeRoot();
 
     const contractDeploymentData = new ContractDeploymentData(
-      constructorVkHash,
-      contractTree.getFunctionTreeRoot(),
+      Fr.fromBuffer(constructorVkHash),
+      functionTreeRoot,
       contractAddressSalt,
       portalContract,
     );
@@ -234,11 +234,11 @@ export class AztecRPCServer implements AztecRPCClient {
     return tx;
   }
 
-  private getFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
-    return Promise.resolve(this.computeFunctionTreeInfo(contract, callStackItem));
+  private async getFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
+    return await this.computeFunctionTreeInfo(contract, callStackItem);
   }
 
-  private computeFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
+  private async computeFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
     const tree = new ContractTree(contract, this.circuitsWasm);
     const functionIndex =
       contract.functions.findIndex(f => f.selector.equals(callStackItem.functionData.functionSelector)) - 1;
@@ -255,7 +255,7 @@ export class AztecRPCServer implements AztecRPCClient {
       } as FunctionTreeInfo;
     }
 
-    const leaves = tree.getFunctionLeaves();
+    const leaves = await tree.getFunctionLeaves();
     const functionTree = this.getFunctionTree(leaves);
     let rowSize = Math.ceil(functionTree.length / 2);
     let rowOffset = 0;
