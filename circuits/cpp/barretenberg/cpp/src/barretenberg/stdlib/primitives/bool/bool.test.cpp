@@ -1,8 +1,13 @@
 #include "bool.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
-#include <gtest/gtest.h>
 #include "barretenberg/plonk/composer/standard_composer.hpp"
+#include <gtest/gtest.h>
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.cpp"
+
+#define STDLIB_TYPE_ALIASES                                                                                            \
+    using Composer = TypeParam;                                                                                        \
+    using witness_ct = stdlib::witness_t<Composer>;                                                                    \
+    using bool_ct = stdlib::bool_t<Composer>;
 
 namespace test_stdlib_bool {
 using namespace barretenberg;
@@ -12,69 +17,50 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-typedef stdlib::bool_t<honk::StandardHonkComposer> bool_t;
-typedef stdlib::witness_t<honk::StandardHonkComposer> witness_t;
+template <class Composer> class BoolTest : public ::testing::Test {};
 
-TEST(stdlib_bool, test_basic_operations)
+using ComposerTypes =
+    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+TYPED_TEST_SUITE(BoolTest, ComposerTypes);
+TYPED_TEST(BoolTest, TestBasicOperations)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
-    bool_t a(&composer);
-    bool_t b(&composer);
-    a = stdlib::witness_t(&composer, barretenberg::fr::one());
-    b = stdlib::witness_t(&composer, barretenberg::fr::zero());
-    a = a ^ b;           // a = 1
-    b = !b;              // b = 1 (witness 0)
-    bool_t d = (a == b); //
-    d = false;           // d = 0
-    bool_t e = a | d;    // e = 1 = a
-    bool_t f = e ^ b;    // f = 0
-    d = (!f) & a;        // d = 1
+
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
+    bool_ct a = witness_ct(&composer, barretenberg::fr::one());
+    bool_ct b = witness_ct(&composer, barretenberg::fr::zero());
+    a = a ^ b; // a = 1
+    EXPECT_EQ(a.get_value(), 1);
+    b = !b; // b = 1 (witness 0)
+    EXPECT_EQ(b.get_value(), 1);
+    bool_ct d = (a == b); //
+    EXPECT_EQ(d.get_value(), 1);
+    d = false; // d = 0
+    EXPECT_EQ(d.get_value(), 0);
+    bool_ct e = a | d; // e = 1 = a
+    EXPECT_EQ(e.get_value(), 1);
+    bool_ct f = e ^ b; // f = 0
+    EXPECT_EQ(f.get_value(), 0);
+    d = (!f) & a; // d = 1
+    EXPECT_EQ(d.get_value(), 1);
+
     auto prover = composer.create_prover();
-    // if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
-    EXPECT_EQ(prover.wire_polynomials[0][3], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[1][3], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[2][3], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[0][4], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[1][4], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[2][4], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[0][5], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[1][5], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[2][5], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[0][6], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[1][6], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[2][6], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[0][7], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[1][7], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[2][7], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[0][8], fr(0));
-    EXPECT_EQ(prover.wire_polynomials[1][8], fr(1));
-    EXPECT_EQ(prover.wire_polynomials[2][8], fr(1));
-    // } else {
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[1], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[2], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[3], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[3], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[3], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[4], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[4], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[4], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[5], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[5], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[5], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_1_lagrange")[6], fr(0));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_2_lagrange")[6], fr(1));
-    //     EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[6], fr(1));
-    // }
+    auto verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+
     EXPECT_EQ(prover.key->circuit_size, 16UL);
 }
 
-TEST(stdlib_bool, xor)
+TYPED_TEST(BoolTest, Xor)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -82,9 +68,9 @@ TEST(stdlib_bool, xor)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
-            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
-            bool_t c = a ^ b;
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct c = a ^ b;
             EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
         }
     }
@@ -97,22 +83,24 @@ TEST(stdlib_bool, xor)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, xor_constants)
+TYPED_TEST(BoolTest, XorConstants)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 2));
-        bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&composer, (bool)(i % 2));
+        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
         a ^ b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_t a = witness_t(&composer, (bool)(i % 2));
-            bool_t b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&composer, (bool)(i % 2));
+            bool_ct b(&composer, (bool)(i % 3 == 1));
             a ^ b;
         } else {
-            bool_t a(&composer, (bool)(i % 2));
-            bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&composer, (bool)(i % 2));
+            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
             a ^ b;
         }
     }
@@ -125,24 +113,26 @@ TEST(stdlib_bool, xor_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, xor_twin_constants)
+TYPED_TEST(BoolTest, XorTwinConstants)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
-    bool_t c;
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
+    bool_ct c;
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a(&composer, (i % 1) == 0);
-        bool_t b(&composer, (i % 1) == 1);
+        bool_ct a(&composer, (i % 1) == 0);
+        bool_ct b(&composer, (i % 1) == 1);
         c = c ^ a ^ b;
     }
-    c = c ^ bool_t(witness_t(&composer, true));
+    c = c ^ bool_ct(witness_ct(&composer, true));
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_t a = witness_t(&composer, (bool)(i % 2));
-            bool_t b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&composer, (bool)(i % 2));
+            bool_ct b(&composer, (bool)(i % 3 == 1));
             c = c ^ a ^ b;
         } else {
-            bool_t a(&composer, (bool)(i % 2));
-            bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&composer, (bool)(i % 2));
+            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
             c = c ^ a ^ b;
         }
     }
@@ -155,28 +145,32 @@ TEST(stdlib_bool, xor_twin_constants)
     EXPECT_EQ(result, true);
 }
 
-// TEST(stdlib_bool, logical_and)
-// {
-//     honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
-//     bool_t a = witness_t(&composer, 1);
-//     bool_t b = witness_t(&composer, 1);
-//     (!a) && (!b);
-
-//     auto prover = composer.create_prover();
-//     auto verifier = composer.create_verifier();
-
-//     plonk::proof proof = prover.construct_proof();
-
-//     bool result = verifier.verify_proof(proof);
-//     EXPECT_EQ(result, true);
-// }
-
-TEST(stdlib_bool, and)
+TYPED_TEST(BoolTest, LogicalAnd)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
+    bool_ct a = witness_ct(&composer, 1);
+    bool_ct b = witness_ct(&composer, 1);
+    (!a) && (!b);
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+
+    plonk::proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TYPED_TEST(BoolTest, And)
+{
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 1));
-        bool_t b = witness_t(&composer, (bool)(i % 2 == 1));
+        bool_ct a = witness_ct(&composer, (bool)(i % 1));
+        bool_ct b = witness_ct(&composer, (bool)(i % 2 == 1));
         a& b;
     }
     auto prover = composer.create_prover();
@@ -188,22 +182,24 @@ TEST(stdlib_bool, and)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, and_constants)
+TYPED_TEST(BoolTest, AndConstants)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 2));
-        bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&composer, (bool)(i % 2));
+        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
         a& b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_t a = witness_t(&composer, (bool)(i % 2));
-            bool_t b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&composer, (bool)(i % 2));
+            bool_ct b(&composer, (bool)(i % 3 == 1));
             a& b;
         } else {
-            bool_t a(&composer, (bool)(i % 2));
-            bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&composer, (bool)(i % 2));
+            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
             a& b;
         }
     }
@@ -216,12 +212,14 @@ TEST(stdlib_bool, and_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, or)
+TYPED_TEST(BoolTest, or)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 2));
-        bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&composer, (bool)(i % 2));
+        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
         a | b;
     }
     auto prover = composer.create_prover();
@@ -233,22 +231,24 @@ TEST(stdlib_bool, or)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, or_constants)
+TYPED_TEST(BoolTest, OrConstants)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 2));
-        bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+        bool_ct a = witness_ct(&composer, (bool)(i % 2));
+        bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
         a | b;
     }
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            bool_t a = witness_t(&composer, (bool)(i % 2));
-            bool_t b(&composer, (bool)(i % 3 == 1));
+            bool_ct a = witness_ct(&composer, (bool)(i % 2));
+            bool_ct b(&composer, (bool)(i % 3 == 1));
             a | b;
         } else {
-            bool_t a(&composer, (bool)(i % 2));
-            bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
+            bool_ct a(&composer, (bool)(i % 2));
+            bool_ct b = witness_ct(&composer, (bool)(i % 3 == 1));
             a | b;
         }
     }
@@ -261,9 +261,11 @@ TEST(stdlib_bool, or_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, eq)
+TYPED_TEST(BoolTest, Eq)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     bool a_alt[32];
     bool b_alt[32];
     bool c_alt[32];
@@ -281,19 +283,19 @@ TEST(stdlib_bool, eq)
             d_alt[i] = false;
         }
     }
-    bool_t a[32];
-    bool_t b[32];
-    bool_t c[32];
-    bool_t d[32];
+    bool_ct a[32];
+    bool_ct b[32];
+    bool_ct c[32];
+    bool_ct d[32];
     for (size_t i = 0; i < 32; ++i) {
         if (i % 2 == 0) {
-            a[i] = witness_t(&composer, (bool)(i % 2));
-            b[i] = witness_t(&composer, (bool)(0));
+            a[i] = witness_ct(&composer, (bool)(i % 2));
+            b[i] = witness_ct(&composer, (bool)(0));
             c[i] = a[i] ^ b[i];
             d[i] = a[i] == c[i];
         } else {
-            a[i] = witness_t(&composer, (bool)(1));
-            b[i] = witness_t(&composer, (bool)(0));
+            a[i] = witness_ct(&composer, (bool)(1));
+            b[i] = witness_ct(&composer, (bool)(0));
             c[i] = a[i] & b[i];
             d[i] = a[i] == c[i];
         }
@@ -313,9 +315,11 @@ TEST(stdlib_bool, eq)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, implies)
+TYPED_TEST(BoolTest, Implies)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -323,9 +327,9 @@ TEST(stdlib_bool, implies)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
-            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
-            bool_t c = a.implies(b);
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct c = a.implies(b);
             EXPECT_EQ(c.get_value(), !a.get_value() || b.get_value());
         }
     }
@@ -338,9 +342,11 @@ TEST(stdlib_bool, implies)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, implies_both_ways)
+TYPED_TEST(BoolTest, ImpliesBothWays)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -348,9 +354,9 @@ TEST(stdlib_bool, implies_both_ways)
         for (size_t i = 0; i < 4; ++i) {
             bool a_val = (bool)(i % 2);
             bool b_val = (bool)(i > 1 ? true : false);
-            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
-            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
-            bool_t c = a.implies_both_ways(b);
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
+            bool_ct c = a.implies_both_ways(b);
             EXPECT_EQ(c.get_value(), !(a.get_value() ^ b.get_value()));
         }
     }
@@ -363,9 +369,11 @@ TEST(stdlib_bool, implies_both_ways)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, must_imply)
+TYPED_TEST(BoolTest, MustImply)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -377,8 +385,8 @@ TEST(stdlib_bool, must_imply)
             bool six = (bool)(i % 6);
             bool a_val = (two && three);
             bool b_val = six;
-            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
-            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
+            bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
+            bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
             a.must_imply(b);
         }
     }
@@ -391,9 +399,11 @@ TEST(stdlib_bool, must_imply)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, must_imply_fails)
+TYPED_TEST(BoolTest, MustImplyFails)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 3; ++j) { // ignore the case when both lhs and rhs are constants
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -403,8 +413,8 @@ TEST(stdlib_bool, must_imply_fails)
         const size_t i = 8;
         bool a_val = (bool)(i % 2 == 0);
         bool b_val = (bool)(i % 6 == 0);
-        bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
-        bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
+        bool_ct a = lhs_constant ? bool_ct(a_val) : (witness_ct(&composer, a_val));
+        bool_ct b = rhs_constant ? bool_ct(b_val) : (witness_ct(&composer, b_val));
         a.must_imply(b, "div by 2 does not imply div by 8");
 
         EXPECT_EQ(composer.failed(), true);
@@ -412,9 +422,10 @@ TEST(stdlib_bool, must_imply_fails)
     }
 }
 
-TEST(stdlib_bool, must_imply_multiple)
+TYPED_TEST(BoolTest, MustImplyMultiple)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     /**
      * Define g(x) = 2x + 12
@@ -431,12 +442,12 @@ TEST(stdlib_bool, must_imply_multiple)
         bool rhs_constant = (bool)(j > 1 ? true : false);
 
         for (size_t x = 10; x < 18; x += 2) {
-            std::vector<std::pair<bool_t, std::string>> conditions;
+            std::vector<std::pair<bool_ct, std::string>> conditions;
             bool four = (bool)(x % 4 == 0);
             bool six = (bool)(x % 6 == 0);
 
-            bool_t a = lhs_constant ? bool_t(four) : (witness_t(&composer, four));
-            bool_t b = rhs_constant ? bool_t(six) : (witness_t(&composer, six));
+            bool_ct a = lhs_constant ? bool_ct(four) : (witness_ct(&composer, four));
+            bool_ct b = rhs_constant ? bool_ct(six) : (witness_ct(&composer, six));
 
             auto g_x = g(x);
             conditions.push_back(std::make_pair(g_x > 0, "g(x) > 0"));
@@ -460,9 +471,10 @@ TEST(stdlib_bool, must_imply_multiple)
     }
 }
 
-TEST(stdlib_bool, must_imply_multiple_fails)
+TYPED_TEST(BoolTest, MustImplyMultipleFails)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     /**
      * Given x = 15:
@@ -476,12 +488,12 @@ TEST(stdlib_bool, must_imply_multiple_fails)
 
         size_t x = 15;
         bool main = (bool)(x > 10);
-        bool_t main_ct = is_constant ? bool_t(main) : (witness_t(&composer, main));
+        bool_ct main_ct = is_constant ? bool_ct(main) : (witness_ct(&composer, main));
 
-        std::vector<std::pair<bool_t, std::string>> conditions;
-        conditions.push_back(std::make_pair(witness_t(&composer, x > 8), "x > 8"));
-        conditions.push_back(std::make_pair(witness_t(&composer, x > 5), "x > 5"));
-        conditions.push_back(std::make_pair(witness_t(&composer, x > 18), "x > 18"));
+        std::vector<std::pair<bool_ct, std::string>> conditions;
+        conditions.push_back(std::make_pair(witness_ct(&composer, x > 8), "x > 8"));
+        conditions.push_back(std::make_pair(witness_ct(&composer, x > 5), "x > 5"));
+        conditions.push_back(std::make_pair(witness_ct(&composer, x > 18), "x > 18"));
 
         main_ct.must_imply(conditions);
 
@@ -490,9 +502,11 @@ TEST(stdlib_bool, must_imply_multiple_fails)
     }
 }
 
-TEST(stdlib_bool, conditional_assign)
+TYPED_TEST(BoolTest, ConditionalAssign)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
     for (size_t j = 0; j < 4; ++j) {
         bool lhs_constant = (bool)(j % 2);
         bool rhs_constant = (bool)(j > 1 ? true : false);
@@ -503,11 +517,11 @@ TEST(stdlib_bool, conditional_assign)
         bool condition = (val % 2 == 0);
         bool right = x < val;
         bool left = x > val;
-        bool_t l_ct = lhs_constant ? bool_t(left) : (witness_t(&composer, left));
-        bool_t r_ct = rhs_constant ? bool_t(right) : (witness_t(&composer, right));
-        bool_t cond = (witness_t(&composer, condition));
+        bool_ct l_ct = lhs_constant ? bool_ct(left) : (witness_ct(&composer, left));
+        bool_ct r_ct = rhs_constant ? bool_ct(right) : (witness_ct(&composer, right));
+        bool_ct cond = (witness_ct(&composer, condition));
 
-        auto result = bool_t::conditional_assign(cond, l_ct, r_ct);
+        auto result = bool_ct::conditional_assign(cond, l_ct, r_ct);
 
         EXPECT_EQ(result.get_value(), condition ? left : right);
     }
@@ -520,25 +534,27 @@ TEST(stdlib_bool, conditional_assign)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, test_simple_proof)
+TYPED_TEST(BoolTest, TestSimpleProof)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
-    bool_t a(&composer);
-    bool_t b(&composer);
-    a = stdlib::witness_t(&composer, barretenberg::fr::one());
-    b = stdlib::witness_t(&composer, barretenberg::fr::zero());
-    // bool_t c(&composer);
-    a = a ^ b;           // a = 1
-    b = !b;              // b = 1 (witness 0)
-    bool_t c = (a == b); // c = 1
-    bool_t d(&composer); // d = ?
-    d = false;           // d = 0
-    bool_t e = a | d;    // e = 1 = a
-    bool_t f = e ^ b;    // f = 0
-    d = (!f) & a;        // d = 1
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
+
+    bool_ct a(&composer);
+    bool_ct b(&composer);
+    a = witness_ct(&composer, barretenberg::fr::one());
+    b = witness_ct(&composer, barretenberg::fr::zero());
+    // bool_ct c(&composer);
+    a = a ^ b;            // a = 1
+    b = !b;               // b = 1 (witness 0)
+    bool_ct c = (a == b); // c = 1
+    bool_ct d(&composer); // d = ?
+    d = false;            // d = 0
+    bool_ct e = a | d;    // e = 1 = a
+    bool_ct f = e ^ b;    // f = 0
+    d = (!f) & a;         // d = 1
     for (size_t i = 0; i < 64; ++i) {
-        a = witness_t(&composer, (bool)(i % 2));
-        b = witness_t(&composer, (bool)(i % 3 == 1));
+        a = witness_ct(&composer, (bool)(i % 2));
+        b = witness_ct(&composer, (bool)(i % 3 == 1));
         c = a ^ b;
         a = b ^ c;
         c = a;
@@ -554,14 +570,15 @@ TEST(stdlib_bool, test_simple_proof)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_bool, normalize)
+TYPED_TEST(BoolTest, Normalize)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     auto generate_constraints = [&composer](bool value, bool is_constant, bool is_inverted) {
-        bool_t a = is_constant ? bool_t(&composer, value) : witness_t(&composer, value);
-        bool_t b = is_inverted ? !a : a;
-        bool_t c = b.normalize();
+        bool_ct a = is_constant ? bool_ct(&composer, value) : witness_ct(&composer, value);
+        bool_ct b = is_inverted ? !a : a;
+        bool_ct c = b.normalize();
         EXPECT_EQ(c.get_value(), value ^ is_inverted);
     };
 

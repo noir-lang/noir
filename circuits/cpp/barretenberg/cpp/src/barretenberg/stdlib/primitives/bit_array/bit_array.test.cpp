@@ -2,6 +2,20 @@
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/witness/witness.hpp"
+
+#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
+
+#define STDLIB_TYPE_ALIASES                                                                                            \
+    using Composer = TypeParam;                                                                                        \
+    using witness_ct = stdlib::witness_t<Composer>;                                                                    \
+    using byte_array_ct = stdlib::byte_array<Composer>;                                                                \
+    using field_ct = stdlib::field_t<Composer>;                                                                        \
+    using uint32_ct = stdlib::uint32<Composer>;                                                                        \
+    using bit_array_ct = stdlib::bit_array<Composer>;                                                                  \
+    using bool_ct = stdlib::bool_t<Composer>;
 
 namespace test_stdlib_bit_array {
 
@@ -12,105 +26,109 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-typedef stdlib::bool_t<honk::StandardHonkComposer> bool_t;
-typedef stdlib::field_t<honk::StandardHonkComposer> field_t;
-typedef stdlib::uint32<honk::StandardHonkComposer> uint32;
-typedef stdlib::witness_t<honk::StandardHonkComposer> witness_t;
-typedef stdlib::bit_array<honk::StandardHonkComposer> bit_array;
-typedef stdlib::byte_array<honk::StandardHonkComposer> byte_array;
+template <class Composer> class BitArrayTest : public ::testing::Test {};
 
-TEST(stdlib_bit_array, test_uint32_input_output_consistency)
+using ComposerTypes =
+    ::testing::Types<honk::StandardHonkComposer, plonk::StandardComposer, plonk::TurboComposer, plonk::UltraComposer>;
+TYPED_TEST_SUITE(BitArrayTest, ComposerTypes);
+
+TYPED_TEST(BitArrayTest, test_uint32_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();
 
-    uint32 a = witness_t(&composer, a_expected);
-    uint32 b = witness_t(&composer, b_expected);
+    uint32_ct a = witness_ct(&composer, a_expected);
+    uint32_ct b = witness_ct(&composer, b_expected);
 
-    std::vector<uint32> inputs = { a, b };
-    bit_array test_bit_array = bit_array(inputs);
+    std::vector<uint32_ct> inputs = { a, b };
+    bit_array_ct test_bit_array = bit_array_ct(inputs);
 
-    std::vector<uint32> result = test_bit_array.to_uint32_vector();
+    std::vector<uint32_ct> result = test_bit_array.to_uint32_vector();
 
     EXPECT_EQ(result.size(), 2UL);
 
-    uint32_t a_result =
+    auto a_result =
         static_cast<uint32_t>(composer.get_variable(result[0].get_witness_index()).from_montgomery_form().data[0]);
-    uint32_t b_result =
+    auto b_result =
         static_cast<uint32_t>(composer.get_variable(result[1].get_witness_index()).from_montgomery_form().data[0]);
 
     EXPECT_EQ(a_result, a_expected);
     EXPECT_EQ(b_result, b_expected);
 }
 
-TEST(stdlib_bit_array, test_binary_input_output_consistency)
+TYPED_TEST(BitArrayTest, test_binary_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
-    bit_array test_bit_array = bit_array(&composer, 5);
+    bit_array_ct test_bit_array = bit_array_ct(&composer, 5);
 
-    test_bit_array[0] = bool_t(witness_t(&composer, true));
-    test_bit_array[1] = bool_t(witness_t(&composer, false));
-    test_bit_array[2] = bool_t(witness_t(&composer, true));
-    test_bit_array[3] = bool_t(witness_t(&composer, true));
-    test_bit_array[4] = bool_t(witness_t(&composer, false));
+    test_bit_array[0] = bool_ct(witness_ct(&composer, true));
+    test_bit_array[1] = bool_ct(witness_ct(&composer, false));
+    test_bit_array[2] = bool_ct(witness_ct(&composer, true));
+    test_bit_array[3] = bool_ct(witness_ct(&composer, true));
+    test_bit_array[4] = bool_ct(witness_ct(&composer, false));
 
-    std::vector<uint32> uint32_vec = test_bit_array.to_uint32_vector();
+    std::vector<uint32_ct> uint32_vec = test_bit_array.to_uint32_vector();
 
     EXPECT_EQ(uint32_vec.size(), 1UL);
 
-    uint32_t result =
+    auto result =
         static_cast<uint32_t>(composer.get_variable(uint32_vec[0].get_witness_index()).from_montgomery_form().data[0]);
 
-    uint32_t expected = 0b01101;
+    auto expected = 0b01101;
     EXPECT_EQ(result, expected);
 }
 
-TEST(stdlib_bit_array, test_string_input_output_consistency)
+TYPED_TEST(BitArrayTest, test_string_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
-    bit_array test_bit_array = bit_array(&composer, expected);
+    bit_array_ct test_bit_array = bit_array_ct(&composer, expected);
 
     std::string result = test_bit_array.get_witness_as_string();
 
     EXPECT_EQ(result, expected);
 }
 
-TEST(stdlib_bit_array, test_byte_array_conversion)
+TYPED_TEST(BitArrayTest, test_byte_array_conversion)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
-    bit_array test_bit_array = bit_array(&composer, expected);
+    bit_array_ct test_bit_array = bit_array_ct(&composer, expected);
 
-    byte_array test_bytes(test_bit_array);
-    bit_array test_output(test_bytes);
+    byte_array_ct test_bytes(test_bit_array);
+    bit_array_ct test_output(test_bytes);
     std::string result = test_output.get_witness_as_string();
 
     EXPECT_EQ(result, expected);
 }
 
-TEST(stdlib_bit_array, test_uint32_vector_constructor)
+TYPED_TEST(BitArrayTest, test_uint32_vector_constructor)
 {
-    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
+    STDLIB_TYPE_ALIASES
+    auto composer = Composer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();
 
-    uint32 a = witness_t(&composer, a_expected);
-    uint32 b = witness_t(&composer, b_expected);
+    uint32_ct a = witness_ct(&composer, a_expected);
+    uint32_ct b = witness_ct(&composer, b_expected);
 
-    std::vector<uint32> inputs = { a, b };
-    bit_array test_bit_array = bit_array(inputs);
+    std::vector<uint32_ct> inputs = { a, b };
+    bit_array_ct test_bit_array = bit_array_ct(inputs);
 
-    std::vector<uint32> result = test_bit_array.to_uint32_vector();
+    std::vector<uint32_ct> result = test_bit_array.to_uint32_vector();
 
-    bit_array test_bit_array_2 = bit_array(result);
+    bit_array_ct test_bit_array_2 = bit_array_ct(result);
 
-    static_cast<byte_array>(test_bit_array_2).get_value();
+    static_cast<byte_array_ct>(test_bit_array_2).get_value();
 }
 } // namespace test_stdlib_bit_array
