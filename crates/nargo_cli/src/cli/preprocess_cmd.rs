@@ -23,24 +23,32 @@ pub(crate) fn run(args: PreprocessCommand, config: NargoConfig) -> Result<(), Cl
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     let program = read_program_from_file(circuit_dir.join(&args.artifact_name))?;
-    let preprocess_data = preprocess(&program.circuit);
+    let preprocess_data = PreprocessedData::from(&program.circuit);
     save_preprocess_data(&preprocess_data, &args.artifact_name, circuit_dir)?;
 
     Ok(())
 }
-
+/// The result of preprocessing the ACIR bytecode.
+/// The proving, verification key and circuit are backend specific.
+///
+/// The circuit is backend specific because ath the end of compilation
+/// an optimization pass is applied which will transform the bytecode into
+/// a format that the backend will accept; removing unsupported gates
+/// is one example of this.
 pub(crate) struct PreprocessedData {
     pub(crate) proving_key: Vec<u8>,
     pub(crate) verification_key: Vec<u8>,
     pub(crate) program_hash: [u8; 32],
 }
 
-pub(crate) fn preprocess(circuit: &Circuit) -> PreprocessedData {
-    let backend = nargo::backends::ConcreteBackend;
-    let (proving_key, verification_key) = backend.preprocess(circuit);
-    let program_hash = hash_acir(circuit);
+impl From<&Circuit> for PreprocessedData {
+    fn from(circuit: &Circuit) -> Self {
+        let backend = nargo::backends::ConcreteBackend;
+        let (proving_key, verification_key) = backend.preprocess(circuit);
+        let program_hash = hash_acir(circuit);
 
-    PreprocessedData { proving_key, verification_key, program_hash }
+        PreprocessedData { proving_key, verification_key, program_hash }
+    }
 }
 
 pub(crate) fn save_preprocess_data<P: AsRef<Path>>(

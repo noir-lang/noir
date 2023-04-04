@@ -8,7 +8,7 @@ use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::{save_contract_to_file, save_program_to_file};
-use super::preprocess_cmd::{preprocess, save_preprocess_data};
+use super::preprocess_cmd::{save_preprocess_data, PreprocessedData};
 use super::NargoConfig;
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -54,7 +54,7 @@ fn save_and_preprocess_program(
 ) -> Result<(), CliError> {
     save_program_to_file(compiled_program, circuit_name, circuit_dir);
 
-    let preprocessed_data = preprocess(&compiled_program.circuit);
+    let preprocessed_data = PreprocessedData::from(&compiled_program.circuit);
     save_preprocess_data(&preprocessed_data, circuit_name, circuit_dir)?;
     Ok(())
 }
@@ -87,7 +87,7 @@ fn save_and_preprocess_contract(
             // Each program in a contract is preprocessed
             // Note: This can potentially be quite a long running process
 
-            let preprocessed_data = preprocess(&contract_function.bytecode);
+            let preprocessed_data = PreprocessedData::from(&contract_function.bytecode);
             save_preprocess_data(
                 &preprocessed_data,
                 &uniquely_identifying_program_name,
