@@ -1,25 +1,13 @@
-use std::collections::BTreeMap;
-
-use crate::CompiledProgram;
-
-/// Each function in the contract will be compiled
-/// as a separate noir program.
-///
-/// A contract function unlike a regular Noir program
-/// however can have addition properties.
-/// One of these being a function type.
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ContractFunction {
-    pub func_type: ContractFunctionType,
-    pub function: CompiledProgram,
-}
+use acvm::acir::circuit::Circuit;
+use noirc_abi::Abi;
+use serde::{Deserialize, Serialize};
 
 /// Describes the types of smart contract functions that are allowed.
 /// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
 /// are mutually exclusive here. In the case a function is both, 'unconstrained'
 /// takes precedence.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
@@ -33,12 +21,38 @@ pub enum ContractFunctionType {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompiledContract {
     /// The name of the contract.
     pub name: String,
     /// Each of the contract's functions are compiled into a separate `CompiledProgram`
-    /// stored in this `BTreeMap`.
-    pub functions: BTreeMap<String, ContractFunction>,
+    /// stored in this `Vector`.
+    pub functions: Vec<ContractFunction>,
+}
+
+/// Each function in the contract will be compiled
+/// as a separate noir program.
+///
+/// A contract function unlike a regular Noir program
+/// however can have additional properties.
+/// One of these being a function type.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContractFunction {
+    pub name: String,
+
+    pub function_type: ContractFunctionType,
+
+    #[serde(flatten)]
+    pub abi: Abi,
+
+    #[serde(
+        serialize_with = "crate::program::serialize_circuit",
+        deserialize_with = "crate::program::deserialize_circuit"
+    )]
+    pub bytecode: Circuit,
+
+    pub verification_key: Option<Vec<u8>>,
 }
 
 impl ContractFunctionType {

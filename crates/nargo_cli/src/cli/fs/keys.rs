@@ -62,7 +62,10 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::fetch_pk_and_vk;
-    use crate::cli::fs::{keys::save_key_to_dir, program::save_acir_hash_to_dir};
+    use crate::cli::fs::{
+        keys::save_key_to_dir,
+        program::{hash_acir, save_acir_hash_to_dir},
+    };
     use acvm::acir::circuit::Circuit;
     use tempdir::TempDir;
 
@@ -78,7 +81,7 @@ mod tests {
         save_key_to_dir(&pk, circuit_name, &circuit_build_path, true).unwrap();
         save_key_to_dir(&vk, circuit_name, &circuit_build_path, false).unwrap();
 
-        save_acir_hash_to_dir(&circuit, circuit_name, &circuit_build_path);
+        save_acir_hash_to_dir(hash_acir(&circuit), circuit_name, &circuit_build_path);
         circuit_build_path.push(circuit_name);
 
         let loaded_keys = fetch_pk_and_vk(&circuit, circuit_build_path, true, true).unwrap();
