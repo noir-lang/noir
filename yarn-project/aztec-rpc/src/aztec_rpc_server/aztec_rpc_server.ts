@@ -32,6 +32,7 @@ import { TxDao } from '../database/tx_dao.js';
 import { KeyStore } from '../key_store/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
+import { computeFunctionTreeData } from './function_tree_data.js';
 
 /**
  * Implements a remote Aztec RPC client provider.
@@ -245,37 +246,20 @@ export class AztecRPCServer implements AztecRPCClient {
     if (functionIndex < 0) {
       return {
         root: Buffer.alloc(32),
-        membershipWitness: new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
-          FUNCTION_TREE_HEIGHT,
-          0,
-          Array(FUNCTION_TREE_HEIGHT)
-            .fill(0)
-            .map(() => Fr.ZERO),
-        ),
+        membershipWitness: MembershipWitness.makeEmpty(FUNCTION_TREE_HEIGHT, 0),
       } as FunctionTreeInfo;
     }
 
     const leaves = await tree.getFunctionLeaves();
     const functionTree = await this.getFunctionTree(leaves);
-    let rowSize = Math.ceil(functionTree.length / 2);
-    let rowOffset = 0;
-    let index = functionIndex;
-    const nodes: Fr[] = [];
-    while (rowSize > 1) {
-      const isRight = index & 1;
-      nodes.push(functionTree[rowOffset + index + (isRight ? -1 : 1)]);
-      rowOffset += rowSize;
-      rowSize >>= 1;
-      index >>= 1;
-    }
+    const functionTreeData = computeFunctionTreeData(functionTree, functionIndex);
     const membershipWitness = new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
       FUNCTION_TREE_HEIGHT,
       functionIndex,
-      nodes,
+      functionTreeData.siblingPath,
     );
-    const root = functionTree[functionTree.length - 1].toBuffer();
     return {
-      root,
+      root: functionTreeData.root.toBuffer(),
       membershipWitness,
     } as FunctionTreeInfo;
   }

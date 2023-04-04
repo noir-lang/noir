@@ -20,6 +20,13 @@ export class MembershipWitness<N extends number> {
       range(size, start).map(x => new Fr(BigInt(x))),
     );
   }
+
+  public static makeEmpty<N extends number>(pathSize: N, leafIndex: UInt32) {
+    const arr = Array(pathSize)
+      .fill(0)
+      .map(() => Fr.ZERO);
+    return new MembershipWitness<N>(pathSize, leafIndex, arr);
+  }
 }
 
 export class AggregationObject {
