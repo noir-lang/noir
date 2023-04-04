@@ -8,6 +8,7 @@ mod sha256;
 mod sha512;
 mod field;
 mod ec;
+mod unsafe;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}

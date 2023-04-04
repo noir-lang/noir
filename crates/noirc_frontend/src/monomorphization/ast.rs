@@ -171,7 +171,7 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, location: Location },
+    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
 }
 
@@ -184,6 +184,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub unconstrained: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:

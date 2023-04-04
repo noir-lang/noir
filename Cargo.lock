@@ -2244,20 +2244,31 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 name = "nargo"
 version = "0.3.2"
 dependencies = [
+ "barretenberg_static_lib",
+ "barretenberg_wasm",
+ "cfg-if 1.0.0",
+ "marlin_arkworks_backend",
+ "rustc_version 0.4.0",
+ "serde",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "nargo_cli"
+version = "0.3.2"
+dependencies = [
  "acvm 0.8.0",
  "assert_cmd",
  "assert_fs",
- "barretenberg_static_lib",
- "barretenberg_wasm",
  "build-data",
- "cfg-if 1.0.0",
  "clap 4.1.8",
  "color-eyre",
  "const_format",
  "dirs 4.0.0",
  "hex",
  "iter-extended",
- "marlin_arkworks_backend",
+ "nargo",
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",

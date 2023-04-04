@@ -86,9 +86,11 @@ impl<'interner> TypeChecker<'interner> {
                     let struct_type = struct_type.borrow();
 
                     for (field_name, field_pattern) in pattern_fields {
-                        let type_field =
-                            struct_type.get_field(&field_name.0.contents, generics).unwrap().0;
-                        self.bind_pattern(&field_pattern, type_field);
+                        if let Some((type_field, _)) =
+                            struct_type.get_field(&field_name.0.contents, generics)
+                        {
+                            self.bind_pattern(&field_pattern, type_field);
+                        }
                     }
                 }
             }
