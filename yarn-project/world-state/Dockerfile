@@ -14,6 +14,10 @@ COPY merkle-tree merkle-tree
 # (3) build
 WORKDIR /usr/src/yarn-project/world-state
 RUN yarn build && yarn formatting
+
+# (3.5) test
+RUN yarn test
+
 # (4) copy bb.js wasm binaries
 RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/barretenberg.js/dest/wasm/barretenberg.wasm
 

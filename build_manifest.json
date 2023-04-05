@@ -92,7 +92,7 @@
     "projectDir": "yarn-project/circuits.js",
     "dockerfile": "circuits.js/Dockerfile",
     "rebuildPatterns": ["^yarn-project/circuits.js/"],
-    "dependencies": []
+    "dependencies": ["aztec3-circuits-wasm-linux-clang", "yarn-project-base"]
   },
   "end-to-end": {
     "buildDir": "yarn-project",

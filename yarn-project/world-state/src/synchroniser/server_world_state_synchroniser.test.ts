@@ -58,10 +58,10 @@ const createSynchroniser = (merkleTreeDb: any, rollupSource: any) =>
   new ServerWorldStateSynchroniser(merkleTreeDb as MerkleTreeDb, rollupSource as L2BlockSource);
 
 describe('server_world_state_synchroniser', () => {
-  const rollupSource: Mockify<L2BlockSource> = {
-    getLatestBlockNum: jest.fn().mockImplementation(getLatestBlockNumber),
+  const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockHeight' | 'getL2Blocks'>> = {
+    getBlockHeight: jest.fn().mockImplementation(getLatestBlockNumber),
     getL2Blocks: jest.fn().mockImplementation(consumeNextBlocks),
-  } as any;
+  };
 
   const merkleTreeDb: Mockify<MerkleTreeDb> = {
     getTreeInfo: jest
@@ -98,7 +98,7 @@ describe('server_world_state_synchroniser', () => {
     nextBlocks = [getMockBlock(currentBlockNumber + 1)];
 
     // start the sync process but don't await
-    server.start().catch(() => console.log('Sync not completed!!'));
+    server.start().catch(err => console.log('Sync not completed: ', err));
 
     // now setup a loop to monitor the sync progress and push new blocks in
     while (currentBlockNumber <= LATEST_BLOCK_NUMBER) {

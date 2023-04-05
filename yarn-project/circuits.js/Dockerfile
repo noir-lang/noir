@@ -10,6 +10,9 @@ RUN yarn build && yarn formatting
 # (3) copy bb.js wasm binaries
 RUN cp /usr/src/circuits/cpp/build-wasm/bin/aztec3-circuits.wasm /usr/src/yarn-project/circuits.js/dest/wasm/aztec3-circuits.wasm
 
+# (3.5) test
+RUN yarn test
+
 # (4) Prune dev dependencies. See comment in base image.
 RUN yarn cache clean
 RUN yarn workspaces focus --production > /dev/null
