@@ -224,7 +224,7 @@ impl UnrollContext {
     }
 }
 
-/// Evaluate phi instruction, coming from 'from' block; retrieve the
+/// Evaluate phi instruction, coming from `from` block; retrieve the
 /// argument corresponding to the block, evaluates it and update the evaluation map
 fn evaluate_phi(
     instructions: &[NodeId],
