@@ -2,7 +2,7 @@
 title: Milestone 1.1 - Deploying a contract
 ---
 
-See [here](./milestones) for draft milestones.
+See [here](./) for draft milestones.
 
 See [here](https://drive.google.com/file/d/1riqr23R-VOAwOAzpgRj40tsAfq0ZA5yO/view?usp=share_link) for an unfinished (but maybe helpful) contract deployment sequence diagram, and other tabs for other useful diagrams.
 
@@ -16,13 +16,13 @@ See [here](../protocol/contract-creation) for more on Contract Creation.
 >
 > I can type `aztec-cli deploy_contract my_contract_abi.json` and have a contract deployed to my local network.
 >
-> I can type `aztec-cli get_code address` to verify my contract has been deployed succesfully.
+> I can type `aztec-cli get_code address` to verify my contract has been deployed successfully.
 
 The aim is to keep the implementation _as simple as possible_. We want to achieve the appropriate state shift on L1, and avoid anything that feels like unnecessary boiler-plate, or just "vanilla engineering". We're avoiding databases, network io, optimisations etc. Most of the code in this milestone should be directly related to computing and making the requisite state shift, otherwise we maybe going out of scope.
 
 ## Further explanation:
 
-It'll basically require the infrustructure needed to maintain the contracts tree, and the ability to construct and insert a leaf into it:
+It'll basically require the infrastructure needed to maintain the contracts tree, and the ability to construct and insert a leaf into it:
 
 ![](https://hackmd.io/_uploads/ryuFWjFco.png)
 
@@ -48,7 +48,7 @@ There will be no proofs generated in early milestones. Functions that would norm
 
 ## Thinking About State
 
-The lowest level system state is represented by one or more streams of data. In AC this was the calldata and the off-chain data. A3 will likely have it's state also represented as more than one stream of data. For this milestone we could just adopt a similar separation of data, although longer term some state might make it's way into danksharding blobs, and maybe some state won't go to the ethereum network at all.
+The lowest level system state is represented by one or more streams of data. In AC this was the calldata and the off-chain data. A3 will likely have it's state also represented as more than one stream of data. For this milestone we could just adopt a similar separation of data, although longer term some state might make it's way into [danksharding](https://ethereum.org/en/roadmap/danksharding/) blobs, and maybe some state won't go to the ethereum network at all.
 
 Regardless, there should be a separation of concern between the stream of data, and how/where it's stored. Data should be stored unprocessed, in an implementation of a simple key-value store interface. So e.g. there maybe a component that when pointed at the rollup contract, stores the calldata for each rollup in a key-value implementation that just saves it to a file named by rollup number.
 
@@ -70,7 +70,7 @@ There are a few considerations to make when processing state:
 - It grows unbounded, meaning it won't scale to "load and process all state at once".
 - Traditional stream/channel concepts lend themselves well to ingesting, transforming, and outputting state.
 
-Think of something like "Go channels" in terms of design (our MemoryFifo was written to leverage this pattern). Whereas a stream is often thought of as a buffered stream of bytes, channels are more like a buffered stream of messages. The SDK in AC has an example of how to do this. The BlockDownloader is told to start from a certain block number. It will build up an internal buffer of rollups in its "channel" (queue) till it hits some limit. A consumer calls `getRollup` which will block until a rollup is returned. Thus the consumer can have simple "synchronous" control flow loop. The code can also then be run naturally against a fixed size data store (it would just never block). It can act as a simple transformer, ingesting a directory of files and outputing another directory of files. This should also make isolated unit testing simple.
+Think of something like "Go channels" in terms of design (our MemoryFifo was written to leverage this pattern). Whereas a stream is often thought of as a buffered stream of bytes, channels are more like a buffered stream of messages. The SDK in AC has an example of how to do this. The BlockDownloader is told to start from a certain block number. It will build up an internal buffer of rollups in its "channel" (queue) till it hits some limit. A consumer calls `getRollup` which will block until a rollup is returned. Thus the consumer can have simple "synchronous" control flow loop. The code can also then be run naturally against a fixed size data store (it would just never block). It can act as a simple transformer, ingesting a directory of files and outputting another directory of files. This should also make isolated unit testing simple.
 
 From an account perspective, as we process the accounts data stream, we will need to process the data through a simulator to execute contract specific filtering logic. This kind of transform changes the stream of data events into a snapshot. The final data representation thus maybe a set of key-values where a key is a storage slot, and a value maybe e.g. the sum of all UTXOs (the accounts balance).
 

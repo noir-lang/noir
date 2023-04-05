@@ -94,4 +94,4 @@ flowchart BT
   end
 ```
 
-Read more about Aztec 3 [here](./aztec3).
+Read more about Aztec 3 [here](./aztec3/aztec3).

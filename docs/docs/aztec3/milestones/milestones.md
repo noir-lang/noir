@@ -36,7 +36,7 @@ Ongoing.
 
 ### 1.1 - Deploy a contract
 
-See granular tasks [here](./milestone1-1).
+See granular tasks [here](milestones/milestone1-1).
 
 As a developer, I can write a Noir++ `contract` scope, which contains a collection of pure functions (circuits) and a noop `constructor` function (no state variables yet).
 
