@@ -524,7 +524,7 @@ We introduce a new type of network participant: a Prover: someone other than the
 
 ### 10.0 - Prover Selection Protocol
 
-> TBD: selection criteria and incentives.
+> TBD: selection criteria.
 
 ### 10.1 - Proof delegation
 
