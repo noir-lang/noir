@@ -51,7 +51,7 @@ impl IrGenerator {
         let node_ids = value.to_node_ids();
 
         // If the return type of the main function was not the Unit type
-        // ie nothing. Then we insert a return instruction which will be processed
+        // i.e. nothing, then we insert a return instruction which will be processed
         // during ACIR generation.
         //
         // Note: this will be the only return operation that the ACIR generation
