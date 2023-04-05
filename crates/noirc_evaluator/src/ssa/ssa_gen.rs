@@ -766,7 +766,7 @@ impl IrGenerator {
                 } else {
                     // Return a dummy value to signify `None`
                     // Here the condition is zero which means the
-                    // else branch should be triggered, but there is no else branch.
+                    // 'else' branch should be triggered, but there is no 'else' branch.
                     return Ok(Value::dummy());
                 }
             } else {
