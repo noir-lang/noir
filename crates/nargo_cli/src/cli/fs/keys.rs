@@ -1,9 +1,9 @@
-use super::{create_named_dir, load_hex_data, write_to_file};
+use super::{create_named_dir, load_hex_data, program::checksum_acir, write_to_file};
 use crate::{
     constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
-use acvm::{acir::circuit::Circuit, checksum_constraint_system};
+use acvm::acir::circuit::Circuit;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn save_key_to_dir<P: AsRef<Path>>(
@@ -31,7 +31,7 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
     let acir_hash_path = circuit_build_path.as_ref().with_extension(ACIR_CHECKSUM);
 
     let expected_acir_checksum = load_hex_data(acir_hash_path.clone())?;
-    let new_acir_checksum = checksum_constraint_system(circuit).to_be_bytes();
+    let new_acir_checksum = checksum_acir(circuit);
 
     if new_acir_checksum[..] != expected_acir_checksum {
         return Err(CliError::MismatchedAcir(acir_hash_path));
