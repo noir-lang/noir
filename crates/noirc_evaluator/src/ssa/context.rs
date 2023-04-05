@@ -1066,9 +1066,9 @@ impl SsaContext {
         None
     }
 
-    /// Generate a new variable v and a phi instruction s.t. v = phi(a,b);
-    /// c is a counter used to name the variable v for debugging purposes
-    /// when a and b are pointers, we create a new array s.t v[i] = phi(a[i],b[i])
+    /// Generate a new variable `v` and a phi instruction s.t. `v = phi(a,b)`;
+    /// `c` is a counter used to name the variable `v` for debugging purposes
+    /// when `a` and `b` are pointers, we create a new array s.t `v[i] = phi(a[i],b[i])`
     pub(crate) fn new_phi(&mut self, a: NodeId, b: NodeId, c: &mut u32) -> NodeId {
         if a == NodeId::dummy() || b == NodeId::dummy() {
             return NodeId::dummy();
