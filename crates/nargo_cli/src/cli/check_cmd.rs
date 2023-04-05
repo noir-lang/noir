@@ -4,10 +4,7 @@ use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::CompileOptions;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use super::fs::write_to_file;
 use super::NargoConfig;
@@ -43,19 +40,16 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
-        // If they are not available, then create them and
-        // populate them based on the ABI
+        // If they are not available, then create them and populate them based on the ABI
         if !path_to_prover_input.exists() {
-            let toml =
-                toml::to_string(&build_placeholder_input_map(parameters.clone(), None)).unwrap();
-            write_to_file(toml.as_bytes(), &path_to_prover_input);
+            let prover_toml = create_input_toml_template(parameters.clone(), None);
+            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
         }
         if !path_to_verifier_input.exists() {
             let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
 
-            let toml =
-                toml::to_string(&build_placeholder_input_map(public_inputs, return_type)).unwrap();
-            write_to_file(toml.as_bytes(), &path_to_verifier_input);
+            let verifier_toml = create_input_toml_template(public_inputs, return_type);
+            write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
         }
     } else {
         // This means that this is a library. Libraries do not have ABIs.
@@ -63,10 +57,11 @@ fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Re
     Ok(())
 }
 
-fn build_placeholder_input_map(
+/// Generates the contents of a toml file with fields for each of the passed parameters.
+fn create_input_toml_template(
     parameters: Vec<AbiParameter>,
     return_type: Option<AbiType>,
-) -> BTreeMap<String, toml::Value> {
+) -> String {
     let default_value = |typ: AbiType| -> toml::Value {
         if matches!(typ, AbiType::Array { .. }) {
             toml::Value::Array(Vec::new())
@@ -82,7 +77,7 @@ fn build_placeholder_input_map(
         map.insert(MAIN_RETURN_NAME.to_owned(), default_value(typ));
     }
 
-    map
+    toml::to_string(&map).unwrap()
 }
 
 #[cfg(test)]
