@@ -54,25 +54,17 @@ template <typename Fr> class Polynomial {
         if (is_empty() || rhs.is_empty()) {
             return is_empty() && rhs.is_empty();
         }
-        // Otherwise, check that the coefficients match on the minimum of the two sizes and that the higher coefficients
-        // of the larger poly (if one exists) are identically zero.
-        else {
-            size_t min_size = std::min(size(), rhs.size());
-            for (size_t i = 0; i < min_size; i++) {
-                if (coefficients_[i] != rhs.coefficients_[i])
-                    return false;
-            }
-            for (size_t i = min_size; i < size(); i++) {
-                if (coefficients_[i] != 0)
-                    return false;
-            }
-            for (size_t i = min_size; i < rhs.size(); i++) {
-                if (rhs.coefficients_[i] != 0)
-                    return false;
-            }
-
-            return true;
+        // Size must agree
+        if (size() != rhs.size()) {
+            return false;
         }
+        // Each coefficient must agree
+        for (size_t i = 0; i < size(); i++) {
+            if (coefficients_[i] != rhs.coefficients_[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // IMPROVEMENT: deprecate in favor of 'data()' and ensure const correctness

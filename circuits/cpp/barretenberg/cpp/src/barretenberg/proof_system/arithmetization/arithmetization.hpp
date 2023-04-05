@@ -36,5 +36,6 @@ template <size_t _num_wires, size_t _num_selectors> struct Arithmetization {
 // through clearly named static class members.
 using Standard = Arithmetization</*num_wires =*/3, /*num_selectors =*/5>;
 using Turbo = Arithmetization</*num_wires =*/4, /*num_selectors =*/11>;
+using Ultra = Arithmetization</*num_wires =*/4, /*num_selectors =*/11>;
 
 } // namespace arithmetization

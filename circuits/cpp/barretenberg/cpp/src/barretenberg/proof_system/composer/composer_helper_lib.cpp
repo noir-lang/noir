@@ -8,6 +8,7 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
 #include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
+#include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
 namespace bonk {
 
 /**
@@ -98,9 +99,6 @@ void enforce_nonzero_polynomial_selectors(const CircuitConstructor& circuit_cons
  * @brief Retrieve lagrange forms of selector polynomials and compute monomial and coset-monomial forms and put into
  * cache
  *
- * @note This function also deletes the lagrange forms of the selectors from memory since they are not needed
- * for proof construction once the monomial and coset forms have been computed
- *
  * @param key Pointer to the proving key
  * @param selector_properties Names of selectors
  */
@@ -109,7 +107,6 @@ void compute_monomial_and_coset_selector_forms(bonk::proving_key* circuit_provin
 {
     for (size_t i = 0; i < selector_properties.size(); i++) {
         // Compute monomial form of selector polynomial
-
         auto& selector_poly_lagrange =
             circuit_proving_key->polynomial_store.get(selector_properties[i].name + "_lagrange");
         barretenberg::polynomial selector_poly(circuit_proving_key->circuit_size);
@@ -120,8 +117,8 @@ void compute_monomial_and_coset_selector_forms(bonk::proving_key* circuit_provin
         barretenberg::polynomial selector_poly_fft(selector_poly, circuit_proving_key->circuit_size * 4 + 4);
         selector_poly_fft.coset_fft(circuit_proving_key->large_domain);
 
-        // Remove the selector lagrange forms since they will not be needed beyond this point
-        circuit_proving_key->polynomial_store.remove(selector_properties[i].name + "_lagrange");
+        // TODO(luke): For Standard/Turbo, the lagrange polynomials can be removed from the store at this point but this
+        // is not the case for Ultra. Implement?
         circuit_proving_key->polynomial_store.put(selector_properties[i].name, std::move(selector_poly));
         circuit_proving_key->polynomial_store.put(selector_properties[i].name + "_fft", std::move(selector_poly_fft));
     }
@@ -238,5 +235,6 @@ std::shared_ptr<bonk::verification_key> compute_verification_key_common(
 
 COMPILE_FOR_CIRCUIT_CONSTRUCTOR(StandardCircuitConstructor)
 COMPILE_FOR_CIRCUIT_CONSTRUCTOR(TurboCircuitConstructor)
+COMPILE_FOR_CIRCUIT_CONSTRUCTOR(UltraCircuitConstructor)
 
 } // namespace bonk

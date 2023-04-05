@@ -84,6 +84,10 @@ template <typename Fr> class PolynomialStore {
         info();
     }
 
+    // Basic map methods
+    bool contains(std::string const& key) { return polynomial_map.contains(key); };
+    size_t size() { return polynomial_map.size(); };
+
     // Allow for const range based for loop
     typename std::unordered_map<std::string, Polynomial>::const_iterator begin() const
     {

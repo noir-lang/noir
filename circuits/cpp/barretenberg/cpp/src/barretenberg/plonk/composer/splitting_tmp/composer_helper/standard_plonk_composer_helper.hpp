@@ -34,6 +34,7 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
         : StandardPlonkComposerHelper(
               std::shared_ptr<bonk::ReferenceStringFactory>(new bonk::FileReferenceStringFactory("../srs_db/ignition")))
     {}
+
     StandardPlonkComposerHelper(std::shared_ptr<bonk::ReferenceStringFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
@@ -41,10 +42,12 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
     StandardPlonkComposerHelper(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
+
     StandardPlonkComposerHelper(std::shared_ptr<bonk::proving_key> p_key, std::shared_ptr<bonk::verification_key> v_key)
         : circuit_proving_key(std::move(p_key))
         , circuit_verification_key(std::move(v_key))
     {}
+
     StandardPlonkComposerHelper(StandardPlonkComposerHelper&& other) noexcept = default;
     StandardPlonkComposerHelper(const StandardPlonkComposerHelper& other) = delete;
     StandardPlonkComposerHelper& operator=(StandardPlonkComposerHelper&& other) noexcept = default;
