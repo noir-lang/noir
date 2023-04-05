@@ -258,10 +258,12 @@ fn evaluate_phi(
 }
 
 /// Evaluates a conditional jump instruction.
-/// If the condition is not a constant, then this
-/// function will panic.
 ///
-/// Returns true if we should jump
+/// Returns `true` if we should jump.
+///
+/// # Panics
+///
+/// This function will panic if the condition is not a constant. 
 fn evaluate_conditional_jump(
     jump_ins: &Instruction,
     value_array: &HashMap<NodeId, NodeEval>,
