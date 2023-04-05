@@ -30,7 +30,7 @@ static VERSION_STRING: &str =
     formatcp!("{} (git version hash: {}, is dirty: {})", CARGO_PKG_VERSION, GIT_HASH, IS_DIRTY);
 
 #[derive(Parser, Debug)]
-#[command(author, version=VERSION_STRING, about, long_about = None)]
+#[command(name="nargo", author, version=VERSION_STRING, about, long_about = None)]
 struct NargoCli {
     #[command(subcommand)]
     command: NargoCommand,
