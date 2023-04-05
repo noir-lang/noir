@@ -1,11 +1,11 @@
-import { L2Block } from '@aztec/archiver';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Rollup, Yeeter } from '@aztec/l1-contracts';
+import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
 import { L1Publisher } from '../src/publisher/l1-publisher.js';
 import { hexStringToBuffer } from '../src/utils.js';
+import { L2Block } from '@aztec/l2-block';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
 const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a';
@@ -14,14 +14,14 @@ const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
 
 describe('L1Publisher integration', () => {
   let rollup: Rollup;
-  let yeeter: Yeeter;
+  let unverifiedDataEmitter: UnverifiedDataEmitter;
   let ethRpc: EthereumRpc;
   let publisher: L1Publisher;
   let l2Block: L2Block;
   let l2Proof: Buffer;
 
   beforeAll(async () => {
-    ({ ethRpc, rollup, yeeter } = await deployRollup());
+    ({ ethRpc, rollup, unverifiedDataEmitter } = await deployRollup());
 
     l2Block = L2Block.random(42);
     l2Proof = Buffer.alloc(0);
@@ -31,7 +31,7 @@ describe('L1Publisher integration', () => {
         rpcUrl: anvilHost,
         requiredConfirmations: 1,
         rollupContract: rollup.address,
-        yeeterContract: yeeter.address,
+        unverifiedDataEmitterContract: unverifiedDataEmitter.address,
         publisherPrivateKey: hexStringToBuffer(sequencerPK),
       }),
       {
@@ -62,16 +62,16 @@ async function deployRollup() {
   const [sequencer, deployer] = provider.getAccounts();
   const ethRpc = new EthereumRpc(provider);
 
-  // Deploy rollup and yeeter contracts
+  // Deploy Rollup and unverifiedDataEmitter contracts
   const deployedRollup = new Rollup(ethRpc, undefined, { from: deployer, gas: 1e6 });
   await deployedRollup.deploy().send().getReceipt();
 
-  const deployedYeeter = new Yeeter(ethRpc, undefined, { from: deployer, gas: 1e6 });
-  await deployedYeeter.deploy().send().getReceipt();
+  const deployedUnverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, undefined, { from: deployer, gas: 1e6 });
+  await deployedUnverifiedDataEmitter.deploy().send().getReceipt();
 
   // Create new instance so we can attach the sequencer as sender
   const rollup = new Rollup(ethRpc, deployedRollup.address, { from: sequencer });
-  const yeeter = new Yeeter(ethRpc, deployedYeeter.address, { from: sequencer });
+  const unverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, deployedUnverifiedDataEmitter.address, { from: sequencer });
 
-  return { rollup, deployer, yeeter, sequencer, ethRpc };
+  return { rollup, deployer, unverifiedDataEmitter, sequencer, ethRpc };
 }

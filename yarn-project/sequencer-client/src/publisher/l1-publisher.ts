@@ -91,7 +91,7 @@ export class L1Publisher implements L2BlockReceiver {
         continue;
       }
 
-      const txHash = await this.sendYeetTx(l2BlockNum, unverifiedData);
+      const txHash = await this.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
       if (!txHash) break;
 
       const receipt = await this.getTransactionReceipt(txHash);
@@ -142,7 +142,10 @@ export class L1Publisher implements L2BlockReceiver {
     }
   }
 
-  private async sendYeetTx(l2BlockNum: number, unverifiedData: UnverifiedData): Promise<string | undefined> {
+  private async sendEmitUnverifiedDataTx(
+    l2BlockNum: number,
+    unverifiedData: UnverifiedData,
+  ): Promise<string | undefined> {
     while (!this.interrupted) {
       try {
         return await this.txSender.sendEmitUnverifiedDataTx(l2BlockNum, unverifiedData);
