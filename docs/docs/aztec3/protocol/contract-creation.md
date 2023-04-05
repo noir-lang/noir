@@ -286,7 +286,7 @@ The set of functions of a contract is represented as a mini Merkle tree of verif
 - Distributing L2 contract data
 - Linking to an L1 Portal Contract
 
-These topics are reflected in the layout of the [Contract Deployment ABI](../../architecture/app-circuits/public-input-abis.md#contract-deployment-abi):
+These topics are reflected in the layout of the contract deployment ABI:
 
 ```js
 publicInputs = {
@@ -314,7 +314,7 @@ Note: the distribution of L2 data on-chain is optional and can be done by submit
 
 Constructor functions can be called when deploying a contract, to populate the contract with some initial state variables. A private constructor can be called to populate private states, and a public constructor can be called to populate public sates. TODO: we might be able to get away with a single constructor.
 
-The [contract deployment kernel circuit](../../architecture/kernel-circuits/contract-deployment-kernel.md) verifies the constructors' executions.
+The contract deployment kernel circuit verifies the constructors' executions.
 
 #### Private constructor
 
