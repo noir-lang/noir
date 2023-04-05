@@ -1,4 +1,5 @@
 #include "acir_format.hpp"
+#include "barretenberg/common/log.hpp"
 
 using namespace proof_system::plonk::stdlib::types;
 
@@ -15,7 +16,7 @@ void read_witness(Composer& composer, std::vector<barretenberg::fr> witness)
 void create_circuit(Composer& composer, const acir_format& constraint_system)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
-        std::cout << "too many public inputs!" << std::endl;
+        info("create_circuit: too many public inputs!");
     }
 
     for (size_t i = 1; i < constraint_system.varnum; ++i) {
@@ -91,7 +92,7 @@ Composer create_circuit(const acir_format& constraint_system,
                         std::unique_ptr<proof_system::ReferenceStringFactory>&& crs_factory)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
-        std::cout << "too many public inputs!" << std::endl;
+        info("create_circuit: too many public inputs!");
     }
 
     Composer composer(std::move(crs_factory));
@@ -172,7 +173,7 @@ Composer create_circuit_with_witness(const acir_format& constraint_system,
                                      std::unique_ptr<ReferenceStringFactory>&& crs_factory)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
-        std::cout << "too many public inputs!" << std::endl;
+        info("create_circuit_with_witness: too many public inputs!");
     }
 
     Composer composer(std::move(crs_factory));
@@ -253,7 +254,7 @@ Composer create_circuit_with_witness(const acir_format& constraint_system,
 Composer create_circuit_with_witness(const acir_format& constraint_system, std::vector<fr> witness)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
-        std::cout << "too many public inputs!" << std::endl;
+        info("create_circuit_with_witness: too many public inputs!");
     }
 
     auto composer = Composer();
@@ -334,7 +335,7 @@ Composer create_circuit_with_witness(const acir_format& constraint_system, std::
 void create_circuit_with_witness(Composer& composer, const acir_format& constraint_system, std::vector<fr> witness)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
-        std::cout << "too many public inputs!" << std::endl;
+        info("create_circuit_with_witness: too many public inputs!");
     }
 
     for (size_t i = 1; i < constraint_system.varnum; ++i) {
