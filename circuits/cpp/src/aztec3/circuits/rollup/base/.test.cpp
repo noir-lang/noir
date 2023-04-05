@@ -238,7 +238,8 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
 
     // create expected end contract tree snapshot
     auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
+        GeneratorIndex::CONTRACT_LEAF);
     auto expeted_end_contracts_snapshot_tree = stdlib::merkle_tree::MemoryTree(CONTRACT_TREE_HEIGHT);
     expeted_end_contracts_snapshot_tree.update_element(0, expected_contract_leaf);
 
@@ -284,7 +285,8 @@ TEST_F(base_rollup_tests, contract_leaf_inserted_in_non_empty_snapshot_tree)
 
     // create expected end contract tree snapshot
     auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
+        GeneratorIndex::CONTRACT_LEAF);
     auto expeted_end_contracts_snapshot_tree = start_contract_tree_snapshot;
     expeted_end_contracts_snapshot_tree.update_element(12, expected_contract_leaf);
 
@@ -533,7 +535,8 @@ TEST_F(base_rollup_tests, calldata_hash)
         .function_tree_root = fr(2),
     };
     auto contract_leaf = crypto::pedersen_hash::hash_multiple(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
+        GeneratorIndex::CONTRACT_LEAF);
     inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
     auto contract_leaf_buffer = contract_leaf.to_buffer();
     auto contract_address_buffer = new_contract.contract_address.to_field().to_buffer();

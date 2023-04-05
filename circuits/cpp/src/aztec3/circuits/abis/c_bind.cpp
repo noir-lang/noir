@@ -360,8 +360,9 @@ WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preima
 {
     NewContractData<NT> leaf_preimage;
     read(contract_leaf_preimage_buf, leaf_preimage);
-    leaf_preimage.hash();
-    NT::fr::serialize_to_buffer(leaf_preimage.hash(), output);
+    // as per the circuit implementation, if contract address == zero then return a zero leaf
+    auto to_write = leaf_preimage.contract_address == NT::address(0) ? NT::fr(0) : leaf_preimage.hash();
+    NT::fr::serialize_to_buffer(to_write, output);
 }
 
 /* Typescript test helpers that call as_string_output() to stress serialization.

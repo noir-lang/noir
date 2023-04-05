@@ -279,7 +279,8 @@ TEST_F(root_rollup_tests, almost_full_root)
     };
     base_inputs_2.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
     auto contract_leaf = crypto::pedersen_hash::hash_multiple(
-        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root });
+        { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
+        GeneratorIndex::CONTRACT_LEAF);
     contract_tree.update_element(0, contract_leaf);
 
     base_inputs_2.new_contracts_subtree_sibling_path =
