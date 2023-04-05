@@ -48,7 +48,7 @@ module.exports = {
       files: ['*.ts', '*.tsx'],
       parserOptions: {
         // hacky workaround for CI not having the same tsconfig setup
-        project: getFirstExisting(['./tsconfig.json', '../tsconfig.json', './tsconfig.dest.json']),
+        project: getFirstExisting(['./tsconfig.eslint.json', '../tsconfig.eslint.json', './tsconfig.dest.json']),
       },
     },
   ],

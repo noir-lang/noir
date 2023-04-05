@@ -9,7 +9,8 @@
     "formatting:fix": "yarn workspaces foreach -v run formatting:fix",
     "test": "yarn workspaces foreach -v run test",
     "build": "tsc -b tsconfig.dest.json",
-    "build:dev": "tsc -b tsconfig.dest.json --watch"
+    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "clean": "yarn workspaces foreach -v run clean"
   },
   "workspaces": [
     "acir-simulator",
