@@ -34,14 +34,16 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
     circuit_path
 }
 
+pub(crate) fn checksum_acir(circuit: &Circuit) -> [u8; 4] {
+    checksum_constraint_system(circuit).to_be_bytes()
+}
 pub(crate) fn save_acir_checksum_to_dir<P: AsRef<Path>>(
-    circuit: &Circuit,
+    acir_checksum: [u8; 4],
     hash_name: &str,
     hash_dir: P,
 ) -> PathBuf {
-    let acir_checksum = checksum_constraint_system(circuit);
     let hash_path = hash_dir.as_ref().join(hash_name).with_extension(ACIR_CHECKSUM);
-    write_to_file(hex::encode(acir_checksum.to_be_bytes()).as_bytes(), &hash_path);
+    write_to_file(hex::encode(acir_checksum).as_bytes(), &hash_path);
 
     hash_path
 }
