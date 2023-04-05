@@ -202,6 +202,7 @@ pub enum Type {
     String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
+    Vec(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -301,6 +302,7 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
+            Type::Vec(element) => write!(f, "Vec<{element}>"),
         }
     }
 }

@@ -597,7 +597,7 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
 fn vec_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::Vec)
         .ignore_then(generic_type_args(type_parser))
-        .map(UnresolvedType::Vec)
+        .map_with_span(UnresolvedType::Vec)
 }
 
 fn generic_type_args(

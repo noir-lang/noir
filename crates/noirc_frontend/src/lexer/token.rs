@@ -508,7 +508,7 @@ impl Keyword {
             "struct" => Keyword::Struct,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
-            "vec" => Keyword::Vec,
+            "Vec" => Keyword::Vec,
             "while" => Keyword::While,
 
             "true" => return Some(Token::Bool(true)),
