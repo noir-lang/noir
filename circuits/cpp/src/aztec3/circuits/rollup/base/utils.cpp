@@ -7,19 +7,17 @@
 #include <aztec3/circuits/kernel/private/utils.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
-#include "aztec3/circuits/abis/rollup/base/previous_rollup_data.hpp"
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
+using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::BaseRollupInputs;
-using aztec3::circuits::abis::BaseRollupPublicInputs;
 using aztec3::circuits::abis::ConstantRollupData;
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NullifierLeafPreimage;
-using aztec3::circuits::abis::PreviousRollupData;
 using aztec3::circuits::abis::private_kernel::NewContractData;
 
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
@@ -89,26 +87,6 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
                                               .constants = constantRollupData };
 
     return baseRollupInputs;
-}
-
-PreviousRollupData<NT> dummy_previous_rollup_with_vk_proof()
-{
-    BaseRollupInputs emptyInputs = dummy_base_rollup_inputs_with_vk_proof();
-    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(emptyInputs);
-
-    // just for mocked vk and proof
-    // TODO create generic utility for mocked vk and proof
-    PreviousKernelData<NT> mocked_kernel = dummy_previous_kernel_with_vk_proof();
-
-    PreviousRollupData<NT> previous_rollup = {
-        .base_rollup_public_inputs = outputs,
-        .proof = mocked_kernel.proof,
-        .vk = mocked_kernel.vk,
-        .vk_index = 0,
-        .vk_sibling_path = MembershipWitness<NT, ROLLUP_VK_TREE_HEIGHT>(),
-    };
-
-    return previous_rollup;
 }
 
 NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(size_t spacing = 5)

@@ -13,9 +13,17 @@ using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
-template <typename NCT> struct BaseRollupPublicInputs {
+const uint32_t BASE_ROLLUP_TYPE = 0;
+const uint32_t MERGE_ROLLUP_TYPE = 1;
+
+template <typename NCT> struct BaseOrMergeRollupPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::AggregationObject AggregationObject;
+
+    uint32_t rollup_type;
+    // subtree  height is always 0 for base.
+    // so that we always pass-in two base/merge circuits of the same height into the next level of recursion
+    fr rollup_subtree_height;
 
     AggregationObject end_aggregation_object;
     ConstantRollupData<NCT> constants;
@@ -30,19 +38,18 @@ template <typename NCT> struct BaseRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> end_contract_tree_snapshot;
 
     // Hashes (probably sha256) to make public inputs constant-sized (to then be unpacked on-chain)
-    // UPDATE we should instead just hash all of the below into a single value. See big diagram of sha256 hashing
-    // bottom-right of here.
-    // TODO I've put `fr`, but these hash values' types might need to be two fields if we want all 256-bits, for
-    // security purposes.
+    // Needs to be two fields to accomodate all 256-bits of the hash
     std::array<fr, 2> calldata_hash;
 
-    bool operator==(BaseRollupPublicInputs<NCT> const&) const = default;
+    bool operator==(BaseOrMergeRollupPublicInputs<NCT> const&) const = default;
 };
 
-template <typename NCT> void read(uint8_t const*& it, BaseRollupPublicInputs<NCT>& obj)
+template <typename NCT> void read(uint8_t const*& it, BaseOrMergeRollupPublicInputs<NCT>& obj)
 {
     using serialize::read;
 
+    read(it, obj.rollup_type);
+    read(it, obj.rollup_subtree_height);
     read(it, obj.end_aggregation_object);
     read(it, obj.constants);
     read(it, obj.start_private_data_tree_snapshot);
@@ -54,10 +61,12 @@ template <typename NCT> void read(uint8_t const*& it, BaseRollupPublicInputs<NCT
     read(it, obj.calldata_hash);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, BaseRollupPublicInputs<NCT> const& obj)
+template <typename NCT> void write(std::vector<uint8_t>& buf, BaseOrMergeRollupPublicInputs<NCT> const& obj)
 {
     using serialize::write;
 
+    write(buf, obj.rollup_type);
+    write(buf, obj.rollup_subtree_height);
     write(buf, obj.end_aggregation_object);
     write(buf, obj.constants);
     write(buf, obj.start_private_data_tree_snapshot);
@@ -69,9 +78,13 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, BaseRollupPublicIn
     write(buf, obj.calldata_hash);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupPublicInputs<NCT> const& obj)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseOrMergeRollupPublicInputs<NCT> const& obj)
 {
-    return os << "end_aggregation_object:\n"
+    return os << "rollup_type:\n"
+              << obj.rollup_type << "\n"
+              << "rollup_subtree_height:\n"
+              << obj.rollup_subtree_height << "\n"
+              << "end_aggregation_object:\n"
               << obj.end_aggregation_object
               << "\n"
                  "constants:\n"

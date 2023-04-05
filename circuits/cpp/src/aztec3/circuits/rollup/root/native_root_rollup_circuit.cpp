@@ -35,7 +35,21 @@ bool verify_merge_proof(NT::Proof merge_proof)
 AggregationObject aggregate_proofs(RootRollupInputs const& rootRollupInputs)
 {
     // TODO: NOTE: for now we simply return the aggregation object from the first proof
-    return rootRollupInputs.previous_rollup_data[0].base_rollup_public_inputs.end_aggregation_object;
+    return rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_aggregation_object;
+}
+
+void assert_both_input_proofs_of_same_rollup_type(RootRollupInputs rootRollupInputs)
+{
+    assert(rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_type ==
+           rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type);
+    (void)rootRollupInputs;
+}
+
+void assert_both_input_proofs_of_same_rollup_height(RootRollupInputs rootRollupInputs)
+{
+    assert(rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_subtree_height ==
+           rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_subtree_height);
+    (void)rootRollupInputs;
 }
 
 bool is_constants_equal(ConstantRollupData left, ConstantRollupData right)
@@ -74,7 +88,7 @@ std::array<fr, 2> compute_calldata_hash(RootRollupInputs const& rootRollupInputs
     std::array<uint8_t, 2 * 32> calldata_hash_input_bytes;
     for (uint8_t i = 0; i < 2; i++) {
         std::array<fr, 2> calldata_hash_fr =
-            rootRollupInputs.previous_rollup_data[i].base_rollup_public_inputs.calldata_hash;
+            rootRollupInputs.previous_rollup_data[i].base_or_merge_rollup_public_inputs.calldata_hash;
 
         auto high_buffer = calldata_hash_fr[0].to_buffer();
         auto low_buffer = calldata_hash_fr[1].to_buffer();
@@ -129,6 +143,11 @@ RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInp
     // old -> leftmost
     // new -> rightmost
 
+    // check that both input proofs are either both "BASE" or "MERGE" and not a mix!
+    // this prevents having wonky commitment, nullifier and contract subtrees.
+    assert_both_input_proofs_of_same_rollup_type(rootRollupInputs);
+    assert_both_input_proofs_of_same_rollup_height(rootRollupInputs);
+
     AggregationObject aggregation_object = aggregate_proofs(rootRollupInputs);
 
     // Verify the previous merge proofs (for now these are actually base proofs)
@@ -137,8 +156,8 @@ RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInp
         assert(verify_merge_proof(proof));
     }
 
-    auto left = rootRollupInputs.previous_rollup_data[0].base_rollup_public_inputs;
-    auto right = rootRollupInputs.previous_rollup_data[1].base_rollup_public_inputs;
+    auto left = rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs;
+    auto right = rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
 
     // Constants must be the same between left and right
     assert(is_constants_equal(left.constants, right.constants));

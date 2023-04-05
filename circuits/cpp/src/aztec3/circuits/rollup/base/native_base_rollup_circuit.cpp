@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <aztec3/circuits/abis/rollup/base/base_rollup_inputs.hpp>
-#include <aztec3/circuits/abis/rollup/base/base_rollup_public_inputs.hpp>
+#include <aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp>
 #include <aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp>
 #include <cstdint>
 #include <iostream>
@@ -429,7 +429,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
     };
 }
 
-BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
+BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
 {
     // TODO: move this into a constant - calc empty nullifier_subtree hash
     // calc empty subtree root
@@ -504,7 +504,9 @@ BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
 
     AggregationObject aggregation_object = aggregate_proofs(baseRollupInputs);
 
-    BaseRollupPublicInputs public_inputs = {
+    BaseOrMergeRollupPublicInputs public_inputs = {
+        .rollup_type = abis::BASE_ROLLUP_TYPE,
+        .rollup_subtree_height = fr(0),
         .end_aggregation_object = aggregation_object,
         .constants = baseRollupInputs.constants,
         .start_private_data_tree_snapshot = baseRollupInputs.start_private_data_tree_snapshot,
