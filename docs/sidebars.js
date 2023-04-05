@@ -20,7 +20,23 @@ const sidebars = {
       label: 'Aztec 3',
       items: [
         'aztec3/overview',
-        'aztec3/architecture'
+        'aztec3/architecture',
+        {
+          type: 'category',
+          label: 'Milestones',
+          items: [
+            'aztec3/milestones/milestones',
+            'aztec3/milestones/milestone1-1',
+          ]
+        },
+        {
+          type: 'category',
+          label: 'Protocol',
+          items: [
+            'aztec3/protocol/contract-creation',
+            'aztec3/protocol/function-selectors',
+          ]
+        }
       ]
     },
     "noir",
