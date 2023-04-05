@@ -54,8 +54,7 @@ impl IrGenerator {
         // i.e. nothing, then we insert a return instruction which will be processed
         // during ACIR generation.
         //
-        // Note: this will be the only return operation that the ACIR generation
-        // pass will process.
+        // Note: The ACIR generation pass will process the return operation for the `main` function only. 
         if self.program.main().return_type != Type::Unit {
             self.context.new_instruction(Operation::Return(node_ids), ObjectType::NotAnObject)?;
         }
