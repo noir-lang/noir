@@ -1,4 +1,4 @@
-{ overrideCC, stdenv, llvmPackages, cmake, ninja, lib, callPackage, binaryen, gcc11 }:
+{ overrideCC, stdenv, llvmPackages, cmake, ninja, lib, callPackage, gcc11 }:
 let
   targetPlatform = stdenv.targetPlatform;
   buildEnv =
@@ -18,21 +18,16 @@ buildEnv.mkDerivation
 
   src = ./cpp;
 
-  nativeBuildInputs = [ cmake ninja ]
-    ++ optionals targetPlatform.isWasm [ binaryen ];
+  nativeBuildInputs = [ cmake ninja ];
 
-  buildInputs = [ ]
-    ++ optionals (targetPlatform.isDarwin || targetPlatform.isLinux) [
-    llvmPackages.openmp
-  ];
+  buildInputs = [ llvmPackages.openmp ];
 
   cmakeFlags = [
     "-DTESTING=OFF"
     "-DBENCHMARKS=OFF"
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}"
-  ]
-  ++ optionals (targetPlatform.isDarwin || targetPlatform.isLinux)
-    [ "-DCMAKE_BUILD_TYPE=RelWithAssert" ];
+    "-DCMAKE_BUILD_TYPE=RelWithAssert"
+  ];
 
   NIX_CFLAGS_COMPILE =
     optionals targetPlatform.isDarwin [ " -fno-aligned-allocation" ];
