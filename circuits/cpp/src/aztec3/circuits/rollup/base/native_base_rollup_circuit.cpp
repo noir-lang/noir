@@ -22,7 +22,18 @@ namespace aztec3::circuits::rollup::native_base_rollup {
 
 const NT::fr EMPTY_COMMITMENTS_SUBTREE_ROOT = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH).root();
 const NT::fr EMPTY_CONTRACTS_SUBTREE_ROOT = MerkleTree(CONTRACT_SUBTREE_DEPTH).root();
-const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = MerkleTree(NULLIFIER_SUBTREE_DEPTH).root();
+
+#define _unused(x) ((void)(x))
+
+// Note: this is temporary until I work out how to encode a large fr in a constant
+NT::fr calculate_empty_nullifier_subtree_root()
+{
+    MerkleTree empty_nullifier_tree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
+    for (size_t i = 0; i < KERNEL_NEW_NULLIFIERS_LENGTH * 2; i++) {
+        empty_nullifier_tree.update_element(i, NullifierLeaf{ .value = 0, .nextIndex = 0, .nextValue = 0 }.hash());
+    }
+    return empty_nullifier_tree.root();
+}
 
 // TODO: can we aggregate proofs if we do not have a working circuit impl
 
@@ -138,7 +149,6 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
     MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_DEPTH);
 
     // Compute the merkle root of a contract subtree
-    // TODO: consolidate what the tree depth should be
     // Contracts subtree
     for (size_t i = 0; i < contract_leaves.size(); i++) {
         contracts_tree.update_element(i, contract_leaves[i]);
@@ -262,13 +272,19 @@ void perform_historical_contract_data_tree_membership_checks(BaseRollupInputs ba
     }
 }
 
+// TODO: right now we are using the hash of NULLIFIER_LEAF{0,0,0} as the empty leaf, however this is an attack vector
+// WE MUST after this hackathon change this to be 0, not the hash of some 0 values
 NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
     MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
     for (size_t i = 0; i < nullifier_leaves.size(); i++) {
+        // check if the nullifier is zero, if so dont insert
+        // if (nullifier_leaves[i].value != fr(0)) { // TODO: reinsert after 0 is accounted for
         nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
+        // }
     }
+
     return nullifier_subtree.root();
 }
 
@@ -291,6 +307,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
     // BOYS AND GIRLS THE P L A N ( once the first plan is complete )
     // GENERATE OUR NEW NULLIFIER SUBTREE
     // 1. We need to point the new nullifiers to point to the index that the previous nullifier replaced
+    // 2. If we receive the 0 nullifier leaf (where all values are 0, we skip insertion and leave a sparse subtree)
 
     // New nullifier subtree
     std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_leaves;
@@ -299,7 +316,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
     auto current_nullifier_tree_root = baseRollupInputs.start_nullifier_tree_snapshot.root;
 
     // This will increase with every insertion
-    auto new_index = baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index;
+    auto start_insertion_index = baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index;
+    auto new_index = start_insertion_index;
 
     // For each kernel circuit
     for (size_t i = 0; i < 2; i++) {
@@ -316,45 +334,81 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
             // Newly created nullifier
             auto nullifier = new_nullifiers[j];
 
-            // assert that the low_nullifier provided is the correct one by performing two range checks
-            auto is_less_than_nullifier = low_nullifier_preimage.leaf_value < nullifier;
-            auto is_next_greater_than = low_nullifier_preimage.next_value > nullifier;
-            if (!(is_less_than_nullifier && is_next_greater_than)) {
-                if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
-                    // throw std::runtime_error("Low nullifier preimage is incorrect");
+            // TODO: reason about this more strongly, can this cause issues?
+            if (nullifier != 0) {
+
+                // Create the nullifier leaf of the new nullifier to be inserted
+                NullifierLeaf new_nullifier_leaf = {
+                    .value = nullifier,
+                    .nextIndex = low_nullifier_preimage.next_index,
+                    .nextValue = low_nullifier_preimage.next_value,
+                };
+
+                // Assuming populated premier subtree
+                if (low_nullifier_preimage.leaf_value == 0 && low_nullifier_preimage.next_value == 0) {
+                    // check previous nullifier leaves
+                    // TODO: this is a hack, and insecure, we need to fix this
+                    bool matched = false;
+                    for (size_t k = 0; k < nullifier_index; k++) {
+                        if ((uint256_t(nullifier_leaves[k].nextValue) > uint256_t(nullifier) &&
+                             uint256_t(nullifier_leaves[k].value) < uint256_t(nullifier)) ||
+                            (nullifier_leaves[k].nextValue == 0 && nullifier_leaves[k].nextIndex == 0)) {
+
+                            matched = true;
+                            nullifier_leaves[k].nextIndex = new_index;
+                            nullifier_leaves[k].nextValue = nullifier;
+                        }
+                    }
+                    // if not matched, our subtree will misformed - we must reject
+                    assert(matched);
+                    _unused(matched);
+
+                } else {
+                    auto is_less_than_nullifier = uint256_t(low_nullifier_preimage.leaf_value) < uint256_t(nullifier);
+                    auto is_next_greater_than = uint256_t(low_nullifier_preimage.next_value) > uint256_t(nullifier);
+
+                    if (!(is_less_than_nullifier && is_next_greater_than)) {
+                        if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
+                            assert(false);
+                        }
+                    }
+
+                    // Recreate the original low nullifier from the preimage
+                    NullifierLeaf original_low_nullifier = NullifierLeaf{
+                        .value = low_nullifier_preimage.leaf_value,
+                        .nextIndex = low_nullifier_preimage.next_index,
+                        .nextValue = low_nullifier_preimage.next_value,
+                    };
+
+                    // perform membership check for the low nullifier against the original root
+                    check_membership<NULLIFIER_TREE_HEIGHT>(original_low_nullifier.hash(),
+                                                            witness.leaf_index,
+                                                            witness.sibling_path,
+                                                            current_nullifier_tree_root);
+
+                    // Calculate the new value of the low_nullifier_leaf
+                    NullifierLeaf updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
+                                                                         .nextIndex = new_index,
+                                                                         .nextValue = nullifier };
+
+                    // We need another set of witness values for this
+                    current_nullifier_tree_root = iterate_through_tree_via_sibling_path(
+                        updated_low_nullifier.hash(), witness.leaf_index, witness.sibling_path);
                 }
+
+                nullifier_leaves[nullifier_index] = new_nullifier_leaf;
+            } else {
+                // 0 case
+                NullifierLeaf new_nullifier_leaf = {
+                    .value = 0,
+                    .nextIndex = 0,
+                    .nextValue = 0,
+                };
+                nullifier_leaves[nullifier_index] = new_nullifier_leaf;
             }
-
-            // Recreate the original low nullifier from the preimage
-            NullifierLeaf original_low_nullifier = NullifierLeaf{
-                .value = low_nullifier_preimage.leaf_value,
-                .nextIndex = low_nullifier_preimage.next_index,
-                .nextValue = low_nullifier_preimage.next_value,
-            };
-
-            // perform membership check for the low nullifier
-            check_membership<NULLIFIER_TREE_HEIGHT>(
-                original_low_nullifier.hash(), witness.leaf_index, witness.sibling_path, current_nullifier_tree_root);
-
-            // Calculate the new value of the low_nullifier_leaf
-            NullifierLeaf updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
-                                                                 .nextIndex = new_index,
-                                                                 .nextValue = nullifier };
 
             // increment insertion index
             new_index = new_index + 1;
-
-            // Calculate the new root after insertion of the new low nullifier root
-            current_nullifier_tree_root = iterate_through_tree_via_sibling_path(
-                updated_low_nullifier.hash(), witness.leaf_index, witness.sibling_path);
-
-            // Create the nullifier leaf of the new nullifier to be inserted
-            NullifierLeaf new_nullifier_leaf = {
-                .value = nullifier,
-                .nextIndex = low_nullifier_preimage.next_index,
-                .nextValue = low_nullifier_preimage.next_value,
-            };
-            nullifier_leaves[nullifier_index] = new_nullifier_leaf;
         }
     }
 
@@ -364,7 +418,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
 
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
-    auto subtree_index = new_index >> 3;
+    auto subtree_index = start_insertion_index >> (NULLIFIER_SUBTREE_DEPTH);
     auto new_root =
         iterate_through_tree_via_sibling_path(nullifier_subtree_root, subtree_index, nullifier_sibling_path);
 
@@ -377,6 +431,9 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
 
 BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
 {
+    // TODO: move this into a constant - calc empty nullifier_subtree hash
+    // calc empty subtree root
+    const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = calculate_empty_nullifier_subtree_root();
 
     // Verify the previous kernel proofs
     for (size_t i = 0; i < 2; i++) {
@@ -388,8 +445,8 @@ BaseRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
     std::vector<NT::fr> contract_leaves = calculate_contract_leaves(baseRollupInputs);
 
     // Perform merkle membership check with the provided sibling path up to the root
-    // Note - the subtree hasn't been created (i.e. it is empty) so you check that the sibling path corresponds to an
-    // empty tree
+    // Note - the subtree hasn't been created (i.e. it is empty) so you check that the sibling path corresponds to
+    // an empty tree
 
     // check for commitments/private_data
     // next_available_leaf_index is at the leaf level. We need at the subtree level (say height 3). So divide by 8.

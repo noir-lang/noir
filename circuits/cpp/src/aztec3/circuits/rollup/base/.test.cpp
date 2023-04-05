@@ -4,6 +4,7 @@
 // #include <aztec3/circuits/apps/oracle_wrapper.hpp>
 // #include <barretenberg/numeric/random/engine.hpp>
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
+#include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/previous_kernel_data.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
@@ -49,8 +50,13 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <tuple>
 #include <vector>
 
+#include "utils.hpp"
+
+// Nullifier tree building lib
+#include "./nullifier_tree_testing_harness.hpp"
 // #include <aztec3/constants.hpp>
 // #include <barretenberg/crypto/pedersen/pedersen.hpp>
 // #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
@@ -175,7 +181,6 @@ std::array<fr, N> get_sibling_path(stdlib::merkle_tree::MemoryTree tree, size_t 
     auto path = tree.get_hash_path(leafIndex);
     // slice out the skip
     leafIndex = leafIndex >> (subtree_depth_to_skip);
-
     for (size_t i = 0; i < N; i++) {
         if (leafIndex & (1 << i)) {
             siblingPath[i] = path[subtree_depth_to_skip + i].first;
@@ -332,7 +337,138 @@ TEST_F(base_rollup_tests, new_commitments_tree)
     run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, new_nullifier_tree) {}
+template <size_t N> NT::fr calc_root(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath)
+{
+    for (size_t i = 0; i < siblingPath.size(); i++) {
+        if (leafIndex & (1 << i)) {
+            leaf = crypto::pedersen_hash::hash_multiple({ siblingPath[i], leaf });
+        } else {
+            leaf = crypto::pedersen_hash::hash_multiple({ leaf, siblingPath[i] });
+        }
+    }
+    return leaf;
+}
+
+TEST_F(base_rollup_tests, new_nullifier_tree_empty)
+{
+    /**
+     * DESCRIPTION
+     */
+
+    // This test checks for insertions of all 0 values
+    // In this special case we will not need to provide sibling paths to check insertion of the nullifier values
+    // This is because 0 values are not actually inserted into the tree, rather the inserted subtree is left
+    // empty to begin with.
+
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> new_nullifiers = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, new_nullifiers, 1);
+
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = std::get<1>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = std::get<2>(inputs_and_snapshots);
+
+    /**
+     * RUN
+     */
+
+    // Run the circuit
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(testing_inputs);
+
+    /**
+     * ASSERT
+     */
+    // Start state
+    ASSERT_EQ(outputs.start_nullifier_tree_snapshot, nullifier_tree_start_snapshot);
+
+    // End state
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot.root, outputs.start_nullifier_tree_snapshot.root);
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot.next_available_leaf_index,
+              outputs.start_nullifier_tree_snapshot.next_available_leaf_index + 8);
+}
+
+TEST_F(base_rollup_tests, new_nullifier_tree_all_larger)
+{
+    /**
+     * SETUP
+     */
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, 8, 1);
+
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = std::get<1>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = std::get<2>(inputs_and_snapshots);
+
+    /**
+     * RUN
+     */
+
+    // Run the circuit
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(testing_inputs);
+
+    /**
+     * ASSERT
+     */
+    // Start state
+    ASSERT_EQ(outputs.start_nullifier_tree_snapshot, nullifier_tree_start_snapshot);
+
+    // End state
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
+}
+
+TEST_F(base_rollup_tests, new_nullifier_tree_sparse)
+{
+    /**
+     * DESCRIPTION
+     */
+
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, 1, 5);
+
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = std::get<1>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = std::get<2>(inputs_and_snapshots);
+
+    /**
+     * RUN
+     */
+
+    // Run the circuit
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(testing_inputs);
+
+    /**
+     * ASSERT
+     */
+    // Start state
+    ASSERT_EQ(outputs.start_nullifier_tree_snapshot, nullifier_tree_start_snapshot);
+
+    // End state
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
+}
+
+TEST_F(base_rollup_tests, new_nullifier_tree_sparse_attack)
+{
+    // @todo THIS SHOULD NOT BE PASSING. The circuit should fail with an assert as we are trying to double-spend.
+    /**
+     * DESCRIPTION
+     */
+
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> new_nullifiers = { 11, 0, 11, 0, 0, 0, 0, 0 };
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, new_nullifiers, 1);
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+
+    // Run the circuit (SHOULD FAIL WITH AN ASSERT INSTEAD OF THIS!)
+    BaseRollupPublicInputs outputs = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(testing_inputs);
+}
+
+// TEST_F(base_rollup_tests, new_commitments_tree) {}
 
 TEST_F(base_rollup_tests, empty_block_calldata_hash)
 {
@@ -364,15 +500,31 @@ TEST_F(base_rollup_tests, calldata_hash)
     BaseRollupInputs inputs = dummy_base_rollup_inputs_with_vk_proof();
     std::vector<uint8_t> input_data(704, 0);
 
+    // Kernel 1
+    // NOTE: nullifier insertions start from 8 as the generate_nullifier_tree_testing_values will populate the every
+    // nullifier leaf
     for (uint8_t i = 0; i < 4; ++i) {
-        // commitments
-        input_data[i * 32 + 31] = i + 1; // 1
-        inputs.kernel_data[0].public_inputs.end.new_nullifiers[i] = fr(i + 1);
-
         // nullifiers
+        input_data[i * 32 + 31] = i + 8; // 8
+
+        // commitments
         input_data[8 * 32 + i * 32 + 31] = i + 1; // 1
         inputs.kernel_data[0].public_inputs.end.new_commitments[i] = fr(i + 1);
     }
+    // Kernel 2
+    for (uint8_t i = 0; i < 4; ++i) {
+        // nullifiers
+        input_data[(i + 4) * 32 + 31] = i + 12; // 1
+
+        // commitments
+        input_data[8 * 32 + (i + 4) * 32 + 31] = i + 4 + 1; // 1
+        inputs.kernel_data[1].public_inputs.end.new_commitments[i] = fr(i + 4 + 1);
+    }
+
+    // Get nullifier tree data
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(inputs, 8, 1);
+    inputs = std::get<0>(inputs_and_snapshots);
 
     // Add a contract deployment
     NewContractData<NT> new_contract = {
