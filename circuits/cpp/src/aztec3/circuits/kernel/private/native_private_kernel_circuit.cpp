@@ -83,15 +83,9 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
     const auto& contract_deployment_data =
         private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
 
-    { // contracts
+    { // contract deployment
         // input storage contract address must be 0 if its a constructor call and non-zero otherwise
         auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
-
-        if (is_contract_deployment) {
-            ASSERT(storage_contract_address == 0);
-        } else {
-            ASSERT(storage_contract_address != 0);
-        }
 
         auto private_call_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
             private_inputs.private_call.vk, GeneratorIndex::VK);
@@ -108,6 +102,14 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
                                                              contract_deployment_data.contract_address_salt,
                                                              contract_deployment_data.function_tree_root,
                                                              constructor_hash);
+
+        if (is_contract_deployment) {
+            // must imply == derived address
+            ASSERT(storage_contract_address == contract_address);
+        } else {
+            // non-contract deployments must specify contract address being interacted with
+            ASSERT(storage_contract_address != 0);
+        }
 
         // compute contract address nullifier
         auto blake_input = contract_address.to_field().to_buffer();

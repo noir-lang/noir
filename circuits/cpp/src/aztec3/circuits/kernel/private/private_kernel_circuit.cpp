@@ -111,14 +111,9 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
     const auto& contract_deployment_data =
         private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
 
-    { // contracts
+    { // contract deployment
         // input storage contract address must be 0 if its a constructor call and non-zero otherwise
         auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
-        is_contract_deployment.must_imply(storage_contract_address == CT::fr(0),
-                                          "storage_contract_address is not zero for contract deployment");
-        (!is_contract_deployment)
-            .must_imply(storage_contract_address != CT::fr(0),
-                        "storage_contract_address is zero for a private function");
 
         auto private_call_vk_hash = private_inputs.private_call.vk->compress(GeneratorIndex::VK);
         auto constructor_hash = compute_constructor_hash<CT>(private_inputs.signed_tx_request.tx_request.function_data,
@@ -128,11 +123,21 @@ void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>
         is_contract_deployment.must_imply(contract_deployment_data.constructor_vk_hash == private_call_vk_hash,
                                           "constructor_vk_hash does not match private call vk hash");
 
-        // compute the contract address
+        // compute the contract address (only valid if this is a contract deployment)
         auto contract_address = compute_contract_address<CT>(deployer_address,
                                                              contract_deployment_data.contract_address_salt,
                                                              contract_deployment_data.function_tree_root,
                                                              constructor_hash);
+
+        // must imply == derived address
+        is_contract_deployment.must_imply(
+            storage_contract_address == contract_address,
+            "storage_contract_address must match derived address for contract deployment");
+
+        // non-contract deployments must specify contract address being interacted with
+        (!is_contract_deployment)
+            .must_imply(storage_contract_address != CT::fr(0),
+                        "storage_contract_address must be nonzero for a private function");
 
         // compute contract address nullifier
         auto blake_input = CT::byte_array(contract_address.to_field());

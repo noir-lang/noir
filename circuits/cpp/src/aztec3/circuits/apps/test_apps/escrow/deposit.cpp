@@ -62,7 +62,7 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ct
 
     exec_ctx.finalise();
 
-    info("public inputs: ", public_inputs);
+    // info("public inputs: ", public_inputs);
 
     return public_inputs.to_native_type<C>();
     // TODO: also return note preimages and nullifier preimages.

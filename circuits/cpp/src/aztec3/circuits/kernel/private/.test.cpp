@@ -7,6 +7,8 @@
 #include "init.hpp"
 #include "c_bind.h"
 
+#include <aztec3/circuits/hash.hpp>
+
 #include <aztec3/circuits/apps/test_apps/escrow/deposit.hpp>
 #include <aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp>
 
@@ -43,6 +45,7 @@
 
 namespace {
 
+using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CallType;
@@ -469,8 +472,8 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     // Some private circuit proof (`constructor`, in this case)
     //***************************************************************************
 
-    // Set this to 0 and then fill it in with correct contract address
-    const NT::address new_contract_address = 0;
+    // contract address for newly deployed contract will be derived
+    // below after constructor VK is computed
     // const NT::fr new_contract_leaf_index = 1;
     const NT::fr new_portal_contract_address = 23456;
     const NT::fr contract_address_salt = 34567;
@@ -488,7 +491,7 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
 
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
-        .storage_contract_address = new_contract_address,
+        .storage_contract_address = 0, // will be replaced with contract address once it is calculated
         .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
@@ -498,6 +501,10 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     NT::fr arg0 = 5;
     NT::fr arg1 = 1;
     NT::fr arg2 = 999;
+    std::array<NT::fr, ARGS_LENGTH> args = { 0 };
+    args[0] = arg0;
+    args[1] = arg1;
+    args[2] = arg2;
 
     Composer dummy_constructor_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     {
@@ -507,15 +514,15 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
         // contract_deployment_data will need to contain the constructor_vk_hash... but the constructor's vk can only be
         // computed after the composer has composed the circuit!
         ContractDeploymentData<NT> dummy_contract_deployment_data{
-            .constructor_vk_hash = 0, // dummy
-            .function_tree_root = 0,  // TODO actually get this?
-            .contract_address_salt = contract_address_salt,
-            .portal_contract_address = new_portal_contract_address,
+            .constructor_vk_hash = 0, // zeros are okay for dummy call
+            .function_tree_root = 0,
+            .contract_address_salt = 0,
+            .portal_contract_address = 0,
         };
 
         DB dummy_db;
         NativeOracle dummy_constructor_oracle = NativeOracle(dummy_db,
-                                                             new_contract_address,
+                                                             0, // contract address not known during VK computation
                                                              function_data,
                                                              call_context,
                                                              dummy_contract_deployment_data,
@@ -539,11 +546,20 @@ TEST(private_kernel_tests, test_basic_contract_deployment)
     DB db;
 
     ContractDeploymentData<NT> contract_deployment_data{
-        .constructor_vk_hash = constructor_vk_hash, // TODO actually get this?
-        .function_tree_root = 0,                    // TODO actually get this?
+        .constructor_vk_hash = constructor_vk_hash,
+        .function_tree_root = 0, // TODO actually get this?
         .contract_address_salt = contract_address_salt,
         .portal_contract_address = new_portal_contract_address,
     };
+
+    // Get constructor hash for use when deriving contract address
+    auto constructor_hash = compute_constructor_hash<NT>(function_data, args, constructor_vk_hash);
+
+    // Derive contract address so that it can be used inside the constructor itself
+    const NT::address new_contract_address = compute_contract_address<NT>(
+        msg_sender, contract_address_salt, contract_deployment_data.function_tree_root, constructor_hash);
+    // update the contract address in the call context now that it is known
+    call_context.storage_contract_address = new_contract_address;
 
     NativeOracle constructor_oracle = NativeOracle(
         db, new_contract_address, function_data, call_context, contract_deployment_data, msg_sender_private_key);
@@ -702,8 +718,8 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
     // Some private circuit proof (`constructor`, in this case)
     //***************************************************************************
 
-    // Set this to 0 and then fill it in with correct contract address
-    const NT::address new_contract_address = 0;
+    // contract address for newly deployed contract will be derived
+    // below after constructor VK is computed
     // const NT::fr new_contract_leaf_index = 1;
     const NT::fr new_portal_contract_address = 23456;
     const NT::fr contract_address_salt = 34567;
@@ -727,7 +743,7 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
 
     CallContext<NT> call_context{
         .msg_sender = msg_sender,
-        .storage_contract_address = new_contract_address,
+        .storage_contract_address = 0, // will be replaced with contract address once it is calculated
         .portal_contract_address = 0,
         .is_delegate_call = false,
         .is_static_call = false,
@@ -737,6 +753,10 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
     NT::fr arg0 = 5;
     NT::fr arg1 = 1;
     NT::fr arg2 = 999;
+    std::array<NT::fr, ARGS_LENGTH> args = { 0 };
+    args[0] = arg0;
+    args[1] = arg1;
+    args[2] = arg2;
 
     Composer dummy_constructor_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     {
@@ -746,15 +766,15 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
         // contract_deployment_data will need to contain the constructor_vk_hash... but the constructor's vk can only be
         // computed after the composer has composed the circuit!
         ContractDeploymentData<NT> dummy_contract_deployment_data{
-            .constructor_vk_hash = 0, // dummy
-            .function_tree_root = 0,  // TODO actually get this?
-            .contract_address_salt = contract_address_salt,
-            .portal_contract_address = new_portal_contract_address,
+            .constructor_vk_hash = 0, // zeros are okay for dummy call
+            .function_tree_root = 0,
+            .contract_address_salt = 0,
+            .portal_contract_address = 0,
         };
 
         DB dummy_db;
         NativeOracle dummy_constructor_oracle = NativeOracle(dummy_db,
-                                                             new_contract_address,
+                                                             0, // contract address not known during VK computation
                                                              function_data,
                                                              call_context,
                                                              dummy_contract_deployment_data,
@@ -778,11 +798,21 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
     DB db;
 
     ContractDeploymentData<NT> contract_deployment_data{
-        .constructor_vk_hash = constructor_vk_hash, // TODO actually get this?
-        .function_tree_root = 0,                    // TODO actually get this?
+        .constructor_vk_hash = constructor_vk_hash,
+        .function_tree_root = 0, // TODO actually get this?
         .contract_address_salt = contract_address_salt,
         .portal_contract_address = new_portal_contract_address,
     };
+
+    // Get constructor hash for use when deriving contract address
+    auto constructor_hash = compute_constructor_hash<NT>(function_data, args, constructor_vk_hash);
+
+    // Derive contract address so that it can be used inside the constructor itself
+    const NT::address new_contract_address = compute_contract_address<NT>(
+        msg_sender, contract_address_salt, contract_deployment_data.function_tree_root, constructor_hash);
+
+    // update the contract address in the call context now that it is known
+    call_context.storage_contract_address = new_contract_address;
 
     NativeOracle constructor_oracle = NativeOracle(
         db, new_contract_address, function_data, call_context, contract_deployment_data, msg_sender_private_key);
