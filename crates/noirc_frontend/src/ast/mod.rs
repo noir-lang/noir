@@ -35,6 +35,11 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
+    /// A vector of some element type.
+    /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
+    /// but we keep them all around to verify generic count after parsing for better error messages.
+    Vec(Vec<UnresolvedType>),
+
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
