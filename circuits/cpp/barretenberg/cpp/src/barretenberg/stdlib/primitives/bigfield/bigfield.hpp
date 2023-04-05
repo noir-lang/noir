@@ -11,7 +11,7 @@
 
 #include "../composers/composers_fwd.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer, typename T> class bigfield {
@@ -496,6 +496,6 @@ template <typename C, typename T> inline std::ostream& operator<<(std::ostream& 
 }
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk
 
 #include "bigfield_impl.hpp"

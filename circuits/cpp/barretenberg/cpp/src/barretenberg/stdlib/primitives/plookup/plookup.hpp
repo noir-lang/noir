@@ -6,7 +6,7 @@
 #include "barretenberg/plonk/composer/plookup_tables/types.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace plookup;
@@ -30,4 +30,4 @@ extern template class plookup_<plonk::UltraComposer>;
 
 typedef plookup_<plonk::UltraComposer> plookup_read;
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace value {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 inline auto complete_partial_commitment(field_ct const& value_note_partial_commitment,
                                         suint_ct const& value,

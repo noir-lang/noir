@@ -10,7 +10,7 @@
 #include "barretenberg/numeric/random/engine.hpp"
 
 #include <gtest/gtest.h>
-using namespace honk::sumcheck;
+using namespace proof_system::honk::sumcheck;
 /**
  * We want to test if all three relations (namely, ArithmeticRelation, GrandProductComputationRelation,
  * GrandProductInitializationRelation) provide correct contributions by manually computing their
@@ -23,15 +23,15 @@ using namespace honk::sumcheck;
  */
 static const size_t input_univariate_length = 2;
 static constexpr size_t FULL_RELATION_LENGTH = 5;
-static const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
+static const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
 
-namespace honk_relation_tests {
+namespace proof_system::honk_relation_tests {
 
 template <class FF> class SumcheckRelation : public testing::Test {
   public:
     template <size_t t> using Univariate = Univariate<FF, t>;
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
-    using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
+    using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
     // TODO(#225)(Adrian): Accept FULL_RELATION_LENGTH as a template parameter for this function only, so that the test
     // can decide to which degree the polynomials must be extended. Possible accept an existing list of "edges" and
     // extend them to the degree.
@@ -311,4 +311,4 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
     run_test(/* is_random_input=*/false);
 };
 
-} // namespace honk_relation_tests
+} // namespace proof_system::honk_relation_tests

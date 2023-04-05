@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-namespace honk::pcs::kzg {
+namespace proof_system::honk::pcs::kzg {
 
 template <class Params> class BilinearAccumulationTest : public CommitmentTest<Params> {
   public:
@@ -170,4 +170,4 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
     EXPECT_EQ(verified, true);
 }
 
-} // namespace honk::pcs::kzg
+} // namespace proof_system::honk::pcs::kzg

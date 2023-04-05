@@ -9,7 +9,7 @@
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
@@ -454,7 +454,7 @@ typedef stdlib::field_t<plonk::UltraComposer> field_ct;
 typedef stdlib::witness_t<plonk::UltraComposer> witness_ct;
 TEST(stdlib_pedersen, test_pedersen_plookup)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     fr left_in = fr::random_element();
     fr right_in = fr::random_element();
@@ -481,7 +481,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
 
 TEST(stdlib_pedersen, test_compress_many_plookup)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     std::vector<fr> input_values{
         fr::random_element(), fr::random_element(), fr::random_element(),
@@ -513,7 +513,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
 
 TEST(stdlib_pedersen, test_merkle_damgard_compress_plookup)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     std::vector<fr> input_values{
         fr::random_element(), fr::random_element(), fr::random_element(),

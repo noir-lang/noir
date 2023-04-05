@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
-#include "barretenberg/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "circuit_constructor_base.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
@@ -10,9 +10,9 @@
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include <optional>
 
-namespace bonk {
+namespace proof_system {
 
-static constexpr plonk::ComposerType type = plonk::ComposerType::PLOOKUP;
+static constexpr ComposerType type = ComposerType::PLOOKUP;
 static constexpr plonk::MerkleHashType merkle_hash_type = plonk::MerkleHashType::LOOKUP_PEDERSEN;
 static constexpr size_t NUM_RESERVED_GATES = 4; // This must be >= num_roots_cut_out_of_vanishing_polynomial
                                                 // See the comment in plonk/proof_system/prover/prover.cpp
@@ -167,7 +167,7 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
 
     // TODO(#216)(Kesha): replace this with Honk enums after we have a verifier and no longer depend on plonk
     // prover/verifier
-    static constexpr plonk::ComposerType type = plonk::ComposerType::STANDARD_HONK;
+    static constexpr ComposerType type = ComposerType::STANDARD_HONK;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     // These are variables that we have used a gate on, to enforce that they are
@@ -536,4 +536,4 @@ class UltraCircuitConstructor : public CircuitConstructorBase<arithmetization::U
     void process_RAM_array(const size_t ram_id, const size_t gate_offset_from_public_inputs);
     void process_RAM_arrays(const size_t gate_offset_from_public_inputs);
 };
-} // namespace bonk
+} // namespace proof_system

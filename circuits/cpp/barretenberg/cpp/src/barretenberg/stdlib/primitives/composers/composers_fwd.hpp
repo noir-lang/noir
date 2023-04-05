@@ -1,16 +1,16 @@
 #pragma once
 
-namespace plonk {
+namespace proof_system::plonk {
 class StandardComposer;
 class TurboComposer;
 class UltraComposer;
 
 class StandardPlonkComposer;
-} // namespace plonk
+} // namespace proof_system::plonk
 
-namespace honk {
+namespace proof_system::honk {
 class StandardHonkComposer;
-} // namespace honk
+} // namespace proof_system::honk
 
 #define EXTERN_STDLIB_TYPE(stdlib_type)                                                                                \
     extern template class stdlib_type<plonk::StandardComposer>;                                                        \

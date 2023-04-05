@@ -31,9 +31,9 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class ByteArrayFuzzBase {
   private:
-    typedef plonk::stdlib::byte_array<Composer> byte_array_t;
-    typedef plonk::stdlib::field_t<Composer> field_t;
-    typedef plonk::stdlib::safe_uint_t<Composer> suint_t;
+    typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
+    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+    typedef proof_system::plonk::stdlib::safe_uint_t<Composer> suint_t;
 
     template <class From, class To> static To from_to(const From& in, const std::optional<size_t> size = std::nullopt)
     {

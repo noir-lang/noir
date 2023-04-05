@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace honk;
+using namespace proof_system::honk;
 
 namespace test_standard_honk_composer {
 /**
@@ -93,7 +93,7 @@ TEST(StandardHonkComposer, SigmaIDCorrectness)
         }
 
         // test correctness of the public input delta
-        auto delta = honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
+        auto delta = proof_system::honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
         EXPECT_EQ(left / right, delta);
 
         for (size_t i = 0; i < num_public_inputs; ++i) {
@@ -348,7 +348,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
         .public_input_delta = public_input_delta,
     };
 
-    constexpr size_t num_polynomials = honk::StandardArithmetization::NUM_POLYNOMIALS;
+    constexpr size_t num_polynomials = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
     // Compute grand product polynomial
     polynomial z_perm_poly =
         prover_library::compute_permutation_grand_product<num_wires>(prover.key, prover.wire_polynomials, beta, gamma);
@@ -359,7 +359,7 @@ TEST(StandardHonkComposer, SumcheckRelationCorrectness)
     // in the list below
     std::array<std::span<const fr>, num_polynomials> evaluations_array;
 
-    using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
+    using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
     evaluations_array[POLYNOMIAL::W_L] = prover.wire_polynomials[0];
     evaluations_array[POLYNOMIAL::W_R] = prover.wire_polynomials[1];
     evaluations_array[POLYNOMIAL::W_O] = prover.wire_polynomials[2];

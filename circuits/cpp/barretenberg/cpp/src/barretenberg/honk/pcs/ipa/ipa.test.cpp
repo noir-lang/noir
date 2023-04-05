@@ -7,7 +7,7 @@
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/commitment_key.test.hpp"
 using namespace barretenberg;
-namespace honk::pcs::ipa {
+namespace proof_system::honk::pcs::ipa {
 
 template <class Params> class IpaCommitmentTest : public CommitmentTest<Params> {
     using Fr = typename Params::Fr;
@@ -58,4 +58,4 @@ TYPED_TEST(IpaCommitmentTest, open)
     auto result = IPA::reduce_verify(this->vk(), proof, pub_input);
     EXPECT_TRUE(result);
 }
-} // namespace honk::pcs::ipa
+} // namespace proof_system::honk::pcs::ipa

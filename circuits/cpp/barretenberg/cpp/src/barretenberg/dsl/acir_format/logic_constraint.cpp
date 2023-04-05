@@ -1,7 +1,7 @@
 #include "logic_constraint.hpp"
 #include "barretenberg/stdlib/primitives/logic/logic.hpp"
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_format {
 

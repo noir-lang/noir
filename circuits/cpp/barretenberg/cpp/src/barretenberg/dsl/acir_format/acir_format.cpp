@@ -1,6 +1,6 @@
 #include "acir_format.hpp"
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_format {
 
@@ -88,7 +88,7 @@ void create_circuit(Composer& composer, const acir_format& constraint_system)
 }
 
 Composer create_circuit(const acir_format& constraint_system,
-                        std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory)
+                        std::unique_ptr<proof_system::ReferenceStringFactory>&& crs_factory)
 {
     if (constraint_system.public_inputs.size() > constraint_system.varnum) {
         std::cout << "too many public inputs!" << std::endl;

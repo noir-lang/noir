@@ -5,7 +5,7 @@
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/transcript/manifest.hpp"
 
-namespace honk {
+namespace proof_system::honk {
 // TODO(Cody) This _should_ be shared with Plonk, but it isn't.
 struct StandardArithmetization {
     /**
@@ -59,14 +59,14 @@ struct StandardArithmetization {
         "LAGRANGE_LAST", "W_1",     "W_2",  "W_3",  "Z_PERM", "Z_PERM_SHIFT"
     };
 };
-} // namespace honk
+} // namespace proof_system::honk
 
-namespace honk {
+namespace proof_system::honk {
 struct StandardHonk {
   public:
     // This whole file is broken; changes here are in anticipation of a follow-up rework of the flavor specificaiton.
     using Arithmetization = arithmetization::Standard;
-    using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
+    using MULTIVARIATE = proof_system::honk::StandardArithmetization::POLYNOMIAL;
     // // TODO(Cody): Where to specify? is this polynomial manifest size?
     // static constexpr size_t STANDARD_HONK_MANIFEST_SIZE = 16;
     // TODO(Cody): Maybe relation should be supplied and this should be computed as is done in sumcheck?
@@ -187,4 +187,4 @@ struct StandardHonk {
         return output;
     }
 };
-} // namespace honk
+} // namespace proof_system::honk

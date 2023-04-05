@@ -1,1 +1,1 @@
-barretenberg_module(proof_system plonk)
+barretenberg_module(proof_system polynomials crypto_pedersen)

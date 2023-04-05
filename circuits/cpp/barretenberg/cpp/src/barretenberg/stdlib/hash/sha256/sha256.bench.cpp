@@ -5,7 +5,7 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace benchmark;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 constexpr size_t NUM_HASHES = 8;
 constexpr size_t BYTES_PER_CHUNK = 512;

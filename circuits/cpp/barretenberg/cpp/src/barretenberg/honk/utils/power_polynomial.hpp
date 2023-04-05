@@ -5,7 +5,7 @@
 #ifndef NO_MULTITHREADING
 #include "omp.h"
 #endif
-namespace honk::power_polynomial {
+namespace proof_system::honk::power_polynomial {
 /**
  * @brief Generate the power polynomial vector
  *
@@ -71,4 +71,4 @@ template <typename Fr> Fr evaluate(Fr zeta, std::span<const Fr> variables)
     }
     return evaluation;
 }
-} // namespace honk::power_polynomial
+} // namespace proof_system::honk::power_polynomial

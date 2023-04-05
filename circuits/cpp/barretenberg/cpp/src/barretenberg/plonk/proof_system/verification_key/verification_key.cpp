@@ -1,8 +1,8 @@
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "verification_key.hpp"
-#include "../../plonk/proof_system/constants.hpp"
+#include "barretenberg/plonk/proof_system/constants.hpp"
 
-namespace bonk {
+namespace proof_system::plonk {
 
 verification_key::verification_key(const size_t num_gates,
                                    const size_t num_inputs,
@@ -87,4 +87,4 @@ sha256::hash verification_key::sha256_hash()
     return sha256::sha256(to_buffer(vk_data));
 }
 
-} // namespace bonk
+} // namespace proof_system::plonk

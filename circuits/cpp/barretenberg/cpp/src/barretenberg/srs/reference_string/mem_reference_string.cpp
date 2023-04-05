@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-namespace bonk {
+namespace proof_system {
 
 VerifierMemReferenceString::VerifierMemReferenceString(uint8_t const* g2x)
     : precomputed_g2_lines(
@@ -23,4 +23,4 @@ VerifierMemReferenceString::~VerifierMemReferenceString()
     aligned_free(precomputed_g2_lines);
 }
 
-} // namespace bonk
+} // namespace proof_system

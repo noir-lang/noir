@@ -8,11 +8,11 @@
 #include <cstdint>
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/srs/reference_string/pippenger_reference_string.hpp"
-#include "barretenberg/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include <sstream>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 using namespace join_split_example::proofs::join_split;
 
 #define WASM_EXPORT __attribute__((visibility("default")))
@@ -23,14 +23,14 @@ WASM_EXPORT void join_split__init_proving_key(bool mock)
 {
     // We know that we don't actually need any CRS to create a proving key, so just feed in a nothing.
     // Hacky, but, right now it needs *something*.
-    auto crs_factory = std::make_shared<bonk::ReferenceStringFactory>();
+    auto crs_factory = std::make_shared<proof_system::ReferenceStringFactory>();
     init_proving_key(crs_factory, mock);
 }
 
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
 {
-    std::shared_ptr<bonk::ProverReferenceString> crs;
-    bonk::proving_key_data pk_data;
+    std::shared_ptr<proof_system::ProverReferenceString> crs;
+    plonk::proving_key_data pk_data;
     read(pk_buf, pk_data);
     init_proving_key(crs, std::move(pk_data));
 }
@@ -70,15 +70,15 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
 {
-    auto crs_factory = std::make_unique<bonk::PippengerReferenceStringFactory>(
+    auto crs_factory = std::make_unique<proof_system::PippengerReferenceStringFactory>(
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
     init_verification_key(std::move(crs_factory));
 }
 
 WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x)
 {
-    auto crs = std::make_shared<bonk::VerifierMemReferenceString>(g2x);
-    bonk::verification_key_data vk_data;
+    auto crs = std::make_shared<proof_system::VerifierMemReferenceString>(g2x);
+    plonk::verification_key_data vk_data;
     read(vk_buf, vk_data);
     init_verification_key(crs, std::move(vk_data));
 }

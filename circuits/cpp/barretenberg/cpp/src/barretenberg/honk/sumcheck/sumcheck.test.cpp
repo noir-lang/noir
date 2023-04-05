@@ -20,11 +20,11 @@
 #include <sys/types.h>
 #include <vector>
 
-using namespace honk;
-using namespace honk::sumcheck;
+using namespace proof_system::honk;
+using namespace proof_system::honk::sumcheck;
 using FF = barretenberg::fr;
-const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
-using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
+const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
 
 namespace test_sumcheck_round {
 

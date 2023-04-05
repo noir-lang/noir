@@ -136,7 +136,7 @@ TEST(transcript, univariate_serialization)
     constexpr size_t LENGTH = 8;
 
     using Fr = barretenberg::fr;
-    using Univariate = honk::sumcheck::Univariate<Fr, LENGTH>;
+    using Univariate = proof_system::honk::sumcheck::Univariate<Fr, LENGTH>;
     using Transcript = transcript::StandardTranscript;
 
     std::vector<uint8_t> g1_vector(64);

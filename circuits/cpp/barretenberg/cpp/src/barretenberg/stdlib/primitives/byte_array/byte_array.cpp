@@ -6,7 +6,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 // ULTRA: Further merging with
@@ -383,4 +383,4 @@ typename byte_array<Composer>::byte_slice byte_array<Composer>::split_byte(const
 INSTANTIATE_STDLIB_TYPE(byte_array);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

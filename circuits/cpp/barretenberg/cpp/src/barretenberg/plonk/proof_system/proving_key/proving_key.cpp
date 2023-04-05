@@ -2,7 +2,8 @@
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-namespace bonk {
+
+namespace proof_system::plonk {
 
 // In all the constructors below, the pippenger_runtime_state takes (n + 1) as the input
 // as the degree of t_{high}(X) is (n + 1) for standard plonk. Refer to
@@ -23,8 +24,8 @@ namespace bonk {
  * */
 proving_key::proving_key(const size_t num_gates,
                          const size_t num_inputs,
-                         std::shared_ptr<ProverReferenceString> const& crs,
-                         plonk::ComposerType type = plonk::STANDARD) // TODO(Cody): Don't use default for Honk
+                         std::shared_ptr<proof_system::ProverReferenceString> const& crs,
+                         ComposerType type = ComposerType::STANDARD) // TODO(Cody): Don't use default for Honk
     : composer_type(type)
     , circuit_size(num_gates)
     , log_circuit_size(numeric::get_msb(num_gates))
@@ -44,7 +45,7 @@ proving_key::proving_key(const size_t num_gates,
  * @param data
  * @param crs
  */
-proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenceString> const& crs)
+proving_key::proving_key(proving_key_data&& data, std::shared_ptr<proof_system::ProverReferenceString> const& crs)
     : composer_type(data.composer_type)
     , circuit_size(data.circuit_size)
     , num_public_inputs(data.num_public_inputs)
@@ -88,4 +89,4 @@ void proving_key::init()
     memset((void*)&quotient_polynomial_parts[3][0], 0x00, sizeof(barretenberg::fr) * circuit_size);
 }
 
-} // namespace bonk
+} // namespace proof_system::plonk

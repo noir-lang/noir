@@ -3,12 +3,14 @@
 #include "verification_key.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
+using namespace proof_system::plonk;
+
+namespace proof_system::plonk::test_verification_key {
 
 TEST(verification_key, buffer_serialization)
 {
     verification_key_data key;
-    key.composer_type = static_cast<uint32_t>(plonk::ComposerType::STANDARD);
+    key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
     key.circuit_size = 1234;
     key.num_public_inputs = 10;
     key.commitments["test1"] = g1::element::random_element();
@@ -25,7 +27,7 @@ TEST(verification_key, buffer_serialization)
 TEST(verification_key, stream_serialization)
 {
     verification_key_data key;
-    key.composer_type = static_cast<uint32_t>(plonk::ComposerType::STANDARD);
+    key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
     key.circuit_size = 1234;
     key.num_public_inputs = 10;
     key.commitments["test1"] = g1::element::random_element();
@@ -41,3 +43,4 @@ TEST(verification_key, stream_serialization)
 
     EXPECT_EQ(key, result);
 }
+} // namespace proof_system::plonk::test_verification_key

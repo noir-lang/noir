@@ -5,16 +5,16 @@
 #include "barretenberg/numeric/random/engine.hpp"
 
 using namespace barretenberg;
-// using namespace plonk::stdlib::types;
+// using namespace proof_system::plonk::stdlib::types;
 namespace stdlib_group_tests {
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using Composer = honk::StandardHonkComposer;
-using witness_ct = plonk::stdlib::witness_t<Composer>;
-using field_ct = plonk::stdlib::field_t<Composer>;
-using group_ct = plonk::stdlib::group<Composer>;
+using Composer = proof_system::honk::StandardHonkComposer;
+using witness_ct = proof_system::plonk::stdlib::witness_t<Composer>;
+using field_ct = proof_system::plonk::stdlib::field_t<Composer>;
+using group_ct = proof_system::plonk::stdlib::group<Composer>;
 
 TEST(stdlib_group, test_fixed_base_scalar_mul)
 {

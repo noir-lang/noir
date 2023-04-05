@@ -15,7 +15,7 @@
 #include <map>
 #include <algorithm>
 
-namespace honk {
+namespace proof_system::honk {
 
 class TranscriptManifest {
     struct RoundData {
@@ -272,4 +272,4 @@ template <class FF> class VerifierTranscript : public BaseTranscript<FF> {
         return element;
     }
 };
-} // namespace honk
+} // namespace proof_system::honk

@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <string>
 
-namespace plonk {
+namespace proof_system::plonk {
 
 /**
  * @brief Computes `this.witness`, which is basiclly a set of polynomials mapped-to by strings.
@@ -228,11 +228,8 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
     const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
     // Initialize circuit_proving_key
     // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(circuit_constructor,
-                                                 crs_factory_.get(),
-                                                 minimum_circuit_size,
-                                                 num_randomized_gates,
-                                                 plonk::ComposerType::PLOOKUP);
+    circuit_proving_key = initialize_proving_key(
+        circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, ComposerType::PLOOKUP);
 
     construct_lagrange_selector_forms(circuit_constructor, circuit_proving_key.get());
 
@@ -240,8 +237,8 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
 
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), ultra_selector_properties());
 
-    bonk::compute_plonk_generalized_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
-                                                                                          circuit_proving_key.get());
+    compute_plonk_generalized_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
+                                                                                    circuit_proving_key.get());
 
     const size_t subgroup_size = circuit_proving_key->circuit_size;
 
@@ -350,7 +347,7 @@ std::shared_ptr<proving_key> UltraPlonkComposerHelper<CircuitConstructor>::compu
  * @return Pointer to created circuit verification key.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<bonk::verification_key> UltraPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<plonk::verification_key> UltraPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
@@ -391,4 +388,4 @@ void UltraPlonkComposerHelper<CircuitConstructor>::add_table_column_selector_pol
 }
 
 template class UltraPlonkComposerHelper<UltraCircuitConstructor>;
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -6,7 +6,7 @@
 #include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 namespace blake_util {
@@ -255,4 +255,4 @@ void round_fn_lookup(field_t<Composer> state[BLAKE3_STATE_SIZE],
 } // namespace blake_util
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

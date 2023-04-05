@@ -119,10 +119,10 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class FieldBase {
   private:
-    typedef plonk::stdlib::bool_t<Composer> bool_t;
-    typedef plonk::stdlib::field_t<Composer> field_t;
-    typedef plonk::stdlib::witness_t<Composer> witness_t;
-    typedef plonk::stdlib::public_witness_t<Composer> public_witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
 
   public:
     /**
@@ -1027,7 +1027,7 @@ template <typename Composer> class FieldBase {
                  *
                  * TEST(stdlib_field, test_construct_via_bool_t)
                  * {
-                 *     plonk::StandardComposer composer = plonk::StandardComposer();
+                 *     plonk::StandardComposer composer = proof_system::plonk::StandardComposer();
                  *     field_t a(witness_t(&composer, fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b,
                  * 0xdf185a29c65fbf80, 0x1d18b2de99e48308}))); field_t b = a - a; field_t c(static_cast<bool_t>(b));
                  *     std::cout << c.get_value() << std::endl;

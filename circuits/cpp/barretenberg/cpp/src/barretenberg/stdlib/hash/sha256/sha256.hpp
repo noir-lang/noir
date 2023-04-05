@@ -6,13 +6,13 @@
 
 #include "sha256_plookup.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 class UltraComposer;
 class StandardComposer;
 class TurboComposer;
-} // namespace plonk
+} // namespace proof_system::plonk
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 template <typename Composer> class bit_array;
 
@@ -41,4 +41,4 @@ extern template packed_byte_array<plonk::StandardComposer> sha256(
 extern template packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::UltraComposer>& input);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

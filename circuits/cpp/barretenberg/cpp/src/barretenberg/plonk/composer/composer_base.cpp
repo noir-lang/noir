@@ -1,8 +1,8 @@
 #include "composer_base.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/utils/permutation.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 
 /**
  * Join variable class b to variable class a.
@@ -422,4 +422,4 @@ template void ComposerBase::compute_witness_base<4>(const size_t); // turbo and 
 template void ComposerBase::compute_wire_copy_cycles<3>();
 template void ComposerBase::compute_wire_copy_cycles<4>();
 
-} // namespace plonk
+} // namespace proof_system::plonk

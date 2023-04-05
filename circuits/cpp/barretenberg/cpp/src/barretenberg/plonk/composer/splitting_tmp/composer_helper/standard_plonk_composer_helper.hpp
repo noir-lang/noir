@@ -1,49 +1,46 @@
 #pragma once
 
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/proof_system/circuit_constructors/standard_circuit_constructor.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
-#include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
-#include "barretenberg/proof_system/composer/permutation_helper.hpp"
-
+#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
 #include <utility>
 
-namespace plonk {
+namespace proof_system::plonk {
 // TODO(Kesha): change initializations to specify this parameter
 // Cody: What does this mean?
 template <typename CircuitConstructor> class StandardPlonkComposerHelper {
   public:
     static constexpr size_t NUM_RANDOMIZED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
-    std::shared_ptr<bonk::proving_key> circuit_proving_key;
-    std::shared_ptr<bonk::verification_key> circuit_verification_key;
+    std::shared_ptr<plonk::proving_key> circuit_proving_key;
+    std::shared_ptr<plonk::verification_key> circuit_verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
-    std::shared_ptr<bonk::ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<ReferenceStringFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
     bool computed_witness = false;
 
     StandardPlonkComposerHelper()
-        : StandardPlonkComposerHelper(
-              std::shared_ptr<bonk::ReferenceStringFactory>(new bonk::FileReferenceStringFactory("../srs_db/ignition")))
+        : StandardPlonkComposerHelper(std::shared_ptr<ReferenceStringFactory>(
+              new proof_system::FileReferenceStringFactory("../srs_db/ignition")))
     {}
-
-    StandardPlonkComposerHelper(std::shared_ptr<bonk::ReferenceStringFactory> crs_factory)
+    StandardPlonkComposerHelper(std::shared_ptr<ReferenceStringFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
-    StandardPlonkComposerHelper(std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory)
+    StandardPlonkComposerHelper(std::unique_ptr<ReferenceStringFactory>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
-
-    StandardPlonkComposerHelper(std::shared_ptr<bonk::proving_key> p_key, std::shared_ptr<bonk::verification_key> v_key)
+    StandardPlonkComposerHelper(std::shared_ptr<plonk::proving_key> p_key,
+                                std::shared_ptr<plonk::verification_key> v_key)
         : circuit_proving_key(std::move(p_key))
         , circuit_verification_key(std::move(v_key))
     {}
@@ -54,7 +51,7 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
     StandardPlonkComposerHelper& operator=(const StandardPlonkComposerHelper& other) = delete;
     ~StandardPlonkComposerHelper() = default;
 
-    inline std::vector<bonk::SelectorProperties> standard_selector_properties()
+    inline std::vector<SelectorProperties> standard_selector_properties()
     {
         std::vector<SelectorProperties> result{
             { "q_m", false }, { "q_c", false }, { "q_1", false }, { "q_2", false }, { "q_3", false },
@@ -75,8 +72,8 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
             recursive_proof_public_input_indices.push_back((uint32_t)(circuit_constructor.public_inputs.size() - 1));
         }
     }
-    std::shared_ptr<bonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
-    std::shared_ptr<bonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
 
     plonk::Verifier create_verifier(const CircuitConstructor& circuit_constructor);
     plonk::Prover create_prover(const CircuitConstructor& circuit_constructor);
@@ -174,4 +171,4 @@ template <typename CircuitConstructor> class StandardPlonkComposerHelper {
     }
 };
 
-} // namespace plonk
+} // namespace proof_system::plonk

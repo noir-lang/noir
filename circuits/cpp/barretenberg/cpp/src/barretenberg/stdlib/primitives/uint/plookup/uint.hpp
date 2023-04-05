@@ -5,7 +5,7 @@
 #include "../../field/field.hpp"
 #include "../../plookup/plookup.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native> class uint_plookup {
@@ -178,4 +178,4 @@ EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint32_t);
 EXTERN_STDLIB_ULTRA_TYPE_VA(uint_plookup, uint64_t);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

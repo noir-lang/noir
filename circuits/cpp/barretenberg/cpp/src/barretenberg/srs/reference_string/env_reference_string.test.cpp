@@ -9,9 +9,9 @@
 
 TEST(reference_string, env_file_consistency)
 {
-    auto env_crs = std::make_unique<bonk::EnvReferenceStringFactory>();
+    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
 
-    auto file_crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<proof_system::FileReferenceStringFactory>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     EXPECT_EQ(env_crs->get_verifier_crs()->get_g2x(), file_verifier->get_g2x());
@@ -19,8 +19,6 @@ TEST(reference_string, env_file_consistency)
                      file_verifier->get_precomputed_g2_lines(),
                      sizeof(barretenberg::pairing::miller_lines) * 2),
               0);
-    EXPECT_EQ(
-        env_crs->get_prover_crs(1)->get_monomial_points()[0], 
-        file_crs->get_prover_crs(1)->get_monomial_points()[0]
-    );
+    EXPECT_EQ(env_crs->get_prover_crs(1)->get_monomial_points()[0],
+              file_crs->get_prover_crs(1)->get_monomial_points()[0]);
 }

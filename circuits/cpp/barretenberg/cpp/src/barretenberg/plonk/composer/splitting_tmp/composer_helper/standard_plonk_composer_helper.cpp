@@ -5,12 +5,15 @@
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/random_widgets/permutation_widget.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
+#include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
+#include "barretenberg/proof_system/composer/permutation_helper.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-namespace plonk {
+namespace proof_system::plonk {
 
 /**
  * Compute witness polynomials (w_1, w_2, w_3, w_4).
@@ -52,7 +55,7 @@ void StandardPlonkComposerHelper<CircuitConstructor>::compute_witness(const Circ
  * @return Pointer to the initialized proving key updated with selector polynomials.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_proving_key(
+std::shared_ptr<plonk::proving_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_proving_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_proving_key) {
@@ -62,11 +65,8 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
     const size_t num_randomized_gates = NUM_RANDOMIZED_GATES;
     // Initialize circuit_proving_key
     // TODO(#229)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(circuit_constructor,
-                                                 crs_factory_.get(),
-                                                 minimum_circuit_size,
-                                                 num_randomized_gates,
-                                                 plonk::ComposerType::STANDARD);
+    circuit_proving_key = proof_system::initialize_proving_key(
+        circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, ComposerType::STANDARD);
     // Compute lagrange selectors
     construct_lagrange_selector_forms(circuit_constructor, circuit_proving_key.get());
     // Make all selectors nonzero
@@ -75,8 +75,8 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 
     // Compute sigma polynomials (we should update that late)
-    bonk::compute_standard_plonk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
-                                                                                       circuit_proving_key.get());
+    compute_standard_plonk_sigma_permutations<CircuitConstructor::program_width>(circuit_constructor,
+                                                                                 circuit_proving_key.get());
 
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -91,7 +91,7 @@ std::shared_ptr<bonk::proving_key> StandardPlonkComposerHelper<CircuitConstructo
  * @return Pointer to created circuit verification key.
  * */
 template <typename CircuitConstructor>
-std::shared_ptr<bonk::verification_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
+std::shared_ptr<plonk::verification_key> StandardPlonkComposerHelper<CircuitConstructor>::compute_verification_key(
     const CircuitConstructor& circuit_constructor)
 {
     if (circuit_verification_key) {
@@ -101,7 +101,8 @@ std::shared_ptr<bonk::verification_key> StandardPlonkComposerHelper<CircuitConst
         compute_proving_key(circuit_constructor);
     }
 
-    circuit_verification_key = compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
+    circuit_verification_key =
+        plonk::compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->composer_type = circuit_proving_key->composer_type;
     circuit_verification_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
@@ -172,4 +173,4 @@ plonk::Prover StandardPlonkComposerHelper<CircuitConstructor>::create_prover(
 }
 
 template class StandardPlonkComposerHelper<StandardCircuitConstructor>;
-} // namespace plonk
+} // namespace proof_system::plonk

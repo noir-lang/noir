@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/common/serialize.hpp"
 
-namespace bonk {
+namespace proof_system {
 struct add_triple {
     uint32_t a;
     uint32_t b;
@@ -121,4 +121,4 @@ struct ecc_add_gate {
     barretenberg::fr endomorphism_coefficient;
     barretenberg::fr sign_coefficient;
 };
-} // namespace bonk
+} // namespace proof_system

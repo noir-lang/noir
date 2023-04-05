@@ -6,7 +6,7 @@
 
 #include "barretenberg/transcript/transcript.hpp"
 
-using namespace plonk;
+using namespace proof_system::plonk;
 
 // ULTRATODO: Add tests for other composers too (make tests modular?)
 
@@ -195,7 +195,7 @@ TEST(stdlib_transcript, validate_transcript)
     TestData data = get_test_data();
     transcript::Transcript normal_transcript = get_test_base_transcript(data);
 
-    plonk::TurboComposer composer = plonk::TurboComposer();
+    plonk::TurboComposer composer = proof_system::plonk::TurboComposer();
 
     plonk::stdlib::recursion::Transcript<plonk::TurboComposer> recursive_transcript =
         get_circuit_transcript(&composer, data);

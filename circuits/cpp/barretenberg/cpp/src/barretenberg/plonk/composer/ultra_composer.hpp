@@ -3,9 +3,7 @@
 #include "plookup_tables/plookup_tables.hpp"
 #include <optional>
 
-using namespace bonk;
-
-namespace plonk {
+namespace proof_system::plonk {
 
 class UltraComposer : public ComposerBase {
 
@@ -690,4 +688,4 @@ class UltraComposer : public ComposerBase {
         return create_manifest(num_public_inputs);
     }
 };
-} // namespace plonk
+} // namespace proof_system::plonk

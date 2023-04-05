@@ -7,7 +7,7 @@
 // ULTRATODO: make these typed tests
 namespace test_stdlib_byte_array {
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 typedef honk::StandardHonkComposer Composer;
 typedef stdlib::bool_t<Composer> bool_t;
 typedef stdlib::field_t<Composer> field_t;

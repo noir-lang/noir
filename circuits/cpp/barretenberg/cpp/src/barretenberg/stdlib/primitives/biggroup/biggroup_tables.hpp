@@ -1,5 +1,5 @@
 #pragma once
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename C, class Fq, class Fr, class G>
@@ -583,4 +583,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::lookup_table_base<length>::get(
     return element::one(bits[0].get_context());
 }
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

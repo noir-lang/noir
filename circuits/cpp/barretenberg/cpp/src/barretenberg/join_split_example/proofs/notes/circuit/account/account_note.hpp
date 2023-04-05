@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace account {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 struct account_note {
     field_ct account_alias_hash;

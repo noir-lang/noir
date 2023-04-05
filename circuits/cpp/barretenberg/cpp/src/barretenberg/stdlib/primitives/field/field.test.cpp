@@ -8,7 +8,7 @@
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
-using namespace bonk;
+using namespace proof_system;
 
 namespace test_stdlib_field {
 
@@ -19,7 +19,7 @@ auto& engine = numeric::random::get_debug_engine();
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 template <typename Composer> class stdlib_field : public testing::Test {
     typedef stdlib::bool_t<Composer> bool_ct;
@@ -192,7 +192,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
         uint64_t expected = fidget(composer);
         auto prover = composer.create_prover();
 
-        if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
+        if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
             EXPECT_EQ(prover.wire_polynomials[2][20], fr(expected));
         } else {
             EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[18], fr(expected));
@@ -249,7 +249,7 @@ template <typename Composer> class stdlib_field : public testing::Test {
 
         auto prover = composer.create_prover();
 
-        if constexpr (Composer::type == plonk::ComposerType::STANDARD_HONK) {
+        if constexpr (Composer::type == ComposerType::STANDARD_HONK) {
             EXPECT_EQ(prover.wire_polynomials[2][19], fr(4181));
         } else {
             EXPECT_EQ(prover.key->polynomial_store.get("w_3_lagrange")[17], fr(4181));

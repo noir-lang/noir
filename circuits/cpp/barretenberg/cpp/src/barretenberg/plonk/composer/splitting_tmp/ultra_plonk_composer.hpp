@@ -6,9 +6,7 @@
 #include "barretenberg/plonk/composer/splitting_tmp/composer_helper/ultra_plonk_composer_helper.hpp"
 #include <optional>
 
-using namespace bonk;
-
-namespace plonk {
+namespace proof_system::plonk {
 
 class UltraPlonkComposer {
 
@@ -364,7 +362,7 @@ class UltraPlonkComposer {
     // std::array<uint32_t, 2> decompose_non_native_field_double_width_limb(
     //     const uint32_t limb_idx, const size_t num_limb_bits = (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
     std::array<uint32_t, 2> evaluate_non_native_field_multiplication(
-        const bonk::non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true)
+        const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder = true)
     {
         return circuit_constructor.evaluate_non_native_field_multiplication(input,
                                                                             range_constrain_quotient_and_remainder);
@@ -473,4 +471,4 @@ class UltraPlonkComposer {
     // std::vector<uint32_t> recursive_proof_public_input_indices;
     // bool contains_recursive_proof = false;
 };
-} // namespace plonk
+} // namespace proof_system::plonk

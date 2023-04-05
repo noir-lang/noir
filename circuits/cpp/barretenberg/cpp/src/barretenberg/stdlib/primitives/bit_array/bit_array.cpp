@@ -3,7 +3,7 @@
 
 #include <bitset>
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext>
@@ -163,4 +163,4 @@ template <typename ComposerContext> std::string bit_array<ComposerContext>::get_
 INSTANTIATE_STDLIB_TYPE(bit_array)
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

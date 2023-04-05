@@ -3,7 +3,7 @@
 #include "../composers/composers.hpp"
 #include "../bool/bool.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -25,7 +25,7 @@ DynamicArray<Composer>::DynamicArray(Composer* composer, const size_t maximum_si
     , _max_size(maximum_size)
     , _length(0)
 {
-    static_assert(Composer::type == plonk::ComposerType::PLOOKUP);
+    static_assert(Composer::type == ComposerType::PLOOKUP);
     ASSERT(_context != nullptr);
     _inner_table = ram_table(_context, maximum_size);
     // Initialize the ram table with all zeroes
@@ -276,4 +276,4 @@ template <typename Composer> void DynamicArray<Composer>::conditional_pop(const 
 
 INSTANTIATE_STDLIB_ULTRA_TYPE(DynamicArray);
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

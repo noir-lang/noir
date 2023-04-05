@@ -1,15 +1,16 @@
 #pragma once
 
 #include "barretenberg/proof_system/composer/composer_helper_lib.hpp"
+#include "barretenberg/plonk/composer/splitting_tmp/composer_helper/composer_helper_lib.hpp"
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 
 #include <cstddef>
 #include <utility>
 
-namespace plonk {
+namespace proof_system::plonk {
 // TODO(Kesha): change initializations to specify this parameter
 // Cody: What does this mean?
 template <typename CircuitConstructor> class UltraPlonkComposerHelper {
@@ -21,11 +22,11 @@ template <typename CircuitConstructor> class UltraPlonkComposerHelper {
     // simultaneously here and in the other split composers.
     static constexpr size_t NUM_RANDOMIZED_GATES = 4; // equal to the number of multilinear evaluations leaked
     static constexpr size_t program_width = CircuitConstructor::program_width;
-    std::shared_ptr<bonk::proving_key> circuit_proving_key;
-    std::shared_ptr<bonk::verification_key> circuit_verification_key;
+    std::shared_ptr<plonk::proving_key> circuit_proving_key;
+    std::shared_ptr<plonk::verification_key> circuit_verification_key;
     // TODO(#218)(kesha): we need to put this into the commitment key, so that the composer doesn't have to handle srs
     // at all
-    std::shared_ptr<bonk::ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<ReferenceStringFactory> crs_factory_;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -52,7 +53,7 @@ template <typename CircuitConstructor> class UltraPlonkComposerHelper {
     UltraPlonkComposerHelper& operator=(UltraPlonkComposerHelper const& other) noexcept = default;
     ~UltraPlonkComposerHelper() = default;
 
-    std::vector<bonk::SelectorProperties> ultra_selector_properties()
+    std::vector<SelectorProperties> ultra_selector_properties()
     {
         // When reading and writing the proving key from a buffer we must precompute the Lagrange form of certain
         // selector polynomials. In order to avoid a new selector type and definitions in the polynomial manifest, we
@@ -63,7 +64,7 @@ template <typename CircuitConstructor> class UltraPlonkComposerHelper {
         //     { "q_m", true },         { "q_c", true },    { "q_1", true },        { "q_2", true },
         //     { "q_3", true },         { "q_4", false },   { "q_arith", false },   { "q_sort", false },
         //     { "q_elliptic", false }, { "q_aux", false }, { "table_type", true },
-        std::vector<bonk::SelectorProperties> result{
+        std::vector<SelectorProperties> result{
             { "q_m", true },        { "q_c", true },   { "q_1", true },        { "q_2", true },
             { "q_3", true },        { "q_4", true },   { "q_arith", true },    { "q_sort", true },
             { "q_elliptic", true }, { "q_aux", true }, { "table_type", true },
@@ -75,8 +76,8 @@ template <typename CircuitConstructor> class UltraPlonkComposerHelper {
 
     void finalize_circuit(CircuitConstructor& circuit_constructor) { circuit_constructor.finalize_circuit(); };
 
-    std::shared_ptr<bonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
-    std::shared_ptr<bonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::proving_key> compute_proving_key(const CircuitConstructor& circuit_constructor);
+    std::shared_ptr<plonk::verification_key> compute_verification_key(const CircuitConstructor& circuit_constructor);
 
     void compute_witness(CircuitConstructor& circuit_constructor);
 
@@ -208,4 +209,4 @@ template <typename CircuitConstructor> class UltraPlonkComposerHelper {
     }
 };
 
-} // namespace plonk
+} // namespace proof_system::plonk

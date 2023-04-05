@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <vector>
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -28,4 +28,4 @@ inline barretenberg::fr compress_native(barretenberg::fr const& lhs, barretenber
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

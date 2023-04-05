@@ -11,7 +11,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename C, class Fq, class Fr, class G>
@@ -660,4 +660,4 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
     return element(out_x, out_y) - element(offset_generators.second);
 }
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

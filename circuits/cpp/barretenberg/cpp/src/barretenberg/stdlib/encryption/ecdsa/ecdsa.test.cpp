@@ -7,10 +7,10 @@
 #include "barretenberg/common/test.hpp"
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 namespace test_stdlib_ecdsa {
-using Composer = plonk::UltraComposer;
+using Composer = proof_system::plonk::UltraComposer;
 using curve = stdlib::secp256k1<Composer>;
 
 TEST(stdlib_ecdsa, verify_signature)

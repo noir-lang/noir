@@ -10,14 +10,14 @@
 
 namespace test_stdlib_dynamic_array {
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
 // Defining ultra-specific types for local testing.
-using Composer = plonk::UltraComposer;
+using Composer = proof_system::plonk::UltraComposer;
 using bool_ct = stdlib::bool_t<plonk::UltraComposer>;
 using field_ct = stdlib::field_t<Composer>;
 using witness_ct = stdlib::witness_t<Composer>;

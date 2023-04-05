@@ -4,7 +4,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <utility>
 
-namespace bonk {
+namespace proof_system {
 static constexpr uint32_t DUMMY_TAG = 0;
 
 template <typename Arithmetization> class CircuitConstructorBase {
@@ -236,7 +236,7 @@ template <typename Arithmetization> class CircuitConstructorBase {
     }
 };
 
-} // namespace bonk
+} // namespace proof_system
 
 // TODO(#217)(Cody): This will need updating based on the approach we take to ensure no multivariate is zero.
 /**

@@ -11,9 +11,9 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace plonk;
+using namespace proof_system::plonk;
 using namespace notes::circuit;
-using namespace plonk::stdlib::merkle_tree;
+using namespace proof_system::plonk::stdlib::merkle_tree;
 
 /**
  * Check that the input note data, follows the given hash paths, to the publically given merkle root.

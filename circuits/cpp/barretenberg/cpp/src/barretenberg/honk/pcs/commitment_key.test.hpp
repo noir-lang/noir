@@ -19,7 +19,7 @@
 #include "claim.hpp"
 #include "commitment_key.hpp"
 
-namespace honk::pcs {
+namespace proof_system::honk::pcs {
 namespace {
 constexpr std::string_view kzg_srs_path = "../srs_db/ignition";
 }
@@ -202,4 +202,4 @@ using IpaCommitmentSchemeParams = ::testing::Types<ipa::Params>;
 // using CommitmentSchemeParams =
 //     ::testing::Types<fake::Params<barretenberg::g1>, fake::Params<grumpkin::g1>, kzg::Params>;
 
-} // namespace honk::pcs
+} // namespace proof_system::honk::pcs

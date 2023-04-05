@@ -14,7 +14,7 @@
 
 #include "../composers/composers_fwd.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 // ( ͡° ͜ʖ ͡°)
@@ -946,7 +946,7 @@ inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v
     return os << "{ " << v.x << " , " << v.y << " }";
 }
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk
 
 #include "biggroup_nafs.hpp"
 #include "biggroup_tables.hpp"

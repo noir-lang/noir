@@ -1,7 +1,7 @@
 #pragma once
 
 #include <span>
-namespace honk {
+namespace proof_system::honk {
 
 /**
  * @brief Compute the correction term for the permutation argument.
@@ -54,4 +54,4 @@ Field compute_public_input_delta(std::span<const Field> public_inputs,
     return numerator / denominator;
 }
 
-} // namespace honk
+} // namespace proof_system::honk

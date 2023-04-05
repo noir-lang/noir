@@ -4,14 +4,14 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 TEST(stdlib_merkle_tree_hash, compress_native_vs_circuit)
 {
     fr x = uint256_t(0x5ec473eb273a8011, 0x50160109385471ca, 0x2f3095267e02607d, 0x02586f4a39e69b86);
     Composer composer = Composer();
     witness_ct y = witness_ct(&composer, x);
-    field_ct z = plonk::stdlib::pedersen<Composer>::compress(y, y);
+    field_ct z = proof_system::plonk::stdlib::pedersen<Composer>::compress(y, y);
     auto zz = crypto::pedersen::compress_native({ x, x });
     EXPECT_EQ(z.get_value(), zz);
 }

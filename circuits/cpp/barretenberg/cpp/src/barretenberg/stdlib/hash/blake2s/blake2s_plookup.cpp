@@ -16,7 +16,7 @@
  * 2. replace use of uint32 with basic field_t type
  *
  **/
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 namespace blake2s_plookup {
@@ -171,4 +171,4 @@ template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk::UltraC
 } // namespace blake2s_plookup
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -11,18 +11,18 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace test_stdlib_safe_uint {
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
-using Composer = honk::StandardHonkComposer;
-typedef plonk::stdlib::bool_t<Composer> bool_t;
-typedef plonk::stdlib::field_t<Composer> field_t;
-typedef plonk::stdlib::safe_uint_t<Composer> suint_t;
-typedef plonk::stdlib::witness_t<Composer> witness_t;
-typedef plonk::stdlib::public_witness_t<Composer> public_witness_t;
-typedef plonk::stdlib::byte_array<Composer> byte_array_t;
+using Composer = proof_system::honk::StandardHonkComposer;
+typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+typedef proof_system::plonk::stdlib::safe_uint_t<Composer> suint_t;
+typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
+typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
+typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
 
 struct verify_logic_result {
     bool valid;

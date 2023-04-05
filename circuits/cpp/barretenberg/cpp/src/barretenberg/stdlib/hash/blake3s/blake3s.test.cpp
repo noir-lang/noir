@@ -6,9 +6,9 @@
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
-typedef plonk::TurboComposer Composer;
+typedef proof_system::plonk::TurboComposer Composer;
 typedef stdlib::byte_array<Composer> byte_array;
 typedef stdlib::byte_array<plonk::UltraComposer> byte_array_plookup;
 typedef stdlib::public_witness_t<Composer> public_witness_t;
@@ -52,7 +52,7 @@ TEST(stdlib_blake3s, test_single_block)
 
 TEST(stdlib_blake3s, test_single_block_plookup)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = proof_system::plonk::UltraComposer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
@@ -100,7 +100,7 @@ TEST(stdlib_blake3s, test_double_block)
 
 TEST(stdlib_blake3s, test_double_block_plookup)
 {
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = proof_system::plonk::UltraComposer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 

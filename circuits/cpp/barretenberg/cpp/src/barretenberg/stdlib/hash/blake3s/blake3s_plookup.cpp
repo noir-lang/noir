@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 namespace blake3s_plookup {
@@ -264,4 +264,4 @@ template byte_array<plonk::UltraComposer> blake3s(const byte_array<plonk::UltraC
 } // namespace blake3s_plookup
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

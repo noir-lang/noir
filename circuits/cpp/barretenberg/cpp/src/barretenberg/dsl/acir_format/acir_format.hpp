@@ -41,7 +41,7 @@ void read_witness(plonk::stdlib::types::Composer& composer, std::vector<barreten
 void create_circuit(plonk::stdlib::types::Composer& composer, const acir_format& constraint_system);
 
 plonk::stdlib::types::Composer create_circuit(const acir_format& constraint_system,
-                                              std::unique_ptr<bonk::ReferenceStringFactory>&& crs_factory);
+                                              std::unique_ptr<proof_system::ReferenceStringFactory>&& crs_factory);
 
 plonk::stdlib::types::Composer create_circuit_with_witness(const acir_format& constraint_system,
                                                            std::vector<fr> witness,

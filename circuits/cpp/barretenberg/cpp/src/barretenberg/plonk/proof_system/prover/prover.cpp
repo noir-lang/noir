@@ -8,7 +8,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 
 /**
  * Create ProverBase from proving key, witness and manifest.
@@ -468,7 +468,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cerr << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
 #endif
-} // namespace plonk
+} // namespace proof_system::plonk
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
@@ -640,4 +640,4 @@ template class ProverBase<turbo_settings>;
 template class ProverBase<ultra_settings>;
 template class ProverBase<ultra_to_standard_settings>;
 
-} // namespace plonk
+} // namespace proof_system::plonk

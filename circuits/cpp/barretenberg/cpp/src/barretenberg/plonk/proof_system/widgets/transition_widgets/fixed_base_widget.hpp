@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace widget {
 
 /**
@@ -86,13 +86,12 @@ template <class Field, class Getters, typename PolyContainer, bool turbo> class 
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    inline static std::set<bonk::PolynomialIndex> const& get_required_polynomial_ids()
+    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<bonk::PolynomialIndex> required_polynomial_ids = {
-            bonk::PolynomialIndex::Q_1, bonk::PolynomialIndex::Q_2,    bonk::PolynomialIndex::Q_3,
-            bonk::PolynomialIndex::Q_4, bonk::PolynomialIndex::Q_5,    bonk::PolynomialIndex::Q_M,
-            PolynomialIndex::Q_C,       PolynomialIndex::Q_FIXED_BASE, PolynomialIndex::W_1,
-            PolynomialIndex::W_2,       PolynomialIndex::W_3,          PolynomialIndex::W_4
+        static const std::set<PolynomialIndex> required_polynomial_ids = {
+            PolynomialIndex::Q_1, PolynomialIndex::Q_2, PolynomialIndex::Q_3, PolynomialIndex::Q_4,
+            PolynomialIndex::Q_5, PolynomialIndex::Q_M, PolynomialIndex::Q_C, PolynomialIndex::Q_FIXED_BASE,
+            PolynomialIndex::W_1, PolynomialIndex::W_2, PolynomialIndex::W_3, PolynomialIndex::W_4
         };
         return required_polynomial_ids;
     }
@@ -329,4 +328,4 @@ using VerifierTurboFixedBaseWidget =
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierUltraFixedBaseWidget =
     widget::GenericVerifierWidget<Field, Transcript, Settings, widget::UltraFixedBaseKernel>;
-} // namespace plonk
+} // namespace proof_system::plonk

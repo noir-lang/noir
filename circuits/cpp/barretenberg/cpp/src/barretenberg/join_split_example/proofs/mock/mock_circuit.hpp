@@ -7,7 +7,7 @@ namespace join_split_example {
 namespace proofs {
 namespace mock {
 
-using namespace plonk::stdlib;
+using namespace proof_system::plonk::stdlib;
 
 template <typename Composer> void mock_circuit(Composer& composer, std::vector<fr> const& public_inputs_)
 {

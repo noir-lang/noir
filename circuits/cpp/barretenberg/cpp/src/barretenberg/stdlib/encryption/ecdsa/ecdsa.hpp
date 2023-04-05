@@ -3,7 +3,7 @@
 #include "../../primitives/byte_array/byte_array.hpp"
 #include "../../primitives/composers/composers_fwd.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {
 
@@ -18,6 +18,6 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
                                   const signature<Composer>& sig);
 } // namespace ecdsa
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk
 
 #include "./ecdsa_impl.hpp"

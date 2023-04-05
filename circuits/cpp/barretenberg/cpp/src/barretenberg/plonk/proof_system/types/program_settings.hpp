@@ -17,7 +17,7 @@
 #include "../widgets/random_widgets/plookup_widget.hpp"
 #include "./prover_settings.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 
 class standard_verifier_settings : public standard_settings {
   public:
@@ -187,4 +187,4 @@ class ultra_to_standard_verifier_settings : public ultra_verifier_settings {
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
 };
 
-} // namespace plonk
+} // namespace proof_system::plonk

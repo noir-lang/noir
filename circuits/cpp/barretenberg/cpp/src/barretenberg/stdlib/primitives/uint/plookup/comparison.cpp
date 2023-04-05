@@ -3,7 +3,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native>
@@ -78,4 +78,4 @@ template class uint_plookup<plonk::UltraComposer, uint16_t>;
 template class uint_plookup<plonk::UltraComposer, uint32_t>;
 template class uint_plookup<plonk::UltraComposer, uint64_t>;
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

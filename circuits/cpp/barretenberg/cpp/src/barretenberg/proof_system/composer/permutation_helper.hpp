@@ -10,7 +10,7 @@
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace bonk {
+namespace proof_system {
 
 /**
  * @brief cycle_node represents the index of a value of the circuit.
@@ -131,8 +131,8 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const CircuitConstructor
  * @param key Pointer to the proving key
  */
 template <size_t program_width, typename CircuitConstructor>
-std::array<std::vector<permutation_subgroup_element>, program_width> compute_basic_bonk_sigma_permutations(
-    const CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+std::array<std::vector<permutation_subgroup_element>, program_width> compute_basic_proof_system_sigma_permutations(
+    const CircuitConstructor& circuit_constructor, plonk::proving_key* key)
 {
     // Compute wire copy cycles (cycles of permutations)
     auto wire_copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
@@ -192,7 +192,7 @@ std::array<std::vector<permutation_subgroup_element>, program_width> compute_bas
  */
 template <size_t program_width>
 void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
-    std::array<std::vector<permutation_subgroup_element>, program_width>& sigma_mappings, bonk::proving_key* key)
+    std::array<std::vector<permutation_subgroup_element>, program_width>& sigma_mappings, plonk::proving_key* key)
 {
     const size_t num_gates = key->circuit_size;
 
@@ -317,7 +317,7 @@ template <size_t program_width>
 void compute_plonk_permutation_lagrange_polynomials_from_mapping(
     std::string label,
     std::array<std::vector<permutation_subgroup_element>, program_width>& mappings,
-    bonk::proving_key* key)
+    plonk::proving_key* key)
 {
     for (size_t i = 0; i < program_width; i++) {
         std::string index = std::to_string(i + 1);
@@ -337,7 +337,7 @@ void compute_plonk_permutation_lagrange_polynomials_from_mapping(
  * @param key Pointer to the proving key
  */
 template <size_t program_width>
-void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label, bonk::proving_key* key)
+void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label, plonk::proving_key* key)
 {
     for (size_t i = 0; i < program_width; ++i) {
         std::string index = std::to_string(i + 1);
@@ -400,10 +400,10 @@ void compute_standard_honk_id_polynomials(auto key) // proving_key* and shared_p
  */
 // TODO(#293): Update this (and all similar functions) to take a smart pointer.
 template <size_t program_width, typename CircuitConstructor>
-void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constructor, plonk::proving_key* key)
 {
     // Compute the permutation table specifying which element becomes which
-    auto sigma_mappings = compute_basic_bonk_sigma_permutations<program_width>(circuit_constructor, key);
+    auto sigma_mappings = compute_basic_proof_system_sigma_permutations<program_width>(circuit_constructor, key);
     // Compute Honk-style sigma polynomial fromt the permutation table
     compute_honk_style_sigma_lagrange_polynomials_from_mapping(sigma_mappings, key);
 }
@@ -417,10 +417,10 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
  * @param key Pointer to a proving key
  */
 template <size_t program_width, typename CircuitConstructor>
-void compute_standard_plonk_sigma_permutations(CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+void compute_standard_plonk_sigma_permutations(CircuitConstructor& circuit_constructor, plonk::proving_key* key)
 {
     // Compute the permutation table specifying which element becomes which
-    auto sigma_mappings = compute_basic_bonk_sigma_permutations<program_width>(circuit_constructor, key);
+    auto sigma_mappings = compute_basic_proof_system_sigma_permutations<program_width>(circuit_constructor, key);
     // Compute Plonk-style sigma polynomials from the mapping
     compute_plonk_permutation_lagrange_polynomials_from_mapping("sigma", sigma_mappings, key);
     // Compute their monomial and coset versions
@@ -453,7 +453,8 @@ inline void compute_first_and_last_lagrange_polynomials(auto key) // proving_key
  * @return std::array<std::vector<permutation_subgroup_element>, program_width>
  */
 template <size_t program_width, typename CircuitConstructor>
-void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor, bonk::proving_key* key)
+void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor,
+                                                  plonk::proving_key* key)
 {
     // Compute wire copy cycles for public and private variables
     auto wire_copy_cycles = compute_wire_copy_cycles<program_width>(circuit_constructor);
@@ -536,4 +537,4 @@ void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circ
     compute_monomial_and_coset_fft_polynomials_from_lagrange<program_width>("id", key);
 }
 
-} // namespace bonk
+} // namespace proof_system

@@ -8,9 +8,9 @@
 #include "../../hash/pedersen/pedersen.hpp"
 #include "../../hash/pedersen/pedersen_gates.hpp"
 
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
@@ -237,4 +237,4 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 // static point variable_base_mul(const point& p, const field_t& s);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

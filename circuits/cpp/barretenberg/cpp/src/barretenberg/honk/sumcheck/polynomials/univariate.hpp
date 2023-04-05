@@ -6,7 +6,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/assert.hpp"
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 template <class Fr, size_t view_length> class UnivariateView;
 
@@ -349,4 +349,4 @@ template <typename T, typename U, std::size_t N> std::array<T, N> array_to_array
     return array_to_array_aux<T, U, N>(elements, std::make_index_sequence<N>());
 };
 
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

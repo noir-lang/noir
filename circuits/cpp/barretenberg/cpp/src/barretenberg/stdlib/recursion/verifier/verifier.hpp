@@ -15,7 +15,7 @@
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace recursion {
 
@@ -61,7 +61,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
         const std::string label(item.commitment_label);
         const std::string poly_label(item.polynomial_label);
         switch (item.source) {
-        case bonk::PolynomialSource::WITNESS: {
+        case PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
             ASSERT(element.on_curve());
             if (element.is_point_at_infinity()) {
@@ -72,8 +72,8 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
         }
-        case bonk::PolynomialSource::SELECTOR:
-        case bonk::PolynomialSource::PERMUTATION: {
+        case PolynomialSource::SELECTOR:
+        case PolynomialSource::PERMUTATION: {
             const auto element = key->commitments.at(label);
             // TODO: with user-defined circuits, we will need verify that the point
             // lies on the curve with constraints
@@ -87,7 +87,7 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
             kate_g1_elements.insert({ label, element });
             break;
         }
-        case bonk::PolynomialSource::OTHER: {
+        case PolynomialSource::OTHER: {
             break;
         }
         }
@@ -118,7 +118,8 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
 
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
-    fr_ct batch_evaluation = plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
+    fr_ct batch_evaluation =
+        proof_system::plonk::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
     batch_opening_scalar = -batch_evaluation;
 
     kate_g1_elements.insert({ "PI_Z_OMEGA", g1_ct::from_witness(ctx, PI_Z_OMEGA) });
@@ -424,4 +425,4 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
 } // namespace recursion
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -34,7 +34,7 @@ void create_prover_bench(State& state) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         auto num_gates = 1 << (size_t)state.range(0);
-        auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
+        auto composer = proof_system::honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         state.ResumeTiming();
 
@@ -51,7 +51,7 @@ void create_verifier_bench(State& state) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         auto num_gates = 1 << (size_t)state.range(0);
-        auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
+        auto composer = proof_system::honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         state.ResumeTiming();
 
@@ -68,7 +68,7 @@ void construct_proof_bench(State& state) noexcept
     auto num_gates = 1 << (size_t)state.range(0);
     for (auto _ : state) {
         state.PauseTiming();
-        auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
+        auto composer = proof_system::honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         auto ext_prover = composer.create_prover();
         state.ResumeTiming();
@@ -90,7 +90,7 @@ void verify_proof_bench(State& state) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         auto num_gates = (size_t)state.range(0);
-        auto composer = honk::StandardHonkComposer(static_cast<size_t>(num_gates));
+        auto composer = proof_system::honk::StandardHonkComposer(static_cast<size_t>(num_gates));
         generate_test_plonk_circuit(composer, static_cast<size_t>(num_gates));
         auto prover = composer.create_prover();
         auto proof = prover.construct_proof();

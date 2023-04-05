@@ -2,15 +2,15 @@
 #include <gtest/gtest.h>
 #include "barretenberg/crypto/pedersen/pedersen.hpp"
 #include "barretenberg/crypto/pedersen/generator_data.hpp"
-#include "barretenberg/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
+using namespace proof_system;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace plonk {
+namespace proof_system::plonk {
 TEST(standard_composer, base_case)
 {
     StandardComposer composer = StandardComposer();
@@ -34,13 +34,13 @@ TEST(standard_composer, composer_from_serialized_keys)
 
     auto pk_buf = to_buffer(*composer.compute_proving_key());
     auto vk_buf = to_buffer(*composer.compute_verification_key());
-    auto pk_data = from_buffer<bonk::proving_key_data>(pk_buf);
-    auto vk_data = from_buffer<bonk::verification_key_data>(vk_buf);
+    auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<plonk::verification_key_data>(vk_buf);
 
-    auto crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
+    auto crs = std::make_unique<FileReferenceStringFactory>("../srs_db/ignition");
     auto proving_key =
-        std::make_shared<bonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
-    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+        std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
+    auto verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
     StandardComposer composer2 = StandardComposer(proving_key, verification_key);
     composer2.add_public_variable(a);
@@ -540,4 +540,4 @@ TEST(standard_composer, test_check_circuit_broken)
     bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
-} // namespace plonk
+} // namespace proof_system::plonk

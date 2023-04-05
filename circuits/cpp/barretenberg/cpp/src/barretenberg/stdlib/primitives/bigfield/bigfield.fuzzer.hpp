@@ -119,11 +119,11 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class BigFieldBase {
   private:
-    typedef plonk::stdlib::bool_t<Composer> bool_t;
-    typedef plonk::stdlib::field_t<Composer> field_t;
-    typedef plonk::stdlib::witness_t<Composer> witness_t;
-    typedef plonk::stdlib::public_witness_t<Composer> public_witness_t;
-    typedef plonk::stdlib::bigfield<Composer, barretenberg::Bn254FqParams> bigfield_t;
+    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
+    typedef proof_system::plonk::stdlib::bigfield<Composer, barretenberg::Bn254FqParams> bigfield_t;
 
   public:
     /**

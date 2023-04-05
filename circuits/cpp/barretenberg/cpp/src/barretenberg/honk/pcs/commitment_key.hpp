@@ -15,7 +15,7 @@
 #include <string_view>
 #include <memory>
 
-namespace honk::pcs {
+namespace proof_system::honk::pcs {
 
 namespace kzg {
 
@@ -66,7 +66,7 @@ class CommitmentKey {
 
   private:
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
-    bonk::FileReferenceString srs;
+    proof_system::FileReferenceString srs;
 };
 
 class VerificationKey {
@@ -108,7 +108,7 @@ class VerificationKey {
     }
 
   private:
-    bonk::VerifierFileReferenceString verifier_srs;
+    proof_system::VerifierFileReferenceString verifier_srs;
 };
 
 struct Params {
@@ -243,7 +243,7 @@ class CommitmentKey {
     };
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
-    bonk::FileReferenceString srs;
+    proof_system::FileReferenceString srs;
 };
 
 class VerificationKey {
@@ -268,7 +268,7 @@ class VerificationKey {
     {}
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
-    bonk::FileReferenceString srs;
+    proof_system::FileReferenceString srs;
 };
 
 struct Params {
@@ -284,4 +284,4 @@ struct Params {
 
 } // namespace ipa
 
-} // namespace honk::pcs
+} // namespace proof_system::honk::pcs

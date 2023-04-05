@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace join_split_example::proofs::notes;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 TEST(compute_nullifier_circuit, native_consistency)
 {

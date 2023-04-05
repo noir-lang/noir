@@ -3,11 +3,11 @@
 #include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/plonk/composer/plookup_tables/types.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 class UltraComposer;
-} // namespace plonk
+} // namespace proof_system::plonk
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
@@ -91,4 +91,4 @@ field_t<Composer> plookup_<Composer>::read_from_1_to_2_table(const MultiTableId 
 
 template class plookup_<plonk::UltraComposer>;
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

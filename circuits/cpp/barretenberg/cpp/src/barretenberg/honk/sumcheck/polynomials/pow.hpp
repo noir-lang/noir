@@ -1,6 +1,6 @@
 #pragma once
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 /**
  * @brief Succinct representation of the `pow` polynomial that can be partially evaluated variable-by-variable.
@@ -126,4 +126,4 @@ template <typename FF> struct PowUnivariate {
         partial_evaluation_constant *= current_univariate_eval;
     }
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

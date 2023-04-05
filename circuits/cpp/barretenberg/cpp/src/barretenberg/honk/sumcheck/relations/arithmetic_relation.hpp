@@ -6,7 +6,7 @@
 #include "../polynomials/univariate.hpp"
 #include "relation.hpp"
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 template <typename FF> class ArithmeticRelation {
   public:
@@ -68,4 +68,4 @@ template <typename FF> class ArithmeticRelation {
         full_honk_relation_value += q_c;
     };
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

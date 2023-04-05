@@ -6,7 +6,7 @@
 #include <vector>
 #include <exception>
 
-#include "../proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
 namespace transcript {
 
@@ -39,7 +39,7 @@ class Transcript {
     };
 
   public:
-    typedef bonk::verification_key Key;
+    typedef proof_system::plonk::verification_key Key;
 
     /**
      * Create a new transcript for Prover based on the manifest.

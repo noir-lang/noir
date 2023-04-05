@@ -2,7 +2,7 @@
 #include "barretenberg/plonk/composer/composer_base.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 // indicates whether a witness index actually contains a constant
@@ -84,4 +84,4 @@ template <typename ComposerContext> class public_witness_t : public witness_t<Co
 };
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

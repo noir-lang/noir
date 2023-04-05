@@ -4,7 +4,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer>
@@ -141,4 +141,4 @@ std::array<field_t<Composer>, 2> twin_rom_table<Composer>::operator[](const fiel
 
 INSTANTIATE_STDLIB_ULTRA_TYPE(twin_rom_table);
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

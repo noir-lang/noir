@@ -10,7 +10,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace sha256_plookup {
 
@@ -361,4 +361,4 @@ packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::Ul
 
 } // namespace sha256_plookup
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

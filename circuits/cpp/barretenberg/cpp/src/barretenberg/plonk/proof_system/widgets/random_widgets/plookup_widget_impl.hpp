@@ -1,13 +1,13 @@
 #pragma once
 
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/common/mem.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 
 template <const size_t num_roots_cut_out_of_vanishing_polynomial>
 ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key)
@@ -734,7 +734,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
     T0 = numerator - denominator;
     quotient_numerator_eval += T0 * alpha_base;
     return alpha_base * alpha.sqr() * alpha;
-} // namespace plonk
+} // namespace proof_system::plonk
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::
@@ -751,4 +751,4 @@ template class VerifierPlookupWidget<barretenberg::fr,
                                      barretenberg::g1::affine_element,
                                      transcript::StandardTranscript>;
 
-} // namespace plonk
+} // namespace proof_system::plonk

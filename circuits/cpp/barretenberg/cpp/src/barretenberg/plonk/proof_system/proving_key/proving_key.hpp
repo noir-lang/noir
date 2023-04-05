@@ -7,10 +7,10 @@
 #include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
-#include "barretenberg/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include <unordered_map>
 
-namespace bonk {
+namespace proof_system::plonk {
 
 struct proving_key_data {
     uint32_t composer_type;
@@ -36,7 +36,7 @@ struct proving_key {
     proving_key(const size_t num_gates,
                 const size_t num_inputs,
                 std::shared_ptr<ProverReferenceString> const& crs,
-                plonk::ComposerType type);
+                ComposerType type);
 
     proving_key(std::ostream& is, std::string const& crs_path);
 
@@ -69,4 +69,4 @@ struct proving_key {
     static constexpr size_t min_thread_block = 4UL;
 };
 
-} // namespace bonk
+} // namespace proof_system::plonk

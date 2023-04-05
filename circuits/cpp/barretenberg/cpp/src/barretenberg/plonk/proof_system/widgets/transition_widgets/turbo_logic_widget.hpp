@@ -2,7 +2,7 @@
 
 #include "./transition_widget.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class TurboLogicKernel {
@@ -18,11 +18,11 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    inline static std::set<bonk::PolynomialIndex> const& get_required_polynomial_ids()
+    inline static std::set<PolynomialIndex> const& get_required_polynomial_ids()
     {
-        static const std::set<bonk::PolynomialIndex> required_polynomial_ids = {
-            bonk::PolynomialIndex::Q_C, bonk::PolynomialIndex::Q_LOGIC, bonk::PolynomialIndex::W_1,
-            bonk::PolynomialIndex::W_2, bonk::PolynomialIndex::W_3,     bonk::PolynomialIndex::W_4
+        static const std::set<PolynomialIndex> required_polynomial_ids = {
+            PolynomialIndex::Q_C, PolynomialIndex::Q_LOGIC, PolynomialIndex::W_1,
+            PolynomialIndex::W_2, PolynomialIndex::W_3,     PolynomialIndex::W_4
         };
         return required_polynomial_ids;
     }
@@ -37,7 +37,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
     inline static bool gate_enabled(PolyContainer& polynomials, const size_t i = 0)
     {
         const Field& q_logic =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_LOGIC>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_LOGIC>(polynomials, i);
         return !q_logic.is_zero();
     }
 
@@ -53,22 +53,22 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
         const Field& alpha_base = challenges.alpha_powers[0];
         const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
         const Field& w_1 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_2>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_3>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_3>(polynomials, i);
         const Field& w_4 =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::W_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::W_4>(polynomials, i);
         const Field& w_1_omega =
-            Getters::template get_value<EvaluationType::SHIFTED, bonk::PolynomialIndex::W_1>(polynomials, i);
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2_omega =
-            Getters::template get_value<EvaluationType::SHIFTED, bonk::PolynomialIndex::W_2>(polynomials, i);
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_2>(polynomials, i);
         const Field& w_4_omega =
-            Getters::template get_value<EvaluationType::SHIFTED, bonk::PolynomialIndex::W_4>(polynomials, i);
+            Getters::template get_value<EvaluationType::SHIFTED, PolynomialIndex::W_4>(polynomials, i);
 
         const Field& q_c =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_C>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_C>(polynomials, i);
 
         Field delta_sum;
         Field delta_squared_sum;
@@ -212,7 +212,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboLogicKe
                                          const size_t i = 0)
     {
         const Field& q_logic =
-            Getters::template get_value<EvaluationType::NON_SHIFTED, bonk::PolynomialIndex::Q_LOGIC>(polynomials, i);
+            Getters::template get_value<EvaluationType::NON_SHIFTED, PolynomialIndex::Q_LOGIC>(polynomials, i);
 
         return linear_terms[0] * q_logic;
     }
@@ -233,4 +233,4 @@ using ProverTurboLogicWidget = widget::TransitionWidget<barretenberg::fr, Settin
 template <typename Field, typename Group, typename Transcript, typename Settings>
 using VerifierTurboLogicWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::TurboLogicKernel>;
 
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -3,7 +3,7 @@
 #include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 template <typename FF> class GrandProductComputationRelation {
   public:
@@ -90,4 +90,4 @@ template <typename FF> class GrandProductComputationRelation {
                  (w_2 + beta * sigma_2 + gamma) * (w_3 + beta * sigma_3 + gamma));
     };
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

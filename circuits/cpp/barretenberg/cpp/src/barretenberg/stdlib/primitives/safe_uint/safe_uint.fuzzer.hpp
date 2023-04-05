@@ -109,11 +109,11 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class SafeUintFuzzBase {
   private:
-    typedef plonk::stdlib::bool_t<Composer> bool_t;
-    typedef plonk::stdlib::field_t<Composer> field_t;
-    typedef plonk::stdlib::safe_uint_t<Composer> suint_t;
-    typedef plonk::stdlib::witness_t<Composer> witness_t;
-    typedef plonk::stdlib::public_witness_t<Composer> public_witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+    typedef proof_system::plonk::stdlib::safe_uint_t<Composer> suint_t;
+    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
+    typedef proof_system::plonk::stdlib::public_witness_t<Composer> public_witness_t;
 
   public:
     /**

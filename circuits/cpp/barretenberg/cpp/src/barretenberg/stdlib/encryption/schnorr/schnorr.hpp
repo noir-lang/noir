@@ -7,7 +7,7 @@
 #include "../../primitives/point/point.hpp"
 #include "../../primitives/group/group.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace schnorr {
 
@@ -90,4 +90,4 @@ extern template signature_bits<plonk::UltraComposer> convert_signature<plonk::Ul
 
 } // namespace schnorr
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

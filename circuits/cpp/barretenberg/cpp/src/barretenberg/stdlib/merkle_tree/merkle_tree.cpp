@@ -8,7 +8,7 @@
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include <sstream>
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -292,4 +292,4 @@ template class MerkleTree<MemoryStore>;
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

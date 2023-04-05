@@ -3,7 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <gtest/gtest.h>
 
-namespace honk::sumcheck::pow_test {
+namespace proof_system::honk::sumcheck::pow_test {
 
 using FF = barretenberg::fr;
 
@@ -20,7 +20,7 @@ TEST(SumcheckPow, FullPowConsistency)
         pow_univariate.partially_evaluate(u_i);
     }
 
-    FF expected_eval = honk::power_polynomial::evaluate<FF>(zeta, variables);
+    FF expected_eval = proof_system::honk::power_polynomial::evaluate<FF>(zeta, variables);
     EXPECT_EQ(pow_univariate.partial_evaluation_constant, expected_eval);
 }
-} // namespace honk::sumcheck::pow_test
+} // namespace proof_system::honk::sumcheck::pow_test

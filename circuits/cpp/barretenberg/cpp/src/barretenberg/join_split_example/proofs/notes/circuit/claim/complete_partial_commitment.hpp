@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 inline auto complete_partial_commitment(field_ct const& partial_commitment,
                                         field_ct const& interaction_nonce,

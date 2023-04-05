@@ -8,9 +8,9 @@
 #include "./plookup_tables/sha256.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -856,4 +856,4 @@ TEST(ultra_composer, ram)
     EXPECT_EQ(result, true);
 }
 
-} // namespace plonk
+} // namespace proof_system::plonk

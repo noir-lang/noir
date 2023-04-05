@@ -13,7 +13,7 @@
 
    4) There should be more thorough testing of this class in isolation.
  */
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 /**
  * NOTE: We should definitely consider question of optimal choice of domain, but if decide on {0,1,...,t-1} then we can
@@ -147,4 +147,4 @@ template <class Fr, size_t domain_size, size_t num_evals> class BarycentricData 
         return result;
     };
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

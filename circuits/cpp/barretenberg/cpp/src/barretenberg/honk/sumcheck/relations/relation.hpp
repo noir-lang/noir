@@ -1,6 +1,6 @@
 #pragma once
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 // TODO(#226)(Adrian): Remove zeta, alpha as they are not used by the relations.
 template <typename FF> struct RelationParameters {
@@ -8,4 +8,4 @@ template <typename FF> struct RelationParameters {
     FF gamma;
     FF public_input_delta;
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/random/engine.hpp"
 
-using namespace honk::sumcheck;
+using namespace proof_system::honk::sumcheck;
 namespace test_sumcheck_polynomials {
 
 template <class FF> class BarycentricDataTests : public testing::Test {};

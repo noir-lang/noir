@@ -4,7 +4,7 @@
 #include "gemini/gemini.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 
-namespace honk {
+namespace proof_system::honk {
 
 struct OpeningProof {
     std::vector<barretenberg::g1::affine_element> gemini;
@@ -12,4 +12,4 @@ struct OpeningProof {
     barretenberg::g1::affine_element kzg;
 };
 
-} // namespace honk
+} // namespace proof_system::honk

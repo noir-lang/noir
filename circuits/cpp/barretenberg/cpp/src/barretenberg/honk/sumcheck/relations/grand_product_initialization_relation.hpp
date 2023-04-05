@@ -3,7 +3,7 @@
 #include "barretenberg/honk/flavor/flavor.hpp"
 #include "../polynomials/univariate.hpp"
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 template <typename FF> class GrandProductInitializationRelation {
   public:
@@ -45,4 +45,4 @@ template <typename FF> class GrandProductInitializationRelation {
         full_honk_relation_value += lagrange_last * z_perm_shift;
     };
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

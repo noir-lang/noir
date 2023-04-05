@@ -6,7 +6,7 @@
 namespace test_stdlib_bit_array {
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -21,7 +21,7 @@ typedef stdlib::byte_array<honk::StandardHonkComposer> byte_array;
 
 TEST(stdlib_bit_array, test_uint32_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();
@@ -47,7 +47,7 @@ TEST(stdlib_bit_array, test_uint32_input_output_consistency)
 
 TEST(stdlib_bit_array, test_binary_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     bit_array test_bit_array = bit_array(&composer, 5);
 
@@ -70,7 +70,7 @@ TEST(stdlib_bit_array, test_binary_input_output_consistency)
 
 TEST(stdlib_bit_array, test_string_input_output_consistency)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
     bit_array test_bit_array = bit_array(&composer, expected);
@@ -82,7 +82,7 @@ TEST(stdlib_bit_array, test_string_input_output_consistency)
 
 TEST(stdlib_bit_array, test_byte_array_conversion)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     std::string expected = "string literals inside a SNARK circuit? What nonsense!";
     bit_array test_bit_array = bit_array(&composer, expected);
@@ -96,7 +96,7 @@ TEST(stdlib_bit_array, test_byte_array_conversion)
 
 TEST(stdlib_bit_array, test_uint32_vector_constructor)
 {
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     uint32_t a_expected = engine.get_random_uint32();
     uint32_t b_expected = engine.get_random_uint32();

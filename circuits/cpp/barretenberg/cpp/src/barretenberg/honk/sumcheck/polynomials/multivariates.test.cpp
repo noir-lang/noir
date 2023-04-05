@@ -6,13 +6,13 @@
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
-using namespace honk::sumcheck;
+using namespace proof_system::honk::sumcheck;
 namespace test_sumcheck_polynomials {
 
 template <class FF> class MultivariatesTests : public testing::Test {};
 
 using FieldTypes = testing::Types<barretenberg::fr>;
-using Transcript = honk::ProverTranscript<barretenberg::fr>;
+using Transcript = proof_system::honk::ProverTranscript<barretenberg::fr>;
 TYPED_TEST_SUITE(MultivariatesTests, FieldTypes);
 
 #define MULTIVARIATES_TESTS_TYPE_ALIASES using FF = TypeParam;

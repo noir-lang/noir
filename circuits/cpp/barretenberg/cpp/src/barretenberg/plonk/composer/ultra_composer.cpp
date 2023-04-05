@@ -29,7 +29,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 
 #define ULTRA_SELECTOR_REFS                                                                                            \
     auto& q_m = selectors[UltraSelectors::QM];                                                                         \
@@ -2828,4 +2828,4 @@ void UltraComposer::process_RAM_arrays(const size_t gate_offset_from_public_inpu
         process_RAM_array(i, gate_offset_from_public_inputs);
     }
 }
-} // namespace plonk
+} // namespace proof_system::plonk

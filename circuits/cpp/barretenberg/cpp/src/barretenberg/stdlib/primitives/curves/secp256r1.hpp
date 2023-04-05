@@ -6,11 +6,11 @@
 
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerType> struct secp256r1 {
-    static constexpr bonk::CurveType type = bonk::CurveType::SECP256R1;
+    static constexpr proof_system::CurveType type = proof_system::CurveType::SECP256R1;
 
     typedef ::secp256r1::fq fq;
     typedef ::secp256r1::fr fr;
@@ -30,4 +30,4 @@ template <typename ComposerType> struct secp256r1 {
     typedef element<Composer, fq_ct, bigfr_ct, g1> g1_bigfr_ct;
 };
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

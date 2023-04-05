@@ -1,7 +1,7 @@
 /**
  * Create reference strings given an environment that implements env/crs.hpp.
  * Usable in both native and WASM code, but particularly useful for accessing
- * reference strings from a WASM context. 
+ * reference strings from a WASM context.
  * In a native context, the implementations assume a hard-coded string path.
  * For that reason, ideally this is only used in c-bind functions to maintain flexibility.
  */
@@ -17,7 +17,7 @@
 
 #include <utility>
 #include <cstddef>
-namespace bonk {
+namespace proof_system {
 
 using namespace barretenberg;
 
@@ -50,4 +50,4 @@ class EnvReferenceStringFactory : public ReferenceStringFactory {
     }
 };
 
-} // namespace bonk
+} // namespace proof_system

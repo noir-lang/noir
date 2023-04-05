@@ -11,13 +11,13 @@
 using namespace crypto::aes128;
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace aes128 {
 
 constexpr uint32_t AES128_BASE = 9;
-typedef plonk::stdlib::field_t<plonk::UltraComposer> field_t;
-typedef plonk::stdlib::witness_t<plonk::UltraComposer> witness_t;
+typedef stdlib::field_t<plonk::UltraComposer> field_t;
+typedef stdlib::witness_t<plonk::UltraComposer> witness_t;
 
 typedef std::pair<field_t, field_t> byte_pair;
 
@@ -296,4 +296,4 @@ std::vector<field_t> encrypt_buffer_cbc(const std::vector<field_t>& input, const
 
 } // namespace aes128
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

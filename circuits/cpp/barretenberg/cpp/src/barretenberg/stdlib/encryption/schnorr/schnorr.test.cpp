@@ -7,8 +7,8 @@
 namespace test_stdlib_schnorr {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
-using namespace plonk::stdlib::schnorr;
+using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::schnorr;
 
 auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
     Composer composer = Composer();

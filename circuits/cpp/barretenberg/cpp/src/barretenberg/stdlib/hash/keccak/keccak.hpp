@@ -4,11 +4,11 @@
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 class UltraComposer;
-} // namespace plonk
+} // namespace proof_system::plonk
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 template <typename Composer> class bit_array;
 
@@ -186,4 +186,4 @@ template <typename Composer> class keccak {
 extern template class keccak<plonk::UltraComposer>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

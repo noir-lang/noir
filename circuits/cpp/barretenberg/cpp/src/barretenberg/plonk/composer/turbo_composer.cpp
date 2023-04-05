@@ -12,9 +12,9 @@
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 
 #define TURBO_SELECTOR_REFS                                                                                            \
     auto& q_m = selectors[TurboSelectors::QM];                                                                         \
@@ -1039,4 +1039,4 @@ TurboVerifier TurboComposer::create_verifier()
 
     return output_state;
 }
-} // namespace plonk
+} // namespace proof_system::plonk

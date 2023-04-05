@@ -1,21 +1,21 @@
 
 #include "acir_proofs.hpp"
-#include "barretenberg/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/stdlib/types/types.hpp"
 #include "barretenberg/srs/reference_string/pippenger_reference_string.hpp"
-#include "barretenberg/proof_system/verification_key/sol_gen.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_proofs {
 
 size_t get_solidity_verifier(uint8_t const* g2x, uint8_t const* vk_buf, uint8_t** output_buf)
 {
     auto crs = std::make_shared<VerifierMemReferenceString>(g2x);
-    bonk::verification_key_data vk_data;
+    proof_system::plonk::verification_key_data vk_data;
     read(vk_buf, vk_data);
-    auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
+    auto verification_key = std::make_shared<proof_system::plonk::verification_key>(std::move(vk_data), crs);
 
     std::ostringstream stream;
     // TODO(blaine): Should we just use "VerificationKey" generically?
@@ -32,7 +32,7 @@ size_t get_solidity_verifier(uint8_t const* g2x, uint8_t const* vk_buf, uint8_t*
 uint32_t get_exact_circuit_size(uint8_t const* constraint_system_buf)
 {
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-    auto crs_factory = std::make_unique<bonk::ReferenceStringFactory>();
+    auto crs_factory = std::make_unique<proof_system::ReferenceStringFactory>();
     auto composer = create_circuit(constraint_system, std::move(crs_factory));
 
     auto num_gates = composer.get_num_gates();
@@ -42,7 +42,7 @@ uint32_t get_exact_circuit_size(uint8_t const* constraint_system_buf)
 uint32_t get_total_circuit_size(uint8_t const* constraint_system_buf)
 {
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-    auto crs_factory = std::make_unique<bonk::ReferenceStringFactory>();
+    auto crs_factory = std::make_unique<proof_system::ReferenceStringFactory>();
     auto composer = create_circuit(constraint_system, std::move(crs_factory));
 
     return static_cast<uint32_t>(composer.get_total_circuit_size());
@@ -69,9 +69,9 @@ size_t init_proving_key(uint8_t const* constraint_system_buf, uint8_t const** pk
 size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const* pk_buf, uint8_t const** vk_buf)
 {
     std::shared_ptr<ProverReferenceString> crs;
-    bonk::proving_key_data pk_data;
+    plonk::proving_key_data pk_data;
     read(pk_buf, pk_data);
-    auto proving_key = std::make_shared<bonk::proving_key>(std::move(pk_data), crs);
+    auto proving_key = std::make_shared<plonk::proving_key>(std::move(pk_data), crs);
 
     auto crs_factory = std::make_unique<PippengerReferenceStringFactory>(
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
@@ -83,7 +83,7 @@ size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const*
 
     // The composer_type has not yet been set. We need to set the composer_type for when we later read in and
     // construct the verification key so that we have the correct polynomial manifest
-    verification_key->composer_type = ComposerType::PLOOKUP;
+    verification_key->composer_type = proof_system::ComposerType::PLOOKUP;
 
     auto buffer = to_buffer(*verification_key);
     auto raw_buf = (uint8_t*)malloc(buffer.size());
@@ -103,9 +103,9 @@ size_t new_proof(void* pippenger,
     auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
 
     std::shared_ptr<ProverReferenceString> crs;
-    bonk::proving_key_data pk_data;
+    plonk::proving_key_data pk_data;
     read(pk_buf, pk_data);
-    auto proving_key = std::make_shared<bonk::proving_key>(std::move(pk_data), crs);
+    auto proving_key = std::make_shared<plonk::proving_key>(std::move(pk_data), crs);
 
     auto witness = from_buffer<std::vector<fr>>(witness_buf);
 
@@ -136,9 +136,9 @@ bool verify_proof(
 #endif
         auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
         auto crs = std::make_shared<VerifierMemReferenceString>(g2x);
-        bonk::verification_key_data vk_data;
+        plonk::verification_key_data vk_data;
         read(vk_buf, vk_data);
-        auto verification_key = std::make_shared<bonk::verification_key>(std::move(vk_data), crs);
+        auto verification_key = std::make_shared<proof_system::plonk::verification_key>(std::move(vk_data), crs);
 
         Composer composer(nullptr, verification_key);
         create_circuit(composer, constraint_system);

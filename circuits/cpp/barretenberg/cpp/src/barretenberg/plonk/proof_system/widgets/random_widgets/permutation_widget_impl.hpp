@@ -1,13 +1,13 @@
 #pragma once
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 
 template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
 ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::ProverPermutationWidget(
@@ -789,4 +789,4 @@ template class VerifierPermutationWidget<barretenberg::fr,
                                          barretenberg::g1::affine_element,
                                          transcript::StandardTranscript>;
 
-} // namespace plonk
+} // namespace proof_system::plonk

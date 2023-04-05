@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 inline field_ct compute_nullifier(field_ct const& note_commitment)
 {

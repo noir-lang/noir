@@ -2,7 +2,7 @@
 
 #include "barretenberg/polynomials/polynomial.hpp"
 
-namespace honk::pcs {
+namespace proof_system::honk::pcs {
 /**
  * @brief Opening pair (r,v) for some witness polynomial p(X) such that p(r) = v
  *
@@ -90,4 +90,4 @@ template <typename Params> class MLEOpeningClaim {
     // v↺ = g(u) = a₁⋅L₀(u) + … + aₙ₋₁⋅Lₙ₋₂(u)
     Fr evaluation;
 };
-} // namespace honk::pcs
+} // namespace proof_system::honk::pcs

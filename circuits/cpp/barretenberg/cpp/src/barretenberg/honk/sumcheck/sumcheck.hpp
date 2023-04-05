@@ -17,13 +17,13 @@
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
 #include <optional>
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 template <typename FF, class Transcript, template <class> class... Relations> class Sumcheck {
 
   public:
     static constexpr size_t MAX_RELATION_LENGTH = std::max({ Relations<FF>::RELATION_LENGTH... });
-    static constexpr size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
+    static constexpr size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
 
     std::array<FF, NUM_POLYNOMIALS> purported_evaluations;
     Transcript& transcript;
@@ -217,4 +217,4 @@ template <typename FF, class Transcript, template <class> class... Relations> cl
         }
     };
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

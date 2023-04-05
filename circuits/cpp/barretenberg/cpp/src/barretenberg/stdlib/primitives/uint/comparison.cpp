@@ -3,7 +3,7 @@
 
 using namespace barretenberg;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native>
@@ -122,4 +122,4 @@ template class uint<plonk::StandardPlonkComposer, uint32_t>;
 template class uint<plonk::StandardPlonkComposer, uint64_t>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

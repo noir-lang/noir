@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-namespace honk::pcs::kzg {
+namespace proof_system::honk::pcs::kzg {
 /**
  * @brief A transformed polynomial commitment opening claim of the form (P₀, P₁) ∈ 𝔾₁
  * which should satisfy e(P₀, [1]₂) ⋅ e(P₁, [x]₂)=1.
@@ -93,4 +93,4 @@ template <typename Params> class UnivariateOpeningScheme {
         return Accumulator(claim, quotient_commitment);
     };
 };
-} // namespace honk::pcs::kzg
+} // namespace proof_system::honk::pcs::kzg

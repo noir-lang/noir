@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 #include <string>
 
-using namespace honk;
+using namespace proof_system::honk;
 
 template <typename FF> class TranscriptTest : public testing::Test {
   public:
@@ -158,7 +158,7 @@ TYPED_TEST(TranscriptTest, ProverAndVerifierBasic)
     constexpr size_t LENGTH = 8;
 
     using Fr = barretenberg::fr;
-    using Univariate = honk::sumcheck::Univariate<Fr, LENGTH>;
+    using Univariate = proof_system::honk::sumcheck::Univariate<Fr, LENGTH>;
     using Commitment = barretenberg::g1::affine_element;
 
     std::array<Fr, LENGTH> evaluations;

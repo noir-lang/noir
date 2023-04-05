@@ -4,15 +4,15 @@
 #include "../../primitives/point/point.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext> class pedersen_plookup {
   private:
-    typedef plonk::stdlib::field_t<ComposerContext> field_t;
-    typedef plonk::stdlib::point<ComposerContext> point;
-    typedef plonk::stdlib::packed_byte_array<ComposerContext> packed_byte_array;
-    typedef plonk::stdlib::bool_t<ComposerContext> bool_t;
+    typedef stdlib::field_t<ComposerContext> field_t;
+    typedef stdlib::point<ComposerContext> point;
+    typedef stdlib::packed_byte_array<ComposerContext> packed_byte_array;
+    typedef stdlib::bool_t<ComposerContext> bool_t;
 
     enum AddType {
         LAMBDA,
@@ -43,4 +43,4 @@ template <typename ComposerContext> class pedersen_plookup {
 
 extern template class pedersen_plookup<plonk::UltraComposer>;
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

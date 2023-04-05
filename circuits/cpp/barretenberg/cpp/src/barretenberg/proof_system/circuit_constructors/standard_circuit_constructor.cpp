@@ -4,7 +4,7 @@
 
 using namespace barretenberg;
 
-namespace bonk {
+namespace proof_system {
 
 /**
  * Create an addition gate.
@@ -496,4 +496,4 @@ bool StandardCircuitConstructor::check_circuit()
     }
     return true;
 }
-} // namespace bonk
+} // namespace proof_system

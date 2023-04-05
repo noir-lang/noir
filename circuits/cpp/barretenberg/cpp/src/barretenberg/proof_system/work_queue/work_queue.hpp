@@ -1,9 +1,10 @@
 #pragma once
 
 #include "../../transcript/transcript_wrappers.hpp"
-#include "../proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 
-namespace bonk {
+namespace proof_system {
+// TODO(Cody): Template by flavor?
 class work_queue {
 
   public:
@@ -29,7 +30,7 @@ class work_queue {
         barretenberg::fr shift_factor;
     };
 
-    work_queue(proving_key* prover_key = nullptr, transcript::StandardTranscript* prover_transcript = nullptr);
+    work_queue(plonk::proving_key* prover_key = nullptr, transcript::StandardTranscript* prover_transcript = nullptr);
 
     work_queue(const work_queue& other) = default;
     work_queue(work_queue&& other) = default;
@@ -61,8 +62,8 @@ class work_queue {
     std::vector<work_item> get_queue() const;
 
   private:
-    proving_key* key;
+    plonk::proving_key* key;
     transcript::StandardTranscript* transcript;
     std::vector<work_item> work_item_queue;
 };
-} // namespace bonk
+} // namespace proof_system

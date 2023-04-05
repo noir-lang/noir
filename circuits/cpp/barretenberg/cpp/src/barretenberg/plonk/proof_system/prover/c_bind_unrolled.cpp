@@ -1,4 +1,5 @@
 #include "prover.hpp"
+#include "barretenberg/proof_system/types/composer_type.hpp"
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 
@@ -7,7 +8,7 @@ using namespace barretenberg;
 extern "C" {
 
 // TODO(Cody): Removed "unrolled" here when the time comes, if it does.
-typedef std::conditional_t<plonk::SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver>
+typedef std::conditional_t<plonk::SYSTEM_COMPOSER == ComposerType::TURBO, plonk::TurboProver, plonk::UltraProver>
     WasmUnrolledProver;
 
 WASM_EXPORT void unrolled_prover_process_queue(WasmUnrolledProver* prover)

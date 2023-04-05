@@ -6,7 +6,7 @@
 
 #include "../../primitives/composers/composers.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace schnorr {
 
@@ -119,12 +119,12 @@ point<C> variable_base_mul(const point<C>& pub_key, const field_t<C>& low_bits, 
     field_t<C> zero_test = (low_bits * high_bits);
     zero_test.assert_is_not_zero();
 
-    const auto low_wnaf = plonk::stdlib::schnorr::convert_field_into_wnaf(context, low_bits);
-    const auto high_wnaf = plonk::stdlib::schnorr::convert_field_into_wnaf(context, high_bits);
+    const auto low_wnaf = stdlib::schnorr::convert_field_into_wnaf(context, low_bits);
+    const auto high_wnaf = stdlib::schnorr::convert_field_into_wnaf(context, high_bits);
     // current_accumulator is pub_key, so init is true, so high_output is [high_wnaf]pub_key
-    point<C> high_output = plonk::stdlib::schnorr::variable_base_mul(pub_key, pub_key, high_wnaf);
+    point<C> high_output = stdlib::schnorr::variable_base_mul(pub_key, pub_key, high_wnaf);
     // compute output = [low_wnaf]pub_key + [2^128]high_output.
-    point<C> output = plonk::stdlib::schnorr::variable_base_mul(pub_key, high_output, low_wnaf);
+    point<C> output = stdlib::schnorr::variable_base_mul(pub_key, high_output, low_wnaf);
     return output;
 }
 
@@ -376,4 +376,4 @@ template signature_bits<plonk::UltraComposer> convert_signature<plonk::UltraComp
     plonk::UltraComposer*, const crypto::schnorr::signature&);
 } // namespace schnorr
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

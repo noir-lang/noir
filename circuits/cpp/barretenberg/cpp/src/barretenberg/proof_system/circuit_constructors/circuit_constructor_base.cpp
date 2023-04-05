@@ -1,6 +1,6 @@
 #include "circuit_constructor_base.hpp"
 
-namespace bonk {
+namespace proof_system {
 
 /**
  * Join variable class b to variable class a.
@@ -43,4 +43,4 @@ void CircuitConstructorBase<Arithmetization>::assert_equal(const uint32_t a_vari
 // Standard honk/ plonk instantiation
 template class CircuitConstructorBase<arithmetization::Standard>;
 template class CircuitConstructorBase<arithmetization::Turbo>;
-} // namespace bonk
+} // namespace proof_system

@@ -7,7 +7,7 @@ TEST(power_polynomial, test_full_polynomial_correctness)
     const size_t order = 17;
     const size_t n = size_t(1) << order;
     barretenberg::fr zeta = barretenberg::fr::random_element();
-    barretenberg::polynomial power_polynomial = honk::power_polynomial::generate_vector(zeta, n);
+    barretenberg::polynomial power_polynomial = proof_system::honk::power_polynomial::generate_vector(zeta, n);
 
     barretenberg::fr current_power = barretenberg::fr::one();
     for (size_t i = 0; i < n; i++) {
@@ -31,5 +31,5 @@ TEST(power_polynomial, test_evaluation_correctness)
         variables.emplace_back((random_index >> i) & 1);
     }
     EXPECT_EQ(zeta.pow(static_cast<size_t>(random_index)),
-              honk::power_polynomial::evaluate<barretenberg::fr>(zeta, variables));
+              proof_system::honk::power_polynomial::evaluate<barretenberg::fr>(zeta, variables));
 }

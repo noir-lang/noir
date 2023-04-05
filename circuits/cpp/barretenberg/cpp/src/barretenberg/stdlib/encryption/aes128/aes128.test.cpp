@@ -7,12 +7,12 @@
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 TEST(stdlib_aes128, encrypt_64_bytes)
 {
-    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
-    typedef plonk::stdlib::witness_t<plonk::UltraComposer> witness_pt;
+    typedef stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef stdlib::witness_t<plonk::UltraComposer> witness_pt;
 
     uint8_t key[16]{ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
     uint8_t out[64]{ 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
@@ -34,7 +34,7 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         return converted;
     };
 
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     std::vector<field_pt> in_field{
         witness_pt(&composer, fr(convert_bytes(in))),
@@ -50,7 +50,7 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         convert_bytes(out), convert_bytes(out + 16), convert_bytes(out + 32), convert_bytes(out + 48)
     };
 
-    const auto result = plonk::stdlib::aes128::encrypt_buffer_cbc(in_field, iv_field, key_field);
+    const auto result = stdlib::aes128::encrypt_buffer_cbc(in_field, iv_field, key_field);
 
     for (size_t i = 0; i < 4; ++i) {
         EXPECT_EQ(result[i].get_value(), expected[i]);

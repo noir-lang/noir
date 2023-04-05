@@ -4,7 +4,7 @@
 
 #include "../field/field.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer> struct point {
@@ -69,4 +69,4 @@ template <typename Composer> std::ostream& operator<<(std::ostream& os, point<Co
 }
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

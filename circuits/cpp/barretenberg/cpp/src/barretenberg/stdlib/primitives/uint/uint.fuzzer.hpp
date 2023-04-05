@@ -31,13 +31,13 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class UintFuzzBase {
   private:
-    typedef plonk::stdlib::bool_t<Composer> bool_t;
-    typedef plonk::stdlib::uint<Composer, uint8_t> uint_8_t;
-    typedef plonk::stdlib::uint<Composer, uint16_t> uint_16_t;
-    typedef plonk::stdlib::uint<Composer, uint32_t> uint_32_t;
-    typedef plonk::stdlib::uint<Composer, uint64_t> uint_64_t;
-    typedef plonk::stdlib::field_t<Composer> field_t;
-    typedef plonk::stdlib::byte_array<Composer> byte_array_t;
+    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+    typedef proof_system::plonk::stdlib::uint<Composer, uint8_t> uint_8_t;
+    typedef proof_system::plonk::stdlib::uint<Composer, uint16_t> uint_16_t;
+    typedef proof_system::plonk::stdlib::uint<Composer, uint32_t> uint_32_t;
+    typedef proof_system::plonk::stdlib::uint<Composer, uint64_t> uint_64_t;
+    typedef proof_system::plonk::stdlib::field_t<Composer> field_t;
+    typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
 
     template <class From, class To> static To from_to(const From& in, const std::optional<size_t> size = std::nullopt)
     {

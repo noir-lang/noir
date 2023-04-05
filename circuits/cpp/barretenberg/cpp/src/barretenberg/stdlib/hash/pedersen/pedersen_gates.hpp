@@ -5,7 +5,7 @@
 #include "../../primitives/point/point.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -22,10 +22,9 @@ namespace stdlib {
  */
 template <typename Composer> class pedersen_gates {
   public:
-    using fixed_group_add_quad = bonk::fixed_group_add_quad;
-    using fixed_group_init_quad = bonk::fixed_group_init_quad;
-    using add_quad = bonk::add_quad;
-    using ComposerType = plonk::ComposerType;
+    using fixed_group_add_quad = proof_system::fixed_group_add_quad;
+    using fixed_group_init_quad = proof_system::fixed_group_init_quad;
+    using add_quad = proof_system::add_quad;
 
     Composer* context;
     fixed_group_add_quad previous_add_quad;
@@ -313,4 +312,4 @@ template <typename Composer> class pedersen_gates {
 };
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

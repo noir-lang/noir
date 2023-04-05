@@ -1,11 +1,11 @@
-namespace bonk {
+namespace proof_system {
 
 /**
  * Write a solidity file containing the vk params to the given stream.
  * Uses StandardPlonk
  **/
 inline void output_vk_sol_standard(std::ostream& os,
-                                   std::shared_ptr<verification_key> const& key,
+                                   std::shared_ptr<plonk::verification_key> const& key,
                                    std::string const& class_name)
 {
     const auto print_u256 = [&](const std::string& offset, const barretenberg::fr& element, const std::string& name) {
@@ -65,7 +65,7 @@ inline void output_vk_sol_standard(std::ostream& os,
  * Write a solidity file containing the vk params to the given stream.
  * Uses UltraPlonk
  **/
-inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<verification_key> const& key, std::string const& class_name)
+inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<plonk::verification_key> const& key, std::string const& class_name)
 {
     const auto print_u256 = [&](const std::string& offset, const barretenberg::fr& element, const std::string& name) {
         os << "            mstore(add(_vk, " << offset << "), " << element << ") // " << name << std::endl;
@@ -141,26 +141,26 @@ inline void output_vk_sol_ultra(std::ostream& os, std::shared_ptr<verification_k
  * @param key
  * @param class_name
  */
-inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> const& key, std::string const& class_name)
+inline void output_vk_sol(std::ostream& os, std::shared_ptr<plonk::verification_key> const& key, std::string const& class_name)
 {
-    plonk::ComposerType composer_type = static_cast<plonk::ComposerType>(key->composer_type);
+    ComposerType composer_type = static_cast<ComposerType>(key->composer_type);
     switch (composer_type) {
-    case plonk::ComposerType::STANDARD: {
+    case ComposerType::STANDARD: {
         return output_vk_sol_standard(os, key, class_name);
         break;
     }
-    // case plonk::ComposerType::TURBO: {
+    // case ComposerType::TURBO: {
     //     return output_vk_sol_turbo(os, key, class_name);
     //     break;
     // }
-    case plonk::ComposerType::PLOOKUP: {
+    case ComposerType::PLOOKUP: {
         return output_vk_sol_ultra(os, key, class_name);
         break;
     }
     default: {
-        std::cerr << "bonk::output_vk_sol unsupported composer type. Defaulting to standard composer" << std::endl;
+        std::cerr << "proof_system::output_vk_sol unsupported composer type. Defaulting to standard composer" << std::endl;
         return output_vk_sol_standard(os, key, class_name);
     }
     }
 }
-} // namespace bonk
+} // namespace proof_system

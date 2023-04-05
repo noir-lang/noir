@@ -7,7 +7,7 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace barretenberg;
-using namespace plonk::stdlib::merkle_tree;
+using namespace proof_system::plonk::stdlib::merkle_tree;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

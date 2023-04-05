@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <array>
 
-namespace honk {
+namespace proof_system::honk {
 
 template <typename TranscriptType> struct Oracle {
     size_t consumed{ 0 };
@@ -271,4 +271,4 @@ template <typename TranscriptType> struct Oracle {
 
 //     Fr public_input_delta = 1; // TODO FIX
 // };
-} // namespace honk
+} // namespace proof_system::honk

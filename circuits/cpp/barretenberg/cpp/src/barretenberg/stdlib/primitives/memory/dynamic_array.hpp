@@ -1,7 +1,7 @@
 #pragma once
 #include "ram_table.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -51,4 +51,4 @@ template <typename Composer> class DynamicArray {
 EXTERN_STDLIB_ULTRA_TYPE(DynamicArray);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

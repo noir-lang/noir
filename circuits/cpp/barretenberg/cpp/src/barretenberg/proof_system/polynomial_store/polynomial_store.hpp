@@ -6,12 +6,14 @@
 #include <map>
 #include <string>
 #include <unordered_map>
-namespace bonk {
+
+namespace proof_system {
 /**
  * @brief Basic storage class for Polynomials
  *
  * @tparam Fr
  */
+// TODO(Cody): Move into plonk namespace.
 template <typename Fr> class PolynomialStore {
 
     using Polynomial = barretenberg::Polynomial<Fr>;
@@ -96,4 +98,4 @@ template <typename Fr> class PolynomialStore {
     typename std::unordered_map<std::string, Polynomial>::const_iterator end() const { return polynomial_map.end(); }
 };
 
-} // namespace bonk
+} // namespace proof_system

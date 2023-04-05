@@ -8,7 +8,7 @@ using namespace crypto::pedersen;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-namespace bonk {
+namespace proof_system {
 TEST(turbo_circuit_constructor, base_case)
 {
     TurboCircuitConstructor circuit_constructor = TurboCircuitConstructor();
@@ -687,4 +687,4 @@ TEST(turbo_circuit_constructor, big_add_gate_with_bit_extract)
     EXPECT_EQ(result, true);
 }
 
-} // namespace bonk
+} // namespace proof_system

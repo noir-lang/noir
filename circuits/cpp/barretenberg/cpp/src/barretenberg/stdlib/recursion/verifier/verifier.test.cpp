@@ -1,7 +1,7 @@
 #include "verifier.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/transcript/transcript.hpp"
-#include "barretenberg/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
@@ -9,16 +9,16 @@
 #include "../../hash/pedersen/pedersen.hpp"
 #include "program_settings.hpp"
 
-using namespace plonk;
+using namespace proof_system::plonk;
 
 template <typename OuterComposer> class stdlib_verifier : public testing::Test {
-    using InnerComposer = plonk::UltraComposer;
+    using InnerComposer = proof_system::plonk::UltraComposer;
 
     typedef stdlib::bn254<InnerComposer> inner_curve;
     typedef stdlib::bn254<OuterComposer> outer_curve;
-    typedef plonk::stdlib::recursion::verification_key<outer_curve> verification_key_pt;
-    typedef plonk::stdlib::recursion::recursive_ultra_verifier_settings<outer_curve> recursive_settings;
-    typedef plonk::stdlib::recursion::recursive_ultra_to_standard_verifier_settings<outer_curve>
+    typedef proof_system::plonk::stdlib::recursion::verification_key<outer_curve> verification_key_pt;
+    typedef proof_system::plonk::stdlib::recursion::recursive_ultra_verifier_settings<outer_curve> recursive_settings;
+    typedef proof_system::plonk::stdlib::recursion::recursive_ultra_to_standard_verifier_settings<outer_curve>
         ultra_to_standard_recursive_settings;
     typedef inner_curve::fr_ct fr_ct;
     typedef inner_curve::public_witness_ct public_witness_ct;

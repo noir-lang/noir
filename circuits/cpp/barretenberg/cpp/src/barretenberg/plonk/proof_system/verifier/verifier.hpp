@@ -5,7 +5,7 @@
 #include "barretenberg/transcript/manifest.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/commitment_scheme.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 template <typename program_settings> class VerifierBase {
 
   public:
@@ -38,4 +38,4 @@ typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 typedef VerifierBase<ultra_verifier_settings> UltraVerifier;
 typedef VerifierBase<ultra_to_standard_verifier_settings> UltraToStandardVerifier;
 
-} // namespace plonk
+} // namespace proof_system::plonk

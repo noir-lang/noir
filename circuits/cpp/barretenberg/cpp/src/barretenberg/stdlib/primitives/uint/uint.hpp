@@ -12,7 +12,7 @@
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -216,4 +216,4 @@ EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint32_t);
 EXTERN_STDLIB_BASIC_TYPE_VA(uint, uint64_t);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -20,9 +20,9 @@ TEST(reference_string, mem_file_consistency)
     transcript.read((char*)g2x.data(), 128);
     transcript.close();
 
-    auto mem_verifier = std::make_unique<bonk::VerifierMemReferenceString>(g2x.data());
+    auto mem_verifier = std::make_unique<proof_system::VerifierMemReferenceString>(g2x.data());
 
-    auto file_crs = std::make_unique<bonk::FileReferenceStringFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<proof_system::FileReferenceStringFactory>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     EXPECT_EQ(mem_verifier->get_g2x(), file_verifier->get_g2x());

@@ -6,9 +6,9 @@
 #include "../../primitives/composers/composers.hpp"
 #include "../../primitives/plookup/plookup.hpp"
 
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 using namespace barretenberg;
@@ -168,4 +168,4 @@ field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs, con
 template class pedersen_plookup<plonk::UltraComposer>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

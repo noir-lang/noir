@@ -9,7 +9,7 @@
 
 namespace test_stdlib_packed_byte_array {
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -21,7 +21,7 @@ TEST(packed_byte_array, string_constructor_and_get_value_consistency)
 {
     std::string input = "the quick brown fox jumped over the lazy dog.";
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     packed_byte_array arr(&composer, input);
 
@@ -34,7 +34,7 @@ TEST(packed_byte_array, byte_array_constructor_consistency)
 {
     std::string input = "the quick brown fox jumped over the lazy dog.";
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     byte_array arr(&composer, input);
     packed_byte_array converted(arr);
@@ -47,7 +47,7 @@ TEST(packed_byte_array, byte_array_cast_consistency)
 {
     std::string input = "the quick brown fox jumped over the lazy dog.";
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     packed_byte_array arr(&composer, input);
     byte_array converted(arr);
@@ -71,7 +71,7 @@ TEST(packed_byte_array, unverified_byte_slices)
         uint32s.push_back(result);
     }
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
 
     packed_byte_array arr(&composer, bytes);
 
@@ -94,7 +94,7 @@ TEST(packed_byte_array, check_append_uint8)
         bytes.push_back(engine.get_random_uint8());
     }
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
     packed_byte_array arr(&composer, bytes);
 
     // append upto size (16x)
@@ -149,7 +149,7 @@ TEST(packed_byte_array, check_append_uint32)
         uint32s.push_back(result);
     }
 
-    honk::StandardHonkComposer composer = honk::StandardHonkComposer();
+    honk::StandardHonkComposer composer = proof_system::honk::StandardHonkComposer();
     packed_byte_array arr(&composer, bytes);
 
     // append over size (16x) (this creates new limb internally)

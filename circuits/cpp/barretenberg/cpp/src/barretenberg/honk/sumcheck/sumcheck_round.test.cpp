@@ -19,13 +19,13 @@
  * similar approach.
  */
 
-using namespace honk;
-using namespace honk::sumcheck;
+using namespace proof_system::honk;
+using namespace proof_system::honk::sumcheck;
 const size_t max_relation_length = 5;
 const size_t input_polynomial_length = 2;
 using FF = barretenberg::fr;
-const size_t NUM_POLYNOMIALS = honk::StandardArithmetization::NUM_POLYNOMIALS;
-using POLYNOMIAL = honk::StandardArithmetization::POLYNOMIAL;
+const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
 
 namespace test_sumcheck_round {
 /**

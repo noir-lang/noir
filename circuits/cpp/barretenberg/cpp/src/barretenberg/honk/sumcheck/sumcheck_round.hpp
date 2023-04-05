@@ -8,7 +8,7 @@
 #include "polynomials/pow.hpp"
 #include "relations/relation.hpp"
 
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 /*
  Notation: The polynomial P(X0, X1) that is the low-degree extension of its values vij = P(i,j)
@@ -318,4 +318,4 @@ template <class FF, size_t num_multivariates, template <class> class... Relation
         }
     }
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

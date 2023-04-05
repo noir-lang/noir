@@ -9,7 +9,7 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 struct join_split_inputs {
     field_ct proof_id;

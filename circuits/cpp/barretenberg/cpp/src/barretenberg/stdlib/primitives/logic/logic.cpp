@@ -3,8 +3,7 @@
 #include "../composers/composers.hpp"
 #include "../plookup/plookup.hpp"
 
-namespace plonk {
-namespace stdlib {
+namespace proof_system::plonk::stdlib {
 
 /**
  * @brief A logical AND or XOR over a variable number of bits.
@@ -90,5 +89,4 @@ field_t<Composer> logic<Composer>::create_logic_constraint(field_pt& a, field_pt
     }
 }
 INSTANTIATE_STDLIB_TYPE(logic);
-} // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk::stdlib

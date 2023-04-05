@@ -6,7 +6,7 @@
 #include "barretenberg/plonk/composer/splitting_tmp/standard_plonk_composer.hpp"
 #include "barretenberg/common/assert.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext> class bool_t;
@@ -366,4 +366,4 @@ template <typename ComposerContext> inline std::ostream& operator<<(std::ostream
 EXTERN_STDLIB_TYPE(field_t);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

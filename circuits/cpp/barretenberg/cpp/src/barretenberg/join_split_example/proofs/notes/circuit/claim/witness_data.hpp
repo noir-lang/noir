@@ -11,7 +11,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 /**
  * Convert native claim note data into circuit witness data.

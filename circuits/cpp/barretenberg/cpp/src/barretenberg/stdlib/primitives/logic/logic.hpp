@@ -1,14 +1,14 @@
 #pragma once
-#include "../composers/composers_fwd.hpp"
-#include "../field/field.hpp"
+#include "barretenberg/stdlib/primitives/composers/composers_fwd.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-namespace plonk {
-namespace stdlib {
+namespace proof_system::plonk::stdlib {
 
 template <typename Composer> class logic {
   private:
-    typedef field_t<Composer> field_pt;
-    typedef witness_t<Composer> witness_pt;
+    using field_pt = field_t<Composer>;
+    using witness_pt = witness_t<Composer>;
 
   public:
     static field_pt create_logic_constraint(field_pt& a, field_pt& b, size_t num_bits, bool is_xor_gate);
@@ -16,5 +16,4 @@ template <typename Composer> class logic {
 
 EXTERN_STDLIB_TYPE(logic);
 
-} // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk::stdlib

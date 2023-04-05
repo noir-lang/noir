@@ -36,7 +36,7 @@ void construct_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         composer.compute_proving_key();
         state.ResumeTiming();
@@ -49,7 +49,7 @@ BENCHMARK(construct_witnesses_bench)->RangeMultiplier(2)->Range(START, MAX_GATES
 void construct_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));
@@ -65,7 +65,7 @@ void construct_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::StandardComposer composer = plonk::StandardComposer(static_cast<size_t>(state.range(0)));
+        plonk::StandardComposer composer = proof_system::plonk::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
                      static_cast<size_t>(numeric::get_msb(START));

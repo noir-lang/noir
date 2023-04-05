@@ -4,7 +4,7 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/common/serialize.hpp"
 
-namespace bonk {
+namespace proof_system::plonk {
 
 // Read the pre-computed polynomials
 template <typename B> inline void read(B& any, proving_key_data& key)
@@ -115,4 +115,4 @@ template <typename B> inline void write_mmap(B& os, std::string const& path, pro
     write(os, key.memory_write_records);
 }
 
-} // namespace bonk
+} // namespace proof_system::plonk

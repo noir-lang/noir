@@ -2,7 +2,7 @@
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include <span>
 
-namespace honk::prover_library {
+namespace proof_system::honk::prover_library {
 
 using Fr = barretenberg::fr;
 using Polynomial = barretenberg::Polynomial<Fr>;
@@ -35,7 +35,7 @@ using Polynomial = barretenberg::Polynomial<Fr>;
  */
 // TODO(#222)(luke): Parallelize
 template <size_t program_width>
-Polynomial compute_permutation_grand_product(std::shared_ptr<bonk::proving_key>& key,
+Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>& key,
                                              std::vector<Polynomial>& wire_polynomials,
                                              Fr beta,
                                              Fr gamma)
@@ -181,7 +181,7 @@ Polynomial compute_permutation_grand_product(std::shared_ptr<bonk::proving_key>&
  * @param gamma
  * @return Polynomial
  */
-Polynomial compute_lookup_grand_product(std::shared_ptr<bonk::proving_key>& key,
+Polynomial compute_lookup_grand_product(std::shared_ptr<plonk::proving_key>& key,
                                         std::vector<Polynomial>& wire_polynomials,
                                         Polynomial& sorted_list_accumulator,
                                         Fr eta,
@@ -327,7 +327,7 @@ Polynomial compute_lookup_grand_product(std::shared_ptr<bonk::proving_key>& key,
  * @param eta random challenge
  * @return Polynomial
  */
-Polynomial compute_sorted_list_accumulator(std::shared_ptr<bonk::proving_key>& key,
+Polynomial compute_sorted_list_accumulator(std::shared_ptr<plonk::proving_key>& key,
                                            std::vector<Polynomial>& sorted_list_polynomials,
                                            Fr eta)
 {
@@ -353,8 +353,8 @@ Polynomial compute_sorted_list_accumulator(std::shared_ptr<bonk::proving_key>& k
 }
 
 template Polynomial compute_permutation_grand_product<plonk::standard_settings::program_width>(
-    std::shared_ptr<bonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
+    std::shared_ptr<plonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
 template Polynomial compute_permutation_grand_product<plonk::ultra_settings::program_width>(
-    std::shared_ptr<bonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
+    std::shared_ptr<plonk::proving_key>&, std::vector<Polynomial>&, Fr, Fr);
 
-} // namespace honk::prover_library
+} // namespace proof_system::honk::prover_library

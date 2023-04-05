@@ -4,7 +4,7 @@
 
 using namespace barretenberg;
 
-namespace bonk {
+namespace proof_system {
 
 /**
  * Turbo circuit initialization, where you can specify the probable number of gates in your circuit.
@@ -1509,4 +1509,4 @@ bool TurboCircuitConstructor::check_circuit()
 #endif
 }
 
-} // namespace bonk
+} // namespace proof_system

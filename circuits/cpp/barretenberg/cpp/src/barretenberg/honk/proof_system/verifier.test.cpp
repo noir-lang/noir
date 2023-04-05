@@ -3,7 +3,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/flavor/flavor.hpp"
 #include "prover.hpp"
-#include "barretenberg/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include "verifier.hpp"
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
@@ -15,7 +15,7 @@
 #include <vector>
 
 using namespace barretenberg;
-using namespace honk;
+using namespace proof_system::honk;
 
 namespace test_honk_verifier {
 
@@ -26,7 +26,7 @@ template <class FF> class VerifierTests : public testing::Test {
         return honk::StandardHonk::create_manifest(num_public_inputs, num_sumcheck_rounds);
     }
 
-    static StandardVerifier generate_verifier(std::shared_ptr<bonk::proving_key> circuit_proving_key)
+    static StandardVerifier generate_verifier(std::shared_ptr<plonk::proving_key> circuit_proving_key)
     {
         std::array<fr*, 8> poly_coefficients;
         poly_coefficients[0] = circuit_proving_key->polynomial_store.get("q_1_lagrange").get_coefficients();
@@ -50,11 +50,12 @@ template <class FF> class VerifierTests : public testing::Test {
                                                  prover));
         }
 
-        auto crs = std::make_shared<bonk::VerifierFileReferenceString>("../srs_db/ignition");
-        auto circuit_verification_key = std::make_shared<bonk::verification_key>(circuit_proving_key->circuit_size,
-                                                                                 circuit_proving_key->num_public_inputs,
-                                                                                 crs,
-                                                                                 circuit_proving_key->composer_type);
+        auto crs = std::make_shared<VerifierFileReferenceString>("../srs_db/ignition");
+        auto circuit_verification_key =
+            std::make_shared<plonk::verification_key>(circuit_proving_key->circuit_size,
+                                                      circuit_proving_key->num_public_inputs,
+                                                      crs,
+                                                      circuit_proving_key->composer_type);
 
         circuit_verification_key->commitments.insert({ "Q_1", commitments[0] });
         circuit_verification_key->commitments.insert({ "Q_2", commitments[1] });
@@ -81,9 +82,9 @@ template <class FF> class VerifierTests : public testing::Test {
         // Create some constraints that satisfy our arithmetic circuit relation
         // even indices = mul gates, odd incides = add gates
 
-        auto crs = std::make_shared<bonk::FileReferenceString>(n + 1, "../srs_db/ignition");
-        std::shared_ptr<bonk::proving_key> proving_key =
-            std::make_shared<bonk::proving_key>(n, 0, crs, plonk::STANDARD_HONK);
+        auto crs = std::make_shared<FileReferenceString>(n + 1, "../srs_db/ignition");
+        std::shared_ptr<plonk::proving_key> proving_key =
+            std::make_shared<plonk::proving_key>(n, 0, crs, ComposerType::STANDARD_HONK);
 
         polynomial w_l(n);
         polynomial w_r(n);
@@ -177,8 +178,8 @@ template <class FF> class VerifierTests : public testing::Test {
         proving_key->polynomial_store.put("sigma_2_lagrange", std::move(sigma_2_lagrange_base));
         proving_key->polynomial_store.put("sigma_3_lagrange", std::move(sigma_3_lagrange_base));
 
-        bonk::compute_standard_honk_id_polynomials<3>(proving_key);
-        bonk::compute_first_and_last_lagrange_polynomials(proving_key);
+        compute_standard_honk_id_polynomials<3>(proving_key);
+        compute_first_and_last_lagrange_polynomials(proving_key);
 
         proving_key->polynomial_store.put("w_1_lagrange", std::move(w_l));
         proving_key->polynomial_store.put("w_2_lagrange", std::move(w_r));

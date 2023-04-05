@@ -27,8 +27,8 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class BoolFuzzBase {
   private:
-    typedef plonk::stdlib::bool_t<Composer> bool_t;
-    typedef plonk::stdlib::witness_t<Composer> witness_t;
+    typedef proof_system::plonk::stdlib::bool_t<Composer> bool_t;
+    typedef proof_system::plonk::stdlib::witness_t<Composer> witness_t;
 
   public:
     /**

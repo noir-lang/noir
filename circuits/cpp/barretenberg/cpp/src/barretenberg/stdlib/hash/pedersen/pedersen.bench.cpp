@@ -43,7 +43,7 @@ void generate_test_pedersen_circuit(plonk::TurboComposer& turbo_composer, size_t
         plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = plonk::stdlib::pedersen<plonk::TurboComposer>::compress(left, out);
+        out = proof_system::plonk::stdlib::pedersen<plonk::TurboComposer>::compress(left, out);
     }
 }
 

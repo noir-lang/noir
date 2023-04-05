@@ -16,7 +16,8 @@ auto& engine = numeric::random::get_debug_engine();
 namespace test_stdlib_sha256 {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk;
+using namespace proof_system::plonk::stdlib::types;
 
 constexpr uint64_t ror(uint64_t val, uint64_t shift)
 {
@@ -111,7 +112,7 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 TEST(stdlib_sha256, test_duplicate_proving_key)
 {
 
-    plonk::StandardComposer first_composer = plonk::StandardComposer();
+    plonk::StandardComposer first_composer = StandardComposer();
     stdlib::packed_byte_array input(&first_composer, "An 8 character password? Snow White and the 7 Dwarves..");
     plonk::stdlib::sha256(input);
     auto prover = first_composer.create_prover();
@@ -124,7 +125,7 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
     auto circuit_size = prover.circuit_size;
 
     // Test a second time with same keys and different input.
-    plonk::StandardComposer second_composer = plonk::StandardComposer(proving_key, verification_key, circuit_size);
+    plonk::StandardComposer second_composer = StandardComposer(proving_key, verification_key, circuit_size);
     stdlib::packed_byte_array input2(&second_composer, "An 8 character password? Snow White and the 9 Dwarves..");
     plonk::stdlib::sha256(input2);
     auto second_prover = second_composer.create_prover();
@@ -137,14 +138,15 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
 // TEST(stdlib_sha256_plookup, test_round)
 // {
 
-//     plonk::UltraComposer composer = plonk::UltraComposer();
+//     plonk::UltraComposer composer = UltraComposer();
 
 //     std::array<uint64_t, 64> w_inputs;
 //     std::array<plonk::stdlib::field_t<plonk::UltraComposer>, 64> w_elements;
 
 //     for (size_t i = 0; i < 64; ++i) {
 //         w_inputs[i] = engine.get_random_uint32();
-//         w_elements[i] = plonk::stdlib::witness_t<plonk::UltraComposer>(&composer, barretenberg::fr(w_inputs[i]));
+//         w_elements[i] = stdlib::witness_t<plonk::UltraComposer>(&composer,
+//         barretenberg::fr(w_inputs[i]));
 //     }
 
 //     const auto expected = inner_block(w_inputs);
@@ -167,15 +169,15 @@ TEST(stdlib_sha256, test_duplicate_proving_key)
 
 TEST(stdlib_sha256, test_plookup_55_bytes)
 {
-    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
+    typedef stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
     packed_byte_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = stdlib::sha256(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -206,7 +208,7 @@ TEST(stdlib_sha256, test_55_bytes)
     Composer composer = Composer();
     packed_byte_array_ct input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    packed_byte_array_ct output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_ct output_bits = stdlib::sha256(input);
 
     std::vector<field_ct> output = output_bits.to_unverified_byte_slices(4);
 
@@ -232,13 +234,13 @@ TEST(stdlib_sha256, test_55_bytes)
 
 TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 {
-    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
+    typedef stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     packed_byte_array_pt input(&composer, "abc");
-    packed_byte_array_pt output_bytes = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bytes = stdlib::sha256(input);
     std::vector<field_pt> output = output_bytes.to_unverified_byte_slices(4);
     EXPECT_EQ(uint256_t(output[0].get_value()).data[0], (uint64_t)0xBA7816BFU);
     EXPECT_EQ(uint256_t(output[1].get_value()).data[0], (uint64_t)0x8F01CFEAU);
@@ -263,14 +265,14 @@ TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 
 TEST(stdlib_sha256, test_NIST_vector_one)
 {
-    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
+    typedef stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     packed_byte_array_pt input(&composer, "abc");
 
-    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = stdlib::sha256(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -301,7 +303,7 @@ TEST(stdlib_sha256, test_NIST_vector_two)
 
     byte_array_ct input(&composer, "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq");
 
-    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+    byte_array_ct output_bits = stdlib::sha256<Composer>(input);
 
     std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
@@ -333,7 +335,7 @@ TEST(stdlib_sha256, test_NIST_vector_three)
     // one byte, 0xbd
     byte_array_ct input(&composer, std::vector<uint8_t>{ 0xbd });
 
-    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+    byte_array_ct output_bits = stdlib::sha256<Composer>(input);
 
     std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
@@ -364,7 +366,7 @@ TEST(stdlib_sha256, test_NIST_vector_four)
     // 4 bytes, 0xc98c8e55
     byte_array_ct input(&composer, std::vector<uint8_t>{ 0xc9, 0x8c, 0x8e, 0x55 });
 
-    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+    byte_array_ct output_bits = stdlib::sha256<Composer>(input);
 
     std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
@@ -390,10 +392,10 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 
 HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
-    typedef plonk::stdlib::field_t<plonk::UltraComposer> field_pt;
-    typedef plonk::stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
+    typedef stdlib::field_t<plonk::UltraComposer> field_pt;
+    typedef stdlib::packed_byte_array<plonk::UltraComposer> packed_byte_array_pt;
 
-    plonk::UltraComposer composer = plonk::UltraComposer();
+    plonk::UltraComposer composer = UltraComposer();
 
     packed_byte_array_pt input(
         &composer,
@@ -408,7 +410,7 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAA");
 
-    packed_byte_array_pt output_bits = plonk::stdlib::sha256<plonk::UltraComposer>(input);
+    packed_byte_array_pt output_bits = stdlib::sha256<plonk::UltraComposer>(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -442,7 +444,7 @@ TEST(stdlib_sha256, test_input_len_multiple)
         auto input_buf = std::vector<uint8_t>(inp, 1);
 
         byte_array_ct input(&composer, input_buf);
-        byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+        byte_array_ct output_bits = stdlib::sha256<Composer>(input);
 
         auto circuit_output = output_bits.get_value();
 
@@ -486,7 +488,7 @@ TEST(stdlib_sha256, test_input_str_len_multiple)
         auto input_buf = std::vector<uint8_t>(input_str.begin(), input_str.end());
 
         byte_array_ct input(&composer, input_buf);
-        byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+        byte_array_ct output_bits = stdlib::sha256<Composer>(input);
 
         auto circuit_output = output_bits.get_value();
 

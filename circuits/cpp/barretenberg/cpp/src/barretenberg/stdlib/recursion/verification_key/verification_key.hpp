@@ -3,7 +3,7 @@
 #include "barretenberg/srs/reference_string/reference_string.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 
-#include "barretenberg/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 
 #include "barretenberg/plonk/proof_system/utils/kate_verification.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
@@ -21,7 +21,7 @@
 #include "../../hash/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/curves/bn254.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace recursion {
 
@@ -107,7 +107,7 @@ template <typename Composer> struct evaluation_domain {
 template <typename Curve> struct verification_key {
     using Composer = typename Curve::Composer;
     static std::shared_ptr<verification_key> from_witness(Composer* ctx,
-                                                          const std::shared_ptr<bonk::verification_key>& input_key)
+                                                          const std::shared_ptr<plonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         // Native data:
@@ -129,7 +129,7 @@ template <typename Curve> struct verification_key {
     }
 
     static std::shared_ptr<verification_key> from_constants(Composer* ctx,
-                                                            const std::shared_ptr<bonk::verification_key>& input_key)
+                                                            const std::shared_ptr<plonk::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
         key->context = ctx;
@@ -150,7 +150,7 @@ template <typename Curve> struct verification_key {
         return key;
     }
 
-    void validate_key_is_in_set(const std::vector<std::shared_ptr<bonk::verification_key>>& keys_in_set)
+    void validate_key_is_in_set(const std::vector<std::shared_ptr<plonk::verification_key>>& keys_in_set)
     {
         const auto circuit_key_compressed = compress();
         bool found = false;
@@ -213,7 +213,7 @@ template <typename Curve> struct verification_key {
         return compressed_key;
     }
 
-    barretenberg::fr compress_native(const std::shared_ptr<bonk::verification_key>& key)
+    barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key)
     {
         barretenberg::fr compressed_domain = evaluation_domain<Composer>::compress_native(key->domain);
 
@@ -265,16 +265,16 @@ template <typename Curve> struct verification_key {
 
     // Native data:
 
-    std::shared_ptr<bonk::VerifierReferenceString> reference_string;
+    std::shared_ptr<VerifierReferenceString> reference_string;
 
-    bonk::PolynomialManifest polynomial_manifest;
+    PolynomialManifest polynomial_manifest;
 
     size_t program_width = 4;
 
-    std::shared_ptr<bonk::verification_key> base_key;
+    std::shared_ptr<plonk::verification_key> base_key;
     Composer* context;
 };
 
 } // namespace recursion
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

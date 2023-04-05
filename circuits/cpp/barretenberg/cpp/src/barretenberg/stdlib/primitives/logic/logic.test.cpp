@@ -8,8 +8,6 @@
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
-using namespace bonk;
-
 namespace test_stdlib_logic {
 
 namespace {
@@ -19,7 +17,7 @@ auto& engine = numeric::random::get_debug_engine();
 template <class T> void ignore_unused(T&) {} // use to ignore unused variables in lambdas
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 template <typename Composer> class stdlib_logic : public testing::Test {
     typedef stdlib::bool_t<Composer> bool_ct;

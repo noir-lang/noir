@@ -9,9 +9,8 @@
 #include "barretenberg/numeric/uintx/uintx.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
 
-namespace plonk {
+namespace proof_system::plonk {
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -780,7 +779,7 @@ TEST(ultra_plonk_composer_splitting_tmp, non_native_field_multiplication)
     const auto q_indices = get_limb_witness_indices(split_into_limbs(uint256_t(q)));
     const auto r_indices = get_limb_witness_indices(split_into_limbs(uint256_t(r)));
 
-    bonk::non_native_field_witnesses inputs{
+    non_native_field_witnesses inputs{
         a_indices, b_indices, q_indices, r_indices, modulus_limbs, fr(uint256_t(modulus)),
     };
     const auto [lo_1_idx, hi_1_idx] = composer.evaluate_non_native_field_multiplication(inputs);
@@ -914,4 +913,4 @@ TEST(ultra_plonk_composer_splitting_tmp, ram)
     EXPECT_EQ(result, true);
 }
 
-} // namespace plonk
+} // namespace proof_system::plonk

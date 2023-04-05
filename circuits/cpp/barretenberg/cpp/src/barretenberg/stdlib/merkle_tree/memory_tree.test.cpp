@@ -3,7 +3,7 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace barretenberg;
-using namespace plonk::stdlib::merkle_tree;
+using namespace proof_system::plonk::stdlib::merkle_tree;
 
 static std::vector<fr> VALUES = []() {
     std::vector<fr> values(4);

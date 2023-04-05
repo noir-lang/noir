@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 field_ct compute_nullifier(field_ct const& note_commitment,
                            field_ct const& account_private_key,
@@ -42,7 +42,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
      * eth address.
      */
     auto blake_input = byte_array_ct(compressed_inputs);
-    auto blake_result = plonk::stdlib::blake2s(blake_input);
+    auto blake_result = proof_system::plonk::stdlib::blake2s(blake_input);
     return field_ct(blake_result);
 }
 

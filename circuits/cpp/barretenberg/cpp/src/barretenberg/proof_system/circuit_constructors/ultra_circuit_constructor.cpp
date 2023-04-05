@@ -4,7 +4,7 @@
 
 using namespace barretenberg;
 
-namespace bonk {
+namespace proof_system {
 
 void UltraCircuitConstructor::finalize_circuit()
 {
@@ -2321,4 +2321,4 @@ void UltraCircuitConstructor::process_RAM_arrays(const size_t gate_offset_from_p
     }
 }
 
-} // namespace bonk
+} // namespace proof_system

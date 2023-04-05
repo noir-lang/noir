@@ -9,7 +9,7 @@
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 namespace blake2s_plookup {
@@ -21,4 +21,4 @@ extern template byte_array<plonk::UltraComposer> blake2s(const byte_array<plonk:
 } // namespace blake2s_plookup
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

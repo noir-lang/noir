@@ -3,7 +3,7 @@
 
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
-namespace bonk {
+namespace proof_system {
 
 VerifierFileReferenceString::VerifierFileReferenceString(std::string const& path)
     : precomputed_g2_lines(
@@ -20,4 +20,4 @@ VerifierFileReferenceString::~VerifierFileReferenceString()
     aligned_free(precomputed_g2_lines);
 }
 
-} // namespace bonk
+} // namespace proof_system

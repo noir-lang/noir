@@ -17,7 +17,7 @@
  * https://hackmd.io/q-A8y6aITWyWJrvsGGMWNA?view.
  *
  */
-namespace honk::pcs::ipa {
+namespace proof_system::honk::pcs::ipa {
 template <typename Params> class InnerProductArgument {
     using Fr = typename Params::Fr;
     using element = typename Params::Commitment;
@@ -66,9 +66,9 @@ template <typename Params> class InnerProductArgument {
                "The poly_degree should be positive and a power of two");
         auto& aux_generator = pub_input.aux_generator;
         auto a_vec = polynomial;
-        // TODO(#220)(Arijit): to make it more efficient by directly using G_vector for the input points when i = 0 and write the
-        // output points to G_vec_local. Then use G_vec_local for rounds where i>0, this can be done after we use SRS
-        // instead of G_vector.
+        // TODO(#220)(Arijit): to make it more efficient by directly using G_vector for the input points when i = 0 and
+        // write the output points to G_vec_local. Then use G_vec_local for rounds where i>0, this can be done after we
+        // use SRS instead of G_vector.
         auto srs_elements = ck->srs.get_monomial_points();
         std::vector<affine_element> G_vec_local(poly_degree);
         for (size_t i = 0; i < poly_degree; i++) {
@@ -251,4 +251,4 @@ template <typename Params> class InnerProductArgument {
     }
 };
 
-} // namespace honk::pcs::ipa
+} // namespace proof_system::honk::pcs::ipa

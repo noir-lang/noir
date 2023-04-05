@@ -20,13 +20,13 @@ template <typename Composer> struct verify_result {
 
     std::vector<uint8_t> proof_data;
     bool verified;
-    std::shared_ptr<bonk::verification_key> verification_key;
+    std::shared_ptr<plonk::verification_key> verification_key;
     size_t number_of_gates;
 };
 
 template <typename Composer>
 inline bool pairing_check(plonk::stdlib::recursion::recursion_output<plonk::stdlib::bn254<Composer>> recursion_output,
-                          std::shared_ptr<bonk::VerifierReferenceString> const& srs)
+                          std::shared_ptr<VerifierReferenceString> const& srs)
 {
     g1::affine_element P[2];
     P[0].x = barretenberg::fq(recursion_output.P0.x.get_value().lo);

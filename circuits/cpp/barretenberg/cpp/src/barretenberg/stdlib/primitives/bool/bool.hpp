@@ -3,7 +3,7 @@
 #include "../witness/witness.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext> class bool_t {
@@ -77,4 +77,4 @@ EXTERN_STDLIB_TYPE(bool_t);
 extern template class bool_t<honk::StandardHonkComposer>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

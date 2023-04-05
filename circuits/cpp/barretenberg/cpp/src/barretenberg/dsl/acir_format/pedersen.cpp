@@ -1,6 +1,6 @@
 #include "pedersen.hpp"
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_format {
 

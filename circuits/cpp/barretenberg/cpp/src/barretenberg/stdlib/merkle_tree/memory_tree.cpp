@@ -1,7 +1,7 @@
 #include "memory_tree.hpp"
 #include "hash.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace merkle_tree {
 
@@ -59,4 +59,4 @@ fr MemoryTree::update_element(size_t index, fr const& value)
 
 } // namespace merkle_tree
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

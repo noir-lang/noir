@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sys/stat.h>
 #include "barretenberg/common/timer.hpp"
-#include "barretenberg/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 
 #ifndef __wasm__
 #include <filesystem>
@@ -19,9 +19,9 @@ struct circuit_data {
         : num_gates(0)
     {}
 
-    std::shared_ptr<bonk::ReferenceStringFactory> srs;
-    std::shared_ptr<bonk::proving_key> proving_key;
-    std::shared_ptr<bonk::verification_key> verification_key;
+    std::shared_ptr<proof_system::ReferenceStringFactory> srs;
+    std::shared_ptr<plonk::proving_key> proving_key;
+    std::shared_ptr<plonk::verification_key> verification_key;
     size_t num_gates;
     std::vector<uint8_t> padding_proof;
     bool mock;
@@ -38,7 +38,7 @@ inline bool exists(std::string const& path)
 template <typename ComposerType, typename F>
 circuit_data get_circuit_data(std::string const& name,
                               std::string const& path_name,
-                              std::shared_ptr<bonk::ReferenceStringFactory> const& srs,
+                              std::shared_ptr<proof_system::ReferenceStringFactory> const& srs,
                               std::string const& key_path,
                               bool compute,
                               bool save,
@@ -70,12 +70,12 @@ circuit_data get_circuit_data(std::string const& name,
         Timer timer;
         build_circuit(composer);
 
-        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                    "Core",
                                                    name + name_suffix_for_benchmarks,
                                                    "Build time",
                                                    timer.toString());
-        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+        benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                    "Core",
                                                    name + name_suffix_for_benchmarks,
                                                    "Gates",
@@ -86,7 +86,7 @@ circuit_data get_circuit_data(std::string const& name,
             auto public_inputs = composer.get_public_inputs();
             mock::mock_circuit(mock_proof_composer, public_inputs);
             info(name, ": Mock circuit size: ", mock_proof_composer.get_num_gates());
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Mock Gates",
@@ -107,13 +107,13 @@ circuit_data get_circuit_data(std::string const& name,
         if (exists(pk_path) && load) {
             info(name, ": Loading proving key: ", pk_path);
             auto pk_stream = std::ifstream(pk_path);
-            bonk::proving_key_data pk_data;
+            plonk::proving_key_data pk_data;
             read_mmap(pk_stream, pk_dir, pk_data);
             data.proving_key =
-                std::make_shared<bonk::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.circuit_size + 1));
+                std::make_shared<plonk::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.circuit_size + 1));
             data.num_gates = pk_data.circuit_size;
             info(name, ": Circuit size 2^n: ", data.num_gates);
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Gates 2^n",
@@ -127,7 +127,7 @@ circuit_data get_circuit_data(std::string const& name,
                 data.proving_key = composer.compute_proving_key();
                 info(name, ": Circuit size 2^n: ", data.proving_key->circuit_size);
 
-                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                            "Core",
                                                            name + name_suffix_for_benchmarks,
                                                            "Gates 2^n",
@@ -136,7 +136,7 @@ circuit_data get_circuit_data(std::string const& name,
                 data.num_gates = mock_proof_composer.get_num_gates();
                 data.proving_key = mock_proof_composer.compute_proving_key();
                 info(name, ": Mock circuit size 2^n: ", data.proving_key->circuit_size);
-                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+                benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                            "Core",
                                                            name + name_suffix_for_benchmarks,
                                                            "Mock Gates 2^n",
@@ -145,7 +145,7 @@ circuit_data get_circuit_data(std::string const& name,
 
             info(name, ": Proving key computed in ", timer.toString(), "s");
 
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Proving key computed in",
@@ -170,12 +170,12 @@ circuit_data get_circuit_data(std::string const& name,
         if (exists(vk_path) && load) {
             info(name, ": Loading verification key from: ", vk_path);
             auto vk_stream = std::ifstream(vk_path);
-            bonk::verification_key_data vk_data;
+            plonk::verification_key_data vk_data;
             read(vk_stream, vk_data);
             data.verification_key =
-                std::make_shared<bonk::verification_key>(std::move(vk_data), data.srs->get_verifier_crs());
+                std::make_shared<plonk::verification_key>(std::move(vk_data), data.srs->get_verifier_crs());
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Verification key hash",
@@ -191,13 +191,13 @@ circuit_data get_circuit_data(std::string const& name,
             }
             info(name, ": Computed verification key in ", timer.toString(), "s");
 
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Verification key computed in",
                                                        timer.toString());
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Verification key hash",
@@ -246,7 +246,7 @@ circuit_data get_circuit_data(std::string const& name,
                 info(name, ": Padding verified: ", verifier.verify_proof(proof));
             }
             info(name, ": Padding proof computed in ", timer.toString(), "s");
-            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(ComposerType),
+            benchmark_collator.benchmark_info_deferred(GET_COMPOSER_NAME_STRING(proof_system::ComposerType),
                                                        "Core",
                                                        name + name_suffix_for_benchmarks,
                                                        "Padding proof computed in",

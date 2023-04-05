@@ -1,9 +1,7 @@
 #pragma once
 #include "composer_base.hpp"
 
-using namespace bonk;
-
-namespace plonk {
+namespace proof_system::plonk {
 class TurboComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::TURBO;
@@ -229,8 +227,8 @@ class CheckGetter {
     }
 };
 
-using TurboArithmeticChecker = plonk::widget::TurboArithmeticKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboRangeChecker = plonk::widget::TurboRangeKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboLogicChecker = plonk::widget::TurboLogicKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-using TurboFixedBaseChecker = plonk::widget::TurboFixedBaseKernel<barretenberg::fr, CheckGetter, TurboComposer>;
-} // namespace plonk
+using TurboArithmeticChecker = widget::TurboArithmeticKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboRangeChecker = widget::TurboRangeKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboLogicChecker = widget::TurboLogicKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboFixedBaseChecker = widget::TurboFixedBaseKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+} // namespace proof_system::plonk

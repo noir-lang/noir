@@ -30,8 +30,8 @@ FastRandom VarianceRNG(0);
  */
 template <typename Composer> class BitArrayFuzzBase {
   private:
-    typedef plonk::stdlib::bit_array<Composer> bit_array_t;
-    typedef plonk::stdlib::byte_array<Composer> byte_array_t;
+    typedef proof_system::plonk::stdlib::bit_array<Composer> bit_array_t;
+    typedef proof_system::plonk::stdlib::byte_array<Composer> byte_array_t;
     template <size_t NumBytes, size_t NumWords>
     static std::vector<uint8_t> to_vector(std::array<plonk::stdlib::uint32<Composer>, NumWords>& a32)
     {

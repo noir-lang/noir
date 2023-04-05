@@ -6,9 +6,9 @@
 #include "../../primitives/plookup/plookup.hpp"
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
-typedef plonk::UltraComposer Composer;
+typedef proof_system::plonk::UltraComposer Composer;
 typedef stdlib::byte_array<Composer> byte_array;
 typedef stdlib::public_witness_t<Composer> public_witness_t;
 typedef stdlib::field_t<Composer> field_ct;

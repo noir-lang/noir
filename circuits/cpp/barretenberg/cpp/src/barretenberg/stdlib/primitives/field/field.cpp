@@ -4,9 +4,9 @@
 #include "../composers/composers.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext>
@@ -981,7 +981,7 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
      *
      * If num elements is not a multiple of 3, the final gate will be padded with zero_idx wires
      **/
-    if constexpr (ComposerContext::type == plonk::PLOOKUP) {
+    if constexpr (ComposerContext::type == ComposerType::PLOOKUP) {
         ComposerContext* ctx = nullptr;
         std::vector<field_t> accumulator;
         field_t constant_term = 0;
@@ -1039,7 +1039,7 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
             accumulating_total = witness_t<ComposerContext>(ctx, new_total);
         }
         return total.normalize();
-    } else if constexpr (ComposerContext::type == plonk::TURBO) {
+    } else if constexpr (ComposerContext::type == ComposerType::TURBO) {
 
         field_t total(0);
         bool odd_number = (input.size() & 0x01UL) == 0x01ULL;
@@ -1180,4 +1180,4 @@ std::vector<bool_t<ComposerContext>> field_t<ComposerContext>::decompose_into_bi
 INSTANTIATE_STDLIB_TYPE(field_t);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

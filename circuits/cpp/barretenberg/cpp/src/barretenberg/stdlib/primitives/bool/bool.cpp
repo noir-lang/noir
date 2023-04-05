@@ -3,9 +3,9 @@
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
 using namespace barretenberg;
-using namespace bonk;
+using namespace proof_system;
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerContext>
@@ -474,4 +474,4 @@ template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerConte
 INSTANTIATE_STDLIB_TYPE(bool_t);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -46,7 +46,7 @@
  * The verifier is able to computed the simulated commitments to A₀₊(X) and A₀₋(X)
  * since they are linear-combinations of the commitments [fⱼ] and [gⱼ].
  */
-namespace honk::pcs::gemini {
+namespace proof_system::honk::pcs::gemini {
 
 /**
  * @brief Prover output (evalutation pair, witness) that can be passed on to Shplonk batch opening.
@@ -346,4 +346,4 @@ template <typename Params> class MultilinearReductionScheme {
         return { C0_r_pos, C0_r_neg };
     };
 };
-} // namespace honk::pcs::gemini
+} // namespace proof_system::honk::pcs::gemini

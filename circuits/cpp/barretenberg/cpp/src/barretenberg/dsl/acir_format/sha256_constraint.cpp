@@ -2,7 +2,7 @@
 #include "round.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 
-using namespace plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_format {
 
@@ -30,7 +30,7 @@ void create_sha256_constraints(Composer& composer, const Sha256Constraint& const
     }
 
     // Compute sha256
-    byte_array_ct output_bytes = plonk::stdlib::sha256<Composer>(arr);
+    byte_array_ct output_bytes = proof_system::plonk::stdlib::sha256<Composer>(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();

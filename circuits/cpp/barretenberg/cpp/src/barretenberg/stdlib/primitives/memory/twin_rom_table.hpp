@@ -2,7 +2,7 @@
 #include "../composers/composers_fwd.hpp"
 #include "../field/field.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 // A runtime-defined read-only memory table. Table entries must be initialized in the constructor.
@@ -46,4 +46,4 @@ template <typename Composer> class twin_rom_table {
 EXTERN_STDLIB_ULTRA_TYPE(twin_rom_table);
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -548,4 +548,4 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     return naf_entries;
 }
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

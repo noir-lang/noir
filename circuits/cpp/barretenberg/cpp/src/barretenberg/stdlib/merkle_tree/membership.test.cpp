@@ -6,8 +6,8 @@
 #include "barretenberg/stdlib/types/types.hpp"
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types;
-using namespace plonk::stdlib::merkle_tree;
+using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib::merkle_tree;
 
 TEST(stdlib_merkle_tree, test_check_membership)
 {

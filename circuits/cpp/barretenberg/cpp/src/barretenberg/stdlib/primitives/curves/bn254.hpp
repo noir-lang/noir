@@ -4,11 +4,11 @@
 #include "../biggroup/biggroup.hpp"
 #include "../field/field.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename ComposerType> struct bn254 {
-    static constexpr bonk::CurveType type = bonk::CurveType::BN254;
+    static constexpr proof_system::CurveType type = proof_system::CurveType::BN254;
 
     typedef barretenberg::fq fq;
     typedef barretenberg::fr fr;
@@ -29,4 +29,4 @@ template <typename ComposerType> struct bn254 {
 
 }; // namespace bn254
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

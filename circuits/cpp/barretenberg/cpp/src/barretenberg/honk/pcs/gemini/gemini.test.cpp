@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <span>
 
-namespace honk::pcs::gemini {
+namespace proof_system::honk::pcs::gemini {
 
 template <class Params> class GeminiTest : public CommitmentTest<Params> {
     using Gemini = MultilinearReductionScheme<Params>;
@@ -237,4 +237,4 @@ TYPED_TEST(GeminiTest, DoubleWithShift)
                                            multilinear_commitments_to_be_shifted);
 }
 
-} // namespace honk::pcs::gemini
+} // namespace proof_system::honk::pcs::gemini

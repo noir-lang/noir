@@ -2,7 +2,7 @@
 
 #include <array>
 #include <vector>
-namespace honk::sumcheck {
+namespace proof_system::honk::sumcheck {
 
 /**
  * @brief Contains the multi-linear evaluations of the polynomials at the challenge point 'u'.
@@ -16,4 +16,4 @@ template <typename FF> struct SumcheckOutput {
 
     bool operator==(const SumcheckOutput& other) const = default;
 };
-} // namespace honk::sumcheck
+} // namespace proof_system::honk::sumcheck

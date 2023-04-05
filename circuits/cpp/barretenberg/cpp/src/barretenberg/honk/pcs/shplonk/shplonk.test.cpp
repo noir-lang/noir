@@ -10,7 +10,7 @@
 #include "../commitment_key.test.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-namespace honk::pcs::shplonk {
+namespace proof_system::honk::pcs::shplonk {
 template <class Params> class ShplonkTest : public CommitmentTest<Params> {};
 
 TYPED_TEST_SUITE(ShplonkTest, CommitmentSchemeParams);
@@ -63,4 +63,4 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
 }
-} // namespace honk::pcs::shplonk
+} // namespace proof_system::honk::pcs::shplonk

@@ -1,10 +1,10 @@
 #pragma once
 #include <array>
 #include "circuit_constructor_base.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/proof_system/types/composer_type.hpp"
 
-namespace bonk {
+namespace proof_system {
 
 inline std::vector<std::string> turbo_selector_names()
 {
@@ -32,7 +32,7 @@ class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::T
     std::vector<barretenberg::fr>& q_range = std::get<9>(selectors);
     std::vector<barretenberg::fr>& q_logic = std::get<10>(selectors);
 
-    static constexpr plonk::ComposerType type = plonk::ComposerType::TURBO;
+    static constexpr ComposerType type = ComposerType::TURBO;
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     TurboCircuitConstructor(const size_t size_hint = 0);
@@ -114,4 +114,4 @@ class TurboCircuitConstructor : public CircuitConstructorBase<arithmetization::T
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variable_indices;
 };
-} // namespace bonk
+} // namespace proof_system

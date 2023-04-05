@@ -9,11 +9,11 @@
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 class UltraComposer;
-} // namespace plonk
+} // namespace proof_system::plonk
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 namespace sha256_plookup {
 
@@ -88,4 +88,4 @@ std::array<field_t<plonk::UltraComposer>, 8> sha256_block(const std::array<field
 packed_byte_array<plonk::UltraComposer> sha256(const packed_byte_array<plonk::UltraComposer>& input);
 } // namespace sha256_plookup
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

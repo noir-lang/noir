@@ -25,37 +25,39 @@
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/dynamic_array.hpp"
 
-namespace plonk::stdlib::types {
+namespace proof_system::plonk::stdlib::types {
 
-using namespace plonk;
-static constexpr size_t SYSTEM_COMPOSER = plonk::SYSTEM_COMPOSER;
+using namespace proof_system::plonk;
+static constexpr size_t SYSTEM_COMPOSER = proof_system::plonk::SYSTEM_COMPOSER;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == plonk::STANDARD,
+    SYSTEM_COMPOSER == proof_system::STANDARD,
     plonk::StandardComposer,
-    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboComposer, plonk::UltraComposer>>
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboComposer, plonk::UltraComposer>>
     Composer;
 
-typedef std::conditional_t<SYSTEM_COMPOSER == plonk::STANDARD,
-                           plonk::Prover,
-                           std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver>>
+typedef std::conditional_t<
+    SYSTEM_COMPOSER == proof_system::STANDARD,
+    plonk::Prover,
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboProver, plonk::UltraProver>>
     Prover;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == plonk::STANDARD,
+    SYSTEM_COMPOSER == proof_system::STANDARD,
     plonk::Verifier,
-    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
     Verifier;
 
-typedef std::conditional_t<SYSTEM_COMPOSER == plonk::STANDARD,
-                           plonk::Prover,
-                           std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboProver, plonk::UltraProver>>
+typedef std::conditional_t<
+    SYSTEM_COMPOSER == proof_system::STANDARD,
+    plonk::Prover,
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboProver, plonk::UltraProver>>
     Prover;
 
 typedef std::conditional_t<
-    SYSTEM_COMPOSER == plonk::STANDARD,
+    SYSTEM_COMPOSER == proof_system::STANDARD,
     plonk::Verifier,
-    std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
     Verifier;
 
 typedef stdlib::witness_t<Composer> witness_ct;
@@ -90,9 +92,9 @@ typedef stdlib::schnorr::signature_bits<Composer> signature_bits;
 // Ultra-composer specific types
 typedef stdlib::rom_table<plonk::UltraComposer> rom_table_ct;
 
-typedef std::conditional_t<SYSTEM_COMPOSER == plonk::TURBO,
+typedef std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO,
                            recursion::recursive_turbo_verifier_settings<bn254>,
                            recursion::recursive_ultra_verifier_settings<bn254>>
     recursive_inner_verifier_settings;
 
-} // namespace plonk::stdlib::types
+} // namespace proof_system::plonk::stdlib::types

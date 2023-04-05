@@ -3,7 +3,7 @@
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 /**
@@ -617,4 +617,4 @@ template <typename Composer> stdlib::byte_array<Composer> keccak<Composer>::hash
 template class keccak<plonk::UltraComposer>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk

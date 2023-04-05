@@ -1,5 +1,5 @@
 #include "../prover/prover.hpp"
-#include "../../../proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "../../../transcript/transcript.hpp"
@@ -14,7 +14,7 @@
 namespace verifier_helpers {
 
 using namespace barretenberg;
-using namespace plonk;
+using namespace proof_system::plonk;
 
 plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_key)
 {
@@ -40,7 +40,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
                                              state));
     }
 
-    auto crs = std::make_shared<bonk::VerifierFileReferenceString>("../srs_db/ignition");
+    auto crs = std::make_shared<VerifierFileReferenceString>("../srs_db/ignition");
     std::shared_ptr<verification_key> circuit_verification_key =
         std::make_shared<verification_key>(circuit_proving_key->circuit_size,
                                            circuit_proving_key->num_public_inputs,
@@ -76,8 +76,8 @@ plonk::Prover generate_test_data(const size_t n)
 
     // even indices = mul gates, odd incides = add gates
 
-    auto crs = std::make_shared<bonk::FileReferenceString>(n + 1, "../srs_db/ignition");
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, plonk::STANDARD);
+    auto crs = std::make_shared<FileReferenceString>(n + 1, "../srs_db/ignition");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs, ComposerType::STANDARD);
 
     polynomial w_l(n);
     polynomial w_r(n);

@@ -5,7 +5,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 
-namespace plonk {
+namespace proof_system::plonk {
 namespace stdlib {
 
 template <typename Composer> class packed_byte_array {
@@ -69,4 +69,4 @@ EXTERN_STDLIB_TYPE(packed_byte_array);
 extern template class packed_byte_array<honk::StandardHonkComposer>;
 
 } // namespace stdlib
-} // namespace plonk
+} // namespace proof_system::plonk
