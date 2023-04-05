@@ -62,13 +62,25 @@ fn create_input_toml_template(
     parameters: Vec<AbiParameter>,
     return_type: Option<AbiType>,
 ) -> String {
-    let default_value = |typ: AbiType| -> toml::Value {
-        if matches!(typ, AbiType::Array { .. }) {
-            toml::Value::Array(Vec::new())
-        } else {
-            toml::Value::String("".to_owned())
+    /// Returns a default placeholder `toml::Value` for `typ` which
+    /// complies with the structure of the specified `AbiType`.
+    fn default_value(typ: AbiType) -> toml::Value {
+        match typ {
+            AbiType::Array { length, typ } => {
+                let default_value_vec = std::iter::repeat(default_value(*typ))
+                    .take(length.try_into().unwrap())
+                    .collect();
+                toml::Value::Array(default_value_vec)
+            }
+            AbiType::Struct { fields } => {
+                let default_value_map = toml::map::Map::from_iter(
+                    fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
+                );
+                toml::Value::Table(default_value_map)
+            }
+            _ => toml::Value::String("".to_owned()),
         }
-    };
+    }
 
     let mut map =
         btree_map(parameters, |AbiParameter { name, typ, .. }| (name, default_value(typ)));
@@ -82,11 +94,54 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::BTreeMap, path::PathBuf};
 
+    use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
 
+    use super::create_input_toml_template;
+
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
+
+    #[test]
+    fn valid_toml_template() {
+        let typed_param = |name: &str, typ: AbiType| AbiParameter {
+            name: name.to_string(),
+            typ,
+            visibility: AbiVisibility::Public,
+        };
+        let parameters = vec![
+            typed_param("a", AbiType::Field),
+            typed_param("b", AbiType::Integer { sign: Sign::Unsigned, width: 32 }),
+            typed_param("c", AbiType::Array { length: 2, typ: Box::new(AbiType::Field) }),
+            typed_param(
+                "d",
+                AbiType::Struct {
+                    fields: BTreeMap::from([
+                        (String::from("d1"), AbiType::Field),
+                        (
+                            String::from("d2"),
+                            AbiType::Array { length: 3, typ: Box::new(AbiType::Field) },
+                        ),
+                    ]),
+                },
+            ),
+            typed_param("e", AbiType::Boolean),
+        ];
+
+        let toml_str = create_input_toml_template(parameters, None);
+
+        let expected_toml_str = r#"a = ""
+b = ""
+c = ["", ""]
+e = ""
+
+[d]
+d1 = ""
+d2 = ["", "", ""]
+"#;
+        assert_eq!(toml_str, expected_toml_str);
+    }
 
     #[test]
     fn pass() {
