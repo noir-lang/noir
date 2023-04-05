@@ -48,6 +48,10 @@ export class Fr {
   isZero() {
     return this.value === 0n;
   }
+
+  toFriendlyJSON() {
+    return this.toString();
+  }
 }
 
 export class Fq {
@@ -81,5 +85,9 @@ export class Fq {
 
   isZero() {
     return this.value === 0n;
+  }
+
+  toFriendlyJSON() {
+    return this.toString();
   }
 }
