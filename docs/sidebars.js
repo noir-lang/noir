@@ -15,7 +15,14 @@
 const sidebars = {
   docsSidebar: [
     "intro",
-    "aztec3",
+    {
+      type: 'category',
+      label: 'Aztec 3',
+      items: [
+        'aztec3/overview',
+        'aztec3/architecture'
+      ]
+    },
     "noir",
     "aztec-connect-sunset",
     "glossary",
