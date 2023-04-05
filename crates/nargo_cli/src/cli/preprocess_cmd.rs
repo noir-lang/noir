@@ -8,7 +8,7 @@ use crate::{constants::TARGET_DIR, errors::CliError};
 
 use super::fs::{
     keys::save_key_to_dir,
-    program::{hash_acir, read_program_from_file, save_acir_hash_to_dir},
+    program::{checksum_acir, read_program_from_file, save_acir_checksum_to_dir},
 };
 use super::NargoConfig;
 
@@ -38,16 +38,16 @@ pub(crate) fn run(args: PreprocessCommand, config: NargoConfig) -> Result<(), Cl
 pub(crate) struct PreprocessedData {
     pub(crate) proving_key: Vec<u8>,
     pub(crate) verification_key: Vec<u8>,
-    pub(crate) program_hash: [u8; 32],
+    pub(crate) program_checksum: [u8; 4],
 }
 
 impl From<&Circuit> for PreprocessedData {
     fn from(circuit: &Circuit) -> Self {
         let backend = crate::backends::ConcreteBackend;
         let (proving_key, verification_key) = backend.preprocess(circuit);
-        let program_hash = hash_acir(circuit);
+        let program_checksum = checksum_acir(circuit);
 
-        PreprocessedData { proving_key, verification_key, program_hash }
+        PreprocessedData { proving_key, verification_key, program_checksum }
     }
 }
 
@@ -58,7 +58,7 @@ pub(crate) fn save_preprocess_data<P: AsRef<Path>>(
 ) -> Result<(PathBuf, PathBuf), CliError> {
     // Save a checksum of the circuit to compare against during proving and verification.
     // If hash doesn't match then the circuit has been updated and keys are stale.
-    save_acir_hash_to_dir(data.program_hash, key_name, &preprocess_dir);
+    save_acir_checksum_to_dir(data.program_checksum, key_name, &preprocess_dir);
 
     let pk_path = save_key_to_dir(&data.proving_key, key_name, &preprocess_dir, true)?;
     let vk_path = save_key_to_dir(&data.verification_key, key_name, preprocess_dir, false)?;
