@@ -15,8 +15,7 @@ template <typename NCT> struct NullifierLeafPreimage {
     typedef typename NCT::uint32 uint32;
 
     fr leaf_value;
-    // TODO: update to NCT once we get hashing parity
-    stdlib::merkle_tree::index_t next_index;
+    uint32 next_index;
     fr next_value;
 
     bool operator==(NullifierLeafPreimage<NCT> const&) const = default;

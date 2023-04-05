@@ -195,7 +195,7 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
                   witness_array.begin());
 
         MembershipWitness<NT, NULLIFIER_TREE_HEIGHT> witness = {
-            .leaf_index = uint32_t(new_nullifier_leave_indexes[i]),
+            .leaf_index = NT::uint32(new_nullifier_leave_indexes[i]),
             .sibling_path = witness_array,
         };
         new_membership_witnesses[i] = witness;
@@ -203,7 +203,7 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
         // Create circuit compatible preimages - issue created to remove this step
         NullifierLeafPreimage<NT> preimage = {
             .leaf_value = new_nullifier_leaves_preimages[i].value,
-            .next_index = new_nullifier_leaves_preimages[i].nextIndex,
+            .next_index = NT::uint32(new_nullifier_leaves_preimages[i].nextIndex),
             .next_value = new_nullifier_leaves_preimages[i].nextValue,
         };
         new_nullifier_leaves[i] = preimage;
