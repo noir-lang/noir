@@ -112,7 +112,6 @@ export class Sequencer {
       // P2P client is responsible for ensuring this tx is eligible (proof ok, not mined yet, etc)
       const [tx] = await this.p2pClient.getTxs();
       if (!tx) {
-        this.log(`No txs in the mempool for a new block`);
         return;
       } else {
         this.log(`Processing tx ${tx.txHash.toString()}`);

@@ -77,10 +77,9 @@ describe('e2e_deploy_contract', () => {
   }, 30_000);
 
   /**
-   * Currently not passing as the rollup contract gets a state root hash that doesn't match the one
-   * generated locally by the sequencer, due to mismatches in the nullifier tree.
+   * Verify that we can produce multiple rollups
    */
-  it.skip('should deploy one contract after another', async () => {
+  it('should deploy one contract after another in consecutive rollups', async () => {
     const deployer = new ContractDeployer(abi, aztecRpcServer);
 
     for (let index = 0; index < 2; index++) {
