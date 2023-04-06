@@ -1,7 +1,7 @@
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { P2P } from '@aztec/p2p';
 import { WorldStateSynchroniser } from '@aztec/world-state';
-import { getL1Publisher, L1Publisher, Sequencer, SequencerClientConfig } from '../index.js';
+import { getL1Publisher, Sequencer, SequencerClientConfig } from '../index.js';
 
 /**
  * Encapsulates the full sequencer and publisher.

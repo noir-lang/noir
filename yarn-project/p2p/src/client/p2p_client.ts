@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation';
-import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
-import { createTxHashes, Tx, TxHash } from '@aztec/tx';
+import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
+import { Tx, TxHash } from '@aztec/tx';
 
 import { TxPool } from '../tx_pool/index.js';
 import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
@@ -256,7 +256,8 @@ export class P2PClient implements P2P {
    */
   private reconcileTxPool(blocks: L2Block[]): Promise<void> {
     for (let i = 0; i < blocks.length; i++) {
-      const txHashes = createTxHashes(blocks[i]);
+      const blockContext = new L2BlockContext(blocks[i]);
+      const txHashes = blockContext.getTxHashes();
       for (const txHash of txHashes) {
         this.log(`Deleting tx hash ${txHash.toString()} from tx pool`);
       }

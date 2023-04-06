@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation';
+import { Fr, keccak } from '@aztec/foundation';
 import {
   AppendOnlyTreeSnapshot,
   KERNEL_NEW_COMMITMENTS_LENGTH,
@@ -8,6 +8,7 @@ import {
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { ContractData } from './contract_data.js';
+import { TxHash } from '@aztec/tx';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -200,6 +201,39 @@ export class L2Block {
       newContracts,
       newContractData,
     );
+  }
+
+  /**
+   * Generates transaction hash for the ith transaction in an L2 block.
+   * @param block - The L2 block.
+   * @param txIndex - The index of the tx in the block.
+   * @returns TxHash of the tx.
+   */
+  getTxHash(txIndex: number): TxHash {
+    const dataToHash = Buffer.concat(
+      [
+        this.newCommitments
+          .slice(
+            txIndex * KERNEL_NEW_COMMITMENTS_LENGTH,
+            txIndex * KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_COMMITMENTS_LENGTH,
+          )
+          .map(x => x.toBuffer()),
+        this.newNullifiers
+          .slice(
+            txIndex * KERNEL_NEW_NULLIFIERS_LENGTH,
+            txIndex * KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH,
+          )
+          .map(x => x.toBuffer()),
+        // Keep this in sync with createTxHash
+        this.newContractData
+          .slice(
+            txIndex * KERNEL_NEW_CONTRACTS_LENGTH,
+            txIndex * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH,
+          )
+          .map(x => serializeToBuffer(x.aztecAddress, x.ethAddress)),
+      ].flat(),
+    );
+    return new TxHash(keccak(dataToHash));
   }
 
   /**

@@ -1,19 +1,19 @@
 {
-  "name": "@aztec/aztec-rpc",
+  "name": "@aztec/unverified-data",
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "Wallet",
+    "displayName": "Unverified Data",
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
     "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
-    "build": "tsc -b tsconfig.dest.json",
+    "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
-    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 10 ./src",
+    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 31 ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
   },
   "jest": {
@@ -31,19 +31,8 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/acir-simulator": "workspace:^",
-    "@aztec/aztec-node": "workspace:^",
-    "@aztec/barretenberg.js": "workspace:^",
-    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/kernel-prover": "workspace:^",
-    "@aztec/l2-block": "workspace:^",
-    "@aztec/noir-contracts": "workspace:^",
-    "@aztec/tx": "workspace:^",
-    "@aztec/unverified-data": "workspace:^",
-    "browserify-cipher": "^1.0.1",
-    "sha3": "^2.1.4",
-    "tslib": "^2.4.0"
+    "tslib": "^2.5.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.4.3",
@@ -51,6 +40,7 @@
     "@types/jest": "^29.4.0",
     "@types/node": "^18.7.23",
     "jest": "^28.1.3",
+    "jest-mock-extended": "^3.0.3",
     "ts-jest": "^28.0.7",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5"

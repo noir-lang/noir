@@ -1,9 +1,10 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import { AztecAddress, createDebugLogger, Fr, keccak, Point } from '@aztec/foundation';
-import { L2Block, UnverifiedData } from '@aztec/l2-block';
-import { getTxHash } from '@aztec/tx';
+import { AztecAddress, createDebugLogger, Fr, Point } from '@aztec/foundation';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
+import { L2BlockContext } from '@aztec/l2-block';
+import { UnverifiedData } from '@aztec/unverified-data';
 import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
 
@@ -57,78 +58,111 @@ export class AccountState {
     return new UnverifiedData(chunks);
   }
 
-  public async processUnverifiedData(unverifiedData: UnverifiedData[], from: number, take: number): Promise<void> {
-    const decrypted: { blockNo: number; txIndices: number[]; txAuxDataDaos: TxAuxDataDao[] }[] = [];
-    const toBlockNo = from + unverifiedData.length - 1;
-    let dataStartIndex = (from - 1) * this.TXS_PER_BLOCK * KERNEL_NEW_COMMITMENTS_LENGTH;
-    for (let blockNo = from; blockNo <= toBlockNo; ++blockNo) {
-      const dataChunks = unverifiedData[blockNo - from].dataChunks;
+  public async process(l2BlockContexts: L2BlockContext[], unverifiedDatas: UnverifiedData[]): Promise<void> {
+    if (l2BlockContexts.length !== unverifiedDatas.length) {
+      throw new Error(
+        `Number of blocks and unverifiedData is not equal. Received ${l2BlockContexts.length} blocks, ${unverifiedDatas.length} unverified data.`,
+      );
+    }
+    if (!l2BlockContexts.length) {
+      return;
+    }
+
+    let dataStartIndex =
+      (l2BlockContexts[0].block.number - INITIAL_L2_BLOCK_NUM) * this.TXS_PER_BLOCK * KERNEL_NEW_COMMITMENTS_LENGTH;
+    // We will store all the decrypted data in this array so that we can later batch insert it all into the database.
+    const blocksAndTxAuxData: {
+      blockContext: L2BlockContext;
+      userPertainingTxIndices: number[];
+      txAuxDataDaos: TxAuxDataDao[];
+    }[] = [];
+
+    // Iterate over both blocks and unverified data.
+    for (let i = 0; i < unverifiedDatas.length; ++i) {
+      const dataChunks = unverifiedDatas[i].dataChunks;
+
+      // Try decrypting the unverified data.
       const txIndices: Set<number> = new Set();
       const txAuxDataDaos: TxAuxDataDao[] = [];
-      for (let i = 0; i < dataChunks.length; ++i) {
-        const txAuxData = TxAuxData.fromEncryptedBuffer(dataChunks[i], this.privKey, this.grumpkin);
+      for (let j = 0; j < dataChunks.length; ++j) {
+        const txAuxData = TxAuxData.fromEncryptedBuffer(dataChunks[j], this.privKey, this.grumpkin);
         if (txAuxData) {
-          const txIndex = Math.floor(i / KERNEL_NEW_COMMITMENTS_LENGTH);
+          // We have successfully decrypted the data.
+          const txIndex = Math.floor(j / KERNEL_NEW_COMMITMENTS_LENGTH);
           txIndices.add(txIndex);
           txAuxDataDaos.push({
             ...txAuxData,
             nullifier: Fr.random(), // TODO
-            index: dataStartIndex + i,
+            index: dataStartIndex + j,
           });
         }
       }
 
-      if (txIndices.size) {
-        decrypted.push({ blockNo, txIndices: [...txIndices], txAuxDataDaos });
-        this.log(`Decrypted ${txIndices.size} tx aux data in block ${blockNo}.`);
-      } else {
-        this.log(`No tx aux data found in block ${blockNo}`);
-      }
-
+      blocksAndTxAuxData.push({
+        blockContext: l2BlockContexts[i],
+        userPertainingTxIndices: [...txIndices],
+        txAuxDataDaos,
+      });
       dataStartIndex += dataChunks.length;
     }
 
-    if (decrypted.length) {
-      const txAuxDataDaos = decrypted.map(({ txAuxDataDaos }) => txAuxDataDaos);
-      await this.db.addTxAuxDataBatch(txAuxDataDaos.flat());
+    await this.processBlocksAndTxAuxData(blocksAndTxAuxData);
 
-      const blocks = await this.node.getBlocks(from, take);
-      const targetBlocks = decrypted.map(({ blockNo }) => blocks.find(b => b.number === blockNo)!);
-      const txIndices = decrypted.map(({ txIndices }) => txIndices);
-      await this.processBlocks(targetBlocks, txIndices, txAuxDataDaos);
-    }
-
-    this.syncedToBlock = toBlockNo;
+    this.syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
+    this.log(`Synched block ${this.syncedToBlock}`);
   }
 
-  private async processBlocks(blocks: L2Block[], txIndices: number[][], txAuxDataDaos: TxAuxDataDao[][]) {
+  private async processBlocksAndTxAuxData(
+    blocksAndTxAuxData: {
+      blockContext: L2BlockContext;
+      userPertainingTxIndices: number[];
+      txAuxDataDaos: TxAuxDataDao[];
+    }[],
+  ) {
+    const txAuxDataDaosBatch: TxAuxDataDao[] = [];
     const txDaos: TxDao[] = [];
-    for (let i = 0; i < blocks.length; ++i) {
-      const block = blocks[i];
-      txIndices[i].map((txIndex, j) => {
-        const txHash = getTxHash(block, txIndex);
-        this.log(`Processing tx ${txHash.toString()} from block ${block.number}`);
-        const txAuxData = txAuxDataDaos[i][j];
+    for (let i = 0; i < blocksAndTxAuxData.length; ++i) {
+      const { blockContext, userPertainingTxIndices, txAuxDataDaos } = blocksAndTxAuxData[i];
+
+      // Process all the user pertaining txs.
+      userPertainingTxIndices.map((userPertainingTxIndex, j) => {
+        const txHash = blockContext.getTxHash(userPertainingTxIndex);
+        this.log(`Processing tx ${txHash!.toString()} from block ${blockContext.block.number}`);
+        const txAuxData = txAuxDataDaos[j];
         const isContractDeployment = true; // TODO
         const [to, contractAddress] = isContractDeployment
           ? [undefined, txAuxData.contractAddress]
           : [txAuxData.contractAddress, undefined];
         txDaos.push({
           txHash,
-          blockHash: keccak(block.encode()),
-          blockNumber: block.number,
+          blockHash: blockContext.getBlockHash(),
+          blockNumber: blockContext.block.number,
           from: this.address,
           to,
           contractAddress,
           error: '',
         });
       });
+      txAuxDataDaosBatch.push(...txAuxDataDaos);
+
+      // Ensure all the other txs are updated with newly settled block info.
+      await this.updateBlockInfoInBlockTxs(blockContext);
     }
-    await this.db.addTxs(txDaos);
+    if (txAuxDataDaosBatch.length) await this.db.addTxAuxDataBatch(txAuxDataDaosBatch);
+    if (txDaos.length) await this.db.addTxs(txDaos);
   }
 
-  // TODO: Remove in favor of processUnverifiedData advancing this pointer
-  public syncToBlock(block: { number: number }) {
-    this.syncedToBlock = block.number;
+  private async updateBlockInfoInBlockTxs(blockContext: L2BlockContext) {
+    for (const txHash of blockContext.getTxHashes()) {
+      const txDao: TxDao | undefined = await this.db.getTx(txHash);
+      if (txDao !== undefined) {
+        txDao.blockHash = blockContext.getBlockHash();
+        txDao.blockNumber = blockContext.block.number;
+        await this.db.addTx(txDao);
+        this.log(`Added tx with hash ${txHash.toString()} from block ${blockContext.block.number}`);
+      } else {
+        this.log(`Tx with hash ${txHash.toString()} from block ${blockContext.block.number} not found in db`);
+      }
+    }
   }
 }

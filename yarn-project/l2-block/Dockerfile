@@ -5,6 +5,9 @@ COPY circuits.js circuits.js
 COPY ethereum.js ethereum.js
 COPY foundation foundation
 COPY l1-contracts l1-contracts
+COPY tx tx
+COPY unverified-data unverified-data
+
 WORKDIR /usr/src/yarn-project/l2-block
 RUN yarn build && yarn formatting && yarn test
 

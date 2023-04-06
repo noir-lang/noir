@@ -7,6 +7,8 @@ COPY foundation foundation
 COPY circuits.js circuits.js
 COPY l1-contracts l1-contracts
 COPY l2-block l2-block
+COPY tx tx
+COPY unverified-data unverified-data
 
 WORKDIR /usr/src/yarn-project/archiver
 RUN yarn build && yarn formatting && yarn test

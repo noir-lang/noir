@@ -9,6 +9,8 @@ COPY barretenberg.js barretenberg.js
 COPY l1-contracts l1-contracts
 COPY circuits.js circuits.js
 COPY l2-block l2-block
+COPY tx tx
+COPY unverified-data unverified-data
 COPY merkle-tree merkle-tree
 
 # (3) build

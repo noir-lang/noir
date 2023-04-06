@@ -1,9 +1,9 @@
 import { EthereumRpc, TxHash, waitForTxReceipt } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
-import { UnverifiedData } from '@aztec/l2-block';
 import { TxSenderConfig } from './config.js';
 import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender } from './l1-publisher.js';
+import { UnverifiedData } from '@aztec/unverified-data';
 
 /**
  * Pushes transactions to the L1 rollup contract using the custom aztec/ethereum.js library.

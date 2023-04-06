@@ -1,10 +1,11 @@
 import { AztecAddress, EthAddress, createDebugLogger } from '@aztec/foundation';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
-import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
+import { ContractData, L2Block, L2BlockSource } from '@aztec/l2-block';
 import { createPublicClient, decodeFunctionData, getAddress, Hex, hexToBytes, http, Log, PublicClient } from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
+import { UnverifiedData, UnverifiedDataSource } from '@aztec/unverified-data';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.

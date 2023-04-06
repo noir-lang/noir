@@ -36,6 +36,7 @@
     "aztec-node",
     "sequencer-client",
     "tx",
+    "unverified-data",
     "world-state"
   ],
   "prettier": "@aztec/foundation/prettier",

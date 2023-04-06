@@ -1,11 +1,11 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, createDebugLogger, InterruptableSleep, keccak } from '@aztec/foundation';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { TxHash, createTxHashes } from '@aztec/tx';
+import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
+import { TxHash } from '@aztec/tx';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
-import { L2Block } from '@aztec/l2-block';
+import { L2BlockContext } from '@aztec/l2-block';
 
 export class Synchroniser {
   private runningPromise?: Promise<void>;
@@ -20,33 +20,40 @@ export class Synchroniser {
     private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
-  public start(fromBlock = 1, take = 1, retryInterval = 1000) {
+  public start(from = 1, take = 1, retryInterval = 1000) {
     if (this.running) {
       return;
     }
 
     this.running = true;
-    let fromUnverifiedData = fromBlock;
 
     const run = async () => {
       while (this.running) {
         try {
-          // TODO: Blocks should be processed as part of getUnverifiedData
-          const blocks = await this.node.getBlocks(fromBlock, take);
-          await this.decodeBlocks(blocks);
-
-          const unverifiedData = await this.node.getUnverifiedData(fromUnverifiedData, take);
+          let unverifiedData = await this.node.getUnverifiedData(from, take);
           if (!unverifiedData.length) {
             await this.interruptableSleep.sleep(retryInterval);
             continue;
           }
 
-          this.log(`Forwarded ${unverifiedData.length} unverified data to ${this.accountStates.length} account states`);
-          for (const accountState of this.accountStates) {
-            await accountState.processUnverifiedData(unverifiedData, fromUnverifiedData, take);
+          // Note: If less than `take` unverified data is returned, then I fetch only that number of blocks.
+          const blocks = await this.node.getBlocks(from, unverifiedData.length);
+          if (blocks.length !== unverifiedData.length) {
+            // "Trim" the unverified data to match the number of blocks.
+            unverifiedData = unverifiedData.slice(0, blocks.length);
           }
 
-          fromUnverifiedData += unverifiedData.length;
+          // Wrap blocks in block contexts.
+          const blockContexts = blocks.map(block => new L2BlockContext(block));
+
+          this.log(
+            `Forwarding ${unverifiedData.length} unverified data and blocks to ${this.accountStates.length} account states`,
+          );
+          for (const accountState of this.accountStates) {
+            await accountState.process(blockContexts, unverifiedData);
+          }
+
+          from += unverifiedData.length;
         } catch (err) {
           console.log(err);
           await this.interruptableSleep.sleep(retryInterval);
@@ -90,27 +97,5 @@ export class Synchroniser {
     }
 
     return tx;
-  }
-
-  // TODO: Drop in favor of AccountState.processBlocks
-  private async decodeBlocks(l2Blocks: L2Block[]) {
-    for (const block of l2Blocks) {
-      for (const txHash of createTxHashes(block)) {
-        const txDao: TxDao | undefined = await this.db.getTx(txHash);
-        if (txDao !== undefined) {
-          txDao.blockHash = keccak(block.encode());
-          txDao.blockNumber = block.number;
-          await this.db.addTx(txDao);
-          this.log(`Added tx with hash ${txHash.toString()} from block ${block.number}`);
-        } else {
-          this.log(`Tx with hash ${txHash.toString()} from block ${block.number} not found in db`);
-        }
-      }
-
-      for (const key in this.accountStates) {
-        this.accountStates[key].syncToBlock(block);
-      }
-      this.log(`Synched block ${block.number}`);
-    }
   }
 }

@@ -1,7 +1,7 @@
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
 import { Archiver } from '@aztec/archiver';
-import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/l2-block';
+import { ContractData, L2Block, L2BlockSource } from '@aztec/l2-block';
 import { P2P, P2PClient } from '@aztec/p2p';
 import { Tx, TxHash } from '@aztec/tx';
 import { MerkleTrees, WorldStateSynchroniser, ServerWorldStateSynchroniser, MerkleTreeId } from '@aztec/world-state';
@@ -10,6 +10,7 @@ import { AztecNodeConfig } from './config.js';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { AztecAddress } from '@aztec/foundation';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { UnverifiedData, UnverifiedDataSource } from '@aztec/unverified-data';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore

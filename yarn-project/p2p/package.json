@@ -38,6 +38,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/l2-block": "workspace:^",
     "@aztec/tx": "workspace:^",
+    "@aztec/unverified-data": "workspace:^",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"
   },

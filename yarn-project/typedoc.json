@@ -17,6 +17,7 @@
     "aztec-node",
     "sequencer-client",
     "tx",
+    "unverified-data",
     "world-state",
     "merkle-tree"
   ]

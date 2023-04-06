@@ -1,13 +1,7 @@
-import {
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  PrivateKernelPublicInputs,
-  UInt8Vector
-} from '@aztec/circuits.js';
+import { PrivateKernelPublicInputs, UInt8Vector } from '@aztec/circuits.js';
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { keccak } from '@aztec/foundation';
-import { L2Block, UnverifiedData } from '@aztec/l2-block';
+import { UnverifiedData } from '@aztec/unverified-data';
 import { TxHash } from './tx_hash.js';
 
 /**
@@ -56,46 +50,4 @@ export class Tx {
     );
     return new TxHash(keccak(dataToHash));
   }
-}
-
-/**
- * Generates transaction hash for the ith transaction in an L2 block.
- * @param block - The L2 block.
- * @param txIndex - The index of the tx in the block.
- * @returns TxHash of the tx.
- */
-export function getTxHash(block: L2Block, txIndex: number) {
-  const dataToHash = Buffer.concat(
-    [
-      block.newCommitments
-        .slice(
-          txIndex * KERNEL_NEW_COMMITMENTS_LENGTH,
-          txIndex * KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_COMMITMENTS_LENGTH,
-        )
-        .map(x => x.toBuffer()),
-      block.newNullifiers
-        .slice(
-          txIndex * KERNEL_NEW_NULLIFIERS_LENGTH,
-          txIndex * KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH,
-        )
-        .map(x => x.toBuffer()),
-      // Keep this in sync with createTxHash
-      block.newContractData
-        .slice(txIndex * KERNEL_NEW_CONTRACTS_LENGTH, txIndex * KERNEL_NEW_CONTRACTS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH)
-        .map(x => serializeToBuffer(x.aztecAddress, x.ethAddress)),
-    ].flat(),
-  );
-  return new TxHash(keccak(dataToHash));
-}
-
-/**
- * Generates transaction hashes for the transactions in an L2 block.
- * @param block - The L2 block.
- * @returns An array of hashes, one for each tx.
- */
-export function createTxHashes(block: L2Block) {
-  const numTxs = Math.floor(block.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
-  return Array(numTxs)
-    .fill(0)
-    .map((_, i) => getTxHash(block, i));
 }

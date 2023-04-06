@@ -42,6 +42,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/tx": "workspace:^",
+    "@aztec/unverified-data": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "lodash.flatmap": "^4.5.0",
     "lodash.times": "^4.3.2",
