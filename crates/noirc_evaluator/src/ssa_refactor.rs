@@ -3,4 +3,5 @@
 //! into an SSA IR. This IR will consist of basic blocks and
 //! a control flow graph.
 
+mod basic_block;
 mod ir;

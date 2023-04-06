@@ -1,0 +1,31 @@
+use super::ir::instructions::{Instruction, TerminatorInstruction};
+
+/// A Basic block is a maximal collection of instructions
+/// such that there are only jumps at the end of block
+/// and one can only enter the block from the beginning.
+///
+/// This means that if one instruction is executed in a basic
+/// block, then all instructions are executed. ie single-entry single-exit.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct BasicBlock {
+    /// Arguments to the basic block.
+    phi_nodes: Vec<BlockArguments>,
+    /// Instructions in the basic block.
+    instructions: Vec<Instruction>,
+
+    /// The terminating instruction for the basic block.
+    ///
+    /// This will be a control flow instruction.
+    terminator: TerminatorInstruction,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+/// An identifier for a Basic Block.
+pub struct BasicBlockId;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+/// Arguments to the basic block.
+/// We use the modern Crane-lift strategy
+/// of representing phi nodes as basic block
+/// arguments.
+pub struct BlockArguments;
