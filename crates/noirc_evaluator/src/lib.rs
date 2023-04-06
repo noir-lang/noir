@@ -4,6 +4,7 @@
 
 mod errors;
 mod ssa;
+mod ssa_refactor;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
