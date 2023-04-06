@@ -116,10 +116,12 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf, NT::uint32 leafIndex, 
 }
 
 template <size_t N>
-void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath, NT::fr root)
+void check_membership(
+    DummyComposer& composer, NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath, NT::fr root)
 {
     auto calculatedRoot = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
-    // TODO: update tests to build the correct trees, and then -> assert(calculatedRoot == root);
+    // TODO: update tests to build the correct trees
+    composer.do_assert(calculatedRoot == root, "Membership check failed");
     (void)calculatedRoot;
     (void)root;
 }
@@ -156,7 +158,7 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
     return contracts_tree.root();
 }
 
-NT::fr calculate_commitments_subtree(BaseRollupInputs baseRollupInputs)
+NT::fr calculate_commitments_subtree(DummyComposer& composer, BaseRollupInputs baseRollupInputs)
 {
     // Leaves that will be added to the new trees
     std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH * 2> commitment_leaves;
@@ -168,7 +170,7 @@ NT::fr calculate_commitments_subtree(BaseRollupInputs baseRollupInputs)
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
 
         // Our commitments size MUST be 4 to calculate our subtrees correctly
-        assert(new_commitments.size() == 4);
+        composer.do_assert(new_commitments.size() == 4, "New commitments in kernel data must be 4");
 
         for (size_t j = 0; j < new_commitments.size(); j++) {
             // todo: batch insert
@@ -244,7 +246,7 @@ std::array<NT::fr, 2> calculate_calldata_hash(BaseRollupInputs baseRollupInputs,
  * @param constantBaseRollupData
  * @param baseRollupInputs
  */
-void perform_historical_private_data_tree_membership_checks(BaseRollupInputs baseRollupInputs)
+void perform_historical_private_data_tree_membership_checks(DummyComposer& composer, BaseRollupInputs baseRollupInputs)
 {
     // For each of the historic_private_data_tree_membership_checks, we need to do an inclusion proof
     // against the historical root provided in the rollup constants
@@ -255,11 +257,12 @@ void perform_historical_private_data_tree_membership_checks(BaseRollupInputs bas
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 
-        check_membership(leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
+        check_membership(
+            composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
     }
 }
 
-void perform_historical_contract_data_tree_membership_checks(BaseRollupInputs baseRollupInputs)
+void perform_historical_contract_data_tree_membership_checks(DummyComposer& composer, BaseRollupInputs baseRollupInputs)
 {
     auto historic_root = baseRollupInputs.constants.start_tree_of_historic_contract_tree_roots_snapshot.root;
 
@@ -268,7 +271,8 @@ void perform_historical_contract_data_tree_membership_checks(BaseRollupInputs ba
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
-        check_membership(leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
+        check_membership(
+            composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
     }
 }
 
@@ -293,7 +297,8 @@ NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_
  *
  * @returns The end nullifier tree root
  */
-AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRollupInputs baseRollupInputs)
+AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyComposer& composer,
+                                                                          BaseRollupInputs baseRollupInputs)
 {
     // LADIES AND GENTLEMEN The P L A N ( is simple )
     // 1. Get the previous nullifier set setup
@@ -360,7 +365,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
                         }
                     }
                     // if not matched, our subtree will misformed - we must reject
-                    assert(matched);
+                    composer.do_assert(matched, "Nullifier subtree is malformed");
                     _unused(matched);
 
                 } else {
@@ -369,7 +374,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
 
                     if (!(is_less_than_nullifier && is_next_greater_than)) {
                         if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
-                            assert(false);
+                            composer.do_assert(false, "Nullifier is not in the correct range");
                         }
                     }
 
@@ -381,7 +386,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
                     };
 
                     // perform membership check for the low nullifier against the original root
-                    check_membership<NULLIFIER_TREE_HEIGHT>(original_low_nullifier.hash(),
+                    check_membership<NULLIFIER_TREE_HEIGHT>(composer,
+                                                            original_low_nullifier.hash(),
                                                             witness.leaf_index,
                                                             witness.sibling_path,
                                                             current_nullifier_tree_root);
@@ -429,7 +435,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(BaseRo
     };
 }
 
-BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInputs)
+BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseRollupInputs baseRollupInputs)
 {
     // TODO: move this into a constant - calc empty nullifier_subtree hash
     // calc empty subtree root
@@ -438,7 +444,7 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInp
     // Verify the previous kernel proofs
     for (size_t i = 0; i < 2; i++) {
         NT::Proof proof = baseRollupInputs.kernel_data[i].proof;
-        assert(verify_kernel_proof(proof));
+        composer.do_assert(verify_kernel_proof(proof), "kernel proof verification failed");
     }
 
     // First we compute the contract tree leaves
@@ -453,7 +459,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInp
     // (if leaf is at index x, its parent is at index floor >> depth)
     auto leafIndexAtSubtreeDepth =
         baseRollupInputs.start_private_data_tree_snapshot.next_available_leaf_index >> (PRIVATE_DATA_SUBTREE_DEPTH);
-    check_membership(EMPTY_COMMITMENTS_SUBTREE_ROOT,
+    check_membership(composer,
+                     EMPTY_COMMITMENTS_SUBTREE_ROOT,
                      leafIndexAtSubtreeDepth,
                      baseRollupInputs.new_commitments_subtree_sibling_path,
                      baseRollupInputs.start_private_data_tree_snapshot.root);
@@ -461,7 +468,8 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInp
     // check for contracts
     auto leafIndexContractsSubtreeDepth =
         baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index >> CONTRACT_SUBTREE_DEPTH;
-    check_membership(EMPTY_CONTRACTS_SUBTREE_ROOT,
+    check_membership(composer,
+                     EMPTY_CONTRACTS_SUBTREE_ROOT,
                      leafIndexContractsSubtreeDepth,
                      baseRollupInputs.new_contracts_subtree_sibling_path,
                      baseRollupInputs.start_contract_tree_snapshot.root);
@@ -469,14 +477,15 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInp
     // check for nullifiers
     auto leafIndexNullifierSubtreeDepth =
         baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
-    check_membership(EMPTY_NULLIFIER_SUBTREE_ROOT,
+    check_membership(composer,
+                     EMPTY_NULLIFIER_SUBTREE_ROOT,
                      leafIndexNullifierSubtreeDepth,
                      baseRollupInputs.new_nullifiers_subtree_sibling_path,
                      baseRollupInputs.start_nullifier_tree_snapshot.root);
 
     // Check contracts and commitments subtrees
     NT::fr contracts_tree_subroot = calculate_contract_subtree(contract_leaves);
-    NT::fr commitments_tree_subroot = calculate_commitments_subtree(baseRollupInputs);
+    NT::fr commitments_tree_subroot = calculate_commitments_subtree(composer, baseRollupInputs);
 
     // Insert subtrees to the tree:
     auto end_private_data_tree_snapshot =
@@ -493,14 +502,14 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(BaseRollupInputs baseRollupInp
 
     // Check nullifiers and check new subtree insertion
     AppendOnlySnapshot end_nullifier_tree_snapshot =
-        check_nullifier_tree_non_membership_and_insert_to_tree(baseRollupInputs);
+        check_nullifier_tree_non_membership_and_insert_to_tree(composer, baseRollupInputs);
 
     // Calculate the overall calldata hash
     std::array<NT::fr, 2> calldata_hash = calculate_calldata_hash(baseRollupInputs, contract_leaves);
 
     // Perform membership checks that the notes provided exist within the historic trees data
-    perform_historical_private_data_tree_membership_checks(baseRollupInputs);
-    perform_historical_contract_data_tree_membership_checks(baseRollupInputs);
+    perform_historical_private_data_tree_membership_checks(composer, baseRollupInputs);
+    perform_historical_contract_data_tree_membership_checks(composer, baseRollupInputs);
 
     AggregationObject aggregation_object = aggregate_proofs(baseRollupInputs);
 

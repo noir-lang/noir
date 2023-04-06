@@ -14,7 +14,6 @@
 #include <aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp>
 #include <aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp>
 #include <aztec3/circuits/rollup/merge/native_merge_rollup_circuit.hpp>
-#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <tuple>
@@ -43,23 +42,25 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
 }
 
 template <size_t N>
-void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> const& siblingPath, NT::fr root)
+void check_membership(
+    DummyComposer& composer, NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> const& siblingPath, NT::fr root)
 {
     auto computed_root = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
-    assert(root == computed_root);
+    composer.do_assert(root == computed_root, "Membership check failed");
     (void)root;
     (void)computed_root;
 }
 
 template <size_t N>
-AppendOnlySnapshot insert_at_empty_in_snapshot_tree(AppendOnlySnapshot const& old_snapshot,
+AppendOnlySnapshot insert_at_empty_in_snapshot_tree(DummyComposer& composer,
+                                                    AppendOnlySnapshot const& old_snapshot,
                                                     std::array<NT::fr, N> const& siblingPath,
                                                     NT::fr leaf)
 {
     // check that the value is zero at the path (unused)
     // TODO: We should be able to actually skip this, because the contract will be indirectly enforce it through
     // old_snapshot.next_available_leaf_index
-    check_membership(fr::zero(), old_snapshot.next_available_leaf_index, siblingPath, old_snapshot.root);
+    check_membership(composer, fr::zero(), old_snapshot.next_available_leaf_index, siblingPath, old_snapshot.root);
 
     // Compute the new root after the update
     auto new_root = iterate_through_tree_via_sibling_path(leaf, old_snapshot.next_available_leaf_index, siblingPath);
@@ -71,7 +72,8 @@ AppendOnlySnapshot insert_at_empty_in_snapshot_tree(AppendOnlySnapshot const& ol
 //   - BaseRollupPublicInputs - where we want to put our return values
 //
 // TODO: replace auto
-RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInputs)
+RootRollupPublicInputs root_rollup_circuit(aztec3::utils::DummyComposer& composer,
+                                           RootRollupInputs const& rootRollupInputs)
 {
     // TODO: Verify the previous rollup proofs
     // TODO: Check both previous rollup vks (in previous_rollup_data) against the permitted set of kernel vks.
@@ -81,20 +83,22 @@ RootRollupPublicInputs root_rollup_circuit(RootRollupInputs const& rootRollupInp
     auto right = rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
 
     AggregationObject aggregation_object = native_merge_rollup::aggregate_proofs(left, right);
-    native_merge_rollup::assert_both_input_proofs_of_same_rollup_type(left, right);
-    native_merge_rollup::assert_both_input_proofs_of_same_height_and_return(left, right);
-    native_merge_rollup::assert_equal_constants(left, right);
-    native_merge_rollup::assert_prev_rollups_follow_on_from_each_other(left, right);
+    native_merge_rollup::assert_both_input_proofs_of_same_rollup_type(composer, left, right);
+    native_merge_rollup::assert_both_input_proofs_of_same_height_and_return(composer, left, right);
+    native_merge_rollup::assert_equal_constants(composer, left, right);
+    native_merge_rollup::assert_prev_rollups_follow_on_from_each_other(composer, left, right);
 
     // Update the historic private data tree
     AppendOnlySnapshot end_tree_of_historic_private_data_tree_roots_snapshot =
-        insert_at_empty_in_snapshot_tree(left.constants.start_tree_of_historic_private_data_tree_roots_snapshot,
+        insert_at_empty_in_snapshot_tree(composer,
+                                         left.constants.start_tree_of_historic_private_data_tree_roots_snapshot,
                                          rootRollupInputs.new_historic_private_data_tree_root_sibling_path,
                                          right.end_private_data_tree_snapshot.root);
 
     // Update the historic private data tree
     AppendOnlySnapshot end_tree_of_historic_contract_tree_roots_snapshot =
-        insert_at_empty_in_snapshot_tree(left.constants.start_tree_of_historic_contract_tree_roots_snapshot,
+        insert_at_empty_in_snapshot_tree(composer,
+                                         left.constants.start_tree_of_historic_contract_tree_roots_snapshot,
                                          rootRollupInputs.new_historic_contract_tree_root_sibling_path,
                                          right.end_contract_tree_snapshot.root);
 

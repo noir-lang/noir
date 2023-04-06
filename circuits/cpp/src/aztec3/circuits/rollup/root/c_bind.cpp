@@ -17,6 +17,7 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
+using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit;
 using aztec3::circuits::rollup::native_root_rollup::RootRollupInputs;
 using aztec3::circuits::rollup::native_root_rollup::RootRollupPublicInputs;
@@ -59,7 +60,8 @@ WASM_EXPORT size_t root_rollup__sim(uint8_t const* root_rollup_inputs_buf,
     RootRollupInputs root_rollup_inputs;
     read(root_rollup_inputs_buf, root_rollup_inputs);
 
-    RootRollupPublicInputs public_inputs = root_rollup_circuit(root_rollup_inputs);
+    DummyComposer composer = DummyComposer();
+    RootRollupPublicInputs public_inputs = root_rollup_circuit(composer, root_rollup_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;

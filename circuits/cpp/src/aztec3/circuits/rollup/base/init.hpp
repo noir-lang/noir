@@ -9,6 +9,7 @@
 #include "barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp"
 #include <aztec3/circuits/recursion/aggregator.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include "aztec3/utils/dummy_composer.hpp"
 
 #include <barretenberg/crypto/sha256/sha256.hpp>
 #include <barretenberg/stdlib/types/types.hpp>
@@ -26,6 +27,7 @@ using NT = aztec3::utils::types::NativeTypes;
 using ConstantRollupData = abis::ConstantRollupData<NT>;
 using BaseRollupInputs = abis::BaseRollupInputs<NT>;
 using BaseOrMergeRollupPublicInputs = abis::BaseOrMergeRollupPublicInputs<NT>;
+using DummyComposer = aztec3::utils::DummyComposer;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 using AggregationObject = utils::types::NativeTypes::AggregationObject;

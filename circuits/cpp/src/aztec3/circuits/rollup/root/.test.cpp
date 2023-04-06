@@ -14,6 +14,7 @@
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/merge/utils.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/dummy_composer.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
@@ -209,6 +210,7 @@ class root_rollup_tests : public ::testing::Test {
 
 TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
 {
+    utils::DummyComposer composer = utils::DummyComposer();
     std::vector<uint8_t> zero_bytes_vec(704, 0);
     auto call_data_hash_inner = sha256::sha256(zero_bytes_vec);
 
@@ -223,7 +225,8 @@ TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
     auto hash = sha256::sha256(calldata_hash_input_bytes_vec);
 
     RootRollupInputs inputs = getEmptyRootRollupInputs();
-    RootRollupPublicInputs outputs = aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(inputs);
+    RootRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(composer, inputs);
 
     std::array<fr, 2> calldata_hash_fr = outputs.calldata_hash;
     auto high_buffer = calldata_hash_fr[0].to_buffer();
@@ -242,6 +245,7 @@ TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
 
 TEST_F(root_rollup_tests, root_missing_nullifier_logic)
 {
+    utils::DummyComposer composer = utils::DummyComposer();
     MemoryTree data_tree = MemoryTree(PRIVATE_DATA_TREE_HEIGHT);
     MemoryTree contract_tree = MemoryTree(CONTRACT_TREE_HEIGHT);
 
@@ -319,14 +323,14 @@ TEST_F(root_rollup_tests, root_missing_nullifier_logic)
                                                                        .next_available_leaf_index = 1 };
 
     std::array<BaseOrMergeRollupPublicInputs, 2> base_outputs;
-    base_outputs[0] = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(base_inputs[0]);
+    base_outputs[0] = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, base_inputs[0]);
 
     // Setup the start for the second base rollup
     base_inputs[1].start_private_data_tree_snapshot = base_outputs[0].end_private_data_tree_snapshot;
     base_inputs[1].start_nullifier_tree_snapshot = base_outputs[0].end_nullifier_tree_snapshot;
     base_inputs[1].start_contract_tree_snapshot = base_outputs[0].end_contract_tree_snapshot;
 
-    base_outputs[1] = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(base_inputs[1]);
+    base_outputs[1] = aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, base_inputs[1]);
     base_inputs[1].constants = base_inputs[0].constants;
 
     PreviousRollupData<NT> r1 = {
@@ -354,7 +358,7 @@ TEST_F(root_rollup_tests, root_missing_nullifier_logic)
     };
 
     RootRollupPublicInputs outputs =
-        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(rootRollupInputs);
+        aztec3::circuits::rollup::native_root_rollup::root_rollup_circuit(composer, rootRollupInputs);
 
     // Check data trees
     ASSERT_EQ(outputs.start_private_data_tree_snapshot, base_outputs[0].start_private_data_tree_snapshot);

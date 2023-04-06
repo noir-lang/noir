@@ -7,6 +7,7 @@
 #include "aztec3/circuits/abis/rollup/root/root_rollup_public_inputs.hpp"
 #include <aztec3/circuits/recursion/aggregator.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
+#include "aztec3/utils/dummy_composer.hpp"
 
 #include <barretenberg/crypto/sha256/sha256.hpp>
 #include <barretenberg/stdlib/types/types.hpp>
@@ -17,6 +18,7 @@
 namespace aztec3::circuits::rollup::native_root_rollup {
 
 using NT = aztec3::utils::types::NativeTypes;
+using DummyComposer = aztec3::utils::DummyComposer;
 
 // Params
 using ConstantRollupData = abis::ConstantRollupData<NT>;

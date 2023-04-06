@@ -3,6 +3,7 @@
 #include "aztec3/circuits/abis/rollup/merge/merge_rollup_inputs.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/dummy_composer.hpp"
 #include "barretenberg/proof_system/verification_key/verification_key.hpp"
 #include "index.hpp"
 #include "init.hpp"
@@ -15,6 +16,7 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
+using DummyComposer = aztec3::utils::DummyComposer;
 using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
 
 using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
@@ -30,16 +32,17 @@ namespace aztec3::circuits::rollup::merge::utils {
 
 std::array<PreviousRollupData<NT>, 2> previous_rollups_with_vk_proof_that_follow_on()
 {
+    DummyComposer composer = DummyComposer();
     auto input1 = base::utils::dummy_base_rollup_inputs_with_vk_proof();
     BaseOrMergeRollupPublicInputs base_public_input1 =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(input1);
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, input1);
 
     auto input2 = input1;
     input2.start_private_data_tree_snapshot = base_public_input1.end_private_data_tree_snapshot;
     input2.start_nullifier_tree_snapshot = base_public_input1.end_nullifier_tree_snapshot;
     input2.start_contract_tree_snapshot = base_public_input1.end_contract_tree_snapshot;
     BaseOrMergeRollupPublicInputs base_public_input2 =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(input2);
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, input2);
 
     // just for mocked vk and proof
     // Need a way to extract a proof from Base Rollup Circuit. Until then use kernel as a hack.
