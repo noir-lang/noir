@@ -8,14 +8,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Cargo test
-    uses: noir-lang/.github/.github/workflows/rust-test.yml@main
+  nix:
+    name: Nix build & test - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-  clippy:
-    name: Cargo clippy
-    uses: noir-lang/.github/.github/workflows/rust-clippy.yml@main
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux
+          - os: macos-latest
+            target: x86_64-darwin
 
-  format:
-    name: Cargo fmt
-    uses: noir-lang/.github/.github/workflows/rust-format.yml@main
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cargo clippy
+        run: |
+          nix build -L .#checks.${{ matrix.target }}.cargo-clippy
+
+      - name: Cargo test
+        run: |
+          nix build -L .#checks.${{ matrix.target }}.cargo-test
