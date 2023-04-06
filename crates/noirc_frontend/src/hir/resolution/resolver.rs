@@ -347,6 +347,20 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
+            UnresolvedType::Vec(mut args, span) => {
+                let arg = if args.len() != 1 {
+                    self.push_err(ResolverError::IncorrectGenericCount {
+                        span,
+                        struct_type: "Vec".into(),
+                        actual: args.len(),
+                        expected: 1,
+                    });
+                    Type::Error
+                } else {
+                    self.resolve_type_inner(args.remove(0), new_variables)
+                };
+                Type::Vec(Box::new(arg))
+            }
         }
     }
 
@@ -390,13 +404,13 @@ impl<'a> Resolver<'a> {
                 if args.len() != expected_generic_count {
                     self.push_err(ResolverError::IncorrectGenericCount {
                         span,
-                        struct_type: struct_type.clone(),
+                        struct_type: struct_type.borrow().to_string(),
                         actual: args.len(),
                         expected: expected_generic_count,
                     });
 
                     // Fix the generic count so we can continue typechecking
-                    args.resize_with(expected_generic_count, || self.interner.next_type_variable())
+                    args.resize_with(expected_generic_count, || Type::Error)
                 }
 
                 Type::Struct(struct_type, args)
@@ -751,6 +765,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
