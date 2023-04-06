@@ -12,8 +12,10 @@ include(ExternalProject)
 # Reference barretenberg artifacts (like library archives) via this dir:
 if (WASM)
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build-wasm)
+    set(BBERG_TARGETS --target barretenberg --target env --target primitives.wasm)
 else()
     set(BBERG_BUILD_DIR ${BBERG_DIR}/build)
+    set(BBERG_TARGETS --target barretenberg --target env)
 endif()
 
 if(NOT CMAKE_BBERG_PRESET)
@@ -32,7 +34,7 @@ ExternalProject_Add(Barretenberg
     UPDATE_COMMAND ""
     INSTALL_COMMAND ""
     CONFIGURE_COMMAND ${CMAKE_COMMAND} --preset ${CMAKE_BBERG_PRESET} -DSERIALIZE_CANARY=${SERIALIZE_CANARY} -DENABLE_ASAN=${ENABLE_ASAN} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    BUILD_COMMAND ${CMAKE_COMMAND} --build --preset ${CMAKE_BBERG_PRESET} --target barretenberg --target env
+    BUILD_COMMAND ${CMAKE_COMMAND} --build --preset ${CMAKE_BBERG_PRESET} ${BBERG_TARGETS}
     # byproducts needed by ninja generator (not needed by make)
     BUILD_BYPRODUCTS ${BBERG_BUILD_DIR}/lib/libbarretenberg.a ${BBERG_BUILD_DIR}/lib/libenv.a)
 
