@@ -206,7 +206,6 @@ __metadata:
   resolution: "@aztec/circuits.js@workspace:circuits.js"
   dependencies:
     "@aztec/foundation": "workspace:^"
-    "@aztec/merkle-tree": "workspace:^"
     "@jest/globals": ^29.4.3
     "@types/detect-node": ^2.0.0
     "@types/jest": ^29.4.0

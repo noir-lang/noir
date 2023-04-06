@@ -36,7 +36,7 @@
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
-    "dependencies": []
+    "dependencies": ["aztec3-circuits-wasm-linux-clang"]
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
