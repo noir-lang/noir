@@ -1,12 +1,5 @@
-use super::value::Value;
+use super::{types::Typ, value::Value};
 use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-/// All types representable in the IR.
-pub struct Typ;
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Register;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// These are similar to built-ins in other languages.
