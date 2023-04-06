@@ -25,6 +25,8 @@ buildEnv.mkDerivation
   cmakeFlags = [
     "-DTESTING=OFF"
     "-DBENCHMARKS=OFF"
+    "-DDISABLE_ASM=ON"
+    "-DDISABLE_ADX=ON"
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}"
     "-DCMAKE_BUILD_TYPE=RelWithAssert"
   ];
