@@ -1,20 +1,22 @@
+import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation';
 import { L2Block, L2BlockContext } from '@aztec/l2-block';
+import { UnverifiedData } from '@aztec/unverified-data';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import { TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Database, MemoryDB } from '../database/index.js';
 import { ConstantKeyPair, KeyPair } from '../key_store/index.js';
 import { AccountState } from './account_state.js';
-import { UnverifiedData } from '@aztec/unverified-data';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;
   let database: Database;
+  let simulator: AcirSimulator;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addTxAuxDataBatchSpy: any;
   let accountState: AccountState;
@@ -68,7 +70,8 @@ describe('Account State', () => {
 
     const ownerPrivateKey = await owner.getPrivateKey();
     aztecNode = mock<AztecNode>();
-    accountState = new AccountState(ownerPrivateKey, database, aztecNode, grumpkin);
+    simulator = mock<AcirSimulator>();
+    accountState = new AccountState(ownerPrivateKey, database, simulator, aztecNode, grumpkin);
   });
 
   afterEach(() => {
@@ -141,6 +144,6 @@ describe('Account State', () => {
 
   it('should throw an error if invalid privKey is passed on input', () => {
     const ownerPrivateKey = Buffer.alloc(0);
-    expect(() => new AccountState(ownerPrivateKey, database, aztecNode, grumpkin)).toThrowError();
+    expect(() => new AccountState(ownerPrivateKey, database, simulator, aztecNode, grumpkin)).toThrowError();
   });
 });

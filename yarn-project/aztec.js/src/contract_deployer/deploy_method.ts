@@ -28,8 +28,8 @@ export class DeployMethod extends ContractFunctionInteraction {
       this.abi,
       this.args,
       portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
-      contractAddressSalt || Fr.random(),
-      from || AztecAddress.ZERO,
+      contractAddressSalt,
+      from,
     );
     return this.txRequest;
   }

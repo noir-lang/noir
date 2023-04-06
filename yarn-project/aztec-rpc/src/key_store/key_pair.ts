@@ -31,6 +31,7 @@ export class ConstantKeyPair implements KeyPair {
       throw new Error('Cannot sign over empty message.');
     }
 
+    // TODO - Create real signature.
     return Promise.resolve(EcdsaSignature.random());
   }
 }

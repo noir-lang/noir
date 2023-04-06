@@ -34,5 +34,7 @@ export async function createAztecRPCServer(
   acirSimulator = acirSimulator || new AcirSimulator(new SimulatorOracle(db, keyStore));
   kernelProver = kernelProver || new KernelProver();
 
-  return new AztecRPCServer(keyStore, acirSimulator, kernelProver, aztecNode, db, circuitsWasm, bbWasm);
+  const server = new AztecRPCServer(keyStore, acirSimulator, kernelProver, aztecNode, db, circuitsWasm, bbWasm);
+  await server.start();
+  return server;
 }

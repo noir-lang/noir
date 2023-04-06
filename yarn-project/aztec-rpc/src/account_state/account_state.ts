@@ -1,7 +1,8 @@
+import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
-import { AztecAddress, createDebugLogger, Fr, Point } from '@aztec/foundation';
+import { KERNEL_NEW_COMMITMENTS_LENGTH, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
+import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { L2BlockContext } from '@aztec/l2-block';
 import { UnverifiedData } from '@aztec/unverified-data';
@@ -16,6 +17,7 @@ export class AccountState {
   constructor(
     private readonly privKey: Buffer,
     private db: Database,
+    private simulator: AcirSimulator,
     private node: AztecNode,
     private grumpkin: Grumpkin,
     private TXS_PER_BLOCK = 1,
@@ -41,8 +43,40 @@ export class AccountState {
     return this.publicKey;
   }
 
+  public getAddress() {
+    return this.publicKey.toAddress();
+  }
+
   public getTxs() {
     return this.db.getTxsByAddress(this.address);
+  }
+
+  public async simulate(txRequest: TxRequest) {
+    const contractAddress = txRequest.to;
+    const contract = await this.db.getContract(txRequest.to);
+    if (!contract) {
+      throw new Error('Unknown contract.');
+    }
+
+    const selector = txRequest.functionData.functionSelector;
+    const functionDao = contract.functions.find(f => f.selector.equals(selector));
+    if (!functionDao) {
+      throw new Error('Unknown function.');
+    }
+
+    const oldRoots = new OldTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
+
+    // TODO - Pause syncing while simulating.
+    this.log(`Executing simulator...`);
+    const executionResult = await this.simulator.run(
+      txRequest,
+      functionDao,
+      contractAddress,
+      contract.portalContract,
+      oldRoots,
+    );
+
+    return { contract, oldRoots, executionResult };
   }
 
   public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]): UnverifiedData {

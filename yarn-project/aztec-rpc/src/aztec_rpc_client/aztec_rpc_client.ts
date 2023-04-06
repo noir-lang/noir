@@ -25,14 +25,14 @@ export interface AztecRPCClient {
     abi: ContractAbi,
     args: any[],
     portalContract: EthAddress,
-    contractAddressSalt: Fr,
-    from: AztecAddress,
+    contractAddressSalt?: Fr,
+    from?: AztecAddress,
   ): Promise<TxRequest>;
-  createTxRequest(functionName: string, args: any[], to: AztecAddress, from: AztecAddress): Promise<TxRequest>;
+  createTxRequest(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<TxRequest>;
   signTxRequest(txRequest: TxRequest): Promise<EcdsaSignature>;
   createTx(txRequest: TxRequest, signature: EcdsaSignature): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;
-  viewTx(functionName: string, args: any[], to: AztecAddress, from: AztecAddress): Promise<any>;
+  viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
 }

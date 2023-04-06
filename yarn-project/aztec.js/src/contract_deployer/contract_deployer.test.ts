@@ -1,10 +1,9 @@
-import { mock } from 'jest-mock-extended';
 import { AztecRPCClient, Tx, TxHash, TxReceipt, TxRequest } from '@aztec/aztec-rpc';
-
-import { ContractDeployer } from './contract_deployer.js';
 import { AztecAddress, EcdsaSignature, EthAddress, Fr } from '@aztec/circuits.js';
-import { randomBytes } from 'crypto';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
+import { randomBytes } from 'crypto';
+import { mock } from 'jest-mock-extended';
+import { ContractDeployer } from './contract_deployer.js';
 
 describe('Contract Deployer', () => {
   let arc: ReturnType<typeof mock<AztecRPCClient>>;
@@ -25,6 +24,7 @@ describe('Contract Deployer', () => {
   const portalContract = new EthAddress(randomBytes(EthAddress.SIZE_IN_BYTES));
   const contractAddressSalt = Fr.random();
   const account = AztecAddress.random();
+  const args = [12, 345n];
 
   const mockTxRequest = { type: 'TxRequest' } as any as TxRequest;
   const mockSignature = { type: 'EcdsaSignature' } as any as EcdsaSignature;
@@ -44,7 +44,7 @@ describe('Contract Deployer', () => {
 
   it('should request, sign, craete and send a contract deployment tx', async () => {
     const deployer = new ContractDeployer(abi, arc);
-    const sentTx = deployer.deploy().send({
+    const sentTx = deployer.deploy(args[0], args[1]).send({
       portalContract,
       contractAddressSalt,
       from: account,
@@ -55,7 +55,7 @@ describe('Contract Deployer', () => {
     expect(txHash).toBe(mockTxHash);
     expect(receipt).toBe(mockTxReceipt);
     expect(arc.createDeploymentTxRequest).toHaveBeenCalledTimes(1);
-    expect(arc.createDeploymentTxRequest).toHaveBeenCalledWith(abi, [], portalContract, contractAddressSalt, account);
+    expect(arc.createDeploymentTxRequest).toHaveBeenCalledWith(abi, args, portalContract, contractAddressSalt, account);
     expect(arc.createTxRequest).toHaveBeenCalledTimes(0);
     expect(arc.signTxRequest).toHaveBeenCalledTimes(1);
     expect(arc.signTxRequest).toHaveBeenCalledWith(mockTxRequest);
@@ -67,7 +67,7 @@ describe('Contract Deployer', () => {
 
   it('should be able to deploy a contract step by step', async () => {
     const deployer = new ContractDeployer(abi, arc);
-    const deployment = deployer.deploy();
+    const deployment = deployer.deploy(args[0]);
     const txRequest = await deployment.request({
       portalContract,
       contractAddressSalt,
@@ -82,26 +82,29 @@ describe('Contract Deployer', () => {
     expect(tx).toBe(mockTx);
     expect(receipt).toBe(mockTxReceipt);
     expect(arc.createDeploymentTxRequest).toHaveBeenCalledTimes(1);
-    expect(arc.createDeploymentTxRequest).toHaveBeenCalledWith(abi, [], portalContract, contractAddressSalt, account);
+    expect(arc.createDeploymentTxRequest).toHaveBeenCalledWith(
+      abi,
+      [args[0]],
+      portalContract,
+      contractAddressSalt,
+      account,
+    );
     expect(arc.createTxRequest).toHaveBeenCalledTimes(0);
     expect(arc.signTxRequest).toHaveBeenCalledTimes(1);
     expect(arc.createTx).toHaveBeenCalledTimes(1);
     expect(arc.sendTx).toHaveBeenCalledTimes(1);
   });
 
-  it('should assign zeros or generate random values for undefined options', async () => {
+  it('should pass undefined values if not provided via options', async () => {
     const deployer = new ContractDeployer(abi, arc);
-    const deployment = deployer.deploy();
+    const deployment = deployer.deploy(args);
     await deployment.request();
     expect(arc.createDeploymentTxRequest).toHaveBeenCalledWith(
       abi,
-      [],
+      [args],
       new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)), // portalContract
-      expect.anything(), // contractAddressSalt
-      AztecAddress.ZERO, // account
+      undefined, // contractAddressSalt
+      undefined, // account
     );
-    const defaultContractAddressSalt = arc.createDeploymentTxRequest.mock.calls[0][3];
-    expect(defaultContractAddressSalt).not.toEqual(contractAddressSalt);
-    expect(defaultContractAddressSalt).not.toEqual(new Fr(0n));
   });
 });

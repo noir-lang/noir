@@ -35,12 +35,7 @@ export class ContractFunctionInteraction {
     }
 
     const { from } = options;
-    this.txRequest = await this.arc.createTxRequest(
-      this.functionName,
-      this.args,
-      this.contractAddress,
-      from || AztecAddress.ZERO,
-    );
+    this.txRequest = await this.arc.createTxRequest(this.functionName, this.args, this.contractAddress, from);
     return this.txRequest;
   }
 
@@ -94,6 +89,6 @@ export class ContractFunctionInteraction {
     }
 
     const { from } = options;
-    return this.arc.viewTx(this.functionName, this.args, this.contractAddress, from || AztecAddress.ZERO);
+    return this.arc.viewTx(this.functionName, this.args, this.contractAddress, from);
   }
 }

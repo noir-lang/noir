@@ -1,3 +1,4 @@
+import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -10,6 +11,7 @@ describe('Synchroniser', () => {
   let grumpkin: Grumpkin;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let database: Database;
+  let simulator: AcirSimulator;
   let synchroniser: Synchroniser;
 
   beforeAll(async () => {
@@ -20,7 +22,8 @@ describe('Synchroniser', () => {
     aztecNode.getUnverifiedData.mockResolvedValue([]);
 
     database = new MemoryDB();
-    synchroniser = new Synchroniser(aztecNode, database, wasm);
+    simulator = mock<AcirSimulator>();
+    synchroniser = new Synchroniser(aztecNode, database, simulator, wasm);
   });
 
   it('Should create account state', async () => {

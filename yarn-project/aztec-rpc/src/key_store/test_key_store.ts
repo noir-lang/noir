@@ -15,20 +15,29 @@ export class TestKeyStore implements KeyStore {
     return Promise.resolve(keyPair.getPublicKey().toAddress());
   }
 
-  getAccounts() {
+  public getAccounts() {
     return Promise.resolve(this.accounts.map(a => a.getPublicKey().toAddress()));
   }
 
-  getAccountPrivateKey(address: AztecAddress): Promise<Buffer> {
+  public getAccountPrivateKey(address: AztecAddress): Promise<Buffer> {
     const account = this.getAccount(address);
-
     return account.getPrivateKey();
   }
 
-  getAccountPublicKey(address: AztecAddress): Promise<Point> {
+  public getAccountPublicKey(address: AztecAddress): Promise<Point> {
     const account = this.getAccount(address);
-
     return Promise.resolve(account.getPublicKey());
+  }
+
+  public getSigningPublicKeys() {
+    return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
+  }
+
+  public signTxRequest(txRequest: TxRequest) {
+    const account = this.getAccount(txRequest.from);
+    // TODO - Define signing data.
+    const signingData = txRequest.toBuffer();
+    return account.signMessage(signingData);
   }
 
   private getAccount(address: AztecAddress) {
@@ -37,20 +46,5 @@ export class TestKeyStore implements KeyStore {
       throw new Error('Unknown account.');
     }
     return account;
-  }
-
-  getSigningPublicKeys() {
-    return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
-  }
-
-  signTxRequest(txRequest: TxRequest) {
-    const account = txRequest.from.equals(AztecAddress.ZERO)
-      ? this.accounts[0]
-      : this.accounts.find(a => a.getPublicKey().toAddress().equals(txRequest.from));
-    if (!account) {
-      throw new Error('Unknown account.');
-    }
-
-    return account.signMessage(txRequest.toBuffer());
   }
 }
