@@ -9,7 +9,7 @@ use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-pub struct IntrinsicOpcodes;
+pub(crate) struct IntrinsicOpcodes;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Instructions are used to perform tasks.
