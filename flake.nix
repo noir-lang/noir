@@ -70,7 +70,9 @@
 
       commonArgs = {
         pname = "noir";
+        # x-release-please-start-version
         version = "0.3.2";
+        # x-release-please-end
 
         # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7 since it seems that aarch64-linux uses
         # gcc9 instead of gcc11 for the C++ stdlib, while all other targets we support provide the correct libstdc++
