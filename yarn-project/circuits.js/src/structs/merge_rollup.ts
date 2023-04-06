@@ -1,14 +1,14 @@
 import { Fr } from '@aztec/foundation';
 import { FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { AppendOnlyTreeSnapshot, BaseRollupPublicInputs, ConstantBaseRollupData } from './base_rollup.js';
+import { AppendOnlyTreeSnapshot, BaseOrMergeRollupPublicInputs, ConstantBaseRollupData } from './base_rollup.js';
 import { ROLLUP_VK_TREE_HEIGHT } from './constants.js';
 import { AggregationObject, MembershipWitness, RollupTypes, UInt32, UInt8Vector } from './shared.js';
 import { VerificationKey } from './verification_key.js';
 
 export class PreviousRollupData {
   constructor(
-    public publicInputs: BaseRollupPublicInputs | MergeRollupPublicInputs,
+    public publicInputs: BaseOrMergeRollupPublicInputs | MergeRollupPublicInputs,
     public proof: UInt8Vector,
     public vk: VerificationKey,
     /**

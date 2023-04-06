@@ -1,7 +1,7 @@
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   CircuitsWasm,
   Fr,
   RootRollupPublicInputs,
@@ -19,13 +19,14 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import { default as memdown } from 'memdown';
-import { hashNewContractData, makeEmptyTx, makeEmptyUnverifiedData } from '../deps/tx.js';
+import { makeEmptyTx, makeEmptyUnverifiedData } from '../deps/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../deps/verification_keys.js';
 import { EmptyProver } from '../prover/empty.js';
 import { Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
 import { CircuitPoweredBlockBuilder } from './circuit_powered_block_builder.js';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -41,8 +42,8 @@ describe('sequencer/circuit_block_builder', () => {
   let prover: MockProxy<Prover>;
 
   let blockNumber: number;
-  let baseRollupOutputLeft: BaseRollupPublicInputs;
-  let baseRollupOutputRight: BaseRollupPublicInputs;
+  let baseRollupOutputLeft: BaseOrMergeRollupPublicInputs;
+  let baseRollupOutputRight: BaseOrMergeRollupPublicInputs;
   let rootRollupOutput: RootRollupPublicInputs;
 
   let wasm: CircuitsWasm;
@@ -93,9 +94,12 @@ describe('sequencer/circuit_block_builder', () => {
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: Tx[]) => {
+    const newContracts = await Promise.all(
+      flatMap(txs, tx => tx.data.end.newContracts.map(async n => await computeContractLeaf(wasm, n))),
+    );
     for (const [tree, leaves] of [
       [MerkleTreeId.DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
-      [MerkleTreeId.CONTRACT_TREE, flatMap(txs, tx => tx.data.end.newContracts.map(n => hashNewContractData(wasm, n)))],
+      [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
       [MerkleTreeId.NULLIFIER_TREE, flatMap(txs, tx => tx.data.end.newNullifiers.map(l => l.toBuffer()))],
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);

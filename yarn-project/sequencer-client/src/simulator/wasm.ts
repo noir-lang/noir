@@ -2,7 +2,7 @@ import { CircuitsWasm } from '@aztec/circuits.js';
 import { RollupWasmWrapper } from '@aztec/circuits.js';
 import {
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   MergeRollupInputs,
   MergeRollupPublicInputs,
   RootRollupInputs,
@@ -17,7 +17,7 @@ export class WasmCircuitSimulator implements Simulator {
     this.rollupWasmWrapper = new RollupWasmWrapper(wasm);
   }
 
-  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseRollupPublicInputs> {
+  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     return this.rollupWasmWrapper.simulateBaseRollup(input);
   }
   mergeRollupCircuit(input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {

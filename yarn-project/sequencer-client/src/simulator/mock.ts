@@ -1,6 +1,6 @@
 import {
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   MergeRollupInputs,
   MergeRollupPublicInputs,
   RootRollupInputs,
@@ -11,7 +11,7 @@ import { Simulator } from './index.js';
 /* eslint-disable */
 
 export class MockSimulator implements Simulator {
-  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseRollupPublicInputs> {
+  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     throw new Error('Method not implemented.');
   }
   mergeRollupCircuit(input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {

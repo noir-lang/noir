@@ -9,7 +9,7 @@ import {
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   ConstantBaseRollupData,
   NullifierLeafPreimage,
 } from '../structs/base_rollup.js';
@@ -57,6 +57,7 @@ import {
   ComposerType,
   EcdsaSignature,
   MembershipWitness,
+  RollupTypes,
   UInt8Vector,
 } from '../structs/shared.js';
 import { ContractDeploymentData, SignedTxRequest, TxContext, TxRequest } from '../structs/tx.js';
@@ -264,7 +265,9 @@ export function makeEcdsaSignature(seed = 1): EcdsaSignature {
 }
 
 export function makeBaseRollupPublicInputs(seed = 0) {
-  return new BaseRollupPublicInputs(
+  return new BaseOrMergeRollupPublicInputs(
+    RollupTypes.Base,
+    new Fr(0n),
     makeAggregationObject(seed + 0x100),
     makeConstantBaseRollupData(seed + 0x200),
     makeAppendOnlyTreeSnapshot(seed + 0x300),

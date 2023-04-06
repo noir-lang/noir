@@ -1,6 +1,6 @@
 import {
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   MergeRollupInputs,
   MergeRollupPublicInputs,
   RootRollupInputs,
@@ -8,7 +8,7 @@ import {
 } from '@aztec/circuits.js';
 
 export interface Simulator {
-  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseRollupPublicInputs>;
+  baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs>;
   mergeRollupCircuit(input: MergeRollupInputs): Promise<MergeRollupPublicInputs>;
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs>;
 }

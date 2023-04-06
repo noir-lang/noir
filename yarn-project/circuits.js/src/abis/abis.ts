@@ -1,29 +1,43 @@
 import { Buffer } from 'buffer';
 import { AztecAddress, Fr, serializeBufferArrayToVector } from '@aztec/foundation';
 import { CircuitsWasm } from '../wasm/index.js';
-import { FunctionData, FUNCTION_SELECTOR_NUM_BYTES, NullifierLeafPreimage, TxRequest } from '../index.js';
+import { FunctionData, FUNCTION_SELECTOR_NUM_BYTES, TxRequest, NewContractData } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 
+export async function wasmCall(
+  wasm: CircuitsWasm,
+  fnName: string,
+  input: { toBuffer: () => Buffer },
+  expectedOutputLength: number,
+): Promise<Buffer> {
+  const inputData = input.toBuffer();
+  const outputBuf = wasm.call('bbmalloc', expectedOutputLength);
+  const inputBuf = wasm.call('bbmalloc', inputData.length);
+  wasm.writeMemory(inputBuf, inputData);
+  await wasm.asyncCall(fnName, inputBuf, outputBuf);
+  const buf = Buffer.from(wasm.getMemorySlice(outputBuf, outputBuf + expectedOutputLength));
+  wasm.call('bbfree', outputBuf);
+  wasm.call('bbfree', inputBuf);
+  return buf;
+}
+
 export async function hashTxRequest(wasm: CircuitsWasm, txRequest: TxRequest) {
-  const data = txRequest.toBuffer();
   wasm.call('pedersen__init');
-  wasm.writeMemory(0, data);
-  await wasm.asyncCall('abis__hash_tx_request', 0, data.length);
-  return Buffer.from(wasm.getMemorySlice(data.length, data.length + 32));
+  return await wasmCall(wasm, 'abis__hash_tx_request', txRequest, 32);
 }
 
 export async function computeFunctionSelector(wasm: CircuitsWasm, funcSig: string) {
-  const buf = Buffer.from(funcSig);
-  wasm.writeMemory(0, buf);
-  await wasm.asyncCall('abis__compute_function_selector', 0, buf.length);
-  return Buffer.from(wasm.getMemorySlice(buf.length, buf.length + FUNCTION_SELECTOR_NUM_BYTES));
+  return await wasmCall(
+    wasm,
+    'abis__compute_function_selector',
+    { toBuffer: () => Buffer.from(funcSig) },
+    FUNCTION_SELECTOR_NUM_BYTES,
+  );
 }
 
 export async function hashVK(wasm: CircuitsWasm, vkBuf: Buffer) {
   wasm.call('pedersen__init');
-  wasm.writeMemory(0, vkBuf);
-  await wasm.asyncCall('abis__hash_vk', 0, vkBuf.length);
-  return Buffer.from(wasm.getMemorySlice(vkBuf.length, vkBuf.length + 32));
+  return await wasmCall(wasm, 'abis__hash_vk', { toBuffer: () => vkBuf }, 32);
 }
 
 export async function computeFunctionLeaf(wasm: CircuitsWasm, fnLeaf: Buffer) {
@@ -40,6 +54,28 @@ export async function computeFunctionTreeRoot(wasm: CircuitsWasm, fnLeafs: Buffe
   await wasm.asyncCall('abis__compute_function_tree_root', 0, fnLeafs.length, inputVector.length);
   return Buffer.from(wasm.getMemorySlice(inputVector.length, inputVector.length + 32));
 }
+
+// not yet working
+// export async function inputBuffersToOutputBuffer(
+//   wasm: CircuitsWasm,
+//   fnName: string,
+//   buffers: Buffer[],
+//   expectedOutputLength: number,
+// ) {
+//   const offsets: number[] = [];
+//   const totalLength = buffers.reduce((total, cur) => {
+//     offsets.push(total);
+//     return total + cur.length;
+//   }, 0);
+//   const inputBuf = wasm.call('bbmalloc', totalLength);
+//   const outputBuf = wasm.call('bbmalloc', expectedOutputLength);
+//   wasm.writeMemory(inputBuf, Buffer.concat(buffers));
+//   await wasm.asyncCall(fnName, ...offsets.map(x => x + inputBuf), outputBuf);
+//   const output = Buffer.from(wasm.getMemorySlice(outputBuf, outputBuf + expectedOutputLength));
+//   wasm.call('bbfree', inputBuf);
+//   wasm.call('bbfree', outputBuf);
+//   return output;
+// }
 
 export async function hashConstructor(
   wasm: CircuitsWasm,
@@ -59,6 +95,14 @@ export async function hashConstructor(
   wasm.writeMemory(memLoc2, constructorVKHash);
   await wasm.asyncCall('abis__hash_constructor', 0, memLoc1, memLoc2, memLoc3);
   return Buffer.from(wasm.getMemorySlice(memLoc3, memLoc3 + 32));
+
+  // wasm.call('pedersen__init');
+  // return await inputBuffersToOutputBuffer(
+  //   wasm,
+  //   'abis__hash_constructor',
+  //   [functionData.toBuffer(), serializeToBuffer(args.map(fr => fr.toBuffer())), constructorVKHash],
+  //   32,
+  // );
 }
 
 export async function computeContractAddress(
@@ -83,10 +127,8 @@ export async function computeContractAddress(
   return AztecAddress.fromBuffer(resultBuf);
 }
 
-export async function computeContractLeaf(wasm: CircuitsWasm, leafPreimage: NullifierLeafPreimage) {
-  const data = leafPreimage.toBuffer();
+export async function computeContractLeaf(wasm: CircuitsWasm, cd: NewContractData) {
   wasm.call('pedersen__init');
-  wasm.writeMemory(0, leafPreimage.toBuffer());
-  await wasm.asyncCall('abis__compute_contract_leaf', 0, data.length);
-  return Buffer.from(wasm.getMemorySlice(data.length, data.length + 32));
+  const value = await wasmCall(wasm, 'abis__compute_contract_leaf', { toBuffer: () => cd.toBuffer() }, 32);
+  return Fr.fromBuffer(value);
 }

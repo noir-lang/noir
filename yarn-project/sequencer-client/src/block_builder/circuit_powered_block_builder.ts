@@ -1,7 +1,7 @@
 import {
   AppendOnlyTreeSnapshot,
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   CircuitsWasm,
   ConstantBaseRollupData,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
@@ -11,7 +11,6 @@ import {
   PreviousKernelData,
   PreviousRollupData,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
   ROLLUP_VK_TREE_HEIGHT,
   RootRollupInputs,
   RootRollupPublicInputs,
@@ -24,11 +23,12 @@ import { Tx } from '@aztec/tx';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
-import { hashNewContractData, makeEmptyTx } from '../deps/tx.js';
+import { makeEmptyTx } from '../deps/tx.js';
 import { VerificationKeys } from '../deps/verification_keys.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
 import { ContractData, L2Block } from '@aztec/l2-block';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);
@@ -102,8 +102,8 @@ export class CircuitPoweredBlockBuilder {
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
-    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd =>
-      Fr.fromBuffer(hashNewContractData(this.wasm, cd)),
+    const newContracts = await Promise.all(
+      flatMap(txs, tx => tx.data.end.newContracts).map(async cd => await computeContractLeaf(this.wasm, cd)),
     );
     const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
       n => new ContractData(n.contractAddress, n.portalContractAddress),
@@ -194,7 +194,7 @@ export class CircuitPoweredBlockBuilder {
   }
 
   // Validate that the new roots we calculated from manual insertions match the outputs of the simulation
-  protected async validateTrees(rollupOutput: BaseRollupPublicInputs | RootRollupPublicInputs) {
+  protected async validateTrees(rollupOutput: BaseOrMergeRollupPublicInputs | RootRollupPublicInputs) {
     await Promise.all([
       this.validateTree(rollupOutput, MerkleTreeId.CONTRACT_TREE, 'Contract'),
       this.validateTree(rollupOutput, MerkleTreeId.DATA_TREE, 'PrivateData'),
@@ -224,7 +224,7 @@ export class CircuitPoweredBlockBuilder {
 
   // Helper for validating a non-roots tree against a circuit simulation output
   protected async validateTree(
-    output: BaseRollupPublicInputs | RootRollupPublicInputs,
+    output: BaseOrMergeRollupPublicInputs | RootRollupPublicInputs,
     treeId: MerkleTreeId,
     name: 'PrivateData' | 'Contract' | 'Nullifier',
   ) {
@@ -254,9 +254,9 @@ export class CircuitPoweredBlockBuilder {
 
   // Builds the inputs for the root rollup circuit, without making any changes to trees
   protected async getRootRollupInput(
-    rollupOutputLeft: BaseRollupPublicInputs,
+    rollupOutputLeft: BaseOrMergeRollupPublicInputs,
     rollupProofLeft: Proof,
-    rollupOutputRight: BaseRollupPublicInputs,
+    rollupOutputRight: BaseOrMergeRollupPublicInputs,
     rollupProofRight: Proof,
   ) {
     const previousRollupData: RootRollupInputs['previousRollupData'] = [
@@ -284,7 +284,7 @@ export class CircuitPoweredBlockBuilder {
     });
   }
 
-  protected getPreviousRollupDataFromBaseRollup(rollupOutput: BaseRollupPublicInputs, rollupProof: Proof) {
+  protected getPreviousRollupDataFromBaseRollup(rollupOutput: BaseOrMergeRollupPublicInputs, rollupProof: Proof) {
     return new PreviousRollupData(
       rollupOutput,
       rollupProof,
@@ -548,12 +548,14 @@ export class CircuitPoweredBlockBuilder {
 
     // Update the contract and data trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = flatMap([tx1, tx2], tx =>
-      tx.data.end.newContracts.map(cd => hashNewContractData(this.wasm, cd)),
+    const newContracts = await Promise.all(
+      flatMap([tx1, tx2], tx => tx.data.end.newContracts.map(async cd => await computeContractLeaf(this.wasm, cd))),
     );
     const newCommitments = flatMap([tx1, tx2], tx => tx.data.end.newCommitments.map(x => x.toBuffer()));
-
-    await this.db.appendLeaves(MerkleTreeId.CONTRACT_TREE, newContracts);
+    await this.db.appendLeaves(
+      MerkleTreeId.CONTRACT_TREE,
+      newContracts.map(x => x.toBuffer()),
+    );
 
     await this.db.appendLeaves(MerkleTreeId.DATA_TREE, newCommitments);
 

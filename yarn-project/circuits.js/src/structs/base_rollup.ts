@@ -12,7 +12,7 @@ import {
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from './constants.js';
 import { PreviousKernelData } from './kernel.js';
-import { AggregationObject, MembershipWitness, UInt32 } from './shared.js';
+import { AggregationObject, MembershipWitness, RollupTypes, UInt32 } from './shared.js';
 
 export class NullifierLeafPreimage {
   constructor(public leafValue: Fr, public nextValue: Fr, public nextIndex: UInt32) {}
@@ -168,8 +168,10 @@ export class BaseRollupInputs {
 /**
  * Output of the base rollup circuit
  */
-export class BaseRollupPublicInputs {
+export class BaseOrMergeRollupPublicInputs {
   constructor(
+    public rollupType: RollupTypes,
+    public rollupSubTreeHeight: Fr,
     public endAggregationObject: AggregationObject,
     public constants: ConstantBaseRollupData,
 
@@ -190,9 +192,11 @@ export class BaseRollupPublicInputs {
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param bufferReader - Buffer to read from.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): BaseRollupPublicInputs {
+  static fromBuffer(buffer: Buffer | BufferReader): BaseOrMergeRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
-    return new BaseRollupPublicInputs(
+    return new BaseOrMergeRollupPublicInputs(
+      reader.readNumber(),
+      reader.readFr(),
       reader.readObject(AggregationObject),
       reader.readObject(ConstantBaseRollupData),
       reader.readObject(AppendOnlyTreeSnapshot),
@@ -211,6 +215,8 @@ export class BaseRollupPublicInputs {
    */
   toBuffer() {
     return serializeToBuffer(
+      this.rollupType,
+      this.rollupSubTreeHeight,
       this.endAggregationObject,
       this.constants,
 

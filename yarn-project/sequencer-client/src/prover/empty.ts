@@ -1,7 +1,7 @@
 import {
   AggregationObject,
   BaseRollupInputs,
-  BaseRollupPublicInputs,
+  BaseOrMergeRollupPublicInputs,
   MergeRollupInputs,
   MergeRollupPublicInputs,
   RootRollupInputs,
@@ -16,7 +16,7 @@ const EMPTY_PROOF_SIZE = 42;
 
 // TODO: Silently modifying one of the inputs is horrible. Rethink these interfaces.
 export class EmptyProver implements Prover {
-  async getBaseRollupProof(input: BaseRollupInputs, publicInputs: BaseRollupPublicInputs): Promise<UInt8Vector> {
+  async getBaseRollupProof(input: BaseRollupInputs, publicInputs: BaseOrMergeRollupPublicInputs): Promise<UInt8Vector> {
     publicInputs.endAggregationObject = AggregationObject.makeFake();
     return new UInt8Vector(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }

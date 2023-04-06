@@ -1,7 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`structs/root_rollup serializes a RootRollupInput and prints it 1`] = `
-"previous_rollup_data: [ merge_rollup_public_inputs: end_aggregation_object:
+"previous_rollup_data: [ base_or_merge_rollup_public_inputs: rollup_type:
+0
+rollup_subtree_height:
+0x0
+end_aggregation_object:
 P0: { 0x100, 0x101 }
 P1: { 0x200, 0x201 }
 public_inputs: [
@@ -58,20 +62,16 @@ next_available_leaf_index: 800
 calldata_hash: [ 0x901 0x902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
-vk: key.composer_type: 0
-key.circuit_size: 65
-key.num_public_inputs: 66
-key.commitments: [
- A: { 0x200, 0x300 }
-]
-key.contains_recursive_proof: 1
-key.recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
-
+vk: 0x12b300
 vk_index: 110
 vk_sibling_path: leaf_index: 120
 sibling_path: [ 0x120 0x121 0x122 0x123 0x124 0x125 0x126 0x127 ]
 
- merge_rollup_public_inputs: end_aggregation_object:
+ base_or_merge_rollup_public_inputs: rollup_type:
+0
+rollup_subtree_height:
+0x0
+end_aggregation_object:
 P0: { 0x1100, 0x1101 }
 P1: { 0x1200, 0x1201 }
 public_inputs: [
@@ -128,15 +128,7 @@ next_available_leaf_index: 1800
 calldata_hash: [ 0x1901 0x1902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
-vk: key.composer_type: 0
-key.circuit_size: 65
-key.num_public_inputs: 66
-key.commitments: [
- A: { 0x200, 0x300 }
-]
-key.contains_recursive_proof: 1
-key.recursive_proof_public_input_indices: [ 190 191 192 193 194 ]
-
+vk: 0x133e40
 vk_index: 1110
 vk_sibling_path: leaf_index: 1120
 sibling_path: [ 0x1120 0x1121 0x1122 0x1123 0x1124 0x1125 0x1126 0x1127 ]

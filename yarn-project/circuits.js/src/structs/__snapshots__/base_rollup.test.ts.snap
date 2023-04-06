@@ -329,7 +329,11 @@ merge_rollup_vk_hash: 0x404
 `;
 
 exports[`structs/base_rollup serializes and prints BaseRollupPublicInputs 1`] = `
-"end_aggregation_object:
+"rollup_type:
+0
+rollup_subtree_height:
+0x0
+end_aggregation_object:
 P0: { 0x100, 0x101 }
 P1: { 0x200, 0x201 }
 public_inputs: [
