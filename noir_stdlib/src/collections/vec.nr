@@ -4,8 +4,8 @@
 // is still in-progress.
 impl<T> Vec<T> {
     /// Get an element from the vector at the given index.
-    /// Fails with a constraint error if the given index is
-    /// less than the length of the vector.
+    /// Fails with a constraint error if the given index
+    /// points beyond the end of the vector.
     #[builtin(vec_get)]
     fn get(_self: Self, _index: Field) -> T { }
 
