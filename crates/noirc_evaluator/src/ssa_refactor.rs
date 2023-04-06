@@ -4,5 +4,7 @@
 //! conventional optimizations like Common Subexpression
 //! elimination and constant folding.
 
+#[allow(dead_code)]
 mod basic_block;
+#[allow(dead_code)]
 mod ir;
