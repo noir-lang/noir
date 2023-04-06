@@ -56,16 +56,8 @@
         BARRETENBERG_TRANSCRIPT = pkgs.barretenberg-transcript00;
       };
 
-      # if file exists in git tree, commit hash wil bea read from it
-      # or unknown value will be assigned
-      COMMIT_HASH =
-        if builtins.pathExists ./.commit
-        then builtins.readFile ./.commit
-        else "unknown";
-
-      # rev attribute meta is only available when nix build https://github.com/noir-lang/noir
-      # is issued therefore reading this info from file is a hack for CI
-      GIT_COMMIT = if (self ? rev) then self.rev else COMMIT_HASH;
+      # The `self.rev` property is only available when the working tree is not dirty
+      GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
       GIT_DIRTY = if (self ? rev) then "false" else "true";
 
       commonArgs = {
@@ -143,14 +135,13 @@
 
       packages.default = noir;
 
+      # TODO: Look into installable apps with Nix flakes
       # apps.default = flake-utils.lib.mkApp { drv = nargo; };
 
       devShells.default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
         inputsFrom = builtins.attrValues self.checks;
 
         buildInputs = packages.default.buildInputs;
-
-        inherit COMMIT_HASH;
 
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
