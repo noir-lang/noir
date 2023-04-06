@@ -189,6 +189,13 @@ export class StandardMerkleTree implements MerkleTree {
   }
 
   /**
+   * Force increase the size of the tree
+   */
+  public forceAppendEmptyLeaf() {
+    this.cachedSize = (this.cachedSize ?? this.size) + 1n;
+  }
+
+  /**
    * Commits the changes to the database.
    * @returns Empty promise.
    */

@@ -20,6 +20,10 @@ export class NullifierLeafPreimage {
   toBuffer() {
     return serializeToBuffer(this.leafValue, this.nextValue, this.nextIndex);
   }
+
+  static empty() {
+    return new NullifierLeafPreimage(Fr.ZERO, Fr.ZERO, 0);
+  }
 }
 
 export class AppendOnlyTreeSnapshot {

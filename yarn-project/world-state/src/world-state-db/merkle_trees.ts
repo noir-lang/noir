@@ -9,8 +9,15 @@ import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { SerialQueue } from '@aztec/foundation';
 import { IndexedTree, LeafData, MerkleTree, Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
 import { default as levelup } from 'levelup';
-import { IndexedMerkleTreeId, MerkleTreeDb, MerkleTreeId, MerkleTreeOperations, TreeInfo } from './index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
+import {
+  INITIAL_NULLIFIER_TREE_SIZE,
+  IndexedMerkleTreeId,
+  MerkleTreeDb,
+  MerkleTreeId,
+  MerkleTreeOperations,
+  TreeInfo,
+} from './index.js';
 
 /**
  * A convenience class for managing multiple merkle trees.
@@ -44,6 +51,7 @@ export class MerkleTrees implements MerkleTreeDb {
       hasher,
       `${MerkleTreeId[MerkleTreeId.NULLIFIER_TREE]}`,
       NULLIFIER_TREE_HEIGHT,
+      INITIAL_NULLIFIER_TREE_SIZE,
     );
     const dataTree = await StandardMerkleTree.new(
       this.db,
@@ -192,6 +200,16 @@ export class MerkleTrees implements MerkleTreeDb {
   }
 
   /**
+   * Updates a leaf in a tree at a given index.
+   * @param treeId - The ID of the tree
+   * @param leaf - The new leaf value
+   * @param index - The index to insert into
+   */
+  public async updateLeaf(treeId: IndexedMerkleTreeId, leaf: LeafData, index: bigint): Promise<void> {
+    return await this.synchronise(() => this.trees[treeId].updateLeaf(leaf, index));
+  }
+
+  /**
    * Waits for all jobs to finish before executing the given function.
    * @param fn - The function to execute.
    * @returns Promise containing the result of the function.
@@ -210,6 +228,7 @@ export class MerkleTrees implements MerkleTreeDb {
       treeId,
       root: this.trees[treeId].getRoot(includeUncommitted),
       size: this.trees[treeId].getNumLeaves(includeUncommitted),
+      depth: this.trees[treeId].getDepth(),
     } as TreeInfo;
     return Promise.resolve(treeInfo);
   }

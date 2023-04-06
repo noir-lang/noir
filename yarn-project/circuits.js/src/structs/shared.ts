@@ -27,6 +27,14 @@ export class MembershipWitness<N extends number> {
       .map(() => Fr.ZERO);
     return new MembershipWitness<N>(pathSize, leafIndex, arr);
   }
+
+  static fromBufferArray(leafIndex: number, siblingPath: Buffer[]) {
+    return new MembershipWitness(
+      siblingPath.length,
+      leafIndex,
+      siblingPath.map(x => Fr.fromBuffer(x)),
+    );
+  }
 }
 
 export class AggregationObject {

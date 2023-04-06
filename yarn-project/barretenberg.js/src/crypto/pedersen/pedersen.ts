@@ -13,7 +13,7 @@ export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: U
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   if (lhs.length !== 32 || rhs.length !== 32) {
-    throw new Error('lhs and rhs must be equal to 32 bytes');
+    throw new Error(`Pedersen lhs and rhs inputs must be 32 bytes (got ${lhs.length} and ${rhs.length} respectively)`);
   }
   wasm.writeMemory(0, lhs);
   wasm.writeMemory(32, rhs);

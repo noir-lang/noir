@@ -14,11 +14,7 @@ const createFromName = async (levelUp: levelup.LevelUp, hasher: Hasher, name: st
 };
 
 const createIndexedTreeLeaf = (value: number, nextIndex: number, nextValue: number) => {
-  return Buffer.concat([
-    toBufferBE(BigInt(value), 32),
-    toBufferBE(BigInt(nextIndex), 32),
-    toBufferBE(BigInt(nextValue), 32),
-  ]);
+  return [toBufferBE(BigInt(value), 32), toBufferBE(BigInt(nextIndex), 32), toBufferBE(BigInt(nextValue), 32)];
 };
 
 const verifyCommittedState = async (
@@ -58,7 +54,7 @@ describe('IndexedMerkleTreeSpecific', () => {
      *  nextVal   0       0       0       0        0       0       0       0.
      */
 
-    const zeroTreeLeafHash = pedersen.hashToField(createIndexedTreeLeaf(0, 0, 0));
+    const zeroTreeLeafHash = pedersen.compressInputs(createIndexedTreeLeaf(0, 0, 0));
     const level1ZeroHash = pedersen.compress(zeroTreeLeafHash, zeroTreeLeafHash);
     const level2ZeroHash = pedersen.compress(level1ZeroHash, level1ZeroHash);
     let root = pedersen.compress(level2ZeroHash, level2ZeroHash);
@@ -82,8 +78,8 @@ describe('IndexedMerkleTreeSpecific', () => {
      *  nextIdx   1       0       0       0        0       0       0       0
      *  nextVal   30      0       0       0        0       0       0       0.
      */
-    let index0Hash = pedersen.hashToField(createIndexedTreeLeaf(0, 1, 30));
-    let index1Hash = pedersen.hashToField(createIndexedTreeLeaf(30, 0, 0));
+    let index0Hash = pedersen.compressInputs(createIndexedTreeLeaf(0, 1, 30));
+    let index1Hash = pedersen.compressInputs(createIndexedTreeLeaf(30, 0, 0));
     let e10 = pedersen.compress(index0Hash, index1Hash);
     let e20 = pedersen.compress(e10, level1ZeroHash);
     root = pedersen.compress(e20, level2ZeroHash);
@@ -106,8 +102,8 @@ describe('IndexedMerkleTreeSpecific', () => {
      *  nextIdx   2       0       1       0        0       0       0       0
      *  nextVal   10      0       30      0        0       0       0       0.
      */
-    index0Hash = pedersen.hashToField(createIndexedTreeLeaf(0, 2, 10));
-    let index2Hash = pedersen.hashToField(createIndexedTreeLeaf(10, 1, 30));
+    index0Hash = pedersen.compressInputs(createIndexedTreeLeaf(0, 2, 10));
+    let index2Hash = pedersen.compressInputs(createIndexedTreeLeaf(10, 1, 30));
     e10 = pedersen.compress(index0Hash, index1Hash);
     let e11 = pedersen.compress(index2Hash, zeroTreeLeafHash);
     e20 = pedersen.compress(e10, e11);
@@ -132,8 +128,8 @@ describe('IndexedMerkleTreeSpecific', () => {
      *  nextVal   10      0       20      30       0       0       0       0.
      */
     e10 = pedersen.compress(index0Hash, index1Hash);
-    index2Hash = pedersen.hashToField(createIndexedTreeLeaf(10, 3, 20));
-    const index3Hash = pedersen.hashToField(createIndexedTreeLeaf(20, 1, 30));
+    index2Hash = pedersen.compressInputs(createIndexedTreeLeaf(10, 3, 20));
+    const index3Hash = pedersen.compressInputs(createIndexedTreeLeaf(20, 1, 30));
     e11 = pedersen.compress(index2Hash, index3Hash);
     e20 = pedersen.compress(e10, e11);
     root = pedersen.compress(e20, level2ZeroHash);
@@ -156,8 +152,8 @@ describe('IndexedMerkleTreeSpecific', () => {
      *  nextIdx   2       4       3       1        0       0       0       0
      *  nextVal   10      50      20      30       0       0       0       0.
      */
-    index1Hash = pedersen.hashToField(createIndexedTreeLeaf(30, 4, 50));
-    const index4Hash = pedersen.hashToField(createIndexedTreeLeaf(50, 0, 0));
+    index1Hash = pedersen.compressInputs(createIndexedTreeLeaf(30, 4, 50));
+    const index4Hash = pedersen.compressInputs(createIndexedTreeLeaf(50, 0, 0));
     e10 = pedersen.compress(index0Hash, index1Hash);
     e20 = pedersen.compress(e10, e11);
     const e12 = pedersen.compress(index4Hash, zeroTreeLeafHash);

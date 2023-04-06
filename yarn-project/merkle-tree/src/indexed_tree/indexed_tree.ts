@@ -35,11 +35,7 @@ const encodeTreeValue = (leafData: LeafData) => {
   return Buffer.concat([valueAsBuffer, indexAsBuffer, nextValueAsBuffer]);
 };
 
-// TODO: Check which version of hash we need to match the cpp implementation
 const hashEncodedTreeValue = (leaf: LeafData, hasher: Hasher) => {
-  return hasher.hashToField(
-    Buffer.concat([leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32))),
-  );
   return hasher.compressInputs([leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32)));
 };
 
@@ -74,12 +70,19 @@ export class IndexedTree implements MerkleTree {
    * @param hasher - A hasher used to compute hash paths.
    * @param name - A name of the tree.
    * @param depth - A depth of the tree.
+   * @param prefilledSize - {optional} A number of leaves that are prefilled with values.
    * @returns A promise with the new Merkle tree.
    */
-  public static async new(db: LevelUp, hasher: Hasher, name: string, depth: number): Promise<IndexedTree> {
+  public static async new(
+    db: LevelUp,
+    hasher: Hasher,
+    name: string,
+    depth: number,
+    prefilledSize = 0,
+  ): Promise<IndexedTree> {
     const underlying = await StandardMerkleTree.new(db, hasher, name, depth, hashEncodedTreeValue(initialLeaf, hasher));
     const tree = new IndexedTree(underlying, hasher, db);
-    await tree.init();
+    await tree.init(prefilledSize);
     return tree;
   }
 
@@ -98,11 +101,27 @@ export class IndexedTree implements MerkleTree {
   }
 
   /**
+   * Returns an empty leaf of the tree.
+   * @returns An empty leaf.
+   */
+  static initialLeaf(): LeafData {
+    return initialLeaf;
+  }
+
+  /**
    * Returns the root of the tree.
    * @returns The root of the tree.
    */
   public getRoot(includeUncommitted: boolean): Buffer {
     return this.underlying.getRoot(includeUncommitted);
+  }
+
+  /**
+   * Returns the depth of the tree.
+   * @returns The depth of the tree.
+   */
+  public getDepth(): number {
+    return this.underlying.getDepth();
   }
 
   /**
@@ -153,12 +172,37 @@ export class IndexedTree implements MerkleTree {
   }
 
   /**
+   * Exposes the underlying tree's update leaf method
+   * @param leaf - The hash to set at the leaf
+   * @param index - The index of the element
+   */
+  public async updateLeaf(leaf: LeafData, index: bigint): Promise<void> {
+    this.cachedLeaves[Number(index)] = leaf;
+    const encodedLeaf = hashEncodedTreeValue(leaf, this.hasher);
+    await this.underlying.updateLeaf(encodedLeaf, index);
+  }
+
+  /**
+   * Special case which will force append zero into the tree by increasing its size
+   */
+  private appendZero(): void {
+    this.underlying.forceAppendEmptyLeaf();
+  }
+
+  /**
    * Appends the given leaf to the tree.
    * @param leaf - The leaf to append.
    * @returns Empty promise.
    */
   private async appendLeaf(leaf: Buffer): Promise<void> {
     const newValue = toBigIntBE(leaf);
+
+    // Special case when appending zero
+    if (newValue === 0n) {
+      this.appendZero();
+      return;
+    }
+
     const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
     const previousLeafCopy = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
     if (previousLeafCopy === undefined) {
@@ -228,9 +272,13 @@ export class IndexedTree implements MerkleTree {
   /**
    * Saves the initial leaf to this object and saves it to a database.
    */
-  private async init() {
+  private async init(initialSize = 1) {
     this.leaves.push(initialLeaf);
     await this.underlying.appendLeaves([hashEncodedTreeValue(initialLeaf, this.hasher)]);
+
+    for (let i = 1; i < initialSize; i++) {
+      await this.appendLeaf(Buffer.from([i]));
+    }
     await this.commit();
   }
 

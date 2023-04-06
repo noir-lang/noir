@@ -21,6 +21,9 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   ): Promise<{ index: number; alreadyPresent: boolean }> {
     return this.trees.getPreviousValueIndex(treeId, value, this.includeUncommitted);
   }
+  updateLeaf(treeId: MerkleTreeId.NULLIFIER_TREE, leaf: LeafData, index: bigint): Promise<void> {
+    return this.trees.updateLeaf(treeId, leaf, index, this.includeUncommitted);
+  }
   getLeafData(treeId: MerkleTreeId.NULLIFIER_TREE, index: number): Promise<LeafData | undefined> {
     return this.trees.getLeafData(treeId, index, this.includeUncommitted);
   }

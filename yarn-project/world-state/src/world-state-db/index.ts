@@ -17,6 +17,13 @@ export enum MerkleTreeId {
 export type IndexedMerkleTreeId = MerkleTreeId.NULLIFIER_TREE;
 
 /**
+ * The nullifier tree must be pre filled with the number of leaves that are added by one rollup.
+ * The tree must be initially padded as the pre-populated 0 index prevents efficient subtree insertion.
+ * Padding with some values solves this issue.
+ */
+export const INITIAL_NULLIFIER_TREE_SIZE = 8;
+
+/**
  *  Defines tree information.
  */
 export interface TreeInfo {
@@ -32,6 +39,11 @@ export interface TreeInfo {
    * The number of leaves in the tree.
    */
   size: bigint;
+
+  /**
+   * The depth of the tree.
+   */
+  depth: number;
 }
 
 /**
@@ -88,6 +100,13 @@ export interface MerkleTreeOperations {
    * @param index - The index of the leaf required
    */
   getLeafData(treeId: IndexedMerkleTreeId, index: number): Promise<LeafData | undefined>;
+  /**
+   * Update the leaf data at the given index
+   * @param treeId - The tree for which leaf data should be edited
+   * @param leaf - The updated leaf value
+   * @param index - The index of the leaf to be updated
+   */
+  updateLeaf(treeId: IndexedMerkleTreeId, leaf: LeafData, index: bigint): Promise<void>;
   /**
    * Returns the index containing a leaf value
    * @param treeId - The tree for which the index should be returned

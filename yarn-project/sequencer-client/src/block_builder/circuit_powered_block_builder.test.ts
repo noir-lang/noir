@@ -159,7 +159,7 @@ describe('sequencer/circuit_block_builder', () => {
 
     expect(l2Block.number).toEqual(blockNumber);
     expect(proof).toEqual(emptyProof);
-  });
+  }, 20000);
 
   it('builds an L2 block with empty txs using wasm circuits', async () => {
     const simulator = new WasmCircuitSimulator(wasm);
@@ -197,7 +197,7 @@ describe('sequencer/circuit_block_builder', () => {
     expect(contractTreeAfter.root).not.toEqual(contractTreeBefore.root);
     expect(contractTreeAfter.root).toEqual(await expectsDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE).then(t => t.root));
     expect(contractTreeAfter.size).toEqual(4n);
-  });
+  }, 10000);
 });
 
 // Test subject class that exposes internal functions for testing
