@@ -1,13 +1,9 @@
+use super::value::Value;
 use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// All types representable in the IR.
 pub struct Typ;
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-/// Value is the most basic type allowed in the IR.
-/// Transition Note: This is similar to `NodeId` in our previous IR.
-pub struct Value;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Register;
