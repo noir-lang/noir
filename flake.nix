@@ -1,8 +1,8 @@
 {
-  description = "Nargo";
+  description = "Build the Noir programming language";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -20,152 +20,149 @@
     };
 
     barretenberg = {
-      url = "git+https://github.com/AztecProtocol/barretenberg";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:AztecProtocol/barretenberg";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
   };
 
   outputs =
     { self, nixpkgs, crane, flake-utils, rust-overlay, barretenberg, ... }:
     flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            rust-overlay.overlays.default
-            barretenberg.overlays.default
-          ];
-        };
+    let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [
+          rust-overlay.overlays.default
+          barretenberg.overlays.default
+        ];
+      };
 
-        rustToolchain = pkgs.rust-bin.stable."1.66.0".default;
+      rustToolchain = pkgs.rust-bin.stable."1.66.0".default;
 
-        craneLibScope = (crane.mkLib pkgs).overrideScope' (final: prev: {
-          # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7
-          stdenv = with pkgs;
-            if (stdenv.targetPlatform.isGnu && stdenv.targetPlatform.isAarch64) then
-              overrideCC llvmPackages.stdenv (llvmPackages.clang.override { gccForLibs = gcc11.cc; })
-            else
-              llvmPackages.stdenv;
-        });
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        craneLib = craneLibScope.overrideToolchain rustToolchain;
+      environment = {
+        # rust-bindgen needs to know the location of libclang
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-        environment = {
-          # rust-bindgen needs to know the location of libclang
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        # We set the environment variable because barretenberg must be compiled in a special way for wasm
+        BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
 
-          # We set the environment variable because requiring 2 versions of bb collide when pkg-config searches for it
-          BARRETENBERG_BIN_DIR = "${pkgs.pkgsCross.wasi32.barretenberg}/bin";
+        # We provide `barretenberg-transcript00` from the overlay to the build.
+        # This is necessary because the Nix sandbox is read-only and downloading during tests would fail
+        BARRETENBERG_TRANSCRIPT = pkgs.barretenberg-transcript00;
+      };
 
-          # We fetch the transcript as a dependency and provide it to the build.
-          # This is necessary because the Nix sandbox is read-only and downloading during tests would fail
-          BARRETENBERG_TRANSCRIPT = pkgs.fetchurl {
-            url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
-            sha256 = "sha256-ryR/d+vpOCxa3gM0lze2UVUKNUinj0nN3ScCfysN84k=";
-          };
-        };
-
-        COMMIT_HASH = if builtins.pathExists ./revision.checksum
-        then builtins.readFile ./revision.checksum
+      # if file exists in git tree, commit hash wil bea read from it
+      # or unknown value will be assigned
+      COMMIT_HASH =
+        if builtins.pathExists ./.commit
+        then builtins.readFile ./.commit
         else "unknown";
-        # COMMIT_HASH = builtins.tryEval (builtins.readFile "revision.checksum" {}) ? "";
-        # This is a problem for now
-        GIT_COMMIT = if (self ? rev) then self.rev else COMMIT_HASH;
-        GIT_DIRTY = "false";
 
-        commonArgs = {
-          pname = "nargo";
-          src = ./.;
+      # rev attribute meta is only available when nix build https://github.com/noir-lang/noir
+      # is issued therefore reading this info from file is a hack for CI
+      GIT_COMMIT = if (self ? rev) then self.rev else COMMIT_HASH;
+      GIT_DIRTY = if (self ? rev) then "false" else "true";
 
-          nativeBuildInputs = [
-            # This provides the pkg-config tool to find barretenberg & other native libraries
-            pkgs.pkg-config
-            # This provides the `lld` linker to cargo
-            pkgs.llvmPackages.bintools
-          ];
+      commonArgs = {
+        pname = "noir";
+        version = "0.3.2";
 
-          buildInputs = [
-            pkgs.llvmPackages.openmp
-            pkgs.barretenberg
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            # Need libiconv and apple Security on Darwin. See https://github.com/ipetkov/crane/issues/156
-            pkgs.libiconv
-            pkgs.darwin.apple_sdk.frameworks.Security
-          ];
+        # As per https://discourse.nixos.org/t/gcc11stdenv-and-clang/17734/7 since it seems that aarch64-linux uses
+        # gcc9 instead of gcc11 for the C++ stdlib, while all other targets we support provide the correct libstdc++
+        stdenv = with pkgs;
+          if (stdenv.targetPlatform.isGnu && stdenv.targetPlatform.isAarch64) then
+            overrideCC llvmPackages.stdenv (llvmPackages.clang.override { gccForLibs = gcc11.cc; })
+          else
+            llvmPackages.stdenv;
 
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        src = ./.;
 
-          inherit GIT_COMMIT;
-          inherit GIT_DIRTY;
+        doCheck = false;
 
-        } // environment;
+        nativeBuildInputs = [
+          # This provides the pkg-config tool to find barretenberg & other native libraries
+          pkgs.pkg-config
+          # This provides the `lld` linker to cargo
+          pkgs.llvmPackages.bintools
+        ];
 
-        src = pkgs.copyPathToStore ./.;
+        buildInputs = [
+          pkgs.llvmPackages.openmp
+          pkgs.barretenberg
+        ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          # Need libiconv and apple Security on Darwin. See https://github.com/ipetkov/crane/issues/156
+          pkgs.libiconv
+          pkgs.darwin.apple_sdk.frameworks.Security
+        ];
 
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-        nargo = craneLib.buildPackage ({
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+
+      } // environment;
+
+      # Build *just* the cargo dependencies, so we can reuse all of that work between runs
+      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+      noir = craneLib.buildPackage (commonArgs // {
+        inherit cargoArtifacts;
+      });
+    in
+    rec {
+      checks = {
+        cargo-check = craneLib.buildPackage (commonArgs // {
+          inherit cargoArtifacts;
 
           doCheck = true;
-          
-          cargoBuildCommand = "cargo build --release";
+        });
 
-        } // commonArgs);
+        cargo-clippy = craneLib.cargoClippy (commonArgs // {
+          inherit cargoArtifacts;
 
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      in rec {
-        checks = { 
-          cargo-check = craneLib.buildPackage (commonArgs // {
-            inherit cargoArtifacts;
+          cargoClippyExtraArgs = "--all-targets --workspace -- -D warnings";
 
-            doCheck = true;
-          });
+          doCheck = true;
+        });
 
-          cargo-clippy = craneLib.cargoClippy (commonArgs // {
-            inherit cargoArtifacts;
+        cargo-test = craneLib.cargoTest (commonArgs // {
+          inherit cargoArtifacts;
 
-            cargoClippyExtraArgs = "--all-targets --workspace -- -D warnings";
+          cargoTestArgs = "--workspace -- --test-threads=1";
 
-            doCheck = true;
-          });
+          doCheck = true;
+        });
+      };
 
-          cargo-test = craneLib.cargoTest (commonArgs // {
-            inherit cargoArtifacts;
+      packages.default = noir;
 
-            cargoTestArgs = "--workspace -- --test-threads=1";
+      # apps.default = flake-utils.lib.mkApp { drv = nargo; };
 
-            doCheck = true;
-          });
-        };
+      devShells.default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
+        inputsFrom = builtins.attrValues self.checks;
 
-        packages.default = nargo;
+        buildInputs = packages.default.buildInputs;
 
-        apps.default = flake-utils.lib.mkApp { drv = nargo; };
+        inherit COMMIT_HASH;
 
-        devShells.default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
-          inputsFrom = builtins.attrValues self.checks;
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-          buildInputs = packages.default.buildInputs ;
+        nativeBuildInputs = with pkgs; [
+          which
+          starship
+          git
+          cargo
+          rustc
+        ];
 
-          inherit COMMIT_HASH;
-
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          # Uncertain if below line is needed. dev Shell is not yet fully working
-          # BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.barretenberg}/include -isystem ${pkgs.llvmPackages.libcxx.dev}/include";
-
-          TERM = "xterm-256color";
-
-          nativeBuildInputs = with pkgs; packages.default.buildInputs ++ [
-            which
-            starship
-            git
-            cargo
-            rustc
-          ];
-
-          shellHook = ''
-            eval "$(starship init bash)"
-          '';
-
-        };
-      });
+        shellHook = ''
+          eval "$(starship init bash)"
+        '';
+      };
+    });
 }
