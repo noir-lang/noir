@@ -14,9 +14,10 @@ void create_pedersen_constraint(Composer& composer, const PedersenConstraint& in
         scalars.push_back(scalar_as_field);
     }
 #ifdef USE_TURBO
-    auto point = pedersen::commit(scalars);
+    auto point = pedersen_commitment::commit(scalars);
 #else
-    auto point = stdlib::pedersen_plookup<Composer>::commit(scalars);
+    // TODO: Does Noir need additive homomorphic Pedersen hash? If so, using plookup version won't help.
+    auto point = stdlib::pedersen_plookup_commitment<Composer>::commit(scalars);
 #endif
 
     composer.assert_equal(point.x.witness_index, input.result_x);

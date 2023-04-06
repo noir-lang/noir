@@ -1,6 +1,7 @@
 #include "blake3s.hpp"
 #include "blake3s_plookup.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
+#include "barretenberg/common/streams.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -13,18 +14,6 @@ typedef stdlib::byte_array<Composer> byte_array;
 typedef stdlib::byte_array<plonk::UltraComposer> byte_array_plookup;
 typedef stdlib::public_witness_t<Composer> public_witness_t;
 typedef stdlib::public_witness_t<plonk::UltraComposer> public_witness_t_plookup;
-
-namespace std {
-inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& t)
-{
-    os << "[ ";
-    for (auto e : t) {
-        os << std::setfill('0') << std::hex << std::setw(2) << (int)e << " ";
-    }
-    os << "]";
-    return os;
-}
-} // namespace std
 
 TEST(stdlib_blake3s, test_single_block)
 {

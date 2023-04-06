@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/crypto/keccak/keccak.hpp"
+#include "./element.hpp"
 
 namespace barretenberg {
 namespace group_elements {
@@ -46,6 +47,13 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::from_compressed(c
 }
 
 template <class Fq, class Fr, class T>
+constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::operator+(
+    const affine_element<Fq, Fr, T>& other) const noexcept
+{
+    return affine_element(element<Fq, Fr, T>(*this) + element<Fq, Fr, T>(other));
+}
+
+template <class Fq, class Fr, class T>
 constexpr affine_element<Fq, Fr, T>& affine_element<Fq, Fr, T>::operator=(const affine_element& other) noexcept
 {
     x = other.x;
@@ -71,6 +79,13 @@ constexpr uint256_t affine_element<Fq, Fr, T>::compress() const noexcept
         out.data[3] = out.data[3] | 0x8000000000000000ULL;
     }
     return out;
+}
+
+template <class Fq, class Fr, class T> affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::infinity()
+{
+    affine_element e;
+    e.self_set_infinity();
+    return e;
 }
 
 template <class Fq, class Fr, class T>

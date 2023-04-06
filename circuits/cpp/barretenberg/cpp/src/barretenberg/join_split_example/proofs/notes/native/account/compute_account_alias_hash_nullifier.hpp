@@ -1,6 +1,6 @@
 #pragma once
 #include "account_note.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "../../constants.hpp"
 
 namespace join_split_example {
@@ -13,8 +13,8 @@ using namespace barretenberg;
 
 inline fr compute_account_alias_hash_nullifier(fr const& alias_hash)
 {
-    return crypto::pedersen::compress_native(std::vector<fr>{ alias_hash },
-                                             notes::GeneratorIndex::ACCOUNT_ALIAS_HASH_NULLIFIER);
+    return crypto::pedersen_commitment::compress_native(std::vector<fr>{ alias_hash },
+                                                        notes::GeneratorIndex::ACCOUNT_ALIAS_HASH_NULLIFIER);
 }
 
 } // namespace account

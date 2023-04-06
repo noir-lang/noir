@@ -35,10 +35,13 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr affine_element& operator=(affine_element&& other) noexcept;
 
+    constexpr affine_element operator+(const affine_element& other) const noexcept;
+
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
     constexpr uint256_t compress() const noexcept;
 
+    static affine_element infinity();
     constexpr affine_element set_infinity() const noexcept;
     constexpr void self_set_infinity() noexcept;
 

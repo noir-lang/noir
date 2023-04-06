@@ -6,8 +6,8 @@
 #include "barretenberg/common/net.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
-#include "barretenberg/crypto/pedersen/pedersen_lookup.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
@@ -213,12 +213,12 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         break;
     }
     case HashType::PedersenBlake3s: {
-        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen::compress_native(buffer));
+        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen_commitment::compress_native(buffer));
         base_hash = Blake3sHasher::hash(compressed_buffer);
         break;
     }
     case HashType::PlookupPedersenBlake3s: {
-        std::vector<uint8_t> compressed_buffer = crypto::pedersen::lookup::compress_native(buffer);
+        std::vector<uint8_t> compressed_buffer = crypto::pedersen_commitment::lookup::compress_native(buffer);
         base_hash = Blake3sHasher::hash(compressed_buffer);
         break;
     }

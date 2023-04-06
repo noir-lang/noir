@@ -76,7 +76,9 @@ if(WASM)
         $<TARGET_OBJECTS:crypto_blake3s_objects>
         $<TARGET_OBJECTS:crypto_keccak_objects>
         $<TARGET_OBJECTS:crypto_schnorr_objects>
-        $<TARGET_OBJECTS:crypto_pedersen_objects>
+        $<TARGET_OBJECTS:crypto_generators_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
         $<TARGET_OBJECTS:ecc_objects>
         $<TARGET_OBJECTS:polynomials_objects>
         $<TARGET_OBJECTS:plonk_objects>
@@ -84,7 +86,8 @@ if(WASM)
         $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:stdlib_primitives_objects>
         $<TARGET_OBJECTS:stdlib_schnorr_objects>
-        $<TARGET_OBJECTS:stdlib_pedersen_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_hash_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_commitment_objects>
         $<TARGET_OBJECTS:stdlib_blake2s_objects>
         $<TARGET_OBJECTS:stdlib_blake3s_objects>
         $<TARGET_OBJECTS:stdlib_sha256_objects>
@@ -92,6 +95,9 @@ if(WASM)
         $<TARGET_OBJECTS:stdlib_merkle_tree_objects>
         $<TARGET_OBJECTS:acir_format_objects>
         $<TARGET_OBJECTS:acir_proofs_objects>
+        $<TARGET_OBJECTS:stdlib_sha256_objects>
+        $<TARGET_OBJECTS:stdlib_aes128_objects>
+        $<TARGET_OBJECTS:stdlib_merkle_tree_objects>
     )
 
     # With binaryen installed, it seems its wasm backend optimiser gets invoked automatically.
@@ -105,12 +111,35 @@ if(WASM)
         -nostartfiles -O2 -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
     )
 
+    # Repeat the above but for the smaller primitives.wasm
+    # Used in packages where we don't need the full contents of barretenberg
+    add_executable(
+        primitives.wasm
+        $<TARGET_OBJECTS:srs_objects>
+        $<TARGET_OBJECTS:numeric_objects>
+        $<TARGET_OBJECTS:crypto_sha256_objects>
+        $<TARGET_OBJECTS:crypto_aes128_objects>
+        $<TARGET_OBJECTS:crypto_blake2s_objects>
+        $<TARGET_OBJECTS:crypto_blake3s_objects>
+        $<TARGET_OBJECTS:crypto_generators_objects>
+        $<TARGET_OBJECTS:crypto_keccak_objects>
+        $<TARGET_OBJECTS:crypto_schnorr_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
+        $<TARGET_OBJECTS:ecc_objects>
+    )
+
+    target_link_options(
+        primitives.wasm
+        PRIVATE
+        -nostartfiles -O2 -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=1048576
+    )
+
     # TODO(blaine): Figure out how to Asyncify the wasm output.
     # Binaryen's Asyncify transform produces wasm that has too many local variables to run in a WebAssembly
     # instance. This likely would be "solved" by enabling the optimizations to reduce the number of locals,
     # but using any optimization level results in a wasm file that takes an unusable amount of time to solve the
     # most simple prood.
-
     # find_program(WASM_OPT wasm-opt)
 
     # if(NOT WASM_OPT)
@@ -123,6 +152,13 @@ if(WASM)
     #     COMMAND wasm-opt "$<TARGET_FILE:barretenberg.wasm>" -O0 --asyncify -o "$<TARGET_FILE:barretenberg.wasm>"
     #     VERBATIM
     # )
+
+    add_custom_command(
+        TARGET primitives.wasm
+        POST_BUILD
+        COMMAND wasm-opt "$<TARGET_FILE:primitives.wasm>" -O2 -o "$<TARGET_FILE:primitives.wasm>"
+        VERBATIM
+    )
 
     if(INSTALL_BARRETENBERG)
         install(TARGETS barretenberg.wasm DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -142,7 +178,9 @@ if(WASM)
         $<TARGET_OBJECTS:crypto_blake3s_objects>
         $<TARGET_OBJECTS:crypto_keccak_objects>
         $<TARGET_OBJECTS:crypto_schnorr_objects>
-        $<TARGET_OBJECTS:crypto_pedersen_objects>
+        $<TARGET_OBJECTS:crypto_generators_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
         $<TARGET_OBJECTS:ecc_objects>
         $<TARGET_OBJECTS:polynomials_objects>
         $<TARGET_OBJECTS:plonk_objects>
@@ -150,7 +188,8 @@ if(WASM)
         $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:stdlib_primitives_objects>
         $<TARGET_OBJECTS:stdlib_schnorr_objects>
-        $<TARGET_OBJECTS:stdlib_pedersen_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_hash_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_commitment_objects>
         $<TARGET_OBJECTS:stdlib_blake2s_objects>
         $<TARGET_OBJECTS:stdlib_blake3s_objects>
         $<TARGET_OBJECTS:stdlib_sha256_objects>
@@ -174,7 +213,9 @@ else()
         $<TARGET_OBJECTS:crypto_blake3s_objects>
         $<TARGET_OBJECTS:crypto_keccak_objects>
         $<TARGET_OBJECTS:crypto_schnorr_objects>
-        $<TARGET_OBJECTS:crypto_pedersen_objects>
+        $<TARGET_OBJECTS:crypto_generators_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_hash_objects>
+        $<TARGET_OBJECTS:crypto_pedersen_commitment_objects>
         $<TARGET_OBJECTS:ecc_objects>
         $<TARGET_OBJECTS:polynomials_objects>
         $<TARGET_OBJECTS:plonk_objects>
@@ -182,7 +223,8 @@ else()
         $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:stdlib_primitives_objects>
         $<TARGET_OBJECTS:stdlib_schnorr_objects>
-        $<TARGET_OBJECTS:stdlib_pedersen_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_hash_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_commitment_objects>
         $<TARGET_OBJECTS:stdlib_blake2s_objects>
         $<TARGET_OBJECTS:stdlib_blake3s_objects>
         $<TARGET_OBJECTS:stdlib_sha256_objects>

@@ -77,7 +77,6 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     }
 
     element operator*(const Fr& other) const noexcept;
-
     element operator*=(const Fr& other) noexcept;
 
     // If you end up implementing this, congrats, you've solved the DL problem!
@@ -85,6 +84,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     // constexpr Fr operator/(const element& other) noexcept {}
 
     constexpr element normalize() const noexcept;
+    static element infinity();
     BBERG_INLINE constexpr element set_infinity() const noexcept;
     BBERG_INLINE constexpr void self_set_infinity() noexcept;
     BBERG_INLINE constexpr bool is_point_at_infinity() const noexcept;

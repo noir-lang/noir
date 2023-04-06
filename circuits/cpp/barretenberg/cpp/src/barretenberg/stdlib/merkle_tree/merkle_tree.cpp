@@ -32,7 +32,7 @@ MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     auto current = fr(0);
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
-        current = compress_native(current, current);
+        current = hash_pair_native(current, current);
     }
 }
 
@@ -51,7 +51,7 @@ template <typename Store> fr MerkleTree<Store>::root() const
     std::vector<uint8_t> root;
     std::vector<uint8_t> key = { tree_id_ };
     bool status = store_.get(key, root);
-    return status ? from_buffer<fr>(root) : compress_native(zero_hashes_.back(), zero_hashes_.back());
+    return status ? from_buffer<fr>(root) : hash_pair_native(zero_hashes_.back(), zero_hashes_.back());
 }
 
 template <typename Store> typename MerkleTree<Store>::index_t MerkleTree<Store>::size() const
@@ -103,7 +103,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                     } else {
                         path[j] = std::make_pair(current, zero_hashes_[j]);
                     }
-                    current = compress_native(path[j].first, path[j].second);
+                    current = hash_pair_native(path[j].first, path[j].second);
                 }
             } else {
                 // Requesting path to a different, indepenent element.
@@ -123,7 +123,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                     } else {
                         path[j] = std::make_pair(current, zero_hashes_[j]);
                     }
-                    current = compress_native(path[j].first, path[j].second);
+                    current = hash_pair_native(path[j].first, path[j].second);
                 }
             }
             break;
@@ -158,7 +158,7 @@ template <typename Store> fr MerkleTree<Store>::binary_put(index_t a_index, fr c
     bool a_is_right = bit_set(a_index, height - 1);
     auto left = a_is_right ? b : a;
     auto right = a_is_right ? a : b;
-    auto key = compress_native(left, right);
+    auto key = hash_pair_native(left, right);
     put(key, left, right);
     return key;
 }
@@ -236,7 +236,7 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         } else {
             left = subtree_root;
         }
-        auto new_root = compress_native(left, right);
+        auto new_root = hash_pair_native(left, right);
         put(new_root, left, right);
 
         // Remove the old node only while rolling back in recursion.
@@ -260,7 +260,7 @@ template <typename Store> fr MerkleTree<Store>::compute_zero_path_hash(size_t he
             right = zero_hashes_[i];
             left = current;
         }
-        current = compress_native(is_right ? zero_hashes_[i] : current, is_right ? current : zero_hashes_[i]);
+        current = hash_pair_native(left, right);
     }
     return current;
 }

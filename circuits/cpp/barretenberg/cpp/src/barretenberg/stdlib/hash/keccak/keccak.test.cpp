@@ -18,18 +18,6 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-namespace std {
-inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& t)
-{
-    os << "[ ";
-    for (auto e : t) {
-        os << std::setfill('0') << std::hex << std::setw(2) << (int)e << " ";
-    }
-    os << "]";
-    return os;
-}
-} // namespace std
-
 TEST(stdlib_keccak, keccak_format_input_table)
 {
     Composer composer = Composer();

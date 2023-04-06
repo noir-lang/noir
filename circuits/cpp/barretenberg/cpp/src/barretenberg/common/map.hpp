@@ -10,10 +10,26 @@ template <template <typename, typename...> typename Cont,
           typename... Args,
           typename F,
           typename OutElem = typename std::invoke_result<F, InElem const&>::type>
-Cont<OutElem> map(Cont<InElem, Args...> const& in, F op)
+Cont<OutElem> map(Cont<InElem, Args...> const& in, F&& op)
 {
     Cont<OutElem> result;
     std::transform(in.begin(), in.end(), std::back_inserter(result), op);
+    return result;
+}
+
+/*
+ * Generic map function for mapping a std::array's elements to another type.
+ * TODO: this has only been added because I (Mike) couldn't get the above to work
+ * with an array.
+ */
+template <std::size_t SIZE,
+          typename InElem,
+          typename F,
+          typename OutElem = typename std::invoke_result<F, InElem const&>::type>
+std::array<OutElem, SIZE> map(std::array<InElem, SIZE> const& in, F&& op)
+{
+    std::array<OutElem, SIZE> result;
+    std::transform(in.begin(), in.end(), result.begin(), op);
     return result;
 }
 

@@ -1,12 +1,12 @@
 #include "compute_signing_data.hpp"
 #include "../notes/native/index.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 
 namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-using namespace crypto::pedersen;
+using namespace crypto::pedersen_commitment;
 using namespace notes::native;
 
 barretenberg::fr compute_signing_data(join_split_tx const& tx)

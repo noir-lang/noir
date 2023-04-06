@@ -43,7 +43,7 @@ bool_t<Composer> check_subtree_membership(field_t<Composer> const& root,
         // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
         field_t<Composer> left = field_t<Composer>::conditional_assign(path_bit, hashes[i].first, current);
         field_t<Composer> right = field_t<Composer>::conditional_assign(path_bit, current, hashes[i].second);
-        current = pedersen<Composer>::compress_unsafe(left, right, 0, is_updating_tree);
+        current = pedersen_hash<Composer>::hash_multiple({ left, right }, 0, is_updating_tree);
     }
 
     return (current == root);
@@ -150,6 +150,35 @@ void update_membership(field_t<Composer> const& new_root,
 }
 
 /**
+ * Asserts if the state transitions on updating multiple existing leaves with new values.
+ *
+ * @param old_root: The root of the merkle tree before it was updated,
+ * @param new_roots: New roots after each existing leaf was updated,
+ * @param new_values: The new values that are inserted in the existing leaves,
+ * @param old_values: The values of the existing leaves that were updated,
+ * @param old_paths: The hash path from the given index right before a given existing leaf is updated,
+ * @param old_indicies: Indices of the existing leaves that need to be updated,
+ * @tparam Composer: type of composer.
+ */
+template <typename Composer>
+field_t<Composer> update_memberships(field_t<Composer> old_root,
+                                     std::vector<field_t<Composer>> const& new_roots,
+                                     std::vector<field_t<Composer>> const& new_values,
+                                     std::vector<field_t<Composer>> const& old_values,
+                                     std::vector<hash_path<Composer>> const& old_paths,
+                                     std::vector<bit_vector<Composer>> const& old_indicies)
+{
+    for (size_t i = 0; i < old_indicies.size(); i++) {
+        update_membership(
+            new_roots[i], new_values[i], old_root, old_paths[i], old_values[i], old_indicies[i], "update_memberships");
+
+        old_root = new_roots[i];
+    }
+
+    return old_root;
+}
+
+/**
  * Asserts if old and new state of the tree is correct after a subtree-update.
  *
  * @param new_root: The root of the updated merkle tree,
@@ -199,7 +228,7 @@ template <typename Composer> field_t<Composer> compute_tree_root(std::vector<fie
     while (layer.size() > 1) {
         std::vector<field_t<Composer>> next_layer(layer.size() / 2);
         for (size_t i = 0; i < next_layer.size(); ++i) {
-            next_layer[i] = pedersen<Composer>::compress(layer[i * 2], layer[i * 2 + 1]);
+            next_layer[i] = pedersen_hash<Composer>::hash_multiple({ layer[i * 2], layer[i * 2 + 1] });
         }
         layer = std::move(next_layer);
     }

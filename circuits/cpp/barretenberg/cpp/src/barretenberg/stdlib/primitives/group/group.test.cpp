@@ -20,7 +20,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul)
 {
     auto scalar = uint256_t(123, 0, 0, 0);
     auto priv_key = grumpkin::fr(scalar);
-    auto pub_key = crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_1).generator * priv_key;
+    auto pub_key = crypto::generators::get_generator_data(crypto::generators::DEFAULT_GEN_1).generator * priv_key;
 
     Composer composer;
     auto priv_key_witness = field_ct(witness_ct(&composer, fr(scalar)));
@@ -30,7 +30,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul)
     EXPECT_EQ(result.x.get_value(), pub_key.x);
     EXPECT_EQ(result.y.get_value(), pub_key.y);
 
-    auto native_result = crypto::pedersen::fixed_base_scalar_mul<128>(barretenberg::fr(scalar), 0);
+    auto native_result = crypto::generators::fixed_base_scalar_mul<128>(barretenberg::fr(scalar), 0);
     EXPECT_EQ(native_result.x, pub_key.x);
     EXPECT_EQ(native_result.y, pub_key.y);
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/common/serialize.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "../../constants.hpp"
 
@@ -14,8 +14,8 @@ inline auto complete_partial_commitment(grumpkin::fq const& claim_note_partial_c
                                         uint32_t interaction_nonce,
                                         uint256_t fee)
 {
-    return crypto::pedersen::compress_native({ claim_note_partial_commitment, interaction_nonce, fee },
-                                             GeneratorIndex::CLAIM_NOTE_COMMITMENT);
+    return crypto::pedersen_commitment::compress_native({ claim_note_partial_commitment, interaction_nonce, fee },
+                                                        GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 
 } // namespace claim

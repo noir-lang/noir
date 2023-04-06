@@ -485,6 +485,13 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, 
     return element(converted);
 }
 
+template <class Fq, class Fr, class T> element<Fq, Fr, T> element<Fq, Fr, T>::infinity()
+{
+    element<Fq, Fr, T> e;
+    e.self_set_infinity();
+    return e;
+}
+
 template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, Fr, T>::set_infinity() const noexcept
 {
     element result(*this);

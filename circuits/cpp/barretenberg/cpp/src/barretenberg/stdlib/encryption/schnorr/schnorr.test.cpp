@@ -1,5 +1,5 @@
 #include "schnorr.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/stdlib/types/types.hpp"

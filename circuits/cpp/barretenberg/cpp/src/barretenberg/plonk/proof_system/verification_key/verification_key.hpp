@@ -1,6 +1,9 @@
 #pragma once
 #include <map>
+#include "barretenberg/common/streams.hpp"
 #include "barretenberg/srs/reference_string/reference_string.hpp"
+#include "barretenberg/srs/reference_string/env_reference_string.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
@@ -14,6 +17,8 @@ struct verification_key_data {
     std::map<std::string, barretenberg::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
     std::vector<uint32_t> recursive_proof_public_input_indices;
+
+    barretenberg::fr compress_native(size_t const hash_index = 0);
 };
 
 template <typename B> inline void read(B& buf, verification_key_data& key)
@@ -80,6 +85,24 @@ struct verification_key {
     size_t program_width = 3;
 };
 
+template <typename B> inline void read(B& buf, verification_key& key)
+{
+    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
+    using serialize::read;
+    verification_key_data vk_data;
+    read(buf, vk_data);
+    key = verification_key{ std::move(vk_data), env_crs->get_verifier_crs() };
+}
+
+template <typename B> inline void read(B& buf, std::shared_ptr<verification_key>& key)
+{
+    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
+    using serialize::read;
+    verification_key_data vk_data;
+    read(buf, vk_data);
+    key = std::make_shared<verification_key>(std::move(vk_data), env_crs->get_verifier_crs());
+}
+
 template <typename B> inline void write(B& buf, verification_key const& key)
 {
     using serialize::write;
@@ -90,5 +113,15 @@ template <typename B> inline void write(B& buf, verification_key const& key)
     write(buf, key.contains_recursive_proof);
     write(buf, key.recursive_proof_public_input_indices);
 }
+
+inline std::ostream& operator<<(std::ostream& os, verification_key const& key)
+{
+    return os << "key.composer_type: " << key.composer_type << "\n"
+              << "key.circuit_size: " << static_cast<uint32_t>(key.circuit_size) << "\n"
+              << "key.num_public_inputs: " << static_cast<uint32_t>(key.num_public_inputs) << "\n"
+              << "key.commitments: " << key.commitments << "\n"
+              << "key.contains_recursive_proof: " << key.contains_recursive_proof << "\n"
+              << "key.recursive_proof_public_input_indices: " << key.recursive_proof_public_input_indices << "\n";
+};
 
 } // namespace proof_system::plonk

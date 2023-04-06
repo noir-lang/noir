@@ -4,7 +4,7 @@
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
-#include "barretenberg/crypto/pedersen/pedersen_lookup.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
@@ -41,8 +41,8 @@ TEST(stdlib_plookup, pedersen_lookup_left)
     std::vector<barretenberg::fr> expected_y;
 
     const size_t num_lookups_hi =
-        (128 + crypto::pedersen::lookup::BITS_PER_TABLE) / crypto::pedersen::lookup::BITS_PER_TABLE;
-    const size_t num_lookups_lo = 126 / crypto::pedersen::lookup::BITS_PER_TABLE;
+        (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    const size_t num_lookups_lo = 126 / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
 
     EXPECT_EQ(num_lookups_hi, lookup_hi[ColumnIdx::C1].size());
     EXPECT_EQ(num_lookups_lo, lookup_lo[ColumnIdx::C1].size());
@@ -57,21 +57,21 @@ TEST(stdlib_plookup, pedersen_lookup_left)
         const size_t num_rounds = (num_lookups + 1) / 2;
         uint256_t bits(input_value);
 
-        const auto mask = crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE - 1;
+        const auto mask = crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE - 1;
 
         for (size_t i = 0; i < num_rounds; ++i) {
-            const auto& table = crypto::pedersen::lookup::get_table(i);
+            const auto& table = crypto::pedersen_hash::lookup::get_table(i);
             const size_t index = i * 2;
 
             size_t slice_a =
-                static_cast<size_t>(((bits >> (index * crypto::pedersen::lookup::BITS_PER_TABLE)) & mask).data[0]);
+                static_cast<size_t>(((bits >> (index * crypto::pedersen_hash::lookup::BITS_PER_TABLE)) & mask).data[0]);
             expected_x[index] = (table[slice_a].x);
             expected_y[index] = (table[slice_a].y);
             expected_scalars[index] = slice_a;
 
             if (i < 14) {
                 size_t slice_b = static_cast<size_t>(
-                    ((bits >> ((index + 1) * crypto::pedersen::lookup::BITS_PER_TABLE)) & mask).data[0]);
+                    ((bits >> ((index + 1) * crypto::pedersen_hash::lookup::BITS_PER_TABLE)) & mask).data[0]);
                 expected_x[index + 1] = (table[slice_b].x);
                 expected_y[index + 1] = (table[slice_b].y);
                 expected_scalars[index + 1] = slice_b;
@@ -80,7 +80,7 @@ TEST(stdlib_plookup, pedersen_lookup_left)
     }
 
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
-        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
     size_t hi_shift = 126;
     const fr hi_cumulative = lookup_hi[ColumnIdx::C1][0].get_value();
@@ -89,7 +89,7 @@ TEST(stdlib_plookup, pedersen_lookup_left)
         EXPECT_EQ(lookup_lo[ColumnIdx::C1][i].get_value() + (hi_cumulative * hi_mult), expected_scalars[i]);
         EXPECT_EQ(lookup_lo[ColumnIdx::C2][i].get_value(), expected_x[i]);
         EXPECT_EQ(lookup_lo[ColumnIdx::C3][i].get_value(), expected_y[i]);
-        hi_shift -= crypto::pedersen::lookup::BITS_PER_TABLE;
+        hi_shift -= crypto::pedersen_hash::lookup::BITS_PER_TABLE;
     }
     for (size_t i = 0; i < num_lookups_hi; ++i) {
         EXPECT_EQ(lookup_hi[ColumnIdx::C1][i].get_value(), expected_scalars[i + num_lookups_lo]);
@@ -121,8 +121,8 @@ TEST(stdlib_plookup, pedersen_lookup_right)
     std::vector<barretenberg::fr> expected_y;
 
     const size_t num_lookups_hi =
-        (128 + crypto::pedersen::lookup::BITS_PER_TABLE) / crypto::pedersen::lookup::BITS_PER_TABLE;
-    const size_t num_lookups_lo = 126 / crypto::pedersen::lookup::BITS_PER_TABLE;
+        (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    const size_t num_lookups_lo = 126 / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
 
     EXPECT_EQ(num_lookups_hi, lookup_hi[ColumnIdx::C1].size());
     EXPECT_EQ(num_lookups_lo, lookup_lo[ColumnIdx::C1].size());
@@ -137,21 +137,21 @@ TEST(stdlib_plookup, pedersen_lookup_right)
         const size_t num_rounds = (num_lookups + 1) / 2;
         uint256_t bits(input_value);
 
-        const auto mask = crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE - 1;
+        const auto mask = crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE - 1;
 
         for (size_t i = 0; i < num_rounds; ++i) {
-            const auto& table = crypto::pedersen::lookup::get_table(i + num_rounds);
+            const auto& table = crypto::pedersen_hash::lookup::get_table(i + num_rounds);
             const size_t index = i * 2;
 
             size_t slice_a =
-                static_cast<size_t>(((bits >> (index * crypto::pedersen::lookup::BITS_PER_TABLE)) & mask).data[0]);
+                static_cast<size_t>(((bits >> (index * crypto::pedersen_hash::lookup::BITS_PER_TABLE)) & mask).data[0]);
             expected_x[index] = (table[slice_a].x);
             expected_y[index] = (table[slice_a].y);
             expected_scalars[index] = slice_a;
 
             if (i < 14) {
                 size_t slice_b = static_cast<size_t>(
-                    ((bits >> ((index + 1) * crypto::pedersen::lookup::BITS_PER_TABLE)) & mask).data[0]);
+                    ((bits >> ((index + 1) * crypto::pedersen_hash::lookup::BITS_PER_TABLE)) & mask).data[0]);
                 expected_x[index + 1] = (table[slice_b].x);
                 expected_y[index + 1] = (table[slice_b].y);
                 expected_scalars[index + 1] = slice_b;
@@ -160,7 +160,7 @@ TEST(stdlib_plookup, pedersen_lookup_right)
     }
 
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
-        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
     size_t hi_shift = 126;
     const fr hi_cumulative = lookup_hi[ColumnIdx::C1][0].get_value();
@@ -169,7 +169,7 @@ TEST(stdlib_plookup, pedersen_lookup_right)
         EXPECT_EQ(lookup_lo[ColumnIdx::C1][i].get_value() + (hi_cumulative * hi_mult), expected_scalars[i]);
         EXPECT_EQ(lookup_lo[ColumnIdx::C2][i].get_value(), expected_x[i]);
         EXPECT_EQ(lookup_lo[ColumnIdx::C3][i].get_value(), expected_y[i]);
-        hi_shift -= crypto::pedersen::lookup::BITS_PER_TABLE;
+        hi_shift -= crypto::pedersen_hash::lookup::BITS_PER_TABLE;
     }
     for (size_t i = 0; i < num_lookups_hi; ++i) {
         EXPECT_EQ(lookup_hi[ColumnIdx::C1][i].get_value(), expected_scalars[i + num_lookups_lo]);

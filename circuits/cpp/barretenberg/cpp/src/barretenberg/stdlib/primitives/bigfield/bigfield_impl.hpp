@@ -1309,7 +1309,7 @@ bigfield<C, T> bigfield<C, T>::mult_madd(const std::vector<bigfield>& mul_left,
         remainder = zero();
         // remainder needs to be defined as wire value and not selector values to satisfy
         // UltraPlonk's bigfield custom gates
-        remainder.convert_constant_to_witness(ctx);
+        remainder.convert_constant_to_fixed_witness(ctx);
     } else {
         remainder = create_from_u512_as_witness(ctx, remainder_value);
     }
@@ -1883,7 +1883,7 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
     if constexpr (C::type == ComposerType::PLOOKUP) {
         // The plookup custom bigfield gate requires inputs are witnesses.
         // If we're using constant values, instantiate them as circuit variables
-        const auto convert_constant_to_witness = [ctx](const bigfield& input) {
+        const auto convert_constant_to_fixed_witness = [ctx](const bigfield& input) {
             bigfield output(input);
             output.prime_basis_limb =
                 field_t<C>::from_witness_index(ctx, ctx->put_constant_variable(input.prime_basis_limb.get_value()));
@@ -1899,16 +1899,16 @@ void bigfield<C, T>::unsafe_evaluate_multiply_add(const bigfield& input_left,
             return output;
         };
         if (left.is_constant()) {
-            left = convert_constant_to_witness(left);
+            left = convert_constant_to_fixed_witness(left);
         }
         if (to_mul.is_constant()) {
-            to_mul = convert_constant_to_witness(to_mul);
+            to_mul = convert_constant_to_fixed_witness(to_mul);
         }
         if (quotient.is_constant()) {
-            quotient = convert_constant_to_witness(quotient);
+            quotient = convert_constant_to_fixed_witness(quotient);
         }
         if (remainders[0].is_constant()) {
-            remainders[0] = convert_constant_to_witness(remainders[0]);
+            remainders[0] = convert_constant_to_fixed_witness(remainders[0]);
         }
 
         std::vector<field_t<C>> limb_0_accumulator{ remainders[0].binary_basis_limbs[0].element };
@@ -2242,7 +2242,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
         // The plookup custom bigfield gate requires inputs are witnesses.
         // If we're using constant values, instantiate them as circuit variables
 
-        const auto convert_constant_to_witness = [ctx](const bigfield& input) {
+        const auto convert_constant_to_fixed_witness = [ctx](const bigfield& input) {
             bigfield output(input);
             output.prime_basis_limb =
                 field_t<C>::from_witness_index(ctx, ctx->put_constant_variable(input.prime_basis_limb.get_value()));
@@ -2274,16 +2274,16 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
 
         for (size_t i = 0; i < num_multiplications; ++i) {
             if (i == 0 && left[0].is_constant()) {
-                left[0] = convert_constant_to_witness(left[0]);
+                left[0] = convert_constant_to_fixed_witness(left[0]);
             }
             if (i == 0 && right[0].is_constant()) {
-                right[0] = convert_constant_to_witness(right[0]);
+                right[0] = convert_constant_to_fixed_witness(right[0]);
             }
             if (i > 0 && left[i].is_constant()) {
-                left[i] = convert_constant_to_witness(left[i]);
+                left[i] = convert_constant_to_fixed_witness(left[i]);
             }
             if (i > 0 && right[i].is_constant()) {
-                right[i] = convert_constant_to_witness(right[i]);
+                right[i] = convert_constant_to_fixed_witness(right[i]);
             }
 
             if (i > 0) {
@@ -2331,7 +2331,7 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
             }
         }
         if (quotient.is_constant()) {
-            quotient = convert_constant_to_witness(quotient);
+            quotient = convert_constant_to_fixed_witness(quotient);
         }
 
         bool no_remainders = remainders.size() == 0;

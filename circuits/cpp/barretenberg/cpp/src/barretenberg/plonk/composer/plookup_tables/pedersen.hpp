@@ -2,7 +2,7 @@
 
 #include "./types.hpp"
 
-#include "barretenberg/crypto/pedersen/pedersen_lookup.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen_lookup.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
 #include "barretenberg/numeric/bitop/pow.hpp"
@@ -14,14 +14,14 @@ namespace basic {
 template <size_t generator_index>
 inline std::array<barretenberg::fr, 2> get_basic_pedersen_table_values(const std::array<uint64_t, 2> key)
 {
-    const auto& basic_table = crypto::pedersen::lookup::get_table(generator_index);
+    const auto& basic_table = crypto::pedersen_hash::lookup::get_table(generator_index);
     const size_t index = static_cast<size_t>(key[0]);
     return { basic_table[index].x, basic_table[index].y };
 }
 
 inline std::array<barretenberg::fr, 2> get_pedersen_iv_table_values(const std::array<uint64_t, 2> key)
 {
-    const auto& iv_table = crypto::pedersen::lookup::get_iv_table();
+    const auto& iv_table = crypto::pedersen_hash::lookup::get_iv_table();
     const size_t index = static_cast<size_t>(key[0]);
     return { iv_table[index].x, iv_table[index].y };
 }
@@ -32,11 +32,11 @@ inline BasicTable generate_basic_pedersen_table(BasicTableId id, const size_t ta
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size =
-        is_small ? crypto::pedersen::lookup::PEDERSEN_SMALL_TABLE_SIZE : crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE;
+    table.size = is_small ? crypto::pedersen_hash::lookup::PEDERSEN_SMALL_TABLE_SIZE
+                          : crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE;
     table.use_twin_keys = false;
 
-    const auto& basic_table = crypto::pedersen::lookup::get_table(generator_index);
+    const auto& basic_table = crypto::pedersen_hash::lookup::get_table(generator_index);
 
     for (size_t i = 0; i < table.size; ++i) {
         table.column_1.emplace_back(i);
@@ -58,10 +58,10 @@ inline BasicTable generate_pedersen_iv_table(BasicTableId id)
     BasicTable table;
     table.id = id;
     table.table_index = 0;
-    table.size = crypto::pedersen::lookup::PEDERSEN_IV_TABLE_SIZE;
+    table.size = crypto::pedersen_hash::lookup::PEDERSEN_IV_TABLE_SIZE;
     table.use_twin_keys = false;
 
-    const auto& iv_table = crypto::pedersen::lookup::get_iv_table();
+    const auto& iv_table = crypto::pedersen_hash::lookup::get_iv_table();
 
     for (size_t i = 0; i < table.size; ++i) {
         table.column_1.emplace_back(i);
@@ -80,9 +80,9 @@ inline BasicTable generate_pedersen_iv_table(BasicTableId id)
 
 inline MultiTable get_pedersen_iv_table(const MultiTableId id = PEDERSEN_IV)
 {
-    MultiTable table(crypto::pedersen::lookup::PEDERSEN_IV_TABLE_SIZE, 0, 0, 1);
+    MultiTable table(crypto::pedersen_hash::lookup::PEDERSEN_IV_TABLE_SIZE, 0, 0, 1);
     table.id = id;
-    table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_IV_TABLE_SIZE);
+    table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_IV_TABLE_SIZE);
     table.get_table_values.emplace_back(&get_pedersen_iv_table_values);
     table.lookup_ids = { PEDERSEN_IV_BASE };
 
@@ -91,12 +91,12 @@ inline MultiTable get_pedersen_iv_table(const MultiTableId id = PEDERSEN_IV)
 
 inline MultiTable get_pedersen_left_lo_table(const MultiTableId id = PEDERSEN_LEFT_LO)
 {
-    const size_t num_entries = 126 / crypto::pedersen::lookup::BITS_PER_TABLE;
-    MultiTable table(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+    const size_t num_entries = 126 / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    MultiTable table(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
 
     table.get_table_values = { &get_basic_pedersen_table_values<0>, &get_basic_pedersen_table_values<0>,
@@ -115,14 +115,14 @@ inline MultiTable get_pedersen_left_lo_table(const MultiTableId id = PEDERSEN_LE
 inline MultiTable get_pedersen_left_hi_table(const MultiTableId id = PEDERSEN_LEFT_HI)
 {
     const size_t num_entries =
-        (128 + crypto::pedersen::lookup::BITS_PER_TABLE) / crypto::pedersen::lookup::BITS_PER_TABLE;
-    MultiTable table(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+        (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    MultiTable table(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries - 1; ++i) {
-        table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
-    table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_SMALL_TABLE_SIZE);
+    table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_SMALL_TABLE_SIZE);
 
     table.get_table_values = { &get_basic_pedersen_table_values<7>,  &get_basic_pedersen_table_values<7>,
                                &get_basic_pedersen_table_values<8>,  &get_basic_pedersen_table_values<8>,
@@ -141,12 +141,12 @@ inline MultiTable get_pedersen_left_hi_table(const MultiTableId id = PEDERSEN_LE
 
 inline MultiTable get_pedersen_right_lo_table(const MultiTableId id = PEDERSEN_RIGHT_LO)
 {
-    const size_t num_entries = 126 / crypto::pedersen::lookup::BITS_PER_TABLE;
-    MultiTable table(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+    const size_t num_entries = 126 / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    MultiTable table(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
 
     table.get_table_values = { &get_basic_pedersen_table_values<15>, &get_basic_pedersen_table_values<15>,
@@ -165,14 +165,14 @@ inline MultiTable get_pedersen_right_lo_table(const MultiTableId id = PEDERSEN_R
 inline MultiTable get_pedersen_right_hi_table(const MultiTableId id = PEDERSEN_RIGHT_HI)
 {
     const size_t num_entries =
-        (128 + crypto::pedersen::lookup::BITS_PER_TABLE) / crypto::pedersen::lookup::BITS_PER_TABLE;
-    MultiTable table(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+        (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    MultiTable table(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries - 1; ++i) {
-        table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
-    table.slice_sizes.emplace_back(crypto::pedersen::lookup::PEDERSEN_SMALL_TABLE_SIZE);
+    table.slice_sizes.emplace_back(crypto::pedersen_hash::lookup::PEDERSEN_SMALL_TABLE_SIZE);
 
     table.get_table_values = { &get_basic_pedersen_table_values<22>, &get_basic_pedersen_table_values<22>,
                                &get_basic_pedersen_table_values<23>, &get_basic_pedersen_table_values<23>,

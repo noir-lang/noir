@@ -1,8 +1,9 @@
 #include "schnorr.hpp"
 #include <array>
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 
 #include "../../primitives/composers/composers.hpp"
 
@@ -161,7 +162,7 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
 
     // Various elliptic curve point additions that follow assume that the two points are distinct and not mutually
     // inverse. collision_offset is chosen to prevent a malicious prover from exploiting this assumption.
-    grumpkin::g1::affine_element collision_offset = crypto::pedersen::get_generator_data(DEFAULT_GEN_1).generator;
+    grumpkin::g1::affine_element collision_offset = crypto::generators::get_generator_data(DEFAULT_GEN_1).generator;
     grumpkin::g1::affine_element collision_end = collision_offset * grumpkin::fr(uint256_t(1) << 129);
 
     const bool init = current_accumulator.x.get_value() == pub_key.x.get_value();
@@ -290,7 +291,7 @@ std::array<field_t<C>, 2> verify_signature_internal(const byte_array<C>& message
 
     // build input (pedersen(([s]g + [e]pub).x | pub.x | pub.y) | message) to hash function
     // pedersen hash ([r].x | pub.x) to make sure the size of `hash_input` is <= 64 bytes for a 32 byte message
-    byte_array<C> hash_input(stdlib::pedersen<C>::compress({ x_3, pub_key.x, pub_key.y }));
+    byte_array<C> hash_input(stdlib::pedersen_commitment<C>::compress({ x_3, pub_key.x, pub_key.y }));
     hash_input.write(message);
 
     // compute  e' = hash(([s]g + [e]pub).x | message)

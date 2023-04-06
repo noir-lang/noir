@@ -1,5 +1,5 @@
 #include "pedersen_plookup.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 #include "barretenberg/plonk/composer/plookup_tables/types.hpp"
@@ -13,7 +13,14 @@ namespace stdlib {
 
 using namespace barretenberg;
 
-template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, const point& p2, const AddType add_type)
+/**
+ * Add two curve points in one of the following ways:
+ *  one: p1 + p2
+ *  lambda: p1 + λ.p2
+ *  one_plus_lambda: p1 + (1 + λ).p2
+ */
+template <typename C>
+point<C> pedersen_plookup_hash<C>::add_points(const point& p1, const point& p2, const AddType add_type)
 {
     C* ctx = p1.x.context ? p1.x.context : (p1.y.context ? p1.y.context : (p2.x.context ? p2.x.context : p2.y.context));
     grumpkin::fq x_1_raw = p1.x.get_value();
@@ -68,11 +75,14 @@ template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, 
     return p3;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& scalar, const bool parity)
+/**
+ * Hash a single field element using lookup tables.
+ */
+template <typename C> point<C> pedersen_plookup_hash<C>::hash_single(const field_t& scalar, const bool parity)
 {
     if (scalar.is_constant()) {
         C* ctx = scalar.get_context();
-        const auto hash_native = crypto::pedersen::lookup::hash_single(scalar.get_value(), parity).normalize();
+        const auto hash_native = crypto::pedersen_hash::lookup::hash_single(scalar.get_value(), parity).normalize();
         return { field_t(ctx, hash_native.x), field_t(ctx, hash_native.y) };
     }
 
@@ -125,47 +135,30 @@ template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& s
     return res;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::compress_to_point(const field_t& left, const field_t& right)
-{
-    auto p2 = hash_single(left, false);
-    auto p1 = hash_single(right, true);
-
-    return add_points(p1, p2);
-}
-
-template <typename C> field_t<C> pedersen_plookup<C>::compress(const field_t& left, const field_t& right)
-{
-    return compress_to_point(left, right).x;
-}
-
+/**
+ * Hash a bunch of field element using merkle damagard construction.
+ */
 template <typename C>
-point<C> pedersen_plookup<C>::merkle_damgard_compress(const std::vector<field_t>& inputs, const field_t& iv)
+field_t<C> pedersen_plookup_hash<C>::hash_multiple(const std::vector<field_t>& inputs, const size_t hash_index)
 {
     if (inputs.size() == 0) {
-        return point{ 0, 0 };
+        return point{ 0, 0 }.x;
     }
 
-    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, iv)[ColumnIdx::C2][0];
+    auto result = plookup_read::get_lookup_accumulators(MultiTableId::PEDERSEN_IV, hash_index)[ColumnIdx::C2][0];
     auto num_inputs = inputs.size();
     for (size_t i = 0; i < num_inputs; i++) {
-        result = compress(result, inputs[i]);
+        auto p2 = pedersen_plookup_hash<C>::hash_single(result, false);
+        auto p1 = pedersen_plookup_hash<C>::hash_single(inputs[i], true);
+        result = add_points(p1, p2).x;
     }
 
-    return compress_to_point(result, field_t(num_inputs));
+    auto p2 = hash_single(result, false);
+    auto p1 = hash_single(field_t(num_inputs), true);
+    return add_points(p1, p2).x;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index)
-{
-    return merkle_damgard_compress(inputs, field_t(hash_index));
-}
-
-template <typename C>
-field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs, const size_t hash_index)
-{
-    return commit(inputs, hash_index).x;
-}
-
-template class pedersen_plookup<plonk::UltraComposer>;
+template class pedersen_plookup_hash<plonk::UltraComposer>;
 
 } // namespace stdlib
 } // namespace proof_system::plonk

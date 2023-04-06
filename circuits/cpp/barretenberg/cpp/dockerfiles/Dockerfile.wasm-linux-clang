@@ -5,10 +5,11 @@ WORKDIR /usr/src/barretenberg/cpp/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
-# Build both honk_tests barretenberg.wasm
+# Build both honk_tests barretenberg.wasm primitives.wasm
 # This ensures that we aren't using features that would be incompatible with WASM for Honk
-RUN cmake --preset wasm && cmake --build --preset wasm --target honk_tests --target barretenberg.wasm
+RUN cmake --preset wasm && cmake --build --preset wasm --target honk_tests --target barretenberg.wasm --target primitives.wasm
 
 FROM alpine:3.17
 COPY --from=builder /usr/src/barretenberg/cpp/build-wasm/bin/barretenberg.wasm /usr/src/barretenberg/cpp/build/bin/barretenberg.wasm
+COPY --from=builder /usr/src/barretenberg/cpp/build-wasm/bin/primitives.wasm /usr/src/barretenberg/cpp/build/bin/primitives.wasm
 COPY --from=builder /usr/src/barretenberg/cpp/build-wasm/bin/*_tests /usr/src/barretenberg/cpp/build/bin/

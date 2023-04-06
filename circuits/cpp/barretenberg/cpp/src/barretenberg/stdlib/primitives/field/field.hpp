@@ -104,6 +104,13 @@ template <typename ComposerContext> class field_t {
         return *this;
     }
 
+    static field_t copy_as_new_witness(ComposerContext& context, field_t const& other)
+    {
+        auto result = field_t<ComposerContext>(witness_t<ComposerContext>(&context, other.get_value()));
+        result.assert_equal(other, "field_t::copy_as_new_witness, assert_equal");
+        return result;
+    }
+
     field_t operator+(const field_t& other) const;
     field_t operator-(const field_t& other) const;
     field_t operator*(const field_t& other) const;
@@ -135,6 +142,21 @@ template <typename ComposerContext> class field_t {
         *this = *this / other;
         return *this;
     }
+
+    // Prefix increment (++x)
+    field_t& operator++()
+    {
+        *this = *this + 1;
+        return *this;
+    };
+
+    // Postfix increment (x++)
+    field_t operator++(int)
+    {
+        field_t this_before_operation = field_t(*this);
+        *this = *this + 1;
+        return this_before_operation;
+    };
 
     field_t invert() const { return (field_t(1) / field_t(*this)).normalize(); }
 
@@ -239,9 +261,10 @@ template <typename ComposerContext> class field_t {
     void set_public() const { context->set_public_input(normalize().witness_index); }
 
     /**
-     * Create a witness form a constant. This way the value of the witness is fixed and public.
-     **/
-    void convert_constant_to_witness(ComposerContext* ctx)
+     * Create a witness form a constant. This way the value of the witness is fixed and public (public, because the
+     * value becomes hard-coded as an element of the q_c selector vector).
+     */
+    void convert_constant_to_fixed_witness(ComposerContext* ctx)
     {
         ASSERT(witness_index == IS_CONSTANT);
         context = ctx;

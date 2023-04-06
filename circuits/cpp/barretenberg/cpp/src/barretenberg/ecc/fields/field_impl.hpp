@@ -129,6 +129,18 @@ template <class T> constexpr field<T> field<T>::operator+=(const field& other) n
     return *this;
 }
 
+template <class T> constexpr field<T> field<T>::operator++() noexcept
+{
+    return *this += 1;
+}
+
+template <class T> constexpr field<T> field<T>::operator++(int) noexcept
+{
+    field<T> value_before_incrementing = *this;
+    *this += 1;
+    return value_before_incrementing;
+}
+
 /**
  *
  * Subtraction

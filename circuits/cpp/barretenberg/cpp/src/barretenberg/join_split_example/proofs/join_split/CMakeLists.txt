@@ -5,7 +5,7 @@ barretenberg_module(
   crypto_schnorr
   stdlib_blake2s
   stdlib_sha256
-  stdlib_pedersen
+  stdlib_pedersen_commitment
   stdlib_schnorr
   stdlib_primitives
   stdlib_merkle_tree)

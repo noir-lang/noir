@@ -3,6 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
+#include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
 
 namespace join_split_example {
 namespace proofs {
@@ -16,7 +17,7 @@ template <typename Composer> struct verify_result {
     bool logic_verified;
     std::string err;
     std::vector<fr> public_inputs;
-    plonk::stdlib::recursion::recursion_output<plonk::stdlib::bn254<Composer>> recursion_output;
+    plonk::stdlib::recursion::aggregation_state<plonk::stdlib::bn254<Composer>> aggregation_state;
 
     std::vector<uint8_t> proof_data;
     bool verified;
@@ -25,14 +26,14 @@ template <typename Composer> struct verify_result {
 };
 
 template <typename Composer>
-inline bool pairing_check(plonk::stdlib::recursion::recursion_output<plonk::stdlib::bn254<Composer>> recursion_output,
+inline bool pairing_check(plonk::stdlib::recursion::aggregation_state<plonk::stdlib::bn254<Composer>> aggregation_state,
                           std::shared_ptr<VerifierReferenceString> const& srs)
 {
     g1::affine_element P[2];
-    P[0].x = barretenberg::fq(recursion_output.P0.x.get_value().lo);
-    P[0].y = barretenberg::fq(recursion_output.P0.y.get_value().lo);
-    P[1].x = barretenberg::fq(recursion_output.P1.x.get_value().lo);
-    P[1].y = barretenberg::fq(recursion_output.P1.y.get_value().lo);
+    P[0].x = barretenberg::fq(aggregation_state.P0.x.get_value().lo);
+    P[0].y = barretenberg::fq(aggregation_state.P0.y.get_value().lo);
+    P[1].x = barretenberg::fq(aggregation_state.P1.x.get_value().lo);
+    P[1].y = barretenberg::fq(aggregation_state.P1.y.get_value().lo);
     barretenberg::fq12 inner_proof_result =
         barretenberg::pairing::reduced_ate_pairing_batch_precomputed(P, srs->get_precomputed_g2_lines(), 2);
     return inner_proof_result == barretenberg::fq12::one();
@@ -57,7 +58,7 @@ auto verify_logic_internal(Composer& composer, Tx& tx, CircuitData const& cd, ch
         return result;
     }
 
-    if (!pairing_check(result.recursion_output, cd.srs->get_verifier_crs())) {
+    if (!pairing_check(result.aggregation_state, cd.srs->get_verifier_crs())) {
         info(name, ": Native pairing check failed.");
         return result;
     }

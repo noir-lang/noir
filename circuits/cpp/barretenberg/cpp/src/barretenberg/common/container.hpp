@@ -49,3 +49,15 @@ InnerCont flatten(Cont<InnerCont, Args...> const& in)
     }
     return result;
 }
+
+// Return the first index at which a given item can be found in the vector.
+// Only safe for vectors with length less than the size_t overflow size.
+template <typename T> long index_of(std::vector<T> const& vec, T const& item)
+{
+    auto const& begin = vec.begin();
+    auto const& end = vec.end();
+
+    auto const& itr = std::find(begin, end, item);
+
+    return itr == end ? -1 : std::distance(begin, itr);
+}

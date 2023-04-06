@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "../../constants.hpp"
 
 namespace join_split_example {
@@ -13,8 +13,8 @@ inline auto complete_partial_commitment(grumpkin::fq const& partial_commitment,
                                         uint32_t asset_id,
                                         grumpkin::fq input_nullifier)
 {
-    return crypto::pedersen::compress_native({ partial_commitment, value, asset_id, input_nullifier },
-                                             GeneratorIndex::VALUE_NOTE_COMMITMENT);
+    return crypto::pedersen_commitment::compress_native({ partial_commitment, value, asset_id, input_nullifier },
+                                                        GeneratorIndex::VALUE_NOTE_COMMITMENT);
 };
 
 } // namespace value

@@ -5,20 +5,19 @@
 
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 
-#include "barretenberg/plonk/proof_system/utils/kate_verification.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
 
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
-#include "barretenberg/crypto/pedersen/pedersen_lookup.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
 
 #include "../../primitives/uint/uint.hpp"
 #include "../../primitives/memory/rom_table.hpp"
-#include "../../hash/pedersen/pedersen.hpp"
-#include "../../hash/pedersen/pedersen_plookup.hpp"
+#include "../../commitment/pedersen/pedersen.hpp"
+#include "../../commitment/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/curves/bn254.hpp"
 
 namespace proof_system::plonk {
@@ -55,14 +54,14 @@ template <typename Composer> struct evaluation_domain {
     field_t<Composer> compress() const
     {
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            field_t<Composer> out = pedersen_plookup<Composer>::compress({
+            field_t<Composer> out = pedersen_plookup_commitment<Composer>::compress({
                 root,
                 domain,
                 generator,
             });
             return out;
         } else {
-            field_t<Composer> out = pedersen<Composer>::compress({
+            field_t<Composer> out = pedersen_commitment<Composer>::compress({
                 root,
                 domain,
                 generator,
@@ -75,13 +74,13 @@ template <typename Composer> struct evaluation_domain {
     {
         barretenberg::fr out;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            out = crypto::pedersen::lookup::compress_native({
+            out = crypto::pedersen_commitment::lookup::compress_native({
                 input.root,
                 input.domain,
                 input.generator,
             });
         } else {
-            out = crypto::pedersen::compress_native({
+            out = crypto::pedersen_commitment::compress_native({
                 input.root,
                 input.domain,
                 input.generator,
@@ -120,6 +119,7 @@ template <typename Curve> struct verification_key {
         key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->circuit_size));
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
+        key->contains_recursive_proof = witness_t<Composer>(ctx, input_key->contains_recursive_proof);
 
         for (const auto& [tag, value] : input_key->commitments) {
             key->commitments.insert({ tag, Curve::g1_ct::from_witness(ctx, value) });
@@ -136,6 +136,7 @@ template <typename Curve> struct verification_key {
         key->base_key = input_key;
         key->n = field_t<Composer>(ctx, input_key->circuit_size);
         key->num_public_inputs = field_t<Composer>(ctx, input_key->num_public_inputs);
+        key->contains_recursive_proof = bool_t<Composer>(ctx, input_key->contains_recursive_proof);
 
         key->domain = evaluation_domain<Composer>::from_constants(ctx, input_key->domain);
 
@@ -185,35 +186,37 @@ template <typename Curve> struct verification_key {
         }
     }
 
-  private:
-    field_t<Composer> compress()
+  public:
+    field_t<Composer> compress(size_t const hash_index = 0)
     {
         field_t<Composer> compressed_domain = domain.compress();
 
-        std::vector<field_t<Composer>> key_witnesses;
-        key_witnesses.push_back(compressed_domain);
-        key_witnesses.push_back(num_public_inputs);
+        std::vector<field_t<Composer>> preimage_data;
+        preimage_data.push_back(Composer::type);
+        preimage_data.push_back(compressed_domain);
+        preimage_data.push_back(num_public_inputs);
         for (const auto& [tag, selector] : commitments) {
-            key_witnesses.push_back(selector.x.binary_basis_limbs[0].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[1].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[2].element);
-            key_witnesses.push_back(selector.x.binary_basis_limbs[3].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[0].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[1].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[2].element);
-            key_witnesses.push_back(selector.y.binary_basis_limbs[3].element);
+            preimage_data.push_back(selector.x.binary_basis_limbs[0].element);
+            preimage_data.push_back(selector.x.binary_basis_limbs[1].element);
+            preimage_data.push_back(selector.x.binary_basis_limbs[2].element);
+            preimage_data.push_back(selector.x.binary_basis_limbs[3].element);
+            preimage_data.push_back(selector.y.binary_basis_limbs[0].element);
+            preimage_data.push_back(selector.y.binary_basis_limbs[1].element);
+            preimage_data.push_back(selector.y.binary_basis_limbs[2].element);
+            preimage_data.push_back(selector.y.binary_basis_limbs[3].element);
         }
 
         field_t<Composer> compressed_key;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            compressed_key = pedersen_plookup<Composer>::compress(key_witnesses);
+            compressed_key = pedersen_plookup_commitment<Composer>::compress(preimage_data, hash_index);
         } else {
-            compressed_key = pedersen<Composer>::compress(key_witnesses);
+            compressed_key = pedersen_commitment<Composer>::compress(preimage_data, hash_index);
         }
         return compressed_key;
     }
 
-    barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key)
+    static barretenberg::fr compress_native(const std::shared_ptr<plonk::verification_key>& key,
+                                            const size_t hash_index = 0)
     {
         barretenberg::fr compressed_domain = evaluation_domain<Composer>::compress_native(key->domain);
 
@@ -227,28 +230,30 @@ template <typename Curve> struct verification_key {
             return limbs;
         };
 
-        std::vector<barretenberg::fr> key_witnesses;
-        key_witnesses.push_back(compressed_domain);
-        key_witnesses.push_back(key->num_public_inputs);
+        std::vector<barretenberg::fr> preimage_data;
+        preimage_data.push_back(Composer::type);
+        preimage_data.push_back(compressed_domain);
+        preimage_data.push_back(key->num_public_inputs);
         for (const auto& [tag, selector] : key->commitments) {
             const auto x_limbs = split_bigfield_limbs(selector.x);
             const auto y_limbs = split_bigfield_limbs(selector.y);
 
-            key_witnesses.push_back(x_limbs[0]);
-            key_witnesses.push_back(x_limbs[1]);
-            key_witnesses.push_back(x_limbs[2]);
-            key_witnesses.push_back(x_limbs[3]);
+            preimage_data.push_back(x_limbs[0]);
+            preimage_data.push_back(x_limbs[1]);
+            preimage_data.push_back(x_limbs[2]);
+            preimage_data.push_back(x_limbs[3]);
 
-            key_witnesses.push_back(y_limbs[0]);
-            key_witnesses.push_back(y_limbs[1]);
-            key_witnesses.push_back(y_limbs[2]);
-            key_witnesses.push_back(y_limbs[3]);
+            preimage_data.push_back(y_limbs[0]);
+            preimage_data.push_back(y_limbs[1]);
+            preimage_data.push_back(y_limbs[2]);
+            preimage_data.push_back(y_limbs[3]);
         }
+
         barretenberg::fr compressed_key;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            compressed_key = crypto::pedersen::lookup::compress_native(key_witnesses);
+            compressed_key = crypto::pedersen_commitment::lookup::compress_native(preimage_data, hash_index);
         } else {
-            compressed_key = crypto::pedersen::compress_native(key_witnesses);
+            compressed_key = crypto::pedersen_commitment::compress_native(preimage_data, hash_index);
         }
         return compressed_key;
     }
@@ -258,6 +263,10 @@ template <typename Curve> struct verification_key {
     field_t<Composer> n;
     field_t<Composer> num_public_inputs;
     field_t<Composer> z_pow_n;
+
+    // NOTE: This does not strictly need to be a circuit type. It can be used to check in the circuit
+    // if a proof contains any aggregated state.
+    bool_t<Composer> contains_recursive_proof;
 
     evaluation_domain<Composer> domain;
 

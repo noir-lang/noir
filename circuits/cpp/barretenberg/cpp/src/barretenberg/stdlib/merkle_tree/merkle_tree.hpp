@@ -29,7 +29,7 @@ template <typename Store> class MerkleTree {
 
     index_t size() const;
 
-  private:
+  protected:
     void load_metadata();
 
     /**
@@ -88,7 +88,7 @@ template <typename Store> class MerkleTree {
 
     void remove(fr const& key);
 
-  private:
+  protected:
     Store& store_;
     std::vector<fr> zero_hashes_;
     size_t depth_;

@@ -1,6 +1,6 @@
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 #include "ultra_composer.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include <gtest/gtest.h>
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/uintx/uintx.hpp"
@@ -49,8 +49,8 @@ TEST(ultra_composer, create_gates_from_plookup_accumulators)
     std::vector<barretenberg::fr> expected_y;
 
     const size_t num_lookups_hi =
-        (128 + crypto::pedersen::lookup::BITS_PER_TABLE) / crypto::pedersen::lookup::BITS_PER_TABLE;
-    const size_t num_lookups_lo = 126 / crypto::pedersen::lookup::BITS_PER_TABLE;
+        (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
+    const size_t num_lookups_lo = 126 / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
     const size_t num_lookups = num_lookups_hi + num_lookups_lo;
 
     EXPECT_EQ(num_lookups_hi, lookup_witnesses_hi[ColumnIdx::C1].size());
@@ -65,10 +65,10 @@ TEST(ultra_composer, create_gates_from_plookup_accumulators)
         const size_t num_rounds = (num_lookups + 1) / 2;
         uint256_t bits(input_value);
 
-        const auto mask = crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE - 1;
+        const auto mask = crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE - 1;
 
         for (size_t i = 0; i < num_rounds; ++i) {
-            const auto& table = crypto::pedersen::lookup::get_table(i);
+            const auto& table = crypto::pedersen_hash::lookup::get_table(i);
             const size_t index = i * 2;
 
             uint64_t slice_a = ((bits >> (index * 9)) & mask).data[0];
@@ -86,7 +86,7 @@ TEST(ultra_composer, create_gates_from_plookup_accumulators)
     }
 
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
-        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen::lookup::PEDERSEN_TABLE_SIZE);
+        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen_hash::lookup::PEDERSEN_TABLE_SIZE);
     }
 
     size_t hi_shift = 126;
@@ -97,7 +97,7 @@ TEST(ultra_composer, create_gates_from_plookup_accumulators)
                   expected_scalars[i]);
         EXPECT_EQ(composer.get_variable(lookup_witnesses_lo[ColumnIdx::C2][i]), expected_x[i]);
         EXPECT_EQ(composer.get_variable(lookup_witnesses_lo[ColumnIdx::C3][i]), expected_y[i]);
-        hi_shift -= crypto::pedersen::lookup::BITS_PER_TABLE;
+        hi_shift -= crypto::pedersen_hash::lookup::BITS_PER_TABLE;
     }
 
     for (size_t i = 0; i < num_lookups_hi; ++i) {
@@ -149,9 +149,9 @@ TEST(ultra_composer, test_elliptic_gate)
     typedef grumpkin::g1::element element;
     UltraComposer composer = UltraComposer();
 
-    affine_element p1 = crypto::pedersen::get_generator_data({ 0, 0 }).generator;
+    affine_element p1 = crypto::generators::get_generator_data({ 0, 0 }).generator;
 
-    affine_element p2 = crypto::pedersen::get_generator_data({ 0, 1 }).generator;
+    affine_element p2 = crypto::generators::get_generator_data({ 0, 1 }).generator;
     affine_element p3(element(p1) + element(p2));
 
     uint32_t x1 = composer.add_variable(p1.x);

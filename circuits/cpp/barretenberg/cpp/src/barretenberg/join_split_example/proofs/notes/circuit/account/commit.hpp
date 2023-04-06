@@ -14,7 +14,7 @@ inline auto commit(field_ct const& account_alias_hash,
                    point_ct const& account_public_key,
                    point_ct const& signing_pub_key)
 {
-    return pedersen::compress(
+    return pedersen_commitment::compress(
         {
             account_alias_hash,
             account_public_key.x,

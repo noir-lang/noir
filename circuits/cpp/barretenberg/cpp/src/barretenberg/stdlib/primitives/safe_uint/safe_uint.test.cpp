@@ -472,7 +472,8 @@ TEST(stdlib_safeuint, test_slice_random)
 
     const uint256_t expected0 = uint256_t(a_) & ((uint256_t(1) << uint64_t(lsb)) - 1);
     const uint256_t expected1 = (uint256_t(a_) >> lsb) & ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1);
-    const uint256_t expected2 = (uint256_t(a_) >> (msb + 1)) & ((uint256_t(1) << (uint64_t(252 - msb) - 1)) - 1);
+    const uint256_t expected2 =
+        (uint256_t(a_) >> uint64_t(msb + 1)) & ((uint256_t(1) << (uint64_t(252 - msb) - 1)) - 1);
 
     EXPECT_EQ(slice[0].get_value(), fr(expected0));
     EXPECT_EQ(slice[1].get_value(), fr(expected1));

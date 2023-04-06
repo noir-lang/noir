@@ -13,8 +13,8 @@
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
-#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
-#include "barretenberg/stdlib/hash/pedersen/pedersen_plookup.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen_plookup.hpp"
 #include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
@@ -75,7 +75,7 @@ typedef stdlib::bit_array<Composer> bit_array_ct;
 typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq_ct;
 typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> biggroup_ct;
 typedef stdlib::point<Composer> point_ct;
-typedef stdlib::pedersen<Composer> pedersen;
+typedef stdlib::pedersen_commitment<Composer> pedersen_commitment;
 typedef stdlib::group<Composer> group_ct;
 typedef stdlib::bn254<Composer> bn254;
 typedef stdlib::secp256k1<Composer> secp256k1_ct;

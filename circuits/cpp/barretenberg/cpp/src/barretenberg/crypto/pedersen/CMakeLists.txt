@@ -1,1 +1,0 @@
-barretenberg_module(crypto_pedersen ecc)

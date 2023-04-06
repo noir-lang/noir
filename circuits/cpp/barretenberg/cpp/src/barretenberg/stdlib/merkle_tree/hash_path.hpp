@@ -11,6 +11,7 @@ namespace merkle_tree {
 using namespace barretenberg;
 
 typedef std::vector<std::pair<fr, fr>> fr_hash_path;
+typedef std::vector<fr> fr_sibling_path;
 template <typename Ctx> using hash_path = std::vector<std::pair<field_t<Ctx>, field_t<Ctx>>>;
 
 inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, fr const& value)
@@ -24,7 +25,7 @@ inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t in
         } else {
             path[i].first = current;
         }
-        current = compress_native(path[i].first, path[i].second);
+        current = hash_pair_native(path[i].first, path[i].second);
         index /= 2;
     }
     return path;
@@ -50,14 +51,14 @@ template <typename Ctx> inline hash_path<Ctx> create_witness_hash_path(Ctx& ctx,
 
 inline fr get_hash_path_root(fr_hash_path const& input)
 {
-    return compress_native(input[input.size() - 1].first, input[input.size() - 1].second);
+    return hash_pair_native(input[input.size() - 1].first, input[input.size() - 1].second);
 }
 
 inline fr zero_hash_at_height(size_t height)
 {
     auto current = fr(0);
     for (size_t i = 0; i < height; ++i) {
-        current = compress_native(current, current);
+        current = hash_pair_native(current, current);
     }
     return current;
 }

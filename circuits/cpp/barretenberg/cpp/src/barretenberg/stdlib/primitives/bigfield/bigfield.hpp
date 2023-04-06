@@ -292,13 +292,13 @@ template <typename Composer, typename T> class bigfield {
     /**
      * Create a witness form a constant. This way the value of the witness is fixed and public.
      **/
-    void convert_constant_to_witness(Composer* composer)
+    void convert_constant_to_fixed_witness(Composer* composer)
     {
         context = composer;
         for (auto& limb : binary_basis_limbs) {
-            limb.element.convert_constant_to_witness(context);
+            limb.element.convert_constant_to_fixed_witness(context);
         }
-        prime_basis_limb.convert_constant_to_witness(context);
+        prime_basis_limb.convert_constant_to_fixed_witness(context);
     }
 
     /**

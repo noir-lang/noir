@@ -11,16 +11,31 @@
 - libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)
 - wasm-opt (part of the [Binaryen](https://github.com/WebAssembly/binaryen) toolkit)
 
+To install on Ubuntu, run:
+```
+sudo apt-get install cmake clang clang-format ninja-build binaryen
+```
+
 ### Installing openMP (Linux)
 
+Install from source:
+
 ```
-RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
+git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
   && cd llvm-project && mkdir build-openmp && cd build-openmp \
   && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
   && cmake --build . --parallel \
   && cmake --build . --parallel --target install \
   && cd ../.. && rm -rf llvm-project
 ```
+
+Or install from a package manager, on Ubuntu:
+
+```
+sudo apt-get install libomp-dev
+```
+
+> Note: on a fresh Ubuntu Kinetic installation, installing OpenMP from source yields a `Could NOT find OpenMP_C (missing: OpenMP_omp_LIBRARY) (found version "5.0")` error when trying to build Barretenberg. Installing from apt worked fine.
 
 ### Getting started
 

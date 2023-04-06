@@ -5,6 +5,8 @@
 #include "barretenberg/srs/reference_string/file_reference_string.hpp"
 #include "barretenberg/transcript/manifest.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
+#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 
 namespace proof_system::plonk {
 /**
@@ -17,6 +19,8 @@ namespace proof_system::plonk {
 class StandardPlonkComposer {
   public:
     static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
+    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system

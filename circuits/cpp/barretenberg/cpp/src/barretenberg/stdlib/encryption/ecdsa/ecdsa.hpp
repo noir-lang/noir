@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
 #include "../../primitives/composers/composers_fwd.hpp"
 
@@ -16,6 +17,20 @@ template <typename Composer, typename Curve, typename Fq, typename Fr, typename 
 bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
                                   const G1& public_key,
                                   const signature<Composer>& sig);
+
+template <typename Composer>
+static signature<Composer> from_witness(Composer* ctx, const crypto::ecdsa::signature& input)
+{
+    std::vector<uint8_t> r_vec(std::begin(input.r), std::end(input.r));
+    std::vector<uint8_t> s_vec(std::begin(input.s), std::end(input.s));
+    stdlib::byte_array<Composer> r(ctx, r_vec);
+    stdlib::byte_array<Composer> s(ctx, s_vec);
+    signature<Composer> out;
+    out.r = r;
+    out.s = s;
+    return out;
+}
+
 } // namespace ecdsa
 } // namespace stdlib
 } // namespace proof_system::plonk

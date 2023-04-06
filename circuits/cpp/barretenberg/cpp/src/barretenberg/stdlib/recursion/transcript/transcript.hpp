@@ -8,8 +8,8 @@
 #include "../../primitives/curves/bn254.hpp"
 #include "../verification_key/verification_key.hpp"
 #include "../../hash/blake3s/blake3s.hpp"
-#include "../../hash/pedersen/pedersen.hpp"
-#include "../../hash/pedersen/pedersen_plookup.hpp"
+#include "../../commitment/pedersen/pedersen.hpp"
+#include "../../commitment/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/bool/bool.hpp"
@@ -247,9 +247,9 @@ template <typename Composer> class Transcript {
 
         field_pt T0;
         if constexpr (Composer::type == ComposerType::PLOOKUP) {
-            T0 = stdlib::pedersen_plookup<Composer>::compress(compression_buffer);
+            T0 = stdlib::pedersen_plookup_commitment<Composer>::compress(compression_buffer);
         } else {
-            T0 = stdlib::pedersen<Composer>::compress(compression_buffer);
+            T0 = stdlib::pedersen_commitment<Composer>::compress(compression_buffer);
         }
         byte_array<Composer> compressed_buffer(T0);
 

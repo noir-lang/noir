@@ -16,8 +16,9 @@ inline auto create_partial_commitment(field_ct const& deposit_value,
                                       field_ct const& value_note_partial_commitment,
                                       field_ct const& input_nullifier)
 {
-    return pedersen::compress({ deposit_value, bridge_call_data, value_note_partial_commitment, input_nullifier },
-                              GeneratorIndex::CLAIM_NOTE_PARTIAL_COMMITMENT);
+    return pedersen_commitment::compress(
+        { deposit_value, bridge_call_data, value_note_partial_commitment, input_nullifier },
+        GeneratorIndex::CLAIM_NOTE_PARTIAL_COMMITMENT);
 }
 
 } // namespace claim

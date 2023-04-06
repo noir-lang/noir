@@ -1,6 +1,8 @@
 #pragma once
 #include "composer_helper/turbo_plonk_composer_helper.hpp"
 #include "barretenberg/proof_system/circuit_constructors/turbo_circuit_constructor.hpp"
+#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
+#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 
 namespace proof_system::plonk {
 /**
@@ -13,6 +15,8 @@ namespace proof_system::plonk {
 class TurboPlonkComposer {
   public:
     static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
+    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
 

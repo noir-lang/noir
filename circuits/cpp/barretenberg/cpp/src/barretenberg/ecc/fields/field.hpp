@@ -173,6 +173,11 @@ template <class Params> struct alignas(32) field {
     BBERG_INLINE constexpr field operator-() const noexcept;
     constexpr field operator/(const field& other) const noexcept;
 
+    // prefix increment (++x)
+    BBERG_INLINE constexpr field operator++() noexcept;
+    // postfix increment (x++)
+    BBERG_INLINE constexpr field operator++(int) noexcept;
+
     BBERG_INLINE constexpr field operator*=(const field& other) noexcept;
     BBERG_INLINE constexpr field operator+=(const field& other) noexcept;
     BBERG_INLINE constexpr field operator-=(const field& other) noexcept;

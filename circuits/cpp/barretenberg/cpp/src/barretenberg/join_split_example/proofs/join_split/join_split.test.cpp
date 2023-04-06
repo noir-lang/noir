@@ -802,13 +802,13 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 
 // The below part detects any changes in the join-split circuit
 #ifdef USE_TURBO
-    constexpr uint32_t CIRCUIT_GATE_COUNT = 64000;
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 59175;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65536;
-    const uint256_t VK_HASH("bb2062d006d31d3234766277711eb28577d5f6082d0f484b87e8235628f8e864");
+    const uint256_t VK_HASH("095cbe8f1b09690713d5161708b5ea77119575884e3cfab14f7364b9f1ba7faa");
 #else
-    constexpr uint32_t CIRCUIT_GATE_COUNT = 522850;
+    constexpr uint32_t CIRCUIT_GATE_COUNT = 185573;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
-    const uint256_t VK_HASH("012959f86e485f3a8f0b06c900082fca1c34b535cdf4f1088f03154ea655b401");
+    const uint256_t VK_HASH("21389d5392ee23ffc96984689150b63d62113678b1ba127346a0ec72df842354");
 
 #endif
     auto number_of_gates_js = result.number_of_gates;

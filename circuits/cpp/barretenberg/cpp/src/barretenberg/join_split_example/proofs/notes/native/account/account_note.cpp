@@ -1,5 +1,5 @@
 #include "account_note.hpp"
-#include "barretenberg/crypto/pedersen/pedersen.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "../../constants.hpp"
 
 namespace join_split_example {
@@ -12,8 +12,8 @@ grumpkin::fq generate_account_commitment(const barretenberg::fr& alias_hash,
                                          const barretenberg::fr& owner_x,
                                          const barretenberg::fr& signing_x)
 {
-    return crypto::pedersen::compress_native({ alias_hash, owner_x, signing_x },
-                                             GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
+    return crypto::pedersen_commitment::compress_native({ alias_hash, owner_x, signing_x },
+                                                        GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
 }
 
 grumpkin::fq account_note::commit() const

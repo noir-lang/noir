@@ -3,6 +3,8 @@
 #include "barretenberg/plonk/composer/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/proof_system/circuit_constructors/ultra_circuit_constructor.hpp"
+#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
+#include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
 #include "barretenberg/plonk/composer/splitting_tmp/composer_helper/ultra_plonk_composer_helper.hpp"
 #include <optional>
 
@@ -11,6 +13,10 @@ namespace proof_system::plonk {
 class UltraPlonkComposer {
 
   public:
+    static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr merkle::HashType merkle_hash_type = merkle::HashType::LOOKUP_PEDERSEN;
+    static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
+
     // An instantiation of the circuit constructor that only depends on arithmetization, not  on the proof system
     UltraCircuitConstructor circuit_constructor;
     // Composer helper contains all proof-related material that is separate from circuit creation such as:

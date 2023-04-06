@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_pedersen_commitment stdlib_primitives stdlib_pedersen_hash crypto_pedersen_commitment crypto_generators)
