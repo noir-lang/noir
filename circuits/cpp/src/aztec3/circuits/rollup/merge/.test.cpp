@@ -53,7 +53,7 @@ TEST_F(merge_rollup_tests, test_fail_if_previous_rollups_dont_follow_on)
         .root = fr(1), .next_available_leaf_index = 0
     };
 
-    EXPECT_DEATH(merge_rollup_circuit(inputA), ".*ensure_prev_rollups_follow_on_from_each_other.*");
+    EXPECT_DEATH(merge_rollup_circuit(inputA), ".*assert_prev_rollups_follow_on_from_each_other.*");
 
     // do the same for nullifier tree
     auto inputB = dummyInputs;
@@ -63,7 +63,7 @@ TEST_F(merge_rollup_tests, test_fail_if_previous_rollups_dont_follow_on)
     inputB.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start_nullifier_tree_snapshot = {
         .root = fr(1), .next_available_leaf_index = 0
     };
-    EXPECT_DEATH(merge_rollup_circuit(inputB), ".*ensure_prev_rollups_follow_on_from_each_other.*");
+    EXPECT_DEATH(merge_rollup_circuit(inputB), ".*assert_prev_rollups_follow_on_from_each_other.*");
 
     // do the same for contract tree
     auto inputC = dummyInputs;
@@ -73,7 +73,7 @@ TEST_F(merge_rollup_tests, test_fail_if_previous_rollups_dont_follow_on)
     inputC.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot = {
         .root = fr(1), .next_available_leaf_index = 0
     };
-    EXPECT_DEATH(merge_rollup_circuit(inputC), ".*ensure_prev_rollups_follow_on_from_each_other.*");
+    EXPECT_DEATH(merge_rollup_circuit(inputC), ".*assert_prev_rollups_follow_on_from_each_other.*");
 }
 #endif
 

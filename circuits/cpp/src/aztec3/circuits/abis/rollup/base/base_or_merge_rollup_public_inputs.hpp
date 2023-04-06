@@ -99,7 +99,7 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseOrMergeRo
                  "start_nullifier_tree_snapshot:\n"
               << obj.start_nullifier_tree_snapshot
               << "\n"
-                 "end_nullifier_tree_snapshots:\n"
+                 "end_nullifier_tree_snapshot:\n"
               << obj.end_nullifier_tree_snapshot
               << "\n"
                  "start_contract_tree_snapshot:\n"

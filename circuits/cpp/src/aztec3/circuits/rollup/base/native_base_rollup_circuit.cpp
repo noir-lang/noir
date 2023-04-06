@@ -119,9 +119,9 @@ template <size_t N>
 void check_membership(NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> siblingPath, NT::fr root)
 {
     auto calculatedRoot = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
-    if (calculatedRoot != root) {
-        // throw std::runtime_error("Merkle membership check failed");
-    }
+    // TODO: update tests to build the correct trees, and then -> assert(calculatedRoot == root);
+    (void)calculatedRoot;
+    (void)root;
 }
 
 template <size_t N>
