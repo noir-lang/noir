@@ -83,8 +83,12 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
 {
     return os << "kernel_data:\n"
               << obj.kernel_data << "\n"
+              << "start_private_data_tree_snapshot:\n"
+              << obj.start_private_data_tree_snapshot << "\n"
               << "start_nullifier_tree_snapshot:\n"
               << obj.start_nullifier_tree_snapshot << "\n"
+              << "start_contract_tree_snapshot:\n"
+              << obj.start_contract_tree_snapshot << "\n"
               << "low_nullifier_leaf_preimages:\n"
               << obj.low_nullifier_leaf_preimages << "\n"
               << "low_nullifier_membership_witness:\n"
