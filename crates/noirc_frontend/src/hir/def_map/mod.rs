@@ -110,7 +110,7 @@ impl CrateDefMap {
 
         // This function accepts an Ident, so we attach a dummy span to
         // "main". Equality is implemented only on the contents.
-        root_module.scope.find_func_with_name(&MAIN_FUNCTION.into())
+        root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
     pub fn root_file_id(&self) -> FileId {
@@ -129,8 +129,10 @@ impl CrateDefMap {
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = FuncId> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            let functions = module.scope.values().values().filter_map(|(id, _)| id.as_function());
-            functions.filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+            module
+                .value_definitions()
+                .filter_map(|id| id.as_function())
+                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
         })
     }
 
@@ -141,13 +143,8 @@ impl CrateDefMap {
             .iter()
             .filter_map(|(id, module)| {
                 if module.is_contract {
-                    let functions = module
-                        .scope
-                        .values()
-                        .values()
-                        .filter_map(|(id, _)| id.as_function())
-                        .collect();
-
+                    let functions =
+                        module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
                     Some(Contract { name, functions })
                 } else {
