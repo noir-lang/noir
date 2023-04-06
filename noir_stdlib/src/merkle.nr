@@ -1,3 +1,4 @@
+mod sparse_merkle_tree;
 // Regular merkle tree means a append-only merkle tree (Explain why this is the only way to have privacy and alternatives if you don't want it)
 
 // Returns one if the leaf is in the tree 
