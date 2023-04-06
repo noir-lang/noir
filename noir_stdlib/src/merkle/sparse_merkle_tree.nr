@@ -1,75 +1,84 @@
 use crate::merkle;
 
+fn update_merkle_tree_leaf(
+    old_root: Field,
+    old_leaf: Field,
+    new_root: Field,
+    new_leaf: Field,
+    index: Field,
+    hash_path: [Field],
+) {
+    // Constrain old leaf to be in old tree
+    constrain merkle::check_membership(
+        old_root,
+        old_leaf,
+        index,
+        hash_path
+    ) == 1;
+    // Constrain new leaf to be in new tree at same index
+    constrain merkle::check_membership(
+        new_root,
+        new_leaf,
+        index,
+        hash_path
+    ) == 1;
+}
+
 struct SparseMerkleTree {
- default_value: Field,
- old_root: Field,
+    default_value: Field,
 }
 
 impl SparseMerkleTree {
-    fn insert(
+    fn insert(self,
+        old_root: Field,
         new_root: Field,
         new_leaf: Field,
         index: Field,
         hash_path: [Field],
-    ) -> {
-        // Constrain to default leaf in old tree
-        constrain merkle::check_membership(
-            self.old_root,
+    ) {
+        update_merkle_tree_leaf(
+            old_root,
             self.default_value,
-            index,
-            hash_path
-        ) == 1;
-        // Constrain to new leaf in new tree
-        constrain merkle::check_membership(
             new_root,
             new_leaf,
             index,
-            hash_path
-        ) == 1;
+            hash_path,
+        );
     }
 
     fn delete(
-        new_root: Field,
+        self,
+        old_root: Field,
         old_leaf: Field,
+        new_root: Field,
         index: Field,
         hash_path: [Field],
-    ) -> {
-        // Constrain to old leaf in old tree
-        constrain merkle::check_membership(
-            self.old_root,
+    ) {
+        update_merkle_tree_leaf(
+            old_root,
             old_leaf,
-            index,
-            hash_path
-        ) == 1;
-        // Constrain to default leaf in new tree
-        constrain merkle::check_membership(
             new_root,
-            new_leaf,
+            self.default_value,
             index,
-            hash_path
-        ) == 1;
+            hash_path,
+        );
     }
 
     fn update(
-        new_root: Field,
+        old_root: Field,
         old_leaf: Field,
+        new_root: Field,
         new_leaf: Field,
         index: Field,
         hash_path: [Field],
-    ) -> {
-        // Constrain to old leaf in old tree
-        constrain merkle::check_membership(
+    ) {
+        update_merkle_tree_leaf(
             old_root,
             old_leaf,
-            index,
-            hash_path
-        ) == 1;
-        // Constrain to new leaf in new tree
-        constrain merkle::check_membership(
             new_root,
             new_leaf,
             index,
-            hash_path
-        ) == 1;
+            hash_path,
+        );
     }
 }
