@@ -618,7 +618,11 @@ impl Type {
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _) => true,
 
-            Type::Array(_, _) | Type::String(_) | Type::Constant(_) | Type::Forall(_, _) => false,
+            Type::Array(_, _)
+            | Type::String(_)
+            | Type::Vec(_)
+            | Type::Constant(_)
+            | Type::Forall(_, _) => false,
 
             Type::Struct(definition, args) => {
                 let definition = definition.borrow();
