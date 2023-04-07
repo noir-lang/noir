@@ -239,13 +239,28 @@ template <typename settings> void Prover<settings>::execute_pcs_evaluation_round
 /**
  * - Do Fiat-Shamir to get "nu" challenge.
  * - Compute commitment [Q]_1
+ * */
+template <typename settings> void Prover<settings>::execute_shplonk_batched_quotient_round()
+{
+    nu_challenge = transcript.get_challenge("Shplonk:nu");
+
+    batched_quotient_Q =
+        Shplonk::compute_batched_quotient(gemini_output.opening_pairs, gemini_output.witnesses, nu_challenge);
+
+    // commit to Q(X) and add [Q] to the transcript
+    auto Q_commitment = commitment_key->commit(batched_quotient_Q);
+    transcript.send_to_verifier("Shplonk:Q", Q_commitment);
+}
+
+/**
  * - Do Fiat-Shamir to get "z" challenge.
  * - Compute polynomial Q(X) - Q_z(X)
  * */
-template <typename settings> void Prover<settings>::execute_shplonk_round()
+template <typename settings> void Prover<settings>::execute_shplonk_partial_evaluation_round()
 {
-    shplonk_output =
-        Shplonk::reduce_prove(commitment_key, gemini_output.opening_pairs, gemini_output.witnesses, transcript);
+    const Fr z_challenge = transcript.get_challenge("Shplonk:z");
+    shplonk_output = Shplonk::compute_partially_evaluated_batched_quotient(
+        gemini_output.opening_pairs, gemini_output.witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 }
 
 /**
@@ -302,7 +317,8 @@ template <typename settings> plonk::proof& Prover<settings>::construct_proof()
 
     // Fiat-Shamir: nu
     // Compute Shplonk batched quotient commitment
-    execute_shplonk_round();
+    execute_shplonk_batched_quotient_round();
+    execute_shplonk_partial_evaluation_round();
     // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     // Fiat-Shamir: z

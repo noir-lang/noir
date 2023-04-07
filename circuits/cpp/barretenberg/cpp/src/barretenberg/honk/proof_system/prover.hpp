@@ -42,7 +42,8 @@ template <typename settings> class Prover {
     void execute_relation_check_rounds();
     void execute_univariatization_round();
     void execute_pcs_evaluation_round();
-    void execute_shplonk_round();
+    void execute_shplonk_batched_quotient_round();
+    void execute_shplonk_partial_evaluation_round();
     void execute_kzg_round();
 
     void compute_wire_commitments();
@@ -70,6 +71,9 @@ template <typename settings> class Prover {
 
     // Container for d + 1 Fold polynomials produced by Gemini
     std::vector<Polynomial> fold_polynomials;
+
+    Polynomial batched_quotient_Q;
+    Fr nu_challenge;
 
     // Honk only needs a small portion of the functionality but may be fine to use existing work_queue
     // NOTE: this is not currently in use, but it may well be used in the future.

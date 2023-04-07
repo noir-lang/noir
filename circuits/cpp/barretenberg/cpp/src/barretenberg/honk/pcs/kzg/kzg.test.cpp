@@ -126,24 +126,29 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
 
     const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
 
-    auto gemini_prover_output =
+    const auto [gemini_opening_pairs, gemini_witnesses] =
         Gemini::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
 
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
-        const auto& evaluation = gemini_prover_output.opening_pairs[l + 1].evaluation;
+        const auto& evaluation = gemini_opening_pairs[l + 1].evaluation;
         prover_transcript.send_to_verifier(label, evaluation);
     }
 
     // Shplonk prover output:
     // - opening pair: (z_challenge, 0)
     // - witness: polynomial Q - Q_z
-    auto shplonk_prover_output = Shplonk::reduce_prove(
-        this->ck(), gemini_prover_output.opening_pairs, gemini_prover_output.witnesses, prover_transcript);
+    const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
+    auto batched_quotient_Q = Shplonk::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
+    prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
+
+    const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
+    const auto [shplonk_opening_pair, shplonk_witness] = Shplonk::compute_partially_evaluated_batched_quotient(
+        gemini_opening_pairs, gemini_witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 
     // KZG prover:
     // - Adds commitment [W] to transcript
-    KZG::reduce_prove(this->ck(), shplonk_prover_output.opening_pair, shplonk_prover_output.witness, prover_transcript);
+    KZG::reduce_prove(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
 
     // Run the full verifier PCS protocol with genuine opening claims (genuine commitment, genuine evaluation)
 
