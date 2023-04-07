@@ -358,7 +358,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
             .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
             .mul_scalars = s.get_coefficients(),
             .tag = "S",
-            .constant = barretenberg::fr(0),
+            .constant = key->circuit_size,
             .index = 0,
         });
 
@@ -382,7 +382,7 @@ void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_rou
             .work_type = work_queue::WorkType::SCALAR_MULTIPLICATION,
             .mul_scalars = z.get_coefficients(),
             .tag = "Z_LOOKUP",
-            .constant = barretenberg::fr(0),
+            .constant = key->circuit_size,
             .index = 0,
         });
 

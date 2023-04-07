@@ -60,23 +60,20 @@ template <typename Params> class UnivariateOpeningScheme {
     using Accumulator = BilinearAccumulator<Params>;
 
     /**
-     * @brief Compute KZG opening proof (commitment) and add it to transcript
+     * @brief Compute KZG opening proof polynomial
      *
-     * @param ck CommitmentKey
      * @param opening_pair OpeningPair = {r, v = polynomial(r)}
      * @param polynomial the witness polynomial being opened
+     * @return KZG quotient polynomial of the form (p(X) - v) / (X - r)
      */
-    static void reduce_prove(std::shared_ptr<CK> ck,
-                             const OpeningPair<Params>& opening_pair,
-                             const Polynomial& polynomial,
-                             ProverTranscript<Fr>& transcript)
+    static Polynomial compute_opening_proof_polynomial(const OpeningPair<Params>& opening_pair,
+                                                       const Polynomial& polynomial)
     {
         Polynomial quotient(polynomial);
         quotient[0] -= opening_pair.evaluation;
         quotient.factor_roots(opening_pair.challenge);
-        CommitmentAffine quotient_commitment = ck->commit(quotient);
 
-        transcript.send_to_verifier("KZG:W", quotient_commitment);
+        return quotient;
     };
 
     /**

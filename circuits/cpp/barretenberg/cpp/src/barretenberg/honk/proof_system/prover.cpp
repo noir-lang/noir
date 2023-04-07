@@ -5,6 +5,7 @@
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include <array>
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp" // will go away
+#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include <memory>
@@ -39,13 +40,10 @@ using POLYNOMIAL = proof_system::honk::StandardArithmetization::POLYNOMIAL;
  * */
 template <typename settings>
 Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
-                         std::shared_ptr<plonk::proving_key> input_key)
+                         const std::shared_ptr<plonk::proving_key> input_key)
     : wire_polynomials(wire_polys)
     , key(input_key)
-    , commitment_key(std::make_unique<pcs::kzg::CommitmentKey>(
-          input_key->circuit_size,
-          "../srs_db/ignition")) // TODO(Cody): Need better constructors for prover.
-// , queue(proving_key.get(), &transcript)
+    , queue(key, transcript)
 {
     // Note(luke): This could be done programmatically with some hacks but this isnt too bad and its nice to see the
     // polys laid out explicitly.
@@ -75,16 +73,14 @@ Prover<settings>::Prover(std::vector<barretenberg::polynomial>&& wire_polys,
 }
 
 /**
- * - Commit to wires 1,2,3
+ * - Add commitment to wires 1,2,3 to work queue
  * - Add PI to transcript (I guess PI will stay in w_2 for now?)
  *
  * */
 template <typename settings> void Prover<settings>::compute_wire_commitments()
 {
     for (size_t i = 0; i < settings::Arithmetization::num_wires; ++i) {
-        auto commitment = commitment_key->commit(wire_polynomials[i]);
-
-        transcript.send_to_verifier("W_" + std::to_string(i + 1), commitment);
+        queue.add_commitment(wire_polynomials[i], "W_" + std::to_string(i + 1));
     }
 }
 
@@ -94,8 +90,6 @@ template <typename settings> void Prover<settings>::compute_wire_commitments()
  * */
 template <typename settings> void Prover<settings>::execute_preamble_round()
 {
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
-
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
     const auto num_public_inputs = static_cast<uint32_t>(key->num_public_inputs);
 
@@ -113,7 +107,6 @@ template <typename settings> void Prover<settings>::execute_preamble_round()
  * */
 template <typename settings> void Prover<settings>::execute_wire_commitments_round()
 {
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
     compute_wire_commitments();
 }
 
@@ -131,8 +124,6 @@ template <typename settings> void Prover<settings>::execute_tables_round()
  * */
 template <typename settings> void Prover<settings>::execute_grand_product_computation_round()
 {
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
-
     // Compute and store parameters required by relations in Sumcheck
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
@@ -147,9 +138,7 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
     z_permutation =
         prover_library::compute_permutation_grand_product<settings::program_width>(key, wire_polynomials, beta, gamma);
 
-    auto commitment = commitment_key->commit(z_permutation);
-
-    transcript.send_to_verifier("Z_PERM", commitment);
+    queue.add_commitment(z_permutation, "Z_PERM");
 
     prover_polynomials[POLYNOMIAL::Z_PERM] = z_permutation;
     prover_polynomials[POLYNOMIAL::Z_PERM_SHIFT] = z_permutation.shifted();
@@ -162,8 +151,6 @@ template <typename settings> void Prover<settings>::execute_grand_product_comput
  * */
 template <typename settings> void Prover<settings>::execute_relation_check_rounds()
 {
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
-
     using Sumcheck = sumcheck::Sumcheck<Fr,
                                         ProverTranscript<Fr>,
                                         sumcheck::ArithmeticRelation,
@@ -197,22 +184,13 @@ template <typename settings> void Prover<settings>::execute_univariatization_rou
     Polynomial batched_poly_to_be_shifted(key->circuit_size); // batched to-be-shifted polynomials
     batched_poly_to_be_shifted.add_scaled(prover_polynomials[POLYNOMIAL::Z_PERM], rhos[NUM_UNSHIFTED_POLYS]);
 
-    // // Reserve space for d+1 Fold polynomials. At the end of this round, the last d-1 polynomials will
-    // // correspond to Fold^(i). At the end of the full Gemini prover protocol, the first two will
-    // // be the partially evaluated Fold polynomials Fold_{r}^(0) and Fold_{-r}^(0).
-    // fold_polynomials.reserve(key->log_circuit_size + 1);
-    // fold_polynomials.emplace_back(batched_poly_unshifted);
-    // fold_polynomials.emplace_back(batched_poly_to_be_shifted);
-
     // Compute d-1 polynomials Fold^(i), i = 1, ..., d-1.
     fold_polynomials = Gemini::compute_fold_polynomials(
         sumcheck_output.challenge_point, std::move(batched_poly_unshifted), std::move(batched_poly_to_be_shifted));
 
     // Compute and add to trasnscript the commitments [Fold^(i)], i = 1, ..., d-1
     for (size_t l = 0; l < key->log_circuit_size - 1; ++l) {
-        std::string label = "Gemini:FOLD_" + std::to_string(l + 1);
-        auto commitment = commitment_key->commit(fold_polynomials[l + 2]);
-        transcript.send_to_verifier(label, commitment);
+        queue.add_commitment(fold_polynomials[l + 2], "Gemini:FOLD_" + std::to_string(l + 1));
     }
 }
 
@@ -248,8 +226,7 @@ template <typename settings> void Prover<settings>::execute_shplonk_batched_quot
         Shplonk::compute_batched_quotient(gemini_output.opening_pairs, gemini_output.witnesses, nu_challenge);
 
     // commit to Q(X) and add [Q] to the transcript
-    auto Q_commitment = commitment_key->commit(batched_quotient_Q);
-    transcript.send_to_verifier("Shplonk:Q", Q_commitment);
+    queue.add_commitment(batched_quotient_Q, "Shplonk:Q");
 }
 
 /**
@@ -269,7 +246,8 @@ template <typename settings> void Prover<settings>::execute_shplonk_partial_eval
  * */
 template <typename settings> void Prover<settings>::execute_kzg_round()
 {
-    KZG::reduce_prove(commitment_key, shplonk_output.opening_pair, shplonk_output.witness, transcript);
+    quotient_W = KZG::compute_opening_proof_polynomial(shplonk_output.opening_pair, shplonk_output.witness);
+    queue.add_commitment(quotient_W, "KZG:W");
 }
 
 template <typename settings> plonk::proof& Prover<settings>::export_proof()
@@ -282,51 +260,48 @@ template <typename settings> plonk::proof& Prover<settings>::construct_proof()
 {
     // Add circuit size and public input size to transcript.
     execute_preamble_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     // Compute wire commitments; Add PI to transcript
     execute_wire_commitments_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    queue.process_queue();
 
     // Currently a no-op; may execute some "random widgets", commit to W_4, do RAM/ROM stuff
     // if this prover structure is kept when we bring tables to Honk.
     // Suggestion: Maybe we shouldn't mix and match proof creation for different systems and
     // instead instatiate construct_proof differently for each?
     execute_tables_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     // Fiat-Shamir: beta & gamma
     // Compute grand product(s) and commitments.
     execute_grand_product_computation_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    queue.process_queue();
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.
     execute_relation_check_rounds();
-    // // queue currently only handles commitments, not partial multivariate evaluations.
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     // Fiat-Shamir: rho
     // Compute Fold polynomials and their commitments.
     execute_univariatization_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
+    queue.process_queue();
 
     // Fiat-Shamir: r
     // Compute Fold evaluations
     execute_pcs_evaluation_round();
 
     // Fiat-Shamir: nu
-    // Compute Shplonk batched quotient commitment
+    // Compute Shplonk batched quotient commitment Q
     execute_shplonk_batched_quotient_round();
+    queue.process_queue();
+
+    // Fiat-Shamir: z
+    // Compute partial evaluation Q_z
     execute_shplonk_partial_evaluation_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
 
     // Fiat-Shamir: z
     // Compute KZG quotient commitment
     execute_kzg_round();
-    // queue.process_queue(); // NOTE: Don't remove; we may reinstate the queue
-
-    // queue.flush_queue(); // NOTE: Don't remove; we may reinstate the queue
+    queue.process_queue();
 
     return export_proof();
 }

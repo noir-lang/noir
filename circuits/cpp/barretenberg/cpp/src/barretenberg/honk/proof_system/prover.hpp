@@ -24,6 +24,7 @@
 #include <string>
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
+#include "barretenberg/honk/proof_system/work_queue.hpp"
 
 namespace proof_system::honk {
 
@@ -64,29 +65,18 @@ template <typename settings> class Prover {
 
     std::shared_ptr<plonk::proving_key> key;
 
-    std::shared_ptr<pcs::kzg::CommitmentKey> commitment_key;
-
     // Container for spans of all polynomials required by the prover (i.e. all multivariates evaluated by Sumcheck).
     std::array<std::span<Fr>, honk::StandardArithmetization::POLYNOMIAL::COUNT> prover_polynomials;
 
     // Container for d + 1 Fold polynomials produced by Gemini
     std::vector<Polynomial> fold_polynomials;
 
-    Polynomial batched_quotient_Q;
-    Fr nu_challenge;
+    Polynomial batched_quotient_Q; // batched quotient poly computed by Shplonk
+    Fr nu_challenge;               // needed in both Shplonk rounds
 
-    // Honk only needs a small portion of the functionality but may be fine to use existing work_queue
-    // NOTE: this is not currently in use, but it may well be used in the future.
-    // TODO(Adrian): Uncomment when we need this again.
-    // proof_system::work_queue queue;
-    // void flush_queued_work_items() { queue.flush_queue(); }
-    // proof_system::work_queue::work_item_info get_queued_work_item_info() const {
-    //     return queue.get_queued_work_item_info();
-    // }
-    // size_t get_scalar_multiplication_size(const size_t work_item_number) const
-    // {
-    //     return queue.get_scalar_multiplication_size(work_item_number);
-    // }
+    Polynomial quotient_W;
+
+    work_queue<pcs::kzg::Params> queue;
 
     // This makes 'settings' accesible from Prover
     using settings_ = settings;

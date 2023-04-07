@@ -224,9 +224,11 @@ void KateCommitmentScheme<settings>::batch_open(const transcript::StandardTransc
 
     // Commit to the opening and shifted opening polynomials
     KateCommitmentScheme::commit(
-        input_key->polynomial_store.get("opening_poly").get_coefficients(), "PI_Z", fr(0), queue);
-    KateCommitmentScheme::commit(
-        input_key->polynomial_store.get("shifted_opening_poly").get_coefficients(), "PI_Z_OMEGA", fr(0), queue);
+        input_key->polynomial_store.get("opening_poly").get_coefficients(), "PI_Z", input_key->circuit_size, queue);
+    KateCommitmentScheme::commit(input_key->polynomial_store.get("shifted_opening_poly").get_coefficients(),
+                                 "PI_Z_OMEGA",
+                                 input_key->circuit_size,
+                                 queue);
 }
 
 template <typename settings>

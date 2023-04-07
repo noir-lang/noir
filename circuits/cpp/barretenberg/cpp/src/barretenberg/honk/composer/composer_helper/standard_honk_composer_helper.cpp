@@ -168,12 +168,6 @@ StandardProver StandardHonkComposerHelper<CircuitConstructor>::create_prover(
     auto manifest = Flavor::create_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
     StandardProver output_state(std::move(wire_polynomials), circuit_proving_key);
 
-    // TODO(Cody): This should be more generic
-    std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
-        std::make_unique<pcs::kzg::CommitmentKey>(circuit_proving_key->circuit_size, "../srs_db/ignition");
-
-    output_state.commitment_key = std::move(kate_commitment_key);
-
     return output_state;
 }
 template class StandardHonkComposerHelper<StandardCircuitConstructor>;

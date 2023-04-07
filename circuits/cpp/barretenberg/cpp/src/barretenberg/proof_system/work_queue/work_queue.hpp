@@ -3,13 +3,12 @@
 #include "../../transcript/transcript_wrappers.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 
-namespace proof_system {
+namespace proof_system::plonk {
 // TODO(Cody): Template by flavor?
 class work_queue {
 
   public:
     enum WorkType { FFT, SMALL_FFT, IFFT, SCALAR_MULTIPLICATION };
-    enum MSMType { MONOMIAL_N, MONOMIAL_N_PLUS_ONE };
 
     struct work_item_info {
         uint32_t num_scalar_multiplications;
@@ -30,7 +29,7 @@ class work_queue {
         barretenberg::fr shift_factor;
     };
 
-    work_queue(plonk::proving_key* prover_key = nullptr, transcript::StandardTranscript* prover_transcript = nullptr);
+    work_queue(proving_key* prover_key = nullptr, transcript::StandardTranscript* prover_transcript = nullptr);
 
     work_queue(const work_queue& other) = default;
     work_queue(work_queue&& other) = default;
@@ -62,8 +61,8 @@ class work_queue {
     std::vector<work_item> get_queue() const;
 
   private:
-    plonk::proving_key* key;
+    proving_key* key;
     transcript::StandardTranscript* transcript;
     std::vector<work_item> work_item_queue;
 };
-} // namespace proof_system
+} // namespace proof_system::plonk

@@ -326,7 +326,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
         work_queue::WorkType::SCALAR_MULTIPLICATION,
         z_perm.get_coefficients(),
         "Z_PERM",
-        barretenberg::fr(0),
+        key->circuit_size,
         0,
     });
 

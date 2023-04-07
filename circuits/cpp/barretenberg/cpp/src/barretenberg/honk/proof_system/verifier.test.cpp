@@ -198,8 +198,6 @@ template <class FF> class VerifierTests : public testing::Test {
         std::unique_ptr<pcs::kzg::CommitmentKey> kate_commitment_key =
             std::make_unique<pcs::kzg::CommitmentKey>(proving_key->circuit_size, "../srs_db/ignition");
 
-        prover.commitment_key = std::move(kate_commitment_key);
-
         return prover;
     }
 };

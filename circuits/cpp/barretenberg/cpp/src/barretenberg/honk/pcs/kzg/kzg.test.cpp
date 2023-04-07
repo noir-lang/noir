@@ -40,7 +40,8 @@ TYPED_TEST(BilinearAccumulationTest, single)
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
-    KZG::reduce_prove(this->ck(), opening_pair, witness, prover_transcript);
+    auto quotient_W = KZG::compute_opening_proof_polynomial(opening_pair, witness);
+    prover_transcript.send_to_verifier("KZG:W", this->commit(quotient_W));
 
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
     auto kzg_claim = KZG::reduce_verify(opening_claim, verifier_transcript);
@@ -148,7 +149,8 @@ TYPED_TEST(BilinearAccumulationTest, GeminiShplonkKzgWithShift)
 
     // KZG prover:
     // - Adds commitment [W] to transcript
-    KZG::reduce_prove(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
+    auto quotient_W = KZG::compute_opening_proof_polynomial(shplonk_opening_pair, shplonk_witness);
+    prover_transcript.send_to_verifier("KZG:W", this->commit(quotient_W));
 
     // Run the full verifier PCS protocol with genuine opening claims (genuine commitment, genuine evaluation)
 
