@@ -26,9 +26,10 @@ async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: Ci
     // All non-unconstrained functions have vks
     const vkHash = await hashVK(wasm, Buffer.from(f.verificationKey!, 'hex'));
     const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
+    // TODO: selector is currently padded to 32 bytes in CBINDS, check this.
     const fnLeaf = await computeFunctionLeaf(
       wasm,
-      Buffer.concat([selector, Buffer.from([isPrivate ? 1 : 0]), vkHash, acirHash]),
+      Buffer.concat([selector, Buffer.alloc(28, 0), Buffer.from([isPrivate ? 1 : 0]), vkHash, acirHash]),
     );
     result.push(fnLeaf);
   }

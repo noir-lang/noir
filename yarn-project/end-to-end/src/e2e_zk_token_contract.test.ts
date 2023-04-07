@@ -1,5 +1,5 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { EthAddress, Point, toBigIntBE } from '@aztec/foundation';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
@@ -26,16 +26,17 @@ describe('e2e_zk_token_contract', () => {
   let accounts: AztecAddress[];
   let contract: Contract;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
+  });
+
+  beforeEach(async () => {
     const ethRpc = new EthereumRpc(provider);
     logger('Deploying contracts...');
     rollupAddress = await deployRollupContract(provider, ethRpc);
     unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
     logger('Deployed contracts...');
-  });
 
-  beforeEach(async () => {
     node = await createAztecNode(
       rollupAddress,
       unverifiedDataEmitterAddress,
@@ -102,12 +103,14 @@ describe('e2e_zk_token_contract', () => {
 
   const deployContract = async (initialBalance = 0n, owner = { x: 0n, y: 0n }) => {
     // TODO: Remove explicit casts
+    logger(`Deploying L2 contract...`);
     const deployer = new ContractDeployer(ZkTokenContractAbi as ContractAbi, aztecRpcServer);
     const tx = deployer.deploy(initialBalance, owner).send();
     const receipt = await tx.getReceipt();
     contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi as ContractAbi, aztecRpcServer);
     await tx.isMined();
     await tx.getReceipt();
+    logger('L2 contract deployed');
     return contract;
   };
 
@@ -115,7 +118,7 @@ describe('e2e_zk_token_contract', () => {
    * Milestone 1.3
    * https://hackmd.io/AG5rb9DyTRu3y7mBptWauA
    */
-  it('should deploy zk token contract with initial token minted to the account', async () => {
+  it('1.3 should deploy zk token contract with initial token minted to the account', async () => {
     const initialBalance = 987n;
     const owner = await aztecRpcServer.getAccountPublicKey(accounts[0]);
     await deployContract(initialBalance, pointToPublicKey(owner));
@@ -126,25 +129,33 @@ describe('e2e_zk_token_contract', () => {
   /**
    * Milestone 1.4
    */
-  it.skip('should call mint and increase balance', async () => {
+  it('1.4 should call mint and increase balance', async () => {
     const mintAmount = 65n;
 
-    await deployContract();
+    const [owner, receiver] = accounts;
+
+    const deployedContract = await deployContract(
+      0n,
+      pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)),
+    );
 
     await expectStorageSlot(0, 0n);
-    await expectStorageSlot(1, 0n);
+    await expectEmptyStorageSlotForAccount(1);
 
-    const receipt = await contract.methods.mint(mintAmount).send({ from: accounts[1] }).getReceipt();
-    expect(receipt.status).toBe(true);
+    const tx = deployedContract.methods
+      .mint(mintAmount, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(receiver)))
+      .send({ from: receiver });
 
-    await expectStorageSlot(0, 0n);
-    await expectStorageSlot(1, mintAmount);
-  });
+    await tx.isMined();
+    const receipt = await tx.getReceipt();
+
+    expect(receipt.status).toBe(TxStatus.MINED);
+  }, 60_000);
 
   /**
    * Milestone 1.5
    */
-  it.skip('should call transfer and increase balance of another account', async () => {
+  it.skip('1.5 should call transfer and increase balance of another account', async () => {
     const initialBalance = 987n;
     const transferAmount = 654n;
 
