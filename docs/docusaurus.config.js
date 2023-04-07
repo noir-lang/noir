@@ -49,10 +49,10 @@ const config = {
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
         },
-        gtag: {
-          trackingID: "G-WSBTSFJCSF",
-          anonymizeIP: true,
-        }
+//         gtag: {
+//           trackingID: "G-WSBTSFJCSF",
+//           anonymizeIP: true,
+//         }
       }),
     ],
   ],
