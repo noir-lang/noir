@@ -592,9 +592,14 @@ impl Type {
         }
     }
 
-    /// True if this type contains only a single value.
-    /// This is arbitrarily false for functions and true for type variables, as an approximation.
-    /// This function can be removed once we support structs and tuples as array elements.
+    /// True if this type can be used as an array element. Currently this is equivalent to the
+    /// type containing no arrays internally.
+    ///
+    /// This is arbitrarily true for type variables, as an approximation to allow generic arrays
+    /// even though they would only technically be generic over non-array types. The only place
+    /// we could validate they are not actually instantiated with an array type is during
+    /// monomorphization, but we cannot issue an error in that pass since it is meant to be
+    /// infallible. So this check is only an approximation.
     pub(crate) fn valid_as_array_element(&self) -> bool {
         match self {
             Type::FieldElement(_)
@@ -603,26 +608,20 @@ impl Type {
             | Type::Error
             | Type::Unit
             | Type::PolymorphicInteger(_, _)
+            | Type::Function(..)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _) => true,
 
-            Type::Array(_, _)
-            | Type::String(_)
-            | Type::Constant(_)
-            | Type::Forall(_, _)
-            | Type::Function(_, _) => false,
+            Type::Array(_, _) | Type::String(_) | Type::Constant(_) | Type::Forall(_, _) => false,
 
             Type::Struct(definition, args) => {
-                let def = definition.borrow();
-                if def.num_fields() == 1 {
-                    let fields = vecmap(def.get_fields(args), |(_, field)| field);
-                    assert_eq!(fields.len(), 1);
-                    fields[0].valid_as_array_element()
-                } else {
-                    false
-                }
+                let definition = definition.borrow();
+                definition
+                    .get_fields(args)
+                    .into_iter()
+                    .all(|(_, field)| field.valid_as_array_element())
             }
-            Type::Tuple(fields) => fields.len() == 1 && fields[0].valid_as_array_element(),
+            Type::Tuple(fields) => fields.iter().all(|field| field.valid_as_array_element()),
         }
     }
 }

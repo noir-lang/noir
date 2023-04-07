@@ -244,7 +244,6 @@ impl Driver {
         main_function: FuncId,
     ) -> Result<CompiledProgram, ReportedError> {
         let program = monomorphize(main_function, &self.context.def_interner);
-        println!("{program}");
 
         let np_language = self.language.clone();
         let is_opcode_supported = acvm::default_is_opcode_supported(np_language.clone());

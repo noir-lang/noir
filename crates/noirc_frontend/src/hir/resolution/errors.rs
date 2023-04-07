@@ -63,7 +63,9 @@ pub enum ResolverError {
     ParserError(ParserError),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
     ContractFunctionTypeInNormalFunction { span: Span },
-    #[error("Type {typ} cannot be used as an array element. Tuples, structs, and functions are currently unsupported as array elements")]
+    #[error(
+        "Type {typ} cannot be used as an array element. Nested arrays are currently unsupported"
+    )]
     InvalidArrayElementType { typ: Type, span: Span },
 }
 
@@ -253,7 +255,7 @@ impl From<ResolverError> for Diagnostic {
             ),
             ResolverError::InvalidArrayElementType { typ, span } => Diagnostic::simple_error(
                 format!("Type {typ} cannot be used as an array element type"),
-                "Structs, tuples, and functions are currently unsupported as array elements".into(),
+                "Arrays cannot have an element type that is itself an array or a numeric constant".into(),
                 span,
             ),
         }

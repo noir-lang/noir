@@ -352,9 +352,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// Verify the given type is valid as an array element.
-    /// Most notably, we currently do not support arrays holding tuple or struct elements,
-    /// only literals are supported. In case the element given is invalid, we default to an
-    /// array of the Error type to avoid issuing further errors.
+    /// Most notably, we currently do not support arrays holding other arrays, even indirectly
+    /// via holding structs which temselves contain arrays. In case the element given is invalid,
+    /// we default to an array of the Error type to avoid issuing further errors.
     ///
     /// This function wont catch any instances of generic arrays [T; N] later being resolved to
     /// have struct types for elements, it is meant as a good approximation before we start
