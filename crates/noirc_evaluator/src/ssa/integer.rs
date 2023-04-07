@@ -54,7 +54,8 @@ fn get_instruction_max_operand(
         Operation::Binary(node::Binary { operator, lhs, rhs, .. }) => {
             if let BinaryOp::Sub { .. } = operator {
                 //TODO uses interval analysis instead
-                if matches!(ins.res_type, ObjectType::Unsigned(_) | ObjectType::Boolean) {
+                // Note that a boolean is also handled as an unsigned integer
+                if ins.res_type.is_unsigned_integer() {
                     if let Some(lhs_const) = ctx.get_as_constant(*lhs) {
                         let lhs_big = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
                         if max_map[rhs] <= lhs_big {
@@ -266,14 +267,14 @@ fn block_overflow(
         let ins_max_bits = get_instruction_max(ctx, &ins, max_map, &value_map).bits();
         let res_type = ins.res_type;
 
-        let too_many_bits = ins_max_bits > FieldElement::max_num_bits() as u64
-            && res_type != ObjectType::NativeField;
+        let too_many_bits =
+            ins_max_bits > FieldElement::max_num_bits() as u64 && !res_type.is_native_field();
 
         ins.operation.for_each_id(|id| {
             get_obj_max_value(ctx, id, max_map, &value_map);
             let arg = ctx.try_get_node(id);
             let should_truncate_arg =
-                should_truncate_ins && arg.is_some() && get_type(arg) != ObjectType::NativeField;
+                should_truncate_ins && arg.is_some() && !get_type(arg).is_native_field();
 
             if should_truncate_arg || too_many_bits {
                 add_to_truncate(ctx, id, get_size_in_bits(arg), &mut truncate_map, max_map);
@@ -312,7 +313,7 @@ fn block_overflow(
                 }
             }
             Operation::Binary(node::Binary { operator: BinaryOp::Shr(loc), lhs, rhs, .. }) => {
-                if !matches!(ins.res_type, node::ObjectType::Unsigned(_)) {
+                if !ins.res_type.is_unsigned_integer() {
                     todo!("Right shift is only implemented for unsigned integers");
                 }
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
@@ -494,7 +495,7 @@ fn get_max_value(ins: &Instruction, max_map: &mut HashMap<NodeId, BigUint>) -> B
         Operation::Intrinsic(opcode, _) => opcode.get_max_value(),
     };
 
-    if ins.res_type == ObjectType::NativeField {
+    if ins.res_type.is_native_field() {
         let field_max = BigUint::from_bytes_be(&FieldElement::one().neg().to_be_bytes());
 
         //Native Field operations cannot overflow so they will not be truncated

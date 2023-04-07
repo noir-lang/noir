@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{parser::ParserError, Ident, Shared, StructType, Type};
+use crate::{parser::ParserError, Ident, Type};
 
 use super::import::PathResolutionError;
 
@@ -53,12 +53,7 @@ pub enum ResolverError {
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
     #[error("Incorrect amount of arguments to generic type constructor")]
-    IncorrectGenericCount {
-        span: Span,
-        struct_type: Shared<StructType>,
-        actual: usize,
-        expected: usize,
-    },
+    IncorrectGenericCount { span: Span, struct_type: String, actual: usize, expected: usize },
     #[error("{0}")]
     ParserError(ParserError),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
@@ -242,7 +237,7 @@ impl From<ResolverError> for Diagnostic {
                 let actual_plural = if actual == 1 { "is" } else { "are" };
 
                 Diagnostic::simple_error(
-                    format!("The struct type {} has {expected} generic{expected_plural} but {actual} {actual_plural} given here", struct_type.borrow()),
+                    format!("The struct type {struct_type} has {expected} generic{expected_plural} but {actual} {actual_plural} given here"),
                     "Incorrect number of generic arguments".into(),
                     span,
                 )

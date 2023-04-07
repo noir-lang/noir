@@ -1,9 +1,9 @@
-use super::{create_named_dir, load_hex_data, write_to_file};
+use super::{create_named_dir, load_hex_data, program::checksum_acir, write_to_file};
 use crate::{
     constants::{ACIR_CHECKSUM, PK_EXT, VK_EXT},
     errors::CliError,
 };
-use acvm::{acir::circuit::Circuit, hash_constraint_system};
+use acvm::acir::circuit::Circuit;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn save_key_to_dir<P: AsRef<Path>>(
@@ -30,11 +30,10 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 ) -> Result<(Vec<u8>, Vec<u8>), CliError> {
     let acir_hash_path = circuit_build_path.as_ref().with_extension(ACIR_CHECKSUM);
 
-    let expected_acir_hash = load_hex_data(acir_hash_path.clone())?;
+    let expected_acir_checksum = load_hex_data(acir_hash_path.clone())?;
+    let new_acir_checksum = checksum_acir(circuit);
 
-    let new_acir_hash = hash_constraint_system(circuit);
-
-    if new_acir_hash[..] != expected_acir_hash {
+    if new_acir_checksum[..] != expected_acir_checksum {
         return Err(CliError::MismatchedAcir(acir_hash_path));
     }
 
@@ -62,7 +61,10 @@ pub(crate) fn fetch_pk_and_vk<P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::fetch_pk_and_vk;
-    use crate::cli::fs::{keys::save_key_to_dir, program::save_acir_hash_to_dir};
+    use crate::cli::fs::{
+        keys::save_key_to_dir,
+        program::{checksum_acir, save_acir_checksum_to_dir},
+    };
     use acvm::acir::circuit::Circuit;
     use tempdir::TempDir;
 
@@ -78,7 +80,7 @@ mod tests {
         save_key_to_dir(&pk, circuit_name, &circuit_build_path, true).unwrap();
         save_key_to_dir(&vk, circuit_name, &circuit_build_path, false).unwrap();
 
-        save_acir_hash_to_dir(&circuit, circuit_name, &circuit_build_path);
+        save_acir_checksum_to_dir(checksum_acir(&circuit), circuit_name, &circuit_build_path);
         circuit_build_path.push(circuit_name);
 
         let loaded_keys = fetch_pk_and_vk(&circuit, circuit_build_path, true, true).unwrap();

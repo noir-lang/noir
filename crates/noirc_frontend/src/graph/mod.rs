@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 // This has been taken and modified from the rust-analyzer codebase
 // For the most part, everything is the same, the differences are quite subtle
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
@@ -177,6 +176,7 @@ impl std::ops::Index<CrateId> for CrateGraph {
 /// XXX: This is bare-bone for two reasons:
 // There are no display names currently
 // The error would be better if it showed the full cyclic dependency, including transitives.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct CyclicDependenciesError {
     from: CrateId,

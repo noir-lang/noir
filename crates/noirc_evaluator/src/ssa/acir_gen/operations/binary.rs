@@ -52,7 +52,7 @@ pub(crate) fn evaluate(
             BinaryOp::Sub { max_rhs_value } | BinaryOp::SafeSub { max_rhs_value } => {
                 let l_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.lhs, evaluator, ctx);
                 let r_c = acir_gen.var_cache.get_or_compute_internal_var_unwrap(binary.rhs, evaluator, ctx);
-                if res_type == ObjectType::NativeField {
+                if res_type == ObjectType::native_field() {
                     InternalVar::from(constraints::subtract(
                         l_c.expression(),
                         FieldElement::one(),

@@ -83,11 +83,11 @@ fn evaluate_intrinsic(
             let bit_count = args[1] as u32;
             let mut result = Vec::new();
 
-            if let ObjectType::Pointer(a) = res_type {
+            if let ObjectType::ArrayPointer(a) = res_type {
                 for i in 0..bit_count {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let op = if args[0] & (1 << i) != 0 {
                         Operation::Store {
@@ -132,15 +132,15 @@ fn evaluate_intrinsic(
             }
             let mut result = Vec::new();
 
-            if let ObjectType::Pointer(a) = res_type {
+            if let ObjectType::ArrayPointer(a) = res_type {
                 for (i, item) in element.iter().enumerate() {
                     let index = ctx.get_or_create_const(
                         FieldElement::from(i as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let value = ctx.get_or_create_const(
                         FieldElement::from(*item as i128),
-                        ObjectType::NativeField,
+                        ObjectType::native_field(),
                     );
                     let op = Operation::Store {
                         array_id: *a,
@@ -280,13 +280,13 @@ fn cse_block_with_anchor(
 
             match &operator {
                 Operation::Binary(binary) => {
-                    if let ObjectType::Pointer(a) = ctx.object_type(binary.lhs) {
+                    if let ObjectType::ArrayPointer(a) = ctx.object_type(binary.lhs) {
                         //No CSE for arrays because they are not in SSA form
                         //We could improve this in future by checking if the arrays are immutable or not modified in-between
                         let id = ctx.get_dummy_load(a);
                         anchor.push_mem_instruction(ctx, id)?;
 
-                        if let ObjectType::Pointer(a) = ctx.object_type(binary.rhs) {
+                        if let ObjectType::ArrayPointer(a) = ctx.object_type(binary.rhs) {
                             let id = ctx.get_dummy_load(a);
                             anchor.push_mem_instruction(ctx, id)?;
                         }
@@ -369,7 +369,7 @@ fn cse_block_with_anchor(
                                             });
                                             let pred_id = ctx.add_instruction(Instruction::new(
                                                 or_op,
-                                                ObjectType::Boolean,
+                                                ObjectType::boolean(),
                                                 Some(block_id),
                                             ));
                                             new_list.push(pred_id);
@@ -446,7 +446,7 @@ fn cse_block_with_anchor(
                     }
                     if let Some(f) = ctx.try_get_ssa_func(*func) {
                         for typ in &f.result_types {
-                            if let ObjectType::Pointer(a) = typ {
+                            if let ObjectType::ArrayPointer(a) = typ {
                                 let id = ctx.get_dummy_store(*a);
                                 anchor.push_mem_instruction(ctx, id)?;
                             }
@@ -455,7 +455,7 @@ fn cse_block_with_anchor(
                     //Add dummy load for function arguments:
                     for arg in arguments {
                         if let Some(obj) = ctx.try_get_node(*arg) {
-                            if let ObjectType::Pointer(a) = obj.get_type() {
+                            if let ObjectType::ArrayPointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
                                 anchor.push_mem_instruction(ctx, id)?;
                             }
@@ -474,14 +474,14 @@ fn cse_block_with_anchor(
 
                     for arg in args {
                         if let Some(obj) = ctx.try_get_node(*arg) {
-                            if let ObjectType::Pointer(a) = obj.get_type() {
+                            if let ObjectType::ArrayPointer(a) = obj.get_type() {
                                 let id = ctx.get_dummy_load(a);
                                 anchor.push_mem_instruction(ctx, id)?;
                                 activate_cse = false;
                             }
                         }
                     }
-                    if let ObjectType::Pointer(a) = ins.res_type {
+                    if let ObjectType::ArrayPointer(a) = ins.res_type {
                         let id = ctx.get_dummy_store(a);
                         anchor.push_mem_instruction(ctx, id)?;
                         activate_cse = false;

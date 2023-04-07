@@ -654,6 +654,7 @@ enum TypeMethodKey {
     Unit,
     Tuple,
     Function,
+    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -669,6 +670,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
+        Type::Vec(_) => Some(Vec),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)
