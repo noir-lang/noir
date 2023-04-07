@@ -1,10 +1,9 @@
-mod sparse_merkle_tree;
+mod smt;
 // Regular merkle tree means a append-only merkle tree (Explain why this is the only way to have privacy and alternatives if you don't want it)
 
-// Returns one if the leaf is in the tree 
-// and it is at the given index 
-// and the hashpath proves this
-// Currently we assume that it is a binary tree, so depth k implies a width of 2^k
+// Returns one if the leaf is in the tree at the given index and associated hashpath.
+// Currently we assume that it is a binary tree, so depth k implies a width of 2^k.
+// Futhermore, internal hashes are assumed to be taken as a pedersen x coordinate.
 // XXX: In the future we can add an arity parameter
 #[foreign(merkle_membership)]
 fn check_membership(_root : Field, _leaf : Field, _index : Field, _hash_path: [Field]) -> Field {}
