@@ -138,8 +138,7 @@ impl DefCollector {
             let name = resolved_import.name;
             for ns in resolved_import.resolved_namespace.iter_defs() {
                 let result = current_def_map.modules[resolved_import.module_scope.0]
-                    .scope
-                    .add_item_to_namespace(name.clone(), ns);
+                    .import(name.clone(), ns);
 
                 if let Err((first_def, second_def)) = result {
                     let err = DefCollectorErrorKind::DuplicateImport { first_def, second_def };
@@ -224,14 +223,13 @@ fn collect_impls(
             extend_errors(errors, unresolved.file_id, resolver.take_errors());
 
             if let Some(type_module) = get_local_id_from_type(&typ) {
-                // Grab the scope defined by the struct type. Note that impls are a case
-                // where the scope the methods are added to is not the same as the scope
+                // Grab the module defined by the struct type. Note that impls are a case
+                // where the module the methods are added to is not the same as the module
                 // they are resolved in.
-                let scope = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0].scope;
+                let module = &mut def_maps.get_mut(&crate_id).unwrap().modules[type_module.0];
 
-                // .define_func_def(name, func_id);
                 for (_, method_id, method) in &unresolved.functions {
-                    let result = scope.define_func_def(method.name_ident().clone(), *method_id);
+                    let result = module.declare_function(method.name_ident().clone(), *method_id);
 
                     if let Err((first_def, second_def)) = result {
                         let err =
