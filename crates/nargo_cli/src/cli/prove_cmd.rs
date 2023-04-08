@@ -3,19 +3,23 @@ use std::path::{Path, PathBuf};
 use acvm::ProofSystemCompiler;
 use clap::Args;
 use noirc_abi::input_parser::Format;
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, CompiledProgram};
 
-use super::fs::{
-    inputs::{read_inputs_from_file, write_inputs_to_file},
-    keys::fetch_pk_and_vk,
-    program::read_program_from_file,
-    proof::save_proof_to_dir,
-};
 use super::NargoConfig;
+use super::{
+    compile_cmd::compile_circuit,
+    fs::{
+        inputs::{read_inputs_from_file, write_inputs_to_file},
+        program::read_program_from_file,
+        proof::save_proof_to_dir,
+    },
+};
 use crate::{
+    artifacts::program::PreprocessedProgram,
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
     constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
+    preprocess::preprocess_program,
 };
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
@@ -62,23 +66,17 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError> {
-    let (compiled_program, proving_key, verification_key) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path)?;
-
-            let (proving_key, verification_key) =
-                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, true, true)?;
-            (compiled_program, proving_key, verification_key)
-        }
+    let preprocessed_program = match circuit_build_path {
+        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program =
-                super::compile_cmd::compile_circuit(program_dir.as_ref(), compile_options)?;
-
-            let backend = crate::backends::ConcreteBackend;
-            let (proving_key, verification_key) = backend.preprocess(&compiled_program.circuit);
-            (compiled_program, proving_key, verification_key)
+            let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
+            preprocess_program(compiled_program)
         }
     };
+
+    let PreprocessedProgram { abi, bytecode, proving_key, verification_key, .. } =
+        preprocessed_program;
+    let compiled_program = CompiledProgram { abi, circuit: bytecode };
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) = read_inputs_from_file(

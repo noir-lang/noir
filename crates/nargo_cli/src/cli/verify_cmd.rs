@@ -1,8 +1,8 @@
-use super::fs::{
-    inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
-    program::read_program_from_file,
-};
-use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
+use super::compile_cmd::compile_circuit;
+use super::fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file};
+use super::{InputMap, NargoConfig};
+use crate::artifacts::program::PreprocessedProgram;
+use crate::preprocess::preprocess_program;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
@@ -43,22 +43,16 @@ fn verify_with_path<P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
 ) -> Result<(), CliError> {
-    let (compiled_program, verification_key) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path)?;
-
-            let (_, verification_key) =
-                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
-            (compiled_program, verification_key)
-        }
+    let preprocessed_program = match circuit_build_path {
+        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
-
-            let backend = crate::backends::ConcreteBackend;
-            let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
-            (compiled_program, verification_key)
+            preprocess_program(compiled_program)
         }
     };
+
+    let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
+    let compiled_program = CompiledProgram { abi, circuit: bytecode };
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();

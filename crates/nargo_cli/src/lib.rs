@@ -12,12 +12,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod artifacts;
 mod backends;
 pub mod cli;
 mod constants;
 mod errors;
 mod git;
 mod manifest;
+mod preprocess;
 mod resolver;
 
 use nargo::manifest::InvalidPackageError;
