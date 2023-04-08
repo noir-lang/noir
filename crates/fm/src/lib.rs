@@ -137,7 +137,7 @@ mod tests {
 
         let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
 
-        assert!(fm.path(file_id).ends_with("foo"))
+        assert!(fm.path(file_id).ends_with("foo"));
     }
     #[test]
     fn path_resolve_sub_module() {

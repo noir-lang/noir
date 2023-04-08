@@ -856,7 +856,7 @@ where
                 emit(ParserError::with_reason(
                     "Arrays must have at least one element".to_owned(),
                     span,
-                ))
+                ));
             }
             ExpressionKind::array(elements)
         })
@@ -1135,7 +1135,7 @@ mod test {
             match expr_to_array(expr) {
                 ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
-                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
                 }
             }
         }
@@ -1367,7 +1367,7 @@ mod test {
 
         for (src, expected_path_kind) in cases {
             let path = parse_with(path(), src).unwrap();
-            assert_eq!(path.kind, expected_path_kind)
+            assert_eq!(path.kind, expected_path_kind);
         }
 
         parse_all_failing(

@@ -121,7 +121,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn push_err(&mut self, err: ResolverError) {
-        self.errors.push(err)
+        self.errors.push(err);
     }
 
     fn current_lambda_index(&self) -> usize {
@@ -410,7 +410,7 @@ impl<'a> Resolver<'a> {
                     });
 
                     // Fix the generic count so we can continue typechecking
-                    args.resize_with(expected_generic_count, || Type::Error)
+                    args.resize_with(expected_generic_count, || Type::Error);
                 }
 
                 Type::Struct(struct_type, args)
@@ -555,7 +555,7 @@ impl<'a> Resolver<'a> {
                     name: generic.0.contents.clone(),
                     first_span: *first_span,
                     second_span: span,
-                })
+                });
             } else {
                 self.generics.push((name, typevar.clone(), span));
             }
@@ -616,7 +616,7 @@ impl<'a> Resolver<'a> {
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() })
+                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() });
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
@@ -634,13 +634,13 @@ impl<'a> Resolver<'a> {
             && return_type.as_ref() != &Type::Unit
             && func.def.return_visibility != noirc_abi::AbiVisibility::Public
         {
-            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() })
+            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
         if attributes == Some(Attribute::Test) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
-            })
+            });
         }
 
         let mut typ = Type::Function(parameter_types, return_type);
@@ -1017,7 +1017,7 @@ impl<'a> Resolver<'a> {
             }
             Pattern::Mutable(pattern, span) => {
                 if let Some(first_mut) = mutable {
-                    self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span })
+                    self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
                 let pattern = self.resolve_pattern_mutable(*pattern, Some(span), definition);
@@ -1491,7 +1491,7 @@ mod test {
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
             ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
-                assert_eq!(name.to_string(), expected_unresolved_path)
+                assert_eq!(name.to_string(), expected_unresolved_path);
             }
             _ => unimplemented!("expected an unresolved path"),
         }

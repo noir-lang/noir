@@ -284,11 +284,11 @@ impl Abi {
             InputValue::String(string) => {
                 let str_as_fields =
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
-                encoded_value.extend(str_as_fields)
+                encoded_value.extend(str_as_fields);
             }
             InputValue::Struct(object) => {
                 for value in object.into_values() {
-                    encoded_value.extend(Self::encode_value(value)?)
+                    encoded_value.extend(Self::encode_value(value)?);
                 }
             }
         }
@@ -443,6 +443,6 @@ mod test {
         }
 
         // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
-        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"])
+        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"]);
     }
 }
