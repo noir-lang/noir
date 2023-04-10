@@ -23,7 +23,7 @@ describe('AztecNode', () => {
   let wasm: CircuitsWasm;
 
   beforeAll(async () => {
-    wasm = await CircuitsWasm.new();
+    wasm = await CircuitsWasm.get();
   });
 
   beforeEach(async () => {

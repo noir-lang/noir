@@ -8,9 +8,9 @@ import {
 } from '@aztec/circuits.js/abis';
 import { CircuitsWasm } from '@aztec/circuits.js/wasm';
 import { AztecAddress, EthAddress, Fr, keccak } from '@aztec/foundation';
+import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { ContractDao, ContractFunctionDao } from '../contract_database/index.js';
-import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 
 function isConstructor({ name }: { name: string }) {
   return name === 'constructor';
@@ -47,8 +47,8 @@ export class ContractTree {
     portalContract: EthAddress,
     contractAddressSalt: Fr,
     from: AztecAddress,
-    wasm: CircuitsWasm,
   ) {
+    const wasm = await CircuitsWasm.get();
     const constructorFunc = abi.functions.find(isConstructor);
     if (!constructorFunc) {
       throw new Error('Constructor not found.');

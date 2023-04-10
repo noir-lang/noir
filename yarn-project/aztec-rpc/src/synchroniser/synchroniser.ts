@@ -18,7 +18,6 @@ export class Synchroniser {
     private node: AztecNode,
     private db: Database,
     private simulator: AcirSimulator,
-    private bbWasm: BarretenbergWasm,
     private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
@@ -80,7 +79,7 @@ export class Synchroniser {
   }
 
   public async addAccount(privKey: Buffer) {
-    this.accountStates.push(new AccountState(privKey, this.db, this.simulator, this.node, new Grumpkin(this.bbWasm)));
+    this.accountStates.push(new AccountState(privKey, this.db, this.simulator, this.node, await Grumpkin.new()));
     await Promise.resolve();
   }
 

@@ -55,7 +55,7 @@ describe('e2e_zk_token_contract', () => {
   const calculateStorageSlot = async (accountIdx: number) => {
     const ownerPublicKey = await aztecRpcServer.getAccountPublicKey(accounts[accountIdx]);
     const xCoordinate = Fr.fromBuffer(ownerPublicKey.buffer.subarray(0, 32));
-    const bbWasm = await BarretenbergWasm.new();
+    const bbWasm = await BarretenbergWasm.get();
 
     // We only generate 1 note in each test. Balance is the first field of the only note.
     const storageSlot = Fr.fromBuffer(

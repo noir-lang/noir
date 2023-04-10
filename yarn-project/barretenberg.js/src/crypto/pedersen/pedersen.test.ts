@@ -6,7 +6,7 @@ describe('pedersen', () => {
   const values: Buffer[] = [];
 
   beforeAll(async () => {
-    barretenbergWasm = await BarretenbergWasm.new();
+    barretenbergWasm = await BarretenbergWasm.get();
 
     // TODO was originally 2 ** 12
     for (let i = 0; i < 2 ** 2; ++i) {

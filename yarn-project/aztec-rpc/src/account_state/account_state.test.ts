@@ -59,7 +59,7 @@ describe('Account State', () => {
   };
 
   beforeAll(async () => {
-    const wasm = await BarretenbergWasm.new();
+    const wasm = await BarretenbergWasm.get();
     grumpkin = new Grumpkin(wasm);
     owner = ConstantKeyPair.random(grumpkin);
   });

@@ -8,7 +8,7 @@ describe('tx_aux_data', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(async () => {
-    grumpkin = new Grumpkin(await BarretenbergWasm.new());
+    grumpkin = new Grumpkin(await BarretenbergWasm.get());
   });
 
   it('convert to and from buffer', () => {

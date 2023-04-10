@@ -25,7 +25,7 @@ import { EmptyProver } from '../prover/empty.js';
 import { Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
-import { CircuitPoweredBlockBuilder } from './circuit_powered_block_builder.js';
+import { CircuitBlockBuilder } from './circuit_block_builder.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
@@ -51,8 +51,7 @@ describe('sequencer/circuit_block_builder', () => {
   const emptyProof = new UInt8Vector(Buffer.alloc(32, 0));
 
   beforeAll(async () => {
-    wasm = new CircuitsWasm();
-    await wasm.init();
+    wasm = await CircuitsWasm.get();
   });
 
   beforeEach(async () => {
@@ -62,7 +61,7 @@ describe('sequencer/circuit_block_builder', () => {
     vks = getVerificationKeys();
     simulator = mock<Simulator>();
     prover = mock<Prover>();
-    builder = new TestSubject(builderDb, vks, simulator, prover, wasm);
+    builder = new TestSubject(builderDb, vks, simulator, prover);
 
     // Populate root trees with first roots from the empty trees
     // TODO: Should this be responsibility of the MerkleTreeDb init?
@@ -121,7 +120,7 @@ describe('sequencer/circuit_block_builder', () => {
 
   it('builds an L2 block using mock simulator', async () => {
     // Create instance to test
-    builder = new TestSubject(builderDb, vks, simulator, prover, wasm);
+    builder = new TestSubject(builderDb, vks, simulator, prover);
     await builder.updateRootTrees();
 
     // Assemble a fake transaction, we'll tweak some fields below
@@ -164,9 +163,9 @@ describe('sequencer/circuit_block_builder', () => {
   }, 20000);
 
   it('builds an L2 block with empty txs using wasm circuits', async () => {
-    const simulator = new WasmCircuitSimulator(wasm);
+    const simulator = await WasmCircuitSimulator.new();
     const prover = new EmptyProver();
-    builder = new TestSubject(builderDb, vks, simulator, prover, wasm);
+    builder = new TestSubject(builderDb, vks, simulator, prover);
     await builder.updateRootTrees();
     const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
 
@@ -181,9 +180,9 @@ describe('sequencer/circuit_block_builder', () => {
   });
 
   it('builds an L2 block with a contract deployment tx using wasm circuits', async () => {
-    const simulator = new WasmCircuitSimulator(wasm);
+    const simulator = await WasmCircuitSimulator.new();
     const prover = new EmptyProver();
-    builder = new TestSubject(builderDb, vks, simulator, prover, wasm);
+    builder = new TestSubject(builderDb, vks, simulator, prover);
     await builder.updateRootTrees();
     const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
 
@@ -203,7 +202,7 @@ describe('sequencer/circuit_block_builder', () => {
 });
 
 // Test subject class that exposes internal functions for testing
-class TestSubject extends CircuitPoweredBlockBuilder {
+class TestSubject extends CircuitBlockBuilder {
   public buildBaseRollupInput(tx1: Tx, tx2: Tx): Promise<BaseRollupInputs> {
     return super.buildBaseRollupInput(tx1, tx2);
   }

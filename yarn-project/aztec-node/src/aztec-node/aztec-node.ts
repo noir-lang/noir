@@ -1,16 +1,15 @@
+import { Archiver } from '@aztec/archiver';
+import { AztecAddress } from '@aztec/foundation';
+import { ContractData, L2Block, L2BlockSource } from '@aztec/l2-block';
+import { SiblingPath } from '@aztec/merkle-tree';
+import { P2P, P2PClient } from '@aztec/p2p';
+import { SequencerClient } from '@aztec/sequencer-client';
+import { Tx, TxHash } from '@aztec/tx';
+import { UnverifiedData, UnverifiedDataSource } from '@aztec/unverified-data';
+import { MerkleTreeId, MerkleTrees, ServerWorldStateSynchroniser, WorldStateSynchroniser } from '@aztec/world-state';
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
-import { Archiver } from '@aztec/archiver';
-import { ContractData, L2Block, L2BlockSource } from '@aztec/l2-block';
-import { P2P, P2PClient } from '@aztec/p2p';
-import { Tx, TxHash } from '@aztec/tx';
-import { MerkleTrees, WorldStateSynchroniser, ServerWorldStateSynchroniser, MerkleTreeId } from '@aztec/world-state';
-import { SequencerClient } from '@aztec/sequencer-client';
 import { AztecNodeConfig } from './config.js';
-import { SiblingPath } from '@aztec/merkle-tree';
-import { AztecAddress } from '@aztec/foundation';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { UnverifiedData, UnverifiedDataSource } from '@aztec/unverified-data';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -49,8 +48,7 @@ export class AztecNode {
     await Promise.all([p2pClient.start(), worldStateSynchroniser.start()]);
 
     // now create the sequencer
-    const wasm = await CircuitsWasm.new();
-    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser, wasm);
+    const sequencer = await SequencerClient.new(config, p2pClient, worldStateSynchroniser);
     return new AztecNode(p2pClient, archiver, archiver, merkleTreeDB, worldStateSynchroniser, sequencer);
   }
 

@@ -32,7 +32,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * Initialises the collection of Merkle Trees.
    */
   public async init() {
-    const wasm = await BarretenbergWasm.new();
+    const wasm = await BarretenbergWasm.get();
     const hasher = new Pedersen(wasm);
     const contractTree = await StandardMerkleTree.new(
       this.db,

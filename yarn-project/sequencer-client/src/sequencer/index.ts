@@ -1,14 +1,10 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
 import { Tx } from '@aztec/tx';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
-import { CircuitPoweredBlockBuilder } from '../block_builder/circuit_powered_block_builder.js';
+import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
 import { RunningPromise } from '../deps/running_promise.js';
-import { getVerificationKeys } from '../deps/verification_keys.js';
-import { EmptyProver } from '../prover/empty.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
-import { WasmCircuitSimulator } from '../simulator/wasm.js';
 import { SequencerConfig } from './config.js';
 
 /**
@@ -26,24 +22,16 @@ export class Sequencer {
   private pollingIntervalMs: number;
   private lastBlockNumber = -1;
   private state = SequencerState.STOPPED;
-  private blockBuilder: CircuitPoweredBlockBuilder;
 
   constructor(
     private publisher: L1Publisher,
     private p2pClient: P2P,
     private worldState: WorldStateSynchroniser,
-    wasm: CircuitsWasm,
+    private blockBuilder: CircuitBlockBuilder,
     config?: SequencerConfig,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.pollingIntervalMs = config?.transactionPollingInterval ?? 1_000;
-    this.blockBuilder = new CircuitPoweredBlockBuilder(
-      this.worldState.getLatest(),
-      getVerificationKeys(),
-      new WasmCircuitSimulator(wasm),
-      new EmptyProver(),
-      wasm,
-    );
   }
 
   public async start() {

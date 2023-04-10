@@ -17,6 +17,10 @@ export class WasmCircuitSimulator implements Simulator {
     this.rollupWasmWrapper = new RollupWasmWrapper(wasm);
   }
 
+  public static async new() {
+    return new this(await CircuitsWasm.get());
+  }
+
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     return this.rollupWasmWrapper.simulateBaseRollup(input);
   }

@@ -9,7 +9,7 @@ describe('abis wasm bindings', () => {
   let wasm: CircuitsWasm;
 
   beforeAll(async () => {
-    wasm = await CircuitsWasm.new();
+    wasm = await CircuitsWasm.get();
   });
 
   it('gets dummy kernel data', async () => {

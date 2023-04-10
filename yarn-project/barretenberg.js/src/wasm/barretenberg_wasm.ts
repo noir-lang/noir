@@ -13,15 +13,15 @@ const NAME = 'barretenberg';
 export class BarretenbergWasm extends AsyncWasmWrapper {
   codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `${NAME}.wasm`) : `${NAME}.wasm`;
 
+  static instance: Promise<BarretenbergWasm>;
+
   /**
-   * Create and initialize a BarretenbergWasm module.
-   * @param initial - Initial memory pages.
-   * @returns The module.
+   * Get a singleton instance of the module.
+   * @returns The singleton.
    */
-  public static async new(initial?: number) {
-    const barretenberg = new BarretenbergWasm();
-    await barretenberg.init(initial);
-    return barretenberg;
+  public static get(): Promise<BarretenbergWasm> {
+    if (!this.instance) this.instance = new BarretenbergWasm().init();
+    return this.instance;
   }
 
   constructor(loggerName?: string) {

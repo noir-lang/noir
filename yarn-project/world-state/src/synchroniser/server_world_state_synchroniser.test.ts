@@ -72,7 +72,7 @@ describe('server_world_state_synchroniser', () => {
     appendLeaves: jest.fn().mockImplementation(() => Promise.resolve()),
     getSiblingPath: jest.fn().mockImplementation(() => {
       return async () => {
-        const wasm = await BarretenbergWasm.new();
+        const wasm = await BarretenbergWasm.get();
         const pedersen: Pedersen = new Pedersen(wasm);
         SiblingPath.ZERO(32, StandardMerkleTree.ZERO_ELEMENT, pedersen);
       }; //Promise.resolve();

@@ -21,7 +21,7 @@ function simplifyHexValues(input: string) {
  * @param wasm - Optional circuit wasm.
  */
 async function callWasm(inputBuf: Buffer, serializeMethod: string, wasm?: CircuitsWasm): Promise<Buffer> {
-  wasm = wasm || (await CircuitsWasm.new());
+  wasm = wasm || (await CircuitsWasm.get());
   const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
   wasm.writeMemory(inputBufPtr, inputBuf);
   const outputBufSizePtr = wasm.call('bbmalloc', 4);

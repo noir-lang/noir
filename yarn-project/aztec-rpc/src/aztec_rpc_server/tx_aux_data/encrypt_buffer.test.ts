@@ -8,7 +8,7 @@ describe('encrypt buffer', () => {
   let grumpkin: Grumpkin;
 
   beforeAll(async () => {
-    grumpkin = new Grumpkin(await BarretenbergWasm.new());
+    grumpkin = new Grumpkin(await BarretenbergWasm.get());
   });
 
   it('derive shared secret', () => {

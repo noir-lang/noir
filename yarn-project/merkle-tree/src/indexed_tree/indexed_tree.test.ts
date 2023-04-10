@@ -35,7 +35,7 @@ describe('IndexedMerkleTreeSpecific', () => {
   let pedersen: Pedersen;
 
   beforeEach(async () => {
-    wasm = await BarretenbergWasm.new();
+    wasm = await BarretenbergWasm.get();
     pedersen = new Pedersen(wasm);
   });
 

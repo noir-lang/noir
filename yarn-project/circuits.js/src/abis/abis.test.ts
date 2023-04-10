@@ -15,8 +15,8 @@ import {
 
 describe('abis wasm bindings', () => {
   let wasm: CircuitsWasm;
-  beforeEach(async () => {
-    wasm = await CircuitsWasm.new();
+  beforeAll(async () => {
+    wasm = await CircuitsWasm.get();
   });
 
   it('hashes a tx request', async () => {
@@ -40,7 +40,7 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes a function leaf', async () => {
-    const leaf = Buffer.alloc(32);
+    const leaf = Buffer.alloc(32 + 1 + 32 + 32, 0);
     const res = await computeFunctionLeaf(wasm, leaf);
     expect(res).toMatchSnapshot();
   });

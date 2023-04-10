@@ -34,10 +34,10 @@ export class KernelProver {
     txSignature: EcdsaSignature,
     executionResult: ExecutionResult,
     oldRoots: OldTreeRoots,
-    wasm: CircuitsWasm,
     getFunctionTreeInfo: (callStackItem: PrivateCallStackItem) => Promise<FunctionTreeInfo>,
     getContractSiblingPath: (committment: Buffer) => Promise<MembershipWitness<typeof CONTRACT_TREE_HEIGHT>>,
   ): Promise<{ publicInputs: PrivateKernelPublicInputs; proof: Buffer }> {
+    const wasm = await CircuitsWasm.get();
     // TODO: implement this
     const signedTxRequest = new SignedTxRequest(txRequest, txSignature);
 

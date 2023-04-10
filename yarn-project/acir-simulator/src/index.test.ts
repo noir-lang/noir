@@ -40,7 +40,7 @@ describe('ACIR simulator', () => {
   const acirSimulator = new AcirSimulator(oracle as unknown as DBOracle);
 
   beforeAll(async () => {
-    bbWasm = await BarretenbergWasm.new();
+    bbWasm = await BarretenbergWasm.get();
   });
 
   describe('empty constructor', () => {

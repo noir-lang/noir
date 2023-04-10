@@ -9,7 +9,6 @@ const NAME = 'primitives';
  * A low-level wrapper for an instance of the barretenberg primitives wasm.
  */
 export class PrimitivesWasm extends WasmWrapper {
-  // TODO: Load primitives.wasm instead of bb.wasm
   codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `${NAME}.wasm`) : `${NAME}.wasm`;
 
   static instance: Promise<PrimitivesWasm>;
