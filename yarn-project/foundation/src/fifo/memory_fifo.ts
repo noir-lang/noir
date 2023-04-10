@@ -8,6 +8,12 @@ export class MemoryFifo<T> {
   private items: T[] = [];
   private flushing = false;
 
+  /**
+   * Returns the current number of items in the queue.
+   * The length represents the size of the queue at the time of invocation and may change as new items are added or consumed.
+   *
+   * @returns The number of items in the queue.
+   */
   public length() {
     return this.items.length;
   }
@@ -16,6 +22,8 @@ export class MemoryFifo<T> {
    * Returns next item within the queue, or blocks until and item has been put into the queue.
    * If given a timeout, the promise will reject if no item is received after `timeout` seconds.
    * If the queue is flushing, `null` is returned.
+   * @param timeout - The timeout in seconds.
+   * @returns A result promise.
    */
   public get(timeout?: number): Promise<T | null> {
     if (this.items.length) {
@@ -44,6 +52,7 @@ export class MemoryFifo<T> {
 
   /**
    * Put an item onto back of the queue.
+   * @param item - The item to enqueue.
    */
   public put(item: T) {
     if (this.flushing) {
@@ -77,7 +86,13 @@ export class MemoryFifo<T> {
   }
 
   /**
-   * Helper method that can be used to continously consume and process items on the queue.
+   * Process items from the queue using a provided handler function.
+   * The function iterates over items in the queue, invoking the handler for each item until the queue is empty or flushing.
+   * If the handler throws an error, it will be caught and logged as 'Queue handler exception:', but the iteration will continue.
+   * The process function returns a promise that resolves when there are no more items in the queue or the queue is flushing.
+   *
+   * @param handler - A function that takes an item of type T and returns a Promise<void> after processing the item.
+   * @returns A Promise<void> that resolves when the queue is finished processing.
    */
   public async process(handler: (item: T) => Promise<void>) {
     try {

@@ -11,7 +11,7 @@ export class MemoryFifo<T> {
 
   /**
    * Length of queue.
-   * @returns integer.
+   * @returns The length.
    */
   public length() {
     return this.items.length;

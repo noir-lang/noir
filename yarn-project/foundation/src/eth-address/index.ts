@@ -1,8 +1,20 @@
 import { keccak256String, randomBytes } from '../crypto/index.js';
 import { BufferReader } from '../index.js';
 
+/**
+ * Represents an Ethereum address as a 20-byte buffer and provides various utility methods
+ * for converting between different representations, generating random addresses, validating
+ * checksums, and comparing addresses. EthAddress can be instantiated using a buffer or string,
+ * and can be serialized/deserialized from a buffer or BufferReader.
+ */
 export class EthAddress {
+  /**
+   * The size of an Ethereum address in bytes.
+   */
   public static SIZE_IN_BYTES = 20;
+  /**
+   * Represents a zero Ethereum address with 20 bytes filled with zeros.
+   */
   public static ZERO = new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES));
 
   constructor(private buffer: Buffer) {
@@ -17,6 +29,14 @@ export class EthAddress {
     }
   }
 
+  /**
+   * Creates an EthAddress instance from a valid Ethereum address string.
+   * The input 'address' can be either in checksum format or lowercase, and it can be prefixed with '0x'.
+   * Throws an error if the input is not a valid Ethereum address.
+   *
+   * @param address - The string representing the Ethereum address.
+   * @returns An EthAddress instance.
+   */
   public static fromString(address: string) {
     if (!EthAddress.isAddress(address)) {
       throw new Error(`Invalid address string: ${address}`);
@@ -24,10 +44,26 @@ export class EthAddress {
     return new EthAddress(Buffer.from(address.replace(/^0x/i, ''), 'hex'));
   }
 
+  /**
+   * Create a random EthAddress instance with 20 random bytes.
+   * This method generates a new Ethereum address with a randomly generated set of 20 bytes.
+   * It is useful for generating test addresses or unique identifiers.
+   *
+   * @returns A randomly generated EthAddress instance.
+   */
   public static random() {
     return new EthAddress(randomBytes(20));
   }
 
+  /**
+   * Determines if the given string represents a valid Ethereum address.
+   * A valid address should meet the following criteria:
+   * 1. Contains exactly 40 hex characters (excluding an optional '0x' prefix).
+   * 2. Is either all lowercase, all uppercase, or has a valid checksum based on EIP-55.
+   *
+   * @param address - The string to be checked for validity as an Ethereum address.
+   * @returns True if the input string represents a valid Ethereum address, false otherwise.
+   */
   public static isAddress(address: string) {
     if (!/^(0x)?[0-9a-f]{40}$/i.test(address)) {
       // Does not have the basic requirements of an address.
@@ -40,10 +76,24 @@ export class EthAddress {
     }
   }
 
+  /**
+   * Checks if the EthAddress instance represents a zero address.
+   * A zero address consists of 20 bytes filled with zeros and is considered an invalid address.
+   *
+   * @returns A boolean indicating whether the EthAddress instance is a zero address or not.
+   */
   public isZero() {
     return this.equals(EthAddress.ZERO);
   }
 
+  /**
+   * Checks if the given Ethereum address has a valid checksum.
+   * The input 'address' should be prefixed with '0x' or not, and have exactly 40 hex characters.
+   * Returns true if the address has a valid checksum, false otherwise.
+   *
+   * @param address - The hex-encoded string representing the Ethereum address.
+   * @returns A boolean value indicating whether the address has a valid checksum.
+   */
   public static checkAddressChecksum(address: string) {
     address = address.replace(/^0x/i, '');
     const addressHash = keccak256String(address.toLowerCase());
@@ -60,6 +110,16 @@ export class EthAddress {
     return true;
   }
 
+  /**
+   * Converts an Ethereum address to its checksum format.
+   * The input 'address' should be prefixed with '0x' or not, and have exactly 40 hex characters.
+   * The checksum format is created by capitalizing certain characters in the hex string
+   * based on the hash of the lowercase address.
+   * Throws an error if the input address is invalid.
+   *
+   * @param address - The Ethereum address as a hex-encoded string.
+   * @returns The Ethereum address in its checksum format.
+   */
   public static toChecksumAddress(address: string) {
     if (!EthAddress.isAddress(address)) {
       throw new Error('Invalid address string.');
@@ -80,22 +140,57 @@ export class EthAddress {
     return checksumAddress;
   }
 
+  /**
+   * Checks whether the given EthAddress instance is equal to the current instance.
+   * Equality is determined by comparing the underlying byte buffers of both instances.
+   *
+   * @param rhs - The EthAddress instance to compare with the current instance.
+   * @returns A boolean value indicating whether the two instances are equal (true) or not (false).
+   */
   public equals(rhs: EthAddress) {
     return this.buffer.equals(rhs.toBuffer());
   }
 
+  /**
+   * Converts the Ethereum address to a hex-encoded string.
+   * The resulting string is prefixed with '0x' and has exactly 40 hex characters.
+   * This method can be used to represent the EthAddress instance in the widely used hexadecimal format.
+   *
+   * @returns A hex-encoded string representation of the Ethereum address.
+   */
   public toString() {
     return '0x' + this.buffer.toString('hex');
   }
 
+  /**
+   * Returns the Ethereum address as a checksummed string.
+   * The output string will have characters in the correct upper or lowercase form, according to EIP-55.
+   * This provides a way to verify if an address is typed correctly, by checking the character casing.
+   *
+   * @returns A checksummed Ethereum address string.
+   */
   public toChecksumString() {
     return EthAddress.toChecksumAddress(this.buffer.toString('hex'));
   }
 
+  /**
+   * Returns the internal Buffer representation of the Ethereum address.
+   * This method is useful when working with raw binary data or when
+   * integrating with other modules that require a Buffer as input.
+   *
+   * @returns A Buffer instance containing the 20-byte Ethereum address.
+   */
   public toBuffer() {
     return this.buffer;
   }
 
+  /**
+   * Returns a 32-byte buffer representation of the Ethereum address, with the original 20-byte address
+   * occupying the last 20 bytes and the first 12 bytes being zero-filled.
+   * This format is commonly used in smart contracts when handling addresses as 32-byte values.
+   *
+   * @returns A 32-byte Buffer containing the padded Ethereum address.
+   */
   public toBuffer32() {
     const buffer = Buffer.alloc(32);
     this.buffer.copy(buffer, 12);
@@ -105,6 +200,7 @@ export class EthAddress {
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
+   * @returns The EthAdress.
    */
   static fromBuffer(buffer: Buffer | BufferReader): EthAddress {
     const reader = BufferReader.asReader(buffer);

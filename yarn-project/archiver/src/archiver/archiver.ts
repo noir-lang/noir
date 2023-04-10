@@ -9,6 +9,8 @@ import { UnverifiedData, UnverifiedDataSource } from '@aztec/unverified-data';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
+ * Responsible for handling robust L1 polling (TODO) so that other components do not
+ * need to concern themselves with it.
  */
 export class Archiver implements L2BlockSource, UnverifiedDataSource {
   /**

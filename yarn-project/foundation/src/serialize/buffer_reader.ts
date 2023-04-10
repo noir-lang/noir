@@ -1,45 +1,124 @@
 import { Fr, Fq } from '../fields/fields.js';
 
+/**
+ * The BufferReader class provides a utility for reading various data types from a buffer.
+ * It supports reading numbers, booleans, byte arrays, Fr and Fq field elements,
+ * vectors, arrays, objects, strings, and maps. It maintains an internal index to
+ * keep track of the current reading position in the buffer.
+ *
+ * Usage:
+ * Create a new instance of BufferReader with a buffer and an optional offset.
+ * Use the provided methods to read desired data types from the buffer.
+ * The reading methods automatically advance the internal index.
+ *
+ * @example
+ * const reader = new BufferReader(someBuffer);
+ * const num = reader.readNumber();
+ * const bool = reader.readBoolean();
+ * const byteArray = reader.readBytes(4);
+ */
 export class BufferReader {
   private index: number;
   constructor(private buffer: Buffer, offset = 0) {
     this.index = offset;
   }
 
+  /**
+   * Creates a BufferReader instance from either a Buffer or an existing BufferReader.
+   * If the input is a Buffer, it creates a new BufferReader with the given buffer.
+   * If the input is already a BufferReader, it returns the input unchanged.
+   *
+   * @param bufferOrReader - A Buffer or BufferReader to initialize the BufferReader.
+   * @returns An instance of BufferReader.
+   */
   public static asReader(bufferOrReader: Buffer | BufferReader) {
     return Buffer.isBuffer(bufferOrReader) ? new BufferReader(bufferOrReader) : bufferOrReader;
   }
 
+  /**
+   * Reads a 32-bit unsigned integer from the buffer at the current index position.
+   * Updates the index position by 4 bytes after reading the number.
+   *
+   * @returns The read 32-bit unsigned integer value.
+   */
   public readNumber(): number {
     this.index += 4;
     return this.buffer.readUint32BE(this.index - 4);
   }
 
+  /**
+   * Reads and returns the next boolean value from the buffer.
+   * Advances the internal index by 1, treating the byte at the current index as a boolean value.
+   * Returns true if the byte is non-zero, false otherwise.
+   *
+   * @returns A boolean value representing the byte at the current index.
+   */
   public readBoolean(): boolean {
     this.index += 1;
     return Boolean(this.buffer.at(this.index - 1));
   }
 
+  /**
+   * Reads a specified number of bytes from the buffer and returns a new Buffer containing those bytes.
+   * Advances the reader's index by the number of bytes read. Throws an error if there are not enough
+   * bytes left in the buffer to satisfy the requested number of bytes.
+   *
+   * @param n - The number of bytes to read from the buffer.
+   * @returns A new Buffer containing the read bytes.
+   */
   public readBytes(n: number): Buffer {
     this.index += n;
     return Buffer.from(this.buffer.subarray(this.index - n, this.index));
   }
 
+  /**
+   * Reads a Fr (finite field) element from the buffer using the 'fromBuffer' method of the Fr class.
+   * The Fr class should provide a 'fromBuffer' method that takes a BufferReader instance as input.
+   *
+   * @returns An instance of the Fr class representing the finite field element.
+   */
   public readFr(): Fr {
     return Fr.fromBuffer(this);
   }
 
+  /**
+   * Reads the next Fq element from the buffer using the Fq.fromBuffer method.
+   * The Fq element represents a finite field in elliptic curve cryptography and is used for calculations.
+   * Advances the internal buffer index by the number of bytes read.
+   *
+   * @returns An Fq instance representing the finite field element.
+   */
   public readFq(): Fq {
     return Fq.fromBuffer(this);
   }
 
+  /**
+   * Reads a vector of numbers from the buffer and returns it as an array of numbers.
+   * The method utilizes the 'readVector' method, passing a deserializer that reads numbers.
+   *
+   * @returns An array of numbers representing the vector read from the buffer.
+   */
   public readNumberVector(): number[] {
     return this.readVector({
       fromBuffer: (reader: BufferReader) => reader.readNumber(),
     });
   }
 
-  public readVector<T>(itemDeserializer: { fromBuffer: (reader: BufferReader) => T }): T[] {
+  /**
+   * Reads a vector of fixed size from the buffer and deserializes its elements using the provided itemDeserializer object.
+   * The 'itemDeserializer' object should have a 'fromBuffer' method that takes a BufferReader instance and returns the deserialized element.
+   * The method first reads the size of the vector (a number) from the buffer, then iterates through its elements,
+   * deserializing each one using the 'fromBuffer' method of 'itemDeserializer'.
+   *
+   * @param itemDeserializer - Object with 'fromBuffer' method to deserialize vector elements.
+   * @returns An array of deserialized elements of type T.
+   */
+  public readVector<T>(itemDeserializer: {
+    /**
+     * A method to deserialize data from a buffer.
+     */
+    fromBuffer: (reader: BufferReader) => T;
+  }): T[] {
     const size = this.readNumber();
     const result = new Array<T>(size);
     for (let i = 0; i < size; i++) {
@@ -48,9 +127,22 @@ export class BufferReader {
     return result;
   }
 
+  /**
+   * Read an array of a fixed size with elements of type T from the buffer.
+   * The 'itemDeserializer' object should have a 'fromBuffer' method that takes a BufferReader instance as input,
+   * and returns an instance of the desired deserialized data type T.
+   * This method will call the 'fromBuffer' method for each element in the array and return the resulting array.
+   *
+   * @param size - The fixed number of elements in the array.
+   * @param itemDeserializer - An object with a 'fromBuffer' method to deserialize individual elements of type T.
+   * @returns An array of instances of type T.
+   */
   public readArray<T>(
     size: number,
     itemDeserializer: {
+      /**
+       * A function for deserializing data from a BufferReader instance.
+       */
       fromBuffer: (reader: BufferReader) => T;
     },
   ): T[] {
@@ -61,24 +153,72 @@ export class BufferReader {
     return result;
   }
 
-  public readObject<T>(deserializer: { fromBuffer: (reader: BufferReader) => T }): T {
+  /**
+   * Reads a serialized object from a buffer and returns the deserialized object using the given deserializer.
+   *
+   * @typeparam T - The type of the deserialized object.
+   * @param deserializer - An object with a 'fromBuffer' method that takes a BufferReader instance and returns an instance of the deserialized object.
+   * @returns The deserialized object of type T.
+   */
+  public readObject<T>(deserializer: {
+    /**
+     * A method that takes a BufferReader instance and returns an instance of the deserialized data type.
+     */
+    fromBuffer: (reader: BufferReader) => T;
+  }): T {
     return deserializer.fromBuffer(this);
   }
 
+  /**
+   * Returns a Buffer containing the next n bytes from the current buffer without modifying the reader's index position.
+   * If n is not provided or exceeds the remaining length of the buffer, it returns all bytes from the current position till the end of the buffer.
+   *
+   * @param n - The number of bytes to peek from the current buffer. (Optional).
+   * @returns A Buffer with the next n bytes or the remaining bytes if n is not provided or exceeds the buffer length.
+   */
   public peekBytes(n?: number): Buffer {
     return this.buffer.subarray(this.index, n ? this.index + n : undefined);
   }
 
+  /**
+   * Reads a string from the buffer and returns it.
+   * The method first reads the size of the string, then reads the corresponding
+   * number of bytes from the buffer and converts them to a string.
+   *
+   * @returns The read string from the buffer.
+   */
   public readString(): string {
     return this.readBuffer().toString();
   }
 
+  /**
+   * Reads a buffer from the current position of the reader and advances the index.
+   * The method first reads the size (number) of bytes to be read, and then returns
+   * a Buffer with that size containing the bytes. Useful for reading variable-length
+   * binary data encoded as (size, data) format.
+   *
+   * @returns A Buffer containing the read bytes.
+   */
   public readBuffer(): Buffer {
     const size = this.readNumber();
     return this.readBytes(size);
   }
 
-  public readMap<T>(deserializer: { fromBuffer: (reader: BufferReader) => T }): { [key: string]: T } {
+  /**
+   * Reads and constructs a map object from the current buffer using the provided deserializer.
+   * The method reads the number of entries in the map, followed by iterating through each key-value pair.
+   * The key is read as a string, while the value is obtained using the passed deserializer's `fromBuffer` method.
+   * The resulting map object is returned, containing all the key-value pairs read from the buffer.
+   *
+   * @param deserializer - An object with a `fromBuffer` method to deserialize the values in the map.
+   * @returns A map object with string keys and deserialized values based on the provided deserializer.
+   */
+  public readMap<T>(deserializer: {
+    /**
+     * Deserializes an element of type T from a BufferReader instance.
+     */
+    fromBuffer: (reader: BufferReader) => T;
+  }): { [key: string]: T } {
     const numEntries = this.readNumber();
     const map: { [key: string]: T } = {};
     for (let i = 0; i < numEntries; i++) {

@@ -14,6 +14,7 @@ export class MessagePortSocket implements Socket {
    * Send a message over our message port.
    * @param msg - The message.
    * @param transfer - Objects to transfer ownership of.
+   * @returns A resolution promise.
    */
   send(msg: any, transfer: Transferable[] = []): Promise<void> {
     this.port.postMessage(msg, transfer);
