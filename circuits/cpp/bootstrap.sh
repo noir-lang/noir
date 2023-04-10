@@ -1,17 +1,24 @@
 #!/bin/bash
+# Takes a list of targets from commandline
+# Takes CLEAN as an environment variable. If passed, cleans build artifacts
 set -eu
+
+export WASI_VERSION=12 
 
 # Update the submodule
 git submodule update --init --recursive
 
-# Clean.
-rm -rf ./build
-rm -rf ./build-wasm
+# Remove all untracked files and directories.
+if [ -n "${CLEAN:-}" ]; then
+  # Clean.
+  rm -rf ./build
+  rm -rf ./build-wasm
 
-# Clean barretenberg.
-rm -rf ./barretenberg/cpp/build
-rm -rf ./barretenberg/cpp/build-wasm
-rm -rf ./barretenberg/cpp/src/wasi-sdk-*
+  # Clean barretenberg.
+  rm -rf ./barretenberg/cpp/build
+  rm -rf ./barretenberg/cpp/build-wasm
+  rm -rf ./barretenberg/cpp/src/wasi-sdk-*
+fi
 
 # Install formatting git hook.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
@@ -20,12 +27,12 @@ chmod +x $HOOKS_DIR/pre-commit
 
 # Determine system.
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    OS=macos
+  OS=macos
 elif [[ "$OSTYPE" == "linux-gnu" ]]; then
-    OS=linux
+  OS=linux
 else
-    echo "Unknown OS: $OSTYPE"
-    exit 1
+  echo "Unknown OS: $OSTYPE"
+  exit 1
 fi
 
 # Download ignition transcripts.
@@ -65,7 +72,9 @@ cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
 cmake --build --preset $PRESET ${@/#/--target }
 
 # Install the webassembly toolchain.
-(cd ./barretenberg/cpp/src && export WASI_VERSION=12 && curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -)
+if ! [ -d "./barretenberg/cpp/src/wasi-sdk-$WASI_VERSION.0" ] ; then
+  (cd ./barretenberg/cpp/src && curl -s -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_VERSION/wasi-sdk-$WASI_VERSION.0-$OS.tar.gz | tar zxfv -)
+fi
 
 # Build WASM.
 cmake --preset wasm
