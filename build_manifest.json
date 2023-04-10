@@ -49,7 +49,9 @@
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
-    "dependencies": ["aztec3-circuits-wasm-linux-clang"]
+    "dependencies": [
+      "aztec3-circuits-wasm-linux-clang"
+    ]
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
@@ -77,7 +79,8 @@
       "ethereum.js",
       "foundation",
       "l1-contracts",
-      "l2-block"
+      "l2-block",
+      "unverified-data"
     ]
   },
   "aztec-cli": {
@@ -107,7 +110,8 @@
       "kernel-prover",
       "l2-block",
       "noir-contracts",
-      "tx"
+      "tx",
+      "unverified-data"
     ]
   },
   "aztec.js": {
@@ -215,7 +219,8 @@
     "dependencies": [
       "circuits.js",
       "foundation",
-      "l1-contracts"
+      "l1-contracts",
+      "tx"
     ]
   },
   "merkle-tree": {
@@ -252,7 +257,8 @@
       "circuits.js",
       "foundation",
       "l2-block",
-      "tx"
+      "tx",
+      "unverified-data"
     ]
   },
   "prover-client": {
@@ -284,6 +290,7 @@
       "p2p",
       "sequencer-client",
       "tx",
+      "unverified-data",
       "world-state"
     ]
   },
@@ -303,6 +310,7 @@
       "merkle-tree",
       "p2p",
       "tx",
+      "unverified-data",
       "world-state"
     ]
   },
@@ -317,7 +325,18 @@
       "barretenberg.js",
       "circuits.js",
       "foundation",
-      "l2-block"
+      "unverified-data"
+    ]
+  },
+  "unverified-data": {
+    "buildDir": "yarn-project",
+    "projectDir": "yarn-project/unverified-data",
+    "dockerfile": "unverified-data/Dockerfile",
+    "rebuildPatterns": [
+      "^yarn-project/unverified-data/"
+    ],
+    "dependencies": [
+      "foundation"
     ]
   },
   "world-state": {

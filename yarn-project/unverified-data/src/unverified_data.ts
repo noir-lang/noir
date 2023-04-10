@@ -1,4 +1,4 @@
-import { serializeBufferToVector, deserializeBufferFromVector } from '@aztec/foundation/src/serialize/free_funcs.ts';
+import { serializeBufferToVector, deserializeBufferFromVector } from '@aztec/foundation';
 import { randomBytes } from 'crypto';
 /**
  * Data container of unverified data corresponding to one L2 block.

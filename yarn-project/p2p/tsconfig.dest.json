@@ -17,6 +17,9 @@
     },
     {
       "path": "../tx/tsconfig.dest.json"
+    },
+    {
+      "path": "../unverified-data/tsconfig.dest.json"
     }
   ],
   "include": ["src"],
