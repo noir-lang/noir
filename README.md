@@ -65,6 +65,21 @@ Concretely the following items are on the road map:
 
 This crate's minimum supported rustc version is 1.66.0.
 
+## Working on Noir / Building from source
+
+Building Noir requires a variety of native dependencies, but we've bundled up everything you need with [Nix](https://nixos.org/).
+
+To work on Noir, you'll want to:
+1. Install Nix following [their guide](https://nixos.org/download.html) for your operating system
+2. Create the file `~/.config/nix/nix.conf` with the contents:
+```
+experimental-features = nix-command
+extra-experimental-features = flakes
+```
+3. Clone the project with `git clone git@github.com:noir-lang/noir`
+4. Run `nix build . -L` in the `noir` directory
+5. Run `nix flake check -L` to run clippy and the tests
+
 ## License
 
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)
