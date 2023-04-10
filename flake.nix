@@ -110,12 +110,6 @@
     in
     rec {
       checks = {
-        cargo-check = craneLib.buildPackage (commonArgs // {
-          inherit cargoArtifacts;
-
-          doCheck = true;
-        });
-
         cargo-clippy = craneLib.cargoClippy (commonArgs // {
           inherit cargoArtifacts;
 
@@ -127,7 +121,7 @@
         cargo-test = craneLib.cargoTest (commonArgs // {
           inherit cargoArtifacts;
 
-          cargoTestArgs = "--workspace -- --test-threads=1";
+          cargoTestExtraArgs = "--workspace -- --test-threads=1";
 
           doCheck = true;
         });
