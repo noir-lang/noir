@@ -353,7 +353,7 @@ class UltraComposer : public ComposerBase {
         }
 
         auto minimum_circuit_size = tables_size + lookups_size;
-        auto num_filled_gates = num_gates + public_inputs.size();
+        auto num_filled_gates = get_num_gates() + public_inputs.size();
         return std::max(minimum_circuit_size, num_filled_gates);
     }
 
