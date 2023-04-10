@@ -109,6 +109,7 @@ impl Evaluator {
     }
 
     // Creates a new Witness index
+    // TODO: This name seems misleading - Perhaps `next_available_witness`?
     fn add_witness_to_cs(&mut self) -> Witness {
         self.current_witness_index += 1;
         Witness(self.current_witness_index)
@@ -153,6 +154,9 @@ impl Evaluator {
         inter_var_witness
     }
 
+    /// Creates a variable and the appropriate number of witnesses to fill it.
+    /// The witnesses are listed as circuit parameters and also as public if
+    /// specified. Range constraints are added for any included sized integers.
     fn param_to_var(
         &mut self,
         name: &str,
@@ -195,6 +199,9 @@ impl Evaluator {
                 vec![witness]
             }
             AbiType::Struct { fields } => {
+                // TODO: If generate_struct_witnesses were restructured such
+                // that the renaming took place outside of the match statement,
+                // you wouldn't have to rename fields here too.
                 let new_fields = btree_map(fields, |(inner_name, value)| {
                     let new_name = format!("{name}.{inner_name}");
                     (new_name, value.clone())
@@ -222,6 +229,9 @@ impl Evaluator {
         Ok(())
     }
 
+    /// Creates witnesses required to represent a struct and adds range
+    /// constraints for any included sized integers. The witnesses are listed
+    /// in a BTreeMap of flattened field names.
     fn generate_struct_witnesses(
         &mut self,
         struct_witnesses: &mut BTreeMap<String, Vec<Witness>>,
@@ -294,6 +304,7 @@ impl Evaluator {
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
+        // TODO: Seems the above comment is outdated?
         let main = ir_gen.program.main();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.main_function_signature.0);

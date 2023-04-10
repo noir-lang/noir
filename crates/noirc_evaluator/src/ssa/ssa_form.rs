@@ -37,6 +37,8 @@ fn write_phi(ctx: &mut SsaContext, predecessors: &[BlockId], var: NodeId, phi: N
     }
 }
 
+/// Fills in the predecessors for (and simplifies) any phi operations found within the block, and
+/// also adds the block to the context's list of sealed blocks.
 pub(super) fn seal_block(ctx: &mut SsaContext, block_id: BlockId, entry_block: BlockId) {
     let block = &ctx[block_id];
     let pred = block.predecessor.clone();
@@ -78,24 +80,31 @@ fn add_dummy_store(ctx: &mut SsaContext, entry: BlockId, join: BlockId) {
     }
 }
 
-//look-up recursively into predecessors
+// Recursively looks in specified block and then its predecessors for the most recent occurrence
+// of a variable. An empty phi is generated and returned when ambiguity is encountered.
 fn get_block_value(ctx: &mut SsaContext, root: NodeId, block_id: BlockId) -> NodeId {
     let result = if !ctx.sealed_blocks.contains(&block_id) {
         //incomplete CFG
         ctx.generate_empty_phi(block_id, root)
     } else {
+        // The block is sealed
         let block = &ctx[block_id];
         if let Some(idx) = block.get_current_value(root) {
             return idx;
         }
+        // If a variable is not updated in the specified block, it may have been updated earlier
+        // in some predecessor.
         let pred = block.predecessor.clone();
         if pred.is_empty() {
+            // There cannot be an earlier update to this variable
             return root;
         }
         if pred.len() == 1 {
             get_block_value(ctx, root, pred[0])
         } else {
+            // Variable may have been updated in more than one predecessor - use a phi to resolve.
             let result = ctx.generate_empty_phi(block_id, root);
+            // TODO: This call to update_variable looks redundant - it also happens at function end
             ctx[block_id].update_variable(root, result);
             write_phi(ctx, &pred, root, result);
             result

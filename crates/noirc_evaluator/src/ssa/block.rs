@@ -37,10 +37,13 @@ pub(crate) struct BasicBlock {
     pub(crate) kind: BlockType,
     pub(crate) dominator: Option<BlockId>, //direct dominator
     pub(crate) dominated: Vec<BlockId>,    //dominated sons
+    // TODO: This should be plural
     pub(crate) predecessor: Vec<BlockId>,  //for computing the dominator tree
     pub(crate) left: Option<BlockId>,      //sequential successor
     pub(crate) right: Option<BlockId>,     //jump successor
     pub(crate) instructions: Vec<NodeId>,
+    /// Maps from the first occurrence (root) of a variable to it most recent occurrence in the
+    /// block.
     pub(crate) value_map: HashMap<NodeId, NodeId>, //for generating the ssa form
     pub(crate) assumption: AssumptionId,
 }
@@ -170,7 +173,7 @@ pub(crate) fn create_first_block(ctx: &mut SsaContext) {
 
 //Creates a new sealed block (i.e whose predecessors are known)
 //It is not suitable for the first block because it uses the current block.
-//if left is true, the new block is left to the current block
+//if left is true, the new block is left to the current block (i.e. is the sequential successor).
 pub(crate) fn new_sealed_block(ctx: &mut SsaContext, kind: BlockType, left: bool) -> BlockId {
     let current_block = ctx.current_block;
     let new_block = BasicBlock::new(ctx.current_block, kind);

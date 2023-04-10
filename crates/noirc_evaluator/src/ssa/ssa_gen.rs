@@ -45,6 +45,7 @@ impl IrGenerator {
         }
     }
 
+    /// A complete SSA pass, entering from the circuit's main function.
     pub(crate) fn ssa_gen_main(&mut self) -> Result<(), RuntimeError> {
         let main_body = self.program.take_main_body();
         let value = self.ssa_gen_expression(&main_body)?;
@@ -264,6 +265,9 @@ impl IrGenerator {
         }
     }
 
+    /// Adds a new variable to the SsaContext, binding it to the provided.
+    /// witness. If a definition is provided, the variable's id is cached
+    /// against the definition to aid struct flattening.
     pub(crate) fn create_new_variable(
         &mut self,
         var_name: String,
@@ -731,7 +735,8 @@ impl IrGenerator {
         Ok(Value::Node(exit_first))
     }
 
-    //Parse a block of AST statements into ssa form
+    /// Parse a block of AST statements into ssa form, returning a handle to the
+    /// last generated value in the block.
     fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
         let mut last_value = Value::dummy();
         for expr in block {
@@ -740,6 +745,14 @@ impl IrGenerator {
         Ok(last_value)
     }
 
+    /// Generates SSA into blocks for an if expression of the form:
+    /// |    entry    | (optional)
+    /// | then | else |
+    /// |    exit     |
+    /// The else block is added regardless of whether the if expression holds any contents for it.
+    /// The entry block is only added if the previous block was some "join" block. The exit block
+    /// contains a single phi instruction to reflect the two possible outcomes.  If the result of
+    /// the `if` condition is already known, no new blocks or phi are added for this structure.
     fn handle_if_expr(&mut self, if_expr: &If) -> Result<Value, RuntimeError> {
         //jump instruction
         let mut entry_block = self.context.current_block;
@@ -750,6 +763,8 @@ impl IrGenerator {
 
         let condition = self.ssa_gen_expression(if_expr.condition.as_ref())?.unwrap_id();
 
+        // If the "if" expression's condition can be known at compile time, return the ssa for the
+        // outcome arm only (if there is one).
         if let Some(cond) = node::NodeEval::from_id(&self.context, condition).into_const_value() {
             if cond.is_zero() {
                 if let Some(alt) = &if_expr.alternative {

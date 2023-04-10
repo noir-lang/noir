@@ -98,6 +98,7 @@ pub(crate) struct StackFrame {
     pub(crate) created_arrays: HashMap<ArrayId, BlockId>,
     zeros: HashMap<ObjectType, NodeId>,
     pub(crate) return_arrays: Vec<ArrayId>,
+    /// Cache of last common ancestor per block pair
     lca_cache: HashMap<(BlockId, BlockId), BlockId>,
 }
 

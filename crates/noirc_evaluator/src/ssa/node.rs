@@ -145,6 +145,9 @@ pub(crate) struct Variable {
     pub(crate) id: NodeId,
     pub(crate) obj_type: ObjectType,
     pub(crate) name: String,
+    // TODO: Should this instead be private considering we have a specialised accessor?
+    /// The original occurrence of a variable to which subsequent occurrences refer. The
+    /// corresponding `root()` accessor infers an original to be it's own root.
     pub(crate) root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
     pub(crate) def: Option<Definition>, //AST definition of the variable
     pub(crate) witness: Option<Witness>,
@@ -528,7 +531,9 @@ pub(crate) enum Operation {
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
     Phi {
+        /// The original occurrence of the phi's underlying variable.
         root: NodeId,
+        /// The blocks + variables from which the phi's value must be resolved.
         block_args: Vec<(NodeId, BlockId)>,
     },
     Call {

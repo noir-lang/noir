@@ -2,7 +2,11 @@ use crate::ssa::node::NodeId;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::Type;
 
-/// `Value` is used only to construct the SSA IR.
+/// `Value` is used only to construct the SSA IR. AST Type::Tuple cannot be
+/// represented by an SSA node, so the `Value` type exists to compose multiple
+/// SSA nodes together into an analogous structure. We therefore pass around
+/// `Values` instead of `NodeId`s in situtations that may or may not makes use
+/// of a tuple.
 #[derive(Debug, Clone)]
 pub(crate) enum Value {
     Node(NodeId),
@@ -42,6 +46,8 @@ impl Value {
         }
     }
 
+    // TODO: Rename. The action might be analogous, but it's confusing to read
+    // as zip usually takes the form ([X], [Y]) -> [(X, Y)]
     /// Calls the function `f` on `self` and the given `Value`
     /// Panics: If `self` and the given value are not the same
     /// enum variant

@@ -25,6 +25,10 @@ use std::collections::{HashMap, HashSet};
 // everything else just reference objects from these two arena using their index.
 pub(crate) struct SsaContext {
     pub(crate) first_block: BlockId,
+    /// _After_ the generation of SSA for any given expression, `current_block` will point at the
+    /// closing block of that expression. Conversely _during_ the generation of SSA for a given
+    /// expression, `current_block` may point at a block corresponding to some sub-expression. It
+    /// behaves like a "write head" for appending blocks to as we depth-first traverse the AST.
     pub(crate) current_block: BlockId,
     blocks: arena::Arena<block::BasicBlock>,
     pub(crate) nodes: arena::Arena<node::NodeObject>,
@@ -428,6 +432,8 @@ impl SsaContext {
         None
     }
 
+    /// Returns a variable stored in context for a given `NodeId`. This errors if the id belongs
+    /// to something other than a variable.
     pub(crate) fn get_variable(&self, id: NodeId) -> Result<&node::Variable, RuntimeErrorKind> {
         match self.nodes.get(id.0) {
             Some(t) => match t {
@@ -472,10 +478,15 @@ impl SsaContext {
         None
     }
 
+    /// Returns the id of the original occurrence of a variable.
     pub(crate) fn root_value(&self, id: NodeId) -> NodeId {
+        // TODO: This looks wrong to me. Notice the unwrap is on the variable corresponding to the
+        // the input, not on the root. Surely if get_variable doesn't return `Ok` that indicates
+        // an error - it shouldn't indicate that the variable is its own root.
         self.get_variable(id).map(|v| v.root()).unwrap_or(id)
     }
 
+    /// Store a variable in the context and assign it an auto-generated ID.
     pub(crate) fn add_variable(&mut self, obj: node::Variable, root: Option<NodeId>) -> NodeId {
         let id = NodeId(self.nodes.insert(NodeObject::Variable(obj)));
         match &mut self[id] {
@@ -756,6 +767,7 @@ impl SsaContext {
         Ok(())
     }
 
+    // Adds an empty phi to the context and target block.
     pub(crate) fn generate_empty_phi(&mut self, target_block: BlockId, phi_root: NodeId) -> NodeId {
         //Ensure there is not already a phi for the variable (n.b. probably not useful)
         for i in &self[target_block].instructions {
