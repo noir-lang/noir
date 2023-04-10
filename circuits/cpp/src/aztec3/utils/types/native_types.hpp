@@ -75,6 +75,22 @@ struct NativeTypes {
         return crypto::pedersen_commitment::compress_native(input_pairs);
     }
 
+    /**
+     * @brief Compute the hash for a pair of left and right nodes in a merkle tree.
+     *
+     * @details Compress the two nodes using the default/0-generator which is reserved
+     * for internal merkle hashing.
+     *
+     * @param left The left child node
+     * @param right The right child node
+     * @return The computed Merkle tree hash for the given pair of nodes
+     */
+    static fr merkle_hash(fr left, fr right)
+    {
+        // use 0-generator for internal merkle hashing
+        return crypto::pedersen_hash::hash_multiple({ left, right }, 0);
+    }
+
     static grumpkin_point commit(const std::vector<fr>& inputs, const size_t hash_index = 0)
     {
         return crypto::pedersen_commitment::commit_native(inputs, hash_index);

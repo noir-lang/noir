@@ -15,6 +15,7 @@
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 #include <barretenberg/stdlib/recursion/verification_key/verification_key.hpp>
 #include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
+#include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
 #include "native_types.hpp"
 
@@ -81,6 +82,22 @@ template <typename Composer> struct CircuitTypes {
     static fr compress(const std::vector<std::pair<fr, crypto::generators::generator_index_t>>& input_pairs)
     {
         return plonk::stdlib::pedersen_commitment<Composer>::compress(input_pairs);
+    };
+
+    /**
+     * @brief Compute the hash for a pair of left and right nodes in a merkle tree.
+     *
+     * @details Compress the two nodes using the default/0-generator which is reserved
+     * for internal merkle hashing.
+     *
+     * @param left The left child node
+     * @param right The right child node
+     * @return The computed Merkle tree hash for the given pair of nodes
+     */
+    static fr merkle_hash(fr left, fr right)
+    {
+        // use 0-generator for internal merkle hashing
+        return plonk::stdlib::pedersen_hash<Composer>::hash_multiple({ left, right }, 0);
     };
 
     static grumpkin_point commit(const std::vector<fr>& inputs, const size_t hash_index = 0)

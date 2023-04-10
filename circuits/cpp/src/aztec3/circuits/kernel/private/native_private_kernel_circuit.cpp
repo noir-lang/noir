@@ -1,15 +1,20 @@
-#include "aztec3/constants.hpp"
 #include "init.hpp"
 
+#include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
 
 #include <aztec3/utils/array.hpp>
 #include <aztec3/circuits/hash.hpp>
+#include "aztec3/constants.hpp"
+
+#include <barretenberg/stdlib/merkle_tree/membership.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
+using aztec3::circuits::abis::FunctionLeafPreimage;
+using aztec3::circuits::abis::private_kernel::ContractLeafPreimage;
 using aztec3::circuits::abis::private_kernel::NewContractData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
@@ -22,6 +27,9 @@ using aztec3::utils::push_array_to_array;
 
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
+using aztec3::circuits::root_from_sibling_path;
+
+// using plonk::stdlib::merkle_tree::
 
 // // TODO: NEED TO RECONCILE THE `proof`'s public inputs (which are uint8's) with the
 // // private_call.call_stack_item.public_inputs!
@@ -62,6 +70,107 @@ void initialise_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs
     end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
+void contract_logic(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
+{
+    const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
+    const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
+    const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
+    const auto& deployer_address = private_call_public_inputs.call_context.msg_sender;
+    const auto& contract_deployment_data =
+        private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
+
+    // contract deployment
+
+    // input storage contract address must be 0 if its a constructor call and non-zero otherwise
+    auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
+
+    auto private_call_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
+        private_inputs.private_call.vk, GeneratorIndex::VK);
+
+    auto constructor_hash = compute_constructor_hash(private_inputs.signed_tx_request.tx_request.function_data,
+                                                     private_call_public_inputs.args,
+                                                     private_call_vk_hash);
+
+    if (is_contract_deployment) {
+        ASSERT(contract_deployment_data.constructor_vk_hash == private_call_vk_hash);
+    }
+
+    auto const new_contract_address = compute_contract_address<NT>(deployer_address,
+                                                                   contract_deployment_data.contract_address_salt,
+                                                                   contract_deployment_data.function_tree_root,
+                                                                   constructor_hash);
+
+    if (is_contract_deployment) {
+        // must imply == derived address
+        ASSERT(storage_contract_address == new_contract_address);
+    } else {
+        // non-contract deployments must specify contract address being interacted with
+        ASSERT(storage_contract_address != 0);
+    }
+
+    // compute contract address nullifier
+    auto const blake_input = new_contract_address.to_field().to_buffer();
+    auto const new_contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
+
+    // push the contract address nullifier to nullifier vector
+    if (is_contract_deployment) {
+        array_push(public_inputs.end.new_nullifiers, new_contract_address_nullifier);
+    }
+
+    // Add new contract data if its a contract deployment function
+    NewContractData<NT> native_new_contract_data{ new_contract_address,
+                                                  portal_contract_address,
+                                                  contract_deployment_data.function_tree_root };
+
+    array_push<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
+                                                                 native_new_contract_data);
+
+    /* We need to compute the root of the contract tree, starting from the function's VK:
+     * - Compute the vk_hash (done above)
+     * - Compute the function_leaf: hash(function_selector, is_private, vk_hash, acir_hash)
+     * - Hash the function_leaf with the function_leaf's sibling_path to get the function_tree_root
+     * - Compute the contract_leaf: hash(contract_address, portal_contract_address, function_tree_root)
+     * - Hash the contract_leaf with the contract_leaf's sibling_path to get the contract_tree_root
+     */
+
+    const auto function_leaf_preimage = FunctionLeafPreimage<NT>{
+        .function_selector = private_inputs.private_call.call_stack_item.function_data.function_selector,
+        .is_private = true,
+        .vk_hash = private_call_vk_hash,
+        .acir_hash = private_inputs.private_call.acir_hash,
+    };
+
+    const auto function_leaf = function_leaf_preimage.hash();
+
+    const auto& function_leaf_index = private_inputs.private_call.function_leaf_membership_witness.leaf_index;
+    const auto& function_leaf_sibling_path = private_inputs.private_call.function_leaf_membership_witness.sibling_path;
+
+    const auto& function_tree_root =
+        root_from_sibling_path<NT>(function_leaf, function_leaf_index, function_leaf_sibling_path);
+
+    const ContractLeafPreimage<NT> contract_leaf_preimage{
+        storage_contract_address,
+        portal_contract_address,
+        function_tree_root,
+    };
+
+    const auto contract_leaf = contract_leaf_preimage.hash();
+
+    auto& contract_leaf_index = private_inputs.private_call.contract_leaf_membership_witness.leaf_index;
+    auto& contract_leaf_sibling_path = private_inputs.private_call.contract_leaf_membership_witness.sibling_path;
+
+    const auto& computed_contract_tree_root =
+        root_from_sibling_path<NT>(contract_leaf, contract_leaf_index, contract_leaf_sibling_path);
+
+    auto& purported_contract_tree_root =
+        private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
+    ASSERT(computed_contract_tree_root == purported_contract_tree_root);
+
+    auto& previous_kernel_contract_tree_root =
+        private_inputs.previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root;
+    ASSERT(purported_contract_tree_root == previous_kernel_contract_tree_root);
+}
+
 void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
@@ -78,56 +187,6 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
-    const auto& portal_contract_address = private_inputs.private_call.portal_contract_address;
-    const auto& deployer_address = private_call_public_inputs.call_context.msg_sender;
-    const auto& contract_deployment_data =
-        private_inputs.signed_tx_request.tx_request.tx_context.contract_deployment_data;
-
-    { // contract deployment
-        // input storage contract address must be 0 if its a constructor call and non-zero otherwise
-        auto is_contract_deployment = public_inputs.constants.tx_context.is_contract_deployment_tx;
-
-        auto private_call_vk_hash = stdlib::recursion::verification_key<CT::bn254>::compress_native(
-            private_inputs.private_call.vk, GeneratorIndex::VK);
-
-        auto constructor_hash = compute_constructor_hash(private_inputs.signed_tx_request.tx_request.function_data,
-                                                         private_call_public_inputs.args,
-                                                         private_call_vk_hash);
-
-        if (is_contract_deployment) {
-            ASSERT(contract_deployment_data.constructor_vk_hash == private_call_vk_hash);
-        }
-
-        auto contract_address = compute_contract_address<NT>(deployer_address,
-                                                             contract_deployment_data.contract_address_salt,
-                                                             contract_deployment_data.function_tree_root,
-                                                             constructor_hash);
-
-        if (is_contract_deployment) {
-            // must imply == derived address
-            ASSERT(storage_contract_address == contract_address);
-        } else {
-            // non-contract deployments must specify contract address being interacted with
-            ASSERT(storage_contract_address != 0);
-        }
-
-        // compute contract address nullifier
-        auto blake_input = contract_address.to_field().to_buffer();
-        auto contract_address_nullifier = NT::fr::serialize_from_buffer(NT::blake3s(blake_input).data());
-
-        // push the contract address nullifier to nullifier vector
-        if (is_contract_deployment) {
-            array_push(public_inputs.end.new_nullifiers, contract_address_nullifier);
-        }
-
-        // Add new contract data if its a contract deployment function
-        auto native_new_contract_data = NewContractData<NT>{ contract_address,
-                                                             portal_contract_address,
-                                                             contract_deployment_data.function_tree_root };
-
-        array_push<NewContractData<NT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
-                                                                     native_new_contract_data);
-    }
 
     {
         // Nonce nullifier
@@ -183,11 +242,11 @@ void validate_this_private_call_hash(PrivateInputs<NT> const& private_inputs)
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
-    const auto this_private_call_hash = array_pop(start.private_call_stack);
+    const auto popped_private_call_hash = array_pop(start.private_call_stack);
     const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
-    ASSERT(this_private_call_hash ==
-           calculated_this_private_call_hash); // "this private_call_hash does not reconcile");
+    ASSERT(popped_private_call_hash ==
+           calculated_this_private_call_hash); // "this private_call_hash does not reconcile";
 };
 
 void validate_this_private_call_stack(PrivateInputs<NT> const& private_inputs)

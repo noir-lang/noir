@@ -112,4 +112,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, NewContractDa
               << "function_tree_root: " << new_contract_data.function_tree_root << "\n";
 }
 
+template <typename NCT> using ContractLeafPreimage = NewContractData<NCT>;
+
 } // namespace aztec3::circuits::abis::private_kernel
