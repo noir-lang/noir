@@ -145,7 +145,7 @@ pub(crate) struct Variable {
     pub(crate) id: NodeId,
     pub(crate) obj_type: ObjectType,
     pub(crate) name: String,
-    // TODO: Should this instead be private considering we have a specialised accessor?
+    // TODO: Should this instead be private considering we have a specialized accessor?
     /// The original occurrence of a variable to which subsequent occurrences refer. The
     /// corresponding `root()` accessor infers an original to be it's own root.
     pub(crate) root: Option<NodeId>, //when generating SSA, assignment of an object creates a new one which is linked to the original one
