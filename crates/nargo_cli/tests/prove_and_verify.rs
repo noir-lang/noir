@@ -30,9 +30,7 @@ mod tests {
         // is the root of the repository and append the crate path
         let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
             Ok(dir) => PathBuf::from(dir),
-            Err(_) => {
-                PathBuf::from(std::env::current_dir().unwrap()).join("crates").join("nargo_cli")
-            }
+            Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
         };
         let test_data_dir = manifest_dir.join("tests").join("test_data");
         let config_path = test_data_dir.join("config.toml");
