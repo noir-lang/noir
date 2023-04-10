@@ -20,8 +20,7 @@ export class WasmCircuitSimulator implements Simulator {
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     return this.rollupWasmWrapper.simulateBaseRollup(input);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  mergeRollupCircuit(input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {
+  mergeRollupCircuit(_input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {
     throw new Error('Method not implemented.');
   }
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs> {

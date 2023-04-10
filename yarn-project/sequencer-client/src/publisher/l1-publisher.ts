@@ -127,9 +127,8 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   // TODO: Fail if blockchainStatus.nextBlockNum > thisBlockNum.
-  // eslint-disable-next-line require-await, @typescript-eslint/no-unused-vars
-  private async checkNextL2BlockNum(thisBlockNum: number): Promise<boolean> {
-    return true;
+  private checkNextL2BlockNum(_thisBlockNum: number): Promise<boolean> {
+    return Promise.resolve(true);
   }
 
   private async sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined> {
