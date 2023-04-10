@@ -14,7 +14,7 @@ fn main() {
 
     // Only use build_data if the environment variable isn't set
     // The environment variable is always set when working via Nix
-    if let Err(_) = std::env::var(GIT_COMMIT) {
+    if std::env::var(GIT_COMMIT).is_err() {
         build_data::set_GIT_COMMIT();
         build_data::set_GIT_DIRTY();
         build_data::no_debug_rebuilds();
