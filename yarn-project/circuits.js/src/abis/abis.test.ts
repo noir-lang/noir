@@ -46,12 +46,7 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes function tree root', async () => {
-    const res = await computeFunctionTreeRoot(wasm, [
-      Buffer.alloc(32),
-      Buffer.alloc(32),
-      Buffer.alloc(32),
-      Buffer.alloc(32),
-    ]);
+    const res = await computeFunctionTreeRoot(wasm, [new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n)]);
     expect(res).toMatchSnapshot();
   });
 
