@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.dest.json && prettier -w */tsconfig.dest.json",
+    "prepare:check": "yarn workspaces foreach run prepare:check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.dest.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
     "formatting": "yarn workspaces foreach -v run formatting",
     "formatting:fix": "yarn workspaces foreach -v run formatting:fix",
@@ -46,8 +47,5 @@
     "prettier": "^2.7.1",
     "typedoc": "^0.23.26",
     "typescript": "^4.9.5"
-  },
-  "comments": {
-    "resolutions": "Yarn has a bug where it does not load resolutions from packages in a workspace, so those need to be hoisted here. See https://github.com/yarnpkg/yarn/issues/5039."
   }
 }

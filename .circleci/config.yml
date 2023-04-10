@@ -77,6 +77,12 @@ jobs:
     steps:
       - *checkout
       - *setup_env
+      # We make the build_manifest in the root available to yarn-project. We should be injecting another
+      # build context to docker instead, but that requires modifying the build script from build-system
+      # to accept arbitrary arguments to be passed to docker build, so we avoid it for now.
+      - run:
+          name: "Make build manifest available"
+          command: cp build_manifest.json yarn-project/
       - run:
           name: "Build"
           command: build yarn-project-base

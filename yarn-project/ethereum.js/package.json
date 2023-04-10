@@ -23,7 +23,8 @@
     "./crypto": "./dest/crypto/index.js"
   },
   "scripts": {
-    "prepare": "node ../../scripts/update_build_manifest.mjs package.json",
+    "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
+    "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
     "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "yarn build --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
