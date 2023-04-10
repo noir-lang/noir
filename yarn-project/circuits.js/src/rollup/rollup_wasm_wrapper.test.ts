@@ -1,6 +1,5 @@
-import { AggregationObject, PreviousKernelData, VerificationKey } from '../index.js';
+import { AggregationObject, VerificationKey } from '../index.js';
 import { makeBaseRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
-import { uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { RollupWasmWrapper } from './rollup_wasm_wrapper.js';
 

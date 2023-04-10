@@ -2,23 +2,23 @@ import { MockTx } from '../client/mocks.js';
 import { InMemoryTxPool } from './index.js';
 
 describe('In-Memory TX pool', () => {
-  it('Adds txs to the pool', () => {
+  it('Adds txs to the pool', async () => {
     const pool = new InMemoryTxPool();
     const tx1 = MockTx();
 
-    pool.addTxs([tx1]);
-    const poolTx = pool.getTxByHash(tx1.txHash);
-    expect(poolTx?.txHash.toString()).toEqual(tx1.txHash.toString());
+    await pool.addTxs([tx1]);
+    const poolTx = pool.getTxByHash(await tx1.getTxHash());
+    expect(await poolTx!.getTxHash()).toEqual(await tx1.getTxHash());
   });
 
-  it('Removes txs from the pool', () => {
+  it('Removes txs from the pool', async () => {
     const pool = new InMemoryTxPool();
     const tx1 = MockTx();
 
-    pool.addTxs([tx1]);
-    pool.deleteTxs([tx1.txHash]);
+    await pool.addTxs([tx1]);
+    pool.deleteTxs([await tx1.getTxHash()]);
 
-    const poolTx = pool.getTxByHash(tx1.txHash);
+    const poolTx = pool.getTxByHash(await tx1.getTxHash());
     expect(poolTx).toBeFalsy();
   });
 });

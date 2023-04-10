@@ -1,14 +1,6 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
-COPY archiver archiver
-# dependencies
-COPY ethereum.js ethereum.js
-COPY foundation foundation
-COPY circuits.js circuits.js
-COPY l1-contracts l1-contracts
-COPY l2-block l2-block
-COPY tx tx
-COPY unverified-data unverified-data
+COPY . .
 
 WORKDIR /usr/src/yarn-project/archiver
 RUN yarn build && yarn formatting && yarn test

@@ -102,9 +102,7 @@ export class CircuitPoweredBlockBuilder {
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
     const newNullifiers = flatMap(txs, tx => tx.data.end.newNullifiers);
     const newCommitments = flatMap(txs, tx => tx.data.end.newCommitments);
-    const newContracts = await Promise.all(
-      flatMap(txs, tx => tx.data.end.newContracts).map(async cd => await computeContractLeaf(this.wasm, cd)),
-    );
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts).map(cd => computeContractLeaf(this.wasm, cd));
     const newContractData = flatMap(txs, tx => tx.data.end.newContracts).map(
       n => new ContractData(n.contractAddress, n.portalContractAddress),
     );
@@ -548,8 +546,8 @@ export class CircuitPoweredBlockBuilder {
 
     // Update the contract and data trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = await Promise.all(
-      flatMap([tx1, tx2], tx => tx.data.end.newContracts.map(async cd => await computeContractLeaf(this.wasm, cd))),
+    const newContracts = flatMap([tx1, tx2], tx =>
+      tx.data.end.newContracts.map(cd => computeContractLeaf(this.wasm, cd)),
     );
     const newCommitments = flatMap([tx1, tx2], tx => tx.data.end.newCommitments.map(x => x.toBuffer()));
     await this.db.appendLeaves(

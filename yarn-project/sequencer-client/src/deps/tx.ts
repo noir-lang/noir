@@ -13,5 +13,5 @@ export function makeEmptyUnverifiedData(): UnverifiedData {
 
 export function makeEmptyTx(): Tx {
   const isEmpty = true;
-  return new Tx(PrivateKernelPublicInputs.makeEmpty(), makeEmptyProof(), makeEmptyUnverifiedData(), undefined, isEmpty);
+  return new Tx(PrivateKernelPublicInputs.makeEmpty(), makeEmptyProof(), makeEmptyUnverifiedData(), isEmpty);
 }

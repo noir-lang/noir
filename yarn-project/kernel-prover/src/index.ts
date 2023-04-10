@@ -47,7 +47,7 @@ export class KernelProver {
       executionResult.callStackItem.publicInputs.callContext.portalContractAddress,
       functionTreeInfo.root,
     );
-    const committment = await computeContractLeaf(wasm, newContractData);
+    const committment = computeContractLeaf(wasm, newContractData);
     const contractLeafMembershipWitness = txRequest.functionData.isConstructor
       ? this.createRandomMembershipWitness()
       : await getContractSiblingPath(committment.toBuffer());

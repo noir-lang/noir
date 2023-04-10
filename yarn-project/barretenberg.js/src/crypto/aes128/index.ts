@@ -1,7 +1,7 @@
-import { BarretenbergWasm } from '../../wasm/index.js';
+import { WasmWrapper } from '@aztec/foundation/wasm';
 
 export class Aes128 {
-  constructor(private wasm: BarretenbergWasm) {}
+  constructor(private wasm: WasmWrapper) {}
 
   public encryptBufferCBC(data: Uint8Array, iv: Uint8Array, key: Uint8Array) {
     const rawLength = data.length;

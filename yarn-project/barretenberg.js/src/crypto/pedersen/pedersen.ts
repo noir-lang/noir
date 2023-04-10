@@ -1,6 +1,6 @@
-import { BarretenbergWasm } from '../../wasm/index.js';
-import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../wasm/serialize.js';
+import { WasmWrapper } from '@aztec/foundation/wasm';
 import { Buffer } from 'buffer';
+import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../wasm/serialize.js';
 
 /**
  * Combines two 32-byte hashes.
@@ -9,7 +9,7 @@ import { Buffer } from 'buffer';
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: Uint8Array): Buffer {
+export function pedersenCompress(wasm: WasmWrapper, lhs: Uint8Array, rhs: Uint8Array): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   if (lhs.length !== 32 || rhs.length !== 32) {
@@ -28,7 +28,7 @@ export function pedersenCompress(wasm: BarretenbergWasm, lhs: Uint8Array, rhs: U
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompressInputs(wasm: BarretenbergWasm, inputs: Buffer[]): Buffer {
+export function pedersenCompressInputs(wasm: WasmWrapper, inputs: Buffer[]): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
@@ -44,7 +44,7 @@ export function pedersenCompressInputs(wasm: BarretenbergWasm, inputs: Buffer[])
  * @param rhs - The second hash.
  * @returns The new 32-byte hash.
  */
-export function pedersenCompressWithHashIndex(wasm: BarretenbergWasm, inputs: Buffer[], hashIndex: number): Buffer {
+export function pedersenCompressWithHashIndex(wasm: WasmWrapper, inputs: Buffer[], hashIndex: number): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const inputVectors = serializeBufferArrayToVector(inputs);
@@ -59,7 +59,7 @@ export function pedersenCompressWithHashIndex(wasm: BarretenbergWasm, inputs: Bu
  * @param data - The data buffer.
  * @returns The hash buffer.
  */
-export function pedersenGetHash(wasm: BarretenbergWasm, data: Buffer): Buffer {
+export function pedersenGetHash(wasm: WasmWrapper, data: Buffer): Buffer {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const mem = wasm.call('bbmalloc', data.length);
@@ -78,7 +78,7 @@ export function pedersenGetHash(wasm: BarretenbergWasm, data: Buffer): Buffer {
  * @param values - The 32 byte pedersen leaves.
  * @returns A tree represented by an array.
  */
-export function pedersenGetHashTree(wasm: BarretenbergWasm, values: Buffer[]) {
+export function pedersenGetHashTree(wasm: WasmWrapper, values: Buffer[]) {
   // If not done already, precompute constants.
   wasm.call('pedersen__init');
   const data = serializeBufferArrayToVector(values);

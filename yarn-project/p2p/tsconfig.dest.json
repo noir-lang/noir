@@ -6,9 +6,18 @@
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "references": [
-    { "path": "../foundation/tsconfig.dest.json" },
-    { "path": "../l2-block/tsconfig.dest.json" },
-    { "path": "../tx/tsconfig.dest.json" }
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../l2-block/tsconfig.dest.json"
+    },
+    {
+      "path": "../tx/tsconfig.dest.json"
+    }
   ],
   "include": ["src"],
   "exclude": ["**/*.test.*", "**/fixtures/*"]

@@ -10,16 +10,13 @@
       "path": "../aztec-rpc/tsconfig.dest.json"
     },
     {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
       "path": "../foundation/tsconfig.dest.json"
     },
     {
       "path": "../noir-contracts/tsconfig.dest.json"
-    },
-    {
-      "path": "../sequencer-client/tsconfig.dest.json"
-    },
-    {
-      "path": "../tx/tsconfig.dest.json"
     }
   ],
   "include": ["src"],

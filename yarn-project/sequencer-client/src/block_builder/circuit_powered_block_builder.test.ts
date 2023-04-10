@@ -94,9 +94,7 @@ describe('sequencer/circuit_block_builder', () => {
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: Tx[]) => {
-    const newContracts = await Promise.all(
-      flatMap(txs, tx => tx.data.end.newContracts.map(async n => await computeContractLeaf(wasm, n))),
-    );
+    const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(wasm, n)));
     for (const [tree, leaves] of [
       [MerkleTreeId.DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],

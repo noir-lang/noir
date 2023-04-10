@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../ethereum.js/tsconfig.dest.json"
+    },
+    {
       "path": "../foundation/tsconfig.dest.json"
     },
     {

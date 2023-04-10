@@ -67,9 +67,9 @@ describe('abis wasm bindings', () => {
     expect(res).toMatchSnapshot();
   });
 
-  it('computes contract leaf', async () => {
+  it('computes contract leaf', () => {
     const cd = new NewContractData(makeAztecAddress(), makeEthAddress(), new Fr(3n));
-    const res = await computeContractLeaf(wasm, cd);
+    const res = computeContractLeaf(wasm, cd);
     expect(res).toMatchSnapshot();
   });
 });

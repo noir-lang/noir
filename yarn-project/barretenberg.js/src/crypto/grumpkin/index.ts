@@ -1,7 +1,7 @@
-import { BarretenbergWasm } from '../../wasm/index.js';
+import { WasmWrapper } from '@aztec/foundation/wasm';
 
 export class Grumpkin {
-  constructor(private wasm: BarretenbergWasm) {}
+  constructor(private wasm: WasmWrapper) {}
 
   // prettier-ignore
   static generator = Buffer.from([

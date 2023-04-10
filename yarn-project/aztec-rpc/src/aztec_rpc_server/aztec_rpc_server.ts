@@ -236,7 +236,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const [toContract, newContract] = txRequest.functionData.isConstructor
       ? [undefined, contractAddress]
       : [contractAddress, undefined];
-    const dao = new TxDao(tx.txHash, undefined, undefined, txRequest.from, toContract, newContract, '');
+    const dao = new TxDao(await tx.getTxHash(), undefined, undefined, txRequest.from, toContract, newContract, '');
     await this.db.addTx(dao);
 
     return tx;
@@ -279,7 +279,7 @@ export class AztecRPCServer implements AztecRPCClient {
    */
   public async sendTx(tx: Tx): Promise<TxHash> {
     await this.node.sendTx(tx);
-    return tx.txHash;
+    return tx.getTxHash();
   }
 
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {

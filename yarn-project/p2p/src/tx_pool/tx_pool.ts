@@ -8,7 +8,7 @@ export interface TxPool {
    * Adds a list of transactions to the pool. Duplicates are ignored.
    * @param txs - An array of txs to be added to the pool.
    */
-  addTxs(txs: Tx[]): void;
+  addTxs(txs: Tx[]): Promise<void>;
 
   /**
    * Checks if a transaction exists in the pool and returns it.

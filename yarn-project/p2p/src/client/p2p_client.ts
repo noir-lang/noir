@@ -205,7 +205,7 @@ export class P2PClient implements P2P {
     if (!ready) {
       throw new Error('P2P client not ready');
     }
-    this.txPool.addTxs([tx]);
+    await this.txPool.addTxs([tx]);
   }
 
   /**

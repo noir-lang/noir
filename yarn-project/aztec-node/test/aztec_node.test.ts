@@ -1,14 +1,13 @@
-import { EthAddress } from '@aztec/foundation';
+import { CircuitsWasm } from '@aztec/circuits.js';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
-import { Tx } from '@aztec/tx';
-import { AztecNodeConfig } from './config.js';
-import { AztecNode } from '../index.js';
-import { createProvider, createTx, deployRollupContract, deployUnverifiedDataEmitterContract } from './fixtures.js';
-import { createDebugLogger, sleep } from '@aztec/foundation';
+import { EthAddress, createDebugLogger, sleep } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { hashNewContractData } from '@aztec/sequencer-client';
+import { Tx } from '@aztec/tx';
+import { AztecNode } from '../index.js';
+import { AztecNodeConfig } from './config.js';
+import { createProvider, createTx, deployRollupContract, deployUnverifiedDataEmitterContract } from './fixtures.js';
 
 const ETHEREUM_HOST = 'http://127.0.0.1:8545/';
 const MNEMONIC = 'test test test test test test test test test test test junk';
@@ -53,7 +52,7 @@ describe('AztecNode', () => {
   it('should allow sending and retrieval of txs from the underlying p2p pool', async () => {
     const tx: Tx = createTx();
     await node.sendTx(tx);
-    const retrievedTx = await node.getPendingTxByHash(tx.txHash);
+    const retrievedTx = await node.getPendingTxByHash(await tx.getTxHash());
     expect(tx).toEqual(retrievedTx);
     await node.stop();
   }, 30_000);
@@ -66,7 +65,7 @@ describe('AztecNode', () => {
 
     expect(settledBlock.number).toBe(1);
     expect(settledBlock.newContracts).toHaveLength(1);
-    expect(settledBlock.newContracts[0]).toEqual(hashNewContractData(wasm, tx.data.end.newContracts[0]));
+    expect(settledBlock.newContracts[0]).toEqual(computeContractLeaf(wasm, tx.data.end.newContracts[0]));
 
     const unverifiedDatas = await waitForUnverifiedData(1);
     expect(unverifiedDatas.length).toBe(1);

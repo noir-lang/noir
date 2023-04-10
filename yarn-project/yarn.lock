@@ -208,6 +208,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/circuits.js@workspace:circuits.js"
   dependencies:
+    "@aztec/barretenberg.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.4.3
     "@types/detect-node": ^2.0.0
@@ -279,6 +280,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/ethereum.js@workspace:ethereum.js"
   dependencies:
+    "@aztec/foundation": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.2.0
     "@types/elliptic": ^6.4.14
@@ -549,6 +551,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/tx@workspace:tx"
   dependencies:
+    "@aztec/barretenberg.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/unverified-data": "workspace:^"

@@ -10,6 +10,9 @@
       "path": "../archiver/tsconfig.dest.json"
     },
     {
+      "path": "../barretenberg.js/tsconfig.dest.json"
+    },
+    {
       "path": "../ethereum.js/tsconfig.dest.json"
     },
     {
@@ -20,6 +23,9 @@
     },
     {
       "path": "../l2-block/tsconfig.dest.json"
+    },
+    {
+      "path": "../merkle-tree/tsconfig.dest.json"
     },
     {
       "path": "../p2p/tsconfig.dest.json"
