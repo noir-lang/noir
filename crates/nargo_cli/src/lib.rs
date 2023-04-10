@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies, unused_extern_crates)]
+#![warn(unused_extern_crates)]
 #![warn(unreachable_pub)]
 
 //! Nargo is the package manager for Noir
