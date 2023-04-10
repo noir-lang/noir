@@ -10,7 +10,7 @@ use crate::{
         {block, builtin, node, ssa_form},
     },
 };
-use acvm::FieldElement;
+use acvm::{acir::native_types::Witness, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::{
@@ -98,7 +98,7 @@ impl IrGenerator {
         ident_def: Option<Definition>,
         el_type: &noirc_abi::AbiType,
         len: u64,
-        witness: Vec<acvm::acir::native_types::Witness>,
+        witness: &[Witness],
     ) -> NodeId {
         let element_type = self.get_object_type_from_abi(el_type);
         let (v_id, array_idx) = self.new_array(name, element_type, len as u32, ident_def);
@@ -125,30 +125,24 @@ impl IrGenerator {
         struct_name: &str,
         ident_def: Option<Definition>,
         fields: &BTreeMap<String, noirc_abi::AbiType>,
-        witnesses: BTreeMap<String, Vec<acvm::acir::native_types::Witness>>,
+        witnesses: &BTreeMap<String, Vec<Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {
             let new_name = format!("{struct_name}.{name}");
             match field_typ {
                 noirc_abi::AbiType::Array { length, typ } => {
-                    let v_id =
-                        self.abi_array(&new_name, None, typ, *length, witnesses[&new_name].clone());
+                    let v_id = self.abi_array(&new_name, None, typ, *length, &witnesses[&new_name]);
                     Value::Node(v_id)
                 }
                 noirc_abi::AbiType::Struct { fields, .. } => {
                     let new_name = format!("{struct_name}.{name}");
-                    self.abi_struct(&new_name, None, fields, witnesses.clone())
+                    self.abi_struct(&new_name, None, fields, witnesses)
                 }
                 noirc_abi::AbiType::String { length } => {
                     let typ =
                         noirc_abi::AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };
-                    let v_id = self.abi_array(
-                        &new_name,
-                        None,
-                        &typ,
-                        *length,
-                        witnesses[&new_name].clone(),
-                    );
+                    let v_id =
+                        self.abi_array(&new_name, None, &typ, *length, &witnesses[&new_name]);
                     Value::Node(v_id)
                 }
                 _ => {
