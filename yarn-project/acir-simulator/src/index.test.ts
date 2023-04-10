@@ -12,7 +12,7 @@ import { Grumpkin, pedersenCompressInputs } from '@aztec/barretenberg.js/crypto'
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { DBOracle } from './db_oracle.js';
-import { AcirSimulator, MAPPING_SLOT_PEDERSEN_CONSTANT, NOTE_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
+import { AcirSimulator, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
 import { jest } from '@jest/globals';
 import { toBigIntBE } from '@aztec/foundation';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -104,15 +104,6 @@ describe('ACIR simulator', () => {
       ];
     }
 
-    function computeCommitment(noteHash: Buffer, slot: Fr, contractAddress: AztecAddress, bbWasm: BarretenbergWasm) {
-      return pedersenCompressInputs(bbWasm, [
-        NOTE_SLOT_PEDERSEN_CONSTANT.toBuffer(),
-        noteHash,
-        slot.toBuffer(),
-        contractAddress.toBuffer(),
-      ]);
-    }
-
     function toPublicKey(privateKey: Buffer, grumpkin: Grumpkin): NoirPoint {
       const publicKey = grumpkin.mul(Grumpkin.generator, privateKey);
       return {
@@ -147,21 +138,14 @@ describe('ACIR simulator', () => {
       const result = await acirSimulator.run(txRequest, abi, contractAddress, EthAddress.ZERO, oldRoots);
 
       expect(result.preimages.newNotes).toHaveLength(1);
+      const newNote = result.preimages.newNotes[0];
+      expect(newNote.storageSlot).toEqual(computeSlot(new Fr(1n), owner, bbWasm));
+
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
       expect(newCommitments).toHaveLength(1);
 
-      // TODO get a consistent commitment with noir
-      // const [commitment] = newCommitments;
-      // expect(commitment).toEqual(
-      //   Fr.fromBuffer(
-      //     computeCommitment(
-      //       acirSimulator.computeNoteHash(result.preimages.newNotes[0].preimage, bbWasm),
-      //       computeSlot(new Fr(1n), owner, bbWasm),
-      //       contractAddress,
-      //       bbWasm,
-      //     ),
-      //   ),
-      // );
+      const [commitment] = newCommitments;
+      expect(commitment).toEqual(Fr.fromBuffer(acirSimulator.computeNoteHash(newNote.preimage, bbWasm)));
     });
 
     it('should run the mint function', async () => {
@@ -181,7 +165,14 @@ describe('ACIR simulator', () => {
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.ZERO, EthAddress.ZERO, oldRoots);
 
       expect(result.preimages.newNotes).toHaveLength(1);
-      expect(result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO))).toHaveLength(1);
+      const newNote = result.preimages.newNotes[0];
+      expect(newNote.storageSlot).toEqual(computeSlot(new Fr(1n), owner, bbWasm));
+
+      const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
+      expect(newCommitments).toHaveLength(1);
+
+      const [commitment] = newCommitments;
+      expect(commitment).toEqual(Fr.fromBuffer(acirSimulator.computeNoteHash(newNote.preimage, bbWasm)));
     });
 
     it.skip('should run the transfer function', async () => {
@@ -194,16 +185,8 @@ describe('ACIR simulator', () => {
 
       const tree = await StandardMerkleTree.new(db, pedersen, 'privateData', SIBLING_PATH_SIZE);
       const preimages = [buildNote(60n, owner), buildNote(80n, owner)];
-      await tree.appendLeaves(
-        preimages.map(preimage =>
-          computeCommitment(
-            acirSimulator.computeNoteHash(preimage, bbWasm),
-            computeSlot(new Fr(1n), owner, bbWasm),
-            contractAddress,
-            bbWasm,
-          ),
-        ),
-      );
+      // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
+      await tree.appendLeaves(preimages.map(preimage => acirSimulator.computeNoteHash(preimage, bbWasm)));
 
       const oldRoots = new OldTreeRoots(Fr.fromBuffer(tree.getRoot()), new Fr(0n), new Fr(0n), new Fr(0n));
 

@@ -36,7 +36,7 @@ contract PrivateToken {
 
         let mut outputs = Outputs::new();
         let note = Note::new(value, owner);
-        outputs = a.insert(inputs, outputs, note);
+        outputs = a.insert(outputs, note);
 
         outputs.finish(inputs)
 

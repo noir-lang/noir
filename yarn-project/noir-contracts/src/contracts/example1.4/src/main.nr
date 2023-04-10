@@ -40,10 +40,7 @@ contract PrivateToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(initial_supply, owner);
 
-        let note_hash = note.compute_note_hash();
-        outputs.return_values = outputs.return_values.push(note_hash);
-
-        owner_balance.insert(inputs, outputs, note)
+        owner_balance.insert(outputs, note)
             .finish(inputs)
 
         //*********************************/
@@ -80,7 +77,7 @@ contract PrivateToken {
         let owner_balance = balances.at(owner.x);
         let note = Note::new(amount, owner);
 
-        owner_balance.insert(inputs, outputs, note)
+        owner_balance.insert(outputs, note)
             .finish(inputs)
 
         //*********************************/
@@ -143,9 +140,9 @@ contract PrivateToken {
         let change_note = Note::new(change_value, sender);
 
         let recipient_balance = balances.at(recipient.x);
-        outputs = recipient_balance.insert(inputs, outputs, recipient_note);
+        outputs = recipient_balance.insert(outputs, recipient_note);
 
-        outputs = sender_balance.insert(inputs, outputs, change_note);
+        outputs = sender_balance.insert(outputs, change_note);
 
         //*********************************/
         // Eventually hidden:

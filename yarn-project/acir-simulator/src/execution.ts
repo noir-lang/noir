@@ -48,7 +48,7 @@ export class Execution {
   public run(): Promise<ExecutionResult> {
     const callContext = new CallContext(
       this.request.from,
-      this.request.to,
+      this.contractAddress,
       this.portalContractAddress,
       false,
       false,

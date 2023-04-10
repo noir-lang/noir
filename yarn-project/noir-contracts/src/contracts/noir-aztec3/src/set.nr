@@ -69,20 +69,13 @@ impl Set {
         Set { storage_slot }
     }
 
-    fn insert(self, inputs: Inputs, mut outputs: IntermediateOutputs, note: Note) -> IntermediateOutputs {
-        let contract_address = inputs.call_context.storage_contract_address;
+    fn insert(self, mut outputs: IntermediateOutputs, note: Note) -> IntermediateOutputs {
         let storage_slot = self.storage_slot;
 
         let note_hash = note.compute_note_hash();
-        let siloed_note_hash = dep::std::hash::pedersen([
-            crate::NoteStorageSlot,
-            note_hash, 
-            storage_slot, 
-            contract_address,
-        ])[0];
 
         constrain notify_created_note(storage_slot, note.owner, note) == 0;
-        outputs = outputs.push_new_note_hash(siloed_note_hash);
+        outputs = outputs.push_new_note_hash(note_hash);
         outputs.push_new_note(note)
     }
 

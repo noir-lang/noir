@@ -6,8 +6,7 @@ import { Execution, ExecutionResult } from './execution.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
 
-export const NOTE_PEDERSEN_CONSTANT = new Fr(1n);
-export const NOTE_SLOT_PEDERSEN_CONSTANT = new Fr(3n);
+export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
 export const NULLIFIER_PEDERSEN_CONSTANT = new Fr(5n);
 
