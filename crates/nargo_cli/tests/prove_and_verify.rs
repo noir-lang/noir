@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-const TEST_DIR: &str = "tests";
-const TEST_DATA_DIR: &str = "test_data";
-const CONFIG_FILE: &str = "config.toml";
-
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
     fn load_conf(conf_path: &str) -> BTreeMap<String, Vec<String>> {
@@ -28,22 +26,25 @@ mod tests {
 
     #[test]
     fn noir_integration() {
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
+        // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
+        // is the root of the repository and append the crate path
+        let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+            Ok(dir) => PathBuf::from(dir),
+            Err(_) => {
+                PathBuf::from(std::env::current_dir().unwrap()).join("crates").join("nargo_cli")
+            }
+        };
+        let test_data_dir = manifest_dir.join("tests").join("test_data");
+        let config_path = test_data_dir.join("config.toml");
 
         //load config.tml file from test_data directory
-        current_dir.push(CONFIG_FILE);
-        let config_path = std::fs::read_to_string(current_dir).unwrap();
+        let config_path = std::fs::read_to_string(config_path).unwrap();
         let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
 
-        for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
+        for c in fs::read_dir(test_data_dir).unwrap().flatten() {
             if let Ok(test_name) = c.file_name().into_string() {
-                println!("Running test {test_name:?}");
                 if c.path().is_dir() && !config_data["exclude"].contains(&test_name) {
+                    println!("Running test {test_name:?}");
                     let verified = std::panic::catch_unwind(|| {
                         nargo_cli::cli::prove_and_verify("pp", &c.path(), false)
                     });
@@ -60,6 +61,8 @@ mod tests {
                     } else {
                         assert!(r, "verification fail for {:?}", c.file_name());
                     }
+                } else {
+                    println!("Ignoring test {test_name:?}");
                 }
             }
         }
