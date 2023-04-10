@@ -1,6 +1,5 @@
-import { toBigIntBE } from '@aztec/foundation';
+import { serializeBufferToVector, deserializeBufferFromVector } from '@aztec/foundation/src/serialize/free_funcs.ts';
 import { randomBytes } from 'crypto';
-
 /**
  * Data container of unverified data corresponding to one L2 block.
  */
@@ -12,26 +11,10 @@ export class UnverifiedData {
   constructor(public readonly dataChunks: Buffer[]) {}
 
   public toBuffer(): Buffer {
-    // Determine total length of all chunks
-    let totalLength = 0;
-    for (const buffer of this.dataChunks) {
-      totalLength += buffer.length;
-    }
-
-    // Create a new buffer with enough space to hold all serialized chunks
-    const serializedBuffer = Buffer.allocUnsafe(totalLength + 4 * this.dataChunks.length);
-
     // Serialize each buffer into the new buffer with prefix
-    let offset = 0;
-    for (const buffer of this.dataChunks) {
-      // Write the length of the buffer as a 4-byte prefix
-      serializedBuffer.writeInt32BE(buffer.length, offset);
-      offset += 4;
-
-      // Write the contents of the buffer
-      buffer.copy(serializedBuffer, offset);
-      offset += buffer.length;
-    }
+    const serializedChunks = this.dataChunks.map(buffer => serializeBufferToVector(buffer));
+    // Concatenate all serialized chunks into a single buffer
+    const serializedBuffer = Buffer.concat(serializedChunks);
 
     return serializedBuffer;
   }
@@ -40,11 +23,9 @@ export class UnverifiedData {
     let currIndex = 0;
     const chunks: Buffer[] = [];
     while (currIndex < buf.length) {
-      const nextChunkLength = Number(toBigIntBE(buf.slice(currIndex, currIndex + 4)));
-      currIndex += 4;
-      const nextChunk = buf.slice(currIndex, currIndex + nextChunkLength);
-      currIndex += nextChunkLength;
-      chunks.push(nextChunk);
+      const { elem, adv } = deserializeBufferFromVector(buf, currIndex);
+      chunks.push(elem);
+      currIndex += adv;
     }
     if (currIndex !== buf.length) {
       throw new Error(
