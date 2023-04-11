@@ -418,8 +418,6 @@ I can see the L2 fees being offered for such a tx.
 
 I can interpret those fees, based on some Aztec L2 Public fungible token standard.
 
-I can convert the currency into ETH / Aztec Tokens.
-
 I can simulate the fee-paying tx, to validate that I'll be paid.
 
 I can simulate the accompanying tx.
@@ -437,8 +435,6 @@ As a Sequencer, I can identify when an L2 tx is being paid-for via a private L2 
 I can see the L2 fees being offered for such a tx.
 
 I can interpret those fees, based on some Aztec L2 Private fungible token standard.
-
-I can convert the currency into ETH / Aztec Tokens.
 
 I can simulate the fee-paying tx, to validate that I'll be paid.
 
