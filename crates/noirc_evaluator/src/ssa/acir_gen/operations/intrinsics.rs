@@ -133,10 +133,13 @@ pub(crate) fn evaluate(
         }
         Opcode::Rand => {
             outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
 
             evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
                 name: "getRandomField".into(),
-                inputs: vec![],
+                inputs,
                 input_values: vec![],
                 outputs: outputs.clone(),
                 output_values: vec![],
