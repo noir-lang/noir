@@ -1,3 +1,4 @@
+import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 import {
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
@@ -5,8 +6,8 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { SerialQueue } from '@aztec/foundation';
+import { WasmWrapper } from '@aztec/foundation/wasm';
 import { IndexedTree, LeafData, MerkleTree, Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
 import { default as levelup } from 'levelup';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
@@ -31,8 +32,8 @@ export class MerkleTrees implements MerkleTreeDb {
   /**
    * Initialises the collection of Merkle Trees.
    */
-  public async init() {
-    const wasm = await BarretenbergWasm.get();
+  public async init(optionalWasm?: WasmWrapper) {
+    const wasm = optionalWasm ?? (await PrimitivesWasm.get());
     const hasher = new Pedersen(wasm);
     const contractTree = await StandardMerkleTree.new(
       this.db,
@@ -74,9 +75,9 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param db - The db instance to use for data persistance.
    * @returns - A fully initialised MerkleTrees instance.
    */
-  public static async new(db: levelup.LevelUp) {
+  public static async new(db: levelup.LevelUp, wasm?: WasmWrapper) {
     const merkleTrees = new MerkleTrees(db);
-    await merkleTrees.init();
+    await merkleTrees.init(wasm);
     return merkleTrees;
   }
 

@@ -10,6 +10,7 @@ import { MerkleTreeId, MerkleTrees, ServerWorldStateSynchroniser, WorldStateSync
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
 import { AztecNodeConfig } from './config.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -41,7 +42,7 @@ export class AztecNode {
     const p2pClient = new P2PClient(archiver);
 
     // now create the merkle trees and the world state syncher
-    const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()));
+    const merkleTreeDB = await MerkleTrees.new(levelup(createMemDown()), await CircuitsWasm.get());
     const worldStateSynchroniser = new ServerWorldStateSynchroniser(merkleTreeDB, archiver);
 
     // start both and wait for them to sync from the block source

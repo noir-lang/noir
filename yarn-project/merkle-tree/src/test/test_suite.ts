@@ -1,4 +1,5 @@
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
+import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
+import { WasmWrapper } from '@aztec/foundation/wasm';
 import { default as levelup } from 'levelup';
 import { default as memdown } from 'memdown';
 import { Hasher, MerkleTree, Pedersen, SiblingPath } from '../index.js';
@@ -26,7 +27,7 @@ export const merkleTreeTestSuite = (
 ) => {
   describe(testName, () => {
     const values: Buffer[] = [];
-    let wasm: BarretenbergWasm;
+    let wasm: WasmWrapper;
     let pedersen: Pedersen;
 
     beforeAll(() => {
@@ -38,7 +39,7 @@ export const merkleTreeTestSuite = (
     });
 
     beforeEach(async () => {
-      wasm = await BarretenbergWasm.get();
+      wasm = await PrimitivesWasm.get();
       pedersen = new Pedersen(wasm);
     });
 

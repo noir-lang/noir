@@ -4,12 +4,12 @@ import {
   pedersenGetHash,
   pedersenGetHashTree,
 } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 
+import { WasmWrapper } from '@aztec/foundation/wasm';
 import { Hasher } from './hasher.js';
 
 export class Pedersen implements Hasher {
-  constructor(private wasm: BarretenbergWasm) {}
+  constructor(private wasm: WasmWrapper) {}
 
   public compress(lhs: Uint8Array, rhs: Uint8Array): Buffer {
     return pedersenCompress(this.wasm, lhs, rhs);
