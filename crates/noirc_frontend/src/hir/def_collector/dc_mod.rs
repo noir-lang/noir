@@ -75,9 +75,8 @@ impl<'a> ModCollector<'a> {
             let stmt_id = context.def_interner.push_empty_global();
 
             // Add the statement to the scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_global(name, stmt_id);
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
@@ -137,8 +136,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_func_def(name, func_id);
+                .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -167,9 +165,8 @@ impl<'a> ModCollector<'a> {
             };
 
             // Add the struct to scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .scope
-                .define_struct_def(name, id);
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
@@ -288,7 +285,7 @@ impl<'a> ModCollector<'a> {
             };
 
             if let Err((first_def, second_def)) =
-                modules[self.module_id.0].scope.define_module_def(mod_name.to_owned(), mod_id)
+                modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
                 let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
                 errors.push(err.into_file_diagnostic(self.file_id));

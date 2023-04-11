@@ -5,7 +5,7 @@ use crate::{
         context::SsaContext,
         flatten::UnrollContext,
         inline::StackFrame,
-        node::{BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
+        node::{Binary, BinaryOp, Instruction, Mark, NodeId, ObjectType, Opcode, Operation},
         {block, flatten, node, optimizations},
     },
 };
@@ -171,7 +171,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             )
         } else {
             let not_condition = DecisionTree::new_instruction_after_phi(
@@ -180,7 +180,7 @@ impl DecisionTree {
                 BinaryOp::Sub { max_rhs_value: BigUint::one() },
                 ctx.one(),
                 condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
             );
             DecisionTree::new_instruction_after(
                 ctx,
@@ -188,7 +188,7 @@ impl DecisionTree {
                 BinaryOp::Mul,
                 parent_value,
                 not_condition,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 not_condition,
             )
         };
@@ -480,7 +480,7 @@ impl DecisionTree {
                 Operation::Cond { condition, val_true: ctx.zero(), val_false: ctx.one() };
             let cond = ctx.add_instruction(Instruction::new(
                 operation,
-                ObjectType::Boolean,
+                ObjectType::boolean(),
                 Some(stack.block),
             ));
             stack.push(cond);
@@ -535,7 +535,7 @@ impl DecisionTree {
                 }
             }
             _ => {
-                if let ObjectType::Pointer(a) = ins1.res_type {
+                if let ObjectType::ArrayPointer(a) = ins1.res_type {
                     stack.new_array(a);
                 }
             }
@@ -595,7 +595,7 @@ impl DecisionTree {
                             });
                             cond = ctx.add_instruction(Instruction::new(
                                 op,
-                                ObjectType::Boolean,
+                                ObjectType::boolean(),
                                 Some(stack.block),
                             ));
                             optimizations::simplify_id(ctx, cond).unwrap();
@@ -624,7 +624,7 @@ impl DecisionTree {
                         }
                         if ctx.under_assumption(cond) {
                             let ins2 = ctx.instruction_mut(ins_id);
-                            ins2.operation = Operation::Binary(crate::node::Binary {
+                            ins2.operation = Operation::Binary(Binary {
                                 lhs: binary_op.lhs,
                                 rhs: binary_op.rhs,
                                 operator: binary_op.operator.clone(),
@@ -666,19 +666,19 @@ impl DecisionTree {
                 Operation::Intrinsic(_, _) => {
                     stack.push(ins_id);
                     if ctx.under_assumption(ass_value) {
-                        if let ObjectType::Pointer(a) = ins.res_type {
+                        if let ObjectType::ArrayPointer(a) = ins.res_type {
                             if stack.created_arrays[&a] != stack.block {
                                 let array = &ctx.mem[a].clone();
                                 let name = array.name.to_string() + DUPLICATED;
                                 ctx.new_array(&name, array.element_type, array.len, None);
                                 let array_dup = ctx.mem.last_id();
                                 let ins2 = ctx.instruction_mut(ins_id);
-                                ins2.res_type = ObjectType::Pointer(array_dup);
+                                ins2.res_type = ObjectType::ArrayPointer(array_dup);
 
                                 let mut memcpy_stack = StackFrame::new(stack.block);
                                 ctx.memcpy_inline(
                                     ins.res_type,
-                                    ObjectType::Pointer(array_dup),
+                                    ObjectType::ArrayPointer(array_dup),
                                     &mut memcpy_stack,
                                 );
                                 self.apply_condition_to_instructions(
@@ -744,7 +744,7 @@ impl DecisionTree {
                         }
                         let cond = ctx.add_instruction(Instruction::new(
                             operation,
-                            ObjectType::Boolean,
+                            ObjectType::boolean(),
                             Some(stack.block),
                         ));
                         stack.push(cond);
@@ -795,7 +795,7 @@ impl DecisionTree {
                 });
                 let cond = ctx.add_instruction(Instruction::new(
                     op,
-                    ObjectType::Boolean,
+                    ObjectType::boolean(),
                     Some(stack_frame.block),
                 ));
                 optimizations::simplify_id(ctx, cond).unwrap();
@@ -828,7 +828,7 @@ impl DecisionTree {
                     });
                     let cond = ctx.add_instruction(Instruction::new(
                         op,
-                        ObjectType::Boolean,
+                        ObjectType::boolean(),
                         Some(stack_frame.block),
                     ));
                     optimizations::simplify_id(ctx, cond).unwrap();

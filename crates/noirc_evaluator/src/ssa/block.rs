@@ -108,7 +108,7 @@ impl BasicBlock {
                         result.insert(*a);
                     }
                     node::Operation::Intrinsic(..) => {
-                        if let node::ObjectType::Pointer(a) = ins.res_type {
+                        if let node::ObjectType::ArrayPointer(a) = ins.res_type {
                             result.insert(a);
                         }
                     }
@@ -118,7 +118,7 @@ impl BasicBlock {
                         }
                         if let Some(f) = ctx.try_get_ssa_func(*func) {
                             for typ in &f.result_types {
-                                if let node::ObjectType::Pointer(a) = typ {
+                                if let node::ObjectType::ArrayPointer(a) = typ {
                                     result.insert(*a);
                                 }
                             }

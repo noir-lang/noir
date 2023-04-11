@@ -82,7 +82,7 @@ impl AstPrinter {
         Ok(())
     }
 
-    fn print_literal(
+    pub fn print_literal(
         &mut self,
         literal: &super::ast::Literal,
         f: &mut Formatter,

@@ -24,7 +24,7 @@ pub enum Type {
     /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
     Integer(CompTime, Signedness, u32),
 
-    /// The primitive `bool` type. Like other primitive types, whether bools are known at CompTime
+    /// The primitive `bool` type. Like other primitive types, whether booleans are known at CompTime
     /// is also tracked. Unlike the other primitives however, it isn't as useful since it is
     /// primarily only used when converting between a bool and an integer type for indexing arrays.
     Bool(CompTime),
@@ -69,6 +69,11 @@ pub enum Type {
 
     /// A functions with arguments, and a return type.
     Function(Vec<Type>, Box<Type>),
+
+    /// A variable-sized Vector type.
+    /// Unlike arrays, this type can have a dynamic size and can grow/shrink dynamically via .push,
+    /// .pop, and similar methods.
+    Vec(Box<Type>),
 
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
@@ -589,6 +594,7 @@ impl Type {
                     }
                 })
             }
+            Type::Vec(element) => element.contains_numeric_typevar(target_id),
         }
     }
 }
@@ -644,6 +650,9 @@ impl std::fmt::Display for Type {
             Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
+            }
+            Type::Vec(element) => {
+                write!(f, "Vec<{}>", element)
             }
         }
     }
@@ -975,6 +984,8 @@ impl Type {
                 }
             }
 
+            (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1106,6 +1117,8 @@ impl Type {
                 }
             }
 
+            (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1176,6 +1189,7 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
+            Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
         }
     }
 
@@ -1289,6 +1303,7 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
+            Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1318,6 +1333,7 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
+            Type::Vec(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1359,6 +1375,7 @@ impl Type {
                 let ret = Box::new(ret.follow_bindings());
                 Function(args, ret)
             }
+            Vec(element) => Vec(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),

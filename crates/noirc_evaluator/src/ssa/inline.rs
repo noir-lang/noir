@@ -206,7 +206,7 @@ fn inline(
 
     //1. return arrays
     for arg_caller in arrays.iter() {
-        if let node::ObjectType::Pointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
+        if let node::ObjectType::ArrayPointer(a) = ssa_func.result_types[arg_caller.1 as usize] {
             stack_frame.array_map.insert(a, arg_caller.0);
             stack_frame.return_arrays.push(arg_caller.0);
         }
@@ -215,8 +215,8 @@ fn inline(
     //2. by copy parameters:
     for (&arg_caller, &arg_function) in args.iter().zip(&func_arg) {
         //pass by-ref const array arguments
-        if let node::ObjectType::Pointer(x) = ctx.object_type(arg_function.0) {
-            if let node::ObjectType::Pointer(y) = ctx.object_type(arg_caller) {
+        if let node::ObjectType::ArrayPointer(x) = ctx.object_type(arg_function.0) {
+            if let node::ObjectType::ArrayPointer(y) = ctx.object_type(arg_caller) {
                 if !arg_function.1 && !stack_frame.array_map.contains_key(&x) {
                     stack_frame.array_map.insert(x, y);
                     continue;
@@ -276,7 +276,7 @@ fn inline_in_block(
             let mut array_id = None;
             let mut clone = ins.clone();
 
-            if let node::ObjectType::Pointer(id) = ins.res_type {
+            if let node::ObjectType::ArrayPointer(id) = ins.res_type {
                 //We collect data here for potential mapping using the array_map below.
                 array_id = Some(id);
             }
@@ -342,7 +342,7 @@ fn inline_in_block(
                     let mut new_ins = new_cloned_instruction(clone, stack_frame.block);
                     if let Some(id) = array_id {
                         let new_id = stack_frame.get_or_default(id);
-                        new_ins.res_type = node::ObjectType::Pointer(new_id);
+                        new_ins.res_type = node::ObjectType::ArrayPointer(new_id);
                     }
 
                     let err = optimizations::simplify(ctx, &mut new_ins);
@@ -359,7 +359,7 @@ fn inline_in_block(
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
-                                if let node::ObjectType::Pointer(new_id) =
+                                if let node::ObjectType::ArrayPointer(new_id) =
                                     ctx[replacement].get_type()
                                 {
                                     //we now map the array to rhs array
@@ -438,7 +438,7 @@ impl node::Operation {
                         if b != a {
                             let new_var = node::Variable {
                                 id: NodeId::dummy(),
-                                obj_type: node::ObjectType::Pointer(b),
+                                obj_type: node::ObjectType::ArrayPointer(b),
                                 name: String::new(),
                                 root: None,
                                 def: None,
