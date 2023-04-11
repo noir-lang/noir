@@ -242,7 +242,7 @@ fn sig1(x: u32) -> u32 {
 }
 
 
-fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u32; 32]) {  
+fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32]) {  
     let e = matrix_mul_10(a,b);
     constrain e[6] == 1866842232;
     let f = matrix_mul_2(c,d);
