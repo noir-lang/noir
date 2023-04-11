@@ -6,6 +6,7 @@
 #include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
 
 #include <aztec3/utils/array.hpp>
+#include <aztec3/utils/dummy_composer.hpp>
 #include <aztec3/circuits/hash.hpp>
 #include "aztec3/constants.hpp"
 
@@ -24,6 +25,7 @@ using aztec3::utils::array_pop;
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
+using DummyComposer = aztec3::utils::DummyComposer;
 
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
@@ -70,7 +72,7 @@ void initialise_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs
     end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
-void contract_logic(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
+void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -92,7 +94,8 @@ void contract_logic(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& p
                                                      private_call_vk_hash);
 
     if (is_contract_deployment) {
-        ASSERT(contract_deployment_data.constructor_vk_hash == private_call_vk_hash);
+        composer.do_assert(contract_deployment_data.constructor_vk_hash == private_call_vk_hash,
+                           "constructor_vk_hash doesn't match private_call_vk_hash");
     }
 
     auto const new_contract_address = compute_contract_address<NT>(deployer_address,
@@ -102,10 +105,12 @@ void contract_logic(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& p
 
     if (is_contract_deployment) {
         // must imply == derived address
-        ASSERT(storage_contract_address == new_contract_address);
+        composer.do_assert(storage_contract_address == new_contract_address,
+                           "contract address supplied doesn't match derived address");
     } else {
         // non-contract deployments must specify contract address being interacted with
-        ASSERT(storage_contract_address != 0);
+        composer.do_assert(storage_contract_address != 0,
+                           "contract address can't be 0 for non-contract deployment related transactions");
     }
 
     // compute contract address nullifier
@@ -164,14 +169,18 @@ void contract_logic(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& p
 
     auto& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
-    ASSERT(computed_contract_tree_root == purported_contract_tree_root);
+    composer.do_assert(computed_contract_tree_root == purported_contract_tree_root,
+                       "computed_contract_tree_root doesn't match purported_contract_tree_root");
 
     auto& previous_kernel_contract_tree_root =
         private_inputs.previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root;
-    ASSERT(purported_contract_tree_root == previous_kernel_contract_tree_root);
+    composer.do_assert(purported_contract_tree_root == previous_kernel_contract_tree_root,
+                       "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
 }
 
-void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
+void update_end_values(DummyComposer& composer,
+                       PrivateInputs<NT> const& private_inputs,
+                       PublicInputs<NT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
@@ -182,8 +191,8 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
 
     if (is_static_call) {
         // No state changes are allowed for static calls:
-        ASSERT(is_array_empty(new_commitments) == true);
-        ASSERT(is_array_empty(new_nullifiers) == true);
+        composer.do_assert(is_array_empty(new_commitments) == true, "new_commitments must be empty for static calls");
+        composer.do_assert(is_array_empty(new_nullifiers) == true, "new_nullifiers must be empty for static calls");
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -237,7 +246,7 @@ void update_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>
     // }
 }
 
-void validate_this_private_call_hash(PrivateInputs<NT> const& private_inputs)
+void validate_this_private_call_hash(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
 {
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
@@ -245,11 +254,12 @@ void validate_this_private_call_hash(PrivateInputs<NT> const& private_inputs)
     const auto popped_private_call_hash = array_pop(start.private_call_stack);
     const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
 
-    ASSERT(popped_private_call_hash ==
-           calculated_this_private_call_hash); // "this private_call_hash does not reconcile";
+    composer.do_assert(
+        popped_private_call_hash == calculated_this_private_call_hash,
+        "calculated private_call_hash does not match provided private_call_hash at the top of the call stack");
 };
 
-void validate_this_private_call_stack(PrivateInputs<NT> const& private_inputs)
+void validate_this_private_call_stack(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
 {
     auto& stack = private_inputs.private_call.call_stack_item.public_inputs.private_call_stack;
     auto& preimages = private_inputs.private_call.private_call_stack_preimages;
@@ -260,20 +270,17 @@ void validate_this_private_call_stack(PrivateInputs<NT> const& private_inputs)
         // Note: this assumes it's computationally infeasible to have `0` as a valid call_stack_item_hash.
         // Assumes `hash == 0` means "this stack item is empty".
         const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
-
-        if (hash != calculated_hash) {
-            throw_or_abort(format("private_call_stack[", i, "] = ", hash, "; does not reconcile"));
-        }
-        // ASSERT(hash == calculated_hash); // item on private call stack does not reconcile
+        composer.do_assert(hash != calculated_hash,
+                           format("private_call_stack[", i, "] = ", hash, "; does not reconcile"));
     }
 };
 
-void validate_inputs(PrivateInputs<NT> const& private_inputs)
+void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
 {
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
-    ASSERT(this_call_stack_item.function_data.is_private ==
-           true); // "Cannot execute a non-private function with the private kernel circuit"
+    composer.do_assert(this_call_stack_item.function_data.is_private == true,
+                       "Cannot execute a non-private function with the private kernel circuit");
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
@@ -291,22 +298,23 @@ void validate_inputs(PrivateInputs<NT> const& private_inputs)
         // TODO: change to allow 3 initial calls on the private call stack, so a fee can be paid and a gas
         // rebate can be paid.
 
-        ASSERT(start_private_call_stack_length == 1); // "Private call stack must be length 1"
+        composer.do_assert(start_private_call_stack_length == 1, "Private call stack must be length 1");
 
-        ASSERT(start_public_call_stack_length == 0); // Public call stack must be empty"
-        ASSERT(start_l1_msg_stack_length == 0);      // L1 msg stack must be empty"
+        composer.do_assert(start_public_call_stack_length == 0, "Public call stack must be empty");
+        composer.do_assert(start_l1_msg_stack_length == 0, "L1 msg stack must be empty");
 
-        ASSERT(this_call_stack_item.public_inputs.call_context.is_delegate_call ==
-               false); // "Users cannot make a delegatecall"
-        ASSERT(this_call_stack_item.public_inputs.call_context.is_static_call ==
-               false); // Users cannot make a static call"
+        composer.do_assert(this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
+                           "Users cannot make a delegatecall");
+        composer.do_assert(this_call_stack_item.public_inputs.call_context.is_static_call == false,
+                           "Users cannot make a static call");
 
         // The below also prevents delegatecall/staticcall in the base case
-        ASSERT(this_call_stack_item.public_inputs.call_context.storage_contract_address ==
-               this_call_stack_item.contract_address); // "Storage contract address must be that of the called contract"
+        composer.do_assert(this_call_stack_item.public_inputs.call_context.storage_contract_address ==
+                               this_call_stack_item.contract_address,
+                           "Storage contract address must be that of the called contract");
 
-        ASSERT(private_inputs.previous_kernel.vk->contains_recursive_proof ==
-               false); // "Mock kernel proof must not contain a recursive proof"
+        composer.do_assert(private_inputs.previous_kernel.vk->contains_recursive_proof == false,
+                           "Mock kernel proof must not contain a recursive proof");
 
         // TODO: Assert that the previous kernel data is empty. (Or rather, the verify_proof() function needs a valid
         // dummy proof and vk to complete execution, so actually what we want is for that mockvk to be
@@ -314,12 +322,12 @@ void validate_inputs(PrivateInputs<NT> const& private_inputs)
     } else {
         // is_recursive_case
 
-        ASSERT(private_inputs.previous_kernel.public_inputs.is_private ==
-               true); // "Cannot verify a non-private kernel snark in the private kernel circuit"
-        ASSERT(this_call_stack_item.function_data.is_constructor ==
-               false); // "A constructor must be executed as the first tx in the recursion"
-        ASSERT(start_private_call_stack_length !=
-               0); // "Cannot execute private kernel circuit with an empty private call stack" }
+        composer.do_assert(private_inputs.previous_kernel.public_inputs.is_private == true,
+                           "Cannot verify a non-private kernel snark in the private kernel circuit");
+        composer.do_assert(this_call_stack_item.function_data.is_constructor == false,
+                           "A constructor must be executed as the first tx in the recursion");
+        composer.do_assert(start_private_call_stack_length != 0,
+                           "Cannot execute private kernel circuit with an empty private call stack");
     }
 }
 
@@ -327,7 +335,7 @@ void validate_inputs(PrivateInputs<NT> const& private_inputs)
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-PublicInputs<NT> native_private_kernel_circuit(PrivateInputs<NT> const& private_inputs)
+PublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
 {
     // We'll be pushing data to this during execution of this circuit.
     PublicInputs<NT> public_inputs{};
@@ -335,13 +343,13 @@ PublicInputs<NT> native_private_kernel_circuit(PrivateInputs<NT> const& private_
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);
 
-    validate_inputs(private_inputs);
+    validate_inputs(composer, private_inputs);
 
-    validate_this_private_call_hash(private_inputs);
+    validate_this_private_call_hash(composer, private_inputs);
 
-    validate_this_private_call_stack(private_inputs);
+    validate_this_private_call_stack(composer, private_inputs);
 
-    update_end_values(private_inputs, public_inputs);
+    update_end_values(composer, private_inputs, public_inputs);
 
     // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
     // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(composer,

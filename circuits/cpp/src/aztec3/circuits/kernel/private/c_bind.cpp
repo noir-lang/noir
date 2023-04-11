@@ -20,6 +20,7 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
+using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
@@ -95,6 +96,7 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
                                        bool first_iteration,
                                        uint8_t const** private_kernel_public_inputs_buf)
 {
+    DummyComposer composer = DummyComposer();
     SignedTxRequest<NT> signed_tx_request;
     read(signed_tx_request_buf, signed_tx_request);
 
@@ -120,7 +122,7 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
         .private_call = private_call_data,
     };
 
-    PublicInputs<NT> public_inputs = native_private_kernel_circuit(private_inputs);
+    PublicInputs<NT> public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;

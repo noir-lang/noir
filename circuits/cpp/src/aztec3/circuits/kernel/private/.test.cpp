@@ -68,6 +68,8 @@ using aztec3::circuits::abis::private_kernel::PublicInputs;
 using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
 
+using DummyComposer = aztec3::utils::DummyComposer;
+
 // using aztec3::circuits::mock::mock_circuit;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
@@ -445,7 +447,8 @@ TEST(private_kernel_tests, test_native_deposit)
             },
     };
 
-    PublicInputs<NT> public_inputs = native_private_kernel_circuit(private_inputs);
+    DummyComposer composer = DummyComposer();
+    PublicInputs<NT> public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     // Prover final_kernel_prover = private_kernel_composer.create_prover();
     // NT::Proof final_kernel_proof = final_kernel_prover.construct_proof();
@@ -938,8 +941,8 @@ TEST(private_kernel_tests, test_native_basic_contract_deployment)
                 .portal_contract_address = new_portal_contract_address,
             },
     };
-
-    PublicInputs<NT> private_kernel_circuit_public_inputs = native_private_kernel_circuit(private_inputs);
+    DummyComposer composer = DummyComposer();
+    PublicInputs<NT> private_kernel_circuit_public_inputs = native_private_kernel_circuit(composer, private_inputs);
 }
 
 TEST(private_kernel_tests, test_create_proof_cbinds)
