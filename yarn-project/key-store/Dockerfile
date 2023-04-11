@@ -1,6 +1,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
-COPY key-store key-store
+COPY . .
+
 WORKDIR /usr/src/yarn-project/key-store
 RUN yarn build && yarn formatting && yarn test
 

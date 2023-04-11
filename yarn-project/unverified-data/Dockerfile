@@ -1,7 +1,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
-COPY unverified-data unverified-data
-# dependencies
-COPY foundation foundation
+
+COPY . .
+
 WORKDIR /usr/src/yarn-project/unverified-data
 RUN yarn build && yarn formatting && yarn test
 

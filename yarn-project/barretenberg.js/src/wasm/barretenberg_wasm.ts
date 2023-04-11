@@ -11,7 +11,7 @@ const NAME = 'barretenberg';
  * A low-level wrapper for an instance of Barretenberg WASM.
  */
 export class BarretenbergWasm extends AsyncWasmWrapper {
-  codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `${NAME}.wasm`) : `${NAME}.wasm`;
+  codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `../../resources/${NAME}.wasm`) : `${NAME}.wasm`;
 
   static instance: Promise<BarretenbergWasm>;
 

@@ -11,7 +11,7 @@ const NAME = '/aztec3-circuits';
  * A low-level wrapper for an instance of Aztec3 Circuits WASM.
  */
 export class CircuitsWasm extends AsyncWasmWrapper {
-  codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `${NAME}.wasm`) : `${NAME}.wasm`;
+  codePath = isNode ? join(dirname(fileURLToPath(import.meta.url)), `../../resources/${NAME}.wasm`) : `${NAME}.wasm`;
 
   static instance: Promise<CircuitsWasm>;
 

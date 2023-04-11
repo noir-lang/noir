@@ -1,6 +1,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
-COPY tx tx
+COPY . .
+
 WORKDIR /usr/src/yarn-project/tx
 RUN yarn build && yarn formatting && yarn test
 

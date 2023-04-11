@@ -1,6 +1,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
-COPY l1-contracts l1-contracts
+COPY . .
+
 WORKDIR /usr/src/yarn-project/l1-contracts
 RUN yarn build && yarn formatting && yarn test
 
