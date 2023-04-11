@@ -2,6 +2,12 @@
 title: Milestone 1.1 - Deploying a contract
 ---
 
+:::caution
+We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+
+If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
+:::
+
 See [here](./) for draft milestones.
 
 See [here](https://drive.google.com/file/d/1riqr23R-VOAwOAzpgRj40tsAfq0ZA5yO/view?usp=share_link) for an unfinished (but maybe helpful) contract deployment sequence diagram, and other tabs for other useful diagrams.

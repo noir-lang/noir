@@ -2,6 +2,12 @@
 title: Function Selectors
 ---
 
+:::caution
+We are building Aztec 3 as transparently as we can. The documents published here are merely an entry point to understanding. These documents are largely complete, but unpolished.
+
+If you would like to help us build Aztec 3, consider reviewing our [GitHub](https://github.com/AztecProtocol) to contribute code and joining our [forum](https://discourse.aztec.network/) to participate in discussions.
+:::
+
 ## Why are function selectors necessary in the Function Tree?
 
 Full question: **"Why does a function leaf need to include the function selector versus just the vkHash and isPrivate?"**
