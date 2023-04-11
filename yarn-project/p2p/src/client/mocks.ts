@@ -28,7 +28,7 @@ export class MockBlockSource implements L2BlockSource {
   public getL2ContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     for (const block of this.l2Blocks) {
       for (const contractData of block.newContractData) {
-        if (contractData.aztecAddress.equals(contractAddress)) {
+        if (contractData.contractAddress.equals(contractAddress)) {
           return Promise.resolve(contractData);
         }
       }

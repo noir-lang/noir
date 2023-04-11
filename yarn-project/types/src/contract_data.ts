@@ -11,11 +11,11 @@ export class ContractData {
     /**
      * The L2 address of the contract, as a field element (32 bytes).
      */
-    public aztecAddress: AztecAddress,
+    public contractAddress: AztecAddress,
     /**
      * The L1 address of the contract, (20 bytes).
      */
-    public ethAddress: EthAddress,
+    public portalContractAddress: EthAddress,
   ) {}
 
   /**
@@ -23,7 +23,7 @@ export class ContractData {
    * @returns Encoded buffer.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.aztecAddress, this.ethAddress.toBuffer());
+    return serializeToBuffer(this.contractAddress, this.portalContractAddress.toBuffer());
   }
 
   /**

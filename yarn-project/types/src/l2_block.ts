@@ -7,8 +7,8 @@ import {
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation';
-import { TxHash, hashTxData } from '@aztec/types';
 import { ContractData } from './contract_data.js';
+import { L2Tx } from './l2_tx.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -204,16 +204,33 @@ export class L2Block {
   }
 
   /**
-   * Generates transaction hash for the ith transaction in an L2 block.
+   * Get the ith transaction in an L2 block.
    * @param txIndex - The index of the tx in the block.
-   * @returns TxHash of the tx.
+   * @returns The tx.
    */
-  getTxHash(txIndex: number): TxHash {
-    return hashTxData(
-      this.newCommitments.slice(txIndex * KERNEL_NEW_COMMITMENTS_LENGTH, (txIndex + 1) * KERNEL_NEW_COMMITMENTS_LENGTH),
-      this.newNullifiers.slice(txIndex * KERNEL_NEW_NULLIFIERS_LENGTH, (txIndex + 1) * KERNEL_NEW_NULLIFIERS_LENGTH),
-      this.newContracts.slice(txIndex * KERNEL_NEW_CONTRACTS_LENGTH, (txIndex + 1) * KERNEL_NEW_CONTRACTS_LENGTH),
+  getTx(txIndex: number) {
+    const numTxs = Math.floor(this.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
+    if (txIndex >= numTxs) {
+      throw new Error(`Failed to get tx ${txIndex}. Block ${this.number} only has ${numTxs} txs.`);
+    }
+
+    const newCommitments = this.newCommitments.slice(
+      KERNEL_NEW_COMMITMENTS_LENGTH * txIndex,
+      KERNEL_NEW_COMMITMENTS_LENGTH * (txIndex + 1),
     );
+    const newNullifiers = this.newNullifiers.slice(
+      KERNEL_NEW_NULLIFIERS_LENGTH * txIndex,
+      KERNEL_NEW_NULLIFIERS_LENGTH * (txIndex + 1),
+    );
+    const newContracts = this.newContracts.slice(
+      KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
+      KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
+    );
+    const newContractData = this.newContractData.slice(
+      KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
+      KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
+    );
+    return new L2Tx(newCommitments, newNullifiers, newContracts, newContractData);
   }
 
   /**
@@ -231,10 +248,10 @@ export class L2Block {
       arr
         .map(
           cd =>
-            `(0x${cd.aztecAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')}, 0x${cd.ethAddress
+            `(0x${cd.contractAddress
               .toBuffer()
               .subarray(0, maxBufferSize)
-              .toString('hex')})`,
+              .toString('hex')}, 0x${cd.portalContractAddress.toBuffer().subarray(0, maxBufferSize).toString('hex')})`,
         )
         .join(', ') +
       ']';
