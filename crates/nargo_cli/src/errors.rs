@@ -1,5 +1,5 @@
 use hex::FromHexError;
-use nargo::NargoError;
+use nargo::{manifest::InvalidPackageError, NargoError};
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -42,4 +42,8 @@ pub(crate) enum CliError {
     /// Error from Nargo
     #[error(transparent)]
     NargoError(#[from] NargoError),
+
+    /// Error while loading package manifest.
+    #[error(transparent)]
+    InvalidManifest(#[from] InvalidPackageError),
 }

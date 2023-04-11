@@ -1,6 +1,4 @@
 // Directories
-/// The directory for the `nargo contract` command output
-pub(crate) const CONTRACT_DIR: &str = "contract";
 /// The directory to store serialized circuit proofs.
 pub(crate) const PROOFS_DIR: &str = "proofs";
 /// The directory to store Noir source files
