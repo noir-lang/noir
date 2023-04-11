@@ -1,3 +1,4 @@
+import { CircuitsWasm, getDummyPreviousKernelData } from '../index.js';
 import { assertLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
@@ -263,6 +264,25 @@ export class PreviousKernelData {
       0,
       Array(VK_TREE_HEIGHT).fill(frZero()),
     );
+  }
+}
+
+export class DummyPreviousKernelData {
+  private static instance: DummyPreviousKernelData;
+
+  private constructor(private data: PreviousKernelData) {}
+
+  public static async getDummyPreviousKernelData(wasm: CircuitsWasm) {
+    if (!DummyPreviousKernelData.instance) {
+      const data = await getDummyPreviousKernelData(wasm);
+      DummyPreviousKernelData.instance = new DummyPreviousKernelData(data);
+    }
+
+    return DummyPreviousKernelData.instance.getData();
+  }
+
+  public getData() {
+    return this.data;
   }
 }
 

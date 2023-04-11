@@ -18,6 +18,7 @@ import {
   VerificationKey,
   makeEmptyProof,
   NewContractData,
+  DummyPreviousKernelData,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { createDebugLogger, Fr } from '@aztec/foundation';
@@ -64,7 +65,8 @@ export class KernelProver {
       txRequest.txContext.contractDeploymentData.portalContractAddress,
     );
 
-    const previousKernelData: PreviousKernelData = PreviousKernelData.makeEmpty();
+    const previousKernelData: PreviousKernelData = await DummyPreviousKernelData.getDummyPreviousKernelData(wasm);
+
     this.log(`Executing private kernel simulation...`);
     const publicInputs = await privateKernelSim(wasm, signedTxRequest, previousKernelData, privateCallData);
     this.log(`Skipping private kernel proving...`);
