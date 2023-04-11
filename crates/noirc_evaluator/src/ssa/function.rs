@@ -5,7 +5,7 @@ use crate::ssa::{
     conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
     mem::ArrayId,
-    node::{Node, NodeId, ObjectType, Opcode, Operation},
+    node::{Node, NodeId, ObjectType, NumericType, Opcode, Operation},
     ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
@@ -265,17 +265,18 @@ impl IrGenerator {
 
     fn from_type(typ: &Type) -> ObjectType {
         match typ {
-            Type::Field => ObjectType::NativeField,
+            Type::Field => ObjectType::Numeric(NumericType::NativeField),
             Type::Array(_, _) => todo!(),
             Type::Integer(sign, size) => match sign {
-                noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*size),
-                noirc_frontend::Signedness::Signed => ObjectType::Signed(*size),
+                noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
+                noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
             },
-            Type::Bool => ObjectType::Boolean,
+            Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
             Type::String(_) => todo!(),
             Type::Unit => ObjectType::NotAnObject,
             Type::Tuple(_) => todo!(),
             Type::Function(_, _) => todo!(),
+            Type::Vec(_) => todo!(),
         }
     }
 

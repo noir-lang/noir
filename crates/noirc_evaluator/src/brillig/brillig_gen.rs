@@ -4,9 +4,12 @@ use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::function::RuntimeType;
 use crate::ssa::mem::Memory;
-use crate::ssa::node::{Binary, BinaryOp, Instruction, NodeId, NodeObject, ObjectType, Operation};
+use crate::ssa::node::{Binary, BinaryOp, Instruction, NodeId, NodeObject, ObjectType, NumericType, Operation};
+use crate::ssa::node::NumericType::Unsigned;
+use crate::ssa::node::NumericType::Signed;
 use acvm::acir::brillig_bytecode;
 use acvm::FieldElement;
+use crate::ssa;
 
 use acvm::acir::brillig_bytecode::{
     Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
@@ -452,11 +455,10 @@ impl BrilligGen {
 
 fn object_type_2_typ(object_type: ObjectType) -> BrilligType {
     match object_type {
-        ObjectType::NativeField => BrilligType::Field,
-        ObjectType::Boolean => BrilligType::Unsigned { bit_size: 1 },
-        ObjectType::Unsigned(s) => BrilligType::Unsigned { bit_size: s },
-        ObjectType::Signed(s) => BrilligType::Signed { bit_size: s },
-        ObjectType::Pointer(_) => todo!(),
+        ObjectType::Numeric(NumericType::NativeField) => BrilligType::Field,
+        ObjectType::Numeric(NumericType::Unsigned(s)) => BrilligType::Unsigned { bit_size: s },
+        ObjectType::Numeric(NumericType::Signed(s)) => BrilligType::Signed { bit_size: s },
+        ObjectType::ArrayPointer(_) => todo!(),
         ObjectType::Function => todo!(),
         ObjectType::NotAnObject => todo!(),
     }

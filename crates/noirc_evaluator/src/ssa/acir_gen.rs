@@ -206,7 +206,7 @@ fn jabber_node(
             match node_obj_type {
                 // If the `Variable` represents a Pointer
                 // Then we know that it is an `Array`
-                node::ObjectType::Pointer(a) => return jabber_array(a, acir_gen, cfg, evaluator),
+                node::ObjectType::ArrayPointer(a) => return jabber_array(a, acir_gen, cfg, evaluator),
                 // If it is not a pointer, we attempt to fetch the witness associated with it
                 _ => {
                     if let Some(w) = v.witness {
