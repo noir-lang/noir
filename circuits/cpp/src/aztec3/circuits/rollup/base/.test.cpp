@@ -176,7 +176,9 @@ class base_rollup_tests : public ::testing::Test {
 };
 
 template <size_t N>
-std::array<fr, N> get_sibling_path(stdlib::merkle_tree::MemoryTree tree, size_t leafIndex, size_t subtree_depth_to_skip)
+std::array<fr, N> get_sibling_path(stdlib::merkle_tree::MemoryTree tree,
+                                   size_t leafIndex,
+                                   size_t const& subtree_depth_to_skip)
 {
     std::array<fr, N> siblingPath;
     auto path = tree.get_hash_path(leafIndex);

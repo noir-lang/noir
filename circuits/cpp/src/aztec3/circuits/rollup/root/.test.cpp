@@ -179,7 +179,9 @@ class root_rollup_tests : public ::testing::Test {
 
   protected:
     template <size_t N>
-    std::array<fr, N> get_subtree_sibling_path(MemoryTree tree, size_t leafIndex, size_t subtree_depth_to_skip)
+    std::array<fr, N> get_subtree_sibling_path(MemoryTree tree,
+                                               size_t const& leafIndex,
+                                               size_t const& subtree_depth_to_skip)
     {
         std::array<fr, N> siblingPath;
         auto path = tree.get_sibling_path(leafIndex);

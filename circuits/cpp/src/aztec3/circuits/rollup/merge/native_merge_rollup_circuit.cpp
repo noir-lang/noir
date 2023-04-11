@@ -27,7 +27,8 @@ namespace aztec3::circuits::rollup::native_merge_rollup {
  * @param mergeRollupInputs
  * @return AggregationObject
  */
-AggregationObject aggregate_proofs(BaseOrMergeRollupPublicInputs left, BaseOrMergeRollupPublicInputs right)
+AggregationObject aggregate_proofs(BaseOrMergeRollupPublicInputs const& left,
+                                   BaseOrMergeRollupPublicInputs const& right)
 {
     // TODO: NOTE: for now we simply return the aggregation object from the first proof
     (void)right;
@@ -41,12 +42,10 @@ AggregationObject aggregate_proofs(BaseOrMergeRollupPublicInputs left, BaseOrMer
  * @param right - The public inputs of the right rollup (base or merge)
  */
 void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
-                                                  BaseOrMergeRollupPublicInputs left,
-                                                  BaseOrMergeRollupPublicInputs right)
+                                                  BaseOrMergeRollupPublicInputs const& left,
+                                                  BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.rollup_type == right.rollup_type, "input proofs are of different rollup types");
-    (void)left;
-    (void)right;
 }
 
 /**
@@ -57,13 +56,11 @@ void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
  * @return NT::fr - The height of the rollup subtrees
  */
 NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& composer,
-                                                          BaseOrMergeRollupPublicInputs left,
-                                                          BaseOrMergeRollupPublicInputs right)
+                                                          BaseOrMergeRollupPublicInputs const& left,
+                                                          BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.rollup_subtree_height == right.rollup_subtree_height,
                        "input proofs are of different rollup heights");
-    (void)left;
-    (void)right;
     return left.rollup_subtree_height;
 }
 
@@ -74,17 +71,15 @@ NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& compose
  * @param right - The public inputs of the right rollup (base or merge)
  */
 void assert_equal_constants(DummyComposer& composer,
-                            BaseOrMergeRollupPublicInputs left,
-                            BaseOrMergeRollupPublicInputs right)
+                            BaseOrMergeRollupPublicInputs const& left,
+                            BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.constants == right.constants, "input proofs have different constants");
-    (void)left;
-    (void)right;
 }
 
 // Generates a 512 bit input from right and left 256 bit hashes. Then computes the sha256, and splits the hash into two
 // field elements, a high and a low that is returned.
-std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> previous_rollup_data)
+std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>, 2> const& previous_rollup_data)
 {
     // Generate a 512 bit input from right and left 256 bit hashes
     std::array<uint8_t, 2 * 32> calldata_hash_input_bytes;
@@ -122,8 +117,8 @@ std::array<fr, 2> compute_calldata_hash(std::array<abis::PreviousRollupData<NT>,
 // asserts that the end snapshot of previous_rollup 0 equals the start snapshot of previous_rollup 1 (i.e. ensure they
 // follow on from one-another). Ensures that right uses the tres that was updated by left.
 void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
-                                                   BaseOrMergeRollupPublicInputs left,
-                                                   BaseOrMergeRollupPublicInputs right)
+                                                   BaseOrMergeRollupPublicInputs const& left,
+                                                   BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.end_private_data_tree_snapshot == right.start_private_data_tree_snapshot,
                        "input proofs have different private data tree snapshots");
@@ -131,12 +126,9 @@ void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
                        "input proofs have different nullifier tree snapshots");
     composer.do_assert(left.end_contract_tree_snapshot == right.start_contract_tree_snapshot,
                        "input proofs have different contract tree snapshots");
-    // void variables since despite using in composer.do_assert, it says, "unused variable"
-    (void)left;
-    (void)right;
 }
 
-BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, MergeRollupInputs mergeRollupInputs)
+BaseOrMergeRollupPublicInputs merge_rollup_circuit(DummyComposer& composer, MergeRollupInputs const& mergeRollupInputs)
 {
     // TODO: Verify the previous rollup proofs
     // TODO: Check both previous rollup vks (in previous_rollup_data) against the permitted set of kernel vks.

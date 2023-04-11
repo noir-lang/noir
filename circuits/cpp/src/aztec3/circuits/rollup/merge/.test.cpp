@@ -69,10 +69,6 @@ TEST_F(merge_rollup_tests, test_fail_if_previous_rollups_dont_follow_on)
     // do the same for nullifier tree
     DummyComposer composerB = DummyComposer();
     auto inputB = dummyInputs;
-    info("start ->",
-         dummyInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot.root);
-    info(" start1-> ",
-         dummyInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start_private_data_tree_snapshot.root);
 
     inputB.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_nullifier_tree_snapshot = {
         .root = fr(0), .next_available_leaf_index = 0

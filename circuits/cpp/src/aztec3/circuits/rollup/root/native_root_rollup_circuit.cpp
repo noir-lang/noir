@@ -28,7 +28,7 @@ namespace aztec3::circuits::rollup::native_root_rollup {
 
 template <size_t N>
 NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
-                                             NT::uint32 leafIndex,
+                                             NT::uint32 const& leafIndex,
                                              std::array<NT::fr, N> const& siblingPath)
 {
     for (size_t i = 0; i < siblingPath.size(); i++) {
@@ -42,13 +42,14 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
 }
 
 template <size_t N>
-void check_membership(
-    DummyComposer& composer, NT::fr leaf, NT::uint32 leafIndex, std::array<NT::fr, N> const& siblingPath, NT::fr root)
+void check_membership(DummyComposer& composer,
+                      NT::fr const& leaf,
+                      NT::uint32 const& leafIndex,
+                      std::array<NT::fr, N> const& siblingPath,
+                      NT::fr const& root)
 {
     auto computed_root = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
     composer.do_assert(root == computed_root, "Membership check failed");
-    (void)root;
-    (void)computed_root;
 }
 
 template <size_t N>
