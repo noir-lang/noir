@@ -9,11 +9,10 @@ use acvm::acir::brillig_bytecode;
 use acvm::FieldElement;
 
 use acvm::acir::brillig_bytecode::{
-    Opcode as BrilligOpcode, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
-    OracleData,
+    Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
 };
- 
- const CALLBACK_REGISTER: usize = 10000;
+
+const CALLBACK_REGISTER: usize = 10000;
 
 #[derive(Default)]
 pub(crate) struct BrilligGen {
@@ -170,8 +169,8 @@ impl BrilligGen {
         if let Some(left) = block.left {
             result.push(left);
         } else {
-           // self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
-           self.byte_code.push(BrilligOpcode::Stop);
+            // self.byte_code.push(BrilligOpcode::JMP { destination: usize::MAX });
+            self.byte_code.push(BrilligOpcode::Stop);
         }
         self.blocks.insert(block_id, start);
         result
@@ -197,9 +196,9 @@ impl BrilligGen {
                 // is public function ? yes: call opcode
                 //save the VM state
                 //  let b = safe_call f, a;
-                // b = (1) ; (1:f_in-out, a-b) 
-                // 
-                
+                // b = (1) ; (1:f_in-out, a-b)
+                //
+
                 //f-> bc take the inputs from signature
                 //on doit juste assigner a aux bons nodeid
                 //pour b; on va faire safe_call:
@@ -239,17 +238,23 @@ impl BrilligGen {
                         RuntimeType::Oracle(name) => {
                             let mut outputs = Vec::new();
                             for i in returned_values {
-                                outputs.push(self.node_2_register(ctx, *i).to_register_index().unwrap());
+                                outputs.push(
+                                    self.node_2_register(ctx, *i).to_register_index().unwrap(),
+                                );
                             }
                             let mut inputs = Vec::new();
                             for i in arguments {
                                 inputs.push(self.node_2_register(ctx, *i));
                             }
-                            self.byte_code.push(brillig_bytecode::Opcode::Oracle(OracleData{
-                               name, inputs, input_values:  Vec::new(), outputs, output_values: Vec::new() }));
+                            self.byte_code.push(brillig_bytecode::Opcode::Oracle(OracleData {
+                                name,
+                                inputs,
+                                input_values: Vec::new(),
+                                outputs,
+                                output_values: Vec::new(),
+                            }));
                         }
-                             
-                        
+
                         RuntimeType::Unsafe => {
                             // we need to have a place for the functions
                             let func_adr = if let Some(func_adr) = self.functions.get(func) {
@@ -260,36 +265,44 @@ impl BrilligGen {
                                 //TODO
                                 0
                             };
-                                //mov inputs to function arguments:
-                                for (input, arg) in ssa_func.arguments.iter().zip(arguments) {
-                                    let arg_reg = self.node_2_register(ctx, *arg);
-                                    let in_reg = self.node_2_register(ctx, input.0);
-                                    self.byte_code.push(brillig_bytecode::Opcode::Mov { destination: in_reg, source: arg_reg } );
-                                }
-                                let call_back = FieldElement::from(self.byte_code.len() as i128 + 1);
-                                self.byte_code.push(brillig_bytecode::Opcode::Mov { destination: RegisterMemIndex::Register(
-                                    RegisterIndex(CALLBACK_REGISTER)
-                                ), source: RegisterMemIndex::Constant(call_back) });
-                                
-                                if func_adr == 0 {
-                                    self.to_fix.push((self.byte_code.len(), ssa_func.entry_block));
-                                    self.functions_to_process.insert(*func);
-                                }
-                                self.byte_code.push(brillig_bytecode::Opcode::JMP { destination: func_adr });
+                            //mov inputs to function arguments:
+                            for (input, arg) in ssa_func.arguments.iter().zip(arguments) {
+                                let arg_reg = self.node_2_register(ctx, *arg);
+                                let in_reg = self.node_2_register(ctx, input.0);
+                                self.byte_code.push(brillig_bytecode::Opcode::Mov {
+                                    destination: in_reg,
+                                    source: arg_reg,
+                                });
+                            }
+                            let call_back = FieldElement::from(self.byte_code.len() as i128 + 1);
+                            self.byte_code.push(brillig_bytecode::Opcode::Mov {
+                                destination: RegisterMemIndex::Register(RegisterIndex(
+                                    CALLBACK_REGISTER,
+                                )),
+                                source: RegisterMemIndex::Constant(call_back),
+                            });
 
-                                //result is in register 0
-                                if returned_values.len() == 1  {
-                                    let first = self.node_2_register(ctx, *returned_values.first().unwrap());
-                                    self.byte_code.push(brillig_bytecode::Opcode::Mov { destination: first,
-                                        source: 
-                                    RegisterMemIndex::Register(RegisterIndex(0)) });
-                                }
+                            if func_adr == 0 {
+                                self.to_fix.push((self.byte_code.len(), ssa_func.entry_block));
+                                self.functions_to_process.insert(*func);
+                            }
+                            self.byte_code
+                                .push(brillig_bytecode::Opcode::JMP { destination: func_adr });
 
+                            //result is in register 0
+                            if returned_values.len() == 1 {
+                                let first =
+                                    self.node_2_register(ctx, *returned_values.first().unwrap());
+                                self.byte_code.push(brillig_bytecode::Opcode::Mov {
+                                    destination: first,
+                                    source: RegisterMemIndex::Register(RegisterIndex(0)),
+                                });
+                            }
                         }
                         RuntimeType::Acvm => unimplemented!(),
                     }
                 }
-            },
+            }
             Operation::Nop => (),
         }
     }
@@ -423,20 +436,18 @@ impl BrilligGen {
         BinaryOp::Assign => unreachable!(),
     }
     }
-    
+
     fn process_functions(&mut self, ctx: &SsaContext) {
         for f in self.functions_to_process.iter() {
             if let Some(ssa_func) = ctx.try_get_ssa_func(*f) {
                 self.blocks.insert(ssa_func.entry_block, self.byte_code.len());
                 self.byte_code.append(&mut ssa_func.brillig_code.clone());
-                self.byte_code.push(
-                    BrilligOpcode::Call { destination: 
-                    RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER))}
-                );
+                self.byte_code.push(BrilligOpcode::Call {
+                    destination: RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER)),
+                });
             }
         }
     }
-
 }
 
 fn object_type_2_typ(object_type: ObjectType) -> BrilligType {

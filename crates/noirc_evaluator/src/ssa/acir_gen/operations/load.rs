@@ -64,25 +64,29 @@ pub(crate) fn evaluate_with_conts_index(
 ) -> Result<InternalVar, RuntimeError> {
     let mem_array = &ctx.mem[array_id];
 
-        let array_length = mem_array.len;
-        if index >= array_length {
-            return Err(RuntimeError {
-                location,
-                kind: RuntimeErrorKind::ArrayOutOfBounds {
-                    index: index as u128,
-                    bound: array_length as u128,
-                },
-            });
-        }
+    let array_length = mem_array.len;
+    if index >= array_length {
+        return Err(RuntimeError {
+            location,
+            kind: RuntimeErrorKind::ArrayOutOfBounds {
+                index: index as u128,
+                bound: array_length as u128,
+            },
+        });
+    }
 
-        let array_element = acir_mem.load_array_element_constant_index(mem_array, index);
-        let ivar = if let Some(element) = array_element {
-            element
-        } else {
-            let w = evaluator.add_witness_to_cs();
-            acir_mem.add_to_trace(&array_id, Expression::from_field(FieldElement::from(index as i128)), w.into(), Expression::zero());
-            InternalVar::from_witness(w)
-        };
-        Ok(ivar)
-  
+    let array_element = acir_mem.load_array_element_constant_index(mem_array, index);
+    let ivar = if let Some(element) = array_element {
+        element
+    } else {
+        let w = evaluator.add_witness_to_cs();
+        acir_mem.add_to_trace(
+            &array_id,
+            Expression::from_field(FieldElement::from(index as i128)),
+            w.into(),
+            Expression::zero(),
+        );
+        InternalVar::from_witness(w)
+    };
+    Ok(ivar)
 }

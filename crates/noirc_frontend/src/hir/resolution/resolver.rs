@@ -307,7 +307,9 @@ impl<'a> Resolver<'a> {
         let func_meta = self.extract_meta(&func, id);
 
         let hir_func = match func.kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => HirFunction::empty(),
+            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
+                HirFunction::empty()
+            }
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);

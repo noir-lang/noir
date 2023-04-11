@@ -8,7 +8,10 @@ use acvm::{
     acir::{
         circuit::{
             directives::Directive,
-            opcodes::{BlackBoxFuncCall, Brillig, FunctionInput, Opcode as AcirOpcode},
+            opcodes::{
+                BlackBoxFuncCall, Brillig, FunctionInput, JabberingIn, JabberingOut,
+                Opcode as AcirOpcode,
+            },
         },
         native_types::{Expression, Witness},
     },
@@ -572,8 +575,8 @@ pub(crate) fn evaluate_inverse(
     let inverse_witness = evaluator.add_witness_to_cs();
     let brillig_code = directive_invert();
     let b_opcode = AcirOpcode::Brillig(Brillig {
-        inputs: vec![Expression::from(x_witness)],
-        outputs: vec![inverse_witness],
+        inputs: vec![JabberingIn::Simple(Expression::from(x_witness))],
+        outputs: vec![JabberingOut::Simple(inverse_witness)],
         bytecode: brillig_code,
         predicate: Some(Expression::one()),
     });

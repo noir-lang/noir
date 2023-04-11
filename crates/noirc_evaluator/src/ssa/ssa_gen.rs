@@ -382,14 +382,14 @@ impl IrGenerator {
                 //     let value = Value::Tuple(returned_values.iter().map(|x| Value::Node(*x)).collect());
                 //     self.variable_values.insert(definition, value);
                 // } else {
-                    let object_type = self.context.object_type(node_id);
-                    let value = self.bind_variable(
-                        name.to_owned(),
-                        Some(definition.clone()),
-                        object_type,
-                        node_id,
-                    )?;
-                    self.variable_values.insert(definition, value);
+                let object_type = self.context.object_type(node_id);
+                let value = self.bind_variable(
+                    name.to_owned(),
+                    Some(definition.clone()),
+                    object_type,
+                    node_id,
+                )?;
+                self.variable_values.insert(definition, value);
                 //}
             }
             value @ Value::Tuple(_) => {
@@ -519,8 +519,6 @@ impl IrGenerator {
                 //     unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type");
                 // }
             }
-            
-            
         }
     }
 

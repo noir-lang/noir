@@ -20,7 +20,8 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
-    CompTime, FunctionKind, TypeBinding, TypeBindings, token::Attribute,
+    token::Attribute,
+    CompTime, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};

@@ -190,7 +190,7 @@ impl IrGenerator {
             (Some(name), _) => {
                 function_type = Self::from_type(&function.return_type);
                 RuntimeType::Oracle(name)
-            }             
+            }
             (None, true) => RuntimeType::Unsafe,
             _ => RuntimeType::Acvm,
         };
@@ -218,7 +218,7 @@ impl IrGenerator {
             let return_values = try_vecmap(return_values, |mut return_id| {
                 let node_opt = self.context.try_get_node(return_id);
                 let typ = node_opt.map_or(ObjectType::NotAnObject, |node| node.get_type());
-    
+
                 if let Some(ins) = self.context.try_get_instruction(return_id) {
                     if ins.operation.opcode() == Opcode::Results {
                         // n.b. this required for result instructions, but won't hurt if done for all i
@@ -239,20 +239,18 @@ impl IrGenerator {
                 func.result_types.push(typ);
                 Ok::<NodeId, RuntimeError>(return_id)
             })?;
-    
+
             self.context.new_instruction(
                 node::Operation::Return(return_values),
                 node::ObjectType::NotAnObject,
             )?;
         }
-        
+
         match func.kind {
             RuntimeType::Unsafe => {
-                func.brillig_code = func.unsafe_compile(&mut self.context);    
+                func.brillig_code = func.unsafe_compile(&mut self.context);
             }
-            RuntimeType::Oracle(_) => {
-
-            }
+            RuntimeType::Oracle(_) => {}
             RuntimeType::Acvm => {
                 let decision = func.compile(self)?; //unroll the function
                 func.decision = decision;
@@ -269,11 +267,9 @@ impl IrGenerator {
         match typ {
             Type::Field => ObjectType::NativeField,
             Type::Array(_, _) => todo!(),
-            Type::Integer(sign, size) => {
-                match sign {
-                    noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*size),
-                    noirc_frontend::Signedness::Signed => ObjectType::Signed(*size),
-                }
+            Type::Integer(sign, size) => match sign {
+                noirc_frontend::Signedness::Unsigned => ObjectType::Unsigned(*size),
+                noirc_frontend::Signedness::Signed => ObjectType::Signed(*size),
             },
             Type::Bool => ObjectType::Boolean,
             Type::String(_) => todo!(),
@@ -327,9 +323,8 @@ impl IrGenerator {
                 }
                 RuntimeType::Acvm => (),
             }
-    
         }
-        
+
         let mut call_op = Operation::Call {
             func,
             arguments: arguments.clone(),
