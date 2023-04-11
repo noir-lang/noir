@@ -3,8 +3,8 @@ import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
-import { L2BlockContext } from '@aztec/l2-block';
-import { TxHash } from '@aztec/tx';
+import { L2BlockContext } from '@aztec/types';
+import { TxHash } from '@aztec/types';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
 

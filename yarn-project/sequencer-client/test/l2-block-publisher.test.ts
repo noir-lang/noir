@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from '@jest/globals';
 import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
 import { L1Publisher } from '../src/publisher/l1-publisher.js';
 import { hexStringToBuffer } from '../src/utils.js';
-import { L2Block } from '@aztec/l2-block';
+import { L2Block } from '@aztec/types';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
 const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a';

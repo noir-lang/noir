@@ -1,6 +1,6 @@
 import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { L2Block } from './l2_block.js';
-import { TxHash } from '@aztec/tx';
+import { TxHash } from '@aztec/types';
 import { keccak } from '@aztec/foundation';
 
 export class L2BlockContext {

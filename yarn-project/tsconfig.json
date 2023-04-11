@@ -31,13 +31,12 @@
     { "path": "kernel-prover/tsconfig.dest.json" },
     { "path": "key-store/tsconfig.dest.json" },
     { "path": "l1-contracts/tsconfig.dest.json" },
-    { "path": "l2-block/tsconfig.dest.json" },
     { "path": "merkle-tree/tsconfig.dest.json" },
     { "path": "noir-contracts/tsconfig.dest.json" },
     { "path": "p2p/tsconfig.dest.json" },
     { "path": "prover-client/tsconfig.dest.json" },
     { "path": "sequencer-client/tsconfig.dest.json" },
-    { "path": "tx/tsconfig.dest.json" },
+    { "path": "types/tsconfig.dest.json" },
     { "path": "world-state/tsconfig.dest.json" }
   ],
   "include": ["**/*.ts", "**/*.tsx", "**/*.json"]

@@ -1,4 +1,4 @@
-import { ContractData, L2Block } from '@aztec/l2-block';
+import { ContractData, L2Block } from '@aztec/types';
 import {
   KERNEL_NEW_CONTRACTS_LENGTH,
   KERNEL_NEW_COMMITMENTS_LENGTH,
@@ -7,7 +7,7 @@ import {
   NewContractData,
 } from '@aztec/circuits.js';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
-import { Tx } from '@aztec/tx';
+import { Tx } from '@aztec/types';
 import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
 
 const mapContractData = (n: NewContractData) => {

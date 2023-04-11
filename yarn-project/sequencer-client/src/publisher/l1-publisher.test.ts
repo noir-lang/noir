@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/l2-block';
+import { L2Block } from '@aztec/types';
 import { TxHash } from '@aztec/ethereum.js/eth_rpc';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { sleep } from '../utils.js';

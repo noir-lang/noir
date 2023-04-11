@@ -20,7 +20,7 @@ import { hashVK } from '@aztec/circuits.js/abis';
 import { Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { FunctionTreeInfo, KernelProver } from '@aztec/kernel-prover';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
-import { Tx, TxHash } from '@aztec/tx';
+import { Tx, TxHash } from '@aztec/types';
 import { generateFunctionSelector } from '../abi_coder/index.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
 import { ContractDao, toContractDao } from '../contract_database/contract_dao.js';

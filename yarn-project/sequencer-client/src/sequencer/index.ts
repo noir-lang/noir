@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation';
 import { P2P } from '@aztec/p2p';
-import { Tx } from '@aztec/tx';
+import { Tx } from '@aztec/types';
 import { MerkleTreeId, WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
 import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
 import { RunningPromise } from '../deps/running_promise.js';

@@ -13,7 +13,7 @@ import {
   makePrivateKernelPublicInputs,
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
-import { Tx } from '@aztec/tx';
+import { Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';

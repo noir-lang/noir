@@ -14,9 +14,6 @@
     },
     {
       "path": "../l1-contracts/tsconfig.dest.json"
-    },
-    {
-      "path": "../tx/tsconfig.dest.json"
     }
   ],
   "include": ["src"],

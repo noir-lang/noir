@@ -4,7 +4,7 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthAddress, createDebugLogger, sleep } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { Tx } from '@aztec/tx';
+import { Tx } from '@aztec/types';
 import { AztecNode } from '../index.js';
 import { AztecNodeConfig } from './config.js';
 import { createProvider, createTx, deployRollupContract, deployUnverifiedDataEmitterContract } from './fixtures.js';

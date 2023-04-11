@@ -1,7 +1,7 @@
 import { CircuitsWasm, PrivateKernelPublicInputs, UInt8Vector } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { Fr, keccak } from '@aztec/foundation';
-import { UnverifiedData } from '@aztec/unverified-data';
+import { UnverifiedData } from '@aztec/types';
 import { TxHash } from './tx_hash.js';
 
 /**

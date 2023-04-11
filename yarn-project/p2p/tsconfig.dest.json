@@ -13,13 +13,7 @@
       "path": "../foundation/tsconfig.dest.json"
     },
     {
-      "path": "../l2-block/tsconfig.dest.json"
-    },
-    {
-      "path": "../tx/tsconfig.dest.json"
-    },
-    {
-      "path": "../unverified-data/tsconfig.dest.json"
+      "path": "../types/tsconfig.dest.json"
     }
   ],
   "include": ["src"],

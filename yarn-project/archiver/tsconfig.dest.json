@@ -16,10 +16,7 @@
       "path": "../l1-contracts/tsconfig.dest.json"
     },
     {
-      "path": "../l2-block/tsconfig.dest.json"
-    },
-    {
-      "path": "../unverified-data/tsconfig.dest.json"
+      "path": "../types/tsconfig.dest.json"
     }
   ],
   "exclude": ["**/*.test.*", "**/fixtures/*"],

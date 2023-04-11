@@ -1,11 +1,11 @@
 {
-  "name": "@aztec/unverified-data",
+  "name": "@aztec/types",
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "Unverified Data",
+    "displayName": "Aztec 3 Types",
     "tsconfig": "./tsconfig.dest.json"
   },
   "scripts": {
@@ -19,20 +19,22 @@
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.ts$",
+    "rootDir": "./src",
     "globals": {
       "ts-jest": {
         "useESM": true,
         "tsconfig": "../tsconfig.json"
       }
-    },
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.js$": "$1"
-    },
-    "testRegex": "./src/.*\\.test\\.ts$",
-    "rootDir": "./src"
+    }
   },
   "dependencies": {
+    "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/l1-contracts": "workspace:^",
     "tslib": "^2.5.0"
   },
   "devDependencies": {

@@ -1,8 +1,8 @@
-import { L2Block } from '@aztec/l2-block';
+import { L2Block } from '@aztec/types';
 import { createDebugLogger, InterruptableSleep } from '@aztec/foundation';
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
-import { UnverifiedData } from '@aztec/unverified-data';
+import { UnverifiedData } from '@aztec/types';
 
 /**
  * Component responsible of pushing the txs to the chain and waiting for completion.

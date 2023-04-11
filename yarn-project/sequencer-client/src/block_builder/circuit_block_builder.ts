@@ -19,7 +19,7 @@ import {
 } from '@aztec/circuits.js';
 import { Fr, createDebugLogger, toBigIntBE } from '@aztec/foundation';
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
-import { Tx } from '@aztec/tx';
+import { Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
@@ -27,7 +27,7 @@ import { makeEmptyTx } from '../deps/tx.js';
 import { VerificationKeys } from '../deps/verification_keys.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
-import { ContractData, L2Block } from '@aztec/l2-block';
+import { ContractData, L2Block } from '@aztec/types';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());

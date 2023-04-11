@@ -1,5 +1,5 @@
 import { createDebugLogger } from '@aztec/foundation';
-import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
+import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';

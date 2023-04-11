@@ -4,8 +4,8 @@ import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { KERNEL_NEW_COMMITMENTS_LENGTH, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
 import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { L2BlockContext } from '@aztec/l2-block';
-import { UnverifiedData } from '@aztec/unverified-data';
+import { L2BlockContext } from '@aztec/types';
+import { UnverifiedData } from '@aztec/types';
 import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
 import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
 

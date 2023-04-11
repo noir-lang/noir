@@ -1,5 +1,5 @@
 import { EthAddress, randomBytes, toBufferBE } from '@aztec/foundation';
-import { L2Block } from '@aztec/l2-block';
+import { L2Block } from '@aztec/types';
 import { jest } from '@jest/globals';
 import { mock, MockProxy } from 'jest-mock-extended';
 import { encodeFunctionData, Log, PublicClient, toHex, Transaction } from 'viem';

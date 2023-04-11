@@ -19,19 +19,13 @@
       "path": "../l1-contracts/tsconfig.dest.json"
     },
     {
-      "path": "../l2-block/tsconfig.dest.json"
-    },
-    {
       "path": "../merkle-tree/tsconfig.dest.json"
     },
     {
       "path": "../p2p/tsconfig.dest.json"
     },
     {
-      "path": "../tx/tsconfig.dest.json"
-    },
-    {
-      "path": "../unverified-data/tsconfig.dest.json"
+      "path": "../types/tsconfig.dest.json"
     },
     {
       "path": "../world-state/tsconfig.dest.json"

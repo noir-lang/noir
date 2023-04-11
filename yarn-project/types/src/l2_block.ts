@@ -7,7 +7,7 @@ import {
 import { makeAppendOnlyTreeSnapshot } from '@aztec/circuits.js/factories';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { Fr } from '@aztec/foundation';
-import { TxHash, hashTxData } from '@aztec/tx';
+import { TxHash, hashTxData } from '@aztec/types';
 import { ContractData } from './contract_data.js';
 
 /**

@@ -1,4 +1,4 @@
-import { TxHash } from '@aztec/tx';
+import { TxHash } from '@aztec/types';
 import { AztecAddress } from '@aztec/foundation';
 
 export enum TxStatus {

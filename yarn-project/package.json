@@ -28,7 +28,6 @@
     "foundation",
     "kernel-prover",
     "key-store",
-    "l2-block",
     "merkle-tree",
     "noir-contracts",
     "l1-contracts",
@@ -36,8 +35,7 @@
     "prover-client",
     "aztec-node",
     "sequencer-client",
-    "tx",
-    "unverified-data",
+    "types",
     "world-state"
   ],
   "prettier": "@aztec/foundation/prettier",

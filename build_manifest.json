@@ -79,8 +79,7 @@
       "ethereum.js",
       "foundation",
       "l1-contracts",
-      "l2-block",
-      "unverified-data"
+      "types"
     ]
   },
   "aztec-cli": {
@@ -108,10 +107,8 @@
       "circuits.js",
       "foundation",
       "kernel-prover",
-      "l2-block",
       "noir-contracts",
-      "tx",
-      "unverified-data"
+      "types"
     ]
   },
   "aztec.js": {
@@ -256,9 +253,7 @@
     "dependencies": [
       "circuits.js",
       "foundation",
-      "l2-block",
-      "tx",
-      "unverified-data"
+      "types"
     ]
   },
   "prover-client": {
@@ -285,12 +280,10 @@
       "ethereum.js",
       "foundation",
       "l1-contracts",
-      "l2-block",
       "merkle-tree",
       "p2p",
       "sequencer-client",
-      "tx",
-      "unverified-data",
+      "types",
       "world-state"
     ]
   },
@@ -306,11 +299,9 @@
       "ethereum.js",
       "foundation",
       "l1-contracts",
-      "l2-block",
       "merkle-tree",
       "p2p",
-      "tx",
-      "unverified-data",
+      "types",
       "world-state"
     ]
   },
@@ -325,18 +316,20 @@
       "barretenberg.js",
       "circuits.js",
       "foundation",
-      "unverified-data"
+      "types"
     ]
   },
-  "unverified-data": {
+  "types": {
     "buildDir": "yarn-project",
-    "projectDir": "yarn-project/unverified-data",
-    "dockerfile": "unverified-data/Dockerfile",
+    "projectDir": "yarn-project/types",
+    "dockerfile": "types/Dockerfile",
     "rebuildPatterns": [
-      "^yarn-project/unverified-data/"
+      "^yarn-project/types/"
     ],
     "dependencies": [
-      "foundation"
+      "circuits.js",
+      "foundation",
+      "l1-contracts"
     ]
   },
   "world-state": {
@@ -350,8 +343,8 @@
       "barretenberg.js",
       "circuits.js",
       "foundation",
-      "l2-block",
-      "merkle-tree"
+      "merkle-tree",
+      "types"
     ]
   }
 }

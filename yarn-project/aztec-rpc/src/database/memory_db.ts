@@ -1,5 +1,5 @@
 import { AztecAddress, Fr } from '@aztec/foundation';
-import { TxHash } from '@aztec/tx';
+import { TxHash } from '@aztec/types';
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database } from './database.js';
 import { TxAuxDataDao } from './tx_aux_data_dao.js';

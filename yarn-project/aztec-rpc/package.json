@@ -38,10 +38,8 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/kernel-prover": "workspace:^",
-    "@aztec/l2-block": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
-    "@aztec/tx": "workspace:^",
-    "@aztec/unverified-data": "workspace:^",
+    "@aztec/types": "workspace:^",
     "browserify-cipher": "^1.0.1",
     "sha3": "^2.1.4",
     "tslib": "^2.4.0"

@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation';
-import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@aztec/l2-block';
-import { Tx, TxHash } from '@aztec/tx';
+import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@aztec/types';
+import { Tx, TxHash } from '@aztec/types';
 
 import { TxPool } from '../tx_pool/index.js';
 import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';

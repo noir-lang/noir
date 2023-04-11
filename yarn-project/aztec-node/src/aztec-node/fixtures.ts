@@ -25,8 +25,8 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { AztecAddress, EthAddress, Fr, randomBytes, toBufferBE } from '@aztec/foundation';
 import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
-import { Tx } from '@aztec/tx';
-import { UnverifiedData } from '@aztec/unverified-data';
+import { Tx } from '@aztec/types';
+import { UnverifiedData } from '@aztec/types';
 
 export const deployRollupContract = async (provider: WalletProvider, ethRpc: EthereumRpc) => {
   const deployAccount = provider.getAccount(0);
