@@ -2,6 +2,7 @@ import { DBOracle, NoteLoadOracleInputs } from '@aztec/acir-simulator';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { Database } from '../database/database.js';
 import { KeyStore } from '../key_store/key_store.js';
+import { FunctionAbi } from '@aztec/noir-contracts';
 
 export class SimulatorOracle implements DBOracle {
   constructor(private db: Database, private keyStore: KeyStore) {}
@@ -19,7 +20,7 @@ export class SimulatorOracle implements DBOracle {
     }));
   }
 
-  async getBytecode(contractAddress: AztecAddress, functionSelector: Buffer): Promise<Buffer> {
+  async getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi> {
     const contract = await this.db.getContract(contractAddress);
     if (!contract) {
       throw new Error(`Contract ${contractAddress} not found`);
@@ -30,7 +31,7 @@ export class SimulatorOracle implements DBOracle {
       throw new Error(`Function ${functionSelector} not found`);
     }
 
-    return Buffer.from(storedFunction.bytecode, 'base64');
+    return storedFunction;
   }
 
   async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {

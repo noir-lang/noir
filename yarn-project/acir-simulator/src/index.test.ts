@@ -34,7 +34,7 @@ describe('ACIR simulator', () => {
   const oracle = {
     getNotes: jest.fn<DBOracle['getNotes']>(),
     getSecretKey: jest.fn<DBOracle['getSecretKey']>(),
-    getBytecode: jest.fn<DBOracle['getBytecode']>(),
+    getFunctionABI: jest.fn<DBOracle['getFunctionABI']>(),
     getPortalContractAddress: jest.fn<DBOracle['getPortalContractAddress']>(),
   };
   const acirSimulator = new AcirSimulator(oracle as unknown as DBOracle);

@@ -1,4 +1,4 @@
-import { ACVMField, ACVMWitness, fromACVMField, toACVMField } from './fields.js';
+import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 import { AztecAddress, Fr, EthAddress } from '@aztec/foundation';
 import {
   ARGS_LENGTH,
@@ -8,33 +8,15 @@ import {
   L1_MSG_STACK_LENGTH,
   NEW_COMMITMENTS_LENGTH,
   NEW_NULLIFIERS_LENGTH,
-  OldTreeRoots,
   PrivateCircuitPublicInputs,
   PRIVATE_CALL_STACK_LENGTH,
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
-  TxContext,
 } from '@aztec/circuits.js';
 import { select_return_flattened as selectPublicWitnessFlattened } from '@noir-lang/noir_util_wasm';
 
-export class WitnessWriter {
-  constructor(private currentIndex: number, private witness: ACVMWitness) {}
-
-  public writeField(field: Parameters<typeof toACVMField>[0]) {
-    this.witness.set(this.currentIndex, toACVMField(field));
-    this.currentIndex += 1;
-  }
-
-  public writeFieldArray(array: Fr[]) {
-    for (const field of array) {
-      this.writeField(field);
-    }
-  }
-
-  public jump(amount: number) {
-    this.currentIndex += amount;
-  }
-}
+// Utilities to read TS classes from ACVM Field arrays
+// In the order that the ACVM provides them
 
 export function frToAztecAddress(fr: Fr): AztecAddress {
   return new AztecAddress(fr.toBuffer());
@@ -49,36 +31,8 @@ export function frToBoolean(fr: Fr): boolean {
   return buf[buf.length - 1] !== 0;
 }
 
-export function writeInputs(
-  args: Fr[],
-  callContext: CallContext,
-  txContext: TxContext,
-  oldRoots: OldTreeRoots,
-  witnessStartIndex = 1,
-) {
-  const witness: ACVMWitness = new Map();
-
-  const writer = new WitnessWriter(witnessStartIndex, witness);
-
-  writer.writeFieldArray(args);
-
-  writer.writeField(callContext.isContractDeployment);
-  writer.writeField(callContext.isDelegateCall);
-  writer.writeField(callContext.isStaticCall);
-  writer.writeField(callContext.msgSender);
-  writer.writeField(callContext.portalContractAddress);
-  writer.writeField(callContext.storageContractAddress);
-
-  writer.writeField(txContext.contractDeploymentData.constructorVkHash);
-  writer.writeField(txContext.contractDeploymentData.contractAddressSalt);
-  writer.writeField(txContext.contractDeploymentData.functionTreeRoot);
-  writer.writeField(false);
-  writer.writeField(txContext.contractDeploymentData.portalContractAddress);
-
-  writer.writeField(oldRoots.contractTreeRoot);
-  writer.writeField(oldRoots.nullifierTreeRoot);
-
-  return witness;
+export function frToSelector(fr: Fr): Buffer {
+  return fr.toBuffer().slice(-4);
 }
 
 export class WitnessReader {

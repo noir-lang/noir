@@ -1,3 +1,3 @@
-export * from './fields.js';
+export * from './serialize.js';
 export * from './acvm.js';
-export * from './witness_io.js';
+export * from './deserialize.js';

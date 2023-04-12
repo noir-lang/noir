@@ -1,4 +1,5 @@
 import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
+import { FunctionAbi } from '@aztec/noir-contracts';
 
 export interface NoteLoadOracleInputs {
   preimage: Fr[];
@@ -9,6 +10,6 @@ export interface NoteLoadOracleInputs {
 export interface DBOracle {
   getSecretKey(contractAddress: AztecAddress, address: AztecAddress): Promise<Buffer>;
   getNotes(contractAddress: AztecAddress, storageSlot: Fr, count: number): Promise<NoteLoadOracleInputs[]>;
-  getBytecode(contractAddress: AztecAddress, functionSelector: Buffer): Promise<Buffer>;
+  getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 }

@@ -1,5 +1,11 @@
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-lang/aztec_backend_wasm';
-import { ACVMField, ACVMWitness } from './fields.js';
+
+export type ACVMField = `0x${string}`;
+export type ACVMWitness = Map<number, ACVMField>;
+
+export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(32)}`;
+export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(31)}01`;
 
 export interface ACIRCallback {
   getSecretKey(params: ACVMField[]): Promise<ACVMField[]>;
@@ -7,6 +13,7 @@ export interface ACIRCallback {
   getRandomField(): Promise<ACVMField[]>;
   notifyCreatedNote(params: ACVMField[]): Promise<ACVMField[]>;
   notifyNullifiedNote(params: ACVMField[]): Promise<ACVMField[]>;
+  privateFunctionCall(params: ACVMField[]): Promise<ACVMField[]>;
 }
 
 export interface ACIRExecutionResult {
@@ -27,3 +34,36 @@ export const acvm: execute = async (acir, initialWitness, callback) => {
   );
   return Promise.resolve({ partialWitness });
 };
+
+function adaptBufferSize(originalBuf: Buffer) {
+  const buffer = Buffer.alloc(32);
+  if (originalBuf.length > buffer.length) {
+    throw new Error('Buffer does not fit in 32 bytes');
+  }
+  originalBuf.copy(buffer, buffer.length - originalBuf.length);
+  return buffer;
+}
+
+export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number): ACVMField {
+  if (typeof value === 'boolean') {
+    return value ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
+  }
+
+  let buffer;
+
+  if (Buffer.isBuffer(value)) {
+    buffer = value;
+  } else if (typeof value === 'number') {
+    buffer = Buffer.alloc(32);
+    buffer.writeUInt32BE(value, 28);
+  } else {
+    buffer = value.toBuffer();
+  }
+
+  return `0x${adaptBufferSize(buffer).toString('hex')}`;
+}
+
+export function fromACVMField(field: `0x${string}`): Fr {
+  const buffer = Buffer.from(field.slice(2), 'hex');
+  return Fr.fromBuffer(buffer);
+}
