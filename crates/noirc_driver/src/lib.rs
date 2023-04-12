@@ -205,6 +205,9 @@ impl Driver {
         let functions = try_btree_map(&contract.functions, |function_id| {
             let function_name = self.function_name(*function_id).to_owned();
             let function = self.compile_no_check(options, *function_id)?;
+            if function_name == String::from("transfer") {
+                dbg!(&function.circuit);
+            }
             let func_meta = self.context.def_interner.function_meta(function_id);
             let func_type = func_meta
                 .contract_function_type
