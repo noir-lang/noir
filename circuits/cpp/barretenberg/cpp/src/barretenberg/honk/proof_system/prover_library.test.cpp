@@ -13,7 +13,6 @@
 using namespace proof_system::honk;
 namespace prover_library_tests {
 
-// field is named Fscalar here because of clash with the Fr
 template <class FF> class ProverLibraryTests : public testing::Test {
 
     using Polynomial = barretenberg::Polynomial<FF>;
@@ -206,8 +205,8 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         //                                   ∏(s_k + βs_{k+1} + γ(1 + β))
         //
         // in a way that is simple to read (but inefficient). See prover library method for more details.
-        const Fr eta_sqr = eta.sqr();
-        const Fr eta_cube = eta_sqr * eta;
+        const FF eta_sqr = eta.sqr();
+        const FF eta_cube = eta_sqr * eta;
 
         std::array<Polynomial, 4> accumulators;
         for (size_t i = 0; i < 4; ++i) {
@@ -219,12 +218,12 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // Note: block_mask is used for efficient modulus, i.e. i % N := i & (N-1), for N = 2^k
         const size_t block_mask = circuit_size - 1;
         // Initialize 't(X)' to be used in an expression of the form t(X) + β*t(Xω)
-        Fr table_i = tables[0][0] + tables[1][0] * eta + tables[2][0] * eta_sqr + tables[3][0] * eta_cube;
+        FF table_i = tables[0][0] + tables[1][0] * eta + tables[2][0] * eta_sqr + tables[3][0] * eta_cube;
         for (size_t i = 0; i < circuit_size; ++i) {
             size_t shift_idx = (i + 1) & block_mask;
 
             // f = (w_1 + q_2*w_1(Xω)) + η(w_2 + q_m*w_2(Xω)) + η²(w_3 + q_c*w_3(Xω)) + η³q_index.
-            Fr f_i = (wires[0][i] + wires[0][shift_idx] * column_1_step_size[i]) +
+            FF f_i = (wires[0][i] + wires[0][shift_idx] * column_1_step_size[i]) +
                      (wires[1][i] + wires[1][shift_idx] * column_2_step_size[i]) * eta +
                      (wires[2][i] + wires[2][shift_idx] * column_3_step_size[i]) * eta_sqr +
                      eta_cube * lookup_index_selector[i];
@@ -233,17 +232,17 @@ template <class FF> class ProverLibraryTests : public testing::Test {
             accumulators[0][i] = lookup_selector[i] * f_i + gamma;
 
             // t = t_1 + ηt_2 + η²t_3 + η³t_4
-            Fr table_i_plus_1 = tables[0][shift_idx] + eta * tables[1][shift_idx] + eta_sqr * tables[2][shift_idx] +
+            FF table_i_plus_1 = tables[0][shift_idx] + eta * tables[1][shift_idx] + eta_sqr * tables[2][shift_idx] +
                                 eta_cube * tables[3][shift_idx];
 
             // t + βt(Xω) + γ(1 + β)
-            accumulators[1][i] = table_i + table_i_plus_1 * beta + gamma * (Fr::one() + beta);
+            accumulators[1][i] = table_i + table_i_plus_1 * beta + gamma * (FF::one() + beta);
 
             // (1 + β)
-            accumulators[2][i] = Fr::one() + beta;
+            accumulators[2][i] = FF::one() + beta;
 
             // s + βs(Xω) + γ(1 + β)
-            accumulators[3][i] = s_lagrange[i] + beta * s_lagrange[shift_idx] + gamma * (Fr::one() + beta);
+            accumulators[3][i] = s_lagrange[i] + beta * s_lagrange[shift_idx] + gamma * (FF::one() + beta);
 
             // Set t(X_i) for next iteration
             table_i = table_i_plus_1;
@@ -303,8 +302,8 @@ template <class FF> class ProverLibraryTests : public testing::Test {
             prover_library::compute_sorted_list_accumulator(proving_key, sorted_list_polynomials, eta);
 
         // Method 2: Compute local sorted list accumulator simply and inefficiently
-        const Fr eta_sqr = eta.sqr();
-        const Fr eta_cube = eta_sqr * eta;
+        const FF eta_sqr = eta.sqr();
+        const FF eta_cube = eta_sqr * eta;
 
         // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
         Polynomial sorted_list_accumulator_expected{ sorted_list_polynomials[0] };

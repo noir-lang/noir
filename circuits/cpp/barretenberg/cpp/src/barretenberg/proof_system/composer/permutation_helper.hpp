@@ -508,4 +508,25 @@ void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circ
     compute_monomial_and_coset_fft_polynomials_from_lagrange<program_width>("id", key);
 }
 
+/**
+ * @brief Compute generalized permutation sigmas and ids for ultra plonk
+ *
+ * @tparam program_width
+ * @tparam CircuitConstructor
+ * @param circuit_constructor
+ * @param key
+ * @return std::array<std::vector<permutation_subgroup_element>, program_width>
+ */
+// TODO(luke): Consider consolidation of the various "compute sigma permutations" methods which overlap considerably
+template <size_t program_width, typename CircuitConstructor>
+void compute_honk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor, plonk::proving_key* key)
+{
+    auto mapping = compute_permutation_mapping<program_width, true>(circuit_constructor, key);
+
+    // Compute Plonk-style sigma and ID polynomials from the corresponding mappings
+    // TODO(luke): Change these to Honk style! (The only difference is we don't need any fancy coset logic).
+    compute_plonk_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
+    compute_plonk_permutation_lagrange_polynomials_from_mapping("id", mapping.ids, key);
+}
+
 } // namespace proof_system

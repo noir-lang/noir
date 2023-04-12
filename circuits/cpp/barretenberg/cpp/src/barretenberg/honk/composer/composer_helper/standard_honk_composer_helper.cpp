@@ -165,6 +165,7 @@ StandardProver StandardHonkComposerHelper<CircuitConstructor>::create_prover(
     compute_witness(circuit_constructor);
 
     size_t num_sumcheck_rounds(circuit_proving_key->log_circuit_size);
+    // TODO(luke): what is this manifest? Remove?
     auto manifest = Flavor::create_manifest(circuit_constructor.public_inputs.size(), num_sumcheck_rounds);
     StandardProver output_state(std::move(wire_polynomials), circuit_proving_key);
 
