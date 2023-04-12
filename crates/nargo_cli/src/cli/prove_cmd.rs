@@ -72,7 +72,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         None => {
             let compiled_program =
                 compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
-            preprocess_program(&backend, compiled_program)
+            preprocess_program(&backend, compiled_program)?
         }
     };
 
