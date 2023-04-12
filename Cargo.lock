@@ -16,18 +16,6 @@ dependencies = [
 
 [[package]]
 name = "acir"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f764b474e341efc3e8ee3d5054840b2fd2ac002f764fc2f4cd3569ce76badd1"
-dependencies = [
- "acir_field 0.8.0",
- "flate2",
- "rmp-serde",
- "serde",
-]
-
-[[package]]
-name = "acir"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "018148d69bf14422b1c1d62909a241af2a7f51fec064feb2b01de88fb02b11b8"
@@ -52,20 +40,6 @@ dependencies = [
  "hex",
  "num-bigint",
  "num-traits",
- "serde",
-]
-
-[[package]]
-name = "acir_field"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbca7df5192c7823d4108d2c34cadcfd30dca94506b9e9861f85f0ea747ddedc"
-dependencies = [
- "ark-bn254 0.4.0",
- "ark-ff 0.4.1",
- "cfg-if 1.0.0",
- "hex",
- "num-bigint",
  "serde",
 ]
 
@@ -104,24 +78,6 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92d5df175b6923bf9bb05ba973b017b0fa1356066be8f0ebadd3d2dbbc48bd5b"
-dependencies = [
- "acir 0.8.0",
- "acvm_stdlib 0.8.0",
- "blake2",
- "crc32fast",
- "indexmap",
- "k256",
- "num-bigint",
- "num-traits",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "acvm"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e17b7bc8f2b2215075b8e080ba3a0b8b7d759f04bc44b27e5bb8d845f4c77f20"
@@ -146,15 +102,6 @@ checksum = "b4f5ef183f4a10b4a257d25c3a37fd090b9e8fbb7dff0902329fb6606b524114"
 dependencies = [
  "acir 0.3.1",
  "acir_field 0.3.1",
-]
-
-[[package]]
-name = "acvm_stdlib"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa2bbc18fe9732ca3d93a2bf8f1a1ad99a003b565e7bc1ad5c67f69867449e8f"
-dependencies = [
- "acir 0.8.0",
 ]
 
 [[package]]
@@ -2239,7 +2186,7 @@ dependencies = [
 name = "nargo_cli"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "assert_cmd",
  "assert_fs",
  "barretenberg_static_lib",
@@ -2272,7 +2219,7 @@ dependencies = [
 name = "noir_wasm"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "build-data",
  "console_error_panic_hook",
  "gloo-utils",
@@ -2288,7 +2235,7 @@ dependencies = [
 name = "noirc_abi"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "iter-extended",
  "serde",
  "serde_json",
@@ -2300,7 +2247,7 @@ dependencies = [
 name = "noirc_driver"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "clap",
  "fm",
  "iter-extended",
@@ -2326,7 +2273,7 @@ dependencies = [
 name = "noirc_evaluator"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "arena",
  "iter-extended",
  "noirc_abi",
@@ -2342,7 +2289,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.3.2"
 dependencies = [
- "acvm 0.8.0",
+ "acvm 0.9.0",
  "arena",
  "chumsky",
  "fm",
