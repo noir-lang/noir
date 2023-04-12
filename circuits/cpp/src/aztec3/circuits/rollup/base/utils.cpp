@@ -89,17 +89,35 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
     return baseRollupInputs;
 }
 
-NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(size_t spacing = 5)
+/**
+ * @brief Get initial nullifier tree object
+ *
+ * @param initial_values values to pre-populate the tree
+ * @return NullifierMemoryTreeTestingHarness
+ */
+NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(std::vector<fr> initial_values)
 {
-    // Create a nullifier tree with 8 nullifiers, this padding is required so that the default 0 value in an indexed
-    // merkle tree does not affect our tests Nullifier tree at the start
     NullifierMemoryTreeTestingHarness nullifier_tree = NullifierMemoryTreeTestingHarness(NULLIFIER_TREE_HEIGHT);
-    // Start from 1 as 0 is always inserted
-    for (size_t i = 1; i < 8; ++i) {
-        // insert 5, 10, 15, 20 ...
-        nullifier_tree.update_element(i * spacing);
+    for (size_t i = 0; i < initial_values.size(); ++i) {
+        nullifier_tree.append_value(initial_values[i]);
     }
     return nullifier_tree;
+}
+
+/**
+ * @brief An extension of `get_initial_nullifier_tree` that will populate with linearly spaced values
+ *
+ * @param spacing
+ * @return NullifierMemoryTreeTestingHarness
+ */
+NullifierMemoryTreeTestingHarness get_initial_nullifier_tree_lin_space(size_t spacing = 5, size_t start = 0)
+{
+    std::vector<fr> nullifiers;
+    for (size_t i = 1; i < 8; ++i) {
+        // insert 5, 10, 15, 20 ...
+        nullifiers.push_back(start + (i * spacing));
+    }
+    return get_initial_nullifier_tree(nullifiers);
 }
 
 std::tuple<BaseRollupInputs<NT>, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>>
@@ -113,22 +131,43 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> inputs,
         auto insertion_val = (starting_insertion_value + i * spacing);
         nullifiers[i] = fr(insertion_val);
     }
-    return generate_nullifier_tree_testing_values(inputs, nullifiers, spacing);
+
+    // Generate initial values lin spaved
+    std::vector<fr> initial_values;
+    for (size_t i = 1; i < 8; ++i) {
+        initial_values.push_back(i * spacing);
+    }
+
+    return generate_nullifier_tree_testing_values(inputs, nullifiers, initial_values);
+}
+
+std::tuple<BaseRollupInputs<NT>, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>>
+generate_nullifier_tree_testing_values(BaseRollupInputs<NT> inputs,
+                                       std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers,
+                                       size_t spacing = 5)
+{
+    // Generate initial values lin spaced
+    std::vector<fr> initial_values;
+    for (size_t i = 1; i < 8; ++i) {
+        initial_values.push_back(i * spacing);
+    }
+
+    return generate_nullifier_tree_testing_values(inputs, new_nullifiers, initial_values);
 }
 
 std::tuple<BaseRollupInputs<NT>, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>>
 generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
                                        std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers,
-                                       size_t spacing_prefill = 1)
+                                       std::vector<fr> initial_values)
 {
+    size_t start_tree_size = initial_values.size() + 1;
     // Generate nullifier tree testing values
-
-    NullifierMemoryTreeTestingHarness nullifier_tree = get_initial_nullifier_tree(spacing_prefill);
-    NullifierMemoryTreeTestingHarness parallel_insertion_tree = get_initial_nullifier_tree(spacing_prefill);
+    NullifierMemoryTreeTestingHarness nullifier_tree = get_initial_nullifier_tree(initial_values);
+    NullifierMemoryTreeTestingHarness reference_tree = get_initial_nullifier_tree(initial_values);
 
     AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = {
         .root = nullifier_tree.root(),
-        .next_available_leaf_index = uint32_t(8),
+        .next_available_leaf_index = uint32_t(start_tree_size),
     };
 
     const size_t NUMBER_OF_NULLIFIERS = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
@@ -140,7 +179,6 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
     // Calculate the predecessor nullifier pre-images
     // Get insertion values
     std::vector<fr> insertion_values;
-    std::vector<fr> insertion_locations;
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_kernel_1;
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_kernel_2;
 
@@ -151,13 +189,13 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
         } else {
             new_nullifiers_kernel_2[i - KERNEL_NEW_NULLIFIERS_LENGTH] = insertion_val;
         }
-        insertion_locations.push_back(NUMBER_OF_NULLIFIERS + i);
         insertion_values.push_back(insertion_val);
-        parallel_insertion_tree.update_element(insertion_val);
+        reference_tree.append_value(insertion_val);
+        auto hashes = reference_tree.get_hashes();
     }
 
     // Get the hash paths etc from the insertion values
-    auto witnesses_and_preimages = nullifier_tree.circuit_prep_batch_insert(insertion_values, insertion_locations);
+    auto witnesses_and_preimages = nullifier_tree.circuit_prep_batch_insert(insertion_values);
 
     auto new_nullifier_leaves_preimages = std::get<0>(witnesses_and_preimages);
     auto new_nullifier_leaves_sibling_paths = std::get<1>(witnesses_and_preimages);
@@ -188,17 +226,16 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
     }
 
     // Get expected root with subtrees inserted correctly
-    fr end_root = parallel_insertion_tree.root();
-
     // Expected end state
     AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = {
-        .root = end_root,
-        .next_available_leaf_index = 16,
+        .root = reference_tree.root(),
+        .next_available_leaf_index = uint32_t(reference_tree.size()),
     };
 
     // Get the sibling path, we should be able to use the same path to get to the end root
-    std::vector<fr> sibling_path = parallel_insertion_tree.get_sibling_path(8);
+    std::vector<fr> sibling_path = reference_tree.get_sibling_path(start_tree_size);
     std::array<fr, NULLIFIER_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_array;
+
     // Chop the first 3 levels from the sibling_path
     sibling_path.erase(sibling_path.begin(), sibling_path.begin() + NULLIFIER_SUBTREE_DEPTH);
     std::copy(sibling_path.begin(), sibling_path.end(), sibling_path_array.begin());

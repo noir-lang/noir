@@ -29,6 +29,16 @@ option(DISABLE_TBB "Intel Thread Building Blocks" ON)
 option(COVERAGE "Enable collecting coverage from tests" OFF)
 option(ENABLE_HEAVY_TESTS "Enable heavy tests when collecting coverage" OFF)
 
+# NOTE: investigate issue:
+# https://github.com/AztecProtocol/aztec3-circuits/issues/236
+option(USE_TURBO "Enable the use of TurboPlonk in barretenberg." OFF)
+if(USE_TURBO)
+    message(STATUS "Building barretenberg for TurboPlonk Composer.")
+    add_definitions(-DUSE_TURBO)
+else()
+    message(STATUS "Building barretenberg for UltraPlonk Composer.")
+endif()
+
 if(ENABLE_ASAN)
     add_compile_options(-fsanitize=address)
     add_link_options(-fsanitize=address)

@@ -1,8 +1,3 @@
-// #include <barretenberg/common/serialize.hpp>
-// #include <barretenberg/stdlib/types/types.hpp>
-// #include <aztec3/oracle/oracle.hpp>
-// #include <aztec3/circuits/apps/oracle_wrapper.hpp>
-// #include <barretenberg/numeric/random/engine.hpp>
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
@@ -36,12 +31,9 @@
 #include <aztec3/circuits/abis/private_kernel/constant_data.hpp>
 #include <aztec3/circuits/abis/private_kernel/old_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
-// #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-// #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 
-// #include <aztec3/circuits/mock/mock_circuit.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
 #include <barretenberg/common/map.hpp>
@@ -469,12 +461,60 @@ TEST_F(base_rollup_tests, new_nullifier_tree_sparse)
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
 }
 
+TEST_F(base_rollup_tests, nullifier_tree_regression)
+{
+    // Regression test caught when testing the typescript nullifier tree implementation
+    DummyComposer composer = DummyComposer();
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+
+    // This test runs after some data has already been inserted into the tree
+    // This test will pre-populate the tree with 24 values (0 item + 23 more) simulating that a rollup inserting two
+    // random values has already succeeded. This rollup then adds two further random values that will end up having
+    // their low nullifiers point at each other
+    std::vector<fr> initial_values(23, 0);
+    for (size_t i = 0; i < 7; i++) {
+        initial_values[i] = i + 1;
+    }
+    // Note these are hex representations
+    initial_values[7] = uint256_t("2bb9aa4a22a6ae7204f2c67abaab59cead6558cde4ee25ce3464704cb2e38136");
+    initial_values[8] = uint256_t("16a732095298ccca828c4d747813f8bd46e188079ed17904e2c9de50760833c8");
+
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> new_nullifiers = { 0 };
+    new_nullifiers[0] = uint256_t("16da4f27fb78de7e0db4c5a04b569bc46382c5f471da2f7d670beff1614e0118"),
+    new_nullifiers[1] = uint256_t("26ab07ce103a55e29f11478eaa36cebd10c4834b143a7debcc7ef53bfdb547dd");
+
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, new_nullifiers, initial_values);
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = std::get<1>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = std::get<2>(inputs_and_snapshots);
+
+    /**
+     * RUN
+     */
+
+    // Run the circuit
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, testing_inputs);
+
+    /**
+     * ASSERT
+     */
+    // Start state
+    ASSERT_EQ(outputs.start_nullifier_tree_snapshot, nullifier_tree_start_snapshot);
+
+    // End state
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
+}
+
+// Note leaving this test here as there are no negative tests, even though it no longer passes
 TEST_F(base_rollup_tests, new_nullifier_tree_sparse_attack)
 {
     // @todo THIS SHOULD NOT BE PASSING. The circuit should fail with an assert as we are trying to double-spend.
     /**
      * DESCRIPTION
      */
+
     DummyComposer composer = DummyComposer();
     BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
 
@@ -486,9 +526,9 @@ TEST_F(base_rollup_tests, new_nullifier_tree_sparse_attack)
     // Run the circuit (SHOULD FAIL WITH AN ASSERT INSTEAD OF THIS!)
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, testing_inputs);
-}
 
-// TEST_F(base_rollup_tests, new_commitments_tree) {}
+    EXPECT_EQ(composer.has_failed(), true);
+}
 
 TEST_F(base_rollup_tests, empty_block_calldata_hash)
 {

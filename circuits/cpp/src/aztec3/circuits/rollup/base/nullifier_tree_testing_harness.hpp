@@ -28,13 +28,19 @@ class NullifierMemoryTreeTestingHarness : public proof_system::plonk::stdlib::me
     // Get the value immediately lower than the given value
     std::pair<nullifier_leaf, size_t> find_lower(fr const& value);
 
+    // Append a value to the tree, even zeros
+    fr append_value(fr const& value);
+
     // Utilities to inspect tree
-    fr size() const { return total_size_; }
+    fr total_size() const { return total_size_; }
     fr depth() const { return depth_; }
+
+    // Current size of the tree
+    fr size() { return leaves_.size(); }
 
     // Get all of the sibling paths and low nullifier values required to craft an non membership / inclusion proofs
     std::tuple<std::vector<nullifier_leaf>, std::vector<std::vector<fr>>, std::vector<uint32_t>>
-    circuit_prep_batch_insert(std::vector<fr> const& values, std::vector<fr> const& insertion_locations);
+    circuit_prep_batch_insert(std::vector<fr> const& values);
 
   protected:
     using MemoryTree::depth_;

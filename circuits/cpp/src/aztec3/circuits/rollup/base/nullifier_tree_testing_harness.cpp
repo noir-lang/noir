@@ -1,6 +1,7 @@
 #include "nullifier_tree_testing_harness.hpp"
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_memory_tree.hpp>
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp>
+#include <cstdint>
 #include <tuple>
 
 using NullifierMemoryTree = proof_system::plonk::stdlib::merkle_tree::NullifierMemoryTree;
@@ -10,13 +11,74 @@ NullifierMemoryTreeTestingHarness::NullifierMemoryTreeTestingHarness(size_t dept
     : NullifierMemoryTree(depth)
 {}
 
+// Check for a larger value in an array
+bool check_has_lesser_value(std::vector<fr> const& values, fr const& value)
+{
+    // Must perform comparisons on integers
+    uint256_t value_as_uint = uint256_t(value);
+    for (auto const& v : values) {
+        if (uint256_t(v) < value_as_uint) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// TODO: test
+fr NullifierMemoryTreeTestingHarness::append_value(fr const& value)
+{
+    // If the value is 0, then we force insert the value to increase the size of the tree
+    // TODO: this is a hack
+    if (value == 0) {
+        nullifier_leaf new_leaf = { .value = 0, .nextIndex = 0, .nextValue = 0 };
+        auto new_leaf_hash = new_leaf.hash();
+        leaves_.push_back(new_leaf);
+        size_t new_leaf_index = leaves_.size() - 1;
+        auto root = update_element(new_leaf_index, new_leaf_hash);
+        return root;
+    }
+
+    // Find the leaf with the value closest and less than `value`
+    size_t current;
+    bool is_already_present;
+    std::tie(current, is_already_present) = find_closest_leaf(leaves_, value);
+
+    nullifier_leaf new_leaf = { .value = value,
+                                .nextIndex = leaves_[current].nextIndex,
+                                .nextValue = leaves_[current].nextValue };
+    if (!is_already_present) {
+        // Update the current leaf to point it to the new leaf
+        leaves_[current].nextIndex = leaves_.size();
+        leaves_[current].nextValue = value;
+
+        // Insert the new leaf with (nextIndex, nextValue) of the current leaf
+        leaves_.push_back(new_leaf);
+    }
+
+    // Update the old leaf in the tree
+    auto old_leaf_hash = leaves_[current].hash();
+    size_t old_leaf_index = current;
+    auto root = update_element(old_leaf_index, old_leaf_hash);
+
+    // Insert the new leaf in the tree
+    auto new_leaf_hash = new_leaf.hash();
+
+    size_t new_leaf_index = is_already_present ? old_leaf_index : leaves_.size() - 1;
+    root = update_element(new_leaf_index, new_leaf_hash);
+
+    return root;
+}
+
 // handle synthetic membership assertions
 std::tuple<std::vector<nullifier_leaf>, std::vector<std::vector<fr>>, std::vector<uint32_t>>
-NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> const& values,
-                                                             std::vector<fr> const& insertion_locations)
+NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> const& values)
 {
+    // Start insertion index
+    fr start_insertion_index = this->size();
+
     // Low nullifiers
     std::vector<nullifier_leaf> low_nullifiers;
+    std::vector<nullifier_leaf> pending_insertion_tree;
 
     // Low nullifier sibling paths
     std::vector<std::vector<fr>> sibling_paths;
@@ -25,31 +87,76 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
     std::vector<uint32_t> low_nullifier_indexes;
 
     // Keep track of the currently touched nodes while updating
-    std::set<size_t> touched_nodes;
+    std::map<size_t, std::vector<fr>> touched_nodes;
+
+    // Keep track of 0 values
+    std::vector<fr> empty_sp(depth_, 0);
+    nullifier_leaf empty_leaf = { 0, 0, 0 };
+    uint32_t empty_index = 0;
 
     // Find the leaf with the value closest and less than `value` for each value
     for (size_t i = 0; i < values.size(); ++i) {
-        auto value = values[i];
-        auto insertion_index = uint256_t(insertion_locations[i]);
+        auto new_value = values[i];
+        auto insertion_index = start_insertion_index + i;
 
         size_t current;
         bool is_already_present;
+        std::tie(current, is_already_present) = find_closest_leaf(leaves_, new_value);
 
-        std::tie(current, is_already_present) = find_closest_leaf(leaves_, value);
+        // If the inserted value is 0, then we ignore and provide a dummy low nullifier
+        if (new_value == 0) {
+            sibling_paths.push_back(empty_sp);
+            low_nullifier_indexes.push_back(empty_index);
+            low_nullifiers.push_back(empty_leaf);
+        }
 
         // If the low_nullifier node has been touched this sub tree insertion, we provide a dummy sibling path
         // It will be up to the circuit to check if the included node is valid vs the other nodes that have been
         // inserted before it If it has not been touched, we provide a sibling path then update the nodes pointers
-        if (touched_nodes.contains(current)) {
-            std::vector<fr> sp(depth_, 0);
-            auto empty_leaf = nullifier_leaf{ 0, 0, 0 };
+        auto prev_nodes = touched_nodes.find(current);
+
+        bool has_lesser_value = false;
+        if (prev_nodes != touched_nodes.end()) {
+            has_lesser_value = check_has_lesser_value(prev_nodes->second, new_value);
+        }
+        // If there is a lower value in the tree, we need to check the current low nullifiers for one that can be used
+        // if (current == 0 || has_lesser_value) {
+        if (has_lesser_value) {
+
+            for (size_t j = 0; j < pending_insertion_tree.size(); ++j) {
+                // Skip checking empty values
+                if (pending_insertion_tree[j].value == 0) {
+                    continue;
+                }
+
+                if (pending_insertion_tree[j].value < new_value &&
+                    (pending_insertion_tree[j].nextValue > new_value || pending_insertion_tree[j].nextValue == 0)) {
+                    // Add a new pending low nullifier for this value
+                    nullifier_leaf new_leaf = { .value = new_value,
+                                                .nextIndex = pending_insertion_tree[j].nextIndex,
+                                                .nextValue = pending_insertion_tree[j].nextValue };
+                    pending_insertion_tree.push_back(new_leaf);
+
+                    // Update the pending low nullifier to point at the new value
+                    pending_insertion_tree[j].nextIndex = insertion_index;
+                    pending_insertion_tree[j].nextValue = new_value;
+
+                    break;
+                }
+            }
 
             // empty low nullifier
-            sibling_paths.push_back(sp);
-            low_nullifier_indexes.push_back(0);
+            sibling_paths.push_back(empty_sp);
+            low_nullifier_indexes.push_back(empty_index);
             low_nullifiers.push_back(empty_leaf);
         } else {
-            touched_nodes.insert(current);
+            // Update the touched mapping
+            if (prev_nodes == touched_nodes.end()) {
+                std::vector<fr> new_touched_values = { new_value };
+                touched_nodes[current] = new_touched_values;
+            } else {
+                prev_nodes->second.push_back(new_value);
+            }
 
             nullifier_leaf low_nullifier = leaves_[current];
             std::vector<fr> sibling_path = this->get_sibling_path(current);
@@ -61,7 +168,7 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
             // Update the current low nullifier
             nullifier_leaf new_leaf = { .value = low_nullifier.value,
                                         .nextIndex = insertion_index,
-                                        .nextValue = value };
+                                        .nextValue = new_value };
 
             // Update the old leaf in the tree
             update_element(current, new_leaf.hash());

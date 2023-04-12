@@ -1,8 +1,3 @@
-// #include <barretenberg/common/serialize.hpp>
-// #include <barretenberg/stdlib/types/types.hpp>
-// #include <aztec3/oracle/oracle.hpp>
-// #include <aztec3/circuits/apps/oracle_wrapper.hpp>
-// #include <barretenberg/numeric/random/engine.hpp>
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
@@ -39,12 +34,9 @@
 #include <aztec3/circuits/abis/private_kernel/constant_data.hpp>
 #include <aztec3/circuits/abis/private_kernel/old_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
-// #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-// #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
 
-// #include <aztec3/circuits/mock/mock_circuit.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
 #include <barretenberg/common/map.hpp>
@@ -54,10 +46,6 @@
 #include <iostream>
 #include <memory>
 #include <vector>
-
-// #include <aztec3/constants.hpp>
-// #include <barretenberg/crypto/pedersen/pedersen.hpp>
-// #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 
 namespace {
 

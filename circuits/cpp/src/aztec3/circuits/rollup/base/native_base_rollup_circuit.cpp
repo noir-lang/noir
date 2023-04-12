@@ -273,7 +273,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     // 2. If we receive the 0 nullifier leaf (where all values are 0, we skip insertion and leave a sparse subtree)
 
     // New nullifier subtree
-    std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_leaves;
+    std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_insertion_subtree;
 
     // This will update on each iteration
     auto current_nullifier_tree_root = baseRollupInputs.start_nullifier_tree_snapshot.root;
@@ -291,6 +291,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
 
             // Witness containing index and path
             auto nullifier_index = 4 * i + j;
+
             auto witness = baseRollupInputs.low_nullifier_membership_witness[nullifier_index];
             // Preimage of the lo-index required for a non-membership proof
             auto low_nullifier_preimage = baseRollupInputs.low_nullifier_leaf_preimages[nullifier_index];
@@ -313,13 +314,19 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     // TODO: this is a hack, and insecure, we need to fix this
                     bool matched = false;
                     for (size_t k = 0; k < nullifier_index; k++) {
-                        if ((uint256_t(nullifier_leaves[k].nextValue) > uint256_t(nullifier) &&
-                             uint256_t(nullifier_leaves[k].value) < uint256_t(nullifier)) ||
-                            (nullifier_leaves[k].nextValue == 0 && nullifier_leaves[k].nextIndex == 0)) {
+                        if ((uint256_t(nullifier_insertion_subtree[k].nextValue) > uint256_t(nullifier) &&
+                             uint256_t(nullifier_insertion_subtree[k].value) < uint256_t(nullifier)) ||
+                            (nullifier_insertion_subtree[k].nextValue == 0 &&
+                             nullifier_insertion_subtree[k].nextIndex == 0)) {
 
                             matched = true;
-                            nullifier_leaves[k].nextIndex = new_index;
-                            nullifier_leaves[k].nextValue = nullifier;
+                            // Update pointers
+                            new_nullifier_leaf.nextIndex = nullifier_insertion_subtree[k].nextIndex;
+                            new_nullifier_leaf.nextValue = nullifier_insertion_subtree[k].nextValue;
+
+                            // Update child
+                            nullifier_insertion_subtree[k].nextIndex = new_index;
+                            nullifier_insertion_subtree[k].nextValue = nullifier;
                         }
                     }
                     // if not matched, our subtree will misformed - we must reject
@@ -359,7 +366,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                         updated_low_nullifier.hash(), witness.leaf_index, witness.sibling_path);
                 }
 
-                nullifier_leaves[nullifier_index] = new_nullifier_leaf;
+                nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             } else {
                 // 0 case
                 NullifierLeaf new_nullifier_leaf = {
@@ -367,7 +374,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     .nextIndex = 0,
                     .nextValue = 0,
                 };
-                nullifier_leaves[nullifier_index] = new_nullifier_leaf;
+                nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             }
 
             // increment insertion index
@@ -377,7 +384,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
 
     // Create new nullifier subtree to insert into the whole nullifier tree
     auto nullifier_sibling_path = baseRollupInputs.new_nullifiers_subtree_sibling_path;
-    auto nullifier_subtree_root = create_nullifier_subtree(nullifier_leaves);
+    auto nullifier_subtree_root = create_nullifier_subtree(nullifier_insertion_subtree);
 
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
