@@ -1,9 +1,8 @@
 import {
   AggregationObject,
-  BaseRollupInputs,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   MergeRollupInputs,
-  MergeRollupPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   UInt8Vector,
@@ -20,7 +19,10 @@ export class EmptyProver implements Prover {
     publicInputs.endAggregationObject = AggregationObject.makeFake();
     return new UInt8Vector(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
-  async getMergeRollupProof(input: MergeRollupInputs, publicInputs: MergeRollupPublicInputs): Promise<UInt8Vector> {
+  async getMergeRollupProof(
+    input: MergeRollupInputs,
+    publicInputs: BaseOrMergeRollupPublicInputs,
+  ): Promise<UInt8Vector> {
     publicInputs.endAggregationObject = AggregationObject.makeFake();
     return new UInt8Vector(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }

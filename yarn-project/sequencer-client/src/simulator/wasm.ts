@@ -1,10 +1,9 @@
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { RollupWasmWrapper } from '@aztec/circuits.js';
 import {
-  BaseRollupInputs,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
+  CircuitsWasm,
   MergeRollupInputs,
-  MergeRollupPublicInputs,
+  RollupWasmWrapper,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -24,8 +23,8 @@ export class WasmCircuitSimulator implements Simulator {
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     return this.rollupWasmWrapper.simulateBaseRollup(input);
   }
-  mergeRollupCircuit(_input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {
-    throw new Error('Method not implemented.');
+  mergeRollupCircuit(input: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
+    return this.rollupWasmWrapper.simulateMergeRollup(input);
   }
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs> {
     return this.rollupWasmWrapper.simulateRootRollup(input);

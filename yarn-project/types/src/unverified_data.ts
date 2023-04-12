@@ -19,6 +19,15 @@ export class UnverifiedData {
     return serializedBuffer;
   }
 
+  /**
+   * Creates a new UnverifiedData object by concatenating multiple ones.
+   * @param datas - The individual data objects to concatenate.
+   * @returns A new UnverifiedData object whose chunks are the concatenation of the chunks.
+   */
+  public static join(datas: UnverifiedData[]): UnverifiedData {
+    return new UnverifiedData(datas.flatMap(chunk => chunk.dataChunks));
+  }
+
   public static fromBuffer(buf: Buffer): UnverifiedData {
     let currIndex = 0;
     const chunks: Buffer[] = [];

@@ -1,6 +1,7 @@
 import { AztecAddress, EthAddress, Fq, Fr } from '@aztec/foundation';
 import {
   CallContext,
+  MergeRollupInputs,
   PreviousRollupData,
   PrivateCircuitPublicInputs,
   RootRollupInputs,
@@ -313,6 +314,10 @@ export function makeRootRollupPublicInputs(seed = 0) {
     endAggregationObject: makeAggregationObject(seed + 0x1100),
     calldataHash: [new Fr(0n), new Fr(0n)],
   });
+}
+
+export function makeMergeRollupInputs(seed = 0) {
+  return new MergeRollupInputs([makePreviousBaseRollupData(seed), makePreviousBaseRollupData(seed + 0x1000)]);
 }
 
 export function makeBaseRollupInputs(seed = 0) {

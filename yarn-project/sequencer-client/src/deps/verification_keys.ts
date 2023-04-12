@@ -12,6 +12,10 @@ export interface VerificationKeys {
    * Verification key for the default base rollup circuit
    */
   baseRollupCircuit: VerificationKey;
+  /**
+   * Verification key for the default merge rollup circuit
+   */
+  mergeRollupCircuit: VerificationKey;
 }
 
 /**
@@ -22,5 +26,6 @@ export function getVerificationKeys(): VerificationKeys {
   return {
     kernelCircuit: VerificationKey.makeFake(),
     baseRollupCircuit: VerificationKey.makeFake(),
+    mergeRollupCircuit: VerificationKey.makeFake(),
   };
 }

@@ -1,4 +1,10 @@
-import { BaseRollupInputs, BaseOrMergeRollupPublicInputs, RootRollupInputs, RootRollupPublicInputs } from '../index.js';
+import {
+  BaseRollupInputs,
+  BaseOrMergeRollupPublicInputs,
+  RootRollupInputs,
+  RootRollupPublicInputs,
+  MergeRollupInputs,
+} from '../index.js';
 import { uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 
@@ -7,6 +13,10 @@ export class RollupWasmWrapper {
 
   public simulateBaseRollup(baseRollupInputs: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     return this.callWasm('base_rollup__sim', baseRollupInputs, BaseOrMergeRollupPublicInputs);
+  }
+
+  public simulateMergeRollup(mergeRollupInputs: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
+    return this.callWasm('merge_rollup__sim', mergeRollupInputs, BaseOrMergeRollupPublicInputs);
   }
 
   public simulateRootRollup(rootRollupInputs: RootRollupInputs): Promise<RootRollupPublicInputs> {

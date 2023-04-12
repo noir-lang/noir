@@ -1,8 +1,7 @@
 import {
-  BaseRollupInputs,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   MergeRollupInputs,
-  MergeRollupPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   UInt8Vector,
@@ -11,6 +10,6 @@ import {
 export type Proof = UInt8Vector;
 export interface Prover {
   getBaseRollupProof(input: BaseRollupInputs, publicInputs: BaseOrMergeRollupPublicInputs): Promise<Proof>;
-  getMergeRollupProof(input: MergeRollupInputs, publicInputs: MergeRollupPublicInputs): Promise<Proof>;
+  getMergeRollupProof(input: MergeRollupInputs, publicInputs: BaseOrMergeRollupPublicInputs): Promise<Proof>;
   getRootRollupProof(input: RootRollupInputs, publicInputs: RootRollupPublicInputs): Promise<Proof>;
 }

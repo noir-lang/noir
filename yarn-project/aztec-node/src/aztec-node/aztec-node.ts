@@ -21,12 +21,12 @@ export const createMemDown = () => memdown();
  */
 export class AztecNode {
   constructor(
-    private p2pClient: P2P,
-    private blockSource: L2BlockSource,
-    private unverifiedDataSource: UnverifiedDataSource,
-    private merkleTreeDB: MerkleTrees,
-    private worldStateSynchroniser: WorldStateSynchroniser,
-    private sequencer: SequencerClient,
+    protected p2pClient: P2P,
+    protected blockSource: L2BlockSource,
+    protected unverifiedDataSource: UnverifiedDataSource,
+    protected merkleTreeDB: MerkleTrees,
+    protected worldStateSynchroniser: WorldStateSynchroniser,
+    protected sequencer: SequencerClient,
   ) {}
 
   /**

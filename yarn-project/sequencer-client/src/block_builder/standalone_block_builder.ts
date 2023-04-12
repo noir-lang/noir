@@ -5,33 +5,33 @@ import {
   KERNEL_NEW_NULLIFIERS_LENGTH,
   AppendOnlyTreeSnapshot,
   NewContractData,
+  CircuitsWasm,
+  makeEmptyProof,
 } from '@aztec/circuits.js';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { Tx } from '@aztec/types';
 import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
+import { BlockBuilder } from './index.js';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { Proof } from '../prover/index.js';
 
 const mapContractData = (n: NewContractData) => {
   const contractData = new ContractData(AztecAddress.fromBuffer(n.contractAddress.toBuffer()), n.portalContractAddress);
   return contractData;
 };
 
-export class StandaloneBlockBuilder {
+/**
+ * Builds an L2 block out of a tx by appending the commitments, nullifiers, and contracts to the trees.
+ * @deprecated Use CircuitBlockBuilder instead.
+ */
+export class StandaloneBlockBuilder implements BlockBuilder {
   private dataTreeLeaves: Buffer[] = [];
   private nullifierTreeLeaves: Buffer[] = [];
   private contractTreeLeaves: Buffer[] = [];
 
-  constructor(
-    private db: MerkleTreeOperations,
-    private nextBlockNum: number,
-    private tx: Tx,
-    private log = createDebugLogger('aztec:block_builder'),
-  ) {
-    this.dataTreeLeaves = tx.data.end.newCommitments.map((x: Fr) => x.toBuffer());
-    this.nullifierTreeLeaves = tx.data.end.newNullifiers.map((x: Fr) => x.toBuffer());
-    this.contractTreeLeaves = tx.data.end.newContracts.map((x: NewContractData) => x.functionTreeRoot.toBuffer());
-  }
+  constructor(private db: MerkleTreeOperations, private log = createDebugLogger('aztec:block_builder')) {}
 
-  public async buildL2Block() {
+  async buildL2Block(blockNumber: number, txs: Tx[]): Promise<[L2Block, Proof]> {
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.DATA_TREE);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
@@ -42,7 +42,11 @@ export class StandaloneBlockBuilder {
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
     );
 
-    await this.updateTrees();
+    for (const tx of txs) {
+      await this.updateTrees(tx);
+    }
+
+    await this.updateRootTrees();
 
     const endPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.DATA_TREE);
     const endNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
@@ -51,10 +55,9 @@ export class StandaloneBlockBuilder {
     const endTreeOfHistoricContractTreeRootsSnapshot = await this.getTreeSnapshot(
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
     );
-    this.log(`contract address ${this.tx.data.end.newContracts[0].contractAddress.toString()}`);
 
     const l2Block = L2Block.fromFields({
-      number: this.nextBlockNum,
+      number: blockNumber,
       startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -68,9 +71,9 @@ export class StandaloneBlockBuilder {
       newCommitments: this.dataTreeLeaves.map(b => Fr.fromBuffer(b)),
       newNullifiers: this.nullifierTreeLeaves.map(b => Fr.fromBuffer(b)),
       newContracts: this.contractTreeLeaves.map(b => Fr.fromBuffer(b)),
-      newContractData: this.tx.data.end.newContracts.map(mapContractData),
+      newContractData: txs.flatMap(tx => tx.data.end.newContracts.map(mapContractData)),
     });
-    return l2Block;
+    return [l2Block, makeEmptyProof()];
   }
 
   private async getTreeSnapshot(id: MerkleTreeId): Promise<AppendOnlyTreeSnapshot> {
@@ -78,16 +81,26 @@ export class StandaloneBlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  private async updateTrees() {
+  private async updateTrees(tx: Tx) {
+    const wasm = await CircuitsWasm.get();
+    const dataTreeLeaves = tx.data.end.newCommitments.map((x: Fr) => x.toBuffer());
+    const nullifierTreeLeaves = tx.data.end.newNullifiers.map((x: Fr) => x.toBuffer());
+    const contractTreeLeaves = tx.data.end.newContracts.map((x: NewContractData) =>
+      computeContractLeaf(wasm, x).toBuffer(),
+    );
+
     for (let i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; i++) {
-      await this.db.appendLeaves(MerkleTreeId.DATA_TREE, [this.dataTreeLeaves[i]]);
+      await this.db.appendLeaves(MerkleTreeId.DATA_TREE, [dataTreeLeaves[i]]);
     }
     for (let i = 0; i < KERNEL_NEW_NULLIFIERS_LENGTH; i++) {
-      await this.db.appendLeaves(MerkleTreeId.NULLIFIER_TREE, [this.nullifierTreeLeaves[i]]);
+      await this.db.appendLeaves(MerkleTreeId.NULLIFIER_TREE, [nullifierTreeLeaves[i]]);
     }
     for (let i = 0; i < KERNEL_NEW_CONTRACTS_LENGTH; i++) {
-      await this.db.appendLeaves(MerkleTreeId.CONTRACT_TREE, [this.contractTreeLeaves[i]]);
+      await this.db.appendLeaves(MerkleTreeId.CONTRACT_TREE, [contractTreeLeaves[i]]);
     }
+  }
+
+  private async updateRootTrees() {
     const newDataTreeInfo = await this.getTreeSnapshot(MerkleTreeId.DATA_TREE);
     const newContractsTreeInfo = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     await this.db.appendLeaves(MerkleTreeId.CONTRACT_TREE_ROOTS_TREE, [newContractsTreeInfo.root.toBuffer()]);

@@ -27,6 +27,7 @@ import { Simulator } from '../simulator/index.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
 import { CircuitBlockBuilder } from './circuit_block_builder.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import times from 'lodash.times';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
@@ -118,87 +119,99 @@ describe('sequencer/circuit_block_builder', () => {
     }
   };
 
-  it('builds an L2 block using mock simulator', async () => {
-    // Create instance to test
-    builder = new TestSubject(builderDb, vks, simulator, prover);
-    await builder.updateRootTrees();
+  describe('mock simulator', () => {
+    it('builds an L2 block using mock simulator', async () => {
+      // Create instance to test
+      builder = new TestSubject(builderDb, vks, simulator, prover);
+      await builder.updateRootTrees();
 
-    // Assemble a fake transaction, we'll tweak some fields below
-    const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof, makeEmptyUnverifiedData());
-    const txsLeft = [tx, makeEmptyTx()];
-    const txsRight = [makeEmptyTx(), makeEmptyTx()];
+      // Assemble a fake transaction, we'll tweak some fields below
+      const tx = new Tx(makePrivateKernelPublicInputs(), emptyProof, makeEmptyUnverifiedData());
+      const txsLeft = [tx, makeEmptyTx()];
+      const txsRight = [makeEmptyTx(), makeEmptyTx()];
 
-    // Set tree roots to proper values in the tx
-    await setTxOldTreeRoots(tx);
+      // Set tree roots to proper values in the tx
+      await setTxOldTreeRoots(tx);
 
-    // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
-    await updateExpectedTreesFromTxs(txsLeft);
-    baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      // Calculate what would be the tree roots after the txs from the first base rollup land and update mock circuit output
+      await updateExpectedTreesFromTxs(txsLeft);
+      baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+      baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+      baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
 
-    // Same for the two txs on the right
-    await updateExpectedTreesFromTxs(txsRight);
-    baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      // Same for the two txs on the right
+      await updateExpectedTreesFromTxs(txsRight);
+      baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+      baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+      baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
 
-    // And update the root trees now to create proper output to the root rollup circuit
-    await updateRootTrees();
-    rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
-    rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-    rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
-    rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
-      MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
-    );
-    rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot = await getTreeSnapshot(
-      MerkleTreeId.DATA_TREE_ROOTS_TREE,
-    );
+      // And update the root trees now to create proper output to the root rollup circuit
+      await updateRootTrees();
+      rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
+      rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
+      rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
+        MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
+      );
+      rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot = await getTreeSnapshot(
+        MerkleTreeId.DATA_TREE_ROOTS_TREE,
+      );
 
-    // Actually build a block!
-    const [l2Block, proof] = await builder.buildL2Block(blockNumber, tx);
+      // Actually build a block!
+      const txs = [tx, makeEmptyTx(), makeEmptyTx(), makeEmptyTx()];
+      const [l2Block, proof] = await builder.buildL2Block(blockNumber, txs);
 
-    expect(l2Block.number).toEqual(blockNumber);
-    expect(proof).toEqual(emptyProof);
-  }, 20000);
-
-  it('builds an L2 block with empty txs using wasm circuits', async () => {
-    const simulator = await WasmCircuitSimulator.new();
-    const prover = new EmptyProver();
-    builder = new TestSubject(builderDb, vks, simulator, prover);
-    await builder.updateRootTrees();
-    const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
-
-    const tx = makeEmptyTx();
-
-    const [l2Block] = await builder.buildL2Block(blockNumber, tx);
-    expect(l2Block.number).toEqual(blockNumber);
-
-    const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
-    expect(contractTreeAfter.root).toEqual(contractTreeBefore.root);
-    expect(contractTreeAfter.size).toEqual(4n);
+      expect(l2Block.number).toEqual(blockNumber);
+      expect(proof).toEqual(emptyProof);
+    }, 20000);
   });
 
-  it('builds an L2 block with a contract deployment tx using wasm circuits', async () => {
-    const simulator = await WasmCircuitSimulator.new();
-    const prover = new EmptyProver();
-    builder = new TestSubject(builderDb, vks, simulator, prover);
-    await builder.updateRootTrees();
-    const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
+  describe('circuits simulator', () => {
+    beforeEach(async () => {
+      const simulator = await WasmCircuitSimulator.new();
+      const prover = new EmptyProver();
+      builder = new TestSubject(builderDb, vks, simulator, prover);
+      await builder.updateRootTrees();
+    });
 
-    const tx = makeEmptyTx();
-    await setTxOldTreeRoots(tx);
-    tx.data.end.newContracts = [makeNewContractData(0x1000)];
+    const makeContractDeployTx = async (seed = 0x1) => {
+      const tx = makeEmptyTx();
+      await setTxOldTreeRoots(tx);
+      tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
+      return tx;
+    };
 
-    const [l2Block] = await builder.buildL2Block(blockNumber, tx);
-    expect(l2Block.number).toEqual(blockNumber);
+    it.each([
+      [0, 4],
+      [1, 4],
+      [4, 4],
+    ] as const)(
+      'builds an L2 block with %i contract deploy txs and %i txs total',
+      async (deployCount: number, totalCount: number) => {
+        const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
 
-    await updateExpectedTreesFromTxs([tx]);
-    const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
-    expect(contractTreeAfter.root).not.toEqual(contractTreeBefore.root);
-    expect(contractTreeAfter.root).toEqual(await expectsDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE).then(t => t.root));
-    expect(contractTreeAfter.size).toEqual(4n);
-  }, 10000);
+        const txs = [
+          ...(await Promise.all(times(deployCount, makeContractDeployTx))),
+          ...times(totalCount - deployCount, makeEmptyTx),
+        ];
+
+        const [l2Block] = await builder.buildL2Block(blockNumber, txs);
+        expect(l2Block.number).toEqual(blockNumber);
+
+        await updateExpectedTreesFromTxs(txs);
+        const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
+
+        if (deployCount > 0) {
+          expect(contractTreeAfter.root).not.toEqual(contractTreeBefore.root);
+        }
+
+        const expectedContractTreeAfter = await expectsDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE).then(t => t.root);
+        expect(contractTreeAfter.root).toEqual(expectedContractTreeAfter);
+        expect(contractTreeAfter.size).toEqual(BigInt(totalCount));
+      },
+      10000,
+    );
+  });
 });
 
 // Test subject class that exposes internal functions for testing

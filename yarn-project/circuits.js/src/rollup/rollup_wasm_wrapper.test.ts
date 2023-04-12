@@ -1,5 +1,5 @@
 import { AggregationObject, VerificationKey } from '../index.js';
-import { makeBaseRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
+import { makeBaseRollupInputs, makeMergeRollupInputs, makeRootRollupInputs } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { RollupWasmWrapper } from './rollup_wasm_wrapper.js';
 
@@ -25,6 +25,15 @@ describe.skip('rollup/rollup_wasm_wrapper', () => {
     return input;
   };
 
+  const makeMergeRollupInputsForCircuit = () => {
+    const input = makeMergeRollupInputs();
+    for (const previousData of input.previousRollupData) {
+      previousData.vk = VerificationKey.makeFake();
+      previousData.publicInputs.endAggregationObject = AggregationObject.makeFake();
+    }
+    return input;
+  };
+
   it('calls base_rollup__sim', async () => {
     const input = makeBaseRollupInputsForCircuit();
 
@@ -32,6 +41,15 @@ describe.skip('rollup/rollup_wasm_wrapper', () => {
     expect(output.startContractTreeSnapshot).toEqual(input.startContractTreeSnapshot);
     expect(output.startNullifierTreeSnapshot).toEqual(input.startNullifierTreeSnapshot);
     expect(output.startPrivateDataTreeSnapshot).toEqual(input.startPrivateDataTreeSnapshot);
+  });
+
+  it('calls merge_rollup__sim', async () => {
+    const input = makeMergeRollupInputsForCircuit();
+
+    const output = await rollupWasm.simulateMergeRollup(input);
+    expect(output.constants.startTreeOfHistoricContractTreeRootsSnapshot).toEqual(
+      input.previousRollupData[0].publicInputs.constants.startTreeOfHistoricContractTreeRootsSnapshot,
+    );
   });
 
   it('calls root_rollup__sim', async () => {

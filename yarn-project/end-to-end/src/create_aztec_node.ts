@@ -16,6 +16,7 @@ export const createAztecNode = async (
     requiredConfirmations: 1,
     transactionPollingInterval: 1000,
     archiverPollingInterval: 1000,
+    maxTxsPerBlock: 4,
   };
   return await AztecNode.createAndSync(config);
 };

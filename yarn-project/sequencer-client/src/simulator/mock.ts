@@ -1,8 +1,7 @@
 import {
-  BaseRollupInputs,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
   MergeRollupInputs,
-  MergeRollupPublicInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -14,7 +13,7 @@ export class MockSimulator implements Simulator {
   baseRollupCircuit(input: BaseRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     throw new Error('Method not implemented.');
   }
-  mergeRollupCircuit(input: MergeRollupInputs): Promise<MergeRollupPublicInputs> {
+  mergeRollupCircuit(input: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs> {
     throw new Error('Method not implemented.');
   }
   rootRollupCircuit(input: RootRollupInputs): Promise<RootRollupPublicInputs> {

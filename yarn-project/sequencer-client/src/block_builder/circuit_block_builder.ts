@@ -1,34 +1,38 @@
 import {
   AppendOnlyTreeSnapshot,
-  BaseRollupInputs,
   BaseOrMergeRollupPublicInputs,
+  BaseRollupInputs,
+  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
   ConstantBaseRollupData,
-  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   MembershipWitness,
-  NullifierLeafPreimage,
+  MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
+  NullifierLeafPreimage,
+  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PreviousKernelData,
   PreviousRollupData,
-  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   ROLLUP_VK_TREE_HEIGHT,
+  RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
   UInt8Vector,
   VK_TREE_HEIGHT,
+  VerificationKey,
 } from '@aztec/circuits.js';
+import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { Fr, createDebugLogger, toBigIntBE } from '@aztec/foundation';
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
-import { Tx } from '@aztec/types';
+import { ContractData, L2Block, Tx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
+import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
-import { makeEmptyTx } from '../deps/tx.js';
 import { VerificationKeys } from '../deps/verification_keys.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
-import { ContractData, L2Block } from '@aztec/types';
-import { computeContractLeaf } from '@aztec/circuits.js/abis';
+
+import { BlockBuilder } from './index.js';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);
@@ -60,7 +64,7 @@ export interface LowNullifierWitnessData {
   index: bigint;
 }
 
-export class CircuitBlockBuilder {
+export class CircuitBlockBuilder implements BlockBuilder {
   constructor(
     protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
@@ -69,7 +73,7 @@ export class CircuitBlockBuilder {
     protected debug = createDebugLogger('aztec:sequencer'),
   ) {}
 
-  public async buildL2Block(blockNumber: number, tx: Tx): Promise<[L2Block, UInt8Vector]> {
+  public async buildL2Block(blockNumber: number, txs: Tx[]): Promise<[L2Block, UInt8Vector]> {
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -87,7 +91,6 @@ export class CircuitBlockBuilder {
     );
 
     // We fill the tx batch with empty txs, we process only one tx at a time for now
-    const txs = [tx, makeEmptyTx(), makeEmptyTx(), makeEmptyTx()];
     const [circuitsOutput, proof] = await this.runCircuits(txs);
 
     const {
@@ -134,34 +137,81 @@ export class CircuitBlockBuilder {
   }
 
   protected async runCircuits(txs: Tx[]): Promise<[RootRollupPublicInputs, Proof]> {
-    const [tx1, tx2, tx3, tx4] = txs;
+    // Check that the length of the array of txs is a power of two
+    // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
+    if (txs.length < 4 || (txs.length & (txs.length - 1)) !== 0) {
+      throw new Error(`Length of txs for the block should be a power of two and at least four (got ${txs.length})`);
+    }
 
-    // Simulate both base rollup circuits, updating the data, contract, and nullifier trees in the process
-    this.debug(`Running left base rollup simulator`);
-    const [baseRollupInputLeft, baseRollupOutputLeft] = await this.baseRollupCircuit(tx1, tx2);
-    this.debug(`Running right base rollup simulator`);
-    const [baseRollupInputRight, baseRollupOutputRight] = await this.baseRollupCircuit(tx3, tx4);
+    // Run the base rollup circuits for the txs
+    const baseRollupOutputs: [BaseOrMergeRollupPublicInputs, Proof][] = [];
+    for (const pair of chunk(txs, 2)) {
+      const [tx1, tx2] = pair;
+      baseRollupOutputs.push(await this.baseRollupCircuit(tx1, tx2));
+    }
 
-    // Get the proofs for them in parallel (faked for now)
-    this.debug(`Running base rollup circuit provers`);
-    const [baseRollupProofLeft, baseRollupProofRight] = await Promise.all([
-      this.prover.getBaseRollupProof(baseRollupInputLeft, baseRollupOutputLeft),
-      this.prover.getBaseRollupProof(baseRollupInputRight, baseRollupOutputRight),
+    // Run merge rollups in layers until we have only two outputs
+    let mergeRollupInputs: [BaseOrMergeRollupPublicInputs, Proof][] = baseRollupOutputs;
+    let mergeRollupOutputs: [BaseOrMergeRollupPublicInputs, Proof][] = [];
+    while (mergeRollupInputs.length > 2) {
+      for (const pair of chunk(mergeRollupInputs, 2)) {
+        const [r1, r2] = pair;
+        mergeRollupOutputs.push(await this.mergeRollupCircuit(r1, r2));
+      }
+      mergeRollupInputs = mergeRollupOutputs;
+      mergeRollupOutputs = [];
+    }
+
+    // Run the root rollup with the last two merge rollups (or base, if no merge layers)
+    const [mergeOutputLeft, mergeOutputRight] = mergeRollupInputs;
+    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight);
+  }
+
+  protected async baseRollupCircuit(tx1: Tx, tx2: Tx): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+    this.debug(`Running base rollup for ${await tx1.getTxHash()} ${await tx2.getTxHash()}`);
+    const rollupInput = await this.buildBaseRollupInput(tx1, tx2);
+    const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
+    await this.validateTrees(rollupOutput);
+    const proof = await this.prover.getBaseRollupProof(rollupInput, rollupOutput);
+    return [rollupOutput, proof];
+  }
+
+  protected async mergeRollupCircuit(
+    left: [BaseOrMergeRollupPublicInputs, Proof],
+    right: [BaseOrMergeRollupPublicInputs, Proof],
+  ): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+    const vk = this.getVerificationKey(left[0].rollupType);
+    const mergeInputs = new MergeRollupInputs([
+      this.getPreviousRollupDataFromPublicInputs(left[0], left[1], vk),
+      this.getPreviousRollupDataFromPublicInputs(right[0], right[1], vk),
     ]);
 
-    // Get the input for the root rollup circuit based on the base rollup ones
-    this.debug(`Producing root rollup inputs`);
-    const rootInput = await this.getRootRollupInput(
-      baseRollupOutputLeft,
-      baseRollupProofLeft,
-      baseRollupOutputRight,
-      baseRollupProofRight,
-    );
+    this.debug(`Running merge rollup circuit`);
+    const output = await this.simulator.mergeRollupCircuit(mergeInputs);
+    const proof = await this.prover.getMergeRollupProof(mergeInputs, output);
+    return [output, proof];
+  }
+
+  protected getVerificationKey(type: RollupTypes) {
+    switch (type) {
+      case RollupTypes.Base:
+        return this.vks.baseRollupCircuit;
+      case RollupTypes.Merge:
+        return this.vks.mergeRollupCircuit;
+      default:
+        throw new Error(`No verification key available for ${type}`);
+    }
+  }
+
+  protected async rootRollupCircuit(
+    left: [BaseOrMergeRollupPublicInputs, Proof],
+    right: [BaseOrMergeRollupPublicInputs, Proof],
+  ): Promise<[RootRollupPublicInputs, Proof]> {
+    this.debug(`Running root rollup circuit`);
+    const rootInput = await this.getRootRollupInput(...left, ...right);
 
     // Simulate and get proof for the root circuit
-    this.debug(`Running root rollup simulator`);
     const rootOutput = await this.simulator.rootRollupCircuit(rootInput);
-    this.debug(`Running root rollup circuit prover`);
     const rootProof = await this.prover.getRootRollupProof(rootInput, rootOutput);
 
     // Update the root trees with the latest data and contract tree roots,
@@ -171,13 +221,6 @@ export class CircuitBlockBuilder {
     await this.validateRootOutput(rootOutput);
 
     return [rootOutput, rootProof];
-  }
-
-  protected async baseRollupCircuit(tx1: Tx, tx2: Tx) {
-    const rollupInput = await this.buildBaseRollupInput(tx1, tx2);
-    const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
-    await this.validateTrees(rollupOutput);
-    return [rollupInput, rollupOutput] as const;
   }
 
   // Updates our roots trees with the new generated trees after the rollup updates
@@ -257,9 +300,10 @@ export class CircuitBlockBuilder {
     rollupOutputRight: BaseOrMergeRollupPublicInputs,
     rollupProofRight: Proof,
   ) {
+    const vk = this.getVerificationKey(rollupOutputLeft.rollupType);
     const previousRollupData: RootRollupInputs['previousRollupData'] = [
-      this.getPreviousRollupDataFromBaseRollup(rollupOutputLeft, rollupProofLeft),
-      this.getPreviousRollupDataFromBaseRollup(rollupOutputRight, rollupProofRight),
+      this.getPreviousRollupDataFromPublicInputs(rollupOutputLeft, rollupProofLeft, vk),
+      this.getPreviousRollupDataFromPublicInputs(rollupOutputRight, rollupProofRight, vk),
     ];
 
     const getRootTreeSiblingPath = async (treeId: MerkleTreeId) => {
@@ -282,11 +326,15 @@ export class CircuitBlockBuilder {
     });
   }
 
-  protected getPreviousRollupDataFromBaseRollup(rollupOutput: BaseOrMergeRollupPublicInputs, rollupProof: Proof) {
+  protected getPreviousRollupDataFromPublicInputs(
+    rollupOutput: BaseOrMergeRollupPublicInputs,
+    rollupProof: Proof,
+    vk: VerificationKey,
+  ) {
     return new PreviousRollupData(
       rollupOutput,
       rollupProof,
-      this.vks.baseRollupCircuit,
+      vk,
 
       // MembershipWitness for a VK tree to be implemented in the future
       FUTURE_NUM,
