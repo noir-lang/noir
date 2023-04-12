@@ -535,8 +535,9 @@ dependencies = [
 
 [[package]]
 name = "barretenberg-sys"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/barretenberg-sys.git?branch=phated/pedersen-commitment-header#7aa8cfd47f581f26236dca2de6e19a9df859711b"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "550a86403cc44a6ddca26c74ffecf5c0f6aa64f7de9952654b7c6ed062184c3e"
 dependencies = [
  "bindgen",
  "cc",

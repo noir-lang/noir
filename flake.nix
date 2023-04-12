@@ -20,7 +20,7 @@
     };
 
     barretenberg = {
-      url = "github:AztecProtocol/barretenberg/phated/generator-memory-oob";
+      url = "github:AztecProtocol/barretenberg";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
