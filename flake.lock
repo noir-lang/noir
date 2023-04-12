@@ -10,15 +10,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1681312149,
-        "narHash": "sha256-+W+atUPf5OXPt/HX12+JL5N9AiutjL3HeWVVNxWHpQg=",
+        "lastModified": 1681328994,
+        "narHash": "sha256-SJDiQZ656UnjvQEysZ6c7QPAZzPQj6xCoB/Q6+93pzQ=",
         "owner": "AztecProtocol",
         "repo": "barretenberg",
-        "rev": "500daf1ceb03771d2c01eaf1a86139a7ac1d814f",
+        "rev": "9b1d132477e61b3521071c126ab6c3b99590abac",
         "type": "github"
       },
       "original": {
         "owner": "AztecProtocol",
+        "ref": "cg/ultra-with-keccak-32B",
         "repo": "barretenberg",
         "type": "github"
       }

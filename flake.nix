@@ -20,7 +20,7 @@
     };
 
     barretenberg = {
-      url = "github:AztecProtocol/barretenberg";
+      url = "github:AztecProtocol/barretenberg/cg/ultra-with-keccak-32B";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
