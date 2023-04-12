@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 mod errors;
 mod ssa;
@@ -253,7 +254,7 @@ impl Evaluator {
                         let new_name = format!("{name}.{inner_name}");
                         new_fields.insert(new_name, value.clone());
                     }
-                    self.generate_struct_witnesses(struct_witnesses, &new_fields)?
+                    self.generate_struct_witnesses(struct_witnesses, &new_fields)?;
                 }
                 AbiType::String { length } => {
                     let typ = AbiType::Integer { sign: noirc_abi::Sign::Unsigned, width: 8 };

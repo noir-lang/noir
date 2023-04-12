@@ -120,9 +120,9 @@ impl CrateGraph {
                 return;
             }
             for dep in graph[source].dependencies.iter() {
-                go(graph, visited, res, dep.crate_id)
+                go(graph, visited, res, dep.crate_id);
             }
-            res.push(source)
+            res.push(source);
         }
     }
 
@@ -163,7 +163,7 @@ impl CrateGraph {
 }
 impl CrateData {
     fn add_dep(&mut self, name: CrateName, crate_id: CrateId) {
-        self.dependencies.push(Dependency { crate_id, name })
+        self.dependencies.push(Dependency { crate_id, name });
     }
 }
 impl std::ops::Index<CrateId> for CrateGraph {

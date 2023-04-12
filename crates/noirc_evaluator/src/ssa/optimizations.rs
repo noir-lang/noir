@@ -469,7 +469,7 @@ fn cse_block_with_anchor(
                     let mut activate_cse = true;
                     // We do not want to replace any print intrinsics as we want them to remain in order and unchanged
                     if let builtin::Opcode::Println(_) = opcode {
-                        activate_cse = false
+                        activate_cse = false;
                     }
 
                     for arg in args {

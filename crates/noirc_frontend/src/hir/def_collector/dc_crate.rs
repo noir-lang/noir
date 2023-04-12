@@ -30,7 +30,7 @@ pub struct UnresolvedFunctions {
 
 impl UnresolvedFunctions {
     pub fn push_fn(&mut self, mod_id: LocalModuleId, func_id: FuncId, func: NoirFunction) {
-        self.functions.push((mod_id, func_id, func))
+        self.functions.push((mod_id, func_id, func));
     }
 }
 
@@ -243,7 +243,7 @@ fn collect_impls(
             } else if typ != Type::Error && crate_id == LOCAL_CRATE {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
-                errors.push(error.into_file_diagnostic(unresolved.file_id))
+                errors.push(error.into_file_diagnostic(unresolved.file_id));
             }
         }
     }
@@ -261,7 +261,7 @@ where
     Errs: IntoIterator<Item = Err>,
     Err: Into<CustomDiagnostic>,
 {
-    errors.extend(new_errors.into_iter().map(|err| err.into().in_file(file)))
+    errors.extend(new_errors.into_iter().map(|err| err.into().in_file(file)));
 }
 
 /// Separate the globals Vec into two. The first element in the tuple will be the
@@ -476,6 +476,6 @@ fn type_check_functions(
     errors: &mut Vec<FileDiagnostic>,
 ) {
     for (file, func) in file_func_ids {
-        extend_errors(errors, file, type_check_func(interner, func))
+        extend_errors(errors, file, type_check_func(interner, func));
     }
 }

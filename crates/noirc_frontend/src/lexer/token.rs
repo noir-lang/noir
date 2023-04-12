@@ -539,7 +539,7 @@ mod keywords {
                 resolved_token,
                 Token::Keyword(keyword),
                 "Keyword::lookup_keyword returns unexpected Keyword"
-            )
+            );
         }
     }
 }

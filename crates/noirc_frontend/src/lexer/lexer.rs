@@ -216,7 +216,7 @@ impl<'a> Lexer<'a> {
         // Therefore, the current character which triggered this function will need to be appended
         let mut word = String::new();
         if let Some(init_char) = initial_char {
-            word.push(init_char)
+            word.push(init_char);
         }
 
         // Keep checking that we are not at the EOF
