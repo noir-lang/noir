@@ -199,9 +199,10 @@ impl IrGenerator {
         // ensure return types are defined in case of recursion call cycle
         let function = &mut self.program[func_id];
         let mut function_type = ObjectType::NotAnObject;
+        let ftyp = function.return_type.clone();
         func.kind = match (oracle_name, function.unconstrained) {
             (Some(name), _) => {
-                function_type = Self::from_type(&function.return_type);
+                function_type = from_type(&mut self.context, &ftyp);
                 RuntimeType::Oracle(name)
             }
             (None, true) => RuntimeType::Unsafe,
@@ -277,15 +278,15 @@ impl IrGenerator {
         Ok(ObjectType::Function)
     }
 
-    fn from_type(&mut self, typ: &Type) -> ObjectType {
+    fn from_type1(&mut self, typ: &Type) -> ObjectType {
         match typ {
             Type::Field => ObjectType::Numeric(NumericType::NativeField),
             Type::Array(len, elements) => { 
-                let (arrayid, _) =self.context.new_array(
-                    name: &str,
-                    element_type: ObjectType::Numeric(NumericType::NativeField),
-                    len,
-                    def: None);
+                let (_ , arrayid) =self.context.new_array(
+                    "todo",
+                    ObjectType::Numeric(NumericType::NativeField),
+                    *len as u32,
+                    None);
                 ObjectType::ArrayPointer(arrayid) 
             },
             Type::Integer(sign, size) => match sign {
@@ -522,4 +523,29 @@ pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     }
     ctx.call_graph.clear();
     Ok(())
+}
+
+
+fn from_type(ctx: &mut SsaContext, typ: &Type) -> ObjectType {
+    match typ {
+        Type::Field => ObjectType::Numeric(NumericType::NativeField),
+        Type::Array(len, elements) => { 
+            let (_ , arrayid) = ctx.new_array(
+                "todo",
+                ObjectType::Numeric(NumericType::NativeField),
+                *len as u32,
+                None);
+            ObjectType::ArrayPointer(arrayid) 
+        },
+        Type::Integer(sign, size) => match sign {
+            noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
+            noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
+        },
+        Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
+        Type::String(_) => todo!(),
+        Type::Unit => ObjectType::NotAnObject,
+        Type::Tuple(_) => todo!(),
+        Type::Function(_, _) => todo!(),
+        Type::Vec(_) => todo!(),
+    }
 }
