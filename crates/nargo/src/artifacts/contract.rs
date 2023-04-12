@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 /// - The ACIR bytecode has had an optimization pass applied to tailor it for the backend.
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct PreprocessedContract {
+pub struct PreprocessedContract {
     /// The name of the contract.
-    pub(crate) name: String,
+    pub name: String,
     /// The identifier of the proving backend which this contract has been compiled for.
-    pub(crate) backend: String,
+    pub backend: String,
     /// Each of the contract's functions are compiled into a separate program stored in this `Vec`.
-    pub(crate) functions: Vec<PreprocessedContractFunction>,
+    pub functions: Vec<PreprocessedContractFunction>,
 }
 
 /// Each function in the contract will be compiled as a separate noir program.
@@ -23,19 +23,19 @@ pub(crate) struct PreprocessedContract {
 /// A contract function unlike a regular Noir program however can have additional properties.
 /// One of these being a function type.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PreprocessedContractFunction {
-    pub(crate) name: String,
+pub struct PreprocessedContractFunction {
+    pub name: String,
 
-    pub(crate) function_type: ContractFunctionType,
+    pub function_type: ContractFunctionType,
 
-    pub(crate) abi: Abi,
+    pub abi: Abi,
 
     #[serde(
         serialize_with = "super::serialize_circuit",
         deserialize_with = "super::deserialize_circuit"
     )]
-    pub(crate) bytecode: Circuit,
+    pub bytecode: Circuit,
 
-    pub(crate) proving_key: Vec<u8>,
-    pub(crate) verification_key: Vec<u8>,
+    pub proving_key: Vec<u8>,
+    pub verification_key: Vec<u8>,
 }

@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 mod file_map;
 mod file_reader;
@@ -136,7 +137,7 @@ mod tests {
 
         let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
 
-        assert!(fm.path(file_id).ends_with("foo"))
+        assert!(fm.path(file_id).ends_with("foo"));
     }
     #[test]
     fn path_resolve_sub_module() {

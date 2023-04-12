@@ -168,7 +168,7 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
         }
 
-        current_ns = found_ns
+        current_ns = found_ns;
     }
 
     Ok(current_ns)

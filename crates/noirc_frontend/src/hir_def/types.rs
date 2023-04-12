@@ -126,7 +126,7 @@ pub type Generics = Vec<(TypeVariableId, TypeVariable)>;
 
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 
@@ -230,7 +230,7 @@ pub struct Shared<T>(Rc<RefCell<T>>);
 
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.borrow().hash(state)
+        self.0.borrow().hash(state);
     }
 }
 
@@ -705,7 +705,7 @@ impl Type {
     pub fn set_comp_time_span(&mut self, new_span: Span) {
         match self {
             Type::FieldElement(comptime) | Type::Integer(comptime, _, _) => {
-                comptime.set_span(new_span)
+                comptime.set_span(new_span);
             }
             Type::PolymorphicInteger(span, binding) => {
                 if let TypeBinding::Bound(binding) = &mut *binding.borrow_mut() {
@@ -865,7 +865,7 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.try_unify(expected, span) {
-            Self::issue_errors(expected, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error);
         }
     }
 
@@ -1006,7 +1006,7 @@ impl Type {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(err_span) = self.is_subtype_of(expected, span) {
-            Self::issue_errors(expected, err_span, errors, make_error)
+            Self::issue_errors(expected, err_span, errors, make_error);
         }
     }
 

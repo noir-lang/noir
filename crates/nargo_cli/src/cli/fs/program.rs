@@ -1,9 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::{
-    artifacts::{contract::PreprocessedContract, program::PreprocessedProgram},
-    errors::CliError,
-};
+use nargo::artifacts::{contract::PreprocessedContract, program::PreprocessedProgram};
+
+use crate::errors::CliError;
 
 use super::{create_named_dir, write_to_file};
 

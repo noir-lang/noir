@@ -1,14 +1,14 @@
 use super::compile_cmd::compile_circuit;
 use super::fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file};
 use super::{InputMap, NargoConfig};
-use crate::artifacts::program::PreprocessedProgram;
-use crate::preprocess::preprocess_program;
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
 use acvm::ProofSystemCompiler;
 use clap::Args;
+use nargo::artifacts::program::PreprocessedProgram;
+use nargo::ops::preprocess_program;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use std::path::{Path, PathBuf};
@@ -43,11 +43,14 @@ fn verify_with_path<P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
 ) -> Result<(), CliError> {
+    let backend = crate::backends::ConcreteBackend;
+
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
-            preprocess_program(compiled_program)
+            let compiled_program =
+                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(&backend, compiled_program)
         }
     };
 
@@ -60,6 +63,7 @@ fn verify_with_path<P: AsRef<Path>>(
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
     verify_proof(
+        &backend,
         &compiled_program,
         public_inputs_map,
         return_value,
@@ -70,6 +74,7 @@ fn verify_with_path<P: AsRef<Path>>(
 }
 
 pub(crate) fn verify_proof(
+    backend: &impl ProofSystemCompiler,
     compiled_program: &CompiledProgram,
     public_inputs_map: InputMap,
     return_value: Option<InputValue>,
@@ -80,9 +85,13 @@ pub(crate) fn verify_proof(
     let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
-    let backend = crate::backends::ConcreteBackend;
-    let valid_proof =
-        backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
+    let valid_proof = nargo::ops::verify_proof(
+        backend,
+        &compiled_program.circuit,
+        proof,
+        public_inputs,
+        verification_key,
+    )?;
 
     if valid_proof {
         Ok(())

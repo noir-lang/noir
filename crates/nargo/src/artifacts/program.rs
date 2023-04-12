@@ -8,16 +8,16 @@ use serde::{Deserialize, Serialize};
 /// - The ACIR bytecode has had an optimization pass applied to tailor it for the backend.
 /// - Proving and verification keys have been pregenerated based on this ACIR.
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct PreprocessedProgram {
-    pub(crate) backend: String,
-    pub(crate) abi: Abi,
+pub struct PreprocessedProgram {
+    pub backend: String,
+    pub abi: Abi,
 
     #[serde(
         serialize_with = "super::serialize_circuit",
         deserialize_with = "super::deserialize_circuit"
     )]
-    pub(crate) bytecode: Circuit,
+    pub bytecode: Circuit,
 
-    pub(crate) proving_key: Vec<u8>,
-    pub(crate) verification_key: Vec<u8>,
+    pub proving_key: Vec<u8>,
+    pub verification_key: Vec<u8>,
 }

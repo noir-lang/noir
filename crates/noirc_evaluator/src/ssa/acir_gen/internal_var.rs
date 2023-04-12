@@ -36,7 +36,7 @@ impl InternalVar {
         &self.expression
     }
     pub(crate) fn set_id(&mut self, id: NodeId) {
-        self.id = Some(id)
+        self.id = Some(id);
     }
     pub(crate) fn get_id(&self) -> Option<NodeId> {
         self.id

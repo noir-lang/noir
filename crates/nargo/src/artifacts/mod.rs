@@ -7,8 +7,8 @@
 use acvm::acir::circuit::Circuit;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub(crate) mod contract;
-pub(crate) mod program;
+pub mod contract;
+pub mod program;
 
 // TODO: move these down into ACVM.
 fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>

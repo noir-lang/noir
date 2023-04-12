@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 //! Nargo is the package manager for Noir
 //! This name was used because it sounds like `cargo` and
@@ -12,14 +13,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-mod artifacts;
 mod backends;
 pub mod cli;
 mod constants;
 mod errors;
 mod git;
 mod manifest;
-mod preprocess;
 mod resolver;
 
 use nargo::manifest::InvalidPackageError;

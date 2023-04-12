@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use acvm::ProofSystemCompiler;
 use clap::Args;
+use nargo::artifacts::program::PreprocessedProgram;
+use nargo::ops::preprocess_program;
 use noirc_abi::input_parser::Format;
 use noirc_driver::{CompileOptions, CompiledProgram};
 
@@ -15,11 +16,9 @@ use super::{
     },
 };
 use crate::{
-    artifacts::program::PreprocessedProgram,
     cli::{execute_cmd::execute_program, verify_cmd::verify_proof},
     constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
-    preprocess::preprocess_program,
 };
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
@@ -66,11 +65,14 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<Option<PathBuf>, CliError> {
+    let backend = crate::backends::ConcreteBackend;
+
     let preprocessed_program = match circuit_build_path {
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program = compile_circuit(program_dir.as_ref(), compile_options)?;
-            preprocess_program(compiled_program)
+            let compiled_program =
+                compile_circuit(&backend, program_dir.as_ref(), compile_options)?;
+            preprocess_program(&backend, compiled_program)
         }
     };
 
@@ -86,7 +88,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         &compiled_program.abi,
     )?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let solved_witness = execute_program(&backend, &compiled_program, &inputs_map)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.clone().public_abi();
@@ -100,12 +102,13 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let backend = crate::backends::ConcreteBackend;
-    let proof = backend.prove_with_pk(&compiled_program.circuit, solved_witness, &proving_key);
+    let proof =
+        nargo::ops::prove(&backend, &compiled_program.circuit, solved_witness, &proving_key)?;
 
     if check_proof {
         let no_proof_name = "".into();
         verify_proof(
+            &backend,
             &compiled_program,
             public_inputs,
             return_value,

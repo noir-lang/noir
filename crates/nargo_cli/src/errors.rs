@@ -1,5 +1,5 @@
-use acvm::OpcodeResolutionError;
 use hex::FromHexError;
+use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -39,7 +39,7 @@ pub(crate) enum CliError {
     #[error(transparent)]
     AbiError(#[from] AbiError),
 
-    /// ACIR circuit solving error
+    /// Error from Nargo
     #[error(transparent)]
-    SolvingError(#[from] OpcodeResolutionError),
+    NargoError(#[from] NargoError),
 }
