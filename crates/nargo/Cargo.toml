@@ -11,6 +11,8 @@ edition.workspace = true
 rustc_version = "0.4.0"
 
 [dependencies]
+acvm.workspace = true
+noirc_abi.workspace = true
 toml.workspace = true
 serde.workspace = true
 thiserror.workspace = true

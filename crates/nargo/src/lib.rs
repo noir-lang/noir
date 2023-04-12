@@ -7,4 +7,8 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
+mod errors;
 pub mod manifest;
+pub mod ops;
+
+pub use self::errors::NargoError;

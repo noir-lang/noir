@@ -1,5 +1,4 @@
-use acvm::acir::circuit::Circuit;
-use acvm::ProofSystemCompiler;
+use nargo::ops::{preprocess_circuit, PreprocessedData};
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -8,7 +7,7 @@ use crate::{constants::TARGET_DIR, errors::CliError};
 
 use super::fs::{
     keys::save_key_to_dir,
-    program::{checksum_acir, read_program_from_file, save_acir_checksum_to_dir},
+    program::{read_program_from_file, save_acir_checksum_to_dir},
 };
 use super::NargoConfig;
 
@@ -23,32 +22,12 @@ pub(crate) fn run(args: PreprocessCommand, config: NargoConfig) -> Result<(), Cl
     let circuit_dir = config.program_dir.join(TARGET_DIR);
 
     let program = read_program_from_file(circuit_dir.join(&args.artifact_name))?;
-    let preprocess_data = PreprocessedData::from(&program.circuit);
+
+    let backend = crate::backends::ConcreteBackend;
+    let preprocess_data = preprocess_circuit(&backend, &program.circuit)?;
     save_preprocess_data(&preprocess_data, &args.artifact_name, circuit_dir)?;
 
     Ok(())
-}
-/// The result of preprocessing the ACIR bytecode.
-/// The proving, verification key and circuit are backend specific.
-///
-/// The circuit is backend specific because at the end of compilation
-/// an optimization pass is applied which will transform the bytecode into
-/// a format that the backend will accept; removing unsupported gates
-/// is one example of this.
-pub(crate) struct PreprocessedData {
-    pub(crate) proving_key: Vec<u8>,
-    pub(crate) verification_key: Vec<u8>,
-    pub(crate) program_checksum: [u8; 4],
-}
-
-impl From<&Circuit> for PreprocessedData {
-    fn from(circuit: &Circuit) -> Self {
-        let backend = crate::backends::ConcreteBackend;
-        let (proving_key, verification_key) = backend.preprocess(circuit);
-        let program_checksum = checksum_acir(circuit);
-
-        PreprocessedData { proving_key, verification_key, program_checksum }
-    }
 }
 
 pub(crate) fn save_preprocess_data<P: AsRef<Path>>(

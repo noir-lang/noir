@@ -1,4 +1,5 @@
 use acvm::ProofSystemCompiler;
+use nargo::ops::preprocess_circuit;
 use noirc_driver::{CompileOptions, CompiledContract, CompiledProgram, Driver};
 use std::path::Path;
 
@@ -8,7 +9,7 @@ use crate::resolver::DependencyResolutionError;
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
 
 use super::fs::program::{save_contract_to_file, save_program_to_file};
-use super::preprocess_cmd::{save_preprocess_data, PreprocessedData};
+use super::preprocess_cmd::save_preprocess_data;
 use super::NargoConfig;
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -54,7 +55,8 @@ fn save_and_preprocess_program(
 ) -> Result<(), CliError> {
     save_program_to_file(compiled_program, circuit_name, circuit_dir);
 
-    let preprocessed_data = PreprocessedData::from(&compiled_program.circuit);
+    let backend = crate::backends::ConcreteBackend;
+    let preprocessed_data = preprocess_circuit(&backend, &compiled_program.circuit)?;
     save_preprocess_data(&preprocessed_data, circuit_name, circuit_dir)?;
     Ok(())
 }
@@ -74,9 +76,10 @@ fn save_and_preprocess_contract(
         // Preprocess all contract data
         // We are patching the verification key in our contract functions
         // so when we save it to disk, the ABI will have the verification key.
+        let backend = crate::backends::ConcreteBackend;
         let mut contract_preprocess_data = Vec::new();
         for contract_function in &mut compiled_contract.functions {
-            let preprocessed_data = PreprocessedData::from(&contract_function.bytecode);
+            let preprocessed_data = preprocess_circuit(&backend, &contract_function.bytecode)?;
             contract_function.verification_key = Some(preprocessed_data.verification_key.clone());
             contract_preprocess_data.push(preprocessed_data);
         }

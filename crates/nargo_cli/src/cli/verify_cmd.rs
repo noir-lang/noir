@@ -7,8 +7,8 @@ use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
-use acvm::ProofSystemCompiler;
 use clap::Args;
+use nargo::ops::{preprocess_circuit, PreprocessedData};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use std::path::{Path, PathBuf};
@@ -55,7 +55,8 @@ fn verify_with_path<P: AsRef<Path>>(
             let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
 
             let backend = crate::backends::ConcreteBackend;
-            let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
+            let PreprocessedData { verification_key, .. } =
+                preprocess_circuit(&backend, &compiled_program.circuit)?;
             (compiled_program, verification_key)
         }
     };
@@ -87,8 +88,13 @@ pub(crate) fn verify_proof(
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
     let backend = crate::backends::ConcreteBackend;
-    let valid_proof =
-        backend.verify_with_vk(proof, public_inputs, &compiled_program.circuit, verification_key);
+    let valid_proof = nargo::ops::verify_proof(
+        &backend,
+        &compiled_program.circuit,
+        proof,
+        public_inputs,
+        verification_key,
+    )?;
 
     if valid_proof {
         Ok(())
