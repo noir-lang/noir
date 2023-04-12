@@ -132,7 +132,10 @@
     "rebuildPatterns": [
       "^yarn-project/barretenberg.js/"
     ],
-    "dependencies": []
+    "dependencies": [
+      "foundation",
+      "yarn-project-base"
+    ]
   },
   "circuits.js": {
     "buildDir": "yarn-project",
@@ -142,7 +145,8 @@
       "^yarn-project/circuits.js/"
     ],
     "dependencies": [
-      "aztec3-circuits-wasm-linux-clang",
+      "barretenberg.js",
+      "foundation",
       "yarn-project-base"
     ]
   },

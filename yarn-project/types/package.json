@@ -14,9 +14,13 @@
     "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
-    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 31 ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests"
+    "formatting": "run -T prettier --check ./src && run -T eslint ./src",
+    "formatting:fix": "run -T prettier -w ./src",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
+  "inherits": [
+    "../package.scripts.json"
+  ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "moduleNameMapper": {

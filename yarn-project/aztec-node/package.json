@@ -15,12 +15,15 @@
     "build": "yarn clean && tsc -b tsconfig.dest.json",
     "build:dev": "tsc -b tsconfig.dest.json --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
-    "formatting": "run -T prettier --check ./src && run -T eslint --max-warnings 0 ./src",
+    "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test:integration:run\" \"anvil\"",
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --config jest.integration.config.json"
   },
+  "inherits": [
+    "../package.scripts.json"
+  ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "globals": {

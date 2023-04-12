@@ -98,9 +98,9 @@ function main() {
     // Update build_manifest.json with the new dependencies
     updateBuildManifest(
       buildManifestFile,
-      packageData.dependencies,
+      { ...packageData.dependencies, ...packageData.devDependencies },
       projectKey,
-      options
+      options,
     );
   } catch (err) {
     console.error(`Failed updating ${resolve(process.argv[2])}`);
