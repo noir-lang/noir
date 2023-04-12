@@ -15,6 +15,10 @@
 # There are some `join` steps that are just noops. They are just used to produce cleaner graph rendering in CCI.
 
 version: 2.1
+
+orbs:
+  slack: circleci/slack@4.12.1
+
 parameters:
   workflow:
     type: string
@@ -291,6 +295,11 @@ defaults: &defaults
       only: *tag_regex
   context:
     - build
+    - slack
+  post-steps:
+    - slack/notify:
+        event: fail
+        branch_pattern: "master"
 yarn_project: &yarn_project
   requires:
     - yarn-project-base
@@ -311,20 +320,11 @@ workflows:
           requires:
             - wasm-linux-clang
           <<: *defaults
+
       - ethereum-js: *yarn_project
       - aztec-js: *yarn_project
       - end-to-end: *yarn_project
       - foundation: *yarn_project
-      - e2e-join:
-          requires:
-            - ethereum-js
-            - aztec-js
-            - end-to-end
-            - noir-contracts
-            - foundation
-          <<: *defaults
-      - e2e-deploy-contract: *e2e_test
-      - e2e-zk-token-contract: *e2e_test
       - world-state: *yarn_project
       - acir-simulator: *yarn_project
       - archiver: *yarn_project
@@ -336,3 +336,15 @@ workflows:
       - sequencer-client: *yarn_project
       - types: *yarn_project
       - circuits-js: *yarn_project
+
+      - e2e-join:
+          requires:
+            - ethereum-js
+            - aztec-js
+            - end-to-end
+            - noir-contracts
+            - foundation
+          <<: *defaults
+      
+      - e2e-deploy-contract: *e2e_test
+      - e2e-zk-token-contract: *e2e_test
