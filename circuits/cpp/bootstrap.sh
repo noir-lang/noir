@@ -68,7 +68,7 @@ echo "# When running cmake directly, remember to use: --build --preset $PRESET"
 echo "#################################"
 
 # Build native.
-cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert
+cmake --preset $PRESET -DCMAKE_BUILD_TYPE=RelWithAssert -USE_TURBO=true
 cmake --build --preset $PRESET ${@/#/--target }
 
 # Install the webassembly toolchain.
@@ -77,5 +77,5 @@ if ! [ -d "./barretenberg/cpp/src/wasi-sdk-$WASI_VERSION.0" ] ; then
 fi
 
 # Build WASM.
-cmake --preset wasm
+cmake --preset wasm -USE_TURBO=true
 cmake --build --preset wasm
