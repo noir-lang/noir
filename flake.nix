@@ -60,7 +60,7 @@
           # We fetch the transcript as a dependency and provide it to the build.
           # This is necessary because the Nix sandbox is read-only and downloading during tests would fail
           BARRETENBERG_TRANSCRIPT = pkgs.fetchurl {
-            url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
+            url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat";
             sha256 = "sha256-ryR/d+vpOCxa3gM0lze2UVUKNUinj0nN3ScCfysN84k=";
           };
         };
