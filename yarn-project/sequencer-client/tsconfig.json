@@ -1,0 +1,35 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../ethereum.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../l1-contracts"
+    },
+    {
+      "path": "../merkle-tree"
+    },
+    {
+      "path": "../p2p"
+    },
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../world-state"
+    }
+  ],
+  "include": ["src"]
+}

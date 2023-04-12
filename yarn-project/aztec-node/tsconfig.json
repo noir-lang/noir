@@ -1,0 +1,41 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../archiver"
+    },
+    {
+      "path": "../barretenberg.js"
+    },
+    {
+      "path": "../ethereum.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../l1-contracts"
+    },
+    {
+      "path": "../merkle-tree"
+    },
+    {
+      "path": "../p2p"
+    },
+    {
+      "path": "../sequencer-client"
+    },
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../world-state"
+    }
+  ],
+  "include": ["src"]
+}

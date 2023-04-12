@@ -5,6 +5,7 @@ node_modules
 *.log
 *.swp
 .tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Zero install: https://yarnpkg.com/features/zero-installs
 .yarn/*

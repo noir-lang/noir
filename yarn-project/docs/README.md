@@ -16,6 +16,6 @@ To include a new package in the set that we generate documentation for add it to
   "typedoc": {
     "entryPoint": "./src/index.ts",
     "displayName": "Aztec cli",
-    "tsconfig": "./tsconfig.dest.json"
+    "tsconfig": "./tsconfig.json"
   },
 ```

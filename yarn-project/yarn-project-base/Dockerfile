@@ -44,7 +44,7 @@ COPY world-state/package.json world-state/package.json
 COPY yarn-project-base/package.json yarn-project-base/package.json
 
 # Copy root files
-COPY package.json package.*.json tsconfig.json tsconfig.dest.json tsconfig.eslint.json yarn.lock .yarnrc.yml ./
+COPY package.json package.*.json tsconfig.json tsconfig.eslint.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn
 
 # Although we're attempting to be "zero-install", in practice we still need to build arch specific packages.
@@ -75,27 +75,27 @@ COPY build_manifest.json ./
 RUN cp build_manifest.json ../
 
 # Copy tsconfig to check dependencies
-COPY acir-simulator/tsconfig.dest.json acir-simulator/tsconfig.dest.json
-COPY archiver/tsconfig.dest.json archiver/tsconfig.dest.json
-COPY aztec-cli/tsconfig.dest.json aztec-cli/tsconfig.dest.json
-COPY aztec-rpc/tsconfig.dest.json aztec-rpc/tsconfig.dest.json
-COPY aztec-node/tsconfig.dest.json aztec-node/tsconfig.dest.json
-COPY aztec.js/tsconfig.dest.json aztec.js/tsconfig.dest.json
-COPY end-to-end/tsconfig.dest.json end-to-end/tsconfig.dest.json
-COPY ethereum.js/tsconfig.dest.json ethereum.js/tsconfig.dest.json
-COPY foundation/tsconfig.dest.json foundation/tsconfig.dest.json
-COPY kernel-prover/tsconfig.dest.json kernel-prover/tsconfig.dest.json
-COPY key-store/tsconfig.dest.json key-store/tsconfig.dest.json
-COPY merkle-tree/tsconfig.dest.json merkle-tree/tsconfig.dest.json
-COPY noir-contracts/tsconfig.dest.json noir-contracts/tsconfig.dest.json
-COPY l1-contracts/tsconfig.dest.json l1-contracts/tsconfig.dest.json
-COPY barretenberg.js/tsconfig.dest.json barretenberg.js/tsconfig.dest.json
-COPY circuits.js/tsconfig.dest.json circuits.js/tsconfig.dest.json
-COPY p2p/tsconfig.dest.json p2p/tsconfig.dest.json
-COPY prover-client/tsconfig.dest.json prover-client/tsconfig.dest.json
-COPY sequencer-client/tsconfig.dest.json sequencer-client/tsconfig.dest.json
-COPY types/tsconfig.dest.json types/tsconfig.dest.json
-COPY world-state/tsconfig.dest.json world-state/tsconfig.dest.json
+COPY acir-simulator/tsconfig.json acir-simulator/tsconfig.json
+COPY archiver/tsconfig.json archiver/tsconfig.json
+COPY aztec-cli/tsconfig.json aztec-cli/tsconfig.json
+COPY aztec-rpc/tsconfig.json aztec-rpc/tsconfig.json
+COPY aztec-node/tsconfig.json aztec-node/tsconfig.json
+COPY aztec.js/tsconfig.json aztec.js/tsconfig.json
+COPY end-to-end/tsconfig.json end-to-end/tsconfig.json
+COPY ethereum.js/tsconfig.json ethereum.js/tsconfig.json
+COPY foundation/tsconfig.json foundation/tsconfig.json
+COPY kernel-prover/tsconfig.json kernel-prover/tsconfig.json
+COPY key-store/tsconfig.json key-store/tsconfig.json
+COPY merkle-tree/tsconfig.json merkle-tree/tsconfig.json
+COPY noir-contracts/tsconfig.json noir-contracts/tsconfig.json
+COPY l1-contracts/tsconfig.json l1-contracts/tsconfig.json
+COPY barretenberg.js/tsconfig.json barretenberg.js/tsconfig.json
+COPY circuits.js/tsconfig.json circuits.js/tsconfig.json
+COPY p2p/tsconfig.json p2p/tsconfig.json
+COPY prover-client/tsconfig.json prover-client/tsconfig.json
+COPY sequencer-client/tsconfig.json sequencer-client/tsconfig.json
+COPY types/tsconfig.json types/tsconfig.json
+COPY world-state/tsconfig.json world-state/tsconfig.json
 
 # Check that dependencies config are up to date
 COPY yarn-project-base/scripts yarn-project-base/scripts

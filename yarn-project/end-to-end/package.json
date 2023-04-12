@@ -6,8 +6,8 @@
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
-    "build": "yarn clean && tsc -b tsconfig.dest.json",
-    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
@@ -16,7 +16,7 @@
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --runInBand --config jest.integration.config.json"
   },
   "inherits": [
-    "../package.scripts.json"
+    "../package.common.json"
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -45,5 +45,11 @@
     "@types/node": "^18.7.23",
     "concurrently": "^7.6.0",
     "ts-node": "^10.9.1"
-  }
+  },
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*"
+  ],
+  "types": "./dest/index.d.ts"
 }

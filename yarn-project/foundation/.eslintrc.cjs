@@ -51,7 +51,7 @@ module.exports = {
           './tsconfig.eslint.json',
           '../tsconfig.eslint.json',
           __dirname + '/../tsconfig.eslint.json',
-          './tsconfig.dest.json',
+          './tsconfig.json',
         ]),
       },
     },

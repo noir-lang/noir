@@ -7,9 +7,8 @@
   },
   "references": [
     {
-      "path": "../foundation/tsconfig.dest.json"
+      "path": "../foundation"
     }
   ],
-  "exclude": ["**/*.test.*", "**/fixtures/*"],
   "include": ["src"]
 }

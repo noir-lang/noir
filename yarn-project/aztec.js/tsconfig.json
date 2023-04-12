@@ -7,12 +7,17 @@
   },
   "references": [
     {
-      "path": "../barretenberg.js/tsconfig.dest.json"
+      "path": "../aztec-rpc"
     },
     {
-      "path": "../foundation/tsconfig.dest.json"
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../noir-contracts"
     }
   ],
-  "include": ["src"],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "include": ["src"]
 }

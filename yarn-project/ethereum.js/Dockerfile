@@ -1,5 +1,6 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
+COPY @types @types
 COPY foundation foundation
 COPY ethereum.js ethereum.js
 WORKDIR /usr/src/yarn-project/ethereum.js

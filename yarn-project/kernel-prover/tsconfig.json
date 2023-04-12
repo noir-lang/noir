@@ -1,16 +1,20 @@
 {
   "extends": "..",
   "compilerOptions": {
-    "noImplicitAny": false,
     "outDir": "dest",
     "rootDir": "src",
-    "tsBuildInfoFile": ".tsbuildinfo",
-    "skipLibCheck": true
+    "tsBuildInfoFile": ".tsbuildinfo"
   },
   "references": [
+    {
+      "path": "../acir-simulator"
+    },
+    {
+      "path": "../circuits.js"
+    },
     {
       "path": "../foundation"
     }
   ],
-  "include": ["src", "src/eth_typed_data/fixtures/*.json"]
+  "include": ["src"]
 }

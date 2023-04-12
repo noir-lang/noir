@@ -7,13 +7,13 @@
   "typedoc": {
     "entryPoint": "./src/index.ts",
     "displayName": "Aztec Node",
-    "tsconfig": "./tsconfig.dest.json"
+    "tsconfig": "./tsconfig.json"
   },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
-    "build": "yarn clean && tsc -b tsconfig.dest.json",
-    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
@@ -22,16 +22,10 @@
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --config jest.integration.config.json"
   },
   "inherits": [
-    "../package.scripts.json"
+    "../package.common.json"
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
-    "globals": {
-      "ts-jest": {
-        "useESM": true,
-        "tsconfig": "../tsconfig.json"
-      }
-    },
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
@@ -54,12 +48,18 @@
   "devDependencies": {
     "@jest/globals": "^29.4.3",
     "@rushstack/eslint-patch": "^1.1.4",
-    "@types/jest": "^29.4.0",
+    "@types/jest": "^29.5.0",
     "@types/node": "^18.7.23",
     "concurrently": "^7.6.0",
-    "jest": "^28.1.3",
-    "ts-jest": "^28.0.7",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5"
-  }
+  },
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*"
+  ],
+  "types": "./dest/index.d.ts"
 }

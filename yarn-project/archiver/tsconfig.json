@@ -7,12 +7,17 @@
   },
   "references": [
     {
-      "path": "../ethereum.js/tsconfig.dest.json"
+      "path": "../ethereum.js"
     },
     {
-      "path": "../foundation/tsconfig.dest.json"
+      "path": "../foundation"
+    },
+    {
+      "path": "../l1-contracts"
+    },
+    {
+      "path": "../types"
     }
   ],
-  "include": ["src"],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "include": ["src"]
 }

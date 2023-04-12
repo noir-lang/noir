@@ -25,8 +25,8 @@
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
-    "build": "yarn clean && tsc -b tsconfig.dest.json",
-    "build:dev": "tsc -b tsconfig.dest.json --watch",
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
@@ -34,7 +34,7 @@
     "gen_fixtures": "NODE_NO_WARNINGS=1 node ./dest/contract/gen_def/index.js ./src/contract/fixtures/contracts.json"
   },
   "inherits": [
-    "../package.scripts.json"
+    "../package.common.json"
   ],
   "bin": {
     "contract_gen_def": "./dest/contract/gen_def/index.js"
@@ -78,5 +78,11 @@
     "jest-mock-extended": "^3.0.1",
     "ts-jest": "28.0.7",
     "typescript": "^4.9.5"
-  }
+  },
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*"
+  ],
+  "types": "./dest/index.d.ts"
 }

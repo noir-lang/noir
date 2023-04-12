@@ -7,9 +7,14 @@
   },
   "references": [
     {
-      "path": "../foundation/tsconfig.dest.json"
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../types"
     }
   ],
-  "include": ["src", "src/**/*.json"],
-  "exclude": ["**/*.test.*", "**/fixtures/*"]
+  "include": ["src"]
 }

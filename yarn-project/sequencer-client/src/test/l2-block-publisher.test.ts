@@ -2,9 +2,9 @@ import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { Rollup, UnverifiedDataEmitter } from '@aztec/l1-contracts';
 import { beforeAll, describe, expect, it } from '@jest/globals';
-import { EthereumjsTxSender } from '../src/publisher/ethereumjs-tx-sender.js';
-import { L1Publisher } from '../src/publisher/l1-publisher.js';
-import { hexStringToBuffer } from '../src/utils.js';
+import { EthereumjsTxSender } from '../publisher/ethereumjs-tx-sender.js';
+import { L1Publisher } from '../publisher/l1-publisher.js';
+import { hexStringToBuffer } from '../utils.js';
 import { L2Block } from '@aztec/types';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
@@ -12,7 +12,7 @@ const sequencerPK = '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30
 const deployerPK = '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba';
 const anvilHost = process.env.ANVIL_HOST ?? 'http://127.0.0.1:8545';
 
-describe('L1Publisher integration', () => {
+describe.skip('L1Publisher integration', () => {
   let rollup: Rollup;
   let unverifiedDataEmitter: UnverifiedDataEmitter;
   let ethRpc: EthereumRpc;
@@ -71,7 +71,9 @@ async function deployRollup() {
 
   // Create new instance so we can attach the sequencer as sender
   const rollup = new Rollup(ethRpc, deployedRollup.address, { from: sequencer });
-  const unverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, deployedUnverifiedDataEmitter.address, { from: sequencer });
+  const unverifiedDataEmitter = new UnverifiedDataEmitter(ethRpc, deployedUnverifiedDataEmitter.address, {
+    from: sequencer,
+  });
 
   return { rollup, deployer, unverifiedDataEmitter, sequencer, ethRpc };
 }

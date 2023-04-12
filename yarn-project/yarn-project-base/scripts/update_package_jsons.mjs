@@ -28,6 +28,15 @@ function getFiles() {
   return files;
 }
 
+function getUpdatedValue(source, target, key) {
+  const value = source[key];
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return { ...target[key], ...value };
+  } else {
+    return value;
+  }
+}
+
 async function main() {
   const checkOnly = process.argv[2] === '--check';
   console.log(
@@ -45,10 +54,7 @@ async function main() {
         const parentFullPath = resolve(dirname(file), parent);
         const source = await getSource(parentFullPath);
         for (const key in source) {
-          const updatedValue = {
-            ...packageData[key],
-            ...source[key],
-          };
+          const updatedValue = getUpdatedValue(source, packageData, key);
           updated = updated || JSON.stringify(updatedValue) !== JSON.stringify(packageData[key]);
           if (checkOnly) {
             if (updated) {

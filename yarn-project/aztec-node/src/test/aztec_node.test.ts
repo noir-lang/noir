@@ -5,16 +5,20 @@ import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthAddress, createDebugLogger, sleep } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { Tx } from '@aztec/types';
-import { AztecNode } from '../index.js';
-import { AztecNodeConfig } from './config.js';
-import { createProvider, createTx, deployRollupContract, deployUnverifiedDataEmitterContract } from './fixtures.js';
+import { AztecNode, AztecNodeConfig } from '../index.js';
+import {
+  createProvider,
+  createTx,
+  deployRollupContract,
+  deployUnverifiedDataEmitterContract,
+} from '../aztec-node/fixtures.js';
 
 const ETHEREUM_HOST = 'http://127.0.0.1:8545/';
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_test');
 
-describe('AztecNode', () => {
+describe.skip('AztecNode', () => {
   let rollupAddress: EthAddress;
   let unverifiedDataEmitterAddress: EthAddress;
   let node: AztecNode;

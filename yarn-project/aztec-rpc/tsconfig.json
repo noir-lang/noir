@@ -1,0 +1,35 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../acir-simulator"
+    },
+    {
+      "path": "../aztec-node"
+    },
+    {
+      "path": "../barretenberg.js"
+    },
+    {
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../kernel-prover"
+    },
+    {
+      "path": "../noir-contracts"
+    },
+    {
+      "path": "../types"
+    }
+  ],
+  "include": ["src"]
+}
