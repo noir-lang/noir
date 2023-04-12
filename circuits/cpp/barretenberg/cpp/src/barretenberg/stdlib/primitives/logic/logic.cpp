@@ -2,13 +2,18 @@
 
 #include "../composers/composers.hpp"
 #include "../plookup/plookup.hpp"
+#include "barretenberg/common/assert.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include <cstddef>
 
 namespace proof_system::plonk::stdlib {
 
 /**
  * @brief A logical AND or XOR over a variable number of bits.
  *
- * @details Defaults to basic Composer method if not using plookup-compatible composer
+ * @details Defaults to basic Composer method if not using plookup-compatible composer. If the left and right operands
+ * are larger than num_bit, the result will be truncated to num_bits.
  *
  * @tparam Composer
  * @param a
@@ -18,10 +23,17 @@ namespace proof_system::plonk::stdlib {
  * @return field_t<Composer>
  */
 template <typename Composer>
-field_t<Composer> logic<Composer>::create_logic_constraint(field_pt& a, field_pt& b, size_t num_bits, bool is_xor_gate)
+field_t<Composer> logic<Composer>::create_logic_constraint(
+    field_pt& a,
+    field_pt& b,
+    size_t num_bits,
+    bool is_xor_gate,
+    const std::function<std::pair<uint256_t, uint256_t>(uint256_t, uint256_t, size_t)>& get_chunk)
 {
-    // can't extend past field size!
+    // ensure the number of bits doesn't exceed field size and is not negatove
     ASSERT(num_bits < 254);
+    ASSERT(num_bits > 0);
+
     if (a.is_constant() && b.is_constant()) {
         uint256_t a_native(a.get_value());
         uint256_t b_native(b.get_value());
@@ -31,59 +43,76 @@ field_t<Composer> logic<Composer>::create_logic_constraint(field_pt& a, field_pt
     if (a.is_constant() && !b.is_constant()) {
         Composer* ctx = b.get_context();
         uint256_t a_native(a.get_value());
-        field_t<Composer> a_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(a_native));
-        return create_logic_constraint(a_witness, b, num_bits, is_xor_gate);
+        field_pt a_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(a_native));
+        return create_logic_constraint(a_witness, b, num_bits, is_xor_gate, get_chunk);
     }
     if (!a.is_constant() && b.is_constant()) {
         Composer* ctx = a.get_context();
         uint256_t b_native(b.get_value());
         field_pt b_witness = field_pt::from_witness_index(ctx, ctx->put_constant_variable(b_native));
-        return create_logic_constraint(a, b_witness, num_bits, is_xor_gate);
+        return create_logic_constraint(a, b_witness, num_bits, is_xor_gate, get_chunk);
     }
     if constexpr (Composer::type == ComposerType::PLOOKUP) {
         Composer* ctx = a.get_context();
 
         const size_t num_chunks = (num_bits / 32) + ((num_bits % 32 == 0) ? 0 : 1);
-        uint256_t left(a.get_value());
-        uint256_t right(b.get_value());
+        auto left((uint256_t)a.get_value());
+        auto right((uint256_t)b.get_value());
+
+        field_pt a_accumulator(barretenberg::fr::zero());
+        field_pt b_accumulator(barretenberg::fr::zero());
 
         field_pt res(ctx, 0);
         for (size_t i = 0; i < num_chunks; ++i) {
-            uint256_t left_chunk = left & ((uint256_t(1) << 32) - 1);
-            uint256_t right_chunk = right & ((uint256_t(1) << 32) - 1);
+            size_t chunk_size = (i != num_chunks - 1) ? 32 : num_bits - i * 32;
+            auto [left_chunk, right_chunk] = get_chunk(left, right, chunk_size);
 
-            const field_pt a_chunk = witness_pt(ctx, left_chunk);
-            const field_pt b_chunk = witness_pt(ctx, right_chunk);
-
+            field_pt a_chunk = witness_pt(ctx, left_chunk);
+            field_pt b_chunk = witness_pt(ctx, right_chunk);
             field_pt result_chunk = 0;
             if (is_xor_gate) {
                 result_chunk =
                     stdlib::plookup_read::read_from_2_to_1_table(plookup::MultiTableId::UINT32_XOR, a_chunk, b_chunk);
+
             } else {
                 result_chunk =
                     stdlib::plookup_read::read_from_2_to_1_table(plookup::MultiTableId::UINT32_AND, a_chunk, b_chunk);
             }
 
-            uint256_t scaling_factor = uint256_t(1) << (32 * i);
-            res += result_chunk * scaling_factor;
+            auto scaling_factor = uint256_t(1) << (32 * i);
+            a_accumulator += a_chunk * scaling_factor;
+            b_accumulator += b_chunk * scaling_factor;
 
-            if (i == num_chunks - 1) {
-                const size_t final_num_bits = num_bits - (i * 32);
-                if (final_num_bits != 32) {
-                    ctx->create_range_constraint(a_chunk.witness_index, final_num_bits, "bad range on a");
-                    ctx->create_range_constraint(b_chunk.witness_index, final_num_bits, "bad range on b");
-                }
+            if (chunk_size != 32) {
+                ctx->create_range_constraint(
+                    a_chunk.witness_index, chunk_size, "stdlib logic: bad range on final chunk of left operand");
+                ctx->create_range_constraint(
+                    b_chunk.witness_index, chunk_size, "stdlib logic: bad range on final chunk of right operand");
             }
+
+            res += result_chunk * scaling_factor;
 
             left = left >> 32;
             right = right >> 32;
         }
+        field_pt a_slice = a.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
+        field_pt b_slice = b.slice(static_cast<uint8_t>(num_bits - 1), 0)[1];
+        a_slice.assert_equal(a_accumulator, "stdlib logic: failed to reconstruct left operand");
+        b_slice.assert_equal(b_accumulator, "stdlib logic: failed to reconstruct right operand");
 
         return res;
     } else {
+        // If the composer doesn't have lookups we call the expensive logic constraint gate
+        // which creates constraints for each bit. We only create constraints up to num_bits.
         Composer* ctx = a.get_context();
+        uint256_t left = a.get_value();
+        uint256_t right = b.get_value();
+        left = left & ((uint256_t(1) << num_bits) - 1);
+        right = right & ((uint256_t(1) << num_bits) - 1);
+        field_pt a_chunk = witness_pt(ctx, left);
+        field_pt b_chunk = witness_pt(ctx, right);
         auto accumulator_triple = ctx->create_logic_constraint(
-            a.normalize().get_witness_index(), b.normalize().get_witness_index(), num_bits, is_xor_gate);
+            a_chunk.normalize().get_witness_index(), b_chunk.normalize().get_witness_index(), num_bits, is_xor_gate);
         auto out_idx = accumulator_triple.out[accumulator_triple.out.size() - 1];
         return field_t<Composer>::from_witness_index(ctx, out_idx);
     }

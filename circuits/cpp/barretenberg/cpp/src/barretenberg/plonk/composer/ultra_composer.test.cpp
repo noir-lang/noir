@@ -793,4 +793,34 @@ TYPED_TEST(ultra_composer, range_checks_on_duplicates)
     TestFixture::prove_and_verify(composer, /*expected_result=*/true);
 }
 
+// Issue appearing in under-constrained circuit i.e. in which variables:
+// - do not appear in any gate of the circuit
+// - are smaller than 2^14 (hence not sliced and reconstructed through addition gates)
+// - BUT have range constraints applied on them (which, by default, do not add gates to the circuit
+// but check sets are correctly sorted)
+// The test further shows that the witnesses have different indices hence the problem is not caused by
+// the range constraint being applied to the same witness twice.
+// TODO: look further into the problem and exemplify it better
+TEST(ultra_composer, range_constraint_fails)
+{
+    auto composer = UltraComposer();
+    uint16_t mask = (1 << 8) - 1;
+    int a = engine.get_random_uint16() & mask;
+    uint32_t a_idx = composer.add_variable(fr(a));
+    uint32_t b_idx = composer.add_variable(fr(a));
+    ASSERT_NE(a_idx, b_idx);
+    uint32_t c_idx = composer.add_variable(fr(a));
+    ASSERT_NE(c_idx, b_idx);
+    composer.create_range_constraint(b_idx, 8, "bad range");
+    composer.assert_equal(a_idx, b_idx);
+    composer.create_range_constraint(c_idx, 8, "bad range");
+    composer.assert_equal(a_idx, c_idx);
+
+    auto prover = composer.create_prover();
+    auto proof = prover.construct_proof();
+    auto verifier = composer.create_verifier();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, false);
+}
+
 } // namespace proof_system::plonk::test_ultra_composer
