@@ -808,7 +808,7 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 #else
     constexpr uint32_t CIRCUIT_GATE_COUNT = 185573;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
-    const uint256_t VK_HASH("21389d5392ee23ffc96984689150b63d62113678b1ba127346a0ec72df842354");
+    const uint256_t VK_HASH("13eb88883e80efb9bf306af2962cd1a49e9fa1b0bfb2d4b563b95217a17bcc74");
 
 #endif
     auto number_of_gates_js = result.number_of_gates;
