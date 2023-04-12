@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::ops::preprocess_program;
+use nargo::ops::{preprocess_program, prove_execution};
 use noirc_abi::input_parser::Format;
 use noirc_driver::{CompileOptions, CompiledProgram};
 
@@ -102,8 +102,7 @@ pub(crate) fn prove_with_path<P: AsRef<Path>>(
         Format::Toml,
     )?;
 
-    let proof =
-        nargo::ops::prove(&backend, &compiled_program.circuit, solved_witness, &proving_key)?;
+    let proof = prove_execution(&backend, &compiled_program.circuit, solved_witness, &proving_key)?;
 
     if check_proof {
         let no_proof_name = "".into();
