@@ -1,5 +1,5 @@
 use acvm::ProofSystemCompiler;
-use iter_extended::vecmap;
+use iter_extended::try_vecmap;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver};
 use std::path::Path;
 
@@ -39,13 +39,13 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
             .compile_contracts(&args.compile_options)
             .map_err(|_| CliError::CompilationError)?;
         let preprocessed_contracts =
-            vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract));
+            try_vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract))?;
         for contract in preprocessed_contracts {
             save_contract_to_file(&contract, &args.circuit_name, &circuit_dir);
         }
     } else {
         let program = compile_circuit(&backend, &config.program_dir, &args.compile_options)?;
-        let preprocessed_program = preprocess_program(&backend, program);
+        let preprocessed_program = preprocess_program(&backend, program)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
     }
     Ok(())
