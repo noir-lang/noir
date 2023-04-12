@@ -7,6 +7,7 @@
 #include "barretenberg/stdlib/merkle_tree/memory_tree.hpp"
 #include "barretenberg/stdlib/merkle_tree/merkle_tree.hpp"
 #include "init.hpp"
+#include "aztec3/circuits/rollup/components/components.hpp"
 
 #include <algorithm>
 #include <array>
@@ -100,54 +101,7 @@ std::vector<NT::fr> calculate_contract_leaves(BaseRollupInputs const& baseRollup
     return contract_leaves;
 }
 
-template <size_t N>
-NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
-                                             NT::uint32 const& leafIndex,
-                                             std::array<NT::fr, N> const& siblingPath)
-{
-    for (size_t i = 0; i < siblingPath.size(); i++) {
-        if (leafIndex & (1 << i)) {
-            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(siblingPath[i], leaf);
-        } else {
-            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(leaf, siblingPath[i]);
-        }
-    }
-    return leaf;
-}
-
-template <size_t N>
-void check_membership(DummyComposer& composer,
-                      NT::fr const& leaf,
-                      NT::uint32 const& leafIndex,
-                      std::array<NT::fr, N> const& siblingPath,
-                      NT::fr const& root)
-{
-    auto calculatedRoot = iterate_through_tree_via_sibling_path(leaf, leafIndex, siblingPath);
-    // TODO: update tests to build the correct trees
-    composer.do_assert(calculatedRoot == root, "Membership check failed");
-}
-
-template <size_t N>
-AppendOnlySnapshot insert_subtree_to_snapshot_tree(std::array<NT::fr, N> const& siblingPath,
-                                                   NT::uint32 const& nextAvailableLeafIndex,
-                                                   NT::fr const& subtreeRootToInsert,
-                                                   uint8_t const& subtreeDepth)
-{
-    // TODO: Sanity check len of siblingPath > height of subtree
-    // TODO: Ensure height of subtree is correct (eg 3 for commitments, 1 for contracts)
-
-    // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtreeDepth` levels up.
-    auto leafIndexAtDepth = nextAvailableLeafIndex >> subtreeDepth;
-    auto new_root = iterate_through_tree_via_sibling_path(subtreeRootToInsert, leafIndexAtDepth, siblingPath);
-    // 2^subtreeDepth is the number of leaves added. 2^x = 1 << x
-    auto new_next_available_leaf_index = nextAvailableLeafIndex + (uint8_t(1) << subtreeDepth);
-
-    AppendOnlySnapshot newTreeSnapshot = { .root = new_root,
-                                           .next_available_leaf_index = new_next_available_leaf_index };
-    return newTreeSnapshot;
-}
-
-NT::fr calculate_contract_subtree(std::vector<NT::fr> const& contract_leaves)
+NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 {
     MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_DEPTH);
 
@@ -260,7 +214,7 @@ void perform_historical_private_data_tree_membership_checks(DummyComposer& compo
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 
-        check_membership(
+        components::check_membership(
             composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
     }
 }
@@ -275,7 +229,7 @@ void perform_historical_contract_data_tree_membership_checks(DummyComposer& comp
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
-        check_membership(
+        components::check_membership(
             composer, leaf, historic_root_witness.leaf_index, historic_root_witness.sibling_path, historic_root);
     }
 }
@@ -389,11 +343,11 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     };
 
                     // perform membership check for the low nullifier against the original root
-                    check_membership<NULLIFIER_TREE_HEIGHT>(composer,
-                                                            original_low_nullifier.hash(),
-                                                            witness.leaf_index,
-                                                            witness.sibling_path,
-                                                            current_nullifier_tree_root);
+                    components::check_membership<NULLIFIER_TREE_HEIGHT>(composer,
+                                                                        original_low_nullifier.hash(),
+                                                                        witness.leaf_index,
+                                                                        witness.sibling_path,
+                                                                        current_nullifier_tree_root);
 
                     // Calculate the new value of the low_nullifier_leaf
                     NullifierLeaf updated_low_nullifier = NullifierLeaf{ .value = low_nullifier_preimage.leaf_value,
@@ -401,7 +355,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                                                                          .nextValue = nullifier };
 
                     // We need another set of witness values for this
-                    current_nullifier_tree_root = iterate_through_tree_via_sibling_path(
+                    current_nullifier_tree_root = components::iterate_through_tree_via_sibling_path(
                         updated_low_nullifier.hash(), witness.leaf_index, witness.sibling_path);
                 }
 
@@ -428,8 +382,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
     auto subtree_index = start_insertion_index >> (NULLIFIER_SUBTREE_DEPTH);
-    auto new_root =
-        iterate_through_tree_via_sibling_path(nullifier_subtree_root, subtree_index, nullifier_sibling_path);
+    auto new_root = components::iterate_through_tree_via_sibling_path(
+        nullifier_subtree_root, subtree_index, nullifier_sibling_path);
 
     // Return the new state of the nullifier tree
     return {
@@ -453,57 +407,36 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     // First we compute the contract tree leaves
     std::vector<NT::fr> contract_leaves = calculate_contract_leaves(baseRollupInputs);
 
-    // Perform merkle membership check with the provided sibling path up to the root
-    // Note - the subtree hasn't been created (i.e. it is empty) so you check that the sibling path corresponds to
-    // an empty tree
-
-    // check for commitments/private_data
-    // next_available_leaf_index is at the leaf level. We need at the subtree level (say height 3). So divide by 8.
-    // (if leaf is at index x, its parent is at index floor >> depth)
-    auto leafIndexAtSubtreeDepth =
-        baseRollupInputs.start_private_data_tree_snapshot.next_available_leaf_index >> (PRIVATE_DATA_SUBTREE_DEPTH);
-    check_membership(composer,
-                     EMPTY_COMMITMENTS_SUBTREE_ROOT,
-                     leafIndexAtSubtreeDepth,
-                     baseRollupInputs.new_commitments_subtree_sibling_path,
-                     baseRollupInputs.start_private_data_tree_snapshot.root);
-
-    // check for contracts
-    auto leafIndexContractsSubtreeDepth =
-        baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index >> CONTRACT_SUBTREE_DEPTH;
-    check_membership(composer,
-                     EMPTY_CONTRACTS_SUBTREE_ROOT,
-                     leafIndexContractsSubtreeDepth,
-                     baseRollupInputs.new_contracts_subtree_sibling_path,
-                     baseRollupInputs.start_contract_tree_snapshot.root);
-
-    // check for nullifiers
-    auto leafIndexNullifierSubtreeDepth =
-        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
-    check_membership(composer,
-                     EMPTY_NULLIFIER_SUBTREE_ROOT,
-                     leafIndexNullifierSubtreeDepth,
-                     baseRollupInputs.new_nullifiers_subtree_sibling_path,
-                     baseRollupInputs.start_nullifier_tree_snapshot.root);
-
     // Check contracts and commitments subtrees
     NT::fr contracts_tree_subroot = calculate_contract_subtree(contract_leaves);
     NT::fr commitments_tree_subroot = calculate_commitments_subtree(composer, baseRollupInputs);
 
-    // Insert subtrees to the tree:
+    // Insert commitment subtrees:
     auto end_private_data_tree_snapshot =
-        insert_subtree_to_snapshot_tree(baseRollupInputs.new_commitments_subtree_sibling_path,
-                                        baseRollupInputs.start_private_data_tree_snapshot.next_available_leaf_index,
-                                        commitments_tree_subroot,
-                                        PRIVATE_DATA_SUBTREE_DEPTH);
+        components::insert_subtree_to_snapshot_tree(composer,
+                                                    baseRollupInputs.start_private_data_tree_snapshot,
+                                                    baseRollupInputs.new_commitments_subtree_sibling_path,
+                                                    EMPTY_COMMITMENTS_SUBTREE_ROOT,
+                                                    commitments_tree_subroot,
+                                                    PRIVATE_DATA_SUBTREE_DEPTH);
 
+    // Insert contract subtrees:
     auto end_contract_tree_snapshot =
-        insert_subtree_to_snapshot_tree(baseRollupInputs.new_contracts_subtree_sibling_path,
-                                        baseRollupInputs.start_contract_tree_snapshot.next_available_leaf_index,
-                                        contracts_tree_subroot,
-                                        CONTRACT_SUBTREE_DEPTH);
+        components::insert_subtree_to_snapshot_tree(composer,
+                                                    baseRollupInputs.start_contract_tree_snapshot,
+                                                    baseRollupInputs.new_contracts_subtree_sibling_path,
+                                                    EMPTY_CONTRACTS_SUBTREE_ROOT,
+                                                    contracts_tree_subroot,
+                                                    CONTRACT_SUBTREE_DEPTH);
 
-    // Check nullifiers and check new subtree insertion
+    // Update nullifier tree and insert new subtree
+    auto leafIndexNullifierSubtreeDepth =
+        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
+    components::check_membership(composer,
+                                 EMPTY_NULLIFIER_SUBTREE_ROOT,
+                                 leafIndexNullifierSubtreeDepth,
+                                 baseRollupInputs.new_nullifiers_subtree_sibling_path,
+                                 baseRollupInputs.start_nullifier_tree_snapshot.root);
     AppendOnlySnapshot end_nullifier_tree_snapshot =
         check_nullifier_tree_non_membership_and_insert_to_tree(composer, baseRollupInputs);
 
