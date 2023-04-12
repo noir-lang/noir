@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use acvm::acir::brillig_bytecode::Opcode as BrilligOpcode;
-use acvm::acir::circuit::opcodes::{Brillig, JabberingIn, JabberingOut, Opcode as AcirOpcode};
+use acvm::acir::circuit::opcodes::{Brillig, BrilligInputs, BrilligOutputs, Opcode as AcirOpcode};
 use acvm::acir::native_types::{Expression, Witness};
 mod operations;
 use iter_extended::vecmap;
@@ -198,7 +198,7 @@ fn jabber_node(
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Result<JabberingIn, RuntimeError> {
+) -> Result<BrilligInputs, RuntimeError> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
         node::NodeObject::Variable(v) => {
@@ -210,7 +210,7 @@ fn jabber_node(
                 // If it is not a pointer, we attempt to fetch the witness associated with it
                 _ => {
                     if let Some(w) = v.witness {
-                        return Ok(JabberingIn::Simple(Expression::from(w)));
+                        return Ok(BrilligInputs::Simple(Expression::from(w)));
                     }
                 }
             }
@@ -221,7 +221,7 @@ fn jabber_node(
         .var_cache
         .get_or_compute_internal_var(*node_id, evaluator, cfg)
         .expect("invalid input");
-    Ok(JabberingIn::Simple(ivar.to_expression()))
+    Ok(BrilligInputs::Simple(ivar.to_expression()))
 }
 
 fn jabber_array(
@@ -229,7 +229,7 @@ fn jabber_array(
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Result<JabberingIn, RuntimeError> {
+) -> Result<BrilligInputs, RuntimeError> {
     let mut inputs = Vec::new();
 
     let array = &cfg.mem[array_id];
@@ -245,7 +245,7 @@ fn jabber_array(
         )?;
         inputs.push(element.expression().clone());
     }
-    Ok(JabberingIn::Array(array_id.to_u32(), inputs))
+    Ok(BrilligInputs::Array(array_id.to_u32(), inputs))
 }
 
 fn jabber_output(
@@ -253,7 +253,7 @@ fn jabber_output(
     node_id: NodeId,
     ctx: &SsaContext,
     evaluator: &mut Evaluator,
-) -> JabberingOut {
+) -> BrilligOutputs {
     let outputs;
     if let Some(array) = Memory::deref(ctx, node_id) {
         let len = ctx.mem[array].len;
@@ -261,13 +261,13 @@ fn jabber_output(
         outputs = vecmap(0..len, |_| evaluator.add_witness_to_cs());
 
         acir_gen.memory.map_array(array, &outputs, ctx);
-        JabberingOut::Array(outputs)
+        BrilligOutputs::Array(outputs)
     } else {
         let ivar = acir_gen
             .var_cache
             .get_or_compute_internal_var(node_id, evaluator, ctx)
             .expect("invalid input");
         let w = acir_gen.var_cache.get_or_compute_witness_unwrap(ivar, evaluator, ctx);
-        JabberingOut::Simple(w)
+        BrilligOutputs::Simple(w)
     }
 }

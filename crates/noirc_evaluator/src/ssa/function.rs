@@ -79,12 +79,13 @@ impl SsaFunction {
         BrilligGen::ir_to_brillig(ctx, self.entry_block)
     }
 
-    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<DecisionTree, RuntimeError> {
+    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<(DecisionTree, Vec<BrilligOpcode>), RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
         //catch the error because the function may not be called
         super::optimizations::full_cse(&mut ir_gen.context, self.entry_block, false)?;
+        let brillig = BrilligGen::ir_to_brillig(&ir_gen.context, self.entry_block);
         //Unrolling
         super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 
@@ -135,7 +136,7 @@ impl SsaFunction {
                 ir_gen.context.remove_block(i);
             }
         }
-        Ok(decision)
+        Ok((decision, brillig))
     }
 
     pub(crate) fn get_mapped_value(
@@ -158,6 +159,18 @@ impl SsaFunction {
         } else {
             ssa_form::get_current_value_in_block(ctx, *node_id, block_id)
         }
+    }
+
+    pub(crate) fn create_return_values(&self, ctx: &mut SsaContext) -> Vec<NodeId> {
+           let mut returned_values = Vec::new();
+           let types = self.result_types.clone();
+           for (i, typ) in types.iter().enumerate() {
+               let name = format!("ret{i}");
+               let obj = node::Variable::new(*typ, name, None, ctx.current_block);
+               let var = ctx.add_variable(obj, None);
+               returned_values.push(var);
+           }
+           returned_values
     }
 }
 
@@ -208,7 +221,7 @@ impl IrGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.ssa_gen_expression(&function_body)?;
+        let last_value = self.ssa_gen_expression(&function_body)?;  //on pourrait ici mettre un param pour changer le calls en unsafe_call, mais c'est PAS JOLIE JOLIE...
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -252,8 +265,9 @@ impl IrGenerator {
             }
             RuntimeType::Oracle(_) => {}
             RuntimeType::Acvm => {
-                let decision = func.compile(self)?; //unroll the function
-                func.decision = decision;
+                let artefacts = func.compile(self)?; //unroll the function
+                func.decision = artefacts.0;
+                func.brillig_code = artefacts.1;
             }
         }
         self.context.functions.insert(func_id, func);
@@ -263,10 +277,17 @@ impl IrGenerator {
         Ok(ObjectType::Function)
     }
 
-    fn from_type(typ: &Type) -> ObjectType {
+    fn from_type(&mut self, typ: &Type) -> ObjectType {
         match typ {
             Type::Field => ObjectType::Numeric(NumericType::NativeField),
-            Type::Array(_, _) => todo!(),
+            Type::Array(len, elements) => { 
+                let (arrayid, _) =self.context.new_array(
+                    name: &str,
+                    element_type: ObjectType::Numeric(NumericType::NativeField),
+                    len,
+                    def: None);
+                ObjectType::ArrayPointer(arrayid) 
+            },
             Type::Integer(sign, size) => match sign {
                 noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
                 noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
