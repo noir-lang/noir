@@ -1,12 +1,10 @@
 import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 import { WasmWrapper } from '@aztec/foundation/wasm';
 import { default as levelup } from 'levelup';
-import { default as memdown } from 'memdown';
+import { default as memdown, type MemDown } from 'memdown';
 import { Hasher, MerkleTree, Pedersen, SiblingPath } from '../index.js';
 
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-ignore
-export const createMemDown = () => memdown();
+export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 const expectSameTrees = async (tree1: MerkleTree, tree2: MerkleTree, includeUncommitted = true) => {
   const size = tree1.getNumLeaves(includeUncommitted);

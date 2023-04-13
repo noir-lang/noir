@@ -2,8 +2,8 @@
 
 exports[`abis wasm bindings computes a contract address 1`] = `
 AztecAddress {
-  "buffer": Object {
-    "data": Array [
+  "buffer": {
+    "data": [
       21,
       214,
       156,
@@ -49,8 +49,8 @@ Fr {
 `;
 
 exports[`abis wasm bindings computes a function selector 1`] = `
-Object {
-  "data": Array [
+{
+  "data": [
     169,
     5,
     156,
@@ -100,8 +100,8 @@ Fr {
 `;
 
 exports[`abis wasm bindings hash constructor info 1`] = `
-Object {
-  "data": Array [
+{
+  "data": [
     6,
     8,
     191,
@@ -180,8 +180,8 @@ Object {
 `;
 
 exports[`abis wasm bindings hashes a tx request 1`] = `
-Object {
-  "data": Array [
+{
+  "data": [
     13,
     190,
     226,

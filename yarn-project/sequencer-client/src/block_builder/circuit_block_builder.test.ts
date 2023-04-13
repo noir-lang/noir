@@ -18,7 +18,7 @@ import { MerkleTreeId, MerkleTreeOperations, MerkleTrees } from '@aztec/world-st
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
-import { default as memdown } from 'memdown';
+import { default as memdown, type MemDown } from 'memdown';
 import { makeEmptyTx, makeEmptyUnverifiedData } from '../mocks/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyProver } from '../prover/empty.js';
@@ -29,9 +29,7 @@ import { CircuitBlockBuilder } from './circuit_block_builder.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import times from 'lodash.times';
 
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-ignore
-export const createMemDown = () => memdown();
+export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 describe('sequencer/circuit_block_builder', () => {
   let builder: TestSubject;

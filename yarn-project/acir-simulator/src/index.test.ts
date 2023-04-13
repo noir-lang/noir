@@ -17,7 +17,7 @@ import { jest } from '@jest/globals';
 import { toBigIntBE } from '@aztec/foundation';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { default as levelup } from 'levelup';
-import { default as memdown } from 'memdown';
+import { default as memdown, type MemDown } from 'memdown';
 import { Pedersen, StandardMerkleTree } from '@aztec/merkle-tree';
 import { encodeArguments } from './arguments_encoder/index.js';
 
@@ -26,7 +26,7 @@ type NoirPoint = {
   y: bigint;
 };
 
-export const createMemDown = () => (memdown as any)();
+export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 describe('ACIR simulator', () => {
   let bbWasm: BarretenbergWasm;

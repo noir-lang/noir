@@ -8,13 +8,11 @@ import { Tx, TxHash } from '@aztec/types';
 import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
 import { MerkleTreeId, MerkleTrees, ServerWorldStateSynchroniser, WorldStateSynchroniser } from '@aztec/world-state';
 import { default as levelup } from 'levelup';
-import { default as memdown } from 'memdown';
+import { default as memdown, MemDown } from 'memdown';
 import { AztecNodeConfig } from './config.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
 
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-ignore
-export const createMemDown = () => memdown();
+export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
 /**
  * The aztec node.
