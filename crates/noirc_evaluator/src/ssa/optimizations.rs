@@ -533,6 +533,7 @@ fn cse_block_with_anchor(
                     builtin::Opcode::Get2Notes => (),
                     builtin::Opcode::GetNotes2 => (),
                     builtin::Opcode::GetNNotes => (),
+                    builtin::Opcode::CallPrivateFunction => (),
                     _ => {
                         let args = args.iter().map(|arg| {
                             NodeEval::from_id(ctx, *arg).into_const_value().map(|f| f.to_u128())

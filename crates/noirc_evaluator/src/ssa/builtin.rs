@@ -25,6 +25,7 @@ pub(crate) enum Opcode {
     NotifyNullifiedNote,
     Get2Notes,
     GetNNotes,
+    CallPrivateFunction,
 }
 
 impl std::fmt::Display for Opcode {
@@ -53,6 +54,7 @@ impl Opcode {
             "getSecretKey" => Some(Opcode::GetSecretKey),
             "notifyNullifiedNote" => Some(Opcode::NotifyNullifiedNote),
             "getNotes2" => Some(Opcode::GetNotes2),
+            "callPrivateFunction" => Some(Opcode::CallPrivateFunction),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -87,6 +89,7 @@ impl Opcode {
             Opcode::GetSecretKey => "getSecretKey",
             Opcode::NotifyNullifiedNote => "notifyNullifiedNote",
             Opcode::GetNotes2 => "getNotes2",
+            Opcode::CallPrivateFunction => "callPrivateFunction",
         }
     }
 
@@ -119,6 +122,7 @@ impl Opcode {
             Opcode::GetSecretKey => ObjectType::NativeField.max_size(),
             Opcode::NotifyNullifiedNote => ObjectType::NativeField.max_size(),
             Opcode::GetNotes2 => ObjectType::NativeField.max_size(),
+            Opcode::CallPrivateFunction => ObjectType::NativeField.max_size(),
             Opcode::NotifyCreatedNote
             | Opcode::Get2Notes
             | Opcode::GetNNotes
@@ -163,6 +167,7 @@ impl Opcode {
             Opcode::NotifyCreatedNote => (1, ObjectType::NativeField),
             Opcode::GetSecretKey => (1, ObjectType::NativeField),
             Opcode::NotifyNullifiedNote => (1, ObjectType::NativeField),
+            Opcode::CallPrivateFunction => (51, ObjectType::NativeField),
             Opcode::GetNotes2 => (32, ObjectType::NativeField),
             Opcode::Get2Notes => (32, ObjectType::NativeField),
             Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),

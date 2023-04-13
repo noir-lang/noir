@@ -223,6 +223,20 @@ pub(crate) fn evaluate(
                 output_values: vec![],
             }));
         }
+        Opcode::CallPrivateFunction => {
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 51, ctx, evaluator);
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "callPrivateFunction".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
     }
 
     // If more than witness is returned,
