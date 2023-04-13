@@ -41,18 +41,15 @@ fn main() {
     // Get root module
     let root = def_map.root();
     let module = def_map.modules().get(root.0).unwrap();
-    for (name, (def_id, vis)) in module.scope.values() {
-        println!("func name is {:?}", name);
+    for def_id in module.value_definitions() {
         let func_id = match def_id {
             ModuleDefId::FunctionId(func_id) => func_id,
             _ => unreachable!(),
         };
 
         // Get the HirFunction for that Id
-        let hir = context.def_interner.function(func_id);
-
+        let hir = context.def_interner.function(&func_id);
         println!("func hir is {:?}", hir);
-        println!("func vis is {:?}", vis);
     }
     //
 

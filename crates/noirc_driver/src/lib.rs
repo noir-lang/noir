@@ -1,12 +1,13 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::Language;
 use clap::Args;
-use contract::{ContractFunction, ContractFunctionType};
+use contract::ContractFunction;
 use fm::FileType;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{reporter, ReportedError};
 use noirc_evaluator::create_circuit;
@@ -21,7 +22,7 @@ use std::path::{Path, PathBuf};
 mod contract;
 mod program;
 
-pub use contract::CompiledContract;
+pub use contract::{CompiledContract, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {
@@ -203,30 +204,24 @@ impl Driver {
         options: &CompileOptions,
     ) -> Result<CompiledContract, ReportedError> {
         let functions = try_vecmap(&contract.functions, |function_id| {
-            let function_name = self.function_name(*function_id).to_owned();
+            let name = self.function_name(*function_id).to_owned();
             let function = self.compile_no_check(options, *function_id)?;
             let func_meta = self.context.def_interner.function_meta(function_id);
             let func_type = func_meta
                 .contract_function_type
                 .expect("Expected contract function to have a contract visibility");
 
-            let func_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+            let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
-            Ok((function_name, func_type, function))
-        })?;
-
-        let converted_functions =
-            vecmap(functions, |(name, function_type, function)| ContractFunction {
+            Ok(ContractFunction {
                 name,
                 function_type,
                 abi: function.abi,
                 bytecode: function.circuit,
-                // Since we have not called the proving system yet
-                // we do not have a verification key
-                verification_key: None,
-            });
+            })
+        })?;
 
-        Ok(CompiledContract { name: contract.name, functions: converted_functions })
+        Ok(CompiledContract { name: contract.name, functions })
     }
 
     /// Returns the FuncId of the 'main' function.

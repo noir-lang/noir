@@ -163,7 +163,7 @@ impl SsaContext {
             result = format!("{var}");
         }
         if result.is_empty() {
-            result = format!("unknown {:?}", id.0.into_raw_parts().0)
+            result = format!("unknown {:?}", id.0.into_raw_parts().0);
         }
         result
     }
@@ -250,7 +250,7 @@ impl SsaContext {
 
     pub(crate) fn print_instructions(&self, instructions: &[NodeId]) {
         for id in instructions {
-            self.print_node(*id)
+            self.print_node(*id);
         }
     }
 
@@ -1205,6 +1205,7 @@ impl SsaContext {
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),
             Type::String(_) => todo!("Conversion to ObjectType is unimplemented for strings"),
+            Type::Vec(_) => todo!("Conversion to ObjectType is unimplemented for Vecs"),
         }
     }
 

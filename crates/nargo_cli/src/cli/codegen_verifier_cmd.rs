@@ -8,6 +8,7 @@ use crate::{
 };
 use acvm::{ProofSystemCompiler, SmartContract};
 use clap::Args;
+use nargo::ops::{codegen_verifier, preprocess_program};
 use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -23,30 +24,21 @@ pub(crate) struct CodegenVerifierCommand {
 pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(), CliError> {
     let backend = crate::backends::ConcreteBackend;
 
-    // Based on code in verify_cmd.rs
     // TODO(blaine): Should this be a utility function?
     let circuit_build_path = args
         .circuit_name
         .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
 
-    let verification_key = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path)?;
-
-            let (_, verification_key) =
-                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
-            verification_key
-        }
+    let preprocessed_program = match circuit_build_path {
+        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program =
-                compile_circuit(config.program_dir.as_ref(), &args.compile_options)?;
-
-            let (_, verification_key) = backend.preprocess(&compiled_program.circuit);
-            verification_key
+                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(&backend, compiled_program)?
         }
     };
 
-    let smart_contract_string = backend.eth_contract_from_vk(&verification_key);
+    let smart_contract_string = codegen_verifier(&backend, &preprocessed_program.verification_key)?;
 
     let contract_dir = config.program_dir.join(CONTRACT_DIR);
     create_named_dir(&contract_dir, "contract");

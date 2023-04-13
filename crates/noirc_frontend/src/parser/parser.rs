@@ -537,11 +537,12 @@ fn parse_type_inner(
     choice((
         field_type(),
         int_type(),
+        bool_type(),
+        string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
-        bool_type(),
-        string_type(),
+        vec_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser),
     ))
 }
@@ -591,6 +592,12 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map(|(path, args)| UnresolvedType::Named(path, args))
+}
+
+fn vec_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Vec)
+        .ignore_then(generic_type_args(type_parser))
+        .map_with_span(UnresolvedType::Vec)
 }
 
 fn generic_type_args(
@@ -849,7 +856,7 @@ where
                 emit(ParserError::with_reason(
                     "Arrays must have at least one element".to_owned(),
                     span,
-                ))
+                ));
             }
             ExpressionKind::array(elements)
         })
@@ -1128,7 +1135,7 @@ mod test {
             match expr_to_array(expr) {
                 ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
-                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()))
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
                 }
             }
         }
@@ -1360,7 +1367,7 @@ mod test {
 
         for (src, expected_path_kind) in cases {
             let path = parse_with(path(), src).unwrap();
-            assert_eq!(path.kind, expected_path_kind)
+            assert_eq!(path.kind, expected_path_kind);
         }
 
         parse_all_failing(

@@ -101,7 +101,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.unify(expected, span, &mut self.errors, make_error)
+        actual.unify(expected, span, &mut self.errors, make_error);
     }
 
     /// Wrapper of Type::make_subtype_of using self.errors
@@ -112,7 +112,7 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.make_subtype_of(expected, span, &mut self.errors, make_error)
+        actual.make_subtype_of(expected, span, &mut self.errors, make_error);
     }
 }
 
@@ -362,7 +362,7 @@ mod test {
 
         for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
             interner.update_fn(func_id, hir_func);
-            interner.push_fn_meta(meta, func_id)
+            interner.push_fn_meta(meta, func_id);
         }
 
         // Type check section

@@ -135,7 +135,7 @@ fn resolve_name_in_module(
 
     let mut import_path = import_path.iter();
     let first_segment = import_path.next().expect("ice: could not fetch first segment");
-    let mut current_ns = current_mod.scope.find_name(first_segment);
+    let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
@@ -158,7 +158,7 @@ fn resolve_name_in_module(
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
 
         // Check if namespace
-        let found_ns = current_mod.scope.find_name(segment);
+        let found_ns = current_mod.find_name(segment);
         if found_ns.is_none() {
             return Err(PathResolutionError::Unresolved(segment.clone()));
         }
@@ -168,7 +168,7 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
         }
 
-        current_ns = found_ns
+        current_ns = found_ns;
     }
 
     Ok(current_ns)
