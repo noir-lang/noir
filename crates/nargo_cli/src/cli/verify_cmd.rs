@@ -1,14 +1,14 @@
-use super::fs::{
-    inputs::read_inputs_from_file, keys::fetch_pk_and_vk, load_hex_data,
-    program::read_program_from_file,
-};
-use super::{compile_cmd::compile_circuit, InputMap, NargoConfig};
+use super::compile_cmd::compile_circuit;
+use super::fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file};
+use super::{InputMap, NargoConfig};
 use crate::{
     constants::{PROOFS_DIR, PROOF_EXT, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
+use acvm::ProofSystemCompiler;
 use clap::Args;
-use nargo::ops::{preprocess_circuit, PreprocessedData};
+use nargo::artifacts::program::PreprocessedProgram;
+use nargo::ops::preprocess_program;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use std::path::{Path, PathBuf};
@@ -43,23 +43,19 @@ fn verify_with_path<P: AsRef<Path>>(
     circuit_build_path: Option<P>,
     compile_options: CompileOptions,
 ) -> Result<(), CliError> {
-    let (compiled_program, verification_key) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let compiled_program = read_program_from_file(&circuit_build_path)?;
+    let backend = crate::backends::ConcreteBackend;
 
-            let (_, verification_key) =
-                fetch_pk_and_vk(&compiled_program.circuit, circuit_build_path, false, true)?;
-            (compiled_program, verification_key)
-        }
+    let preprocessed_program = match circuit_build_path {
+        Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
-            let compiled_program = compile_circuit(program_dir.as_ref(), &compile_options)?;
-
-            let backend = crate::backends::ConcreteBackend;
-            let PreprocessedData { verification_key, .. } =
-                preprocess_circuit(&backend, &compiled_program.circuit)?;
-            (compiled_program, verification_key)
+            let compiled_program =
+                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
+            preprocess_program(&backend, compiled_program)?
         }
     };
+
+    let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
+    let compiled_program = CompiledProgram { abi, circuit: bytecode };
 
     // Load public inputs (if any) from `VERIFIER_INPUT_FILE`.
     let public_abi = compiled_program.abi.clone().public_abi();
@@ -67,6 +63,7 @@ fn verify_with_path<P: AsRef<Path>>(
         read_inputs_from_file(program_dir, VERIFIER_INPUT_FILE, Format::Toml, &public_abi)?;
 
     verify_proof(
+        &backend,
         &compiled_program,
         public_inputs_map,
         return_value,
@@ -77,6 +74,7 @@ fn verify_with_path<P: AsRef<Path>>(
 }
 
 pub(crate) fn verify_proof(
+    backend: &impl ProofSystemCompiler,
     compiled_program: &CompiledProgram,
     public_inputs_map: InputMap,
     return_value: Option<InputValue>,
@@ -87,9 +85,8 @@ pub(crate) fn verify_proof(
     let public_abi = compiled_program.abi.clone().public_abi();
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
-    let backend = crate::backends::ConcreteBackend;
     let valid_proof = nargo::ops::verify_proof(
-        &backend,
+        backend,
         &compiled_program.circuit,
         proof,
         public_inputs,

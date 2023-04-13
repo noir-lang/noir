@@ -1,20 +1,20 @@
 use std::path::{Path, PathBuf};
 
-use noirc_driver::{CompiledContract, CompiledProgram};
+use nargo::artifacts::{contract::PreprocessedContract, program::PreprocessedProgram};
 
-use crate::{constants::ACIR_CHECKSUM, errors::CliError};
+use crate::errors::CliError;
 
 use super::{create_named_dir, write_to_file};
 
 pub(crate) fn save_program_to_file<P: AsRef<Path>>(
-    compiled_program: &CompiledProgram,
+    compiled_program: &PreprocessedProgram,
     circuit_name: &str,
     circuit_dir: P,
 ) -> PathBuf {
     save_build_artifact_to_file(compiled_program, circuit_name, circuit_dir)
 }
 pub(crate) fn save_contract_to_file<P: AsRef<Path>>(
-    compiled_contract: &CompiledContract,
+    compiled_contract: &PreprocessedContract,
     circuit_name: &str,
     circuit_dir: P,
 ) -> PathBuf {
@@ -33,20 +33,9 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
     circuit_path
 }
 
-pub(crate) fn save_acir_checksum_to_dir<P: AsRef<Path>>(
-    acir_checksum: [u8; 4],
-    hash_name: &str,
-    hash_dir: P,
-) -> PathBuf {
-    let hash_path = hash_dir.as_ref().join(hash_name).with_extension(ACIR_CHECKSUM);
-    write_to_file(hex::encode(acir_checksum).as_bytes(), &hash_path);
-
-    hash_path
-}
-
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(
     circuit_path: P,
-) -> Result<CompiledProgram, CliError> {
+) -> Result<PreprocessedProgram, CliError> {
     let file_path = circuit_path.as_ref().with_extension("json");
 
     let input_string = std::fs::read(&file_path).map_err(|_| CliError::PathNotValid(file_path))?;

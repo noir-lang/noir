@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use acvm::PartialWitnessGenerator;
 use clap::Args;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{InputMap, WitnessMap};
@@ -45,13 +46,15 @@ fn execute_with_path(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError> {
-    let compiled_program = compile_circuit(program_dir, compile_options)?;
+    let backend = crate::backends::ConcreteBackend;
+
+    let compiled_program = compile_circuit(&backend, program_dir, compile_options)?;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, PROVER_INPUT_FILE, Format::Toml, &compiled_program.abi)?;
 
-    let solved_witness = execute_program(&compiled_program, &inputs_map)?;
+    let solved_witness = execute_program(&backend, &compiled_program, &inputs_map)?;
 
     let public_abi = compiled_program.abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
@@ -60,14 +63,14 @@ fn execute_with_path(
 }
 
 pub(crate) fn execute_program(
+    backend: &impl PartialWitnessGenerator,
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    let backend = crate::backends::ConcreteBackend;
     let solved_witness =
-        nargo::ops::execute_circuit(&backend, compiled_program.circuit.clone(), initial_witness)?;
+        nargo::ops::execute_circuit(backend, compiled_program.circuit.clone(), initial_witness)?;
 
     Ok(solved_witness)
 }

@@ -4,7 +4,7 @@ use noirc_abi::WitnessMap;
 
 use crate::NargoError;
 
-pub fn prove(
+pub fn prove_execution(
     backend: &impl ProofSystemCompiler,
     circuit: &Circuit,
     solved_witness: WitnessMap,

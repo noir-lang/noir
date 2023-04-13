@@ -2245,7 +2245,9 @@ name = "nargo"
 version = "0.3.2"
 dependencies = [
  "acvm 0.8.0",
+ "iter-extended",
  "noirc_abi",
+ "noirc_driver",
  "rustc_version 0.4.0",
  "serde",
  "thiserror",
