@@ -37,6 +37,8 @@ export class AsyncCallState {
   private ASYNCIFY_DATA_SIZE = 16 * 1024;
   private asyncifyDataAddr!: number;
   private asyncPromise?: Promise<any>;
+  // For debug purposes, the last running function
+  private debugLastFuncName?: string;
   private wasm!: WasmModule;
   private state?: AsyncFnState;
   private callExport!: (...args: any[]) => number;
@@ -84,9 +86,12 @@ export class AsyncCallState {
    */
   public async call(name: string, ...args: any) {
     if (this.state) {
-      throw new Error(`Can only handle one async call at a time: ${name}(${args})`);
+      throw new Error(
+        `Can only handle one async call at a time: Can't run ${name}(${args}) because we are still running ${this.debugLastFuncName}`,
+      );
     }
     this.state = { continuation: false };
+    this.debugLastFuncName = name;
     let result = this.callExport(name, ...args);
 
     while (this.asyncPromise) {

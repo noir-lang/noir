@@ -2,7 +2,7 @@ import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { KERNEL_NEW_COMMITMENTS_LENGTH, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
+import { AztecAddress, Fr, Point, keccak, createDebugLogger } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { L2BlockContext } from '@aztec/types';
 import { UnverifiedData } from '@aztec/types';
@@ -63,6 +63,7 @@ export class AccountState {
     if (!functionDao) {
       throw new Error('Unknown function.');
     }
+    const acirHash = keccak(Buffer.from(functionDao.bytecode, 'hex'));
 
     const oldRoots = new OldTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
 
@@ -76,7 +77,7 @@ export class AccountState {
       oldRoots,
     );
 
-    return { contract, oldRoots, executionResult };
+    return { contract, oldRoots, executionResult, acirHash };
   }
 
   public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]): UnverifiedData {

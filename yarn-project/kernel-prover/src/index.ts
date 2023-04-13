@@ -37,6 +37,7 @@ export class KernelProver {
     oldRoots: OldTreeRoots,
     getFunctionTreeInfo: (callStackItem: PrivateCallStackItem) => Promise<FunctionTreeInfo>,
     getContractSiblingPath: (committment: Buffer) => Promise<MembershipWitness<typeof CONTRACT_TREE_HEIGHT>>,
+    acirHash: Buffer,
   ): Promise<{ publicInputs: PrivateKernelPublicInputs; proof: Buffer }> {
     const wasm = await CircuitsWasm.get();
     // TODO: implement this
@@ -63,6 +64,7 @@ export class KernelProver {
       functionTreeInfo.membershipWitness,
       contractLeafMembershipWitness,
       txRequest.txContext.contractDeploymentData.portalContractAddress,
+      Fr.fromBuffer(Buffer.alloc(32, 0)),//acirHash, // FIXME: https://github.com/AztecProtocol/aztec3-packages/issues/262
     );
 
     const previousKernelData: PreviousKernelData = await DummyPreviousKernelData.getDummyPreviousKernelData(wasm);

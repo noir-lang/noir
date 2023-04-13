@@ -201,7 +201,7 @@ export class AztecRPCServer implements AztecRPCClient {
   public async createTx(txRequest: TxRequest, signature: EcdsaSignature) {
     const accountState = this.ensureAccount(txRequest.from);
 
-    const { executionResult, oldRoots, contract } = await accountState.simulate(txRequest);
+    const { executionResult, oldRoots, contract, acirHash } = await accountState.simulate(txRequest);
 
     this.log(`Executing Prover...`);
     const { publicInputs } = await this.kernelProver.prove(
@@ -215,6 +215,7 @@ export class AztecRPCServer implements AztecRPCClient {
       (committment: Buffer) => {
         return this.getContractSiblingPath(committment);
       },
+      acirHash,
     );
 
     this.log(`Proof completed!`);

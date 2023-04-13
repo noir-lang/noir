@@ -299,6 +299,7 @@ export class PrivateCallData {
     public functionLeafMembershipWitness: MembershipWitness<typeof FUNCTION_TREE_HEIGHT>,
     public contractLeafMembershipWitness: MembershipWitness<typeof CONTRACT_TREE_HEIGHT>,
     public portalContractAddress: EthAddress,
+    public acirHash: Fr,
   ) {
     assertLength(this, 'privateCallStackPreimages', PRIVATE_CALL_STACK_LENGTH);
   }
@@ -318,6 +319,7 @@ export class PrivateCallData {
       fields.functionLeafMembershipWitness,
       fields.contractLeafMembershipWitness,
       fields.portalContractAddress,
+      fields.acirHash,
     ] as const;
   }
 
