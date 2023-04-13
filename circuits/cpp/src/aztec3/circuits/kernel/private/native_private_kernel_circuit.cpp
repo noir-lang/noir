@@ -14,7 +14,6 @@
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::private_kernel::ContractLeafPreimage;
 using aztec3::circuits::abis::private_kernel::NewContractData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
@@ -29,7 +28,8 @@ using DummyComposer = aztec3::utils::DummyComposer;
 
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
-using aztec3::circuits::root_from_sibling_path;
+using aztec3::circuits::contract_tree_root_from_siblings;
+using aztec3::circuits::function_tree_root_from_siblings;
 
 // using plonk::stdlib::merkle_tree::
 
@@ -138,44 +138,34 @@ void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_in
      * - Hash the contract_leaf with the contract_leaf's sibling_path to get the contract_tree_root
      */
 
-    const auto function_leaf_preimage = FunctionLeafPreimage<NT>{
-        .function_selector = private_inputs.private_call.call_stack_item.function_data.function_selector,
-        .is_private = true,
-        .vk_hash = private_call_vk_hash,
-        .acir_hash = private_inputs.private_call.acir_hash,
-    };
-
-    const auto function_leaf = function_leaf_preimage.hash();
-
-    const auto& function_leaf_index = private_inputs.private_call.function_leaf_membership_witness.leaf_index;
-    const auto& function_leaf_sibling_path = private_inputs.private_call.function_leaf_membership_witness.sibling_path;
-
-    const auto& function_tree_root =
-        root_from_sibling_path<NT>(function_leaf, function_leaf_index, function_leaf_sibling_path);
-
-    const ContractLeafPreimage<NT> contract_leaf_preimage{
-        storage_contract_address,
-        portal_contract_address,
-        function_tree_root,
-    };
-
-    const auto contract_leaf = contract_leaf_preimage.hash();
-
-    auto& contract_leaf_index = private_inputs.private_call.contract_leaf_membership_witness.leaf_index;
-    auto& contract_leaf_sibling_path = private_inputs.private_call.contract_leaf_membership_witness.sibling_path;
-
-    const auto& computed_contract_tree_root =
-        root_from_sibling_path<NT>(contract_leaf, contract_leaf_index, contract_leaf_sibling_path);
-
-    auto& purported_contract_tree_root =
+    // ensure that historic/purported contract tree root matches the one in previous kernel
+    auto const& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
-    composer.do_assert(computed_contract_tree_root == purported_contract_tree_root,
-                       "computed_contract_tree_root doesn't match purported_contract_tree_root");
-
-    auto& previous_kernel_contract_tree_root =
+    auto const& previous_kernel_contract_tree_root =
         private_inputs.previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root;
     composer.do_assert(purported_contract_tree_root == previous_kernel_contract_tree_root,
                        "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
+
+    // The logic below ensures that the contract exists in the contracts tree
+    if (!is_contract_deployment) {
+        auto const& computed_function_tree_root = function_tree_root_from_siblings<NT>(
+            private_inputs.private_call.call_stack_item.function_data.function_selector,
+            true, // is_private
+            private_call_vk_hash,
+            private_inputs.private_call.acir_hash,
+            private_inputs.private_call.function_leaf_membership_witness.leaf_index,
+            private_inputs.private_call.function_leaf_membership_witness.sibling_path);
+
+        auto const& computed_contract_tree_root = contract_tree_root_from_siblings<NT>(
+            computed_function_tree_root,
+            storage_contract_address,
+            portal_contract_address,
+            private_inputs.private_call.contract_leaf_membership_witness.leaf_index,
+            private_inputs.private_call.contract_leaf_membership_witness.sibling_path);
+
+        composer.do_assert(computed_contract_tree_root == purported_contract_tree_root,
+                           "computed_contract_tree_root doesn't match purported_contract_tree_root");
+    }
 }
 
 void update_end_values(DummyComposer& composer,
@@ -350,6 +340,8 @@ PublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer, PrivateI
     validate_this_private_call_stack(composer, private_inputs);
 
     update_end_values(composer, private_inputs, public_inputs);
+
+    contract_logic(composer, private_inputs, public_inputs);
 
     // We'll skip any verification in this native implementation, because for a Local Developer Testnet, there won't
     // _be_ a valid proof to verify!!! auto aggregation_object = verify_proofs(composer,

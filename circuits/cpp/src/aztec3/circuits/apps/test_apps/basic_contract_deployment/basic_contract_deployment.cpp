@@ -9,9 +9,7 @@ namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exec_ctx,
-                                                   NT::fr const& _arg0,
-                                                   NT::fr const& _arg1,
-                                                   NT::fr const& _arg2)
+                                                   std::array<NT::fr, ARGS_LENGTH> const& args)
 {
     /****************************************************************
      * PREAMBLE
@@ -24,9 +22,9 @@ OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exe
     // Convert params into circuit types:
     auto& composer = exec_ctx.composer;
 
-    CT::fr arg0 = to_ct(composer, _arg0);
-    CT::fr arg1 = to_ct(composer, _arg1);
-    CT::fr arg2 = to_ct(composer, _arg2);
+    CT::fr arg0 = to_ct(composer, args[0]);
+    CT::fr arg1 = to_ct(composer, args[1]);
+    CT::fr arg2 = to_ct(composer, args[2]);
 
     auto& oracle = exec_ctx.oracle;
     const CT::address msg_sender = oracle.get_msg_sender();

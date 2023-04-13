@@ -10,8 +10,6 @@ namespace aztec3::circuits::apps::test_apps::basic_contract_deployment {
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 OptionalPrivateCircuitPublicInputs<NT> constructor(FunctionExecutionContext& exec_ctx,
-                                                   NT::fr const& _arg0,
-                                                   NT::fr const& _arg1,
-                                                   NT::fr const& _arg2);
+                                                   std::array<NT::fr, ARGS_LENGTH> const& args);
 
 } // namespace aztec3::circuits::apps::test_apps::basic_contract_deployment

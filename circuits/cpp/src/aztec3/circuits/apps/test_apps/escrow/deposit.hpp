@@ -10,8 +10,6 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ctx,
-                                               NT::fr const& _amount,
-                                               NT::fr const& _asset_id,
-                                               NT::fr const& _memo);
+                                               std::array<NT::fr, ARGS_LENGTH> const& args);
 
 } // namespace aztec3::circuits::apps::test_apps::escrow

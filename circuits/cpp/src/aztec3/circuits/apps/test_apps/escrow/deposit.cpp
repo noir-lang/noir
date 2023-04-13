@@ -10,9 +10,7 @@ namespace aztec3::circuits::apps::test_apps::escrow {
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 
 OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ctx,
-                                               NT::fr const& _amount,
-                                               NT::fr const& _asset_id,
-                                               NT::fr const& _memo)
+                                               std::array<NT::fr, ARGS_LENGTH> const& args)
 {
     /****************************************************************
      * PREAMBLE
@@ -25,9 +23,9 @@ OptionalPrivateCircuitPublicInputs<NT> deposit(FunctionExecutionContext& exec_ct
     // Convert params into circuit types:
     auto& composer = exec_ctx.composer;
 
-    CT::fr amount = to_ct(composer, _amount);
-    CT::fr asset_id = to_ct(composer, _asset_id);
-    CT::fr memo = to_ct(composer, _memo);
+    CT::fr amount = to_ct(composer, args[0]);
+    CT::fr asset_id = to_ct(composer, args[1]);
+    CT::fr memo = to_ct(composer, args[2]);
 
     auto& oracle = exec_ctx.oracle;
     const CT::address msg_sender = oracle.get_msg_sender();

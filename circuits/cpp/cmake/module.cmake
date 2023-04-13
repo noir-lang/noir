@@ -113,7 +113,13 @@ function(barretenberg_module MODULE_NAME)
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
             else()
                 # Currently haven't found a way to easily wrap the calls in wasmtime when run from ctest.
-                gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+                # Needed to add `TEST_DISCOVERY_TIMEOUT` to work around:
+                # ```
+                # Error running test executable.
+                #   ...
+                #   Result: Process terminated due to timeout
+                # ```
+                gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR} PROPERTIES TEST_DISCOVERY_TIMEOUT 600)
             endif()
         endif()
 
