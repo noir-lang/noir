@@ -222,29 +222,30 @@ PermutationMapping<program_width> compute_permutation_mapping(const CircuitConst
 }
 
 /**
- * @brief Compute Sigma polynomials for Honk from a mapping and put into polynomial cache
+ * @brief Compute Sigma/ID polynomials for Honk from a mapping and put into polynomial cache
  *
- * @details Given a mapping (effectively at table pointing witnesses to other witnesses) compute Sigma polynomials in
- * lagrange form and put them into the cache. This version distinguishes betweenr regular elements and public inputs,
- * but ignores tags
+ * @details Given a mapping (effectively at table pointing witnesses to other witnesses) compute Sigma/ID polynomials in
+ * lagrange form and put them into the cache. This version is suitable for traditional and generalized permutations.
  *
  * @tparam program_width The number of wires
- * @param sigma_mappings A table with information about permuting each element
+ * @param permutation_mappings A table with information about permuting each element
  * @param key Pointer to the proving key
  */
 template <size_t program_width>
-void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
-    std::array<std::vector<permutation_subgroup_element>, program_width>& sigma_mappings, plonk::proving_key* key)
+void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
+    std::string label,
+    std::array<std::vector<permutation_subgroup_element>, program_width>& permutation_mappings,
+    plonk::proving_key* key)
 {
     const size_t num_gates = key->circuit_size;
 
-    std::array<barretenberg::polynomial, program_width> sigma;
+    std::array<barretenberg::polynomial, program_width> permutation_poly; // sigma or ID poly
 
     for (size_t wire_index = 0; wire_index < program_width; wire_index++) {
-        sigma[wire_index] = barretenberg::polynomial(num_gates);
-        auto& current_sigma_polynomial = sigma[wire_index];
+        permutation_poly[wire_index] = barretenberg::polynomial(num_gates);
+        auto& current_permutation_poly = permutation_poly[wire_index];
         ITERATE_OVER_DOMAIN_START(key->small_domain)
-        const auto& current_mapping = sigma_mappings[wire_index][i];
+        const auto& current_mapping = permutation_mappings[wire_index][i];
         if (current_mapping.is_public_input) {
             // We intentionally want to break the cycles of the public input variables.
             // During the witness generation, the left and right wire polynomials at index i contain the i-th public
@@ -254,13 +255,15 @@ void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
             //  -(i+1) -> (n+i)
             // These indices are chosen so they can easily be computed by the verifier. They can expect the running
             // product to be equal to the "public input delta" that is computed in <honk/utils/public_inputs.hpp>
-            current_sigma_polynomial[i] =
+            current_permutation_poly[i] =
                 -barretenberg::fr(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
+        } else if (current_mapping.is_tag) {
+            // Set evaluations to (arbitrary) values disjoint from non-tag values
+            current_permutation_poly[i] = num_gates * program_width + current_mapping.row_index;
         } else {
-            ASSERT(!current_mapping.is_tag);
             // For the regular permutation we simply point to the next location by setting the evaluation to its
             // index
-            current_sigma_polynomial[i] =
+            current_permutation_poly[i] =
                 barretenberg::fr(current_mapping.row_index + num_gates * current_mapping.column_index);
         }
         ITERATE_OVER_DOMAIN_END;
@@ -268,7 +271,7 @@ void compute_honk_style_sigma_lagrange_polynomials_from_mapping(
     // Save to polynomial cache
     for (size_t j = 0; j < program_width; j++) {
         std::string index = std::to_string(j + 1);
-        key->polynomial_store.put("sigma_" + index + "_lagrange", std::move(sigma[j]));
+        key->polynomial_store.put(label + "_" + index + "_lagrange", std::move(permutation_poly[j]));
     }
 }
 
@@ -447,7 +450,7 @@ void compute_standard_honk_sigma_permutations(CircuitConstructor& circuit_constr
     // Compute the permutation table specifying which element becomes which
     auto mapping = compute_permutation_mapping<program_width, false>(circuit_constructor, key);
     // Compute Honk-style sigma polynomial fromt the permutation table
-    compute_honk_style_sigma_lagrange_polynomials_from_mapping(mapping.sigmas, key);
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
 }
 
 /**
@@ -517,16 +520,14 @@ void compute_plonk_generalized_sigma_permutations(const CircuitConstructor& circ
  * @param key
  * @return std::array<std::vector<permutation_subgroup_element>, program_width>
  */
-// TODO(luke): Consider consolidation of the various "compute sigma permutations" methods which overlap considerably
 template <size_t program_width, typename CircuitConstructor>
 void compute_honk_generalized_sigma_permutations(const CircuitConstructor& circuit_constructor, plonk::proving_key* key)
 {
     auto mapping = compute_permutation_mapping<program_width, true>(circuit_constructor, key);
 
-    // Compute Plonk-style sigma and ID polynomials from the corresponding mappings
-    // TODO(luke): Change these to Honk style! (The only difference is we don't need any fancy coset logic).
-    compute_plonk_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
-    compute_plonk_permutation_lagrange_polynomials_from_mapping("id", mapping.ids, key);
+    // Compute Honk-style sigma and ID polynomials from the corresponding mappings
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping("sigma", mapping.sigmas, key);
+    compute_honk_style_permutation_lagrange_polynomials_from_mapping("id", mapping.ids, key);
 }
 
 } // namespace proof_system

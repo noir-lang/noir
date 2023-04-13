@@ -1,6 +1,7 @@
 #include "prover_library.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include <span>
+#include <string>
 
 namespace proof_system::honk::prover_library {
 
@@ -55,19 +56,18 @@ Polynomial compute_permutation_grand_product(std::shared_ptr<plonk::proving_key>
     // Populate wire and permutation polynomials
     std::array<std::span<const Fr>, program_width> wires;
     std::array<std::span<const Fr>, program_width> sigmas;
+    std::array<std::span<const Fr>, program_width> ids;
     for (size_t i = 0; i < program_width; ++i) {
-        std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
         wires[i] = wire_polynomials[i];
-        sigmas[i] = key->polynomial_store.get(sigma_id);
+        sigmas[i] = key->polynomial_store.get("sigma_" + std::to_string(i + 1) + "_lagrange");
+        ids[i] = key->polynomial_store.get("id_" + std::to_string(i + 1) + "_lagrange");
     }
 
     // Step (1)
     // TODO(#222)(kesha): Change the order to engage automatic prefetching and get rid of redundant computation
     for (size_t i = 0; i < key->circuit_size; ++i) {
         for (size_t k = 0; k < program_width; ++k) {
-            // Note(luke): this idx could be replaced by proper ID polys if desired
-            Fr idx = k * key->circuit_size + i;
-            numerator_accumulator[k][i] = wires[k][i] + (idx * beta) + gamma;            // w_k(i) + β.(k*n+i) + γ
+            numerator_accumulator[k][i] = wires[k][i] + (ids[k][i] * beta) + gamma;      // w_k(i) + β.id_k(i) + γ
             denominator_accumulator[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
         }
     }

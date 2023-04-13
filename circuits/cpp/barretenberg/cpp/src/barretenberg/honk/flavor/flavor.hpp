@@ -14,7 +14,7 @@ struct StandardArithmetization {
      * This separation must be maintained to allow for programmatic access, but the ordering of the
      * polynomials can be permuted within each category if necessary. Polynomials can also be added
      * or removed (assuming consistency with the prover algorithm) but the constants describing the
-     * number of poynomials in each category must be manually updated.
+     * number of polynomials in each category must be manually updated.
      *
      */
     enum POLYNOMIAL {
@@ -186,5 +186,59 @@ struct StandardHonk {
         auto output = transcript::Manifest(manifest_rounds);
         return output;
     }
+};
+
+struct UltraArithmetization {
+    /**
+     * @brief All of the multivariate polynomials used by the Ultra Honk Prover.
+     * @details The polynomials are broken into three categories: precomputed, witness, and shifted.
+     * This separation must be maintained to allow for programmatic access, but the ordering of the
+     * polynomials can be permuted within each category if necessary. Polynomials can also be added
+     * or removed (assuming consistency with the prover algorithm) but the constants describing the
+     * number of polynomials in each category must be manually updated.
+     *
+     */
+    enum POLYNOMIAL {
+        /* --- PRECOMPUTED POLYNOMIALS --- */
+        Q_C,
+        Q_L,
+        Q_R,
+        Q_O,
+        Q_4,
+        Q_M,
+        QARITH,
+        QSORT,
+        QELLIPTIC,
+        QAUX,
+        QLOOKUPTYPE,
+        SIGMA_1,
+        SIGMA_2,
+        SIGMA_3,
+        SIGMA_4,
+        ID_1,
+        ID_2,
+        ID_3,
+        ID_4,
+        LAGRANGE_FIRST,
+        LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
+        /* --- WITNESS POLYNOMIALS --- */
+        W_L,
+        W_R,
+        W_O,
+        W_4,
+        S_1,
+        S_2,
+        S_3,
+        S_4,
+        Z_PERM,
+        Z_LOOKUP,
+        /* --- SHIFTED POLYNOMIALS --- */
+        W_1_SHIFT,
+        W_4_SHIFT,
+        Z_PERM_SHIFT,
+        Z_LOOKUP_SHIFT,
+        /* --- --- */
+        COUNT // for programmatic determination of NUM_POLYNOMIALS
+    };
 };
 } // namespace proof_system::honk

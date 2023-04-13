@@ -39,6 +39,9 @@ std::vector<uint32_t> add_variables(auto& composer, std::vector<fr> variables)
  * @param honk_prover
  * @param plonk_prover
  */
+// NOTE: Currently only checking witness polynomials (wires, sorted lists) and table polys. The permutation polys
+// are computed differently between plonk and honk and we do not enforce non-zero selectors in Honk so the final
+// element in the selectors will disagree.
 void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
 {
     // Check that all lagrange polys agree
@@ -46,12 +49,15 @@ void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plon
     auto& plonk_store = plonk_prover.key->polynomial_store;
     for (auto& entry : honk_store) {
         std::string key = entry.first;
-        if (plonk_store.contains(key)) {
+        bool is_sorted_table = (key.find("s_") != std::string::npos);
+        bool is_table = (key.find("table_value_") != std::string::npos);
+        if (plonk_store.contains(key) && (is_sorted_table || is_table)) {
             ASSERT_EQ(honk_store.get(key), plonk_store.get(key));
         }
     }
 
     // Check that all wires agree
+    // Note: for Honk, wires are owned directly by the prover. For Plonk they are stored in the key.
     for (size_t i = 0; i < 4; ++i) {
         std::string label = "w_" + std::to_string(i + 1) + "_lagrange";
         ASSERT_EQ(honk_prover.wire_polynomials[i], plonk_prover.key->polynomial_store.get(label));

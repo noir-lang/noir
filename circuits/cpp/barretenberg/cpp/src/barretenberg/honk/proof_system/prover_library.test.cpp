@@ -59,13 +59,17 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // can simply be random. We're not interested in the particular properties of the result.
         std::vector<Polynomial> wires;
         std::vector<Polynomial> sigmas;
+        std::vector<Polynomial> ids;
         for (size_t i = 0; i < program_width; ++i) {
             wires.emplace_back(get_random_polynomial(num_gates));
             sigmas.emplace_back(get_random_polynomial(num_gates));
+            ids.emplace_back(get_random_polynomial(num_gates));
 
-            // Add sigma polys to proving_key; to be used by the prover in constructing it's own z_perm
-            std::string sigma_id = "sigma_" + std::to_string(i + 1) + "_lagrange";
-            proving_key->polynomial_store.put(sigma_id, Polynomial{ sigmas[i] });
+            // Add sigma/ID polys to proving_key; to be used by the prover in constructing it's own z_perm
+            std::string sigma_label = "sigma_" + std::to_string(i + 1) + "_lagrange";
+            proving_key->polynomial_store.put(sigma_label, Polynomial{ sigmas[i] });
+            std::string id_label = "id_" + std::to_string(i + 1) + "_lagrange";
+            proving_key->polynomial_store.put(id_label, Polynomial{ ids[i] });
         }
 
         // Get random challenges
@@ -108,8 +112,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // Step (1)
         for (size_t i = 0; i < proving_key->circuit_size; ++i) {
             for (size_t k = 0; k < program_width; ++k) {
-                FF idx = k * proving_key->circuit_size + i;                            // id_k[i]
-                numererator_accum[k][i] = wires[k][i] + (idx * beta) + gamma;          // w_k(i) + β.(k*n+i) + γ
+                numererator_accum[k][i] = wires[k][i] + (ids[k][i] * beta) + gamma;    // w_k(i) + β.id_k(i) + γ
                 denominator_accum[k][i] = wires[k][i] + (sigmas[k][i] * beta) + gamma; // w_k(i) + β.σ_k(i) + γ
             }
         }

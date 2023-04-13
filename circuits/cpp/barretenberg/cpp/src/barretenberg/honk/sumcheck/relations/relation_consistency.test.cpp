@@ -1,3 +1,5 @@
+#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation_secondary.hpp"
 #include "relation.hpp"
 #include "barretenberg/honk/flavor/flavor.hpp"
 #include "arithmetic_relation.hpp"
@@ -9,6 +11,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 
+#include <cstddef>
 #include <gtest/gtest.h>
 using namespace proof_system::honk::sumcheck;
 /**
@@ -21,13 +24,11 @@ using namespace proof_system::honk::sumcheck;
  points),
  * extends them (using barycentric formula) to six evaluation points, and stores them to an array of polynomials.
  */
-static const size_t input_univariate_length = 2;
-static constexpr size_t FULL_RELATION_LENGTH = 5;
-static const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+static const size_t INPUT_UNIVARIATE_LENGTH = 2;
 
 namespace proof_system::honk_relation_tests {
 
-template <class FF> class SumcheckRelation : public testing::Test {
+template <class FF> class RelationConsistency : public testing::Test {
   public:
     template <size_t t> using Univariate = Univariate<FF, t>;
     template <size_t t> using UnivariateView = UnivariateView<FF, t>;
@@ -35,11 +36,12 @@ template <class FF> class SumcheckRelation : public testing::Test {
     // TODO(#225)(Adrian): Accept FULL_RELATION_LENGTH as a template parameter for this function only, so that the test
     // can decide to which degree the polynomials must be extended. Possible accept an existing list of "edges" and
     // extend them to the degree.
+    template <size_t FULL_RELATION_LENGTH, size_t NUM_POLYNOMIALS>
     static std::array<Univariate<FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> compute_mock_extended_edges(
-        std::array<Univariate<input_univariate_length>, NUM_POLYNOMIALS>& input_univariates)
+        std::array<Univariate<INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS>& input_univariates)
     {
-        BarycentricData<FF, input_univariate_length, FULL_RELATION_LENGTH> barycentric_2_to_max =
-            BarycentricData<FF, input_univariate_length, FULL_RELATION_LENGTH>();
+        BarycentricData<FF, INPUT_UNIVARIATE_LENGTH, FULL_RELATION_LENGTH> barycentric_2_to_max =
+            BarycentricData<FF, INPUT_UNIVARIATE_LENGTH, FULL_RELATION_LENGTH>();
         std::array<Univariate<FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_univariates;
         for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
             extended_univariates[i] = barycentric_2_to_max.extend(input_univariates[i]);
@@ -136,6 +138,7 @@ template <class FF> class SumcheckRelation : public testing::Test {
      * @param extended_edges
      * @param relation_parameters
      */
+    template <size_t FULL_RELATION_LENGTH, size_t NUM_POLYNOMIALS>
     static void validate_evaluations(
         const Univariate<FULL_RELATION_LENGTH>& expected_evals,
         const auto relation,
@@ -166,31 +169,35 @@ template <class FF> class SumcheckRelation : public testing::Test {
     };
 };
 using FieldTypes = testing::Types<barretenberg::fr>;
-TYPED_TEST_SUITE(SumcheckRelation, FieldTypes);
+TYPED_TEST_SUITE(RelationConsistency, FieldTypes);
 
 #define SUMCHECK_RELATION_TYPE_ALIASES using FF = TypeParam;
 
-TYPED_TEST(SumcheckRelation, ArithmeticRelation)
+TYPED_TEST(RelationConsistency, ArithmeticRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
     using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 5;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
-        std::array<Univariate<FF, input_univariate_length>, NUM_POLYNOMIALS> input_polynomials;
+        std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
         if (!is_random_input) {
             // evaluation form, i.e. input_univariate(0) = 1, input_univariate(1) = 2,.. The polynomial is x+1.
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = Univariate<FF, input_univariate_length>({ 1, 2 });
+                input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ 1, 2 });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         } else {
             // input_univariates are random polynomials of degree one
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_polynomials[i] =
-                    Univariate<FF, input_univariate_length>({ FF::random_element(), FF::random_element() });
+                    Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         };
         auto relation = ArithmeticRelation<FF>();
         // Manually compute the expected edge contribution
@@ -207,33 +214,37 @@ TYPED_TEST(SumcheckRelation, ArithmeticRelation)
         // Ensure that expression changes are detected.
         // expected_evals, length 4, extends to { { 5, 22, 57, 116, 205} } for input polynomial {1, 2}
         auto expected_evals = (q_m * w_r * w_l) + (q_r * w_r) + (q_l * w_l) + (q_o * w_o) + (q_c);
-        TestFixture::validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+        TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
     };
     run_test(/* is_random_input=*/true);
     run_test(/* is_random_input=*/false);
 };
 
-TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
+TYPED_TEST(RelationConsistency, GrandProductComputationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
     using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 5;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
-        std::array<Univariate<FF, input_univariate_length>, NUM_POLYNOMIALS> input_polynomials;
+        std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
         if (!is_random_input) {
             // evaluation form, i.e. input_univariate(0) = 1, input_univariate(1) = 2,.. The polynomial is x+1.
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = Univariate<FF, input_univariate_length>({ 1, 2 });
+                input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ 1, 2 });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         } else {
             // input_univariates are random polynomials of degree one
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_polynomials[i] =
-                    Univariate<FF, input_univariate_length>({ FF::random_element(), FF::random_element() });
+                    Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         };
         auto relation = GrandProductComputationRelation<FF>();
 
@@ -269,33 +280,37 @@ TYPED_TEST(SumcheckRelation, GrandProductComputationRelation)
                               (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
                                   (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
 
-        TestFixture::validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+        TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
     };
     run_test(/* is_random_input=*/true);
     run_test(/* is_random_input=*/false);
 };
 
-TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
+TYPED_TEST(RelationConsistency, GrandProductInitializationRelation)
 {
     SUMCHECK_RELATION_TYPE_ALIASES
     using MULTIVARIATE = honk::StandardArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 5;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::StandardArithmetization::NUM_POLYNOMIALS;
+
     const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
     auto run_test = [&relation_parameters](bool is_random_input) {
         std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
-        std::array<Univariate<FF, input_univariate_length>, NUM_POLYNOMIALS> input_polynomials;
+        std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
         if (!is_random_input) {
             // evaluation form, i.e. input_univariate(0) = 1, input_univariate(1) = 2,.. The polynomial is x+1.
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
-                input_polynomials[i] = Univariate<FF, input_univariate_length>({ 1, 2 });
+                input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ 1, 2 });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         } else {
             // input_univariates are random polynomials of degree one
             for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
                 input_polynomials[i] =
-                    Univariate<FF, input_univariate_length>({ FF::random_element(), FF::random_element() });
+                    Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
             }
-            extended_edges = TestFixture::compute_mock_extended_edges(input_polynomials);
+            extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
         };
         auto relation = GrandProductInitializationRelation<FF>();
         const auto& z_perm_shift = extended_edges[MULTIVARIATE::Z_PERM_SHIFT];
@@ -305,10 +320,169 @@ TYPED_TEST(SumcheckRelation, GrandProductInitializationRelation)
         // expected_evals, lenght 3 (coeff form = x^2 + x), extends to { { 0, 2, 6, 12, 20 } }
         auto expected_evals = z_perm_shift * lagrange_last;
 
-        TestFixture::validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+        TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
     };
     run_test(/* is_random_input=*/true);
     run_test(/* is_random_input=*/false);
+};
+
+TYPED_TEST(RelationConsistency, UltraArithmeticRelation)
+{
+    SUMCHECK_RELATION_TYPE_ALIASES
+    using MULTIVARIATE = honk::UltraArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::UltraArithmetization::COUNT;
+
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+    std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
+
+    auto relation = UltraArithmeticRelation<FF>();
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& w_1 = extended_edges[MULTIVARIATE::W_L];
+    const auto& w_2 = extended_edges[MULTIVARIATE::W_R];
+    const auto& w_3 = extended_edges[MULTIVARIATE::W_O];
+    const auto& w_4 = extended_edges[MULTIVARIATE::W_4];
+    const auto& w_4_shift = extended_edges[MULTIVARIATE::W_4_SHIFT];
+    const auto& q_m = extended_edges[MULTIVARIATE::Q_M];
+    const auto& q_l = extended_edges[MULTIVARIATE::Q_L];
+    const auto& q_r = extended_edges[MULTIVARIATE::Q_R];
+    const auto& q_o = extended_edges[MULTIVARIATE::Q_O];
+    const auto& q_4 = extended_edges[MULTIVARIATE::Q_4];
+    const auto& q_c = extended_edges[MULTIVARIATE::Q_C];
+    const auto& q_arith = extended_edges[MULTIVARIATE::QARITH];
+
+    static const FF neg_half = FF(-2).invert();
+
+    auto expected_evals = (q_arith - 3) * (q_m * w_2 * w_1) * neg_half;
+    expected_evals += (q_l * w_1) + (q_r * w_2) + (q_o * w_3) + (q_4 * w_4) + q_c;
+    expected_evals += (q_arith - 1) * w_4_shift;
+    expected_evals *= q_arith;
+
+    TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TYPED_TEST(RelationConsistency, UltraArithmeticRelationSecondary)
+{
+    SUMCHECK_RELATION_TYPE_ALIASES
+    using MULTIVARIATE = honk::UltraArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::UltraArithmetization::COUNT;
+
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+    std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
+
+    auto relation = UltraArithmeticRelationSecondary<FF>();
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& w_1 = extended_edges[MULTIVARIATE::W_L];
+    const auto& w_4 = extended_edges[MULTIVARIATE::W_4];
+    const auto& w_1_shift = extended_edges[MULTIVARIATE::W_1_SHIFT];
+    const auto& q_m = extended_edges[MULTIVARIATE::Q_M];
+    const auto& q_arith = extended_edges[MULTIVARIATE::QARITH];
+
+    auto expected_evals = (w_1 + w_4 - w_1_shift + q_m);
+    expected_evals *= (q_arith - 2) * (q_arith - 1) * q_arith;
+
+    TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TYPED_TEST(RelationConsistency, UltraGrandProductInitializationRelation)
+{
+    SUMCHECK_RELATION_TYPE_ALIASES
+    using MULTIVARIATE = honk::UltraArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::UltraArithmetization::COUNT;
+
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+    std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
+
+    auto relation = UltraGrandProductInitializationRelation<FF>();
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& z_perm_shift = extended_edges[MULTIVARIATE::Z_PERM_SHIFT];
+    const auto& lagrange_last = extended_edges[MULTIVARIATE::LAGRANGE_LAST];
+
+    // Compute the expected result using a simple to read version of the relation expression
+    auto expected_evals = z_perm_shift * lagrange_last;
+
+    TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
+};
+
+TYPED_TEST(RelationConsistency, UltraGrandProductComputationRelation)
+{
+    SUMCHECK_RELATION_TYPE_ALIASES
+    using MULTIVARIATE = honk::UltraArithmetization::POLYNOMIAL;
+
+    static constexpr size_t FULL_RELATION_LENGTH = 6;
+    static const size_t NUM_POLYNOMIALS = proof_system::honk::UltraArithmetization::COUNT;
+
+    const auto relation_parameters = TestFixture::compute_mock_relation_parameters();
+    std::array<Univariate<FF, FULL_RELATION_LENGTH>, NUM_POLYNOMIALS> extended_edges;
+    std::array<Univariate<FF, INPUT_UNIVARIATE_LENGTH>, NUM_POLYNOMIALS> input_polynomials;
+
+    // input_univariates are random polynomials of degree one
+    for (size_t i = 0; i < NUM_POLYNOMIALS; ++i) {
+        input_polynomials[i] = Univariate<FF, INPUT_UNIVARIATE_LENGTH>({ FF::random_element(), FF::random_element() });
+    }
+    extended_edges = TestFixture::template compute_mock_extended_edges<FULL_RELATION_LENGTH>(input_polynomials);
+
+    auto relation = UltraGrandProductComputationRelation<FF>();
+
+    const auto& beta = relation_parameters.beta;
+    const auto& gamma = relation_parameters.gamma;
+    const auto& public_input_delta = relation_parameters.public_input_delta;
+
+    // Extract the extended edges for manual computation of relation contribution
+    const auto& w_1 = extended_edges[MULTIVARIATE::W_L];
+    const auto& w_2 = extended_edges[MULTIVARIATE::W_R];
+    const auto& w_3 = extended_edges[MULTIVARIATE::W_O];
+    const auto& w_4 = extended_edges[MULTIVARIATE::W_4];
+    const auto& sigma_1 = extended_edges[MULTIVARIATE::SIGMA_1];
+    const auto& sigma_2 = extended_edges[MULTIVARIATE::SIGMA_2];
+    const auto& sigma_3 = extended_edges[MULTIVARIATE::SIGMA_3];
+    const auto& sigma_4 = extended_edges[MULTIVARIATE::SIGMA_4];
+    const auto& id_1 = extended_edges[MULTIVARIATE::ID_1];
+    const auto& id_2 = extended_edges[MULTIVARIATE::ID_2];
+    const auto& id_3 = extended_edges[MULTIVARIATE::ID_3];
+    const auto& id_4 = extended_edges[MULTIVARIATE::ID_4];
+    const auto& z_perm = extended_edges[MULTIVARIATE::Z_PERM];
+    const auto& z_perm_shift = extended_edges[MULTIVARIATE::Z_PERM_SHIFT];
+    const auto& lagrange_first = extended_edges[MULTIVARIATE::LAGRANGE_FIRST];
+    const auto& lagrange_last = extended_edges[MULTIVARIATE::LAGRANGE_LAST];
+
+    // Compute the expected result using a simple to read version of the relation expression
+    auto expected_evals = (z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
+                              (w_3 + id_3 * beta + gamma) * (w_4 + id_4 * beta + gamma) -
+                          (z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
+                              (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma) *
+                              (w_4 + sigma_4 * beta + gamma);
+
+    TestFixture::template validate_evaluations(expected_evals, relation, extended_edges, relation_parameters);
 };
 
 } // namespace proof_system::honk_relation_tests
