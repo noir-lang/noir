@@ -10,7 +10,7 @@ RUN apk update \
 WORKDIR /usr/src/aztec3-circuits/cpp
 COPY . .
 # Build the entire project, as we want to check everything builds under gcc.
-RUN cmake --preset gcc -DCI=ON && cmake --build --preset gcc
+RUN cmake --preset gcc -DCI=ON -DUSE_TURBO=true && cmake --build --preset gcc
 
 FROM alpine:3.17
 RUN apk update && apk add libstdc++ libgomp

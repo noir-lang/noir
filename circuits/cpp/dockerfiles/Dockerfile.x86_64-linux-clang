@@ -15,7 +15,7 @@ WORKDIR /usr/src/aztec3-circuits/cpp
 
 COPY . .
 # Build the entire project, as we want to check everything builds under clang
-RUN cmake --preset default && cmake --build --preset default
+RUN cmake --preset default -DUSE_TURBO=true && cmake --build --preset default
 
 FROM alpine:3.17
 RUN apk update && apk add openmp
