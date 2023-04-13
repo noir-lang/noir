@@ -25,6 +25,10 @@ namespace barretenberg {
 template <class Params> struct alignas(32) field {
   public:
     // We don't initialize data by default since we'd lose a lot of time on pointless initializations.
+    // Other alternatives have been noted, such as casting to get around constructors where they matter,
+    // however it is felt that sanitizer tools (e.g. MSAN) can detect garbage well, whereas doing
+    // hacky casts where needed would require rework to critical algos like MSM, FFT, Sumcheck.
+    // Instead, the recommended solution is use an explicit = 0 where initialization is important.
     field() noexcept {}
 
     constexpr field(const uint256_t& input) noexcept
