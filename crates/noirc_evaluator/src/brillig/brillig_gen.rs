@@ -294,14 +294,17 @@ impl BrilligGen {
         assert_ne!(a_register, CALLBACK_REGISTER);
         match &ctx[a] {
             NodeObject::Variable(_) => {
-                if let Some(array) = Memory::deref(ctx, a) {
-                    todo!();
-                } else {
-                    if a_register > self.max_register {
-                        self.max_register = a_register;
-                    }
-                    RegisterMemIndex::Register(RegisterIndex(a_register))
+                if a_register > self.max_register {
+                    self.max_register = a_register;
                 }
+                let reg_node = RegisterMemIndex::Register(RegisterIndex(a_register));
+                if let Some(array) = Memory::deref(ctx, a) {
+                    self.byte_code.push(BrilligOpcode::Mov {
+                        destination: reg_node,
+                        source: RegisterMemIndex::Constant(FieldElement::from(array.to_u32() as i128)),
+                    });
+                }
+                reg_node
             }
             crate::ssa::node::NodeObject::Instr(_) => {
                 if a_register > self.max_register {
@@ -442,7 +445,7 @@ impl BrilligGen {
                         outputs.push(
                             self.node_2_register(ctx, *i).to_register_index().unwrap(),
                         );
-                    }
+                     }
                     let mut inputs = Vec::new();
                     for i in arguments {
                         inputs.push(self.node_2_register(ctx, *i));
@@ -451,7 +454,7 @@ impl BrilligGen {
                         name,
                         inputs,
                         input_values: Vec::new(),
-                        outputs,
+                        output: outputs[0],     //TODO: temp
                         output_values: Vec::new(),
                     }));
                 }
