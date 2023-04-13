@@ -163,8 +163,8 @@ impl Opcode {
             Opcode::NotifyCreatedNote => (1, ObjectType::NativeField),
             Opcode::GetSecretKey => (1, ObjectType::NativeField),
             Opcode::NotifyNullifiedNote => (1, ObjectType::NativeField),
-            Opcode::GetNotes2 => (26, ObjectType::NativeField),
-            Opcode::Get2Notes => (26, ObjectType::NativeField),
+            Opcode::GetNotes2 => (32, ObjectType::NativeField),
+            Opcode::Get2Notes => (32, ObjectType::NativeField),
             Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),
         }
     }

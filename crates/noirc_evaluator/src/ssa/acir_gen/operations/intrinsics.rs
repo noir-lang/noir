@@ -174,7 +174,7 @@ pub(crate) fn evaluate(
             }));
         }
         Opcode::GetNotes2 => {
-            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator);
             let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
                 input.witness.into()
             });
@@ -202,7 +202,7 @@ pub(crate) fn evaluate(
             }));
         }
         Opcode::Get2Notes => {
-            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator);
 
             evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
                 name: "get_2_notes".into(),
@@ -213,7 +213,7 @@ pub(crate) fn evaluate(
             }));
         }
         Opcode::GetNNotes => {
-            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 26, ctx, evaluator);
+            outputs = prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator);
 
             evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
                 name: "get_n_notes".into(),
