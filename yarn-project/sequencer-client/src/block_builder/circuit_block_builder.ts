@@ -28,7 +28,7 @@ import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
-import { VerificationKeys } from '../deps/verification_keys.js';
+import { VerificationKeys } from '../mocks/verification_keys.js';
 import { Proof, Prover } from '../prover/index.js';
 import { Simulator } from '../simulator/index.js';
 
