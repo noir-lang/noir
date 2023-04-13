@@ -40,7 +40,7 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub allow_warnings: bool,
 
-    /// Display output of `println` statements during tests
+    /// Display output of `println` statements
     #[arg(long)]
     pub show_output: bool,
 }
