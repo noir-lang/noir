@@ -47,7 +47,7 @@ void preprocess_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         size_t idx = (static_cast<size_t>((state.range(0))) - START_BYTES) / BYTES_PER_CHUNK;
-        provers[idx] = composers[idx].create_prover();
+        provers[idx] = composers[idx].create_ultra_with_keccak_prover();
         std::cout << "prover subgroup size = " << provers[idx].key->small_domain.size << std::endl;
         // printf("num bytes = %" PRIx64 ", num gates = %zu\n", state.range(0), composers[idx].get_num_gates());
     }
@@ -58,7 +58,7 @@ void construct_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         size_t idx = (static_cast<size_t>((state.range(0))) - START_BYTES) / BYTES_PER_CHUNK;
-        verifiers[idx] = composers[idx].create_verifier();
+        verifiers[idx] = composers[idx].create_ultra_with_keccak_verifier();
     }
 }
 BENCHMARK(construct_instances_bench)->DenseRange(START_BYTES, MAX_BYTES, BYTES_PER_CHUNK);

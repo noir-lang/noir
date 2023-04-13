@@ -43,5 +43,6 @@ extern template class KateCommitmentScheme<standard_settings>;
 extern template class KateCommitmentScheme<turbo_settings>;
 extern template class KateCommitmentScheme<ultra_settings>;
 extern template class KateCommitmentScheme<ultra_to_standard_settings>;
+extern template class KateCommitmentScheme<ultra_with_keccak_settings>;
 
 } // namespace proof_system::plonk

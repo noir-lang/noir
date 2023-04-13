@@ -160,6 +160,9 @@ class UltraComposer : public ComposerBase {
     UltraToStandardProver create_ultra_to_standard_prover();
     UltraToStandardVerifier create_ultra_to_standard_verifier();
 
+    UltraWithKeccakProver create_ultra_with_keccak_prover();
+    UltraWithKeccakVerifier create_ultra_with_keccak_verifier();
+
     void create_add_gate(const add_triple& in) override;
 
     void create_big_add_gate(const add_quad& in, const bool use_next_gate_w_4 = false);

@@ -105,10 +105,10 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
 
     std::cout << "made composer" << std::endl;
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
@@ -174,10 +174,10 @@ TEST(acir_format, test_schnorr_verify_pass)
           67, 16,  37,  128, 85,  76,  19,  253, 30,  77,  192,   53,    138, 205, 69, 33,  236, 163, 83,  194,
           84, 137, 184, 221, 176, 121, 179, 27,  63,  70,  54,    16,    176, 250, 39, 239, 1,   0,   0,   0 });
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
@@ -243,10 +243,10 @@ TEST(acir_format, test_schnorr_verify_small_range)
           67, 16,  37,  128, 85,  76,  19,  253, 30,  77,  192,   53,    138, 205, 69, 33,  236, 163, 83,  194,
           84, 137, 184, 221, 176, 121, 179, 27,  63,  70,  54,    16,    176, 250, 39, 239, 1,   0,   0,   0 });
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }

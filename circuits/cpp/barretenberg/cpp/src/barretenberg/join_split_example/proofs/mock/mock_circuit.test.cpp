@@ -20,14 +20,14 @@ TEST(mock_circuit_tests, test_simple_circuit)
     Composer composer = Composer("../srs_db/ignition");
     mock_circuit(composer, public_inputs);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     plonk::proof proof = prover.construct_proof();
 
     std::cout << "gates: " << composer.get_num_gates() << std::endl;
     std::cout << "proof size: " << proof.proof_data.size() << std::endl;
     std::cout << "public inputs size: " << composer.public_inputs.size() << std::endl;
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
     bool result = verifier.verify_proof(proof);
 
     EXPECT_TRUE(result);

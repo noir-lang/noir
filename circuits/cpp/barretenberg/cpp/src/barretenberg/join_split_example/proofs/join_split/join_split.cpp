@@ -79,12 +79,12 @@ stdlib::types::Prover new_join_split_prover(join_split_tx const& tx, bool mock)
 
     if (!mock) {
         info("composer gates: ", composer.get_num_gates());
-        return composer.create_prover();
+        return composer.create_ultra_with_keccak_prover();
     } else {
         Composer mock_proof_composer(proving_key, nullptr);
         join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
         info("mock composer gates: ", mock_proof_composer.get_num_gates());
-        return mock_proof_composer.create_prover();
+        return mock_proof_composer.create_ultra_with_keccak_prover();
     }
 }
 

@@ -109,5 +109,6 @@ typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return
                                                 // need separate cases for ultra vs ultra_to_standard...???
                                                 // TODO(Cody): Make this into an issue?
 typedef ProverBase<ultra_to_standard_settings> UltraToStandardProver;
+typedef ProverBase<ultra_with_keccak_settings> UltraWithKeccakProver;
 
 } // namespace proof_system::plonk

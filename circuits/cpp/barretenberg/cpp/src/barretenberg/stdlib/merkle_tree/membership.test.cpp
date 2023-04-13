@@ -32,10 +32,10 @@ TEST(stdlib_merkle_tree, test_check_membership)
     bool_ct is_member_ =
         check_membership(root, create_witness_hash_path(composer, db.get_hash_path(1)), field_ct(1), seven);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -66,9 +66,9 @@ TEST(stdlib_merkle_tree, test_batch_update_membership)
     field_ct start_idx = field_ct(witness_ct(&composer, fr(4)));
     batch_update_membership(new_root, old_root, old_hash_path_1, values, start_idx);
     batch_update_membership(new_root, old_root, old_hash_path_2, values, start_idx);
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
     plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -85,10 +85,10 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(0), zero);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -108,10 +108,10 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
     assert_check_membership(root, create_witness_hash_path(composer, db.get_hash_path(0)), field_ct(1), zero);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -140,10 +140,10 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         update_membership(new_root, new_value, old_root, old_path, old_value, zero);
 
-        auto prover = composer.create_prover();
+        auto prover = composer.create_ultra_with_keccak_prover();
 
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_ultra_with_keccak_verifier();
 
         plonk::proof proof = prover.construct_proof();
 
@@ -169,10 +169,10 @@ TEST(stdlib_merkle_tree, test_update_members)
 
         update_membership(new_root, new_value, old_root, new_path, old_value, zero);
 
-        auto prover = composer.create_prover();
+        auto prover = composer.create_ultra_with_keccak_prover();
 
         printf("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_ultra_with_keccak_verifier();
 
         plonk::proof proof = prover.construct_proof();
 
@@ -197,10 +197,10 @@ TEST(stdlib_merkle_tree, test_tree)
 
     assert_check_tree(root, values);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -266,9 +266,9 @@ TEST(stdlib_merkle_tree, test_update_memberships)
 
     update_memberships(old_root_ct, new_roots_ct, new_values_ct, old_values_ct, old_hash_paths_ct, old_indices_ct);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
     plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);

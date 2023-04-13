@@ -98,14 +98,14 @@ TYPED_TEST(join_split, deposit)
 
     BenchmarkInfoCollator benchmark_collator;
     Timer timer;
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     auto build_time = timer.toString();
     benchmark_collator.benchmark_info_deferred(
         GET_COMPOSER_NAME_STRING(Composer::type), "Core", "join split", "Build time", build_time);
 
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
     bool verified = verifier.verify_proof(proof);
 
     ASSERT_TRUE(verified);

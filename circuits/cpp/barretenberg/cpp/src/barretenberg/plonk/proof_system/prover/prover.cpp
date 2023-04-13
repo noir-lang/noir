@@ -1,5 +1,6 @@
 #include "prover.hpp"
 #include "../public_inputs/public_inputs.hpp"
+#include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include <chrono>
 #include "barretenberg/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp"
@@ -639,5 +640,6 @@ template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
 template class ProverBase<ultra_settings>;
 template class ProverBase<ultra_to_standard_settings>;
+template class ProverBase<ultra_with_keccak_settings>;
 
 } // namespace proof_system::plonk

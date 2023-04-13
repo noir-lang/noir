@@ -26,10 +26,10 @@ TEST(stdlib_blake2s, test_single_block)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -50,10 +50,10 @@ TEST(stdlib_blake2s, test_single_block_plookup)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     std::cout << "prover gates = " << prover.circuit_size << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -74,10 +74,10 @@ TEST(stdlib_blake2s, test_double_block)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -98,10 +98,10 @@ TEST(stdlib_blake2s, test_double_block_plookup)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
     std::cout << "prover gates = " << prover.circuit_size << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_ultra_with_keccak_verifier();
 
     auto proof = prover.construct_proof();
 

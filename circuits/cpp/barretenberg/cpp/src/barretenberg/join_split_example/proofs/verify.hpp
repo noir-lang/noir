@@ -90,12 +90,12 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             } else {
-                auto prover = composer.create_prover();
+                auto prover = composer.create_ultra_with_keccak_prover();
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             }
         } else {
-            auto prover = composer.create_prover();
+            auto prover = composer.create_ultra_with_keccak_prover();
             auto proof = prover.construct_proof();
             result.proof_data = proof.proof_data;
         }
@@ -108,12 +108,12 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             } else {
-                auto prover = mock_proof_composer.create_prover();
+                auto prover = mock_proof_composer.create_ultra_with_keccak_prover();
                 auto proof = prover.construct_proof();
                 result.proof_data = proof.proof_data;
             }
         } else {
-            auto prover = mock_proof_composer.create_prover();
+            auto prover = mock_proof_composer.create_ultra_with_keccak_prover();
             auto proof = prover.construct_proof();
             result.proof_data = proof.proof_data;
         }
@@ -126,11 +126,11 @@ auto verify_internal(Composer& composer, Tx& tx, CircuitData const& cd, char con
             auto verifier = composer.create_ultra_to_standard_verifier();
             result.verified = verifier.verify_proof({ result.proof_data });
         } else {
-            auto verifier = composer.create_verifier();
+            auto verifier = composer.create_ultra_with_keccak_verifier();
             result.verified = verifier.verify_proof({ result.proof_data });
         }
     } else {
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_ultra_with_keccak_verifier();
         result.verified = verifier.verify_proof({ result.proof_data });
     }
 

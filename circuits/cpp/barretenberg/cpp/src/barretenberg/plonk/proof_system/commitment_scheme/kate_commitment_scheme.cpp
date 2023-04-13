@@ -392,4 +392,5 @@ template class KateCommitmentScheme<standard_settings>;
 template class KateCommitmentScheme<turbo_settings>;
 template class KateCommitmentScheme<ultra_settings>;
 template class KateCommitmentScheme<ultra_to_standard_settings>;
+template class KateCommitmentScheme<ultra_with_keccak_settings>;
 } // namespace proof_system::plonk

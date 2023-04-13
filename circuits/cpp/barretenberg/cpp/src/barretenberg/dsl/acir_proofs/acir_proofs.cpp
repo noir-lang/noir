@@ -117,7 +117,7 @@ size_t new_proof(void* pippenger,
 
     create_circuit_with_witness(composer, constraint_system, witness);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_ultra_with_keccak_prover();
 
     auto heapProver = new stdlib::types::Prover(std::move(prover));
     auto& proof_data = heapProver->construct_proof().proof_data;
@@ -144,7 +144,7 @@ bool verify_proof(
         create_circuit(composer, constraint_system);
         plonk::proof pp = { std::vector<uint8_t>(proof, proof + length) };
 
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_ultra_with_keccak_verifier();
 
         verified = verifier.verify_proof(pp);
 #ifndef __wasm__

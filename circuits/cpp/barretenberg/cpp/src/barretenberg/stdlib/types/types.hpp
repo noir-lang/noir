@@ -3,6 +3,7 @@
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
@@ -39,25 +40,13 @@ typedef std::conditional_t<
 typedef std::conditional_t<
     SYSTEM_COMPOSER == proof_system::STANDARD,
     plonk::Prover,
-    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboProver, plonk::UltraProver>>
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboProver, plonk::UltraWithKeccakProver>>
     Prover;
 
 typedef std::conditional_t<
     SYSTEM_COMPOSER == proof_system::STANDARD,
     plonk::Verifier,
-    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
-    Verifier;
-
-typedef std::conditional_t<
-    SYSTEM_COMPOSER == proof_system::STANDARD,
-    plonk::Prover,
-    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboProver, plonk::UltraProver>>
-    Prover;
-
-typedef std::conditional_t<
-    SYSTEM_COMPOSER == proof_system::STANDARD,
-    plonk::Verifier,
-    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboVerifier, plonk::UltraVerifier>>
+    std::conditional_t<SYSTEM_COMPOSER == proof_system::TURBO, plonk::TurboVerifier, plonk::UltraWithKeccakVerifier>>
     Verifier;
 
 typedef stdlib::witness_t<Composer> witness_ct;

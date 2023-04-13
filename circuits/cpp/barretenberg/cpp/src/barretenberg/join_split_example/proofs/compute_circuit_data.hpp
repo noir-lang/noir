@@ -229,20 +229,20 @@ circuit_data get_circuit_data(std::string const& name,
 
             Timer timer;
             if (!mock) {
-                auto prover = composer.create_prover();
+                auto prover = composer.create_ultra_with_keccak_prover();
                 auto proof = prover.construct_proof();
                 data.padding_proof = proof.proof_data;
                 data.num_gates = composer.get_num_gates();
                 info(name, ": Circuit size: ", data.num_gates);
-                auto verifier = composer.create_verifier();
+                auto verifier = composer.create_ultra_with_keccak_verifier();
                 info(name, ": Padding verified: ", verifier.verify_proof(proof));
             } else {
-                auto prover = mock_proof_composer.create_prover();
+                auto prover = mock_proof_composer.create_ultra_with_keccak_prover();
                 auto proof = prover.construct_proof();
                 data.padding_proof = proof.proof_data;
                 data.num_gates = mock_proof_composer.get_num_gates();
                 info(name, ": Mock circuit size: ", data.num_gates);
-                auto verifier = mock_proof_composer.create_verifier();
+                auto verifier = mock_proof_composer.create_ultra_with_keccak_verifier();
                 info(name, ": Padding verified: ", verifier.verify_proof(proof));
             }
             info(name, ": Padding proof computed in ", timer.toString(), "s");

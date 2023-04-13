@@ -187,4 +187,20 @@ class ultra_to_standard_verifier_settings : public ultra_verifier_settings {
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
 };
 
+// This is neededed for the Noir backend. The ultra verifier contract uses 32-byte challenges generated with Keccak256.
+class ultra_with_keccak_verifier_settings : public ultra_verifier_settings {
+  public:
+    typedef VerifierPlookupArithmeticWidget<fr, g1::affine_element, Transcript, ultra_with_keccak_settings>
+        PlookupArithmeticWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript, ultra_with_keccak_settings> GenPermSortWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, ultra_with_keccak_settings> TurboLogicWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+    typedef VerifierPlookupWidget<fr, g1::affine_element, Transcript> PlookupWidget;
+    typedef VerifierEllipticWidget<fr, g1::affine_element, Transcript, ultra_with_keccak_settings> EllipticWidget;
+    typedef VerifierPlookupAuxiliaryWidget<fr, g1::affine_element, Transcript, ultra_with_keccak_settings>
+        PlookupAuxiliaryWidget;
+
+    static constexpr size_t num_challenge_bytes = 32;
+    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
+};
 } // namespace proof_system::plonk
