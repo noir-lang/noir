@@ -12,10 +12,8 @@ using aztec3::utils::types::NativeTypes;
 using std::is_same;
 
 template <typename NCT> struct FunctionData {
-    // typedef typename NCT::address address;
     typedef typename NCT::uint32 uint32;
     typedef typename NCT::boolean boolean;
-    // typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
 
     uint32 function_selector; // e.g. 1st 4-bytes of abi-encoding of function.

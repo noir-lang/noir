@@ -17,8 +17,8 @@ template <typename NCT> struct PublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    AccumulatedData<NCT> end = AccumulatedData<NCT>();
-    ConstantData<NCT> constants = ConstantData<NCT>();
+    AccumulatedData<NCT> end{};
+    ConstantData<NCT> constants{};
 
     boolean is_private = true; // TODO: might need to instantiate from witness!
 

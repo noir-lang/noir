@@ -17,7 +17,6 @@ using crypto::generators::generator_index_t;
 
 template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
     typedef typename NCT::fr fr;
-    typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::address address;
     typedef typename NCT::boolean boolean;
 

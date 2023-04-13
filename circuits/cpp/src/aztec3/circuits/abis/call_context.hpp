@@ -15,13 +15,12 @@ using aztec3::utils::types::NativeTypes;
 
 template <typename NCT> struct CallContext {
     typedef typename NCT::address address;
-    typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    address msg_sender;
-    address storage_contract_address;
-    fr portal_contract_address;
+    address msg_sender = 0;
+    address storage_contract_address = 0;
+    fr portal_contract_address = 0;
 
     boolean is_delegate_call = false;
     boolean is_static_call = false;

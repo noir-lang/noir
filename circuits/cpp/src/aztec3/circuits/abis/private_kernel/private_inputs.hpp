@@ -20,9 +20,9 @@ template <typename NCT> struct PrivateInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    SignedTxRequest<NCT> signed_tx_request = SignedTxRequest<NCT>();
-    PreviousKernelData<NCT> previous_kernel = PreviousKernelData<NCT>();
-    PrivateCallData<NCT> private_call = PrivateCallData<NCT>();
+    SignedTxRequest<NCT> signed_tx_request{};
+    PreviousKernelData<NCT> previous_kernel{};
+    PrivateCallData<NCT> private_call{};
 
     boolean operator==(PublicInputs<NCT> const& other) const
     {

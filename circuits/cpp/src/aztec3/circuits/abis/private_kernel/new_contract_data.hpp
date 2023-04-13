@@ -16,9 +16,9 @@ template <typename NCT> struct NewContractData {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    address contract_address;
-    address portal_contract_address;
-    fr function_tree_root;
+    address contract_address = 0;
+    address portal_contract_address = 0;
+    fr function_tree_root = 0;
 
     boolean operator==(NewContractData<NCT> const& other) const
     {

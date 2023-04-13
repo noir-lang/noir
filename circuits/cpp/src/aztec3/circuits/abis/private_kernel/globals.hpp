@@ -14,7 +14,7 @@ template <typename NCT> struct Globals {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    fr min_timestamp;
+    fr min_timestamp = 0;
 
     boolean operator==(Globals<NCT> const& other) const { return min_timestamp == other.min_timestamp; };
 

@@ -58,7 +58,7 @@ template <typename Composer> class FunctionExecutionContext {
         nested_private_call_exec_ctxs;
 
     // TODO: make this private!
-    OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs;
+    OptionalPrivateCircuitPublicInputs<CT> private_circuit_public_inputs{};
 
   private:
     std::vector<std::shared_ptr<NoteInterface<Composer>>> new_notes;
@@ -68,7 +68,7 @@ template <typename Composer> class FunctionExecutionContext {
     std::vector<std::shared_ptr<NoteInterface<Composer>>> nullified_notes;
     std::vector<fr> new_nullifiers;
 
-    PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs;
+    PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs{};
 
     bool is_finalised = false;
 

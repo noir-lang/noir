@@ -19,8 +19,8 @@ template <typename NCT> struct ConstantData {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    OldTreeRoots<NCT> old_tree_roots;
-    TxContext<NCT> tx_context;
+    OldTreeRoots<NCT> old_tree_roots{};
+    TxContext<NCT> tx_context{};
 
     boolean operator==(ConstantData<NCT> const& other) const
     {

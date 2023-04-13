@@ -13,12 +13,10 @@ using plonk::stdlib::witness_t;
 template <typename NCT> struct StateRead {
     typedef typename NCT::fr fr;
 
-    fr storage_slot;
-    fr current_value;
+    fr storage_slot = 0;
+    fr current_value = 0;
 
     bool operator==(StateRead<NCT> const&) const = default;
-
-    static StateRead<NCT> empty() { return { 0, 0 }; };
 
     template <typename Composer> StateRead<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

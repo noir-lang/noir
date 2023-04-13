@@ -12,12 +12,10 @@ template <typename NCT> struct AppendOnlyTreeSnapshot {
     typedef typename NCT::fr fr;
     typedef typename NCT::uint32 uint32;
 
-    fr root;
+    fr root = 0;
     uint32 next_available_leaf_index;
 
     bool operator==(AppendOnlyTreeSnapshot<NCT> const&) const = default;
-
-    static AppendOnlyTreeSnapshot<NCT> empty() { return { 0, 0 }; };
 };
 
 template <typename NCT> void read(uint8_t const*& it, AppendOnlyTreeSnapshot<NCT>& obj)

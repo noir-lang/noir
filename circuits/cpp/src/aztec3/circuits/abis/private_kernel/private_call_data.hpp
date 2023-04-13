@@ -1,6 +1,7 @@
 #pragma once
 
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/array.hpp"
 #include "call_context_reconciliation_data.hpp"
 #include "../call_stack_item.hpp"
 #include "../membership_witness.hpp"
@@ -24,20 +25,20 @@ template <typename NCT> struct PrivateCallData {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::VK VK;
 
-    CallStackItem<NCT, CallType::Private> call_stack_item;
+    CallStackItem<NCT, CallType::Private> call_stack_item{};
 
-    std::array<CallStackItem<NCT, CallType::Private>, PRIVATE_CALL_STACK_LENGTH> private_call_stack_preimages;
+    std::array<CallStackItem<NCT, CallType::Private>, PRIVATE_CALL_STACK_LENGTH> private_call_stack_preimages{};
 
     // std::array<CallStackItem<NCT, CallType::Public>, PUBLIC_CALL_STACK_LENGTH> public_call_stack_preimages;
 
-    NativeTypes::Proof proof; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
-    MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness;
-    MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness;
+    MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
+    MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
-    fr portal_contract_address; // an ETH address
-    fr acir_hash;
+    fr portal_contract_address = 0; // an ETH address
+    fr acir_hash = 0;
 
     boolean operator==(PrivateCallData<NCT> const& other) const
     {

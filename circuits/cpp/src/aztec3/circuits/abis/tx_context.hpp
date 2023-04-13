@@ -12,11 +12,9 @@ namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> struct TxContext {
     typedef typename NCT::address address;
-    // typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
@@ -24,7 +22,7 @@ template <typename NCT> struct TxContext {
     boolean is_rebate_payment_tx = false;
     boolean is_contract_deployment_tx = false;
 
-    ContractDeploymentData<NCT> contract_deployment_data = ContractDeploymentData<NCT>();
+    ContractDeploymentData<NCT> contract_deployment_data{};
 
     boolean operator==(TxContext<NCT> const& other) const
     {

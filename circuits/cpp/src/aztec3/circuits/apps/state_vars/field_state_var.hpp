@@ -19,7 +19,7 @@ template <typename Composer> class FieldStateVar : public StateVar<Composer> {
     typedef typename CT::fr fr;
     typedef typename CT::grumpkin_point grumpkin_point;
 
-    fr value;
+    fr value = 0;
 
     FieldStateVar& operator=(fr&& other)
     {

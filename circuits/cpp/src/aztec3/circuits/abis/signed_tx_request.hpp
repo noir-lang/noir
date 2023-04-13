@@ -16,8 +16,8 @@ template <typename NCT> struct SignedTxRequest {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::ecdsa_signature Signature;
 
-    TxRequest<NCT> tx_request = TxRequest<NCT>();
-    Signature signature = Signature();
+    TxRequest<NCT> tx_request{};
+    Signature signature{};
 
     boolean operator==(SignedTxRequest<NCT> const& other) const
     {

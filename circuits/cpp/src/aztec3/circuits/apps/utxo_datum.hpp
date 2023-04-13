@@ -19,13 +19,13 @@ template <typename NCT, typename NotePreimage> struct UTXOSLoadDatum {
     typedef typename NCT::address address;
     typedef typename NCT::uint32 uint32;
 
-    fr commitment;
-    address contract_address;
-    NotePreimage preimage;
+    fr commitment = 0;
+    address contract_address = 0;
+    NotePreimage preimage{};
 
     std::vector<fr> sibling_path;
     uint32 leaf_index;
-    fr historic_private_data_tree_root;
+    fr historic_private_data_tree_root = 0;
 
     template <typename Composer> auto to_circuit_type(Composer& composer) const
     {

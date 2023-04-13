@@ -14,13 +14,11 @@ template <typename NCT> struct NullifierLeafPreimage {
     typedef typename NCT::fr fr;
     typedef typename NCT::uint32 uint32;
 
-    fr leaf_value;
+    fr leaf_value = 0;
     uint32 next_index;
-    fr next_value;
+    fr next_value = 0;
 
     bool operator==(NullifierLeafPreimage<NCT> const&) const = default;
-
-    static NullifierLeafPreimage<NCT> empty() { return { 0, 0, 0 }; };
 
     fr hash() const { return stdlib::merkle_tree::hash_multiple_native({ leaf_value, next_index, next_value }); }
 };

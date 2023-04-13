@@ -17,8 +17,6 @@
 
 namespace aztec3::utils::types {
 
-// using plonk::stdlib::address;
-
 struct NativeTypes {
     typedef bool boolean;
 
@@ -29,7 +27,6 @@ struct NativeTypes {
     typedef uint256_t uint256;
 
     typedef barretenberg::fr fr;
-    typedef barretenberg::fr safe_fr;
     typedef proof_system::plonk::stdlib::address address;
 
     typedef barretenberg::fq fq;

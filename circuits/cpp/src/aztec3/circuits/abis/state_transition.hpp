@@ -13,13 +13,11 @@ using plonk::stdlib::witness_t;
 template <typename NCT> struct StateTransition {
     typedef typename NCT::fr fr;
 
-    fr storage_slot;
-    fr old_value;
-    fr new_value;
+    fr storage_slot = 0;
+    fr old_value = 0;
+    fr new_value = 0;
 
     bool operator==(StateTransition<NCT> const&) const = default;
-
-    static StateTransition<NCT> empty() { return { 0, 0, 0 }; };
 
     template <typename Composer> StateTransition<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

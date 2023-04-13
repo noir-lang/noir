@@ -20,14 +20,14 @@ template <typename NCT> struct PreviousKernelData {
     typedef typename NCT::VK VK;
     typedef typename NCT::uint32 uint32;
 
-    PublicInputs<NCT> public_inputs; // TODO: not needed as already contained in proof?
-    NativeTypes::Proof proof;        // TODO: how to express proof as native/circuit type when it gets used as a buffer?
+    PublicInputs<NCT> public_inputs{}; // TODO: not needed as already contained in proof?
+    NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
     // TODO: this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
     // of functions within the contract tree.
     uint32 vk_index;
-    std::array<fr, VK_TREE_HEIGHT> vk_path = { 0 };
+    std::array<fr, VK_TREE_HEIGHT> vk_path = zero_array<fr, VK_TREE_HEIGHT>();
 
     boolean operator==(PreviousKernelData<NCT> const& other) const
     {

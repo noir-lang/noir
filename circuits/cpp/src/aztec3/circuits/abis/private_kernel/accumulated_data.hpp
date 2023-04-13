@@ -1,18 +1,20 @@
 #pragma once
 #include "../optionally_revealed_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
+#include "aztec3/constants.hpp"
 #include <barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp>
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::abis::private_kernel {
 
+using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 using std::is_same;
 
 template <typename NCT> struct AccumulatedData {
@@ -20,22 +22,22 @@ template <typename NCT> struct AccumulatedData {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::AggregationObject AggregationObject;
 
-    AggregationObject aggregation_object;
+    AggregationObject aggregation_object{};
 
-    fr private_call_count;
+    fr private_call_count = 0;
 
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments = { 0 };
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers = { 0 };
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, KERNEL_NEW_NULLIFIERS_LENGTH>();
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, KERNEL_NEW_NULLIFIERS_LENGTH>();
 
-    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack = { 0 };
-    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
-    std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
+    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack =
+        zero_array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>();
+    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack =
+        zero_array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
+    std::array<fr, KERNEL_L1_MSG_STACK_LENGTH> l1_msg_stack = zero_array<fr, KERNEL_L1_MSG_STACK_LENGTH>();
 
-    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts = { NewContractData<NCT>() };
+    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts{};
 
-    std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data = {
-        OptionallyRevealedData<NCT>()
-    };
+    std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data{};
 
     boolean operator==(AccumulatedData<NCT> const& other) const
     {

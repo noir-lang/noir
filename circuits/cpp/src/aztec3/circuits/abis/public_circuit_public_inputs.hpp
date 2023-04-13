@@ -7,32 +7,33 @@
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> struct PublicCircuitPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
     typedef typename NCT::address address;
 
-    CallContext<NCT> call_context = CallContext<NCT>();
+    CallContext<NCT> call_context{};
 
-    std::array<fr, ARGS_LENGTH> args = { 0 };
-    std::array<fr, RETURN_VALUES_LENGTH> return_values = { 0 };
+    std::array<fr, ARGS_LENGTH> args = zero_array<fr, ARGS_LENGTH>();
+    std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
 
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = zero_array<fr, EMITTED_EVENTS_LENGTH>();
 
-    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions = StateTransition<NCT>();
-    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads = StateRead<NCT>();
+    std::array<StateTransition<NCT>, STATE_TRANSITIONS_LENGTH> state_transitions{};
+    std::array<StateRead<NCT>, STATE_READS_LENGTH> state_reads{};
 
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
-    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = zero_array<fr, L1_MSG_STACK_LENGTH>();
 
     fr historic_private_data_tree_root;
 

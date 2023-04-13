@@ -30,10 +30,10 @@ template <typename NCT> struct FunctionLeafPreimage {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
 
-    fr function_selector;
+    fr function_selector = 0;
     boolean is_private = false;
-    fr vk_hash;
-    fr acir_hash;
+    fr vk_hash = 0;
+    fr acir_hash = 0;
 
     boolean operator==(FunctionLeafPreimage<NCT> const& other) const
     {

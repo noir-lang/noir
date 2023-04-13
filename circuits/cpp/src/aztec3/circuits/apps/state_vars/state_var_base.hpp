@@ -37,7 +37,7 @@ template <typename Composer> class StateVar {
     // based on the ordering of declarations of the _names_ of states. For container types (mappings/arrays/structs),
     // the state variable might be able to access multiple storage slots. The start slot is the 'starting point' for
     // deriving such slots.
-    fr start_slot;
+    fr start_slot = 0;
 
     // The 'storage slot point' of the state variable. Having a _point_ for every storage slot allows for
     // partial-commitment functionality.

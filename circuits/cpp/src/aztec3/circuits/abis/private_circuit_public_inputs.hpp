@@ -8,40 +8,41 @@
 #include <barretenberg/crypto/generators/generator_data.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> class PrivateCircuitPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
   public:
-    CallContext<NCT> call_context = CallContext<NCT>();
+    CallContext<NCT> call_context{};
 
-    std::array<fr, ARGS_LENGTH> args = { 0 };
-    std::array<fr, RETURN_VALUES_LENGTH> return_values = { 0 };
+    std::array<fr, ARGS_LENGTH> args = zero_array<fr, ARGS_LENGTH>();
+    std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
 
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = zero_array<fr, EMITTED_EVENTS_LENGTH>();
 
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = { 0 };
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = { 0 };
+    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, NEW_COMMITMENTS_LENGTH>();
+    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, NEW_NULLIFIERS_LENGTH>();
 
-    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack = { 0 };
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = { 0 };
-    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = { 0 };
+    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack = zero_array<fr, PRIVATE_CALL_STACK_LENGTH>();
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
+    std::array<fr, L1_MSG_STACK_LENGTH> l1_msg_stack = zero_array<fr, L1_MSG_STACK_LENGTH>();
 
-    fr historic_private_data_tree_root;
-    fr historic_nullifier_tree_root;
-    fr historic_contract_tree_root;
+    fr historic_private_data_tree_root = 0;
+    fr historic_nullifier_tree_root = 0;
+    fr historic_contract_tree_root = 0;
 
-    ContractDeploymentData<NCT> contract_deployment_data = ContractDeploymentData<NCT>();
+    ContractDeploymentData<NCT> contract_deployment_data{};
 
     boolean operator==(PrivateCircuitPublicInputs<NCT> const& other) const
     {

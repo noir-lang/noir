@@ -19,8 +19,8 @@ template <typename Composer> class L1Call {
   public:
     L1FunctionInterface& l1_function;
     std::vector<fr> args;
-    fr hash_of_argument_encodings;
-    fr partial_l1_call_stack_item; // keccak(function_selector, hash_of_argument_encodings)
+    fr hash_of_argument_encodings = 0;
+    fr partial_l1_call_stack_item = 0; // keccak(function_selector, hash_of_argument_encodings)
 
     L1Call(L1FunctionInterface const& l1_function, std::vector<fr> const& args)
         : l1_function(l1_function)
@@ -36,8 +36,6 @@ template <typename Composer> class L1Call {
     }
 
     bool operator==(L1Call<NCT> const&) const = default;
-
-    // static L1Call<NCT> empty() { return { 0, 0, 0, 0, 0 }; };
 
     template <typename Composer> L1Call<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {

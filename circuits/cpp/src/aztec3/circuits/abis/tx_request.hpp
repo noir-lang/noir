@@ -2,29 +2,29 @@
 #include "function_data.hpp"
 #include "tx_context.hpp"
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
-using plonk::stdlib::witness_t;
 
 template <typename NCT> struct TxRequest {
     typedef typename NCT::address address;
-    // typedef typename NCT::grumpkin_point grumpkin_point;
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    address from;
-    address to;
-    FunctionData<NCT> function_data = FunctionData<NCT>();
-    std::array<fr, ARGS_LENGTH> args = { 0 };
-    fr nonce;
-    TxContext<NCT> tx_context = TxContext<NCT>();
-    fr chain_id;
+    address from = 0;
+    address to = 0;
+    FunctionData<NCT> function_data{};
+    std::array<fr, ARGS_LENGTH> args = zero_array<fr, ARGS_LENGTH>();
+    fr nonce = 0;
+    TxContext<NCT> tx_context{};
+    fr chain_id = 0;
 
     boolean operator==(TxContext<NCT> const& other) const
     {

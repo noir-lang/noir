@@ -17,7 +17,7 @@ template <typename NCT> struct L1FunctionInterfaceStruct {
     typedef typename NCT::fr fr;
 
     std::string function_name;
-    fr function_selector;
+    fr function_selector = 0;
     size_t num_params = 0;
 };
 
@@ -27,8 +27,8 @@ template <typename NCT> class L1FunctionInterface {
   public:
     Contract<NCT>* contract;
     std::string function_name;
-    fr function_selector;
-    size_t num_params;
+    fr function_selector = 0;
+    size_t num_params = 0;
 
     L1FunctionInterface(){};
 

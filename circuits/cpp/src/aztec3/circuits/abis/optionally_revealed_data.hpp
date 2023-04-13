@@ -1,11 +1,13 @@
 #pragma once
 #include "function_data.hpp"
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
+#include <aztec3/utils/array.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 namespace aztec3::circuits::abis {
 
+using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
@@ -14,11 +16,11 @@ template <typename NCT> struct OptionallyRevealedData {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
 
-    fr call_stack_item_hash;
-    FunctionData<NCT> function_data = FunctionData<NCT>();
-    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = { 0 };
-    fr vk_hash;
-    address portal_contract_address;
+    fr call_stack_item_hash = 0;
+    FunctionData<NCT> function_data{};
+    std::array<fr, EMITTED_EVENTS_LENGTH> emitted_events = zero_array<fr, EMITTED_EVENTS_LENGTH>();
+    fr vk_hash = 0;
+    address portal_contract_address = 0;
     boolean pay_fee_from_l1 = false;
     boolean pay_fee_from_public_l2 = false;
     boolean called_from_l1 = false;

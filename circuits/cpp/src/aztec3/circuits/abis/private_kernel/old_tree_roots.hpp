@@ -15,10 +15,10 @@ template <typename NCT> struct OldTreeRoots {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    fr private_data_tree_root;
-    fr nullifier_tree_root;
-    fr contract_tree_root;
-    fr private_kernel_vk_tree_root; // TODO: future enhancement
+    fr private_data_tree_root = 0;
+    fr nullifier_tree_root = 0;
+    fr contract_tree_root = 0;
+    fr private_kernel_vk_tree_root = 0; // TODO: future enhancement
 
     boolean operator==(OldTreeRoots<NCT> const& other) const
     {

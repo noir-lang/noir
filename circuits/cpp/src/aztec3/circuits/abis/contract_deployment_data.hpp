@@ -18,10 +18,10 @@ template <typename NCT> struct ContractDeploymentData {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    fr constructor_vk_hash;
-    fr function_tree_root;
-    fr contract_address_salt;
-    address portal_contract_address;
+    fr constructor_vk_hash = 0;
+    fr function_tree_root = 0;
+    fr contract_address_salt = 0;
+    address portal_contract_address = 0;
 
     boolean operator==(ContractDeploymentData<NCT> const& other) const
     {

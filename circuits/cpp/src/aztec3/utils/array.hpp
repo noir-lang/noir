@@ -1,3 +1,4 @@
+#pragma once
 #include "./types/native_types.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 
@@ -7,6 +8,23 @@
 namespace aztec3::utils {
 
 using NT = types::NativeTypes;
+
+/**
+ * @brief Creates an array of zeros.
+ *
+ * @details This is necessary when a type (like fr) has a default constructor
+ * that doesn't initialize members to zero.
+ *
+ * @tparam ELEMS_TYPE array element type
+ * @tparam ARRAY_LEN
+ * @return std::array<ELEMS_TYPE, ARRAY_LEN> the zero-initialized array
+ */
+template <typename ELEMS_TYPE, size_t ARRAY_LEN> std::array<ELEMS_TYPE, ARRAY_LEN> zero_array()
+{
+    std::array<ELEMS_TYPE, ARRAY_LEN> arr;
+    arr.fill(ELEMS_TYPE(0)); // Assumes that integer type can be used here in initialization
+    return arr;
+}
 
 /**
  * Gets the number of contiguous nonzero values of an array from the start.

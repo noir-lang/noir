@@ -13,16 +13,12 @@ using NT = aztec3::utils::types::NativeTypes;
 using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
-using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::BaseRollupInputs;
 using aztec3::circuits::abis::ConstantRollupData;
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NullifierLeafPreimage;
-using aztec3::circuits::abis::private_kernel::NewContractData;
 
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
-
-using plonk::TurboComposer;
 } // namespace
 
 namespace aztec3::circuits::rollup::base::utils {
@@ -39,25 +35,7 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
         .root = native_base_rollup::MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT).root(),
         .next_available_leaf_index = 0,
     };
-
-    std::array<NullifierLeafPreimage<NT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
-    std::array<MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH>
-        low_nullifier_membership_witness;
-
-    for (size_t i = 0; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
-        low_nullifier_leaf_preimages[i] = NullifierLeafPreimage<NT>();
-        low_nullifier_membership_witness[i] = MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>();
-    }
-
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_private_data_tree_root_membership_witnesses = {
-            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>(),
-            MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>()
-        };
-
-    std::array<MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_contract_tree_root_membership_witnesses = { MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>(),
-                                                             MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>() };
+    // constantRollupData.tree_of_historic_l1_to_l2_msg_tree_roots_snapshot =
 
     // Kernels
     std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
@@ -70,20 +48,11 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
                                                   .root = native_base_rollup::MerkleTree(PRIVATE_DATA_TREE_HEIGHT).root(),
                                                   .next_available_leaf_index = 0,
                                               },
-                                              .start_nullifier_tree_snapshot = AppendOnlyTreeSnapshot<NT>(),
+                                              //.start_nullifier_tree_snapshot =
                                               .start_contract_tree_snapshot = {
                                                   .root = native_base_rollup::MerkleTree(CONTRACT_TREE_HEIGHT).root(),
                                                   .next_available_leaf_index = 0,
                                               },
-                                              .low_nullifier_leaf_preimages = low_nullifier_leaf_preimages,
-                                              .low_nullifier_membership_witness = low_nullifier_membership_witness,
-                                              .new_commitments_subtree_sibling_path = { 0 },
-                                              .new_nullifiers_subtree_sibling_path = { 0 },
-                                              .new_contracts_subtree_sibling_path = { 0 },
-                                              .historic_private_data_tree_root_membership_witnesses =
-                                                  historic_private_data_tree_root_membership_witnesses,
-                                              .historic_contract_tree_root_membership_witnesses =
-                                                  historic_contract_tree_root_membership_witnesses,
                                               .constants = constantRollupData };
 
     return baseRollupInputs;
@@ -172,7 +141,6 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
 
     const size_t NUMBER_OF_NULLIFIERS = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
     std::array<NullifierLeafPreimage<NT>, NUMBER_OF_NULLIFIERS> new_nullifier_leaves;
-    std::array<NullifierLeafPreimage<NT>, NUMBER_OF_NULLIFIERS> low_nullifier_leaves_preimages;
     std::array<MembershipWitness<NT, NULLIFIER_TREE_HEIGHT>, NUMBER_OF_NULLIFIERS>
         low_nullifier_leaves_preimages_witnesses;
 

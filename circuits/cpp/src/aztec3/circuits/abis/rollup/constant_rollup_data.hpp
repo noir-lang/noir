@@ -12,15 +12,15 @@ template <typename NCT> struct ConstantRollupData {
     typedef typename NCT::fr fr;
 
     // The very latest roots as at the very beginning of the entire rollup:
-    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_private_data_tree_roots_snapshot;
-    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_contract_tree_roots_snapshot;
-    AppendOnlyTreeSnapshot<NCT> tree_of_historic_l1_to_l2_msg_tree_roots_snapshot;
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_private_data_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_contract_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> tree_of_historic_l1_to_l2_msg_tree_roots_snapshot{};
 
     // Some members of this struct tbd:
-    fr private_kernel_vk_tree_root;
-    fr public_kernel_vk_tree_root;
-    fr base_rollup_vk_hash;
-    fr merge_rollup_vk_hash;
+    fr private_kernel_vk_tree_root = 0;
+    fr public_kernel_vk_tree_root = 0;
+    fr base_rollup_vk_hash = 0;
+    fr merge_rollup_vk_hash = 0;
 
     bool operator==(ConstantRollupData<NCT> const&) const = default;
 };
