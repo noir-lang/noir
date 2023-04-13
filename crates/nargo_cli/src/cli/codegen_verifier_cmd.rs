@@ -1,12 +1,9 @@
-use super::fs::{
-    create_named_dir, keys::fetch_pk_and_vk, program::read_program_from_file, write_to_file,
-};
+use super::fs::{create_named_dir, program::read_program_from_file, write_to_file};
 use super::NargoConfig;
 use crate::{
     cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, constants::TARGET_DIR,
     errors::CliError,
 };
-use acvm::{ProofSystemCompiler, SmartContract};
 use clap::Args;
 use nargo::ops::{codegen_verifier, preprocess_program};
 use noirc_driver::CompileOptions;
@@ -33,7 +30,7 @@ pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(
         Some(circuit_build_path) => read_program_from_file(circuit_build_path)?,
         None => {
             let compiled_program =
-                compile_circuit(&backend, program_dir.as_ref(), &compile_options)?;
+                compile_circuit(&backend, config.program_dir.as_ref(), &args.compile_options)?;
             preprocess_program(&backend, compiled_program)?
         }
     };
