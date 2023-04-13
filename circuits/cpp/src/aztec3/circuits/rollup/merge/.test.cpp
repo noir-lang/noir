@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include "aztec3/circuits/rollup/merge/init.hpp"
 #include "aztec3/circuits/rollup/merge/utils.hpp"
+#include "c_bind.h"
 
 namespace {
 using aztec3::circuits::rollup::merge::utils::dummy_merge_rollup_inputs_with_vk_proof;
@@ -14,7 +15,49 @@ using DummyComposer = aztec3::utils::DummyComposer;
 } // namespace
 namespace aztec3::circuits::rollup::merge::native_merge_rollup_circuit {
 
-class merge_rollup_tests : public ::testing::Test {};
+class merge_rollup_tests : public ::testing::Test {
+  protected:
+    void run_cbind(MergeRollupInputs& merge_rollup_inputs,
+                   BaseOrMergeRollupPublicInputs& expected_public_inputs,
+                   bool compare_pubins = true)
+    {
+        std::vector<uint8_t> merge_rollup_inputs_vec;
+        write(merge_rollup_inputs_vec, merge_rollup_inputs);
+
+        uint8_t const* public_inputs_buf;
+        info("creating proof");
+        size_t public_inputs_size = merge_rollup__sim(merge_rollup_inputs_vec.data(), &public_inputs_buf);
+        info("PublicInputs size: ", public_inputs_size);
+
+        if (compare_pubins) {
+            BaseOrMergeRollupPublicInputs public_inputs;
+            info("about to read...");
+            uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
+            read(public_inputs_buf_tmp, public_inputs);
+            info("about to assert...");
+            ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
+            for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
+                ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
+            }
+
+            info("about to write expected...");
+            std::vector<uint8_t> expected_public_inputs_vec;
+            write(expected_public_inputs_vec, expected_public_inputs);
+
+            info("about to assert buffers eq...");
+            ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
+            // Just compare the first 10 bytes of the serialized public outputs
+            if (public_inputs_size > 10) {
+                // for (size_t 0; i < public_inputs_size; i++) {
+                for (size_t i = 0; i < 10; i++) {
+                    ASSERT_EQ(public_inputs_buf[i], expected_public_inputs_vec[i]);
+                }
+            }
+        }
+        free((void*)public_inputs_buf);
+        info("finished retesting via cbinds...");
+    }
+};
 
 TEST_F(merge_rollup_tests, test_different_rollup_type_fails)
 {
@@ -188,5 +231,12 @@ TEST_F(merge_rollup_tests, test_aggregate)
     BaseOrMergeRollupPublicInputs outputs = merge_rollup_circuit(composer, inputs);
     ASSERT_EQ(inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end_aggregation_object.public_inputs,
               outputs.end_aggregation_object.public_inputs);
+}
+
+TEST_F(merge_rollup_tests, test_merge_cbind)
+{
+    MergeRollupInputs inputs = dummy_merge_rollup_inputs_with_vk_proof();
+    BaseOrMergeRollupPublicInputs ignored_public_inputs;
+    run_cbind(inputs, ignored_public_inputs, false);
 }
 } // namespace aztec3::circuits::rollup::merge::native_merge_rollup_circuit
