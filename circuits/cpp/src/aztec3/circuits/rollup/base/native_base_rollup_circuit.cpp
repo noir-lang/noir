@@ -313,11 +313,15 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     // check previous nullifier leaves
                     // TODO: this is a hack, and insecure, we need to fix this
                     bool matched = false;
-                    for (size_t k = 0; k < nullifier_index; k++) {
-                        if ((uint256_t(nullifier_insertion_subtree[k].nextValue) > uint256_t(nullifier) &&
-                             uint256_t(nullifier_insertion_subtree[k].value) < uint256_t(nullifier)) ||
-                            (nullifier_insertion_subtree[k].nextValue == 0 &&
-                             nullifier_insertion_subtree[k].nextIndex == 0)) {
+
+                    for (size_t k = 0; k < nullifier_index && !matched; k++) {
+                        if (nullifier_insertion_subtree[k].value == 0) {
+                            continue;
+                        }
+
+                        if ((uint256_t(nullifier_insertion_subtree[k].value) < uint256_t(nullifier)) &&
+                            (uint256_t(nullifier_insertion_subtree[k].nextValue) > uint256_t(nullifier) ||
+                             nullifier_insertion_subtree[k].nextValue == 0)) {
 
                             matched = true;
                             // Update pointers
@@ -329,6 +333,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                             nullifier_insertion_subtree[k].nextValue = nullifier;
                         }
                     }
+
                     // if not matched, our subtree will misformed - we must reject
                     composer.do_assert(matched, "Nullifier subtree is malformed");
 

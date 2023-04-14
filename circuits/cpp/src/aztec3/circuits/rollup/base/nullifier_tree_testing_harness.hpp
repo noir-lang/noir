@@ -38,6 +38,8 @@ class NullifierMemoryTreeTestingHarness : public proof_system::plonk::stdlib::me
     // Current size of the tree
     fr size() { return leaves_.size(); }
 
+    void update_element_in_place(size_t index, nullifier_leaf leaf);
+
     // Get all of the sibling paths and low nullifier values required to craft an non membership / inclusion proofs
     std::tuple<std::vector<nullifier_leaf>, std::vector<std::vector<fr>>, std::vector<uint32_t>>
     circuit_prep_batch_insert(std::vector<fr> const& values);

@@ -507,6 +507,65 @@ TEST_F(base_rollup_tests, nullifier_tree_regression)
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
 }
 
+void perform_standard_nullifier_test(std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers)
+{
+    // Regression test caught when testing the typescript nullifier tree implementation
+    DummyComposer composer = DummyComposer();
+    BaseRollupInputs empty_inputs = dummy_base_rollup_inputs_with_vk_proof();
+
+    std::vector<fr> initial_values(7, 0);
+    for (size_t i = 0; i < 7; i++) {
+        initial_values[i] = i + 1;
+    }
+
+    std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
+        utils::generate_nullifier_tree_testing_values(empty_inputs, new_nullifiers, initial_values);
+    BaseRollupInputs testing_inputs = std::get<0>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_start_snapshot = std::get<1>(inputs_and_snapshots);
+    AppendOnlyTreeSnapshot<NT> nullifier_tree_end_snapshot = std::get<2>(inputs_and_snapshots);
+
+    /**
+     * RUN
+     */
+
+    // Run the circuit
+    BaseOrMergeRollupPublicInputs outputs =
+        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, testing_inputs);
+
+    /**
+     * ASSERT
+     */
+    // Start state
+    ASSERT_EQ(outputs.start_nullifier_tree_snapshot, nullifier_tree_start_snapshot);
+
+    // End state
+    ASSERT_EQ(outputs.end_nullifier_tree_snapshot, nullifier_tree_end_snapshot);
+}
+
+// Another regression test with values from a failing packages test
+TEST_F(base_rollup_tests, nullifier_tree_regression_2)
+{
+    // Regression test caught when testing the typescript nullifier tree implementation
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> new_nullifiers = { 0 };
+    new_nullifiers[0] = uint256_t("2a7d956c1365d259646d2d85babe1abb793bb8789e98df7e2336a29a0c91fd01");
+    new_nullifiers[1] = uint256_t("236bf2d113f9ffee89df1a7a04890c9ad3583c6773eb9cdec484184f66abd4c6");
+    new_nullifiers[4] = uint256_t("2f5c8a1ee33c7104b244e22a3e481637cd501c9eae868cfab6b16e3b4ef3d635");
+    new_nullifiers[5] = uint256_t("0c484a20780e31747cf9f4f6803986525ed98ef587f5155a1c50689c2cad10ae");
+
+    perform_standard_nullifier_test(new_nullifiers);
+}
+
+TEST_F(base_rollup_tests, nullifier_tree_regression_3)
+{
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> new_nullifiers = { 0 };
+    new_nullifiers[0] = uint256_t("0740a17aa6437e71836d2adcdcb3f52879bb869cdd9c8fb8dc39a12846cd17f2");
+    new_nullifiers[1] = uint256_t("282e0e2f38310a7c7c98b636830b66f3276294560e26ef2499da10892f00af8f");
+    new_nullifiers[4] = uint256_t("0f117936e888bd3befb4435f4d65300d25609e95a3d1563f62ef7e58c294f578");
+    new_nullifiers[5] = uint256_t("0fcb3908cb15ebf8bab276f5df17524d3b676c8655234e4350953c387fffcdd7");
+
+    perform_standard_nullifier_test(new_nullifiers);
+}
+
 // Note leaving this test here as there are no negative tests, even though it no longer passes
 TEST_F(base_rollup_tests, new_nullifier_tree_sparse_attack)
 {

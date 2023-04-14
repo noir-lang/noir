@@ -159,7 +159,6 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
         }
         insertion_values.push_back(insertion_val);
         reference_tree.append_value(insertion_val);
-        auto hashes = reference_tree.get_hashes();
     }
 
     // Get the hash paths etc from the insertion values

@@ -12,11 +12,13 @@ NullifierMemoryTreeTestingHarness::NullifierMemoryTreeTestingHarness(size_t dept
 {}
 
 // Check for a larger value in an array
-bool check_has_lesser_value(std::vector<fr> const& values, fr const& value)
+bool check_has_less_than(std::vector<fr> const& values, fr const& value)
 {
+
     // Must perform comparisons on integers
     uint256_t value_as_uint = uint256_t(value);
     for (auto const& v : values) {
+        // info(v, " ", uint256_t(v) < value_as_uint);
         if (uint256_t(v) < value_as_uint) {
             return true;
         }
@@ -108,6 +110,7 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
             sibling_paths.push_back(empty_sp);
             low_nullifier_indexes.push_back(empty_index);
             low_nullifiers.push_back(empty_leaf);
+            continue;
         }
 
         // If the low_nullifier node has been touched this sub tree insertion, we provide a dummy sibling path
@@ -115,13 +118,12 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
         // inserted before it If it has not been touched, we provide a sibling path then update the nodes pointers
         auto prev_nodes = touched_nodes.find(current);
 
-        bool has_lesser_value = false;
+        bool has_less_than = false;
         if (prev_nodes != touched_nodes.end()) {
-            has_lesser_value = check_has_lesser_value(prev_nodes->second, new_value);
+            has_less_than = check_has_less_than(prev_nodes->second, new_value);
         }
         // If there is a lower value in the tree, we need to check the current low nullifiers for one that can be used
-        // if (current == 0 || has_lesser_value) {
-        if (has_lesser_value) {
+        if (has_less_than) {
 
             for (size_t j = 0; j < pending_insertion_tree.size(); ++j) {
                 // Skip checking empty values
@@ -171,12 +173,20 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
                                         .nextValue = new_value };
 
             // Update the old leaf in the tree
-            update_element(current, new_leaf.hash());
+            // update old value in tree
+            update_element_in_place(current, new_leaf);
         }
     }
 
     // Return tuple of low nullifiers and sibling paths
     return std::make_tuple(low_nullifiers, sibling_paths, low_nullifier_indexes);
+}
+
+void NullifierMemoryTreeTestingHarness::update_element_in_place(size_t index, nullifier_leaf leaf)
+{
+    // Find the leaf with the value closest and less than `value`
+    this->leaves_[index] = leaf;
+    update_element(index, leaf.hash());
 }
 
 std::pair<nullifier_leaf, size_t> NullifierMemoryTreeTestingHarness::find_lower(fr const& value)
