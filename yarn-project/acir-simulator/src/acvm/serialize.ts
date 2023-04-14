@@ -110,6 +110,7 @@ export function writeInputs(
 
     toACVMField(oldRoots.contractTreeRoot),
     toACVMField(oldRoots.nullifierTreeRoot),
+    toACVMField(oldRoots.privateDataTreeRoot),
   ];
 
   return fields.reduce((witness, field, index) => {

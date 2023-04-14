@@ -15,7 +15,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     fn push(mut self: Self, elem: T) -> Self {
-        constrain self.len < MaxLen;
+        constrain self.len as u64 < MaxLen as u64;
 
         self.storage[self.len] = elem;
         self.len += 1;
@@ -23,7 +23,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 
     fn pop(mut self: Self) -> (Self, T) {
-        constrain self.len > 0;
+        constrain self.len as u64 > 0;
 
         let elem = self.storage[self.len - 1];
         self.len -= 1;

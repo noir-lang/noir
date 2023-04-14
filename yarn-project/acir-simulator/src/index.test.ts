@@ -4,6 +4,7 @@ import {
   FunctionData,
   NEW_COMMITMENTS_LENGTH,
   OldTreeRoots,
+  PRIVATE_DATA_TREE_HEIGHT,
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
@@ -12,7 +13,7 @@ import { Grumpkin, pedersenCompressInputs } from '@aztec/barretenberg.js/crypto'
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { DBOracle } from './db_oracle.js';
-import { AcirSimulator, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
+import { AcirSimulator, DUMMY_NOTE_LENGTH, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
 import { jest } from '@jest/globals';
 import { toBigIntBE } from '@aztec/foundation';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -74,7 +75,6 @@ describe('ACIR simulator', () => {
 
   describe('token contract', () => {
     let currentNonce = 0n;
-    const SIBLING_PATH_SIZE = 5;
 
     const contractDeploymentData = new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
     const txContext = new TxContext(false, false, false, contractDeploymentData);
@@ -94,14 +94,10 @@ describe('ACIR simulator', () => {
     let recipient: NoirPoint;
 
     function buildNote(amount: bigint, owner: NoirPoint, isDummy = false) {
-      return [
-        new Fr(amount),
-        new Fr(owner.x),
-        new Fr(owner.y),
-        new Fr(4n),
-        new Fr(currentNonce++),
-        new Fr(isDummy ? 1n : 0n),
-      ];
+      if (isDummy) {
+        return Array(DUMMY_NOTE_LENGTH).fill(new Fr(0n));
+      }
+      return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), new Fr(4n), new Fr(amount)];
     }
 
     function toPublicKey(privateKey: Buffer, grumpkin: Grumpkin): NoirPoint {
@@ -175,7 +171,7 @@ describe('ACIR simulator', () => {
       expect(commitment).toEqual(Fr.fromBuffer(acirSimulator.computeNoteHash(newNote.preimage, bbWasm)));
     });
 
-    it.skip('should run the transfer function', async () => {
+    it('should run the transfer function', async () => {
       const db = levelup(createMemDown());
       const pedersen = new Pedersen(bbWasm);
 
@@ -183,7 +179,7 @@ describe('ACIR simulator', () => {
       const amountToTransfer = 100n;
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'transfer') as unknown as FunctionAbi;
 
-      const tree = await StandardMerkleTree.new(db, pedersen, 'privateData', SIBLING_PATH_SIZE);
+      const tree = await StandardMerkleTree.new(db, pedersen, 'privateData', PRIVATE_DATA_TREE_HEIGHT);
       const preimages = [buildNote(60n, owner), buildNote(80n, owner)];
       // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
       await tree.appendLeaves(preimages.map(preimage => acirSimulator.computeNoteHash(preimage, bbWasm)));
@@ -214,7 +210,81 @@ describe('ACIR simulator', () => {
 
       const result = await acirSimulator.run(txRequest, abi, AztecAddress.random(), EthAddress.ZERO, oldRoots);
 
-      console.log(result);
-    });
+      // The two notes were nullified
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(2);
+
+      expect(newNullifiers).toEqual(
+        preimages.map(preimage => Fr.fromBuffer(acirSimulator.computeNullifier(preimage, ownerPk, bbWasm))),
+      );
+
+      expect(result.preimages.newNotes).toHaveLength(2);
+      const [recipientNote, changeNote] = result.preimages.newNotes;
+      expect(recipientNote.storageSlot).toEqual(computeSlot(new Fr(1n), recipient, bbWasm));
+
+      const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
+
+      expect(newCommitments).toHaveLength(2);
+
+      const [recipientNoteCommitment, changeNoteCommitment] = newCommitments;
+      expect(recipientNoteCommitment).toEqual(
+        Fr.fromBuffer(acirSimulator.computeNoteHash(recipientNote.preimage, bbWasm)),
+      );
+      expect(changeNoteCommitment).toEqual(Fr.fromBuffer(acirSimulator.computeNoteHash(changeNote.preimage, bbWasm)));
+
+      expect(recipientNote.preimage[5]).toEqual(new Fr(amountToTransfer));
+      expect(changeNote.preimage[5]).toEqual(new Fr(40n));
+    }, 30_000);
+
+    it('should be able to transfer with dummy notes', async () => {
+      const db = levelup(createMemDown());
+      const pedersen = new Pedersen(bbWasm);
+
+      const contractAddress = AztecAddress.random();
+      const amountToTransfer = 100n;
+      const balance = 160n;
+      const abi = ZkTokenContractAbi.functions.find(f => f.name === 'transfer') as unknown as FunctionAbi;
+
+      const tree = await StandardMerkleTree.new(db, pedersen, 'privateData', PRIVATE_DATA_TREE_HEIGHT);
+      const preimages = [buildNote(balance, owner)];
+      // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
+      await tree.appendLeaves(preimages.map(preimage => acirSimulator.computeNoteHash(preimage, bbWasm)));
+
+      const oldRoots = new OldTreeRoots(Fr.fromBuffer(tree.getRoot()), new Fr(0n), new Fr(0n), new Fr(0n));
+
+      oracle.getNotes.mockImplementation(() => {
+        return Promise.all(
+          preimages.map(async (preimage, index) => ({
+            preimage,
+            siblingPath: (await tree.getSiblingPath(BigInt(index))).data.map(buf => Fr.fromBuffer(buf)),
+            index,
+          })),
+        );
+      });
+
+      oracle.getSecretKey.mockReturnValue(Promise.resolve(ownerPk));
+
+      const txRequest = new TxRequest(
+        AztecAddress.random(),
+        contractAddress,
+        new FunctionData(Buffer.alloc(4), true, true),
+        encodeArguments(abi, [amountToTransfer, owner, recipient]),
+        Fr.random(),
+        txContext,
+        new Fr(0n),
+      );
+
+      const result = await acirSimulator.run(txRequest, abi, AztecAddress.random(), EthAddress.ZERO, oldRoots);
+
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(2);
+
+      expect(newNullifiers[0]).toEqual(Fr.fromBuffer(acirSimulator.computeNullifier(preimages[0], ownerPk, bbWasm)));
+
+      expect(result.preimages.newNotes).toHaveLength(2);
+      const [recipientNote, changeNote] = result.preimages.newNotes;
+      expect(recipientNote.preimage[5]).toEqual(new Fr(amountToTransfer));
+      expect(changeNote.preimage[5]).toEqual(new Fr(balance - amountToTransfer));
+    }, 30_000);
   });
 });

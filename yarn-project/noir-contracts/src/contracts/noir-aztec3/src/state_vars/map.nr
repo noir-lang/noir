@@ -1,4 +1,4 @@
-use crate::set::Set;
+use crate::state_vars::set::Set;
 
 struct Map {
     storage_slot: Field,

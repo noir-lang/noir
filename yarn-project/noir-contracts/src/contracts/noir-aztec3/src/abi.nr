@@ -7,13 +7,14 @@ global MAX_PRIVATE_CALL_STACK : comptime Field = 4;
 global MAX_PUBLIC_CALL_STACK: comptime Field = 4;
 global MAX_L1_MSG_STACK : comptime Field = 2;
 
-use crate::note::Note;
-use crate::vec::BoundedVec;
+use crate::notes::value_note::Note;
+use crate::types::vec::BoundedVec;
 
 // Inputs are expected to be provided to each contract function
 struct Inputs {
     call_context : CallContext,
 
+    old_private_data_tree_root : Field,
     old_nullifier_tree_root : Field,
     old_contract_tree_root : Field,
 
@@ -50,21 +51,19 @@ struct Outputs {
     public_call_stack: [Field; MAX_PUBLIC_CALL_STACK],
     l1_message_stack: [Field; MAX_L1_MSG_STACK],
 
-    old_private_data_tree_root: Field,
-
     new_note_values: [Field; 4],
     new_note_owner_xs: [Field; 4],
     new_note_owner_ys: [Field; 4],
     new_note_randomness: [Field; 4],
     new_note_nonce: [Field; 4],
-    new_note_is_dummies: [bool; 4],
+    new_note_is_realsies: [bool; 4],
 
     nullified_note_values: [Field; 4],
     nullified_note_owner_xs: [Field; 4],
     nullified_note_owner_ys: [Field; 4],
     nullified_note_randomness: [Field; 4],
     nullified_note_nonce: [Field; 4],
-    nullified_note_is_dummies: [bool; 4],
+    nullified_note_is_realsies: [bool; 4],
 }
 
 // Equivalent to Outputs, but uses BoundedVecs instead of arrays to
@@ -81,65 +80,20 @@ struct IntermediateOutputs {
     public_call_stack : BoundedVec<Field, MAX_PUBLIC_CALL_STACK>,
     l1_message_stack : BoundedVec<Field, MAX_L1_MSG_STACK>,
 
-    old_private_data_tree_root : Field,
-
     new_note_values: BoundedVec<Field, MAX_NEW_COMMITMENTS>,
     new_note_owner_xs: BoundedVec<Field, MAX_NEW_COMMITMENTS>,
     new_note_owner_ys: BoundedVec<Field, MAX_NEW_COMMITMENTS>,
     new_note_randomness: BoundedVec<Field, MAX_NEW_COMMITMENTS>,
     new_note_nonce: BoundedVec<Field, MAX_NEW_COMMITMENTS>,
-    new_note_is_dummies: BoundedVec<bool, MAX_NEW_COMMITMENTS>,
+    new_note_is_realsies: BoundedVec<bool, MAX_NEW_COMMITMENTS>,
 
     nullified_note_values: BoundedVec<Field, MAX_NEW_NULLIFIERS>,
     nullified_note_owner_xs: BoundedVec<Field, MAX_NEW_NULLIFIERS>,
     nullified_note_owner_ys: BoundedVec<Field, MAX_NEW_NULLIFIERS>,
     nullified_note_randomness: BoundedVec<Field, MAX_NEW_NULLIFIERS>,
     nullified_note_nonce: BoundedVec<Field, MAX_NEW_NULLIFIERS>,
-    nullified_note_is_dummies: BoundedVec<bool, MAX_NEW_NULLIFIERS>,
+    nullified_note_is_realsies: BoundedVec<bool, MAX_NEW_NULLIFIERS>,
 }
-
-// fn no_op(x: Field) -> Field {
-//     let y = x + 1;
-//     let z = 0 + 1;
-//     ((y - 1) * z * z * z * z) + z - 1
-//     // x
-// }
-
-// fn no_op_arr_8(xs: [Field; 8]) -> [Field; 8] {
-//     let mut out: [Field; 8] = [0,0,0,0,0,0,0,0];
-//     for i in 0..xs.len() {
-//         out[i] = no_op(xs[i]);
-//     }
-//     // xs.map(|x| {
-//     //     let y = x + 1;
-//     //     y - 1
-//     // })
-//     out
-// }
-
-// fn no_op_arr_4(xs: [Field; 4]) -> [Field; 4] {
-//     let mut out: [Field; 4] = [0,0,0,0];
-//     for i in 0..xs.len() {
-//         out[i] = no_op(xs[i]);
-//     }
-//     // xs.map(|x| {
-//     //     let y = x + 1;
-//     //     y - 1
-//     // })
-//     out
-// }
-
-// fn no_op_arr_2(xs: [Field; 2]) -> [Field; 2] {
-//     let mut out: [Field; 2] = [0,0];
-//     for i in 0..xs.len() {
-//         out[i] = no_op(xs[i]);
-//     }
-//     // xs.map(|x| {
-//     //     let y = x + 1;
-//     //     y - 1
-//     // })
-//     out
-// }
 
 impl Outputs {
     // We're a bit tricky here in that we return IntermediateOutputs
@@ -159,7 +113,6 @@ struct FinalOutputs {
     ord_04_is_static_call : Field,
     ord_05_is_contract_deployment: Field,
 
-    // ord_11_call_context: CallContext,
     ord_12_args: [Field; MAX_ARGS],
     ord_13_return_values: [Field; MAX_RETURN_VALUES],
     ord_14_logs: [Field; MAX_LOGS],
@@ -168,10 +121,11 @@ struct FinalOutputs {
     ord_17_private_call_stack: [Field; MAX_PRIVATE_CALL_STACK],
     ord_18_public_call_stack: [Field; MAX_PUBLIC_CALL_STACK],
     ord_19_l1_message_stack: [Field; MAX_L1_MSG_STACK],
+
     ord_20_old_private_data_tree_root: Field,
     ord_21_old_nullifier_tree_root: Field,
     ord_22_old_contract_tree_root: Field,
-    // ord_23_contract_deployment_data: ContractDeploymentData,
+
     ord_30_constructor_vk_hash : Field,
     ord_31_function_tree_root : Field,
     ord_32_contract_address_salt : Field,
@@ -191,21 +145,19 @@ impl IntermediateOutputs {
             public_call_stack: BoundedVec::new(0),
             l1_message_stack: BoundedVec::new(0),
 
-            old_private_data_tree_root: 0,
-
             new_note_values: BoundedVec::new(0),
             new_note_owner_xs: BoundedVec::new(0),
             new_note_owner_ys: BoundedVec::new(0),
             new_note_randomness: BoundedVec::new(0),
             new_note_nonce: BoundedVec::new(0),
-            new_note_is_dummies: BoundedVec::new(true),
+            new_note_is_realsies: BoundedVec::new(false),
 
             nullified_note_values: BoundedVec::new(0),
             nullified_note_owner_xs: BoundedVec::new(0),
             nullified_note_owner_ys: BoundedVec::new(0),
             nullified_note_randomness: BoundedVec::new(0),
             nullified_note_nonce: BoundedVec::new(0),
-            nullified_note_is_dummies: BoundedVec::new(true),
+            nullified_note_is_realsies: BoundedVec::new(false),
         }
     }
 
@@ -220,7 +172,6 @@ impl IntermediateOutputs {
             ord_04_is_static_call : inputs.call_context.is_static_call as Field,
             ord_05_is_contract_deployment: inputs.call_context.is_contract_deployment as Field,
 
-            // ord_01_call_context: inputs.call_context,
             ord_12_args: inputs.args,
             ord_13_return_values: self.return_values.storage,
             ord_14_logs: self.logs.storage,
@@ -232,63 +183,14 @@ impl IntermediateOutputs {
             ord_18_public_call_stack: self.public_call_stack.storage,
             ord_19_l1_message_stack: self.l1_message_stack.storage,
 
-            ord_20_old_private_data_tree_root: self.old_private_data_tree_root,
-
+            ord_20_old_private_data_tree_root: inputs.old_private_data_tree_root,
             ord_21_old_nullifier_tree_root: inputs.old_nullifier_tree_root,
             ord_22_old_contract_tree_root: inputs.old_contract_tree_root,
-
-            // ord_13_contract_deployment_data: inputs.contract_deployment_data,
 
             ord_30_constructor_vk_hash : inputs.contract_deployment_data.constructor_vk_hash,
             ord_31_function_tree_root : inputs.contract_deployment_data.function_tree_root ,
             ord_32_contract_address_salt : inputs.contract_deployment_data.contract_address_salt ,
             ord_33_portal_contract_address : inputs.contract_deployment_data.portal_contract_address ,
-            // ord_00_msg_sender :no_op( inputs.call_context.msg_sender as Field),
-            // ord_01_storage_contract_address : inputs.call_context.storage_contract_address,
-            // ord_02_portal_contract_address : inputs.call_context.portal_contract_address,
-
-            // ord_03_is_delegate_call :no_op( inputs.call_context.is_delegate_call as Field),
-            // ord_04_is_static_call : no_op(inputs.call_context.is_static_call as Field),
-            // ord_05_is_contract_deployment: no_op(inputs.call_context.is_contract_deployment as Field),
-
-            // // ord_01_call_context: inputs.call_context,
-            // ord_12_args: no_op_arr_8(inputs.args),
-            // ord_13_return_values: self.return_values.storage,
-            // ord_14_logs: self.logs.storage,
-
-            // ord_15_new_commitments: self.new_commitments.storage,
-            // ord_16_new_nullifiers: self.new_nullifiers.storage,
-
-            // ord_17_private_call_stack: self.private_call_stack.storage,
-            // ord_18_public_call_stack: self.public_call_stack.storage,
-            // ord_19_l1_message_stack: self.l1_message_stack.storage,
-
-            // ord_20_old_private_data_tree_root: no_op(self.old_private_data_tree_root as Field),
-
-            // ord_21_old_nullifier_tree_root: no_op(inputs.old_nullifier_tree_root as Field),
-            // ord_22_old_contract_tree_root: no_op(inputs.old_contract_tree_root as Field),
-
-            // // ord_13_contract_deployment_data: inputs.contract_deployment_data,
-
-            // ord_30_constructor_vk_hash :no_op( inputs.contract_deployment_data.constructor_vk_hash),
-            // ord_31_function_tree_root : no_op(inputs.contract_deployment_data.function_tree_root as Field),
-            // ord_32_contract_address_salt : no_op(inputs.contract_deployment_data.contract_address_salt as Field),
-            // ord_33_portal_contract_address : no_op(inputs.contract_deployment_data.portal_contract_address as Field),
-
-
-            // new_note_values: self.new_note_values.storage,
-            // new_note_owner_xs: self.new_note_owner_xs.storage,
-            // new_note_owner_ys: self.new_note_owner_ys.storage,
-            // new_note_randomness: self.new_note_randomness.storage,
-            // new_note_nonce: self.new_note_nonce.storage,
-            // new_note_is_dummies: self.new_note_is_dummies.storage,
-
-            // nullified_note_values: self.nullified_note_values.storage,
-            // nullified_note_owner_xs: self.nullified_note_owner_xs.storage,
-            // nullified_note_owner_ys: self.nullified_note_owner_ys.storage,
-            // nullified_note_randomness: self.nullified_note_randomness.storage,
-            // nullified_note_nonce: self.nullified_note_nonce.storage,
-            // nullified_note_is_dummies: self.nullified_note_is_dummies.storage,
         }
     }
 
@@ -308,7 +210,7 @@ impl IntermediateOutputs {
         self.new_note_owner_ys = self.new_note_owner_ys.push(note.owner.y);
         self.new_note_randomness = self.new_note_randomness.push(note.randomness);
         self.new_note_nonce = self.new_note_nonce.push(note.nonce);
-        self.new_note_is_dummies = self.new_note_is_dummies.push(note.is_dummy);
+        self.new_note_is_realsies = self.new_note_is_realsies.push(note.is_real);
         self
     }
 
@@ -318,7 +220,7 @@ impl IntermediateOutputs {
         self.nullified_note_owner_ys = self.nullified_note_owner_ys.push(note.owner.y);
         self.nullified_note_randomness = self.nullified_note_randomness.push(note.randomness);
         self.nullified_note_nonce = self.nullified_note_nonce.push(note.nonce);
-        self.nullified_note_is_dummies = self.nullified_note_is_dummies.push(note.is_dummy);
+        self.nullified_note_is_realsies = self.nullified_note_is_realsies.push(note.is_real);
         self
     }
 }

@@ -1,8 +1,11 @@
 use dep::std;
 use crate::abi::Inputs;
 use crate::abi::IntermediateOutputs;
-use crate::note::Note;
-use crate::note::Point;
+use crate::notes::value_note::Note;
+use crate::types::point::Point;
+use crate::state_vars::note_getter_data::NoteGetterData;
+use crate::state_vars::note_getter_data::make_note_getter_data;
+use crate::state_vars::note_getter_data::note_getter_data_len;
 
 #[builtin(notifyCreatedNote)]
 fn notify_created_note(
@@ -22,41 +25,12 @@ fn notify_nullified_note(
 fn get_notes_2_internal(
     _contract_address: Field,
     _storage_slot: Field,
-) -> [Field; 26] {}
-
-// Data returned when getting a note
-struct NoteGetterData {
-    note: Note,
-    leaf_index: Field,
-    sibling_path: [Field; crate::TREE_HEIGHT],
-    root: Field,
-}
-
-fn make_note_getter_data(fields: [Field], start: comptime Field) -> NoteGetterData {
-    NoteGetterData {
-        note: Note {
-            value: fields[start],
-            owner: Point::new(fields[start + 1], fields[start + 2]),
-            randomness: fields[start + 3],
-            nonce: fields[start + 4],
-            is_dummy: fields[start + 5] as bool,
-        },
-        leaf_index: fields[start + 6],
-        sibling_path: [
-            fields[start + 7],
-            fields[start + 8],
-            fields[start + 9],
-            fields[start + 10],
-            fields[start + 11],
-        ],
-        root: fields[start + 12],
-    }
-}
+) -> [Field; 32] {}
 
 fn get_2_notes(contract_address: Field, storage_slot: Field) -> (NoteGetterData, NoteGetterData) {
     let fields = get_notes_2_internal(contract_address, storage_slot);
     let data1 = make_note_getter_data(fields, 0);
-    let data2 = make_note_getter_data(fields, 13);
+    let data2 = make_note_getter_data(fields, note_getter_data_len());
     (data1, data2)
 }
 
@@ -92,34 +66,37 @@ impl Set {
         let note_getter_data = get_2_notes(contract_address, storage_slot);
 
         // Forwarded vars added due to https://github.com/noir-lang/noir/issues/1088
-        let process_data = |data, storage_slot_forwarded, contract_address_forwarded| {
-            let NoteGetterData { note, leaf_index, sibling_path, root } = data;
-            let _ignored = sibling_path;
+        // let process_data = |data, storage_slot_forwarded, contract_address_forwarded| {
+        //     let NoteGetterData { note, leaf_index, sibling_path, root } = data;
+        //     let _ignored = sibling_path;
 
-            let note_hash = note.compute_note_hash();
-            let siloed_note_hash = dep::std::hash::pedersen([
-                crate::NoteStorageSlot,
-                note_hash, 
-                storage_slot_forwarded, 
-                contract_address_forwarded           ])[0];
+        //     let note_hash = note.compute_note_hash();
+        //     let siloed_note_hash = dep::std::hash::pedersen([
+        //         crate::NoteStorageSlot,
+        //         note_hash, 
+        //         storage_slot_forwarded, 
+        //         contract_address_forwarded           ])[0];
 
-            // Check existence in tree:
-            constrain std::merkle::check_membership(
-                root,
-                siloed_note_hash,
-                leaf_index,
-                sibling_path,
-            ) == 1;
+        //     // Check existence in tree:
+        //     constrain std::merkle::check_membership(
+        //         root,
+        //         siloed_note_hash,
+        //         leaf_index,
+        //         sibling_path,
+        //     ) == 1;
 
-            // Set the public input of the 'old private data tree root' to be the computed root (if it hasn't already been set); otherwise constrain equality with the previously-set value.
-            if outputs.old_private_data_tree_root == 0 {
-                outputs.old_private_data_tree_root = root;
-            } else {
-                constrain outputs.old_private_data_tree_root == root;
-            }
-        };
-        process_data(note_getter_data.0, storage_slot, contract_address);
-        process_data(note_getter_data.1, storage_slot, contract_address);
+        //     // Set the public input of the 'old private data tree root' to be the computed root (if it hasn't already been set); otherwise constrain equality with the previously-set value.
+        //     if outputs.old_private_data_tree_root == 0 {
+        //         outputs.old_private_data_tree_root = root;
+        //     } else {
+        //         constrain outputs.old_private_data_tree_root == root;
+        //     }
+        // };
+        // process_data(note_getter_data.0, storage_slot, contract_address);
+        // process_data(note_getter_data.1, storage_slot, contract_address);
+
+        constrain note_getter_data.0.root == inputs.old_private_data_tree_root;
+        constrain note_getter_data.1.root == inputs.old_private_data_tree_root;
 
         let notes = (note_getter_data.0.note, note_getter_data.1.note);
         (outputs, notes)
@@ -138,7 +115,10 @@ impl Set {
             contract_address,
         ])[0];
 
-        let nullifier = note.compute_nullifier(siloed_note_hash);
+        let mut nullifier = note.compute_nullifier(siloed_note_hash);
+        // TODO remove this when we can specify hash index
+        nullifier = note.compute_nullifier(note_hash);
+
         constrain notify_nullified_note(storage_slot, nullifier, note) == 0;
         outputs = outputs.push_new_nullifier(nullifier);
         outputs.push_nullified_note(note)
