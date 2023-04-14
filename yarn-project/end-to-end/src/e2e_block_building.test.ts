@@ -1,4 +1,4 @@
-import { AztecNode } from '@aztec/aztec-node';
+import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
@@ -6,14 +6,15 @@ import { EthAddress, createDebugLogger } from '@aztec/foundation';
 import { ContractAbi } from '@aztec/noir-contracts';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import times from 'lodash.times';
-import { createAztecNode } from './create_aztec_node.js';
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
 
-const { ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_block_building');
+
+const config = getConfigEnvVars();
+
 describe('e2e_block_building', () => {
   let provider: WalletProvider;
   let node: AztecNode;
@@ -24,21 +25,19 @@ describe('e2e_block_building', () => {
   const abi = TestContractAbi as ContractAbi;
 
   beforeEach(async () => {
-    provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
+    provider = createProvider(config.rpcUrl, MNEMONIC, 1);
+    config.publisherPrivateKey = provider.getPrivateKey(0) || Buffer.alloc(32);
     const ethRpc = new EthereumRpc(provider);
     logger('Deploying contracts...');
     rollupAddress = await deployRollupContract(provider, ethRpc);
     unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
+    config.rollupContract = rollupAddress;
+    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
     logger('Deployed contracts...');
   });
 
   beforeEach(async () => {
-    node = await createAztecNode(
-      rollupAddress,
-      unverifiedDataEmitterAddress,
-      ETHEREUM_HOST,
-      provider.getPrivateKey(0)!,
-    );
+    node = await AztecNode.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(1, node);
   }, 10_000);
 

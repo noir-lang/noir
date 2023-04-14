@@ -27,6 +27,7 @@ import { Simulator } from '../simulator/index.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
 import { CircuitBlockBuilder } from './circuit_block_builder.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { toBufferBE } from '@aztec/foundation';
 import times from 'lodash.times';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
@@ -162,6 +163,26 @@ describe('sequencer/circuit_block_builder', () => {
       expect(l2Block.number).toEqual(blockNumber);
       expect(proof).toEqual(emptyProof);
     }, 20000);
+
+    // For varying orders of insertions assert the local batch insertion generator creates the correct proofs
+    it.each([
+      [[16, 15, 14, 13, 0, 0, 0, 0]],
+      [[13, 14, 15, 16, 0, 0, 0, 0]],
+      [[1234, 98, 0, 0, 99999, 88, 54, 0]],
+      [[97, 98, 10, 0, 99999, 88, 100001, 9000000]],
+    ] as const)('Preforms nullifier tree batch insertion correctly', async nullifiers => {
+      const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
+      await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
+
+      builder = new TestSubject(builderDb, vks, simulator, prover);
+
+      await builder.performBaseRollupBatchInsertionProofs(leaves);
+
+      // assert snapshots
+      const expectsSnapshot = await expectsDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
+      const buildSnapshot = await builderDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
+      expect(buildSnapshot).toEqual(expectsSnapshot);
+    });
   });
 
   describe('circuits simulator', () => {
@@ -211,6 +232,36 @@ describe('sequencer/circuit_block_builder', () => {
       },
       10000,
     );
+
+    // This test specifically tests nullifier values which previously caused e2e_zk_token test to fail
+    it('e2e edge case - regression test', async () => {
+      const simulator = await WasmCircuitSimulator.new();
+      const prover = new EmptyProver();
+      builder = new TestSubject(builderDb, vks, simulator, prover);
+      // update the starting tree
+      const updateVals = Array(16).fill(0n);
+      updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
+      updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
+
+      await builder.updateRootTrees();
+      await builderDb.appendLeaves(
+        MerkleTreeId.NULLIFIER_TREE,
+        updateVals.map(v => toBufferBE(v, 32)),
+      );
+
+      // new added values
+      const tx = makeEmptyTx();
+      tx.data.end.newNullifiers[0] = new Fr(
+        10336601644835972678500657502133589897705389664587188571002640950065546264856n,
+      );
+      tx.data.end.newNullifiers[1] = new Fr(
+        17490072961923661940560522096125238013953043065748521735636170028491723851741n,
+      );
+      const txs = [tx, makeEmptyTx(), makeEmptyTx(), makeEmptyTx()];
+
+      const [l2Block] = await builder.buildL2Block(blockNumber, txs);
+      expect(l2Block.number).toEqual(blockNumber);
+    });
   });
 });
 

@@ -27,6 +27,7 @@ export interface MerkleTree extends SiblingPathSource {
    * @param includeUncommitted - Set to true to include uncommitted updates in the returned value
    */
   getNumLeaves(includeUncommitted: boolean): bigint;
+
   /**
    * Appends a set of leaf values to the tree
    * @param leaves - The set of leaves to be appended
