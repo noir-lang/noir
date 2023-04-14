@@ -39,14 +39,29 @@ std::vector<uint32_t> add_variables(auto& composer, std::vector<fr> variables)
  * @param honk_prover
  * @param plonk_prover
  */
-// NOTE: Currently only checking witness polynomials (wires, sorted lists) and table polys. The permutation polys
-// are computed differently between plonk and honk and we do not enforce non-zero selectors in Honk so the final
-// element in the selectors will disagree.
+// NOTE: Currently checking exact consistency for witness polynomials (wires, sorted lists) and table polys.
+// The permutation polys are computed differently between plonk and honk so we do not expect consistency.
+// Equality is checked on all selectors but we ignore the final entry since we do not enforce non-zero selectors in
+// Honk.
 void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
 {
-    // Check that all lagrange polys agree
     auto& honk_store = honk_prover.key->polynomial_store;
     auto& plonk_store = plonk_prover.key->polynomial_store;
+
+    // Check that all selectors agree (aside from the final element which will differ due to not enforcing non-zero
+    // selectors in Honk).
+    for (auto& entry : honk_store) {
+        std::string key = entry.first;
+        bool is_selector = (key.find("q_") != std::string::npos) || (key.find("table_type") != std::string::npos);
+        if (plonk_store.contains(key) && is_selector) {
+            // check equality for all but final entry
+            for (size_t i = 0; i < honk_store.get(key).size() - 1; ++i) {
+                ASSERT_EQ(honk_store.get(key)[i], plonk_store.get(key)[i]);
+            }
+        }
+    }
+
+    // Check that sorted witness-table and table polys agree
     for (auto& entry : honk_store) {
         std::string key = entry.first;
         bool is_sorted_table = (key.find("s_") != std::string::npos);
