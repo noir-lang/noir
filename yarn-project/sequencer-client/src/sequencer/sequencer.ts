@@ -34,6 +34,9 @@ export class Sequencer {
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.pollingIntervalMs = config?.transactionPollingInterval ?? 1_000;
+    if (config?.maxTxsPerBlock) {
+      this.maxTxsPerBlock = config.maxTxsPerBlock;
+    }
   }
 
   public async start() {

@@ -4,6 +4,7 @@ import { Tx, TxHash } from '@aztec/types';
 
 import { TxPool } from '../tx_pool/index.js';
 import { InMemoryTxPool } from '../tx_pool/memory_tx_pool.js';
+import { getConfigEnvVars } from '../config.js';
 
 /**
  * Enum defining the possible states of the p2p client.
@@ -120,7 +121,8 @@ export class P2PClient implements P2P {
     private txPool: TxPool = new InMemoryTxPool(),
     private log = createDebugLogger('aztec:p2p'),
   ) {
-    this.blockDownloader = new L2BlockDownloader(l2BlockSource, 1000, 100);
+    const { checkInterval, l2QueueSize } = getConfigEnvVars();
+    this.blockDownloader = new L2BlockDownloader(l2BlockSource, l2QueueSize, checkInterval);
   }
 
   /**

@@ -1,7 +1,9 @@
 import { P2P } from '@aztec/p2p';
 import { WorldStateSynchroniser } from '@aztec/world-state';
+
 import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
-import { getL1Publisher, getVerificationKeys, Sequencer, SequencerClientConfig } from '../index.js';
+import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
+import { SequencerClientConfig } from '../config.js';
 import { EmptyProver } from '../prover/empty.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
 

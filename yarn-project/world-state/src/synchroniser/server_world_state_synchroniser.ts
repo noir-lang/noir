@@ -3,6 +3,7 @@ import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 import { MerkleTreeDb, MerkleTreeId, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';
+import { getConfigEnvVars } from './config.js';
 
 /**
  * Synchronises the world state with the L2 blocks from a L2BlockSource.
@@ -24,7 +25,8 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     private l2BlockSource: L2BlockSource,
     private log = createDebugLogger('aztec:world_state'),
   ) {
-    this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, 1000, 100);
+    const config = getConfigEnvVars();
+    this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, config.l2QueueSize, config.checkInterval);
   }
 
   public getLatest(): MerkleTreeOperations {

@@ -1,18 +1,20 @@
-import { AztecNode } from '@aztec/aztec-node';
+import { AztecNode, getConfigEnvVars } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
 import { EthereumRpc } from '@aztec/ethereum.js/eth_rpc';
 import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthAddress, createDebugLogger } from '@aztec/foundation';
 import { ContractAbi } from '@aztec/noir-contracts';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
-import { createAztecNode } from './create_aztec_node.js';
+
 import { createAztecRpcServer } from './create_aztec_rpc_client.js';
 import { createProvider, deployRollupContract, deployUnverifiedDataEmitterContract } from './deploy_l1_contracts.js';
 
-const { ETHEREUM_HOST = 'http://localhost:8545' } = process.env;
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_deploy_contract');
+
+const config = getConfigEnvVars();
+
 describe('e2e_deploy_contract', () => {
   let provider: WalletProvider;
   let node: AztecNode;
@@ -23,21 +25,19 @@ describe('e2e_deploy_contract', () => {
   const abi = TestContractAbi as ContractAbi;
 
   beforeEach(async () => {
-    provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
+    provider = createProvider(config.rpcUrl, MNEMONIC, 1);
+    config.publisherPrivateKey = provider.getPrivateKey(0) || Buffer.alloc(32);
     const ethRpc = new EthereumRpc(provider);
     logger('Deploying contracts...');
     rollupAddress = await deployRollupContract(provider, ethRpc);
     unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
+    config.rollupContract = rollupAddress;
+    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
     logger('Deployed contracts...');
   });
 
   beforeEach(async () => {
-    node = await createAztecNode(
-      rollupAddress,
-      unverifiedDataEmitterAddress,
-      ETHEREUM_HOST,
-      provider.getPrivateKey(0)!,
-    );
+    node = await AztecNode.createAndSync(config);
     aztecRpcServer = await createAztecRpcServer(1, node);
     accounts = await aztecRpcServer.getAccounts();
   }, 10_000);
@@ -65,7 +65,7 @@ describe('e2e_deploy_contract', () => {
       }),
     );
     logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
-    const isMined = await tx.isMined();
+    const isMined = await tx.isMined(0, 0.1);
     const receiptAfterMined = await tx.getReceipt();
 
     expect(isMined).toBe(true);
@@ -84,7 +84,7 @@ describe('e2e_deploy_contract', () => {
     for (let index = 0; index < 2; index++) {
       logger(`Deploying contract ${index + 1}...`);
       const tx = deployer.deploy().send({ contractAddressSalt: Fr.random() });
-      const isMined = await tx.isMined();
+      const isMined = await tx.isMined(0, 0.1);
       expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -101,7 +101,7 @@ describe('e2e_deploy_contract', () => {
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });
-      const isMined = await tx.isMined();
+      const isMined = await tx.isMined(0, 0.1);
 
       expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
@@ -112,7 +112,7 @@ describe('e2e_deploy_contract', () => {
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });
-      const isMined = await tx.isMined();
+      const isMined = await tx.isMined(0, 0.1);
       expect(isMined).toBe(false);
       const receipt = await tx.getReceipt();
 

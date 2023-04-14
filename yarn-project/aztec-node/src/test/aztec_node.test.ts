@@ -5,18 +5,20 @@ import { WalletProvider } from '@aztec/ethereum.js/provider';
 import { EthAddress, createDebugLogger, sleep } from '@aztec/foundation';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { Tx } from '@aztec/types';
-import { AztecNode, AztecNodeConfig } from '../index.js';
+import { AztecNode } from '../index.js';
 import {
   createProvider,
   createTx,
   deployRollupContract,
   deployUnverifiedDataEmitterContract,
 } from '../aztec-node/fixtures.js';
+import { getConfigEnvVars } from '../index.js';
 
-const ETHEREUM_HOST = 'http://127.0.0.1:8545/';
 const MNEMONIC = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:e2e_test');
+
+const config = getConfigEnvVars();
 
 describe.skip('AztecNode', () => {
   let rollupAddress: EthAddress;
@@ -31,20 +33,16 @@ describe.skip('AztecNode', () => {
   });
 
   beforeEach(async () => {
-    provider = createProvider(ETHEREUM_HOST, MNEMONIC, 1);
+    provider = createProvider(config.rpcUrl, MNEMONIC, 1);
     const ethRpc = new EthereumRpc(provider);
     rollupAddress = await deployRollupContract(provider, ethRpc);
     unverifiedDataEmitterAddress = await deployUnverifiedDataEmitterContract(provider, ethRpc);
 
-    const aztecNodeConfig = {
-      rollupContract: rollupAddress,
-      unverifiedDataEmitterContract: unverifiedDataEmitterAddress,
-      rpcUrl: ETHEREUM_HOST,
-      publisherPrivateKey: provider.getPrivateKey(0),
-      archiverPollingInterval: 100,
-    } as AztecNodeConfig;
+    config.rollupContract = rollupAddress;
+    config.unverifiedDataEmitterContract = unverifiedDataEmitterAddress;
+    config.publisherPrivateKey = provider.getPrivateKey(0) || Buffer.alloc(32);
 
-    node = await AztecNode.createAndSync(aztecNodeConfig);
+    node = await AztecNode.createAndSync(config);
     isReady = await node.isReady();
   });
 
