@@ -161,6 +161,6 @@ export enum ComposerType {
  */
 export enum RollupTypes {
   Base = 0,
-  Rollup = 1,
-  Merge = 2,
+  Merge = 1,
+  Root = 2,
 }

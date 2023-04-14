@@ -21,7 +21,7 @@ import { SequencerConfig } from './config.js';
 export class Sequencer {
   private runningPromise?: RunningPromise;
   private pollingIntervalMs: number;
-  private maxTxsPerBlock = 4;
+  private maxTxsPerBlock = 32;
   private lastBlockNumber = -1;
   private state = SequencerState.STOPPED;
 

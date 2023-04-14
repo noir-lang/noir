@@ -183,6 +183,8 @@ describe('sequencer/circuit_block_builder', () => {
       [0, 4],
       [1, 4],
       [4, 4],
+      [0, 16],
+      [16, 16],
     ] as const)(
       'builds an L2 block with %i contract deploy txs and %i txs total',
       async (deployCount: number, totalCount: number) => {
