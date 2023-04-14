@@ -126,8 +126,8 @@ const config = {
             title: "Community",
             items: [
               {
-                label: "Discord",
-                href: "https://discord.gg/UDtJr9u",
+                label: "Discourse",
+                href: "https://discourse.aztec.network",
               },
               {
                 label: "Twitter",
