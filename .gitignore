@@ -5,7 +5,10 @@ examples/9
 .vscode
 node_modules
 pkg/
+
+# Nix stuff
 result
+.direnv/
 
 # Nargo output
 *.proof

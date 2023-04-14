@@ -40,7 +40,9 @@
         ];
       };
 
-      rustToolchain = pkgs.rust-bin.stable."1.66.0".default;
+      rustToolchain = pkgs.rust-bin.stable."1.66.0".default.override {
+        extensions = [ "rust-src" ];
+      };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
@@ -133,9 +135,9 @@
       # apps.default = flake-utils.lib.mkApp { drv = nargo; };
 
       devShells.default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
-        inputsFrom = builtins.attrValues self.checks;
+        inputsFrom = builtins.attrValues checks;
 
-        buildInputs = packages.default.buildInputs;
+        # buildInputs = packages.default.buildInputs;
 
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
@@ -143,8 +145,6 @@
           which
           starship
           git
-          cargo
-          rustc
         ];
 
         shellHook = ''
