@@ -27,6 +27,7 @@ constexpr size_t KERNEL_L1_MSG_STACK_LENGTH = 4;
 constexpr size_t KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH = 4;
 
 constexpr size_t VK_TREE_HEIGHT = 3;
+constexpr size_t FUNCTION_TREE_HEIGHT = 4;
 constexpr size_t CONTRACT_TREE_HEIGHT = 4;
 constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 8;
 constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
@@ -35,8 +36,6 @@ constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 8;
 
 constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 31; // must be <= 31
-constexpr size_t FUNCTION_TREE_HEIGHT = 8;
-constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
 
 // Enumerate the hash_indices which are used for pedersen hashing
 // Start from 1 to avoid the default generators.
@@ -50,18 +49,19 @@ enum GeneratorIndex {
     OUTER_NULLIFIER,
     STATE_READ,
     STATE_TRANSITION,
-    CONTRACT_ADDRESS,
     FUNCTION_DATA,
+    FUNCTION_LEAF,
+    CONTRACT_DEPLOYMENT_DATA,
+    CONSTRUCTOR,
+    CONTRACT_ADDRESS,
     CALL_CONTEXT,
     CALL_STACK_ITEM,
     CALL_STACK_ITEM_2, // see function where it's used for explanation
     L1_MSG_STACK_ITEM,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-    CONTRACT_DEPLOYMENT_DATA,
     TX_CONTEXT,
     TX_REQUEST,
-    FUNCTION_LEAF,
 };
 
 enum StorageSlotGeneratorIndex {

@@ -11,6 +11,7 @@ namespace {
 
 using NT = aztec3::utils::types::NativeTypes;
 auto& engine = numeric::random::get_debug_engine();
+constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (aztec3::FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
 
 /**
  * @brief Convert a bytes array to a hex string.
@@ -152,6 +153,79 @@ TEST(abi_tests, compute_function_tree_root)
     // compare cbind results with direct computation
     NT::fr got_root = NT::fr::serialize_from_buffer(output.data());
     EXPECT_EQ(got_root, plonk::stdlib::merkle_tree::compute_tree_root_native(leaves_frs));
+}
+
+TEST(abi_tests, hash_constructor)
+{
+    // Randomize required values
+    NT::fr func_sig_hash = NT::fr::random_element();
+    NT::fr args_hash = NT::fr::random_element();
+    NT::fr constructor_vk_hash = NT::fr::random_element();
+
+    // Serialize values to buffers
+    std::array<uint8_t, sizeof(NT::fr)> func_sig_hash_buf = { 0 };
+    std::array<uint8_t, sizeof(NT::fr)> args_hash_buf = { 0 };
+    std::array<uint8_t, sizeof(NT::fr)> constructor_vk_hash_buf = { 0 };
+    NT::fr::serialize_to_buffer(func_sig_hash, func_sig_hash_buf.data());
+    NT::fr::serialize_to_buffer(args_hash, args_hash_buf.data());
+    NT::fr::serialize_to_buffer(constructor_vk_hash, constructor_vk_hash_buf.data());
+
+    // create an output buffer for cbind hash results
+    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
+
+    // Make the c_bind call to hash the constructor values
+    abis__hash_constructor(
+        func_sig_hash_buf.data(), args_hash_buf.data(), constructor_vk_hash_buf.data(), output.data());
+
+    // Convert buffer to `fr` for comparison to in-test calculated hash
+    NT::fr got_hash = NT::fr::serialize_from_buffer(output.data());
+
+    // Calculate the expected hash in-test
+    NT::fr expected_hash =
+        NT::compress({ func_sig_hash, args_hash, constructor_vk_hash }, aztec3::GeneratorIndex::CONSTRUCTOR);
+
+    // Confirm cbind output == expected hash
+    EXPECT_EQ(got_hash, expected_hash);
+}
+
+TEST(abi_tests, compute_contract_address)
+{
+    // Randomize required values
+    NT::fr deployer_address = NT::fr::random_element();
+    NT::fr contract_address_salt = NT::fr::random_element();
+    NT::fr function_tree_root = NT::fr::random_element();
+    NT::fr constructor_hash = NT::fr::random_element();
+
+    // Serialize values to buffers
+    std::array<uint8_t, sizeof(NT::fr)> deployer_address_buf = { 0 };
+    std::array<uint8_t, sizeof(NT::fr)> contract_address_salt_buf = { 0 };
+    std::array<uint8_t, sizeof(NT::fr)> function_tree_root_buf = { 0 };
+    std::array<uint8_t, sizeof(NT::fr)> constructor_hash_buf = { 0 };
+    NT::fr::serialize_to_buffer(deployer_address, deployer_address_buf.data());
+    NT::fr::serialize_to_buffer(contract_address_salt, contract_address_salt_buf.data());
+    NT::fr::serialize_to_buffer(function_tree_root, function_tree_root_buf.data());
+    NT::fr::serialize_to_buffer(constructor_hash, constructor_hash_buf.data());
+
+    // create an output buffer for cbind contract address results
+    std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
+
+    // Make the c_bind call to compute the contract address
+    abis__compute_contract_address(deployer_address_buf.data(),
+                                   contract_address_salt_buf.data(),
+                                   function_tree_root_buf.data(),
+                                   constructor_hash_buf.data(),
+                                   output.data());
+
+    // Convert buffer to `fr` for comparison to in-test calculated contract address
+    NT::fr got_address = NT::fr::serialize_from_buffer(output.data());
+
+    // Calculate the expected contract address in-test
+    NT::fr expected_address =
+        NT::compress({ deployer_address, contract_address_salt, function_tree_root, constructor_hash },
+                     aztec3::GeneratorIndex::CONTRACT_ADDRESS);
+
+    // Confirm cbind output == expected
+    EXPECT_EQ(got_address, expected_address);
 }
 
 } // namespace aztec3::circuits::abis

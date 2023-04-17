@@ -34,21 +34,20 @@ using NT = aztec3::utils::types::NativeTypes;
  * end of the tree.
  *
  * @tparam TREE_HEIGHT height of the tree used to determine max leaves and used when computing root
- * @tparam LeafPreimage the preimage type with a `.hash()` function to generate empty/zero-leaves
  * @param leaves_buf a buffer of bytes representing the leaves of the tree, where each leaf is
  * assumed to be a field and is interpreted using `NT::fr::serialize_from_buffer(leaf_ptr)`
  * @param num_leaves the number of leaves in leaves_buf
+ * @param zero_leaf the leaf value to be used for any empty/unset leaves
  * @returns a field (`NT::fr`) containing the computed merkle tree root
  */
-template <size_t TREE_HEIGHT, typename LeafPreimage>
-NT::fr compute_root_of_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves)
+template <size_t TREE_HEIGHT>
+NT::fr compute_root_of_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves, NT::fr zero_leaf)
 {
     const size_t max_leaves = 2 << (TREE_HEIGHT - 1);
     // cant exceed max leaves
     ASSERT(num_leaves <= max_leaves);
 
     // initialize the vector of leaves to a complete-tree-sized vector of zero-leaves
-    NT::fr zero_leaf = LeafPreimage().hash(); // hash of empty/0 preimage
     std::vector<NT::fr> leaves(max_leaves, zero_leaf);
 
     // Iterate over the input buffer, extracting each leaf and serializing it from buffer to field
@@ -164,6 +163,111 @@ WASM_EXPORT void abis__compute_function_leaf(uint8_t const* function_leaf_preima
     read(function_leaf_preimage_buf, leaf_preimage);
     leaf_preimage.hash();
     NT::fr::serialize_to_buffer(leaf_preimage.hash(), output);
+}
+
+/**
+ * @brief Compute a function tree root from its leaves.
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details given a `uint8_t const*` buffer representing a function tree's leaves,
+ * compute the corresponding tree's root and return the serialized results
+ * in the `output` buffer.
+ *
+ * @param function_leaves_buf a buffer of bytes representing the leaves of the function tree,
+ * where each leaf is assumed to be a serialized field
+ * @param num_leaves the number of leaves in leaves_buf
+ * @param output buffer that will contain the output. The serialized function tree root.
+ */
+WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves_buf,
+                                                  uint8_t num_leaves,
+                                                  uint8_t* output)
+{
+    NT::fr zero_leaf = FunctionLeafPreimage<NT>().hash(); // hash of empty/0 preimage
+    NT::fr root =
+        compute_root_of_partial_left_tree<aztec3::FUNCTION_TREE_HEIGHT>(function_leaves_buf, num_leaves, zero_leaf);
+
+    // serialize and return root
+    NT::fr::serialize_to_buffer(root, output);
+}
+
+/**
+ * @brief Hash some constructor info.
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details Hash constructor info to use later when deriving/generating contract address:
+ * hash(function_signature_hash, args_hash, constructor_vk_hash)
+ * Return the serialized results in the `output` buffer.
+ *
+ * @param func_sig_hash_buf function signature field but as a buffer of bytes
+ * @param args_hash_buf constructor args hashed to a field but as a buffer of bytes
+ * @param constructor_vk_hash_buf constructor vk hashed to a field but as a buffer of bytes
+ * @param output buffer that will contain the output. The serialized constructor_vk_hash.
+ */
+WASM_EXPORT void abis__hash_constructor(uint8_t const* func_sig_hash_buf,
+                                        uint8_t const* args_hash_buf,
+                                        uint8_t const* constructor_vk_hash_buf,
+                                        uint8_t* output)
+{
+    NT::fr func_sig_hash;
+    NT::fr args_hash;
+    NT::fr constructor_vk_hash;
+
+    using serialize::read;
+    read(func_sig_hash_buf, func_sig_hash);
+    read(args_hash_buf, args_hash);
+    read(constructor_vk_hash_buf, constructor_vk_hash);
+
+    std::vector<NT::fr> inputs = {
+        func_sig_hash,
+        args_hash,
+        constructor_vk_hash,
+    };
+
+    NT::fr constructor_hash = NT::compress(inputs, aztec3::GeneratorIndex::CONSTRUCTOR);
+    NT::fr::serialize_to_buffer(constructor_hash, output);
+}
+
+/**
+ * @brief Generates a contract address from its components.
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details hash the inputs to generate a deterministic contract address:
+ * hash(contract_address, contract_address_salt, function_tree_root, constructor_hash)
+ * Return the serialized results in the `output` buffer.
+ *
+ * @param contract_address_salt_buf bytes buffer representing a field that lets a deployer have
+ * some control over contract address
+ * @param function_tree_root_buf bytes buffer representing a field that is the root of the
+ * contract's function tree
+ * @param constructor_hash_buf bytes buffer representing a field that is a hash of constructor info
+ * @param output buffer that will contain the output contract address.
+ */
+WASM_EXPORT void abis__compute_contract_address(uint8_t const* deployer_address_buf,
+                                                uint8_t const* contract_address_salt_buf,
+                                                uint8_t const* function_tree_root_buf,
+                                                uint8_t const* constructor_hash_buf,
+                                                uint8_t* output)
+{
+    NT::address deployer_address;
+    NT::fr contract_address_salt;
+    NT::fr function_tree_root;
+    NT::fr constructor_hash;
+
+    using serialize::read;
+    read(deployer_address_buf, deployer_address);
+    read(contract_address_salt_buf, contract_address_salt);
+    read(function_tree_root_buf, function_tree_root);
+    read(constructor_hash_buf, constructor_hash);
+
+    std::vector<NT::fr> inputs = {
+        deployer_address,
+        contract_address_salt,
+        function_tree_root,
+        constructor_hash,
+    };
+
+    NT::address contract_address = NT::fr(NT::compress(inputs, aztec3::GeneratorIndex::CONTRACT_ADDRESS));
+    NT::fr::serialize_to_buffer(contract_address, output);
 }
 
 // TODO(AD): After Milestone 1, rewrite this with better injection mechanism.
