@@ -118,7 +118,7 @@ mod test {
     use acvm::{
         acir::{circuit::opcodes::BlackBoxFuncCall, native_types::Witness},
         pwg::block::Blocks,
-        FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator,
+        FieldElement, OpcodeResolution, OpcodeResolutionError, PartialWitnessGenerator, UnresolvedData,
     };
 
     use crate::{
@@ -179,10 +179,10 @@ mod test {
             // compute the network output by solving the constraints
             let backend = MockBackend {};
             let mut blocks = Blocks::default();
-            let (unresolved_opcodes, oracles) = backend
+            let UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs } = backend
                 .solve(&mut solved_witness, &mut blocks, eval.opcodes.clone())
                 .expect("Could not solve permutation constraints");
-            assert!(unresolved_opcodes.is_empty() && oracles.is_empty(), "Incomplete solution");
+            assert!(unresolved_opcodes.is_empty() && unresolved_oracles.is_empty() && unresolved_brilligs.is_empty(), "Incomplete solution");
             let mut b_val = Vec::new();
             for i in 0..output.len() {
                 b_val.push(solved_witness[&b_wit[i]]);

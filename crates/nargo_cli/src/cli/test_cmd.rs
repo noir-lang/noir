@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write, path::Path};
 
-use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler};
+use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler, UnresolvedData};
 use clap::Args;
 use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
@@ -90,9 +90,12 @@ fn run_test(
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
     match backend.solve(&mut solved_witness, &mut blocks, program.circuit.opcodes) {
-        Ok((unresolved_opcodes, oracles)) => {
-            if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
-                todo!("Add oracle support to nargo test")
+        Ok(UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs }) => {
+            if !unresolved_opcodes.is_empty()
+                || !unresolved_oracles.is_empty()
+                || !unresolved_brilligs.is_empty()
+            {
+                todo!("Add oracle support to nargo execute")
             }
             Ok(())
         }
