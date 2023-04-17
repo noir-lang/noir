@@ -480,8 +480,8 @@ impl BrilligGen {
         let mut abi = Vec::new();
         for (param, arg) in funct.arguments.iter().zip(arguments) {
             let len = if let Some(a) = Memory::deref(ctx, param.0) { ctx.mem[a].len } else { 0 };
-            abi.push(OracleInput {
-                register_mem_index: self.node_2_register(ctx, *arg),
+            abi.push(OracleInput::Array {
+                start: self.node_2_register(ctx, *arg),
                 length: len as usize,
             })
         }
