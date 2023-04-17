@@ -2,11 +2,10 @@ contract EmptyConstructor {
     use dep::aztec3::abi;
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;
-    use dep::aztec3::abi::FinalOutputs;
 
     fn constructor(
         inputs: pub Inputs,
-    ) -> pub FinalOutputs {
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         for i in 0..abi::MAX_ARGS {
             constrain inputs.args[i] == 0;
         }

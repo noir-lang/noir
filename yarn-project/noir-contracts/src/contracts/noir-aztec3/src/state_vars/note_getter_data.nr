@@ -1,5 +1,6 @@
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
+use crate::utils::arr_copy_slice;
 
 // Data returned when getting a note
 struct NoteGetterData {
@@ -23,16 +24,7 @@ fn make_note_getter_data(fields: [Field], start: comptime Field) -> NoteGetterDa
             value: fields[start + 5],
         },
         leaf_index: fields[start + 6],
-        sibling_path: [
-            fields[start + 7],
-            fields[start + 8],
-            fields[start + 9],
-            fields[start + 10],
-            fields[start + 11],
-            fields[start + 12],
-            fields[start + 13],
-            fields[start + 14],
-        ],
+        sibling_path: arr_copy_slice(fields, [0; crate::PRIVATE_DATA_TREE_HEIGHT], 7),
         root: fields[start + 15],
     }
 }

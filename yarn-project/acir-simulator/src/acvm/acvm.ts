@@ -13,7 +13,7 @@ export interface ACIRCallback {
   getRandomField(): Promise<ACVMField[]>;
   notifyCreatedNote(params: ACVMField[]): Promise<ACVMField[]>;
   notifyNullifiedNote(params: ACVMField[]): Promise<ACVMField[]>;
-  privateFunctionCall(params: ACVMField[]): Promise<ACVMField[]>;
+  callPrivateFunction(params: ACVMField[]): Promise<ACVMField[]>;
 }
 
 export interface ACIRExecutionResult {

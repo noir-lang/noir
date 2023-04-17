@@ -1,7 +1,6 @@
 contract PrivateToken {
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;
-    use dep::aztec3::abi::FinalOutputs;
     use dep::aztec3::notes::value_note::Note;
     use dep::aztec3::types::point::Point;
     use dep::aztec3::state_vars::map::Map;
@@ -21,7 +20,7 @@ contract PrivateToken {
 
         // initial_supply: pub Field, 
         // owner: pub Point,
-    ) -> pub FinalOutputs {
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         //*********************************/
         // Should eventually be hidden:
         let initial_supply = inputs.args[0];
@@ -46,7 +45,7 @@ contract PrivateToken {
 
         // amount: pub Field, 
         // owner: pub Point,
-    ) -> pub FinalOutputs {
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         //*********************************/
         // Should eventually be hidden:
         let amount = inputs.args[0];
@@ -72,7 +71,7 @@ contract PrivateToken {
         // amount: pub Field, 
         // sender: pub Point, 
         // recipient: pub Point
-    ) -> pub FinalOutputs {
+    ) -> pub [Field; dep::aztec3::abi::PUBLIC_INPUTS_LENGTH] {
         //*********************************/
         // Should eventually be hidden:
         let amount = inputs.args[0];
@@ -86,7 +85,7 @@ contract PrivateToken {
         let (mut outputs, (note1, note2)) = sender_balance.get_2(inputs, outputs1);
 
         let constrain_note = |note: Note, sender_forwarded: Point| {
-             if note.is_real {
+            if note.is_real {
                 constrain sender_forwarded.x == note.owner.x;
                 constrain sender_forwarded.y == note.owner.y;
             } else {

@@ -1,6 +1,6 @@
 use dep::std;
 use crate::abi::Inputs;
-use crate::abi::IntermediateOutputs;
+use crate::abi::Outputs;
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
 use crate::state_vars::note_getter_data::NoteGetterData;
@@ -43,7 +43,7 @@ impl Set {
         Set { storage_slot }
     }
 
-    fn insert(self, mut outputs: IntermediateOutputs, note: Note) -> IntermediateOutputs {
+    fn insert(self, mut outputs: Outputs, note: Note) -> Outputs {
         let storage_slot = self.storage_slot;
 
         let note_hash = note.compute_note_hash();
@@ -54,7 +54,7 @@ impl Set {
     }
 
     // The `2` in the name is the number of notes returned
-    fn get_2(self, inputs: Inputs, mut outputs: IntermediateOutputs) -> (IntermediateOutputs, (Note, Note)) {
+    fn get_2(self, inputs: Inputs, mut outputs: Outputs) -> (Outputs, (Note, Note)) {
         let contract_address = inputs.call_context.storage_contract_address;
         let storage_slot = self.storage_slot;
 
@@ -103,7 +103,7 @@ impl Set {
     }
 
 
-    fn remove(self, inputs: Inputs, mut outputs: IntermediateOutputs, note: Note) -> IntermediateOutputs {
+    fn remove(self, inputs: Inputs, mut outputs: Outputs, note: Note) -> Outputs {
         let contract_address = inputs.call_context.storage_contract_address;
         let storage_slot = self.storage_slot;
 

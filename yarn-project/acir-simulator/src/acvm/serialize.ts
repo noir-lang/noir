@@ -105,7 +105,6 @@ export function writeInputs(
     toACVMField(txContext.contractDeploymentData.constructorVkHash),
     toACVMField(txContext.contractDeploymentData.contractAddressSalt),
     toACVMField(txContext.contractDeploymentData.functionTreeRoot),
-    toACVMField(false),
     toACVMField(txContext.contractDeploymentData.portalContractAddress),
 
     toACVMField(oldRoots.contractTreeRoot),

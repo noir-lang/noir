@@ -109,8 +109,8 @@ export class Execution {
         });
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
-      privateFunctionCall: async ([acvmContractAddress, acvmFunctionSelector, ...acvmArgs]) => {
-        const childExecutionResult = await this.privateFunctionCall(
+      callPrivateFunction: async ([acvmContractAddress, acvmFunctionSelector, ...acvmArgs]) => {
+        const childExecutionResult = await this.callPrivateFunction(
           frToAztecAddress(fromACVMField(acvmContractAddress)),
           frToSelector(fromACVMField(acvmFunctionSelector)),
           acvmArgs.map(f => fromACVMField(f)),
@@ -164,7 +164,7 @@ export class Execution {
     return [toACVMField(key)];
   }
 
-  private async privateFunctionCall(
+  private async callPrivateFunction(
     targetContractAddress: AztecAddress,
     targetFunctionSelector: Buffer,
     targetArgs: Fr[],

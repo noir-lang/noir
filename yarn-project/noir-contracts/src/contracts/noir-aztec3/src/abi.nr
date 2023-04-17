@@ -6,6 +6,7 @@ global MAX_NEW_NULLIFIERS: comptime Field = 4;
 global MAX_PRIVATE_CALL_STACK : comptime Field = 4;
 global MAX_PUBLIC_CALL_STACK: comptime Field = 4;
 global MAX_L1_MSG_STACK : comptime Field = 2;
+global PUBLIC_INPUTS_LENGTH : comptime Field = 47;
 
 use crate::notes::value_note::Note;
 use crate::types::vec::BoundedVec;
@@ -32,44 +33,80 @@ struct CallContext {
     is_contract_deployment: bool,
 }
 
+impl CallContext {
+    fn serialize(self) -> [Field; 6] {
+        [
+            self.msg_sender,
+            self.storage_contract_address,
+            self.portal_contract_address,
+            self.is_delegate_call as Field,
+            self.is_static_call as Field,
+            self.is_contract_deployment as Field,
+        ]
+    }
+}
+
 struct ContractDeploymentData {
     constructor_vk_hash : Field,
     function_tree_root : Field,
     contract_address_salt : Field,
     portal_contract_address : Field,
-    hide_private_function_data : bool,
 }
 
+impl ContractDeploymentData {
+    fn serialize(self) -> [Field; 4] {
+        [
+            self.constructor_vk_hash,
+            self.function_tree_root,
+            self.contract_address_salt,
+            self.portal_contract_address,
+        ]
+    }
+}
+
+struct PrivateCircuitPublicInputs {
+    call_context: CallContext,
+    args: [Field; crate::abi::MAX_ARGS],
+    return_values: [Field; crate::abi::MAX_RETURN_VALUES],
+    emitted_events: [Field; crate::abi::MAX_LOGS],
+    new_commitments: [Field; crate::abi::MAX_NEW_COMMITMENTS],
+    new_nullifiers: [Field; crate::abi::MAX_NEW_NULLIFIERS],
+    private_call_stack: [Field; crate::abi::MAX_PRIVATE_CALL_STACK],
+    public_call_stack: [Field; crate::abi::MAX_PUBLIC_CALL_STACK],
+    l1_msg_stack: [Field; crate::abi::MAX_L1_MSG_STACK],
+    historic_private_data_tree_root: Field,
+    historic_private_nullifier_tree_root: Field,
+    historic_contract_tree_root: Field,
+    contract_deployment_data: ContractDeploymentData,
+}
+
+impl PrivateCircuitPublicInputs {
+    // TODO hash_index
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen(self.serialize())[0]
+    }
+
+    fn serialize(self) -> [Field; PUBLIC_INPUTS_LENGTH] {
+        let mut fields: BoundedVec<Field, PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
+        fields = fields.push_array(self.call_context.serialize());   
+        fields = fields.push_array(self.args);
+        fields = fields.push_array(self.return_values);
+        fields = fields.push_array(self.emitted_events);
+        fields = fields.push_array(self.new_commitments);
+        fields = fields.push_array(self.new_nullifiers);
+        fields = fields.push_array(self.private_call_stack);
+        fields = fields.push_array(self.public_call_stack);
+        fields = fields.push_array(self.l1_msg_stack);
+        fields = fields.push(self.historic_private_data_tree_root);
+        fields = fields.push(self.historic_private_nullifier_tree_root);
+        fields = fields.push(self.historic_contract_tree_root);
+        fields = fields.push_array(self.contract_deployment_data.serialize());
+        fields.storage
+    }
+}
+
+// When finished, one can call .finish() to convert back to the abi
 struct Outputs {
-    return_values: [Field; MAX_RETURN_VALUES],
-    logs: [Field; MAX_LOGS],
-
-    new_commitments: [Field; MAX_NEW_COMMITMENTS],
-    new_nullifiers: [Field; MAX_NEW_NULLIFIERS],
-
-    private_call_stack: [Field; MAX_PRIVATE_CALL_STACK],
-    public_call_stack: [Field; MAX_PUBLIC_CALL_STACK],
-    l1_message_stack: [Field; MAX_L1_MSG_STACK],
-
-    new_note_values: [Field; 4],
-    new_note_owner_xs: [Field; 4],
-    new_note_owner_ys: [Field; 4],
-    new_note_randomness: [Field; 4],
-    new_note_nonce: [Field; 4],
-    new_note_is_realsies: [bool; 4],
-
-    nullified_note_values: [Field; 4],
-    nullified_note_owner_xs: [Field; 4],
-    nullified_note_owner_ys: [Field; 4],
-    nullified_note_randomness: [Field; 4],
-    nullified_note_nonce: [Field; 4],
-    nullified_note_is_realsies: [bool; 4],
-}
-
-// Equivalent to Outputs, but uses BoundedVecs instead of arrays to
-// make it easier to push onto the ends of the arrays.
-// When finished, one can call .finish() to convert back to Outputs
-struct IntermediateOutputs {
     return_values : BoundedVec<Field, MAX_RETURN_VALUES>,
     logs : BoundedVec<Field, MAX_LOGS>,
 
@@ -96,45 +133,8 @@ struct IntermediateOutputs {
 }
 
 impl Outputs {
-    // We're a bit tricky here in that we return IntermediateOutputs
-    // instead of Outputs to hide this implementation detail from users
-    fn new() -> IntermediateOutputs {
-        IntermediateOutputs::new()
-    }
-}
-
-
-struct FinalOutputs {
-    ord_00_msg_sender : Field,
-    ord_01_storage_contract_address : Field,
-    ord_02_portal_contract_address : Field,
-
-    ord_03_is_delegate_call : Field,
-    ord_04_is_static_call : Field,
-    ord_05_is_contract_deployment: Field,
-
-    ord_12_args: [Field; MAX_ARGS],
-    ord_13_return_values: [Field; MAX_RETURN_VALUES],
-    ord_14_logs: [Field; MAX_LOGS],
-    ord_15_new_commitments: [Field; MAX_NEW_COMMITMENTS],
-    ord_16_new_nullifiers: [Field; MAX_NEW_NULLIFIERS],
-    ord_17_private_call_stack: [Field; MAX_PRIVATE_CALL_STACK],
-    ord_18_public_call_stack: [Field; MAX_PUBLIC_CALL_STACK],
-    ord_19_l1_message_stack: [Field; MAX_L1_MSG_STACK],
-
-    ord_20_old_private_data_tree_root: Field,
-    ord_21_old_nullifier_tree_root: Field,
-    ord_22_old_contract_tree_root: Field,
-
-    ord_30_constructor_vk_hash : Field,
-    ord_31_function_tree_root : Field,
-    ord_32_contract_address_salt : Field,
-    ord_33_portal_contract_address : Field,
-}
-
-impl IntermediateOutputs {
-    fn new() -> IntermediateOutputs {
-        IntermediateOutputs {
+    fn new() -> Outputs {
+        Outputs {
             return_values: BoundedVec::new(0),
             logs: BoundedVec::new(0),
 
@@ -161,37 +161,24 @@ impl IntermediateOutputs {
         }
     }
 
-    // Convert back to Outputs so it can be returned
-    fn finish(self, inputs: Inputs) -> FinalOutputs {
-        FinalOutputs {
-            ord_00_msg_sender: inputs.call_context.msg_sender ,
-            ord_01_storage_contract_address:  inputs.call_context.storage_contract_address,
-            ord_02_portal_contract_address:  inputs.call_context.portal_contract_address,
-
-            ord_03_is_delegate_call : inputs.call_context.is_delegate_call as Field,
-            ord_04_is_static_call : inputs.call_context.is_static_call as Field,
-            ord_05_is_contract_deployment: inputs.call_context.is_contract_deployment as Field,
-
-            ord_12_args: inputs.args,
-            ord_13_return_values: self.return_values.storage,
-            ord_14_logs: self.logs.storage,
-
-            ord_15_new_commitments: self.new_commitments.storage,
-            ord_16_new_nullifiers: self.new_nullifiers.storage,
-
-            ord_17_private_call_stack: self.private_call_stack.storage,
-            ord_18_public_call_stack: self.public_call_stack.storage,
-            ord_19_l1_message_stack: self.l1_message_stack.storage,
-
-            ord_20_old_private_data_tree_root: inputs.old_private_data_tree_root,
-            ord_21_old_nullifier_tree_root: inputs.old_nullifier_tree_root,
-            ord_22_old_contract_tree_root: inputs.old_contract_tree_root,
-
-            ord_30_constructor_vk_hash : inputs.contract_deployment_data.constructor_vk_hash,
-            ord_31_function_tree_root : inputs.contract_deployment_data.function_tree_root ,
-            ord_32_contract_address_salt : inputs.contract_deployment_data.contract_address_salt ,
-            ord_33_portal_contract_address : inputs.contract_deployment_data.portal_contract_address ,
-        }
+    // When noir uses user-defined serialization of fields, we can return public inputs instead
+    fn finish(self, inputs: Inputs) -> [Field; PUBLIC_INPUTS_LENGTH] {
+        let priv_circuit_pub_inputs = PrivateCircuitPublicInputs {
+            call_context: inputs.call_context,
+            args: inputs.args,
+            return_values: self.return_values.storage,
+            emitted_events: self.logs.storage,
+            new_commitments: self.new_commitments.storage,
+            new_nullifiers: self.new_nullifiers.storage,
+            private_call_stack: self.private_call_stack.storage,
+            public_call_stack: self.public_call_stack.storage,
+            l1_msg_stack: self.l1_message_stack.storage,
+            historic_private_data_tree_root: inputs.old_private_data_tree_root,
+            historic_private_nullifier_tree_root: inputs.old_nullifier_tree_root,
+            historic_contract_tree_root: inputs.old_contract_tree_root,
+            contract_deployment_data: inputs.contract_deployment_data,
+        };
+        priv_circuit_pub_inputs.serialize()
     }
 
     fn push_new_note_hash(mut self: Self, note_hash: Field) -> Self {

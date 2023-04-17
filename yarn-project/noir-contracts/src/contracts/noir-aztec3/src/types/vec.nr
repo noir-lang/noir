@@ -22,6 +22,16 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self
     }
 
+    fn push_array<Len>(mut self: Self, array: [T; Len]) -> Self {
+        let newLen = self.len + array.len();
+        constrain newLen as u64 <= MaxLen as u64;
+        for i in 0..array.len() {
+            self.storage[self.len + i] = array[i];
+        }
+        self.len = newLen;
+        self
+    }
+
     fn pop(mut self: Self) -> (Self, T) {
         constrain self.len as u64 > 0;
 

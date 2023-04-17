@@ -2,6 +2,8 @@ mod abi;
 mod notes;
 mod state_vars;
 mod types;
+mod utils;
+mod private_call_stack_item;
 
 global Nonce = 1;
 global NoteHash = 2;

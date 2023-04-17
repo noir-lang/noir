@@ -10,5 +10,6 @@
       "path": "../foundation"
     }
   ],
-  "include": ["src", "src/**/*.json"]
+  "include": ["src", "src/**/*.json"],
+  "exclude": ["src/contracts"]
 }
