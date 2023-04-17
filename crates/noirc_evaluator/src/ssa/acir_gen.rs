@@ -1,3 +1,4 @@
+use crate::brillig::brillig_gen::BrilligArtefact;
 use crate::ssa::function::RuntimeType;
 use crate::Evaluator;
 use crate::{
@@ -29,7 +30,7 @@ use acir_mem::AcirMem;
 use self::operations::load;
 
 use super::mem::{ArrayId, Memory};
-use super::node::{self, Node, NodeId};
+use super::node::NodeId;
 
 #[derive(Default)]
 pub(crate) struct Acir {
@@ -67,7 +68,7 @@ impl Acir {
         show_output: bool,
     ) -> Result<(), RuntimeError> {
         use operations::{
-            binary, condition, constrain, intrinsics, load, not, r#return, store, truncate,
+            binary, condition, constrain, intrinsics, not, r#return, store, truncate,
         };
 
         let acir_mem = &mut self.memory;
@@ -159,12 +160,11 @@ impl Acir {
         }
 
         for i in returns {
-            let var = self.var_cache.get_or_compute_internal_var_unwrap(*i, evaluator, ctx);
-            let witness = self.var_cache.get_or_compute_witness_unwrap(var, evaluator, ctx);
             jabber_outputs.push(jabber_output(self, *i, ctx, evaluator));
         }
 
-        let mut code = f.brillig_code.clone();
+        let mut linker = BrilligArtefact::default();
+        let mut code = linker.link(ctx, &f.obj);
         code.push(BrilligOpcode::Bootstrap { register_allocation_indices: register_load });
         if predicate != Some(ctx.zero()) {
             let pred_id = predicate.unwrap_or(ctx.one());
@@ -199,24 +199,10 @@ fn jabber_node(
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Result<BrilligInputs, RuntimeError> {
-    let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
-    match node_object {
-        node::NodeObject::Variable(v) => {
-            let node_obj_type = node_object.get_type();
-            match node_obj_type {
-                // If the `Variable` represents a Pointer
-                // Then we know that it is an `Array`
-                node::ObjectType::ArrayPointer(a) => return jabber_array(a, acir_gen, cfg, evaluator),
-                // If it is not a pointer, we attempt to fetch the witness associated with it
-                _ => {
-                    if let Some(w) = v.witness {
-                        return Ok(BrilligInputs::Simple(Expression::from(w)));
-                    }
-                }
-            }
-        }
-        _ => (),
+    if let Some(a) = Memory::deref(cfg, *node_id) {
+        return jabber_array(a, acir_gen, cfg, evaluator);
     }
+
     let ivar = acir_gen
         .var_cache
         .get_or_compute_internal_var(*node_id, evaluator, cfg)
@@ -238,7 +224,6 @@ fn jabber_array(
             array_id,
             i,
             &mut acir_gen.memory,
-            &mut acir_gen.var_cache,
             None,
             evaluator,
             cfg,

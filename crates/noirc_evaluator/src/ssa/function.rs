@@ -1,15 +1,15 @@
-use crate::brillig::brillig_gen::BrilligGen;
+use crate::brillig::brillig_gen::{BrilligArtefact, BrilligGen};
 use crate::errors::RuntimeError;
 use crate::ssa::{
     block::BlockId,
     conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
     mem::ArrayId,
-    node::{Node, NodeId, ObjectType, NumericType, Opcode, Operation},
+    node::{Node, NodeId, NumericType, ObjectType, Opcode, Operation},
     ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
-use acvm::acir::brillig_bytecode::Opcode as BrilligOpcode;
+
 use iter_extended::try_vecmap;
 use noirc_frontend::monomorphization::ast::{Call, Definition, FuncId, LocalId, Type};
 use std::collections::{HashMap, VecDeque};
@@ -37,7 +37,7 @@ pub(crate) struct SsaFunction {
     pub(crate) idx: FuncIndex,
     pub(crate) node_id: NodeId,
     pub(crate) kind: RuntimeType,
-    pub(crate) brillig_code: Vec<BrilligOpcode>,
+    pub(crate) obj: BrilligArtefact,
 
     //signature:
     pub(crate) name: String,
@@ -64,11 +64,11 @@ impl SsaFunction {
             decision: DecisionTree::new(ctx),
             idx,
             kind: RuntimeType::Acvm,
-            brillig_code: Vec::new(),
+            obj: BrilligArtefact::default(),
         }
     }
 
-    fn unsafe_compile(&self, ctx: &mut SsaContext) -> Vec<BrilligOpcode> {
+    fn unsafe_compile(&self, ctx: &mut SsaContext) -> BrilligArtefact {
         //1. compile the function:
         let function_cfg = block::bfs(self.entry_block, None, ctx);
         block::compute_sub_dom(ctx, &function_cfg);
@@ -76,16 +76,19 @@ impl SsaFunction {
         //catch the error because the function may not be called ??
         super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
         //
-        BrilligGen::ir_to_brillig(ctx, self.entry_block)
+        BrilligGen::compile(ctx, self.entry_block)
     }
 
-    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<(DecisionTree, Vec<BrilligOpcode>), RuntimeError> {
+    pub(crate) fn compile(
+        &self,
+        ir_gen: &mut IrGenerator,
+    ) -> Result<(DecisionTree, BrilligArtefact), RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
         //catch the error because the function may not be called
         super::optimizations::full_cse(&mut ir_gen.context, self.entry_block, false)?;
-        let brillig = BrilligGen::ir_to_brillig(&ir_gen.context, self.entry_block);
+        let brillig = BrilligGen::compile(&ir_gen.context, self.entry_block);
         //Unrolling
         super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 
@@ -160,18 +163,6 @@ impl SsaFunction {
             ssa_form::get_current_value_in_block(ctx, *node_id, block_id)
         }
     }
-
-    pub(crate) fn create_return_values(&self, ctx: &mut SsaContext) -> Vec<NodeId> {
-           let mut returned_values = Vec::new();
-           let types = self.result_types.clone();
-           for (i, typ) in types.iter().enumerate() {
-               let name = format!("ret{i}");
-               let obj = node::Variable::new(*typ, name, None, ctx.current_block);
-               let var = ctx.add_variable(obj, None);
-               returned_values.push(var);
-           }
-           returned_values
-    }
 }
 
 impl IrGenerator {
@@ -222,7 +213,7 @@ impl IrGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.ssa_gen_expression(&function_body)?;  //on pourrait ici mettre un param pour changer le calls en unsafe_call, mais c'est PAS JOLIE JOLIE...
+        let last_value = self.ssa_gen_expression(&function_body)?; //on pourrait ici mettre un param pour changer le calls en unsafe_call, mais c'est PAS JOLIE JOLIE...
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -262,13 +253,13 @@ impl IrGenerator {
 
         match func.kind {
             RuntimeType::Unsafe => {
-                func.brillig_code = func.unsafe_compile(&mut self.context);
+                func.obj = func.unsafe_compile(&mut self.context);
             }
             RuntimeType::Oracle(_) => {}
             RuntimeType::Acvm => {
                 let artefacts = func.compile(self)?; //unroll the function
                 func.decision = artefacts.0;
-                func.brillig_code = artefacts.1;
+                func.obj = artefacts.1;
             }
         }
         self.context.functions.insert(func_id, func);
@@ -276,30 +267,6 @@ impl IrGenerator {
         self.function_context = current_function;
 
         Ok(ObjectType::Function)
-    }
-
-    fn from_type1(&mut self, typ: &Type) -> ObjectType {
-        match typ {
-            Type::Field => ObjectType::Numeric(NumericType::NativeField),
-            Type::Array(len, elements) => { 
-                let (_ , arrayid) =self.context.new_array(
-                    "todo",
-                    ObjectType::Numeric(NumericType::NativeField),
-                    *len as u32,
-                    None);
-                ObjectType::ArrayPointer(arrayid) 
-            },
-            Type::Integer(sign, size) => match sign {
-                noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
-                noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
-            },
-            Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
-            Type::String(_) => todo!(),
-            Type::Unit => ObjectType::NotAnObject,
-            Type::Tuple(_) => todo!(),
-            Type::Function(_, _) => todo!(),
-            Type::Vec(_) => todo!(),
-        }
     }
 
     fn create_function_parameter(&mut self, id: LocalId, typ: &Type, name: &str) -> Vec<NodeId> {
@@ -525,27 +492,44 @@ pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-
 fn from_type(ctx: &mut SsaContext, typ: &Type) -> ObjectType {
     match typ {
-        Type::Field => ObjectType::Numeric(NumericType::NativeField),
-        Type::Array(len, elements) => { 
-            let (_ , arrayid) = ctx.new_array(
-                "todo",
-                ObjectType::Numeric(NumericType::NativeField),
-                *len as u32,
-                None);
-            ObjectType::ArrayPointer(arrayid) 
-        },
-        Type::Integer(sign, size) => match sign {
-            noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
-            noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
-        },
-        Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
+        Type::Array(len, elements) => {
+            if !composite_type(elements) {
+                let el_type = from_simple_type(elements);
+                let (_, arrayid) = ctx.new_array("ret_array", el_type, *len as u32, None);
+                ObjectType::ArrayPointer(arrayid)
+            } else {
+                unimplemented!("composite arrays are not supported");
+            }
+        }
+        Type::Field | Type::Integer(_, _) | Type::Unit | Type::Bool => from_simple_type(typ),
         Type::String(_) => todo!(),
-        Type::Unit => ObjectType::NotAnObject,
         Type::Tuple(_) => todo!(),
         Type::Function(_, _) => todo!(),
         Type::Vec(_) => todo!(),
     }
+}
+
+fn from_simple_type(typ: &Type) -> ObjectType {
+    match typ {
+        Type::Field => ObjectType::Numeric(NumericType::NativeField),
+        Type::Integer(sign, size) => match sign {
+            noirc_frontend::Signedness::Unsigned => {
+                ObjectType::Numeric(NumericType::Unsigned(*size))
+            }
+            noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
+        },
+        Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
+        Type::Unit => ObjectType::NotAnObject,
+        Type::String(_)
+        | Type::Tuple(_)
+        | Type::Function(_, _)
+        | Type::Vec(_)
+        | Type::Array(_, _) => unreachable!("expected simple type"),
+    }
+}
+
+fn composite_type(typ: &Type) -> bool {
+    !matches!(typ, Type::Field | Type::Integer(_, _) | Type::Bool | Type::Unit)
 }

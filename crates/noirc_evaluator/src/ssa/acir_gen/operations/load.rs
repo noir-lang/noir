@@ -57,7 +57,6 @@ pub(crate) fn evaluate_with_conts_index(
     array_id: ArrayId,
     index: u32,
     acir_mem: &mut AcirMem,
-    var_cache: &mut InternalVarCache,
     location: Option<Location>,
     evaluator: &mut Evaluator,
     ctx: &SsaContext,

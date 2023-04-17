@@ -24,8 +24,6 @@ use num_bigint::BigUint;
 use num_traits::Zero;
 use std::collections::{BTreeMap, HashMap};
 
-use super::node::Instruction;
-
 pub(crate) struct IrGenerator {
     pub(crate) context: SsaContext,
     pub(crate) function_context: Option<FuncIndex>,
@@ -499,21 +497,7 @@ impl IrGenerator {
                 Ok(Value::Tuple(fields))
             }
             (Value::Node(_), Value::Tuple(_)) => unreachable!("variables with tuple/struct types should already be decomposed into multiple variables"),
-            (Value::Tuple(_), Value::Node(rhs_id)) => {
-                unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type");
-                // if let Some(Instruction {
-                //     id,
-                //     operation: Operation::UnsafeCall { func, arguments, returned_values, predicate, location },
-                //     res_type,
-                //     parent_block,
-                //     res_name,
-                //     mark,
-                // }) = self.context.try_get_instruction(rhs_id) {
-                //     todo!();
-                // } else {
-                //     unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type");
-                // }
-            }
+            (Value::Tuple(_), Value::Node(_)) => unreachable!("Uncaught type error, tried to assign a single value to a tuple/struct type"),
         }
     }
 

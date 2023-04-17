@@ -23,7 +23,7 @@ pub(crate) enum BlockType {
 pub(crate) struct BlockId(pub(super) arena::Index);
 
 impl BlockId {
-    pub(super) fn dummy() -> BlockId {
+    pub(crate) fn dummy() -> BlockId {
         BlockId(SsaContext::dummy_id())
     }
     pub(crate) fn is_dummy(&self) -> bool {
