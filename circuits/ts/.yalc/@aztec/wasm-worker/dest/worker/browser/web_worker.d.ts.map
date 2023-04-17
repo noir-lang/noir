@@ -1,0 +1,1 @@
+{"version":3,"file":"web_worker.d.ts","sourceRoot":"","sources":["../../../src/worker/browser/web_worker.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,UAAU,EAAE,MAAM,mBAAmB,CAAC;AAE/C;;GAEG;AACH,wBAAsB,eAAe,CAAC,GAAG,EAAE,MAAM,EAAE,UAAU,CAAC,EAAE,MAAM,EAAE,MAAM,CAAC,EAAE,MAAM,GAAG,OAAO,CAAC,UAAU,CAAC,CAY5G"}
