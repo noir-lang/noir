@@ -7,5 +7,6 @@ extern "C" {
 WASM_EXPORT void abis__hash_tx_request(uint8_t const* tx_request_buf, uint8_t* output);
 WASM_EXPORT void abis__compute_function_selector(char const* func_sig_cstr, uint8_t* output);
 WASM_EXPORT void abis__compute_function_leaf(uint8_t const* function_leaf_preimage_buf, uint8_t* output);
+WASM_EXPORT void abis__compute_function_tree_root(uint8_t const* function_leaves_buf, uint8_t num_leaves, uint8_t* output);
 
 }

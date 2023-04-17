@@ -35,6 +35,8 @@ constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 8;
 
 constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 31; // must be <= 31
+constexpr size_t FUNCTION_TREE_HEIGHT = 8;
+constexpr size_t FUNCTION_TREE_NUM_LEAVES = 2 << (FUNCTION_TREE_HEIGHT - 1); // leaves = 2 ^ height
 
 // Enumerate the hash_indices which are used for pedersen hashing
 // Start from 1 to avoid the default generators.

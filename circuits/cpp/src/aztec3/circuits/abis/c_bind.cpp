@@ -12,15 +12,59 @@
 #include <aztec3/constants.hpp>
 
 #include <aztec3/utils/types/native_types.hpp>
+#include <barretenberg/stdlib/merkle_tree/membership.hpp>
 #include <barretenberg/crypto/keccak/keccak.hpp>
 #include <barretenberg/common/serialize.hpp>
 
 namespace {
-using aztec3::GeneratorIndex;
+
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
+
+// Cbind helper functions
+/**
+ * @brief Compute an imperfect merkle tree's root from leaves.
+ *
+ * @details given a `uint8_t const*` buffer representing a merkle tree's leaves,
+ * compute the corresponding tree's root and return the serialized results
+ * in the `output` buffer. "Partial left tree" here means that the tree's leaves
+ * are filled strictly from left to right, but there may be empty leaves on the right
+ * end of the tree.
+ *
+ * @tparam TREE_HEIGHT height of the tree used to determine max leaves and used when computing root
+ * @tparam LeafPreimage the preimage type with a `.hash()` function to generate empty/zero-leaves
+ * @param leaves_buf a buffer of bytes representing the leaves of the tree, where each leaf is
+ * assumed to be a field and is interpreted using `NT::fr::serialize_from_buffer(leaf_ptr)`
+ * @param num_leaves the number of leaves in leaves_buf
+ * @returns a field (`NT::fr`) containing the computed merkle tree root
+ */
+template <size_t TREE_HEIGHT, typename LeafPreimage>
+NT::fr compute_root_of_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves)
+{
+    const size_t max_leaves = 2 << (TREE_HEIGHT - 1);
+    // cant exceed max leaves
+    ASSERT(num_leaves <= max_leaves);
+
+    // initialize the vector of leaves to a complete-tree-sized vector of zero-leaves
+    NT::fr zero_leaf = LeafPreimage().hash(); // hash of empty/0 preimage
+    std::vector<NT::fr> leaves(max_leaves, zero_leaf);
+
+    // Iterate over the input buffer, extracting each leaf and serializing it from buffer to field
+    // Insert each leaf field into the vector
+    // If num_leaves < perfect tree, remaining leaves will be `zero_leaf`
+    for (size_t l = 0; l < num_leaves; l++) {
+        // each iteration skips to over some number of `fr`s to get to the // next leaf
+        uint8_t const* cur_leaf_ptr = leaves_buf + sizeof(NT::fr) * l;
+        NT::fr leaf = NT::fr::serialize_from_buffer(cur_leaf_ptr);
+        leaves[l] = leaf;
+    }
+
+    // compute the root of this complete tree, return
+    return plonk::stdlib::merkle_tree::compute_tree_root_native(leaves);
+}
+
 } // namespace
 
 #define WASM_EXPORT __attribute__((visibility("default")))
