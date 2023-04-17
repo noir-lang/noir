@@ -11,7 +11,7 @@ RUN apk update \
         curl \
         perl
 
-WORKDIR /usr/src/aztec3-circuits/cpp
+WORKDIR /usr/src/circuits/cpp
 
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
@@ -19,5 +19,5 @@ RUN cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON -DUSE_TURBO=
 
 FROM alpine:3.17
 RUN apk update && apk add curl openmp
-COPY --from=builder /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db
-COPY --from=builder /usr/src/aztec3-circuits/cpp/build/bin/*_tests /usr/src/aztec3-circuits/cpp/build/bin/
+COPY --from=builder /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/barretenberg/cpp/srs_db
+COPY --from=builder /usr/src/circuits/cpp/build/bin/*_tests /usr/src/circuits/cpp/build/bin/

@@ -105,8 +105,6 @@ compute_partial_left_tree(uint8_t const* leaves_buf, uint8_t num_leaves, NT::fr 
 
 } // namespace
 
-#define WASM_EXPORT __attribute__((visibility("default")))
-
 // Note: We don't have a simple way of calling the barretenberg c-bind.
 // Mimick bbmalloc behaviour.
 static void* bbmalloc(size_t size)

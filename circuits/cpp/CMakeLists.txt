@@ -1,4 +1,4 @@
-# aztec3-circuits
+# aztec3 circuits package
 # copyright 2019 Spilsbury Holdings Ltd
 
 cmake_minimum_required(VERSION 3.24)

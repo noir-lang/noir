@@ -12,7 +12,7 @@ fi
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/aztec3-circuits-x86_64-linux-clang-assert:cache-$COMMIT_HASH
+IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/circuits-x86_64-linux-clang-assert:cache-$COMMIT_HASH
 
 docker pull $IMAGE_URI
 
@@ -22,16 +22,16 @@ fi
 
 if [ -z "$WASM_MODE" ]; then
   TEST_CMD="./bin/\$BIN $@"
-  BUILD_DIR=/usr/src/aztec3-circuits/cpp/build
+  BUILD_DIR=/usr/src/circuits/cpp/build
 else
   TEST_CMD="wasmtime --dir .. bin/\$BIN $@"
-  BUILD_DIR=/usr/src/aztec3-circuits/cpp/build-wasm
+  BUILD_DIR=/usr/src/circuits/cpp/build-wasm
 fi
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -e; \
-  cd /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db; \
-  ln -sf /usr/src/aztec3-circuits/cpp/barretenberg/cpp/srs_db /usr/src/aztec3-circuits/cpp/srs_db; \
+  cd /usr/src/circuits/cpp/barretenberg/cpp/srs_db; \
+  ln -sf /usr/src/circuits/cpp/barretenberg/cpp/srs_db /usr/src/circuits/cpp/srs_db; \
   ./download_ignition.sh $NUM_TRANSCRIPTS; \
   cd $BUILD_DIR; \
   for BIN in $TESTS; do $TEST_CMD; done"

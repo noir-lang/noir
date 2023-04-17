@@ -13,7 +13,7 @@
 # commit them, so that the most important build path remains fast and simple.
 
 PROJECTS=(
-  circuits:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:aztec3-circuits-wasm-linux-clang
+  circuits:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:circuits-wasm-linux-clang
   yarn-project-base:yarn-project
   # barretenberg.js:yarn-project
   end-to-end:yarn-project

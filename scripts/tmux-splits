@@ -10,7 +10,7 @@ cd $(git rev-parse --show-toplevel)
 if tmux has-session -t $SESSION_NAME > /dev/null 2>&1; then
   tmux attach -t $SESSION_NAME
 else
-  tmux new-session -s $SESSION_NAME -d
+  tmux new-session -s $SESSION_NAME -d \
   split-window \;  \
   select-layout even-vertical \; \
   # Give a chance for terminals to start (avoids double command echo).

@@ -1,6 +1,7 @@
 # Circuits.js
 
-Javascript bindings for aztec3-circuits WASM.
+Javascript bindings for the aztec3 circuits WASM.
+High-level bindings to the raw C API to our core circuit logic.
 
 ## To run:
 

@@ -10,6 +10,7 @@
 set -e
 
 TARGET_PROJECT=$1
+# TODO(AD) fix script after moving towards less repos
 REPO=aztec3-circuits
 COMMIT_HASH=$(git rev-parse HEAD)
 
