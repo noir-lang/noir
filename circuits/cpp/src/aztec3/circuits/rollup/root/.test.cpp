@@ -108,7 +108,7 @@ using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::private_kernel::NewContractData;
 
-using MemoryTree = stdlib::merkle_tree::MemoryTree;
+using MemoryTree = proof_system::plonk::stdlib::merkle_tree::MemoryTree;
 
 } // namespace
 
@@ -289,7 +289,7 @@ TEST_F(root_rollup_tests, root_missing_nullifier_logic)
         .function_tree_root = fr(2),
     };
     base_inputs[1].kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;
-    auto contract_leaf = crypto::pedersen_hash::hash_multiple(
+    auto contract_leaf = crypto::pedersen_commitment::compress_native(
         {
             new_contract.contract_address,
             new_contract.portal_contract_address,

@@ -243,7 +243,7 @@ TEST_F(base_rollup_tests, contract_leaf_inserted)
     inputs.new_contracts_subtree_sibling_path = sibling_path_of_0;
 
     // create expected end contract tree snapshot
-    auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
+    auto expected_contract_leaf = crypto::pedersen_commitment::compress_native(
         { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
         GeneratorIndex::CONTRACT_LEAF);
     auto expeted_end_contracts_snapshot_tree = stdlib::merkle_tree::MemoryTree(CONTRACT_TREE_HEIGHT);
@@ -292,7 +292,7 @@ TEST_F(base_rollup_tests, contract_leaf_inserted_in_non_empty_snapshot_tree)
     inputs.new_contracts_subtree_sibling_path = sibling_path;
 
     // create expected end contract tree snapshot
-    auto expected_contract_leaf = crypto::pedersen_hash::hash_multiple(
+    auto expected_contract_leaf = crypto::pedersen_commitment::compress_native(
         { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
         GeneratorIndex::CONTRACT_LEAF);
     auto expeted_end_contracts_snapshot_tree = start_contract_tree_snapshot;
@@ -354,9 +354,9 @@ template <size_t N> NT::fr calc_root(NT::fr leaf, NT::uint32 leafIndex, std::arr
 {
     for (size_t i = 0; i < siblingPath.size(); i++) {
         if (leafIndex & (1 << i)) {
-            leaf = crypto::pedersen_hash::hash_multiple({ siblingPath[i], leaf });
+            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(siblingPath[i], leaf);
         } else {
-            leaf = crypto::pedersen_hash::hash_multiple({ leaf, siblingPath[i] });
+            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(leaf, siblingPath[i]);
         }
     }
     return leaf;
@@ -555,7 +555,7 @@ TEST_F(base_rollup_tests, calldata_hash)
         .portal_contract_address = fr(3),
         .function_tree_root = fr(2),
     };
-    auto contract_leaf = crypto::pedersen_hash::hash_multiple(
+    auto contract_leaf = crypto::pedersen_commitment::compress_native(
         { new_contract.contract_address, new_contract.portal_contract_address, new_contract.function_tree_root },
         GeneratorIndex::CONTRACT_LEAF);
     inputs.kernel_data[0].public_inputs.end.new_contracts[0] = new_contract;

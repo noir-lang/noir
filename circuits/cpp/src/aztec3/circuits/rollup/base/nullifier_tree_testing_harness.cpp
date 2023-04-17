@@ -3,8 +3,8 @@
 #include <barretenberg/stdlib/merkle_tree/nullifier_tree/nullifier_leaf.hpp>
 #include <tuple>
 
-using NullifierMemoryTree = stdlib::merkle_tree::NullifierMemoryTree;
-using nullifier_leaf = stdlib::merkle_tree::nullifier_leaf;
+using NullifierMemoryTree = proof_system::plonk::stdlib::merkle_tree::NullifierMemoryTree;
+using nullifier_leaf = proof_system::plonk::stdlib::merkle_tree::nullifier_leaf;
 
 NullifierMemoryTreeTestingHarness::NullifierMemoryTreeTestingHarness(size_t depth)
     : NullifierMemoryTree(depth)

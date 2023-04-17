@@ -9,8 +9,8 @@
 /**
  * A version of the nullifier memory tree with extra methods specific to testing our rollup circuits.
  */
-class NullifierMemoryTreeTestingHarness : public stdlib::merkle_tree::NullifierMemoryTree {
-    using nullifier_leaf = stdlib::merkle_tree::nullifier_leaf;
+class NullifierMemoryTreeTestingHarness : public proof_system::plonk::stdlib::merkle_tree::NullifierMemoryTree {
+    using nullifier_leaf = proof_system::plonk::stdlib::merkle_tree::nullifier_leaf;
 
   public:
     NullifierMemoryTreeTestingHarness(size_t depth);

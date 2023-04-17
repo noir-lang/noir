@@ -3,8 +3,7 @@
 #include "aztec3/circuits/abis/rollup/merge/merge_rollup_inputs.hpp"
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"
-#include "aztec3/utils/dummy_composer.hpp"
-#include "barretenberg/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "index.hpp"
 #include "init.hpp"
 

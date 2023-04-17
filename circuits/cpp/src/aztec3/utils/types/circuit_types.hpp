@@ -18,6 +18,8 @@
 #include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
 #include "native_types.hpp"
 
+using namespace proof_system::plonk;
+
 namespace aztec3::utils::types {
 
 template <typename Composer> struct CircuitTypes {

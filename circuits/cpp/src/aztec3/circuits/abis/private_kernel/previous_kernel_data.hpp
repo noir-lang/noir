@@ -61,7 +61,7 @@ template <typename NCT> struct PreviousKernelData {
 
 template <typename B> inline void read(B& buf, verification_key& key)
 {
-    auto env_crs = std::make_unique<bonk::EnvReferenceStringFactory>();
+    auto env_crs = std::make_unique<proof_system::EnvReferenceStringFactory>();
     using serialize::read;
     // Note this matches write() below
     verification_key_data data;

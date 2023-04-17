@@ -6,10 +6,10 @@
 namespace aztec3::circuits::recursion {
 
 using namespace aztec3::utils::types;
-using plonk::stdlib::recursion::aggregation_state;
+using proof_system::plonk::stdlib::recursion::aggregation_state;
 
 // namespace {
-// std::shared_ptr<bonk::DynamicFileReferenceStringFactory> srs;
+// std::shared_ptr<proof_system::DynamicFileReferenceStringFactory> srs;
 // private_kernel::circuit_data private_kernel_cd;
 // private_circuit::circuit_data private_circuit_cd;
 // } // namespace
@@ -19,7 +19,7 @@ class play_tests : public ::testing::Test {
     //     static void SetUpTestCase()
     //     {
     //         std::string CRS_PATH = "../srs_db/ignition";
-    //         srs = std::make_shared<bonk::DynamicFileReferenceStringFactory>(CRS_PATH);
+    //         srs = std::make_shared<proof_system::DynamicFileReferenceStringFactory>(CRS_PATH);
     //         private_circuit_cd = join_split::get_circuit_data(srs);
     //         private_kernel_cd = claim::get_circuit_data(srs);
     //     }
@@ -58,7 +58,7 @@ TEST(play_tests, test_play_recursive_proof_gen)
     proof app_proof = app_prover.construct_proof();
     info("app_proof: ", app_proof.proof_data);
 
-    std::shared_ptr<bonk::verification_key> app_vk = app_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> app_vk = app_composer.compute_verification_key();
 
     Composer recursive_composer = Composer("../barretenberg/cpp/srs_db/ignition");
     aggregation_state<bn254> aggregation_output = play_recursive_circuit(recursive_composer, app_vk, app_proof);
@@ -79,7 +79,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     stdlib::types::Prover app_prover = app_composer.create_prover();
     proof app_proof = app_prover.construct_proof();
-    std::shared_ptr<bonk::verification_key> app_vk = app_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> app_vk = app_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -92,7 +92,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     stdlib::types::Prover dummy_circuit_prover = dummy_circuit_composer.create_prover();
     proof dummy_circuit_proof = dummy_circuit_prover.construct_proof();
-    std::shared_ptr<bonk::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> dummy_circuit_vk = dummy_circuit_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -108,7 +108,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     proof recursion_1_proof = recursion_1_prover.construct_proof();
 
-    std::shared_ptr<bonk::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
+    std::shared_ptr<plonk::verification_key> recursion_1_vk = recursion_1_composer.compute_verification_key();
 
     //*******************************************************************************
 
@@ -122,7 +122,7 @@ TEST(play_tests, test_play_recursive_2_proof_gen)
 
     // Prover recursion_2_prover = recursion_2_composer.create_prover();
     // proof recursion_2_proof = recursion_2_prover.construct_proof();
-    // std::shared_ptr<bonk::verification_key> recursion_2_vk = recursion_2_composer.compute_verification_key();
+    // std::shared_ptr<plonk::verification_key> recursion_2_vk = recursion_2_composer.compute_verification_key();
 }
 
 } // namespace aztec3::circuits::recursion

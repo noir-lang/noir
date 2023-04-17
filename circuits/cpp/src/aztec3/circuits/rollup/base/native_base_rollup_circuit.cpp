@@ -85,7 +85,7 @@ std::vector<NT::fr> calculate_contract_leaves(BaseRollupInputs const& baseRollup
             NT::fr function_tree_root = new_contacts[j].function_tree_root;
 
             // Pedersen hash of the 3 fields (contract_address, portal_contract_address, function_tree_root)
-            auto contract_leaf = crypto::pedersen_hash::hash_multiple(
+            auto contract_leaf = crypto::pedersen_commitment::compress_native(
                 { contract_address, portal_contract_address, function_tree_root }, GeneratorIndex::CONTRACT_LEAF);
 
             // When there is no contract deployment, we should insert a zero leaf into the tree and ignore the
@@ -107,9 +107,9 @@ NT::fr iterate_through_tree_via_sibling_path(NT::fr leaf,
 {
     for (size_t i = 0; i < siblingPath.size(); i++) {
         if (leafIndex & (1 << i)) {
-            leaf = crypto::pedersen_hash::hash_multiple({ siblingPath[i], leaf });
+            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(siblingPath[i], leaf);
         } else {
-            leaf = crypto::pedersen_hash::hash_multiple({ leaf, siblingPath[i] });
+            leaf = proof_system::plonk::stdlib::merkle_tree::hash_pair_native(leaf, siblingPath[i]);
         }
     }
     return leaf;
