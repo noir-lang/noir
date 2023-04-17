@@ -499,6 +499,11 @@ fn cse_block_with_anchor(
                         new_list.push(*ins_id);
                     }
                 }
+                Operation::Nop => {
+                    if new_list.is_empty() {
+                        new_list.push(*ins_id);
+                    }
+                }
                 _ => {
                     //TODO: checks we do not need to propagate res arguments
                     new_list.push(*ins_id);
