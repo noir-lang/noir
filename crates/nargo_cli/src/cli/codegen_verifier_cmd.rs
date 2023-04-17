@@ -54,6 +54,6 @@ pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(
 fn verifier_out_dir(manifest: PackageManifest, package_root: PathBuf) -> PathBuf {
     package_root.join(match manifest.codegen_verifier {
         Some(cv) => cv.out,
-        None => "verifier.".into(),
+        None => "contract.".into(),
     })
 }
