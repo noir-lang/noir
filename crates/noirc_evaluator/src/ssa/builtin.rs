@@ -27,7 +27,7 @@ pub(crate) enum Opcode {
     GetNNotes,
     CallPrivateFunction,
     StorageRead,
-    StorageWrite
+    StorageWrite,
 }
 
 impl std::fmt::Display for Opcode {
