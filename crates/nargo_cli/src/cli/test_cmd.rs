@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write, path::Path};
 
-use acvm::ProofSystemCompiler;
+use acvm::{pwg::block::Blocks, PartialWitnessGenerator, ProofSystemCompiler, UnresolvedData};
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{CompileOptions, Driver};
@@ -87,8 +87,16 @@ fn run_test(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(&backend, program.circuit, BTreeMap::new()) {
-        Ok(_) => Ok(()),
+    match backend.solve(&mut solved_witness, &mut blocks, program.circuit.opcodes) {
+        Ok(UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs }) => {
+            if !unresolved_opcodes.is_empty()
+                || !unresolved_oracles.is_empty()
+                || !unresolved_brilligs.is_empty()
+            {
+                todo!("Add oracle support to nargo execute")
+            }
+            Ok(())
+        }
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);
             let mut writer = writer.lock();

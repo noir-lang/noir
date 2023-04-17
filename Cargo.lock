@@ -5,10 +5,10 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f764b474e341efc3e8ee3d5054840b2fd2ac002f764fc2f4cd3569ce76badd1"
+source = "git+https://github.com/noir-lang/acvm.git?branch=kw/bytecode-vm#27cdaddf02bb23bd592ebf19bf029a1546e0da8f"
 dependencies = [
- "acir_field",
+ "acir_field 0.8.0",
+ "brillig_bytecode",
  "flate2",
  "rmp-serde",
  "serde",
@@ -17,8 +17,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbca7df5192c7823d4108d2c34cadcfd30dca94506b9e9861f85f0ea747ddedc"
+source = "git+https://github.com/noir-lang/acvm.git?branch=kw/bytecode-vm#27cdaddf02bb23bd592ebf19bf029a1546e0da8f"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,8 +30,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92d5df175b6923bf9bb05ba973b017b0fa1356066be8f0ebadd3d2dbbc48bd5b"
+source = "git+https://github.com/noir-lang/acvm.git?branch=kw/bytecode-vm#27cdaddf02bb23bd592ebf19bf029a1546e0da8f"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -49,8 +47,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa2bbc18fe9732ca3d93a2bf8f1a1ad99a003b565e7bc1ad5c67f69867449e8f"
+source = "git+https://github.com/noir-lang/acvm.git?branch=kw/bytecode-vm#27cdaddf02bb23bd592ebf19bf029a1546e0da8f"
 dependencies = [
  "acir",
 ]
@@ -305,7 +302,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=26178359a2251e885f15f0a4d1a686afda04aec9#26178359a2251e885f15f0a4d1a686afda04aec9"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/brillig-opcode#56dc99396d2595ea4e1de4bef59e31245a28a5c8"
 dependencies = [
  "barretenberg_wrapper",
  "common",
@@ -314,7 +311,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=26178359a2251e885f15f0a4d1a686afda04aec9#26178359a2251e885f15f0a4d1a686afda04aec9"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/brillig-opcode#56dc99396d2595ea4e1de4bef59e31245a28a5c8"
 dependencies = [
  "common",
  "wasmer",
@@ -404,6 +401,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "brillig_bytecode"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/acvm.git?branch=kw/bytecode-vm#27cdaddf02bb23bd592ebf19bf029a1546e0da8f"
+dependencies = [
+ "acir_field 0.8.0",
+ "serde",
 ]
 
 [[package]]
@@ -660,7 +666,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=26178359a2251e885f15f0a4d1a686afda04aec9#26178359a2251e885f15f0a4d1a686afda04aec9"
+source = "git+https://github.com/noir-lang/aztec_backend?branch=mv/brillig-opcode#56dc99396d2595ea4e1de4bef59e31245a28a5c8"
 dependencies = [
  "acvm",
  "blake2",
