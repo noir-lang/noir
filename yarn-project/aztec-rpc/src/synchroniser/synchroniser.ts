@@ -1,10 +1,7 @@
-import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import { AztecAddress, createDebugLogger, InterruptableSleep } from '@aztec/foundation';
-import { L2BlockContext } from '@aztec/types';
-import { TxHash } from '@aztec/types';
+import { L2BlockContext, TxHash } from '@aztec/types';
 import { AccountState } from '../account_state/index.js';
 import { Database, TxDao } from '../database/index.js';
 
@@ -17,7 +14,6 @@ export class Synchroniser {
   constructor(
     private node: AztecNode,
     private db: Database,
-    private simulator: AcirSimulator,
     private log = createDebugLogger('aztec:aztec_rpc_synchroniser'),
   ) {}
 
@@ -79,7 +75,8 @@ export class Synchroniser {
   }
 
   public async addAccount(privKey: Buffer) {
-    this.accountStates.push(new AccountState(privKey, this.db, this.simulator, this.node, await Grumpkin.new()));
+    const accountState = new AccountState(privKey, this.db, this.node, await Grumpkin.new());
+    this.accountStates.push(accountState);
     await Promise.resolve();
   }
 

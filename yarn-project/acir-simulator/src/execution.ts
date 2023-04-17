@@ -23,13 +23,13 @@ import { FunctionAbi } from '@aztec/noir-contracts';
 import { DUMMY_NOTE_LENGTH } from './simulator.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-interface NewNoteData {
+export interface NewNoteData {
   preimage: Fr[];
   storageSlot: Fr;
   owner: { x: Fr; y: Fr };
 }
 
-interface NewNullifierData {
+export interface NewNullifierData {
   preimage: Fr[];
   storageSlot: Fr;
   nullifier: Fr;

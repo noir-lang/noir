@@ -128,19 +128,21 @@ export async function hashConstructor(
 export async function computeContractAddress(
   wasm: CircuitsWasm,
   deployerAddr: AztecAddress,
-  contractAddrSalt: Buffer,
-  fnTreeRoot: Buffer,
+  contractAddrSalt: Fr,
+  fnTreeRoot: Fr,
   constructorHash: Buffer,
 ) {
   const deployerAddrBuf = deployerAddr.toBuffer();
+  const contractAddrSaltBuf = contractAddrSalt.toBuffer();
+  const fnTreeRootBuf = fnTreeRoot.toBuffer();
   const memLoc1 = deployerAddrBuf.length;
-  const memLoc2 = memLoc1 + contractAddrSalt.length;
-  const memLoc3 = memLoc2 + fnTreeRoot.length;
+  const memLoc2 = memLoc1 + contractAddrSaltBuf.length;
+  const memLoc3 = memLoc2 + fnTreeRootBuf.length;
   const memLoc4 = memLoc3 + constructorHash.length;
   wasm.call('pedersen__init');
   wasm.writeMemory(0, deployerAddrBuf);
-  wasm.writeMemory(memLoc1, contractAddrSalt);
-  wasm.writeMemory(memLoc2, fnTreeRoot);
+  wasm.writeMemory(memLoc1, contractAddrSaltBuf);
+  wasm.writeMemory(memLoc2, fnTreeRootBuf);
   wasm.writeMemory(memLoc3, constructorHash);
   await wasm.asyncCall('abis__compute_contract_address', 0, memLoc1, memLoc2, memLoc3, memLoc4);
   const resultBuf = Buffer.from(wasm.getMemorySlice(memLoc4, memLoc4 + 32));

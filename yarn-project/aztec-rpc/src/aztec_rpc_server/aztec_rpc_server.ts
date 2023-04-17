@@ -1,36 +1,24 @@
-import { AcirSimulator, encodeArguments } from '@aztec/acir-simulator';
+import { encodeArguments } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import {
   AztecAddress,
-  CONTRACT_TREE_HEIGHT,
-  CircuitsWasm,
   ContractDeploymentData,
   EcdsaSignature,
   EthAddress,
-  FUNCTION_TREE_HEIGHT,
   FunctionData,
-  MembershipWitness,
-  PrivateCallStackItem,
   TxContext,
   TxRequest,
-  UInt8Vector,
-  computeFunctionTree,
 } from '@aztec/circuits.js';
-import { hashVK } from '@aztec/circuits.js/abis';
 import { Fr, Point, createDebugLogger } from '@aztec/foundation';
-import { FunctionTreeInfo, KernelProver } from '@aztec/kernel-prover';
 import { ContractAbi, FunctionType } from '@aztec/noir-contracts';
 import { Tx, TxHash } from '@aztec/types';
-import { generateFunctionSelector } from '../abi_coder/index.js';
 import { AztecRPCClient, DeployedContract } from '../aztec_rpc_client/index.js';
-import { ContractDao, toContractDao } from '../contract_database/contract_dao.js';
+import { toContractDao } from '../contract_database/index.js';
 import { ContractTree } from '../contract_tree/index.js';
-import { Database } from '../database/database.js';
-import { TxDao } from '../database/tx_dao.js';
+import { Database, TxDao } from '../database/index.js';
 import { KeyStore } from '../key_store/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
 import { TxReceipt, TxStatus } from '../tx/index.js';
-import { computeFunctionTreeData } from './function_tree_data.js';
 
 /**
  * Implements a remote Aztec RPC client provider.
@@ -41,13 +29,11 @@ export class AztecRPCServer implements AztecRPCClient {
 
   constructor(
     private keyStore: KeyStore,
-    acirSimulator: AcirSimulator,
-    private kernelProver: KernelProver,
     private node: AztecNode,
     private db: Database,
     private log = createDebugLogger('aztec:rpc_server'),
   ) {
-    this.synchroniser = new Synchroniser(node, db, acirSimulator);
+    this.synchroniser = new Synchroniser(node, db);
   }
 
   public async start() {
@@ -106,7 +92,6 @@ export class AztecRPCServer implements AztecRPCClient {
     contractAddressSalt = Fr.random(),
     from?: AztecAddress,
   ) {
-    const wasm = await CircuitsWasm.get();
     const fromAddress = this.ensureAccountOrDefault(from);
 
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
@@ -114,30 +99,23 @@ export class AztecRPCServer implements AztecRPCClient {
       throw new Error('Cannot find constructor in the ABI.');
     }
 
-    if (!constructorAbi.verificationKey) {
-      throw new Error('Missing verification key for the constructor.');
-    }
-
     const flatArgs = encodeArguments(constructorAbi, args);
-    const contractTree = await ContractTree.new(abi, flatArgs, portalContract, contractAddressSalt, fromAddress);
-
-    const functionData = new FunctionData(
-      generateFunctionSelector(constructorAbi.name, constructorAbi.parameters),
-      true,
-      true,
+    const contractTree = await ContractTree.new(
+      abi,
+      flatArgs,
+      portalContract,
+      contractAddressSalt,
+      fromAddress,
+      this.node,
     );
-
-    const constructorVkHash = await hashVK(wasm, Buffer.from(constructorAbi.verificationKey, 'hex'));
-
+    const { functionData, vkHash } = contractTree.newContractConstructor!;
     const functionTreeRoot = await contractTree.getFunctionTreeRoot();
-
     const contractDeploymentData = new ContractDeploymentData(
-      Fr.fromBuffer(constructorVkHash),
+      Fr.fromBuffer(vkHash),
       functionTreeRoot,
       contractAddressSalt,
       portalContract,
     );
-
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
     const contract = contractTree.contract;
@@ -201,29 +179,9 @@ export class AztecRPCServer implements AztecRPCClient {
   public async createTx(txRequest: TxRequest, signature: EcdsaSignature) {
     const accountState = this.ensureAccount(txRequest.from);
 
-    const { executionResult, oldRoots, contract, acirHash } = await accountState.simulate(txRequest);
-
-    this.log(`Executing Prover...`);
-    const { publicInputs } = await this.kernelProver.prove(
-      txRequest,
-      signature,
-      executionResult,
-      oldRoots,
-      (callStackItem: PrivateCallStackItem) => {
-        return this.getFunctionTreeInfo(contract, callStackItem);
-      },
-      (committment: Buffer) => {
-        return this.getContractSiblingPath(committment);
-      },
-      acirHash,
-    );
-
-    this.log(`Proof completed!`);
+    const tx = await accountState.simulateAndProve(txRequest, signature);
 
     const contractAddress = txRequest.to;
-    const unverifiedData = accountState.createUnverifiedData(contractAddress, executionResult.preimages.newNotes);
-    const tx = new Tx(publicInputs, new UInt8Vector(Buffer.alloc(0)), unverifiedData);
-
     const [toContract, newContract] = txRequest.functionData.isConstructor
       ? [undefined, contractAddress]
       : [contractAddress, undefined];
@@ -231,37 +189,6 @@ export class AztecRPCServer implements AztecRPCClient {
     await this.db.addTx(dao);
 
     return tx;
-  }
-
-  private async getFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
-    return await this.computeFunctionTreeInfo(contract, callStackItem);
-  }
-
-  private async computeFunctionTreeInfo(contract: ContractDao, callStackItem: PrivateCallStackItem) {
-    const wasm = await CircuitsWasm.get();
-    const tree = new ContractTree(contract, wasm);
-    const root = await tree.getFunctionTreeRoot();
-    const functionIndex =
-      contract.functions.findIndex(f => f.selector.equals(callStackItem.functionData.functionSelector)) - 1;
-    if (functionIndex < 0) {
-      return {
-        root,
-        membershipWitness: MembershipWitness.makeEmpty(FUNCTION_TREE_HEIGHT, 0),
-      } as FunctionTreeInfo;
-    }
-
-    const leaves = await tree.getFunctionLeaves();
-    const functionTree = await computeFunctionTree(wasm, leaves);
-    const functionTreeData = computeFunctionTreeData(functionTree, functionIndex);
-    const membershipWitness = new MembershipWitness<typeof FUNCTION_TREE_HEIGHT>(
-      FUNCTION_TREE_HEIGHT,
-      functionIndex,
-      functionTreeData.siblingPath,
-    );
-    return {
-      root,
-      membershipWitness,
-    } as FunctionTreeInfo;
   }
 
   /**
@@ -277,7 +204,7 @@ export class AztecRPCServer implements AztecRPCClient {
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
     const txRequest = await this.createTxRequest(functionName, args, to, from);
     const accountState = this.ensureAccount(txRequest.from);
-    const { executionResult } = await accountState.simulate(txRequest);
+    const executionResult = await accountState.simulate(txRequest);
 
     // TODO - Return typed result based on the function abi.
     return executionResult.preimages;
@@ -360,18 +287,5 @@ export class AztecRPCServer implements AztecRPCClient {
     }
 
     return accountState;
-  }
-
-  private async getContractSiblingPath(committment: Buffer) {
-    const index = await this.node.findContractIndex(committment);
-    if (index === undefined) {
-      throw new Error('Failed to find contract');
-    }
-    const siblingPath = await this.node.getContractPath(index);
-    return new MembershipWitness<typeof CONTRACT_TREE_HEIGHT>(
-      CONTRACT_TREE_HEIGHT,
-      Number(index),
-      siblingPath.data.map(x => new Fr(x.readBigInt64BE())),
-    );
   }
 }

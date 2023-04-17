@@ -1,23 +1,26 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { KERNEL_NEW_COMMITMENTS_LENGTH, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
-import { AztecAddress, Fr, Point, keccak, createDebugLogger } from '@aztec/foundation';
+import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, OldTreeRoots, TxRequest } from '@aztec/circuits.js';
+import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
+import { KernelProver, OutputNoteData } from '@aztec/kernel-prover';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { L2BlockContext } from '@aztec/types';
-import { UnverifiedData } from '@aztec/types';
+import { L2BlockContext, Tx, UnverifiedData } from '@aztec/types';
 import { NotePreimage, TxAuxData } from '../aztec_rpc_server/tx_aux_data/index.js';
+import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
+import { ConstantKeyPair, KeyPair } from '../key_store/index.js';
+import { SimulatorOracle } from '../simulator_oracle/index.js';
 
 export class AccountState {
   public syncedToBlock = 0;
   private publicKey: Point;
   private address: AztecAddress;
+  private keyPair: KeyPair;
 
   constructor(
     private readonly privKey: Buffer,
     private db: Database,
-    private simulator: AcirSimulator,
     private node: AztecNode,
     private grumpkin: Grumpkin,
     private TXS_PER_BLOCK = 1,
@@ -28,6 +31,7 @@ export class AccountState {
     }
     this.publicKey = Point.fromBuffer(this.grumpkin.mul(Grumpkin.generator, this.privKey));
     this.address = this.publicKey.toAddress();
+    this.keyPair = new ConstantKeyPair(this.publicKey, privKey);
   }
 
   public async isSynchronised() {
@@ -51,46 +55,44 @@ export class AccountState {
     return this.db.getTxsByAddress(this.address);
   }
 
-  public async simulate(txRequest: TxRequest) {
+  public async simulate(txRequest: TxRequest, contractDataOracle?: ContractDataOracle) {
+    // TODO - Pause syncing while simulating.
+
+    if (!contractDataOracle) {
+      contractDataOracle = new ContractDataOracle(this.db, this.node);
+    }
+
     const contractAddress = txRequest.to;
-    const contract = await this.db.getContract(txRequest.to);
-    if (!contract) {
-      throw new Error('Unknown contract.');
-    }
-
-    const selector = txRequest.functionData.functionSelector;
-    const functionDao = contract.functions.find(f => f.selector.equals(selector));
-    if (!functionDao) {
-      throw new Error('Unknown function.');
-    }
-    const acirHash = keccak(Buffer.from(functionDao.bytecode, 'hex'));
-
+    const functionAbi = await contractDataOracle.getFunctionAbi(
+      contractAddress,
+      txRequest.functionData.functionSelector,
+    );
+    const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
     const oldRoots = new OldTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
 
-    // TODO - Pause syncing while simulating.
-    this.log(`Executing simulator...`);
-    const executionResult = await this.simulator.run(
-      txRequest,
-      functionDao,
-      contractAddress,
-      contract.portalContract,
-      oldRoots,
-    );
+    const simulatorOracle = new SimulatorOracle(contractDataOracle, this.db, this.keyPair);
+    const simulator = new AcirSimulator(simulatorOracle);
+    this.log('Executing simulator...');
+    const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract, oldRoots);
+    this.log('Simulation completed!');
 
-    return { contract, oldRoots, executionResult, acirHash };
+    return result;
   }
 
-  public createUnverifiedData(contract: AztecAddress, newNotes: { preimage: Fr[]; storageSlot: Fr }[]): UnverifiedData {
-    const txAuxDatas = newNotes.map(({ preimage, storageSlot }) => {
-      const notePreimage = new NotePreimage(preimage);
-      return new TxAuxData(notePreimage, contract, storageSlot);
-    });
-    const chunks = txAuxDatas.map(txAuxData => {
-      // TODO - Should use the correct recipient public key.
-      const recipient = this.publicKey;
-      return txAuxData.toEncryptedBuffer(recipient, this.grumpkin);
-    });
-    return new UnverifiedData(chunks);
+  public async simulateAndProve(txRequest: TxRequest, signature: EcdsaSignature) {
+    // TODO - Pause syncing while simulating.
+
+    const contractDataOracle = new ContractDataOracle(this.db, this.node);
+    const executionResult = await this.simulate(txRequest, contractDataOracle);
+
+    const kernelProver = new KernelProver(contractDataOracle);
+    this.log('Executing Prover...');
+    const { proof, publicInputs, outputNotes } = await kernelProver.prove(txRequest, signature, executionResult);
+    this.log('Proof completed!');
+
+    const unverifiedData = this.createUnverifiedData(outputNotes);
+
+    return new Tx(publicInputs, proof, unverifiedData);
   }
 
   public async process(l2BlockContexts: L2BlockContext[], unverifiedDatas: UnverifiedData[]): Promise<void> {
@@ -147,6 +149,17 @@ export class AccountState {
     this.log(`Synched block ${this.syncedToBlock}`);
   }
 
+  private createUnverifiedData(outputNotes: OutputNoteData[]) {
+    const dataChunks = outputNotes.map(({ contractAddress, data }) => {
+      const { preimage, storageSlot, owner } = data;
+      const notePreimage = new NotePreimage(preimage);
+      const txAuxData = new TxAuxData(notePreimage, contractAddress, storageSlot);
+      const ownerPublicKey = Point.fromBuffer(Buffer.concat([owner.x.toBuffer(), owner.y.toBuffer()]));
+      return txAuxData.toEncryptedBuffer(ownerPublicKey, this.grumpkin);
+    });
+    return new UnverifiedData(dataChunks);
+  }
+
   private async processBlocksAndTxAuxData(
     blocksAndTxAuxData: {
       blockContext: L2BlockContext;
@@ -163,8 +176,9 @@ export class AccountState {
       userPertainingTxIndices.map((userPertainingTxIndex, j) => {
         const txHash = blockContext.getTxHash(userPertainingTxIndex);
         this.log(`Processing tx ${txHash!.toString()} from block ${blockContext.block.number}`);
+        const { newContractData } = blockContext.block.getTx(userPertainingTxIndex);
+        const isContractDeployment = !newContractData[0].contractAddress.isZero();
         const txAuxData = txAuxDataDaos[j];
-        const isContractDeployment = true; // TODO
         const [to, contractAddress] = isContractDeployment
           ? [undefined, txAuxData.contractAddress]
           : [txAuxData.contractAddress, undefined];

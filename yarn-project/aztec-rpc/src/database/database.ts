@@ -12,5 +12,5 @@ export interface Database extends ContractDatabase {
 
   getTxAuxData(contract: AztecAddress, storageSlot: Fr): Promise<TxAuxDataDao[]>;
   addTxAuxData(txAuxDataDao: TxAuxDataDao): Promise<void>;
-  addTxAuxDataBatch(txAuxDataDao: TxAuxDataDao[]): Promise<void>;
+  addTxAuxDataBatch(txAuxDataDaos: TxAuxDataDao[]): Promise<void>;
 }

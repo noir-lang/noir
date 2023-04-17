@@ -21,6 +21,16 @@ export class MembershipWitness<N extends number> {
     );
   }
 
+  public static random<N extends number>(pathSize: N) {
+    return new MembershipWitness<N>(
+      pathSize,
+      0,
+      Array(pathSize)
+        .fill(0)
+        .map(() => Fr.random()),
+    );
+  }
+
   public static makeEmpty<N extends number>(pathSize: N, leafIndex: UInt32) {
     const arr = Array(pathSize)
       .fill(0)

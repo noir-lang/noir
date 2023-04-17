@@ -1,14 +1,18 @@
 import { DBOracle, NoteLoadOracleInputs } from '@aztec/acir-simulator';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
-import { Database } from '../database/database.js';
-import { KeyStore } from '../key_store/key_store.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
+import { ContractDataOracle } from '../contract_data_oracle/index.js';
+import { Database } from '../database/index.js';
+import { KeyPair } from '../key_store/index.js';
 
 export class SimulatorOracle implements DBOracle {
-  constructor(private db: Database, private keyStore: KeyStore) {}
+  constructor(private contractDataOracle: ContractDataOracle, private db: Database, private keyPair: KeyPair) {}
 
   getSecretKey(_: AztecAddress, address: AztecAddress): Promise<Buffer> {
-    return this.keyStore.getAccountPrivateKey(address);
+    if (!address.equals(this.keyPair.getPublicKey().toAddress())) {
+      throw new Error('Only allow access to the secret keys of the tx creator.');
+    }
+    return this.keyPair.getPrivateKey();
   }
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr, n: number): Promise<NoteLoadOracleInputs[]> {
@@ -21,24 +25,10 @@ export class SimulatorOracle implements DBOracle {
   }
 
   async getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi> {
-    const contract = await this.db.getContract(contractAddress);
-    if (!contract) {
-      throw new Error(`Contract ${contractAddress} not found`);
-    }
-
-    const storedFunction = contract.functions.find(f => f.selector === functionSelector);
-    if (!storedFunction) {
-      throw new Error(`Function ${functionSelector} not found`);
-    }
-
-    return storedFunction;
+    return await this.contractDataOracle.getFunctionAbi(contractAddress, functionSelector);
   }
 
   async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {
-    const contract = await this.db.getContract(contractAddress);
-    if (!contract) {
-      throw new Error(`Contract ${contractAddress} not found`);
-    }
-    return contract.portalContract;
+    return await this.contractDataOracle.getPortalContractAddress(contractAddress);
   }
 }

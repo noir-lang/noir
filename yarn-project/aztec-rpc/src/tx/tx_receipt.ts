@@ -6,10 +6,11 @@ export enum TxStatus {
   MINED = 'mined',
   PENDING = 'pending',
 }
+
 export interface TxReceipt {
   txHash: TxHash;
-  blockHash: Buffer | undefined;
-  blockNumber: number | undefined;
+  blockHash?: Buffer;
+  blockNumber?: number;
   from?: AztecAddress;
   to?: AztecAddress;
   contractAddress?: AztecAddress;

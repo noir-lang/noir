@@ -38,6 +38,7 @@ __metadata:
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
     jest: ^29.5.0
+    jest-mock-extended: ^3.0.3
     levelup: ^5.1.1
     memdown: ^6.1.1
     toml: ^3.0.0
@@ -141,6 +142,7 @@ __metadata:
     "@types/node": ^18.7.23
     browserify-cipher: ^1.0.1
     jest: ^29.5.0
+    jest-mock-extended: ^3.0.3
     sha3: ^2.1.4
     ts-jest: ^29.1.0
     ts-node: ^10.9.1

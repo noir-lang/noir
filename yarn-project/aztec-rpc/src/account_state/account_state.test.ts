@@ -1,4 +1,3 @@
-import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
@@ -16,7 +15,6 @@ import { AccountState } from './account_state.js';
 describe('Account State', () => {
   let grumpkin: Grumpkin;
   let database: Database;
-  let simulator: AcirSimulator;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addTxAuxDataBatchSpy: any;
   let accountState: AccountState;
@@ -70,8 +68,7 @@ describe('Account State', () => {
 
     const ownerPrivateKey = await owner.getPrivateKey();
     aztecNode = mock<AztecNode>();
-    simulator = mock<AcirSimulator>();
-    accountState = new AccountState(ownerPrivateKey, database, simulator, aztecNode, grumpkin);
+    accountState = new AccountState(ownerPrivateKey, database, aztecNode, grumpkin);
   });
 
   afterEach(() => {
@@ -144,6 +141,6 @@ describe('Account State', () => {
 
   it('should throw an error if invalid privKey is passed on input', () => {
     const ownerPrivateKey = Buffer.alloc(0);
-    expect(() => new AccountState(ownerPrivateKey, database, simulator, aztecNode, grumpkin)).toThrowError();
+    expect(() => new AccountState(ownerPrivateKey, database, aztecNode, grumpkin)).toThrowError();
   });
 });

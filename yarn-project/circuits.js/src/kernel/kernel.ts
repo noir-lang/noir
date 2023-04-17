@@ -53,6 +53,7 @@ export async function privateKernelProve(
   signedTxRequest: SignedTxRequest,
   previousKernel: PreviousKernelData,
   privateCallData: PrivateCallData,
+  firstIteration: boolean,
 ) {
   wasm.call('pedersen__init');
   const signedTxRequestBuffer = signedTxRequest.toBuffer();
@@ -65,7 +66,7 @@ export async function privateKernelProve(
   wasm.writeMemory(0, signedTxRequestBuffer);
   wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
   wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  wasm.writeMemory(firstInterationOffset, boolToBuffer(true));
+  wasm.writeMemory(firstInterationOffset, boolToBuffer(firstIteration));
 
   const proofOutputAddressPtr = wasm.call('bbmalloc', 4);
   const proofSize = await wasm.asyncCall(
@@ -89,6 +90,7 @@ export async function privateKernelSim(
   signedTxRequest: SignedTxRequest,
   previousKernel: PreviousKernelData,
   privateCallData: PrivateCallData,
+  firstIteration: boolean,
 ) {
   wasm.call('pedersen__init');
   const signedTxRequestBuffer = signedTxRequest.toBuffer();
@@ -100,7 +102,7 @@ export async function privateKernelSim(
   wasm.writeMemory(0, signedTxRequestBuffer);
   wasm.writeMemory(previousKernelBufferOffset, previousKernelBuffer);
   wasm.writeMemory(privateCallDataOffset, privateCallDataBuffer);
-  wasm.writeMemory(firstInterationOffset, boolToBuffer(true));
+  wasm.writeMemory(firstInterationOffset, boolToBuffer(firstIteration));
 
   const publicInputOutputAddressPtr = wasm.call('bbmalloc', 4);
   const outputSize = await wasm.asyncCall(

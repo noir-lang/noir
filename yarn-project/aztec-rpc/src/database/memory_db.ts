@@ -36,8 +36,8 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve();
   }
 
-  public addTxAuxDataBatch(txAuxDataDao: TxAuxDataDao[]) {
-    this.txAuxDataTable.push(...txAuxDataDao);
+  public addTxAuxDataBatch(txAuxDataDaos: TxAuxDataDao[]) {
+    this.txAuxDataTable.push(...txAuxDataDaos);
     return Promise.resolve();
   }
 
