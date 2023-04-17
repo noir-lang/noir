@@ -1,4 +1,4 @@
-import { expectSerializeToMatchSnapshot } from "../tests/expectSerializeToMatchSnapshot.js";
+import { expectSerializeToMatchSnapshot } from "../tests/expectSerialize.js";
 import { FunctionData } from "./function_data.js";
 
 describe("basic FunctionData serialization", () => {

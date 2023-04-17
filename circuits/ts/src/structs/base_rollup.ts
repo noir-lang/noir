@@ -1,3 +1,4 @@
+import { BufferReader } from "../wasm/buffer_reader.js";
 import { assertLength, FieldsOf } from "../utils/jsUtils.js";
 import { serializeToBuffer } from "../wasm/serialize.js";
 import {
@@ -27,6 +28,11 @@ export class AppendOnlyTreeSnapshot {
   toBuffer() {
     return serializeToBuffer(this.root, this.nextAvailableLeafIndex);
   }
+
+  static fromBuffer(buffer: Buffer | BufferReader): AppendOnlyTreeSnapshot {
+    const reader = BufferReader.asReader(buffer);
+    return new AppendOnlyTreeSnapshot(reader.readFr(), reader.readNumber());
+  }
 }
 
 export class ConstantBaseRollupData {
@@ -48,6 +54,19 @@ export class ConstantBaseRollupData {
   ): ConstantBaseRollupData {
     return new ConstantBaseRollupData(
       ...ConstantBaseRollupData.getFields(fields)
+    );
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader): ConstantBaseRollupData {
+    const reader = BufferReader.asReader(buffer);
+    return new ConstantBaseRollupData(
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr()
     );
   }
 
@@ -128,7 +147,7 @@ export class BaseRollupInputs {
   }
 }
 
-enum RollupTypes {
+export enum RollupTypes {
   Base = 0,
   Rollup = 1,
 }
@@ -138,7 +157,7 @@ enum RollupTypes {
  */
 export class BaseRollupPublicInputs {
   constructor(
-    public rollupType: RollupTypes.Base,
+    public rollupType: RollupTypes,
 
     public endAggregationObject: AggregationObject,
     public constants: ConstantBaseRollupData,
@@ -159,8 +178,27 @@ export class BaseRollupPublicInputs {
     public proverContributionsHash: Fr
   ) {}
 
-  static fromBuffer(buffer: Buffer): BaseRollupPublicInputs {
-    throw new Error("Not implemented");
+  /**
+   * Deserializes from a buffer or reader, corresponding to a write in cpp.
+   * @param bufferReader - Buffer to read from.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): BaseRollupPublicInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new BaseRollupPublicInputs(
+      reader.readNumber(),
+      reader.readObject(AggregationObject),
+      reader.readObject(ConstantBaseRollupData),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr(),
+      reader.readFr()
+    );
   }
 
   /**
@@ -169,7 +207,7 @@ export class BaseRollupPublicInputs {
    */
   toBuffer() {
     return serializeToBuffer(
-      this.rollupType.valueOf(), // TODO: Check the size of the enum in cpp land
+      this.rollupType.valueOf(),
       this.endAggregationObject,
       this.constants,
 

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`structs/base_rollup serializes and prints object 1`] = `
+exports[`structs/base_rollup serializes and prints BaseRollupInputs 1`] = `
 "kernel_data:
 [ public_inputs: end:
 aggregation_object:
@@ -478,11 +478,64 @@ tree_of_historic_l1_to_l2_msg_tree_roots_snapshot:
 root: 0x300
 next_available_leaf_index: 768
 
-private_kernel_vk_tree_root: 0x400
-public_kernel_vk_tree_root: 0x500
-base_rollup_vk_hash: 0x600
-merge_rollup_vk_hash: 0x700
+private_kernel_vk_tree_root: 0x401
+public_kernel_vk_tree_root: 0x402
+base_rollup_vk_hash: 0x403
+merge_rollup_vk_hash: 0x404
 
 prover_id: 0x42
+"
+`;
+
+exports[`structs/base_rollup serializes and prints BaseRollupPublicInputs 1`] = `
+"rollup_type: 0
+end_aggregation_object:
+P0: { 0x100, 0x101 }
+P1: { 0x200, 0x201 }
+public_inputs:
+[
+ 0x102
+ 0x103
+ 0x104
+ 0x105
+]
+proof_witness_indices:
+[ 262 263 264 265 266 267 ]
+has_data: 0
+
+constants:
+start_tree_of_historic_private_data_tree_roots_snapshot:
+ root: 0x200
+next_available_leaf_index: 512
+
+start_tree_of_historic_contract_tree_roots_snapshot:
+root: 0x300
+next_available_leaf_index: 768
+
+tree_of_historic_l1_to_l2_msg_tree_roots_snapshot:
+root: 0x400
+next_available_leaf_index: 1024
+
+private_kernel_vk_tree_root: 0x501
+public_kernel_vk_tree_root: 0x502
+base_rollup_vk_hash: 0x503
+merge_rollup_vk_hash: 0x504
+
+start_nullifier_tree_snapshot:
+root: 0x300
+next_available_leaf_index: 768
+
+end_nullifier_tree_snapshots:
+root: 0x400
+next_available_leaf_index: 1024
+
+new_commitments_subtree_root: 0x501
+new_nullifiers_subtree_root: 0x502
+new_contract_leaves_subtree_root: 0x503
+new_commitments_hash: 0x601
+new_nullifiers_hash: 0x602
+new_l1_msgs_hash: 0x603
+new_contract_data_hash: 0x604
+prover_contributions_hash: 0x605
 "
 `;

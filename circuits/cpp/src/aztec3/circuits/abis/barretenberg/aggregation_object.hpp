@@ -15,6 +15,17 @@ inline void read(uint8_t const*& it, aztec3::utils::types::NativeTypes::Aggregat
     read(it, obj.has_data);
 };
 
+inline void write(std::vector<uint8_t>& buf, aztec3::utils::types::NativeTypes::AggregationObject const& obj)
+{
+    using serialize::write;
+
+    write(buf, obj.P0);
+    write(buf, obj.P1);
+    write(buf, obj.public_inputs);
+    write(buf, obj.proof_witness_indices);
+    write(buf, obj.has_data);
+};
+
 } // namespace serialize
 
 namespace std {

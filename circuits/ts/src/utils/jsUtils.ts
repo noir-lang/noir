@@ -38,7 +38,7 @@ export function assertLength<
 export function checkLength(
   arr: { length: number },
   expected: number,
-  label: string = "array"
+  label = "array"
 ) {
   if (arr.length !== expected) {
     throw new Error(

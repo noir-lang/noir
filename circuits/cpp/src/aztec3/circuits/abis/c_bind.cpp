@@ -7,6 +7,7 @@
 #include "tx_context.hpp"
 #include "function_leaf_preimage.hpp"
 #include "base_rollup/base_rollup_inputs.hpp"
+#include "base_rollup/base_rollup_public_inputs.hpp"
 #include "private_kernel/previous_kernel_data.hpp"
 
 #include <aztec3/constants.hpp>
@@ -97,6 +98,20 @@ template <typename T> static const char* as_string_output(uint8_t const* input_b
     return bbmalloc_copy_string(str.c_str(), *size);
 }
 
+/**
+ * For testing only. Take this object, serialize it to a buffer, then output it. */
+template <typename T> static const char* as_serialized_output(uint8_t const* input_buf, uint32_t* size)
+{
+    T obj;
+    read(input_buf, obj);
+    std::vector<uint8_t> stream;
+    write(stream, obj);
+    *size = (uint32_t)stream.size();
+    return bbmalloc_copy_string((char*)stream.data(), *size);
+}
+
+#define WASM_EXPORT __attribute__((visibility("default")))
+// WASM Cbinds
 extern "C" {
 
 /**
@@ -318,4 +333,17 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_previous_kernel_data(uint
 {
     return as_string_output<aztec3::circuits::abis::private_kernel::PreviousKernelData<NT>>(kernel_data_buf, size);
 }
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_base_rollup_public_inputs(uint8_t const* rollup_inputs_buf,
+                                                                                 uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::BaseRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
+WASM_EXPORT const char* abis__test_roundtrip_reserialize_base_rollup_public_inputs(uint8_t const* rollup_inputs_buf,
+                                                                                   uint32_t* size)
+{
+    return as_serialized_output<aztec3::circuits::abis::BaseRollupPublicInputs<NT>>(rollup_inputs_buf, size);
+}
+
 } // extern "C"

@@ -2,7 +2,7 @@ import { serializeToBuffer } from "../wasm/serialize.js";
 import { EthAddress, Fr } from "./shared.js";
 
 /**
- * Contract deployment data in a @TxContext.
+ * Contract deployment data in a TxContext
  * cpp/src/aztec3/circuits/abis/contract_deployment_data.hpp
  */
 export class ContractDeploymentData {

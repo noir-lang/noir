@@ -1,4 +1,4 @@
-import { expectSerializeToMatchSnapshot } from "../tests/expectSerializeToMatchSnapshot.js";
+import { expectSerializeToMatchSnapshot } from "../tests/expectSerialize.js";
 import { makeTxContext } from "../tests/factories.js";
 
 describe("structs/tx", () => {

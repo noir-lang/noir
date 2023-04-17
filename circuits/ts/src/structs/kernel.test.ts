@@ -1,4 +1,4 @@
-import { expectSerializeToMatchSnapshot } from "../tests/expectSerializeToMatchSnapshot.js";
+import { expectSerializeToMatchSnapshot } from "../tests/expectSerialize.js";
 import { makePreviousKernelData } from "../tests/factories.js";
 import { writeGlobalVerifierReferenceString } from "../tests/writeGlobalVerifierReferenceString.js";
 import { CircuitsWasm } from "../wasm/circuits_wasm.js";
