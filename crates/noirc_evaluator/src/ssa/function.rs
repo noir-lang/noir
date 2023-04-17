@@ -76,7 +76,7 @@ impl SsaFunction {
         //catch the error because the function may not be called ??
         super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
         //
-        BrilligGen::compile(ctx, self.entry_block)
+        BrilligGen::compile(ctx, self.entry_block).expect("unsafe functions should compile")
     }
 
     pub(crate) fn compile(
@@ -88,7 +88,7 @@ impl SsaFunction {
         //Optimization
         //catch the error because the function may not be called
         super::optimizations::full_cse(&mut ir_gen.context, self.entry_block, false)?;
-        let brillig = BrilligGen::compile(&ir_gen.context, self.entry_block);
+        let brillig = BrilligGen::compile(&ir_gen.context, self.entry_block).unwrap_or_default();
         //Unrolling
         super::flatten::unroll_tree(&mut ir_gen.context, self.entry_block)?;
 

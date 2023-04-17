@@ -68,12 +68,11 @@ pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
 ) -> Result<WitnessMap, CliError> {
-    let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
+    let mut initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    let backend = crate::backends::ConcreteBackend;
     let mut blocks = Blocks::default();
     let UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs } = backend
-        .solve(&mut solved_witness, &mut blocks, compiled_program.circuit.opcodes.clone())?;
+        .solve(&mut initial_witness, &mut blocks, compiled_program.circuit.opcodes.clone()).unwrap();
     if !unresolved_opcodes.is_empty()
         || !unresolved_oracles.is_empty()
         || !unresolved_brilligs.is_empty()
@@ -81,5 +80,5 @@ pub(crate) fn execute_program(
         todo!("Add oracle support to nargo execute")
     }
 
-    Ok(solved_witness)
+    Ok(initial_witness)
 }

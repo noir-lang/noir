@@ -84,7 +84,9 @@ fn run_test(
     let program = driver
         .compile_no_check(config, main)
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
-
+    let mut solved_witness = BTreeMap::new();
+    let mut blocks = Blocks::default();
+    
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
     match backend.solve(&mut solved_witness, &mut blocks, program.circuit.opcodes) {

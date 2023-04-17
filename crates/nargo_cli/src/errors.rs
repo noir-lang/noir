@@ -1,3 +1,4 @@
+use acvm::OpcodeResolutionError;
 use hex::FromHexError;
 use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
@@ -42,4 +43,8 @@ pub(crate) enum CliError {
     /// Error from Nargo
     #[error(transparent)]
     NargoError(#[from] NargoError),
+
+    /// ACIR circuit solving error
+    #[error(transparent)]
+    SolvingError(#[from] OpcodeResolutionError),
 }

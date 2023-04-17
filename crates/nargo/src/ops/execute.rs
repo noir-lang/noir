@@ -1,4 +1,4 @@
-use acvm::PartialWitnessGenerator;
+use acvm::{PartialWitnessGenerator, UnresolvedData};
 use acvm::{acir::circuit::Circuit, pwg::block::Blocks};
 use noirc_abi::WitnessMap;
 
@@ -10,11 +10,15 @@ pub fn execute_circuit(
     mut initial_witness: WitnessMap,
 ) -> Result<WitnessMap, NargoError> {
     let mut blocks = Blocks::default();
-    let (unresolved_opcodes, oracles) =
-        backend.solve(&mut initial_witness, &mut blocks, circuit.opcodes)?;
-    if !unresolved_opcodes.is_empty() || !oracles.is_empty() {
-        todo!("Add oracle support to nargo execute")
-    }
+    let UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs } = backend
+    .solve(&mut initial_witness, &mut blocks, circuit.opcodes.clone())?;
+if !unresolved_opcodes.is_empty()
+    || !unresolved_oracles.is_empty()
+    || !unresolved_brilligs.is_empty()
+{
+    todo!("Add oracle support to nargo execute")
+}
 
     Ok(initial_witness)
 }
+

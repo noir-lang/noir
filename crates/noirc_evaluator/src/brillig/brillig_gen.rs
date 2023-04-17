@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::function::{RuntimeType, SsaFunction};
@@ -7,7 +8,7 @@ use crate::ssa::mem::Memory;
 use crate::ssa::node::{
     Binary, BinaryOp, Instruction, NodeId, NodeObject, NumericType, ObjectType, Operation,
 };
-use acvm::acir::brillig_bytecode;
+use acvm::acir::brillig_bytecode::{self, OracleInput};
 use acvm::FieldElement;
 
 use acvm::acir::brillig_bytecode::{
@@ -75,6 +76,9 @@ impl BrilligArtefact {
     }
 
     fn link_with(&mut self, obj: &BrilligArtefact) {
+        if obj.byte_code.is_empty() {
+            panic!("ICE: unresolved symbol");
+        }
         if self.byte_code.is_empty() {
             self.byte_code.push(BrilligOpcode::JMP { destination: PREFIX_LEN });
             self.byte_code.push(BrilligOpcode::Trap);
@@ -119,10 +123,10 @@ pub(crate) struct BrilligGen {
 
 impl BrilligGen {
     /// Generate compilation object from ssa code
-    pub(crate) fn compile(ctx: &SsaContext, block: BlockId) -> BrilligArtefact {
+    pub(crate) fn compile(ctx: &SsaContext, block: BlockId) -> Result<BrilligArtefact, RuntimeError> {
         let mut brillig = BrilligGen::default();
-        brillig.process_blocks(ctx, block);
-        brillig.obj
+        brillig.process_blocks(ctx, block)?;
+        Ok(brillig.obj)
     }
 
     /// Adds a brillig instruction to the brillig code base
@@ -162,11 +166,11 @@ impl BrilligGen {
         }
     }
 
-    fn process_blocks(&mut self, ctx: &SsaContext, current: BlockId) {
+    fn process_blocks(&mut self, ctx: &SsaContext, current: BlockId) -> Result<(),RuntimeError> {
         let mut queue = vec![current]; //Stack of elements to visit
 
         while let Some(current) = queue.pop() {
-            let children = self.process_block(ctx, current);
+            let children = self.process_block(ctx, current)?;
 
             let mut add_to_queue = |block_id: BlockId| {
                 if !block_id.is_dummy() && !queue.contains(&block_id) {
@@ -180,17 +184,18 @@ impl BrilligGen {
                 add_to_queue(i);
             }
         }
+        Ok(())
     }
 
     // Generate brillig code from ssa instructions of the block
-    fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Vec<BlockId> {
+    fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Result<Vec<BlockId>, RuntimeError> {
         let block = &ctx[block_id];
         let start = self.obj.byte_code.len();
 
         //process block instructions, except the last one
         for i in block.instructions.iter().take(block.instructions.len() - 1) {
             let ins = ctx.try_get_instruction(*i).expect("instruction in instructions list");
-            self.instruction_to_bc(ctx, ins);
+            self.instruction_to_bc(ctx, ins)?;
         }
 
         // Jump to the next block
@@ -210,7 +215,7 @@ impl BrilligGen {
                     }
                     Operation::Jmp(target) => Some((BrilligOpcode::JMP { destination: 0 }, target)),
                     _ => {
-                        self.instruction_to_bc(ctx, ins);
+                        self.instruction_to_bc(ctx, ins).expect("Could not compile to brillig");
                         None
                     }
                 }
@@ -242,17 +247,17 @@ impl BrilligGen {
         }
 
         self.obj.blocks.insert(block_id, start);
-        result
+        Ok(result)
     }
 
     /// Converts ssa instruction to brillig
-    fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) {
+    fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Result<(),RuntimeError>{
         match &ins.operation {
             Operation::Binary(bin) => {
                 self.binary(ctx, bin, ins.id, ins.res_type);
             }
             Operation::Cast(_) => {
-                todo!()
+                return Err(RuntimeErrorKind::Unimplemented("Operation not supported in unsafe functions".to_string()).into());
             }
             Operation::Truncate { .. } => unreachable!("Brillig does not require an overflow pass"),
             Operation::Not(_) => todo!(), // bitwise not
@@ -333,6 +338,7 @@ impl BrilligGen {
             }
             Operation::Nop => (),
         }
+        Ok(())
     }
 
     fn node_2_register(&mut self, ctx: &SsaContext, a: NodeId) -> RegisterMemIndex //register-value enum
@@ -470,18 +476,21 @@ impl BrilligGen {
     }
     }
 
-    // fn get_signature(ctx: &SsaContext, funct: &SsaFunction) -> OracleSignature {
-    //     let mut signature = OracleSignature::default();
-    //     for i in &funct.arguments {
-    //         let len = if let Some(a) = Memory::deref(ctx, i.0) { ctx.mem[a].len } else { 0 };
-    //         signature.inputs.push(len);
-    //     }
-    //     for i in &funct.result_types {
-    //         let len = if let ObjectType::ArrayPointer(a) = i { ctx.mem[*a].len } else { 0 };
-    //         signature.outputs.push(len);
-    //     }
-    //     signature
-    // }
+    fn get_oracle_abi(&mut self, ctx: &SsaContext, funct: &SsaFunction, arguments:  &Vec<NodeId>,) -> Vec<OracleInput> {
+        let mut abi = Vec::new();
+        for (param, arg) in funct.arguments.iter().zip(arguments) {
+            let len = if let Some(a) = Memory::deref(ctx, param.0) { ctx.mem[a].len } else { 0 };
+            abi.push(OracleInput {
+                register_mem_index: self.node_2_register(ctx, *arg),
+                length: len as usize,
+            })
+        }
+        // for i in &funct.result_types {
+        //     let len = if let ObjectType::ArrayPointer(a) = i { ctx.mem[*a].len } else { 0 };
+        //     signature.outputs.push(len);
+        // }
+        abi
+    }
 
     fn unsafe_call(
         &mut self,
@@ -498,22 +507,12 @@ impl BrilligGen {
                     for i in returned_values {
                         outputs.push(self.node_2_register(ctx, *i).to_register_index().unwrap());
                     }
-                    let mut inputs = Vec::new();
-                    for i in arguments {
-                        inputs.push(self.node_2_register(ctx, *i));
-                    }
-                    //TODO add the signature: let signature = BrilligGen::get_signature(ctx, ssa_func);
-                    // #[derive(Default)]
-                    // struct OracleSignature {
-                    //     inputs: Vec<u32>,
-                    //     outputs: Vec<u32>,
-                    // }
-
+                    let abi = self.get_oracle_abi(ctx, ssa_func, arguments);
                     self.push_code(brillig_bytecode::Opcode::Oracle(OracleData {
                         name,
-                        inputs,
+                        inputs: abi,
                         input_values: Vec::new(),
-                        output: outputs[0], //TODO: temp
+                        output: outputs[0], //TODO: temp  
                         output_values: Vec::new(),
                     }));
                  
