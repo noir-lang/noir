@@ -13,12 +13,13 @@ fn main(mut x: u32, y: u32, z: u32) {
    // let w = toto(x) as u32;
 
     constrain x == z ;//+w;
-    let _a = unsafe(x);
+   let _a = unsafe(x);
     //let b = rand(x);
     //constrain b == 0;
-    let y= x as Field;
-    let u =unsafe_safe_inverse(y);
-    constrain u*y == 1;
+   let y= unsafe(x) as Field;
+   let u =unsafe_safe_inverse(y);
+   constrain u*y == 1;
+
 
 }
 
