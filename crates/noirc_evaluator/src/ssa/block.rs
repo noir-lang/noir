@@ -528,7 +528,18 @@ pub(super) fn merge_path(
             removed_blocks.push_back(next);
 
             if short_circuit.is_dummy() {
-                instructions.extend(&block.instructions);
+                if instructions.is_empty() {
+                    instructions.extend(&block.instructions);
+                } else {
+                    let nonop = block.instructions.iter().filter(|&i| {
+                        if let Some(ins) = ctx.try_get_instruction(*i) {
+                            ins.operation.opcode() != Opcode::Nop
+                        } else {
+                            true
+                        }
+                    });
+                    instructions.extend(nonop);
+                }
             }
 
             if short_circuit.is_dummy() && block.is_short_circuit(ctx, assumption) {
