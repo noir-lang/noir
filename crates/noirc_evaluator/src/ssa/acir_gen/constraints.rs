@@ -9,7 +9,7 @@ use acvm::{
         circuit::{
             directives::Directive,
             opcodes::{
-                BlackBoxFuncCall, Brillig, FunctionInput, BrilligOutputs, BrilligInputs,
+                BlackBoxFuncCall, Brillig, BrilligInputs, BrilligOutputs, FunctionInput,
                 Opcode as AcirOpcode,
             },
         },

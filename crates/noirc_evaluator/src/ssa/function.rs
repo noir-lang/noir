@@ -5,7 +5,7 @@ use crate::ssa::{
     conditional::{AssumptionId, DecisionTree, TreeBuilder},
     context::SsaContext,
     mem::ArrayId,
-    node::{Node, NodeId, ObjectType, NumericType, Opcode, Operation},
+    node::{Node, NodeId, NumericType, ObjectType, Opcode, Operation},
     ssa_gen::IrGenerator,
     {block, builtin, node, ssa_form},
 };
@@ -79,7 +79,10 @@ impl SsaFunction {
         BrilligGen::ir_to_brillig(ctx, self.entry_block)
     }
 
-    pub(crate) fn compile(&self, ir_gen: &mut IrGenerator) -> Result<(DecisionTree, Vec<BrilligOpcode>), RuntimeError> {
+    pub(crate) fn compile(
+        &self,
+        ir_gen: &mut IrGenerator,
+    ) -> Result<(DecisionTree, Vec<BrilligOpcode>), RuntimeError> {
         let function_cfg = block::bfs(self.entry_block, None, &ir_gen.context);
         block::compute_sub_dom(&mut ir_gen.context, &function_cfg);
         //Optimization
@@ -162,15 +165,15 @@ impl SsaFunction {
     }
 
     pub(crate) fn create_return_values(&self, ctx: &mut SsaContext) -> Vec<NodeId> {
-           let mut returned_values = Vec::new();
-           let types = self.result_types.clone();
-           for (i, typ) in types.iter().enumerate() {
-               let name = format!("ret{i}");
-               let obj = node::Variable::new(*typ, name, None, ctx.current_block);
-               let var = ctx.add_variable(obj, None);
-               returned_values.push(var);
-           }
-           returned_values
+        let mut returned_values = Vec::new();
+        let types = self.result_types.clone();
+        for (i, typ) in types.iter().enumerate() {
+            let name = format!("ret{i}");
+            let obj = node::Variable::new(*typ, name, None, ctx.current_block);
+            let var = ctx.add_variable(obj, None);
+            returned_values.push(var);
+        }
+        returned_values
     }
 }
 
@@ -222,7 +225,7 @@ impl IrGenerator {
         self.context.functions.insert(func_id, func.clone());
 
         let function_body = self.program.take_function_body(func_id);
-        let last_value = self.ssa_gen_expression(&function_body)?;  //on pourrait ici mettre un param pour changer le calls en unsafe_call, mais c'est PAS JOLIE JOLIE...
+        let last_value = self.ssa_gen_expression(&function_body)?; //on pourrait ici mettre un param pour changer le calls en unsafe_call, mais c'est PAS JOLIE JOLIE...
         let return_values = last_value.to_node_ids();
 
         func.result_types.clear();
@@ -281,17 +284,22 @@ impl IrGenerator {
     fn from_type1(&mut self, typ: &Type) -> ObjectType {
         match typ {
             Type::Field => ObjectType::Numeric(NumericType::NativeField),
-            Type::Array(len, elements) => { 
-                let (_ , arrayid) =self.context.new_array(
+            Type::Array(len, elements) => {
+                let (_, arrayid) = self.context.new_array(
                     "todo",
                     ObjectType::Numeric(NumericType::NativeField),
                     *len as u32,
-                    None);
-                ObjectType::ArrayPointer(arrayid) 
-            },
+                    None,
+                );
+                ObjectType::ArrayPointer(arrayid)
+            }
             Type::Integer(sign, size) => match sign {
-                noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
-                noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
+                noirc_frontend::Signedness::Unsigned => {
+                    ObjectType::Numeric(NumericType::Unsigned(*size))
+                }
+                noirc_frontend::Signedness::Signed => {
+                    ObjectType::Numeric(NumericType::Signed(*size))
+                }
             },
             Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),
             Type::String(_) => todo!(),
@@ -525,20 +533,22 @@ pub(super) fn inline_all(ctx: &mut SsaContext) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-
 fn from_type(ctx: &mut SsaContext, typ: &Type) -> ObjectType {
     match typ {
         Type::Field => ObjectType::Numeric(NumericType::NativeField),
-        Type::Array(len, elements) => { 
-            let (_ , arrayid) = ctx.new_array(
+        Type::Array(len, elements) => {
+            let (_, arrayid) = ctx.new_array(
                 "todo",
                 ObjectType::Numeric(NumericType::NativeField),
                 *len as u32,
-                None);
-            ObjectType::ArrayPointer(arrayid) 
-        },
+                None,
+            );
+            ObjectType::ArrayPointer(arrayid)
+        }
         Type::Integer(sign, size) => match sign {
-            noirc_frontend::Signedness::Unsigned => ObjectType::Numeric(NumericType::Unsigned(*size)),
+            noirc_frontend::Signedness::Unsigned => {
+                ObjectType::Numeric(NumericType::Unsigned(*size))
+            }
             noirc_frontend::Signedness::Signed => ObjectType::Numeric(NumericType::Signed(*size)),
         },
         Type::Bool => ObjectType::Numeric(NumericType::Unsigned(1)),

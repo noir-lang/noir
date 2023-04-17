@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::ssa;
 use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::function::RuntimeType;
 use crate::ssa::mem::Memory;
-use crate::ssa::node::{Binary, BinaryOp, Instruction, NodeId, NodeObject, ObjectType, NumericType, Operation};
-use crate::ssa::node::NumericType::Unsigned;
 use crate::ssa::node::NumericType::Signed;
+use crate::ssa::node::NumericType::Unsigned;
+use crate::ssa::node::{
+    Binary, BinaryOp, Instruction, NodeId, NodeObject, NumericType, ObjectType, Operation,
+};
 use acvm::acir::brillig_bytecode;
 use acvm::FieldElement;
-use crate::ssa;
 
 use acvm::acir::brillig_bytecode::{
     Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
@@ -186,8 +188,8 @@ impl BrilligGen {
                 self.binary(ctx, bin, ins.id, ins.res_type);
             }
             Operation::Cast(_) => {
-               todo!()
-            },
+                todo!()
+            }
             Operation::Truncate { value, bit_size, max_bit_size } => unreachable!(), //no overflow pass
             Operation::Not(_) => todo!(),                                            // bitwise not
             Operation::Constrain(a, loc) => {
@@ -215,7 +217,6 @@ impl BrilligGen {
                 // set the function_call_back_register to next_instruction
                 //jump function_call_back_register: NO done by the VM
 
-
                 //let argument_registers = arguments.iter().map(|x| self.node_2_register(ctx, *x)).collect();
             }
             Operation::Return(ret) => {
@@ -241,49 +242,58 @@ impl BrilligGen {
                 assert_eq!(*call_instruction, self.noir_call[0]);
                 self.noir_call.push(ins.id);
                 if let Some(call) = ctx.try_get_instruction(*call_instruction) {
-                    if let Operation::Call{ func, arguments, returned_arrays, predicate, location } = &call.operation {
+                    if let Operation::Call {
+                        func,
+                        arguments,
+                        returned_arrays,
+                        predicate,
+                        location,
+                    } = &call.operation
+                    {
                         if let Some(func_id) = ctx.try_get_func_id(*func) {
                             let ssa_func = ctx.ssa_func(func_id).unwrap();
                             if self.noir_call.len() == ssa_func.result_types.len() + 1 {
                                 let returned_values = &self.noir_call[1..];
-                                self.unsafe_call(ctx, *func, arguments, &returned_values.to_vec(), None);
+                                self.unsafe_call(
+                                    ctx,
+                                    *func,
+                                    arguments,
+                                    &returned_values.to_vec(),
+                                    None,
+                                );
                                 self.noir_call.clear();
                             }
                         }
                     }
                 }
-               
-
-            },
+            }
             Operation::Cond { condition, val_true, val_false } => unreachable!(),
             Operation::Load { array_id, index, location } => {
                 let idx_reg = self.node_2_register(ctx, *index);
-                let array_id_reg = RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
+                let array_id_reg =
+                    RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
                 let ins_reg = self.node_2_register(ctx, ins.id);
                 self.byte_code.push(BrilligOpcode::Load {
                     destination: ins_reg,
                     array_id_reg,
                     index: idx_reg,
                 });
-            },
+            }
             Operation::Store { array_id, index, value, predicate, location } => {
                 let idx_reg = self.node_2_register(ctx, *index);
-                let array_id_reg = RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
+                let array_id_reg =
+                    RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
                 let source = self.node_2_register(ctx, *value);
-                self.byte_code.push(BrilligOpcode::Store {
-                    source,
-                    array_id_reg,
-                    index: idx_reg,
-                });
-            },
+                self.byte_code.push(BrilligOpcode::Store { source, array_id_reg, index: idx_reg });
+            }
             Operation::Intrinsic(op, _) => {
                 //dbg!(&op);
                 todo!();
-            },
+            }
 
-
-
-            Operation::UnsafeCall { func, arguments, returned_values, predicate, location } => self.unsafe_call(ctx, *func, arguments, returned_values, *predicate),
+            Operation::UnsafeCall { func, arguments, returned_values, predicate, location } => {
+                self.unsafe_call(ctx, *func, arguments, returned_values, *predicate)
+            }
             Operation::Nop => (),
         }
     }
@@ -301,7 +311,9 @@ impl BrilligGen {
                 if let Some(array) = Memory::deref(ctx, a) {
                     self.byte_code.push(BrilligOpcode::Mov {
                         destination: reg_node,
-                        source: RegisterMemIndex::Constant(FieldElement::from(array.to_u32() as i128)),
+                        source: RegisterMemIndex::Constant(FieldElement::from(
+                            array.to_u32() as i128
+                        )),
                     });
                 }
                 reg_node
@@ -434,7 +446,14 @@ impl BrilligGen {
         }
     }
 
-    fn unsafe_call(&mut self, ctx: &SsaContext, func: NodeId, arguments: &Vec<NodeId>, returned_values: &Vec<NodeId>, predicate: Option<NodeId>)  {
+    fn unsafe_call(
+        &mut self,
+        ctx: &SsaContext,
+        func: NodeId,
+        arguments: &Vec<NodeId>,
+        returned_values: &Vec<NodeId>,
+        predicate: Option<NodeId>,
+    ) {
         //TODO handle the predicate
         if let Some(func_id) = ctx.try_get_func_id(func) {
             let ssa_func = ctx.ssa_func(func_id).unwrap();
@@ -442,10 +461,8 @@ impl BrilligGen {
                 RuntimeType::Oracle(name) => {
                     let mut outputs = Vec::new();
                     for i in returned_values {
-                        outputs.push(
-                            self.node_2_register(ctx, *i).to_register_index().unwrap(),
-                        );
-                     }
+                        outputs.push(self.node_2_register(ctx, *i).to_register_index().unwrap());
+                    }
                     let mut inputs = Vec::new();
                     for i in arguments {
                         inputs.push(self.node_2_register(ctx, *i));
@@ -454,17 +471,14 @@ impl BrilligGen {
                         name,
                         inputs,
                         input_values: Vec::new(),
-                        output: outputs[0],     //TODO: temp
+                        output: outputs[0], //TODO: temp
                         output_values: Vec::new(),
                     }));
                 }
                 RuntimeType::Unsafe | RuntimeType::Acvm => {
                     // we need to have a place for the functions
-                    let func_adr = if let Some(func_adr) = self.functions.get(&func) {
-                        *func_adr
-                    } else {
-                        0
-                    };
+                    let func_adr =
+                        if let Some(func_adr) = self.functions.get(&func) { *func_adr } else { 0 };
                     //mov inputs to function arguments:
                     for (input, arg) in ssa_func.arguments.iter().zip(arguments) {
                         let arg_reg = self.node_2_register(ctx, *arg);
@@ -476,9 +490,7 @@ impl BrilligGen {
                     }
                     let call_back = FieldElement::from(self.byte_code.len() as i128 + 1);
                     self.byte_code.push(brillig_bytecode::Opcode::Mov {
-                        destination: RegisterMemIndex::Register(RegisterIndex(
-                            CALLBACK_REGISTER,
-                        )),
+                        destination: RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER)),
                         source: RegisterMemIndex::Constant(call_back),
                     });
 
@@ -486,13 +498,11 @@ impl BrilligGen {
                         self.to_fix.push((self.byte_code.len(), ssa_func.entry_block));
                         self.functions_to_process.insert(func);
                     }
-                    self.byte_code
-                        .push(brillig_bytecode::Opcode::JMP { destination: func_adr });
+                    self.byte_code.push(brillig_bytecode::Opcode::JMP { destination: func_adr });
 
                     //result is in register 0
                     if returned_values.len() == 1 {
-                        let first =
-                            self.node_2_register(ctx, *returned_values.first().unwrap());
+                        let first = self.node_2_register(ctx, *returned_values.first().unwrap());
                         self.byte_code.push(brillig_bytecode::Opcode::Mov {
                             destination: first,
                             source: RegisterMemIndex::Register(RegisterIndex(0)),
