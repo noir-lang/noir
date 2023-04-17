@@ -52,7 +52,7 @@ checkout: &checkout
       git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
       # Initialize submodules recursively
-      git submodule update --init --recursive circuits build-system
+      git submodule update --init --recursive
 
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
@@ -62,8 +62,15 @@ setup_env: &setup_env
     name: "Setup environment"
     command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH"
 
+# This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
+save_logs: &save_logs
+  persist_to_workspace:
+    root: /tmp/test-logs
+    paths:
+      - ./*
+
 jobs:
-  wasm-linux-clang:
+  circuits-wasm-linux-clang:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -72,7 +79,76 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build aztec3-circuits-wasm-linux-clang 64
+          command: cond_spot_run_build circuits-wasm-linux-clang 64
+
+  circuits-wasm-linux-clang-assert:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build circuits-wasm-linux-clang-assert 64
+
+  circuits-x86_64-linux-clang:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build circuits-x86_64-linux-clang 64
+
+  circuits-x86_64-linux-clang-assert:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build circuits-x86_64-linux-clang-assert 64
+
+  circuits-wasm-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests circuits-wasm-linux-clang-assert 1 a3-tests USE_WASM_TIME
+      - *save_logs
+
+  circuits-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 a3-tests
+      - *save_logs
+
+  #circuits-<individual>-tests:
+  #  docker:
+  #    - image: aztecprotocol/alpine-build-image
+  #  resource_class: small
+  #  steps:
+  #    - *checkout
+  #    - *setup_env
+  #    - run:
+  #        name: 'Test'
+  #        command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 <individual>_tests
+  #    - *save_logs
 
   yarn-project-base:
     machine:
@@ -113,7 +189,7 @@ jobs:
           name: "Build and test"
           command: build foundation
 
-  aztec-js: 
+  aztec-js:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -211,7 +287,7 @@ jobs:
       - run:
           name: "Build and test"
           command: build archiver
-  
+
   aztec-rpc:
     machine:
       image: ubuntu-2004:202010-01
@@ -319,17 +395,31 @@ e2e_test: &e2e_test
   requires:
     - e2e-join
   <<: *defaults
-
+circuits-wasm-test: &circuits-wasm-test
+  requires:
+    - circuits-wasm-linux-clang-assert
+  <<: *defaults
+circuits-test: &circuits-test
+  requires:
+    - circuits-x86_64-linux-clang-assert
+  <<: *defaults
 workflows:
   system:
     when:
       equal: [system, << pipeline.parameters.workflow >>]
     jobs:
-      - wasm-linux-clang:
-          <<: *defaults
+      - circuits-wasm-linux-clang: *defaults
+      - circuits-wasm-linux-clang-assert: *defaults
+      - circuits-x86_64-linux-clang: *defaults
+      - circuits-x86_64-linux-clang-assert: *defaults
+      - circuits-wasm-tests:
+          <<: *circuits-wasm-test
+      - circuits-tests:
+          <<: *circuits-test
+      #- aztec3-circuit-<individual>-tests: *circuits-test
       - yarn-project-base:
           requires:
-            - wasm-linux-clang
+            - circuits-wasm-linux-clang
           <<: *defaults
 
       - ethereum-js: *yarn_project
@@ -356,7 +446,6 @@ workflows:
             - noir-contracts
             - foundation
           <<: *defaults
-      
       - e2e-deploy-contract: *e2e_test
       - e2e-zk-token-contract: *e2e_test
       - e2e-block-building: *e2e_test
