@@ -237,6 +237,34 @@ pub(crate) fn evaluate(
                 output_values: vec![],
             }));
         }
+        Opcode::StorageRead => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "storageRead".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
+        Opcode::StorageWrite => {
+            outputs = vec![evaluator.add_witness_to_cs()];
+            let inputs = vecmap(prepare_inputs(acir_gen, args, ctx, evaluator), |input| {
+                input.witness.into()
+            });
+
+            evaluator.push_opcode(AcirOpcode::Oracle(OracleData {
+                name: "storageWrite".into(),
+                inputs,
+                input_values: vec![],
+                outputs: outputs.clone(),
+                output_values: vec![],
+            }));
+        }
     }
 
     // If more than witness is returned,

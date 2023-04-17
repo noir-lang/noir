@@ -26,6 +26,8 @@ pub(crate) enum Opcode {
     Get2Notes,
     GetNNotes,
     CallPrivateFunction,
+    StorageRead,
+    StorageWrite
 }
 
 impl std::fmt::Display for Opcode {
@@ -55,6 +57,8 @@ impl Opcode {
             "notifyNullifiedNote" => Some(Opcode::NotifyNullifiedNote),
             "getNotes2" => Some(Opcode::GetNotes2),
             "callPrivateFunction" => Some(Opcode::CallPrivateFunction),
+            "storageRead" => Some(Opcode::StorageRead),
+            "storageWrite" => Some(Opcode::StorageWrite),
             "println" => {
                 Some(Opcode::Println(PrintlnInfo { is_string_output: false, show_output: true }))
             }
@@ -90,6 +94,8 @@ impl Opcode {
             Opcode::NotifyNullifiedNote => "notifyNullifiedNote",
             Opcode::GetNotes2 => "getNotes2",
             Opcode::CallPrivateFunction => "callPrivateFunction",
+            Opcode::StorageRead => "storageRead",
+            Opcode::StorageWrite => "storageWrite",
         }
     }
 
@@ -123,6 +129,8 @@ impl Opcode {
             Opcode::NotifyNullifiedNote => ObjectType::NativeField.max_size(),
             Opcode::GetNotes2 => ObjectType::NativeField.max_size(),
             Opcode::CallPrivateFunction => ObjectType::NativeField.max_size(),
+            Opcode::StorageRead => ObjectType::NativeField.max_size(),
+            Opcode::StorageWrite => ObjectType::NativeField.max_size(),
             Opcode::NotifyCreatedNote
             | Opcode::Get2Notes
             | Opcode::GetNNotes
@@ -171,6 +179,8 @@ impl Opcode {
             Opcode::GetNotes2 => (32, ObjectType::NativeField),
             Opcode::Get2Notes => (32, ObjectType::NativeField),
             Opcode::GetNNotes => (13 * 1024, ObjectType::NativeField),
+            Opcode::StorageRead => (1, ObjectType::NativeField),
+            Opcode::StorageWrite => (1, ObjectType::NativeField),
         }
     }
 }
