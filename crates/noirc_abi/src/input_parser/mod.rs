@@ -49,9 +49,12 @@ impl InputValue {
                 if map.len() != fields.len() {
                     return false;
                 }
+
+                let field_types = fields.iter().cloned().collect::<BTreeMap<_, _>>();
+
                 // Check that all of the struct's fields' values match the ABI as well.
                 map.iter().all(|(field_name, field_value)| {
-                    if let Some(field_type) = fields.get(field_name) {
+                    if let Some(field_type) = field_types.get(field_name) {
                         field_value.matches_abi(field_type)
                     } else {
                         false

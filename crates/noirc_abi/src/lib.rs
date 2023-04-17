@@ -59,7 +59,7 @@ pub enum AbiType {
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
         )]
-        fields: BTreeMap<String, AbiType>,
+        fields: Vec<(String, AbiType)>,
     },
     String {
         length: u64,

@@ -124,7 +124,7 @@ impl IrGenerator {
         &mut self,
         struct_name: &str,
         ident_def: Option<Definition>,
-        fields: &BTreeMap<String, noirc_abi::AbiType>,
+        fields: &[(String, noirc_abi::AbiType)],
         witnesses: &BTreeMap<String, Vec<Witness>>,
     ) -> Value {
         let values = vecmap(fields, |(name, field_typ)| {

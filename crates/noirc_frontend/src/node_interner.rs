@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
 use acvm::acir::circuit::Opcode;
@@ -305,7 +305,7 @@ impl NodeInterner {
                 type_id,
                 typ.struct_def.name.clone(),
                 typ.struct_def.span,
-                BTreeMap::new(),
+                Vec::new(),
                 vecmap(&typ.struct_def.generics, |_| {
                     // Temporary type variable ids before the struct is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types
