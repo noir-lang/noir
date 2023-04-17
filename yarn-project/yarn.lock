@@ -72,7 +72,7 @@ __metadata:
     tsc-watch: ^6.0.0
     tslib: ^2.5.0
     typescript: ^5.0.4
-    viem: ^0.2.4
+    viem: ^0.3.1
     ws: ^8.13.0
   languageName: unknown
   linkType: soft
@@ -7757,9 +7757,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^0.2.4":
-  version: 0.2.14
-  resolution: "viem@npm:0.2.14"
+"viem@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "viem@npm:0.3.1"
   dependencies:
     "@adraffy/ens-normalize": 1.9.0
     "@noble/curves": 0.9.0
@@ -7770,7 +7770,7 @@ __metadata:
     abitype: 0.7.1
     isomorphic-ws: 5.0.0
     ws: 8.12.0
-  checksum: 429946a7a7f94662ae4eefe2cfc77e8d62e15dbf863ff24bbba6bc62af233e3ab80a97d6e0cc18cafc4fde4e3a1ec16b137a315ee0482fa1e485e1f5c81eab94
+  checksum: fb4a1aeb568221b8e12b912ea8a1dc7361ba87215054e0a903152e7de1f98bbfa5c0931e2f64d2dd140b6c092aeba074159ac8e95eefa77dccaf4d53f3ac442e
   languageName: node
   linkType: hard
 

@@ -1,18 +1,34 @@
-import { AztecAddress, EthAddress, createDebugLogger } from '@aztec/foundation';
+import { AztecAddress, EthAddress, RunningPromise, createDebugLogger } from '@aztec/foundation';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
 import { RollupAbi, UnverifiedDataEmitterAbi } from '@aztec/l1-contracts/viem';
-import { ContractData, L2Block, L2BlockSource } from '@aztec/types';
-import { createPublicClient, decodeFunctionData, getAddress, Hex, hexToBytes, http, Log, PublicClient } from 'viem';
+import { ContractData, L2Block, L2BlockSource, UnverifiedData, UnverifiedDataSource } from '@aztec/types';
+import {
+  Chain,
+  Hex,
+  HttpTransport,
+  Log,
+  PublicClient,
+  createPublicClient,
+  decodeFunctionData,
+  getAbiItem,
+  getAddress,
+  hexToBytes,
+  http,
+} from 'viem';
 import { localhost } from 'viem/chains';
 import { ArchiverConfig } from './config.js';
-import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
-import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.
- * Responsible for handling robust L1 polling (TODO) so that other components do not
- * need to concern themselves with it.
+ * Responsible for handling robust L1 polling so that other components do not need to
+ * concern themselves with it.
  */
 export class Archiver implements L2BlockSource, UnverifiedDataSource {
+  /**
+   * A promise in which we will be continually fetching new L2 blocks.
+   */
+  private runningPromise?: RunningPromise;
+
   /**
    * An array containing all the L2 blocks that have been fetched so far.
    */
@@ -24,31 +40,39 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    */
   private unverifiedData: UnverifiedData[] = [];
 
-  private unwatchBlocks: (() => void) | undefined;
-  private unwatchUnverifiedData: (() => void) | undefined;
+  /**
+   * Next L1 block number to fetch `L2BlockProcessed` logs from (i.e. `fromBlock` in eth_getLogs).
+   */
+  private nextL2BlockFromBlock = 0n;
+
+  /**
+   * Next L1 block number to fetch `UnverifiedData` logs from (i.e. `fromBlock` in eth_getLogs)
+   */
+  private nextUnverifiedDataFromBlock = 0n;
 
   /**
    * Creates a new instance of the Archiver.
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
    * @param unverifiedDataEmitterAddress - Ethereum address of the unverifiedDataEmitter contract.
-   * @param pollingInterval - The interval for polling for rollup events.
+   * @param pollingInterval - The interval for polling for rollup logs.
    * @param log - A logger.
    */
   constructor(
-    private readonly publicClient: PublicClient,
+    private readonly publicClient: PublicClient<HttpTransport, Chain>,
     private readonly rollupAddress: EthAddress,
     private readonly unverifiedDataEmitterAddress: EthAddress,
-    private readonly pollingInterval = 10_000,
+    private readonly pollingIntervalMs = 10_000,
     private readonly log = createDebugLogger('aztec:archiver'),
   ) {}
 
   /**
    * Creates a new instance of the Archiver and blocks until it syncs from chain.
    * @param config - The archiver's desired configuration.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
    * @returns - An instance of the archiver.
    */
-  public static async createAndSync(config: ArchiverConfig) {
+  public static async createAndSync(config: ArchiverConfig, blockUntilSynced = true): Promise<Archiver> {
     const publicClient = createPublicClient({
       chain: localhost,
       transport: http(config.rpcUrl),
@@ -59,73 +83,120 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       config.unverifiedDataEmitterContract,
       config.archiverPollingInterval,
     );
-    await archiver.start();
+    await archiver.start(blockUntilSynced);
     return archiver;
   }
 
   /**
    * Starts sync process.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
    */
-  public async start() {
-    this.log('Starting initial sync...');
-    await this.runInitialSync();
-    this.log('Initial sync finished.');
-    // TODO: Any logs emitted between the initial sync and the start watching will be lost
-    // We should start watching before we start the initial sync
-    this.startWatchingEvents();
-    this.log('Watching for new data...');
+  public async start(blockUntilSynced: boolean): Promise<void> {
+    if (this.runningPromise) {
+      throw new Error('Archiver is already running');
+    }
+
+    if (blockUntilSynced) {
+      await this.sync(blockUntilSynced);
+    }
+
+    this.runningPromise = new RunningPromise(() => this.sync(false), this.pollingIntervalMs);
+    this.runningPromise.start();
   }
 
   /**
-   * Fetches all the L2BlockProcessed and UnverifiedData events since genesis and processes them.
+   * Fetches `L2BlockProcessed` and `UnverifiedData` logs from `nextL2BlockFromBlock` and
+   * `nextUnverifiedDataFromBlock` and processes them.
+   * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
    */
-  private async runInitialSync() {
-    const blockFilter = await this.publicClient.createContractEventFilter({
-      address: getAddress(this.rollupAddress.toString()),
-      fromBlock: 0n,
+  private async sync(blockUntilSynced: boolean) {
+    const currentBlockNumber = await this.publicClient.getBlockNumber();
+
+    await this.syncBlocks(blockUntilSynced, currentBlockNumber);
+    await this.syncUnverifiedData(blockUntilSynced, currentBlockNumber);
+  }
+
+  private async syncBlocks(blockUntilSynced: boolean, currentBlockNumber: bigint) {
+    do {
+      if (this.nextL2BlockFromBlock > currentBlockNumber) {
+        break;
+      }
+
+      this.log(`Synching L2BlockProcessed logs from block ${this.nextL2BlockFromBlock}`);
+      const l2BlockProcessedLogs = await this.getL2BlockProcessedLogs(this.nextL2BlockFromBlock);
+
+      if (l2BlockProcessedLogs.length === 0) {
+        break;
+      }
+
+      await this.processBlockLogs(l2BlockProcessedLogs);
+
+      // Setting `nextL2BlockFromBlock` to the block number of the last log + 1 because last log's block is the only
+      // block we can be sure was synced to by the ETH node.
+      this.nextL2BlockFromBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
+    } while (blockUntilSynced && this.nextL2BlockFromBlock <= currentBlockNumber);
+  }
+
+  private async syncUnverifiedData(blockUntilSynced: boolean, currentBlockNumber: bigint) {
+    do {
+      if (this.nextUnverifiedDataFromBlock > currentBlockNumber) {
+        break;
+      }
+
+      this.log(`Synching UnverifiedData logs from block ${this.nextUnverifiedDataFromBlock}`);
+      const unverifiedDataLogs = await this.getUnverifiedDataLogs(this.nextUnverifiedDataFromBlock);
+
+      if (unverifiedDataLogs.length === 0) {
+        break;
+      }
+
+      this.processUnverifiedDataLogs(unverifiedDataLogs);
+
+      this.nextUnverifiedDataFromBlock = unverifiedDataLogs[unverifiedDataLogs.length - 1].blockNumber + 1n;
+    } while (blockUntilSynced && this.nextUnverifiedDataFromBlock <= currentBlockNumber);
+  }
+
+  /**
+   * Gets relevant `L2BlockProcessed` logs from chain.
+   * @param fromBlock - First block to get logs from (inclusive).
+   * @returns An array of `L2BlockProcessed` logs.
+   */
+  private async getL2BlockProcessedLogs(fromBlock: bigint) {
+    // Note: For some reason the return type of `getLogs` would not get correctly derived if I didn't set the abiItem
+    //       as a standalone constant.
+    const abiItem = getAbiItem({
       abi: RollupAbi,
-      eventName: 'L2BlockProcessed',
+      name: 'L2BlockProcessed',
     });
-
-    const unverifieddataFilter = await this.publicClient.createContractEventFilter({
-      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
-      abi: UnverifiedDataEmitterAbi,
-      eventName: 'UnverifiedData',
-      fromBlock: 0n,
-    });
-
-    const l2BlockProcessedLogs = await this.publicClient.getFilterLogs({ filter: blockFilter });
-    const unverifiedDataLogs = await this.publicClient.getFilterLogs({ filter: unverifieddataFilter });
-
-    await this.processBlockLogs(l2BlockProcessedLogs);
-    this.processUnverifiedDataLogs(unverifiedDataLogs);
-  }
-
-  /**
-   * Starts a polling loop in the background which watches for new events and passes them to the respective handlers.
-   * TODO: Handle reorgs, consider using github.com/ethereumjs/ethereumjs-blockstream.
-   */
-  private startWatchingEvents() {
-    this.unwatchBlocks = this.publicClient.watchContractEvent({
+    return await this.publicClient.getLogs({
       address: getAddress(this.rollupAddress.toString()),
-      abi: RollupAbi,
-      eventName: 'L2BlockProcessed',
-      onLogs: logs => this.processBlockLogs(logs),
-      pollingInterval: this.pollingInterval,
-    });
-
-    this.unwatchUnverifiedData = this.publicClient.watchContractEvent({
-      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
-      abi: UnverifiedDataEmitterAbi,
-      eventName: 'UnverifiedData',
-      onLogs: logs => this.processUnverifiedDataLogs(logs),
-      pollingInterval: this.pollingInterval,
+      event: abiItem,
+      fromBlock,
     });
   }
 
   /**
-   * Processes newly received L2BlockProcessed events.
-   * @param logs - L2BlockProcessed event logs.
+   * Gets relevant `UnverifiedData` logs from chain.
+   * @param fromBlock - First block to get logs from (inclusive).
+   * @returns An array of `UnverifiedData` logs.
+   */
+  private async getUnverifiedDataLogs(fromBlock: bigint): Promise<any[]> {
+    // Note: For some reason the return type of `getLogs` would not get correctly derived if I didn't set the abiItem
+    //       as a standalone constant.
+    const abiItem = getAbiItem({
+      abi: UnverifiedDataEmitterAbi,
+      name: 'UnverifiedData',
+    });
+    return await this.publicClient.getLogs({
+      address: getAddress(this.unverifiedDataEmitterAddress.toString()),
+      event: abiItem,
+      fromBlock,
+    });
+  }
+
+  /**
+   * Processes newly received L2BlockProcessed logs.
+   * @param logs - L2BlockProcessed logs.
    */
   private async processBlockLogs(logs: Log<bigint, number, undefined, typeof RollupAbi, 'L2BlockProcessed'>[]) {
     for (const log of logs) {
@@ -141,14 +212,14 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
       }
       // TODO: Fetch blocks from calldata in parallel
       const newBlock = await this.getBlockFromCallData(log.transactionHash!, log.args.blockNum);
-      this.log(`Retrieved block ${newBlock.number} from chain`);
       this.l2Blocks.push(newBlock);
+      this.log(`Processed block ${newBlock.number}.`);
     }
   }
 
   /**
-   * Processes newly received UnverifiedData events.
-   * @param logs - UnverifiedData event logs.
+   * Processes newly received UnverifiedData logs.
+   * @param logs - UnverifiedData logs.
    */
   private processUnverifiedDataLogs(
     logs: Log<bigint, number, undefined, typeof UnverifiedDataEmitterAbi, 'UnverifiedData'>[],
@@ -199,14 +270,9 @@ export class Archiver implements L2BlockSource, UnverifiedDataSource {
    * Stops the archiver.
    * @returns A promise signalling completion of the stop process.
    */
-  public stop(): Promise<void> {
+  public async stop(): Promise<void> {
     this.log('Stopping...');
-    if (this.unwatchBlocks === undefined || this.unwatchUnverifiedData === undefined) {
-      throw new Error('Archiver is not running.');
-    }
-
-    this.unwatchBlocks();
-    this.unwatchUnverifiedData();
+    await this.runningPromise?.stop();
 
     this.log('Stopped.');
     return Promise.resolve();

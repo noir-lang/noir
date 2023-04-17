@@ -20,9 +20,10 @@ export interface UnverifiedDataSource {
 
   /**
    * Starts the unverified data source.
+   * @param blockUntilSynced - If true, blocks until the data source has fully synced.
    * @returns A promise signalling completion of the start process.
    */
-  start(): Promise<void>;
+  start(blockUntilSynced: boolean): Promise<void>;
 
   /**
    * Stops the unverified data source.

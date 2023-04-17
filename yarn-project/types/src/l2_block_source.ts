@@ -30,9 +30,10 @@ export interface L2BlockSource {
 
   /**
    * Starts the L2 block source.
+   * @param blockUntilSynced - If true, blocks until the data source has fully synced.
    * @returns A promise signalling completion of the start process.
    */
-  start(): Promise<void>;
+  start(blockUntilSynced: boolean): Promise<void>;
 
   /**
    * Stops the L2 block source.
