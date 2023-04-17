@@ -44,6 +44,4 @@ A curated list of Noir resources.
 
 The main repository of Noir development.
 
-### [👾 Discord](https://discord.gg/aztec)
-
-Join the forum channel [`#🖤│noir`](https://discord.com/channels/563037431604183070/1032602753148661780) for discussions.
+### [✍️ Discourse](https://discourse.aztec.network)
