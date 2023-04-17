@@ -875,14 +875,14 @@ impl DecisionTree {
                         && left_arrays.is_empty()
                         && right_arrays.is_empty() =>
                     {
-                        candidates.push(Segment::new(left_node, right_node))
+                        candidates.push(Segment::new(left_node, right_node));
                     }
 
                     (
                         Operation::Store { array_id: left_array, index: left_index, .. },
                         Operation::Store { array_id: right_array, index: right_index, .. },
                     ) if left_array == right_array && left_index == right_index => {
-                        candidates.push(Segment::new(left_node, right_node))
+                        candidates.push(Segment::new(left_node, right_node));
                     }
                     _ => (),
                 }

@@ -37,7 +37,7 @@ pub fn collect_defs(
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        collector.parse_module_declaration(context, &decl, crate_id, errors)
+        collector.parse_module_declaration(context, &decl, crate_id, errors);
     }
 
     collector.collect_submodules(context, crate_id, ast.submodules, file_id, errors);

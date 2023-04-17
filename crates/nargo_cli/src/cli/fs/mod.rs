@@ -7,7 +7,6 @@ use std::{
 use crate::errors::CliError;
 
 pub(super) mod inputs;
-pub(super) mod keys;
 pub(super) mod program;
 pub(super) mod proof;
 pub(super) mod witness;

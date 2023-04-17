@@ -1243,7 +1243,7 @@ impl Operation {
             Cond { condition, val_true: lhs, val_false: rhs } => {
                 *condition = f(*condition);
                 *lhs = f(*lhs);
-                *rhs = f(*rhs)
+                *rhs = f(*rhs);
             }
             Load { index, .. } => *index = f(*index),
             Store { index, value, predicate, .. } => {
@@ -1309,7 +1309,7 @@ impl Operation {
             Nop => (),
             Call { func, arguments, .. } => {
                 f(*func);
-                arguments.iter().copied().for_each(f)
+                arguments.iter().copied().for_each(f);
             }
             UnsafeCall { func, arguments, .. } => {
                 f(*func);

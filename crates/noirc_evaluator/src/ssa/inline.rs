@@ -241,7 +241,7 @@ fn inline(
             decision,
         )?;
         if result && nested_call {
-            result = false
+            result = false;
         }
     }
     Ok(result)

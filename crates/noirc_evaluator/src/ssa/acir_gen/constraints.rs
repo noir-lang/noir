@@ -365,7 +365,7 @@ pub(crate) fn bound_constraint_with_offset(
                 0 => evaluator.push_opcode(AcirOpcode::Arithmetic(aof)),
                 1 => {
                     let expr = boolean_expr(&aof, evaluator);
-                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr))
+                    evaluator.push_opcode(AcirOpcode::Arithmetic(expr));
                 }
                 2 => {
                     let y = expression_to_witness(boolean_expr(&aof, evaluator), evaluator);

@@ -263,7 +263,7 @@ impl ParsedModule {
     }
 
     fn push_global(&mut self, global: LetStatement) {
-        self.globals.push(global)
+        self.globals.push(global);
     }
 }
 

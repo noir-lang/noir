@@ -320,7 +320,7 @@ impl NodeInterner {
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
-        f(&mut value)
+        f(&mut value);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`

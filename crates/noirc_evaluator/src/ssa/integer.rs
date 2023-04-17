@@ -319,7 +319,7 @@ fn block_overflow(
                 if let Some(r_const) = ctx.get_as_constant(rhs) {
                     let r_type = ctx[rhs].get_type();
                     if r_const.to_u128() > r_type.bits() as u128 {
-                        ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type))
+                        ins.mark = Mark::ReplaceWith(ctx.zero_with_type(ins.res_type));
                     } else {
                         let rhs = ctx
                             .get_or_create_const(FieldElement::from(2_i128).pow(&r_const), r_type);
