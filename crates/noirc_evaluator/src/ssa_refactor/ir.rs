@@ -1,4 +1,3 @@
-pub(crate) mod builder;
 pub(crate) mod extfunc;
 mod function;
 pub(crate) mod instruction;
