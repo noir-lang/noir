@@ -1,3 +1,5 @@
+use acvm::acir::native_types::Expression;
+
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
@@ -46,7 +48,8 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.return_values.insert(witness);
+            let dedup_witness = evaluator.create_intermediate_variable(Expression::from(witness));
+            evaluator.return_values.insert(dedup_witness);
         }
     }
 
