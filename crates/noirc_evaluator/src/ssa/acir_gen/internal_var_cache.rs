@@ -124,8 +124,6 @@ impl InternalVarCache {
             let w = evaluator.create_intermediate_variable(Expression::from(value));
             for &id in ids {
                 let mut cached_var = self.get_or_compute_internal_var_unwrap(id, evaluator, ctx);
-                // //TODO this assert should be re-enabled!!  assert!(cached_var.cached_witness().is_none());
-                // cached_var.set_witness(w);
                 if let Some(cached_witness) = cached_var.cached_witness() {
                     assert_eq!(*cached_witness, w);
                 } else {
