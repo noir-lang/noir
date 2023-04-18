@@ -25,7 +25,5 @@
       "path": "../noir-contracts"
     }
   ],
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

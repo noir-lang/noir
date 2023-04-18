@@ -1,6 +1,7 @@
 #include "c_bind.h"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
+#include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "tx_request.hpp"
@@ -445,5 +446,12 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_public_inp
 {
     return as_string_output<aztec3::circuits::abis::private_kernel::PublicInputs<NT>>(input, size);
 }
+
+
+WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(uint8_t const* function_leaf_preimage_buf, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::FunctionLeafPreimage<NT>>(function_leaf_preimage_buf, size);
+}
+
 
 } // extern "C"

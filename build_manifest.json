@@ -39,6 +39,7 @@
     "buildDir": "yarn-project",
     "dockerfile": "yarn-project-base/Dockerfile",
     "rebuildPatterns": [
+      "^circuits/",
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
