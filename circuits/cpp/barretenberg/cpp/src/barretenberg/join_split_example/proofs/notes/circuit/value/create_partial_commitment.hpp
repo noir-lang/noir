@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/stdlib/types/types.hpp"
-#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 #include "../../constants.hpp"
 
 namespace join_split_example {
@@ -8,8 +8,6 @@ namespace proofs {
 namespace notes {
 namespace circuit {
 namespace value {
-
-using namespace proof_system::plonk::stdlib::types;
 
 inline auto create_partial_commitment(field_ct const& secret,
                                       point_ct const& owner,

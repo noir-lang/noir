@@ -1,5 +1,4 @@
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/flavor/flavor.hpp"
 #include "prover.hpp"

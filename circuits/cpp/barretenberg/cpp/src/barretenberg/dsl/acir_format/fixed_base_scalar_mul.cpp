@@ -1,7 +1,5 @@
 #include "fixed_base_scalar_mul.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
 
 void create_fixed_base_constraint(Composer& composer, const FixedBaseScalarMul& input)

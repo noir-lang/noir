@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 
@@ -13,7 +13,7 @@ struct PedersenConstraint {
     friend bool operator==(PedersenConstraint const& lhs, PedersenConstraint const& rhs) = default;
 };
 
-void create_pedersen_constraint(plonk::stdlib::types::Composer& composer, const PedersenConstraint& input);
+void create_pedersen_constraint(Composer& composer, const PedersenConstraint& input);
 
 template <typename B> inline void read(B& buf, PedersenConstraint& constraint)
 {

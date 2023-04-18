@@ -1,14 +1,13 @@
 #pragma once
 #include "join_split_tx.hpp"
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
 using namespace proof_system::plonk::stdlib::merkle_tree;
-using namespace proof_system::plonk::stdlib::types;
 
 void init_proving_key(std::shared_ptr<proof_system::ReferenceStringFactory> const& crs_factory, bool mock);
 
@@ -22,7 +21,7 @@ void init_verification_key(std::unique_ptr<proof_system::ReferenceStringFactory>
 void init_verification_key(std::shared_ptr<proof_system::VerifierMemReferenceString> const& crs,
                            plonk::verification_key_data&& vk_data);
 
-stdlib::types::Prover new_join_split_prover(join_split_tx const& tx, bool mock);
+Prover new_join_split_prover(join_split_tx const& tx, bool mock);
 
 bool verify_proof(plonk::proof const& proof);
 

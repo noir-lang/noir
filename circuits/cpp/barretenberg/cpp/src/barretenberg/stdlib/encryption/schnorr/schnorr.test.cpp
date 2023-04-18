@@ -1,14 +1,27 @@
 #include "schnorr.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/bool/bool.hpp"
+#include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/stdlib/primitives/point/point.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/stdlib/types/types.hpp"
 
-namespace test_stdlib_schnorr {
+namespace proof_system::test_stdlib_schnorr {
 
 using namespace barretenberg;
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::schnorr;
+
+using Composer = plonk::UltraComposer;
+using Prover = plonk::UltraProver;
+using Verifier = plonk::UltraVerifier;
+using bool_ct = bool_t<Composer>;
+using byte_array_ct = byte_array<Composer>;
+using field_ct = field_t<Composer>;
+using point_ct = point<Composer>;
+using witness_ct = witness_t<Composer>;
 
 auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
     Composer composer = Composer();
@@ -33,10 +46,10 @@ auto run_scalar_mul_test = [](grumpkin::fr scalar_mont, bool expect_verify) {
         EXPECT_EQ(output.y.get_value(), expected.y);
     };
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
 
     info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -152,10 +165,10 @@ TEST(stdlib_schnorr, convert_field_into_wnaf)
     field_ct input(&composer, scalar);
     convert_field_into_wnaf(&composer, input);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
 
     info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -204,13 +217,13 @@ TEST(stdlib_schnorr, verify_signature)
         EXPECT_EQ(first_result, true);
 
         point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
-        stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+        signature_bits sig = convert_signature(&composer, signature);
         byte_array_ct message(&composer, message_string);
-        stdlib::schnorr::verify_signature(message, pub_key, sig);
+        verify_signature(message, pub_key, sig);
 
-        auto prover = composer.create_ultra_with_keccak_prover();
+        auto prover = composer.create_prover();
         info("composer gates = %zu\n", composer.get_num_gates());
-        auto verifier = composer.create_ultra_with_keccak_verifier();
+        auto verifier = composer.create_verifier();
         plonk::proof proof = prover.construct_proof();
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, true);
@@ -248,14 +261,14 @@ TEST(stdlib_schnorr, verify_signature_failure)
 
     // check stdlib verification with account 2 public key fails
     point_ct pub_key2_ct{ witness_ct(&composer, account2.public_key.x), witness_ct(&composer, account2.public_key.y) };
-    stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+    signature_bits sig = convert_signature(&composer, signature);
     byte_array_ct message(&composer, message_string);
-    stdlib::schnorr::verify_signature(message, pub_key2_ct, sig);
+    verify_signature(message, pub_key2_ct, sig);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
 
     info("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_verifier();
 
     plonk::proof proof = prover.construct_proof();
 
@@ -286,14 +299,14 @@ TEST(stdlib_schnorr, signature_verification_result)
     EXPECT_EQ(first_result, true);
 
     point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
-    stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+    signature_bits sig = convert_signature(&composer, signature);
     byte_array_ct message(&composer, longer_string);
-    bool_ct signature_result = stdlib::schnorr::signature_verification_result(message, pub_key, sig);
+    bool_ct signature_result = signature_verification_result(message, pub_key, sig);
     EXPECT_EQ(signature_result.witness_bool, true);
 
-    plonk::stdlib::types::Prover prover = composer.create_ultra_with_keccak_prover();
+    Prover prover = composer.create_prover();
     info("composer gates = %zu\n", composer.get_num_gates());
-    plonk::stdlib::types::Verifier verifier = composer.create_ultra_with_keccak_verifier();
+    Verifier verifier = composer.create_verifier();
     plonk::proof proof = prover.construct_proof();
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
@@ -330,17 +343,17 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
 
     // check stdlib verification with account 2 public key fails
     point_ct pub_key2_ct{ witness_ct(&composer, account2.public_key.x), witness_ct(&composer, account2.public_key.y) };
-    stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
+    signature_bits sig = convert_signature(&composer, signature);
     byte_array_ct message(&composer, message_string);
-    bool_ct signature_result = stdlib::schnorr::signature_verification_result(message, pub_key2_ct, sig);
+    bool_ct signature_result = signature_verification_result(message, pub_key2_ct, sig);
     EXPECT_EQ(signature_result.witness_bool, false);
 
-    plonk::stdlib::types::Prover prover = composer.create_ultra_with_keccak_prover();
+    Prover prover = composer.create_prover();
     info("composer gates = %zu\n", composer.get_num_gates());
-    plonk::stdlib::types::Verifier verifier = composer.create_ultra_with_keccak_verifier();
+    Verifier verifier = composer.create_verifier();
     plonk::proof proof = prover.construct_proof();
     bool verification_result = verifier.verify_proof(proof);
     EXPECT_EQ(verification_result, true);
 }
 
-} // namespace test_stdlib_schnorr
+} // namespace proof_system::test_stdlib_schnorr

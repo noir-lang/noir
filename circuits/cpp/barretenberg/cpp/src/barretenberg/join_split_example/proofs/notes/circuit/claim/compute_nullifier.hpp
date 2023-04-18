@@ -1,5 +1,6 @@
 #pragma once
-#include "barretenberg/stdlib/types/types.hpp"
+
+#include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "../../constants.hpp"
 
@@ -8,8 +9,6 @@ namespace proofs {
 namespace notes {
 namespace circuit {
 namespace claim {
-
-using namespace proof_system::plonk::stdlib::types;
 
 inline field_ct compute_nullifier(field_ct const& note_commitment)
 {

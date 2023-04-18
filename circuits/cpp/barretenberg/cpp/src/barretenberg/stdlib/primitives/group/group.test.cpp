@@ -1,8 +1,13 @@
-#include "../../types/types.hpp"
 #include <gtest/gtest.h>
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/composer/standard_honk_composer.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/group/group.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+
 #define STDLIB_TYPE_ALIASES                                                                                            \
     using Composer = TypeParam;                                                                                        \
     using witness_ct = stdlib::witness_t<Composer>;                                                                    \

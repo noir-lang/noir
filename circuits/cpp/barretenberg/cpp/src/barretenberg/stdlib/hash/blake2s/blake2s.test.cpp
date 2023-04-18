@@ -1,21 +1,27 @@
 #include "blake2s.hpp"
 #include "blake2s_plookup.hpp"
-#include "barretenberg/crypto/blake2s/blake2s.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/crypto/blake2s/blake2s.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk;
 
-using namespace proof_system::plonk::stdlib::types;
-typedef stdlib::byte_array<Composer> byte_array;
-typedef stdlib::byte_array<plonk::UltraComposer> byte_array_plookup;
-typedef stdlib::public_witness_t<Composer> public_witness_t;
-typedef stdlib::public_witness_t<plonk::UltraComposer> public_witness_t_plookup;
+using namespace plonk::stdlib;
+
+using Composer = plonk::UltraComposer;
+using Prover = plonk::UltraProver;
+using Verifier = plonk::UltraVerifier;
+
+using field_ct = field_t<Composer>;
+using witness_ct = witness_t<Composer>;
+using byte_array_ct = stdlib::byte_array<Composer>;
+using byte_array_plookup = stdlib::byte_array<Composer>;
+using public_witness_t = stdlib::public_witness_t<Composer>;
+using public_witness_t_plookup = stdlib::public_witness_t<Composer>;
 
 TEST(stdlib_blake2s, test_single_block)
 {
-    Composer composer = Composer();
+    auto composer = Composer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
@@ -26,10 +32,10 @@ TEST(stdlib_blake2s, test_single_block)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -50,10 +56,10 @@ TEST(stdlib_blake2s, test_single_block_plookup)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
     std::cout << "prover gates = " << prover.circuit_size << std::endl;
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -63,7 +69,7 @@ TEST(stdlib_blake2s, test_single_block_plookup)
 
 TEST(stdlib_blake2s, test_double_block)
 {
-    Composer composer = Composer();
+    auto composer = Composer();
     std::string input = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789";
     std::vector<uint8_t> input_v(input.begin(), input.end());
 
@@ -74,10 +80,10 @@ TEST(stdlib_blake2s, test_double_block)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
 
     auto proof = prover.construct_proof();
 
@@ -98,10 +104,10 @@ TEST(stdlib_blake2s, test_double_block_plookup)
 
     EXPECT_EQ(output.get_value(), expected);
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
     std::cout << "prover gates = " << prover.circuit_size << std::endl;
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    info("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
 
     auto proof = prover.construct_proof();
 

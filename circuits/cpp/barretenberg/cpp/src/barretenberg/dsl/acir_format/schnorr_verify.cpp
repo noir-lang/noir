@@ -1,9 +1,10 @@
 #include "schnorr_verify.hpp"
+#include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
+
+using namespace proof_system::plonk::stdlib;
 
 crypto::schnorr::signature convert_signature(Composer& composer, std::vector<uint32_t> signature)
 {
@@ -82,9 +83,9 @@ void create_schnorr_verify_constraints(Composer& composer, const SchnorrConstrai
 
     point_ct pub_key{ witness_ct(&composer, pubkey_value_x), witness_ct(&composer, pubkey_value_y) };
 
-    schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, new_sig);
+    schnorr_signature_bits_ct sig = schnorr::convert_signature(&composer, new_sig);
 
-    bool_ct signature_result = stdlib::schnorr::signature_verification_result(message, pub_key, sig);
+    bool_ct signature_result = schnorr::signature_verification_result(message, pub_key, sig);
 
     bool_ct signature_result_normalized = signature_result.normalize();
 

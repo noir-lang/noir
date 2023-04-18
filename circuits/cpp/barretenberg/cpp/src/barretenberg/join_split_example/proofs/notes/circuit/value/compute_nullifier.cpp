@@ -1,6 +1,6 @@
 #include "compute_nullifier.hpp"
 #include "../../constants.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example {
 namespace proofs {
@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 
 using namespace barretenberg;
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 
 field_ct compute_nullifier(field_ct const& note_commitment,
                            field_ct const& account_private_key,

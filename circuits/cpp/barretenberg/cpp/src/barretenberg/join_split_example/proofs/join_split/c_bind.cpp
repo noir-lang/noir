@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <sstream>
+
 #include "c_bind.h"
 #include "join_split.hpp"
 #include "compute_signing_data.hpp"
@@ -5,14 +8,12 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/container.hpp"
-#include <cstdint>
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/srs/reference_string/pippenger_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
-#include <sstream>
+#include "barretenberg/join_split_example/types.hpp"
 
 using namespace barretenberg;
-using namespace proof_system::plonk::stdlib::types;
 using namespace join_split_example::proofs::join_split;
 
 #define WASM_EXPORT __attribute__((visibility("default")))
@@ -42,22 +43,10 @@ WASM_EXPORT void join_split__release_key()
 
 WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
 {
-// Computing the size of the serialized key is non trivial. We know it's ~331mb.
-// Allocate a buffer large enough to hold it, and abort if we overflow.
-// This is to keep memory usage down.
-#ifdef USE_TURBO
-    size_t total_buf_len = 350 * 1024 * 1024;
-    auto raw_buf = (uint8_t*)malloc(total_buf_len);
-    auto raw_buf_end = raw_buf;
-    write(raw_buf_end, *get_proving_key());
-    *output = raw_buf;
-    auto len = static_cast<uint32_t>(raw_buf_end - raw_buf);
-    if (len > total_buf_len) {
-        info("Buffer overflow serializing proving key.");
-        std::abort();
-    }
-    return len;
-#else
+    // Computing the size of the serialized key is non trivial. We know it's ~331mb.
+    // Allocate a buffer large enough to hold it, and abort if we overflow.
+    // This is to keep memory usage down.
+
     auto proving_key = get_proving_key();
     auto buffer = to_buffer(*proving_key);
     auto raw_buf = (uint8_t*)malloc(buffer.size());
@@ -65,7 +54,6 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
     *output = raw_buf;
 
     return static_cast<uint32_t>(buffer.size());
-#endif
 }
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
@@ -103,13 +91,13 @@ WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf, bool moc
 {
     auto tx = from_buffer<join_split_tx>(join_split_buf);
     auto prover = new_join_split_prover(tx, mock);
-    auto heapProver = new stdlib::types::Prover(std::move(prover));
+    auto heapProver = new join_split_example::Prover(std::move(prover));
     return heapProver;
 }
 
 WASM_EXPORT void join_split__delete_prover(void* prover)
 {
-    delete reinterpret_cast<plonk::stdlib::types::Prover*>(prover);
+    delete reinterpret_cast<join_split_example::Prover*>(prover);
 }
 
 WASM_EXPORT bool join_split__verify_proof(uint8_t* proof, uint32_t length)

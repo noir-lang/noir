@@ -1,8 +1,13 @@
-#include "packed_byte_array.hpp"
-#include "../../types/types.hpp"
-#include "../byte_array/byte_array.hpp"
 #include <gtest/gtest.h>
+
+#include "packed_byte_array.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
+#include "barretenberg/honk/composer/standard_honk_composer.hpp"
+
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
 namespace test_stdlib_packed_byte_array {

@@ -4,11 +4,18 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
 
-using namespace barretenberg;
+namespace proof_system::test_stdlib_merkle_tree {
+
+using namespace plonk::stdlib;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 
+using Composer = plonk::UltraComposer;
+using Prover = plonk::UltraProver;
+using Verifier = plonk::UltraVerifier;
+
+using field_ct = field_t<Composer>;
+using witness_ct = witness_t<Composer>;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 auto& random_engine = numeric::random::get_engine();
@@ -128,3 +135,4 @@ TEST(stdlib_merkle_tree, test_get_hash_path_layers)
         EXPECT_NE(before[2], after[2]);
     }
 }
+} // namespace proof_system::test_stdlib_merkle_tree

@@ -1,9 +1,9 @@
 #include "logic_constraint.hpp"
 #include "barretenberg/stdlib/primitives/logic/logic.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
+
+using namespace proof_system::plonk;
 
 void create_logic_gate(Composer& composer,
                        const uint32_t a,

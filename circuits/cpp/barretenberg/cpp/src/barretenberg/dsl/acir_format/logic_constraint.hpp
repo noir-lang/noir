@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 
@@ -14,16 +14,11 @@ struct LogicConstraint {
     friend bool operator==(LogicConstraint const& lhs, LogicConstraint const& rhs) = default;
 };
 
-void create_logic_gate(plonk::stdlib::types::Composer& composer,
-                       uint32_t a,
-                       uint32_t b,
-                       uint32_t result,
-                       size_t num_bits,
-                       bool is_xor_gate);
+void create_logic_gate(Composer& composer, uint32_t a, uint32_t b, uint32_t result, size_t num_bits, bool is_xor_gate);
 
-void xor_gate(plonk::stdlib::types::Composer& composer, uint32_t a, uint32_t b, uint32_t result);
+void xor_gate(Composer& composer, uint32_t a, uint32_t b, uint32_t result);
 
-void and_gate(plonk::stdlib::types::Composer& composer, uint32_t a, uint32_t b, uint32_t result);
+void and_gate(Composer& composer, uint32_t a, uint32_t b, uint32_t result);
 
 template <typename B> inline void read(B& buf, LogicConstraint& constraint)
 {

@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 
@@ -14,8 +14,7 @@ struct MerkleMembershipConstraint {
     friend bool operator==(MerkleMembershipConstraint const& lhs, MerkleMembershipConstraint const& rhs) = default;
 };
 
-void create_merkle_check_membership_constraint(plonk::stdlib::types::Composer& composer,
-                                               const MerkleMembershipConstraint& input);
+void create_merkle_check_membership_constraint(Composer& composer, const MerkleMembershipConstraint& input);
 
 template <typename B> inline void read(B& buf, MerkleMembershipConstraint& constraint)
 {

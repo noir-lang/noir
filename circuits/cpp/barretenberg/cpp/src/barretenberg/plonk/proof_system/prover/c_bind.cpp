@@ -1,7 +1,6 @@
 #include "prover.hpp"
 #include "barretenberg/env/data_store.hpp"
 #include "barretenberg/env/crs.hpp"
-#include "barretenberg/proof_system/types/composer_type.hpp"
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 
@@ -48,8 +47,8 @@ WASM_EXPORT void* test_env_load_prover_crs(size_t num_points)
 {
     return env_load_prover_crs(num_points);
 }
-typedef std::conditional_t<plonk::SYSTEM_COMPOSER == ComposerType::TURBO, plonk::TurboProver, plonk::UltraProver>
-    WasmProver;
+
+using WasmProver = plonk::UltraProver;
 
 WASM_EXPORT void prover_process_queue(WasmProver* prover)
 {

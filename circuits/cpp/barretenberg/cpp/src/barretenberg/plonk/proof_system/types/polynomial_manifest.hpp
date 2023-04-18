@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 #include <string>
-#include "barretenberg/plonk/proof_system/constants.hpp"
+#include "barretenberg/proof_system/types/composer_type.hpp"
 
 namespace proof_system::plonk {
 

@@ -2,9 +2,9 @@
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
+
+using namespace proof_system::plonk;
 
 crypto::ecdsa::signature ecdsa_convert_signature(Composer& composer, std::vector<uint32_t> signature)
 {

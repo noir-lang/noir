@@ -2,11 +2,9 @@
 #include "acir_proofs.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/srs/reference_string/pippenger_reference_string.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
-
-using namespace proof_system::plonk::stdlib::types;
 
 namespace acir_proofs {
 
@@ -77,9 +75,9 @@ size_t init_verification_key(void* pippenger, uint8_t const* g2x, uint8_t const*
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
-    Composer composer(proving_key, nullptr);
+    acir_format::Composer composer(proving_key, nullptr);
     auto verification_key =
-        plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
+        acir_format::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 
     // The composer_type has not yet been set. We need to set the composer_type for when we later read in and
     // construct the verification key so that we have the correct polynomial manifest
@@ -113,13 +111,13 @@ size_t new_proof(void* pippenger,
         reinterpret_cast<scalar_multiplication::Pippenger*>(pippenger), g2x);
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size);
 
-    Composer composer(proving_key, nullptr);
+    acir_format::Composer composer(proving_key, nullptr);
 
     create_circuit_with_witness(composer, constraint_system, witness);
 
     auto prover = composer.create_ultra_with_keccak_prover();
 
-    auto heapProver = new stdlib::types::Prover(std::move(prover));
+    auto heapProver = new acir_format::Prover(std::move(prover));
     auto& proof_data = heapProver->construct_proof().proof_data;
     *proof_data_buf = proof_data.data();
 
@@ -140,7 +138,7 @@ bool verify_proof(
         read(vk_buf, vk_data);
         auto verification_key = std::make_shared<proof_system::plonk::verification_key>(std::move(vk_data), crs);
 
-        Composer composer(nullptr, verification_key);
+        acir_format::Composer composer(nullptr, verification_key);
         create_circuit(composer, constraint_system);
         plonk::proof pp = { std::vector<uint8_t>(proof, proof + length) };
 

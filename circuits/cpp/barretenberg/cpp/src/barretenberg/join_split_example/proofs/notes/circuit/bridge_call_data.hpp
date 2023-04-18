@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 #include "../native/bridge_call_data.hpp"
 #include "./asset_id.hpp"
 #include "../constants.hpp"
@@ -9,7 +9,7 @@ namespace proofs {
 namespace notes {
 namespace circuit {
 
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 
 constexpr uint32_t input_asset_id_a_shift = DEFI_BRIDGE_ADDRESS_ID_LEN;
 constexpr uint32_t input_asset_id_b_shift = input_asset_id_a_shift + DEFI_BRIDGE_INPUT_A_ASSET_ID_LEN;

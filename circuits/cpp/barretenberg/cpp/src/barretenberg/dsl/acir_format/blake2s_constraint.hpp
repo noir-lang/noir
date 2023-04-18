@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 
@@ -19,7 +19,7 @@ struct Blake2sConstraint {
     friend bool operator==(Blake2sConstraint const& lhs, Blake2sConstraint const& rhs) = default;
 };
 
-void create_blake2s_constraints(plonk::stdlib::types::Composer& composer, const Blake2sConstraint& constraint);
+void create_blake2s_constraints(Composer& composer, const Blake2sConstraint& constraint);
 
 template <typename B> inline void read(B& buf, Blake2sInput& constraint)
 {

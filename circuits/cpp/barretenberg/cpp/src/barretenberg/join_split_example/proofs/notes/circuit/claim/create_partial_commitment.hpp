@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "../../constants.hpp"
 
@@ -9,7 +9,7 @@ namespace notes {
 namespace circuit {
 namespace claim {
 
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 
 inline auto create_partial_commitment(field_ct const& deposit_value,
                                       field_ct const& bridge_call_data,

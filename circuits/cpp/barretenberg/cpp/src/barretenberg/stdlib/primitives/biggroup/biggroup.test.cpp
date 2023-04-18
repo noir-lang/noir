@@ -19,7 +19,6 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-// using namespace barretenberg;
 using namespace proof_system::plonk;
 
 // One can only define a TYPED_TEST with a single template paramter.

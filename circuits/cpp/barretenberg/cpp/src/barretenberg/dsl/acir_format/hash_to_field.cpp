@@ -1,9 +1,9 @@
 #include "hash_to_field.hpp"
 #include "round.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
+
+using namespace proof_system::plonk;
 
 void create_hash_to_field_constraints(Composer& composer, const HashToFieldConstraint constraint)
 {
@@ -30,7 +30,7 @@ void create_hash_to_field_constraints(Composer& composer, const HashToFieldConst
     // Hash To Field using blake2s.
     // Note: It does not need to be blake2s in the future
 
-    byte_array_ct out_bytes = proof_system::plonk::stdlib::blake2s<Composer>(arr);
+    byte_array_ct out_bytes = stdlib::blake2s<Composer>(arr);
 
     field_ct out(out_bytes);
     field_ct normalised_out = out.normalize();

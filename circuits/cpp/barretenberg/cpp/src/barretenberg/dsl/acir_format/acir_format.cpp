@@ -1,8 +1,6 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-
 namespace acir_format {
 
 void read_witness(Composer& composer, std::vector<barretenberg::fr> witness)

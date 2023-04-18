@@ -1,9 +1,9 @@
 #pragma once
-#include "barretenberg/stdlib/types/types.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example::proofs::notes::circuit {
 
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 
 std::pair<bool_ct, suint_ct> deflag_asset_id(suint_ct const& asset_id);
 

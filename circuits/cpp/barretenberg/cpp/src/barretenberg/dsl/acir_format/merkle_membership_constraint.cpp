@@ -1,9 +1,6 @@
 #include "merkle_membership_constraint.hpp"
 #include "barretenberg/stdlib/merkle_tree/membership.hpp"
 
-using namespace proof_system::plonk::stdlib::types;
-using namespace proof_system::plonk::stdlib::merkle_tree;
-
 namespace acir_format {
 
 void create_merkle_check_membership_constraint(Composer& composer, const MerkleMembershipConstraint& input)
@@ -22,7 +19,7 @@ void create_merkle_check_membership_constraint(Composer& composer, const MerkleM
     // We are given the HashPath as a Vec<fr>
     // We want to first convert it into a Vec<(fr, fr)> then cast this to hash_path
     // struct which requires the method create_witness_hashpath
-    hash_path<Composer> hash_path;
+    hash_path_ct hash_path;
 
     // In Noir we accept a hash path that only contains one hash per tree level
     // It is ok to reuse the leaf as it will be overridden in check_subtree_membership when computing the current root
@@ -39,7 +36,7 @@ void create_merkle_check_membership_constraint(Composer& composer, const MerkleM
         }
     }
 
-    auto exists = check_subtree_membership(root, hash_path, leaf, index_bits, 0);
+    auto exists = plonk::stdlib::merkle_tree::check_subtree_membership(root, hash_path, leaf, index_bits, 0);
     composer.assert_equal_constant(exists.witness_index, fr::one());
 }
 

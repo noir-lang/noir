@@ -2,6 +2,7 @@
 #include "join_split_circuit.hpp"
 #include "compute_circuit_data.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example {
 namespace proofs {
@@ -23,7 +24,7 @@ void init_proving_key(std::shared_ptr<proof_system::ReferenceStringFactory> cons
     join_split_tx tx = noop_tx();
 
     if (!mock) {
-        stdlib::types::Composer composer(crs_factory);
+        Composer composer(crs_factory);
         join_split_circuit(composer, tx);
         proving_key = composer.compute_proving_key();
     } else {
@@ -55,8 +56,7 @@ void init_verification_key(std::unique_ptr<proof_system::ReferenceStringFactory>
     // Patch the 'nothing' reference string fed to init_proving_key.
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->circuit_size + 1);
 
-    verification_key =
-        plonk::stdlib::types::Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
+    verification_key = Composer::compute_verification_key_base(proving_key, crs_factory->get_verifier_crs());
 }
 
 void init_verification_key(std::shared_ptr<proof_system::VerifierMemReferenceString> const& crs,
@@ -65,7 +65,7 @@ void init_verification_key(std::shared_ptr<proof_system::VerifierMemReferenceStr
     verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs);
 }
 
-stdlib::types::Prover new_join_split_prover(join_split_tx const& tx, bool mock)
+Prover new_join_split_prover(join_split_tx const& tx, bool mock)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -79,27 +79,21 @@ stdlib::types::Prover new_join_split_prover(join_split_tx const& tx, bool mock)
 
     if (!mock) {
         info("composer gates: ", composer.get_num_gates());
-        return composer.create_ultra_with_keccak_prover();
+        return composer.create_prover();
     } else {
         Composer mock_proof_composer(proving_key, nullptr);
         join_split_example::proofs::mock::mock_circuit(mock_proof_composer, composer.get_public_inputs());
         info("mock composer gates: ", mock_proof_composer.get_num_gates());
-        return mock_proof_composer.create_ultra_with_keccak_prover();
+        return mock_proof_composer.create_prover();
     }
 }
 
 bool verify_proof(plonk::proof const& proof)
 {
-    plonk::stdlib::types::Verifier verifier(verification_key,
-                                            Composer::create_manifest(verification_key->num_public_inputs));
+    Verifier verifier(verification_key, Composer::create_manifest(verification_key->num_public_inputs));
 
-#ifdef USE_TURBO
-    std::unique_ptr<plonk::KateCommitmentScheme<plonk::turbo_settings>> kate_commitment_scheme =
-        std::make_unique<plonk::KateCommitmentScheme<plonk::turbo_settings>>();
-#else
     std::unique_ptr<plonk::KateCommitmentScheme<plonk::ultra_settings>> kate_commitment_scheme =
         std::make_unique<plonk::KateCommitmentScheme<plonk::ultra_settings>>();
-#endif
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 
     return verifier.verify_proof(proof);

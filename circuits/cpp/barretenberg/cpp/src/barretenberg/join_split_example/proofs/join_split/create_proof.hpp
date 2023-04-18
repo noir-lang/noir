@@ -20,7 +20,7 @@ inline std::vector<uint8_t> create_proof(join_split_tx const& tx,
         info("Join-split circuit logic failed: ", composer.err());
     }
 
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
 
     return proof.proof_data;

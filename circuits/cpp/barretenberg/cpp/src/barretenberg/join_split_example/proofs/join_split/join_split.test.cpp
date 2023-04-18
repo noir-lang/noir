@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "../../constants.hpp"
 #include "../inner_proof_data/inner_proof_data.hpp"
 #include "index.hpp"
@@ -5,9 +7,9 @@
 #include "join_split_circuit.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
-#include <gtest/gtest.h>
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/merkle_tree/index.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example::proofs::join_split {
 
@@ -98,14 +100,14 @@ TYPED_TEST(join_split, deposit)
 
     BenchmarkInfoCollator benchmark_collator;
     Timer timer;
-    auto prover = composer.create_ultra_with_keccak_prover();
+    auto prover = composer.create_prover();
     auto build_time = timer.toString();
     benchmark_collator.benchmark_info_deferred(
         GET_COMPOSER_NAME_STRING(Composer::type), "Core", "join split", "Build time", build_time);
 
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_ultra_with_keccak_verifier();
+    auto verifier = composer.create_verifier();
     bool verified = verifier.verify_proof(proof);
 
     ASSERT_TRUE(verified);
@@ -122,7 +124,7 @@ constexpr bool CIRCUIT_CHANGE_EXPECTED = false;
 #endif
 
 using namespace barretenberg;
-using namespace proof_system::plonk::stdlib::types;
+using namespace proof_system::plonk::stdlib;
 using namespace proof_system::plonk::stdlib::merkle_tree;
 using namespace join_split_example::proofs::notes::native;
 using key_pair = join_split_example::fixtures::grumpkin_key_pair;
@@ -800,17 +802,12 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
 
     EXPECT_TRUE(result.valid);
 
-// The below part detects any changes in the join-split circuit
-#ifdef USE_TURBO
-    constexpr uint32_t CIRCUIT_GATE_COUNT = 59175;
-    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65536;
-    const uint256_t VK_HASH("095cbe8f1b09690713d5161708b5ea77119575884e3cfab14f7364b9f1ba7faa");
-#else
+    // The below part detects any changes in the join-split circuit
+
     constexpr uint32_t CIRCUIT_GATE_COUNT = 185573;
     constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 524288;
     const uint256_t VK_HASH("13eb88883e80efb9bf306af2962cd1a49e9fa1b0bfb2d4b563b95217a17bcc74");
 
-#endif
     auto number_of_gates_js = result.number_of_gates;
     auto vk_hash_js = get_verification_key()->sha256_hash();
 
@@ -2623,11 +2620,8 @@ TEST_F(join_split_tests, serialized_proving_key_size)
 {
     uint8_t* ptr;
     auto len = join_split__get_new_proving_key_data(&ptr);
-#ifdef USE_TURBO
-    EXPECT_LE(len, 2 * 170 * 1024 * 1024);
-#else
+
     EXPECT_LE(len, 2315258552);
-#endif
 }
 
 } // namespace join_split_example::proofs::join_split

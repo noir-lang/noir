@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <memory>
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "./verifier.hpp"
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
