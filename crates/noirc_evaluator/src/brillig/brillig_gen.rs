@@ -284,9 +284,17 @@ impl BrilligGen {
             }
             Operation::Phi { .. } => (),
             Operation::Call { .. } => {
+                if !self.noir_call.is_empty() {
+                    //TODO to fix
+                    return Err(RuntimeErrorKind::UnstructuredError{
+                       message: "Error calling function".to_string(),
+                    }
+                    .into());
+                }
                 assert!(self.noir_call.is_empty());
                 self.noir_call.push(ins.id);
                 self.try_process_call(ctx);
+                
             }
             Operation::Return(ret) => match ret.len() {
                 0 => (),
@@ -575,9 +583,13 @@ impl BrilligGen {
     fn try_process_call(&mut self, ctx: &SsaContext) {
         if let Some(call_id) = self.noir_call.first() {
             if let Some(call) = ctx.try_get_instruction(*call_id) {
+                dbg!(&call);
                 if let Operation::Call { func, arguments, .. } = &call.operation {
                     if let Some(func_id) = ctx.try_get_func_id(*func) {
                         let ssa_func = ctx.ssa_func(func_id).unwrap();
+                        dbg!(&ssa_func.name);
+                        dbg!(&ssa_func.result_types);
+                        dbg!(&self.noir_call);
                         if self.noir_call.len() == ssa_func.result_types.len() + 1 {
                             let returned_values = &self.noir_call[1..];
                             self.unsafe_call(ctx, *func, arguments, &returned_values.to_vec());
