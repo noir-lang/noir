@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     ir::{
@@ -9,6 +7,7 @@ use super::{
         value::{Value, ValueId},
     },
 };
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 /// A convenience wrapper to store `Value`s.
