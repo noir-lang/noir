@@ -1,4 +1,4 @@
-import { Grumpkin, pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
+import { Grumpkin } from '@aztec/barretenberg.js/crypto';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   ARGS_LENGTH,
@@ -10,7 +10,7 @@ import {
   TxContext,
   TxRequest,
 } from '@aztec/circuits.js';
-import { AztecAddress, EthAddress, Fr, toBigIntBE } from '@aztec/foundation';
+import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import { Pedersen, StandardMerkleTree } from '@aztec/merkle-tree';
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { ChildAbi, ParentAbi, TestContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
@@ -19,12 +19,8 @@ import { default as levelup } from 'levelup';
 import { default as memdown, type MemDown } from 'memdown';
 import { encodeArguments } from './arguments_encoder/index.js';
 import { DBOracle } from './db_oracle.js';
-import { AcirSimulator, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
-
-type NoirPoint = {
-  x: bigint;
-  y: bigint;
-};
+import { AcirSimulator } from './simulator.js';
+import { NoirPoint, computeSlot, toPublicKey } from './utils.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -71,20 +67,11 @@ describe('ACIR simulator', () => {
     });
   });
 
-  describe('token contract', () => {
+  describe('zk token contract', () => {
     let currentNonce = 0n;
 
     const contractDeploymentData = new ContractDeploymentData(Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO);
     const txContext = new TxContext(false, false, false, contractDeploymentData);
-
-    function computeSlot(mappingSlot: Fr, owner: NoirPoint, bbWasm: BarretenbergWasm) {
-      return Fr.fromBuffer(
-        pedersenCompressInputs(
-          bbWasm,
-          [MAPPING_SLOT_PEDERSEN_CONSTANT, mappingSlot, new Fr(owner.x)].map(f => f.toBuffer()),
-        ),
-      );
-    }
 
     let ownerPk: Buffer;
     let owner: NoirPoint;
@@ -93,14 +80,6 @@ describe('ACIR simulator', () => {
 
     function buildNote(amount: bigint, owner: NoirPoint) {
       return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(amount)];
-    }
-
-    function toPublicKey(privateKey: Buffer, grumpkin: Grumpkin): NoirPoint {
-      const publicKey = grumpkin.mul(Grumpkin.generator, privateKey);
-      return {
-        x: toBigIntBE(publicKey.slice(0, 32)),
-        y: toBigIntBE(publicKey.slice(32, 64)),
-      };
     }
 
     beforeAll(() => {

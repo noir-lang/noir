@@ -93,27 +93,31 @@ export function writeInputs(
   witnessStartIndex = 1,
 ) {
   const fields = [
-    ...args.map(arg => toACVMField(arg)),
+    ...args,
 
-    toACVMField(callContext.isContractDeployment),
-    toACVMField(callContext.isDelegateCall),
-    toACVMField(callContext.isStaticCall),
-    toACVMField(callContext.msgSender),
-    toACVMField(callContext.portalContractAddress),
-    toACVMField(callContext.storageContractAddress),
+    callContext.isContractDeployment,
+    callContext.isDelegateCall,
+    callContext.isStaticCall,
+    callContext.msgSender,
+    callContext.portalContractAddress,
+    callContext.storageContractAddress,
 
-    toACVMField(txContext.contractDeploymentData.constructorVkHash),
-    toACVMField(txContext.contractDeploymentData.contractAddressSalt),
-    toACVMField(txContext.contractDeploymentData.functionTreeRoot),
-    toACVMField(txContext.contractDeploymentData.portalContractAddress),
+    txContext.contractDeploymentData.constructorVkHash,
+    txContext.contractDeploymentData.contractAddressSalt,
+    txContext.contractDeploymentData.functionTreeRoot,
+    txContext.contractDeploymentData.portalContractAddress,
 
-    toACVMField(oldRoots.contractTreeRoot),
-    toACVMField(oldRoots.nullifierTreeRoot),
-    toACVMField(oldRoots.privateDataTreeRoot),
+    oldRoots.contractTreeRoot,
+    oldRoots.nullifierTreeRoot,
+    oldRoots.privateDataTreeRoot,
   ];
 
+  return toACVMWitness(witnessStartIndex, ...fields);
+}
+
+export function toACVMWitness(witnessStartIndex: number, ...fields: Parameters<typeof toACVMField>[0][]) {
   return fields.reduce((witness, field, index) => {
-    witness.set(index + witnessStartIndex, field);
+    witness.set(index + witnessStartIndex, toACVMField(field));
     return witness;
   }, new Map<number, ACVMField>());
 }

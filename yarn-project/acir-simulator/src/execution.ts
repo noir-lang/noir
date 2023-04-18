@@ -121,6 +121,12 @@ export class Execution {
 
         return toAcvmCallPrivateStackItem(childExecutionResult.callStackItem);
       },
+      storageRead: () => {
+        return Promise.reject(new Error(`Storage access not available for private function execution`));
+      },
+      storageWrite: () => {
+        return Promise.reject(new Error(`Storage access not available for private function execution`));
+      },
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);

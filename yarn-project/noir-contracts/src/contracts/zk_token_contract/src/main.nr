@@ -12,6 +12,7 @@ contract PrivateToken {
     // `balances: Mapping<Field, Set<Note>>;`
     //*********************************/
 
+    /// ABI constructor [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
     fn constructor(
         //*********************************/
         // Should eventually be hidden:
@@ -37,6 +38,7 @@ contract PrivateToken {
     }
 
 
+    /// ABI mint [{"name":"value","type":{"kind":"field"},"visibility":"public"},{"name":"owner","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}]},"visibility":"public"}]
     fn mint(
         //*********************************/
         // Should eventually be hidden:
@@ -61,7 +63,7 @@ contract PrivateToken {
             .finish(inputs)
     }
 
-
+    /// ABI transfer [{"name":"amount","type":{"kind":"field"},"visibility":"public"},{"name":"sender","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}},{"name":"recipient","type":{"kind":"struct","fields":[{"name":"x","type":{"kind":"field"}},{"name":"y","type":{"kind":"field"}}],"visibility":"public"}}]
     fn transfer(
         //*********************************/
         // Should eventually be hidden:

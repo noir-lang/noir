@@ -40,8 +40,10 @@ class ArgumentEncoder {
   }
 }
 
-export function encodeArguments(abi: FunctionAbi, args: any[]) {
+export function encodeArguments(abi: FunctionAbi, args: any[], pad = true) {
   const flatArgs = new ArgumentEncoder(abi, args).encode();
+  if (!pad) return flatArgs;
+
   if (flatArgs.length > ARGS_LENGTH) {
     throw new Error(`Too many arguments: ${flatArgs.length}`);
   }
