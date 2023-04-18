@@ -95,3 +95,7 @@ Modification of state variables can be emulated by nullifying the a state record
 - Sequencer client
 - Prover client
 - L1 rollup smart contracts
+
+## Participate
+
+Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

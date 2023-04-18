@@ -326,3 +326,7 @@ As an extension of this example, the deployer might wish bake-into the private c
 #### Public constructor
 
 Adds initial public state variables to the public data tree.
+
+## Participate
+
+Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
