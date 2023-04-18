@@ -4,7 +4,13 @@
 
 mod errors;
 mod ssa;
-mod ssa_refactor;
+
+// SSA code to create the SSA based IR
+// for functions and execute different optimizations.
+pub mod ssa_refactor;
+// Frontend helper module to translate a different AST
+// into the SSA IR.
+pub mod frontend;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},

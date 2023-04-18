@@ -1,13 +1,15 @@
-use super::instructions::Instruction;
-use crate::ssa_ref::{basic_blocks::BasicBlock, cfg::BasicBlockId};
-use acvm::acir::BlackBoxFunc;
+use crate::ssa_refactor::basic_block::{BasicBlock, BasicBlockId};
+
+use super::instruction::Instruction;
+
 use noirc_errors::Location;
 use std::collections::HashMap;
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into
 /// Basic blocks
-pub struct Function {
+#[derive(Debug)]
+pub(crate) struct Function {
     /// Basic blocks associated to this particular function
     basic_blocks: HashMap<BasicBlockId, BasicBlock>,
 
@@ -19,5 +21,5 @@ pub struct Function {
 }
 
 /// FunctionId is a reference for a function
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FunctionId(pub u32);
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub(crate) struct FunctionId(pub(crate) u32);

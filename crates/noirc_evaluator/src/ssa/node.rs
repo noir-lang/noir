@@ -514,6 +514,11 @@ impl Instruction {
 pub(crate) enum Operation {
     Binary(Binary),
     Cast(NodeId), //convert type
+    // Reduces the value to bit_size
+    // We need max_bit_size to apply a range constraint
+    //
+    // This is needed for a = bq + r
+    // constrains the quotient `q`
     Truncate {
         value: NodeId,
         bit_size: u32,
@@ -527,10 +532,17 @@ pub(crate) enum Operation {
     Jne(NodeId, BlockId), //jump on not equal
     Jeq(NodeId, BlockId), //jump on equal
     Jmp(BlockId),         //unconditional jump
+
+    // All phi instructions will have two arguments
+    //
+    // Phi instructions are converted to Cond
+    //
+    // CC (Jake) : Differs to block arguments
     Phi {
         root: NodeId,
         block_args: Vec<(NodeId, BlockId)>,
     },
+
     Call {
         func: NodeId,
         arguments: Vec<NodeId>,
@@ -538,11 +550,16 @@ pub(crate) enum Operation {
         predicate: conditional::AssumptionId,
         location: Location,
     },
+    // Terminator end of basic block
+    //
+    // it needs to match the function return signature
     Return(Vec<NodeId>), //Return value(s) from a function block
     Result {
         call_instruction: NodeId,
         index: u32,
     }, //Get result index n from a function call
+
+    // Legalization -- needed for circuit
     Cond {
         condition: NodeId,
         val_true: NodeId,
@@ -631,10 +648,12 @@ pub(crate) enum BinaryOp {
     #[allow(dead_code)]
     SafeAdd, //(+) safe addition
     Sub {
+        // To avoid field underflow
         max_rhs_value: BigUint,
     }, //(-)
     #[allow(dead_code)]
     SafeSub {
+        // To avoid integer underflow
         max_rhs_value: BigUint,
     }, //(-) safe subtraction
     Mul, //(*)

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
 /// though we also apply limitations to it, such as not
@@ -19,9 +21,6 @@ pub(crate) enum Typ {
     /// Represents numeric types in the IR
     /// including field elements
     Numeric(NumericType),
-    /// Represents a function.
-    /// Functions are first class functions in the IR
-    Function,
     /// Represents the absence of a Type.
     Unit,
 }

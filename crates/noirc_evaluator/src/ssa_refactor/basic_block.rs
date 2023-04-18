@@ -1,4 +1,4 @@
-use super::ir::instructions::{Instruction, TerminatorInstruction};
+use super::ir::instruction::{Instruction, TerminatorInstruction};
 
 /// A Basic block is a maximal collection of instructions
 /// such that there are only jumps at the end of block
@@ -12,6 +12,12 @@ pub(crate) struct BasicBlock {
     phi_nodes: Vec<BlockArguments>,
     /// Instructions in the basic block.
     instructions: Vec<Instruction>,
+
+    /// A basic block is considered sealed
+    /// if no further predecessors will be added to it.
+    /// Since only filled blocks can have successors,
+    /// predecessors are always filled.
+    is_sealed: bool,
 
     /// The terminating instruction for the basic block.
     ///
