@@ -72,7 +72,8 @@ pub(crate) fn execute_program(
 
     let mut blocks = Blocks::default();
     let UnresolvedData { unresolved_opcodes, unresolved_oracles, unresolved_brilligs } = backend
-        .solve(&mut initial_witness, &mut blocks, compiled_program.circuit.opcodes.clone()).unwrap();
+        .solve(&mut initial_witness, &mut blocks, compiled_program.circuit.opcodes.clone())
+        .unwrap();
     if !unresolved_opcodes.is_empty()
         || !unresolved_oracles.is_empty()
         || !unresolved_brilligs.is_empty()

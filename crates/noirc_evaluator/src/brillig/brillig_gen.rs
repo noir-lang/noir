@@ -123,7 +123,10 @@ pub(crate) struct BrilligGen {
 
 impl BrilligGen {
     /// Generate compilation object from ssa code
-    pub(crate) fn compile(ctx: &SsaContext, block: BlockId) -> Result<BrilligArtefact, RuntimeError> {
+    pub(crate) fn compile(
+        ctx: &SsaContext,
+        block: BlockId,
+    ) -> Result<BrilligArtefact, RuntimeError> {
         let mut brillig = BrilligGen::default();
         brillig.process_blocks(ctx, block)?;
         Ok(brillig.obj)
@@ -166,7 +169,7 @@ impl BrilligGen {
         }
     }
 
-    fn process_blocks(&mut self, ctx: &SsaContext, current: BlockId) -> Result<(),RuntimeError> {
+    fn process_blocks(&mut self, ctx: &SsaContext, current: BlockId) -> Result<(), RuntimeError> {
         let mut queue = vec![current]; //Stack of elements to visit
 
         while let Some(current) = queue.pop() {
@@ -188,7 +191,11 @@ impl BrilligGen {
     }
 
     // Generate brillig code from ssa instructions of the block
-    fn process_block(&mut self, ctx: &SsaContext, block_id: BlockId) -> Result<Vec<BlockId>, RuntimeError> {
+    fn process_block(
+        &mut self,
+        ctx: &SsaContext,
+        block_id: BlockId,
+    ) -> Result<Vec<BlockId>, RuntimeError> {
         let block = &ctx[block_id];
         let start = self.obj.byte_code.len();
 
@@ -251,13 +258,20 @@ impl BrilligGen {
     }
 
     /// Converts ssa instruction to brillig
-    fn instruction_to_bc(&mut self, ctx: &SsaContext, ins: &Instruction) -> Result<(),RuntimeError>{
+    fn instruction_to_bc(
+        &mut self,
+        ctx: &SsaContext,
+        ins: &Instruction,
+    ) -> Result<(), RuntimeError> {
         match &ins.operation {
             Operation::Binary(bin) => {
                 self.binary(ctx, bin, ins.id, ins.res_type);
             }
             Operation::Cast(_) => {
-                return Err(RuntimeErrorKind::Unimplemented("Operation not supported in unsafe functions".to_string()).into());
+                return Err(RuntimeErrorKind::Unimplemented(
+                    "Operation not supported in unsafe functions".to_string(),
+                )
+                .into());
             }
             Operation::Truncate { .. } => unreachable!("Brillig does not require an overflow pass"),
             Operation::Not(_) => todo!(), // bitwise not
@@ -272,6 +286,7 @@ impl BrilligGen {
             Operation::Call { .. } => {
                 assert!(self.noir_call.is_empty());
                 self.noir_call.push(ins.id);
+                self.try_process_call(ctx);
             }
             Operation::Return(ret) => match ret.len() {
                 0 => (),
@@ -298,18 +313,7 @@ impl BrilligGen {
                 assert!(!self.noir_call.is_empty());
                 assert_eq!(*call_instruction, self.noir_call[0]);
                 self.noir_call.push(ins.id);
-                if let Some(call) = ctx.try_get_instruction(*call_instruction) {
-                    if let Operation::Call { func, arguments, .. } = &call.operation {
-                        if let Some(func_id) = ctx.try_get_func_id(*func) {
-                            let ssa_func = ctx.ssa_func(func_id).unwrap();
-                            if self.noir_call.len() == ssa_func.result_types.len() + 1 {
-                                let returned_values = &self.noir_call[1..];
-                                self.unsafe_call(ctx, *func, arguments, &returned_values.to_vec());
-                                self.noir_call.clear();
-                            }
-                        }
-                    }
-                }
+                self.try_process_call(ctx);
             }
             Operation::Cond { .. } => unreachable!("Brillig does not require the reduction pass"),
             Operation::Load { array_id, index, .. } => {
@@ -331,7 +335,10 @@ impl BrilligGen {
                 self.push_code(BrilligOpcode::Store { source, array_id_reg, index: idx_reg });
             }
             Operation::Intrinsic(_, _) => {
-                todo!();
+                return Err(RuntimeErrorKind::Unimplemented(
+                    "Operation not supported in unsafe functions".to_string(),
+                )
+                .into());
             }
             Operation::UnsafeCall { func, arguments, returned_values, .. } => {
                 self.unsafe_call(ctx, *func, arguments, returned_values)
@@ -476,7 +483,12 @@ impl BrilligGen {
     }
     }
 
-    fn get_oracle_abi(&mut self, ctx: &SsaContext, funct: &SsaFunction, arguments:  &Vec<NodeId>,) -> Vec<OracleInput> {
+    fn get_oracle_abi(
+        &mut self,
+        ctx: &SsaContext,
+        funct: &SsaFunction,
+        arguments: &Vec<NodeId>,
+    ) -> Vec<OracleInput> {
         let mut abi = Vec::new();
         for (param, arg) in funct.arguments.iter().zip(arguments) {
             let len = if let Some(a) = Memory::deref(ctx, param.0) { ctx.mem[a].len } else { 0 };
@@ -512,10 +524,9 @@ impl BrilligGen {
                         name,
                         inputs: abi,
                         input_values: Vec::new(),
-                        output: outputs[0], //TODO: temp  
+                        output: outputs[0], //TODO: temp
                         output_values: Vec::new(),
                     }));
-                 
                 }
                 RuntimeType::Unsafe | RuntimeType::Acvm => {
                     // we need to have a place for the functions
@@ -555,6 +566,23 @@ impl BrilligGen {
                             destination: first,
                             source: RegisterMemIndex::Register(RegisterIndex(0)),
                         });
+                    }
+                }
+            }
+        }
+    }
+
+    fn try_process_call(&mut self, ctx: &SsaContext) {
+        if let Some(call_id) = self.noir_call.first() {
+            if let Some(call) = ctx.try_get_instruction(*call_id) {
+                if let Operation::Call { func, arguments, .. } = &call.operation {
+                    if let Some(func_id) = ctx.try_get_func_id(*func) {
+                        let ssa_func = ctx.ssa_func(func_id).unwrap();
+                        if self.noir_call.len() == ssa_func.result_types.len() + 1 {
+                            let returned_values = &self.noir_call[1..];
+                            self.unsafe_call(ctx, *func, arguments, &returned_values.to_vec());
+                            self.noir_call.clear();
+                        }
                     }
                 }
             }
