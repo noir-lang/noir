@@ -19,6 +19,8 @@ use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Lite
 use num_bigint::BigUint;
 use std::collections::{HashMap, HashSet};
 
+use super::node::Opcode;
+
 // This is a 'master' class for generating the SSA IR from the AST
 // It contains all the data; the node objects representing the source code in the nodes arena
 // and The CFG in the blocks arena
@@ -163,7 +165,7 @@ impl SsaContext {
             result = format!("{var}");
         }
         if result.is_empty() {
-            result = format!("unknown {:?}", id.0.into_raw_parts().0)
+            result = format!("unknown {:?}", id.0.into_raw_parts().0);
         }
         result
     }
@@ -250,7 +252,7 @@ impl SsaContext {
 
     pub(crate) fn print_instructions(&self, instructions: &[NodeId]) {
         for id in instructions {
-            self.print_node(*id)
+            self.print_node(*id);
         }
     }
 
@@ -726,7 +728,6 @@ impl SsaContext {
         inline::inline_tree(self, self.first_block, &decision)?;
 
         block::merge_path(self, self.first_block, BlockId::dummy(), None)?;
-
         //The CFG is now fully flattened, so we keep only the first block.
         let mut to_remove = Vec::new();
         for b in &self.blocks {
@@ -741,7 +742,6 @@ impl SsaContext {
         self[first_block].dominated.clear();
 
         optimizations::cse(self, first_block, true)?;
-
         //Truncation
         integer::overflow_strategy(self)?;
         self.log(enable_logging, "\noverflow:", "");
@@ -1071,6 +1071,12 @@ impl SsaContext {
     pub(crate) fn new_phi(&mut self, a: NodeId, b: NodeId, c: &mut u32) -> NodeId {
         if a == NodeId::dummy() || b == NodeId::dummy() {
             return NodeId::dummy();
+        }
+        if let Some(ins) = self.try_get_instruction(a) {
+            if ins.operation.opcode() == Opcode::Nop {
+                assert_eq!(self.try_get_instruction(b).unwrap().operation.opcode(), Opcode::Nop);
+                return NodeId::dummy();
+            }
         }
 
         let exit_block = self.current_block;

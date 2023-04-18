@@ -19,10 +19,21 @@ fn id<I>(x: [Field; I]) -> [Field; I] {
 }
 
 struct MyStruct<S> {
-    data: [Field; S]
+    data: [Field; S],
+}
+
+impl<S> MyStruct<S> {
+    fn insert(mut self: Self, index: comptime Field, elem: Field) -> Self {
+        // Regression test for numeric generics on impls
+        constrain index as u64 < S as u64;
+
+        self.data[index] = elem;
+        self
+    }
 }
 
 fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
     s.data[0] = s.data[0] + 1;
     s
 }
+

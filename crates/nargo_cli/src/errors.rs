@@ -1,5 +1,5 @@
-use acvm::OpcodeResolutionError;
 use hex::FromHexError;
+use nargo::NargoError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -20,8 +20,7 @@ pub(crate) enum CliError {
         " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."
     )]
     MissingTomlFile(String, PathBuf),
-    #[error("Error: the circuit you are trying to prove differs from the build artifact at {}\nYou must call `nargo compile` to generate the correct proving and verification keys for this circuit", .0.display())]
-    MismatchedAcir(PathBuf),
+
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
@@ -40,7 +39,7 @@ pub(crate) enum CliError {
     #[error(transparent)]
     AbiError(#[from] AbiError),
 
-    /// ACIR circuit solving error
+    /// Error from Nargo
     #[error(transparent)]
-    SolvingError(#[from] OpcodeResolutionError),
+    NargoError(#[from] NargoError),
 }
