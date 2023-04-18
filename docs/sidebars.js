@@ -35,7 +35,8 @@ const sidebars = {
           items: [
             'aztec3/protocol/contract-creation',
             'aztec3/protocol/function-selectors',
-            'aztec3/protocol/communication-abstractions'
+            'aztec3/protocol/communication-abstractions',
+            'aztec3/protocol/public-functions-vm-architectures'
           ]
         }
       ]
