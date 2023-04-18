@@ -120,8 +120,22 @@ impl InternalVarCache {
                     return *w;
                 }
             }
+
+            let mut assigned_witness = None;
+            for &id in ids {
+                let cached_var = self.get_or_compute_internal_var_unwrap(id, evaluator, ctx);
+                match cached_var.cached_witness() {
+                    Some(witness) => assigned_witness = Some(*witness),
+                    None => {}
+                }
+            }
+
             // We generate a witness and assigns it
-            let w = evaluator.create_intermediate_variable(Expression::from(value));
+            let w = match assigned_witness {
+                Some(assigned_witness) => assigned_witness,
+                None => evaluator.create_intermediate_variable(Expression::from(value)),
+            };
+
             for &id in ids {
                 let mut cached_var = self.get_or_compute_internal_var_unwrap(id, evaluator, ctx);
                 if let Some(cached_witness) = cached_var.cached_witness() {
