@@ -790,6 +790,7 @@ impl IrGenerator {
         self.context.get_current_block_mut().left = Some(exit_block);
 
         //Exit block plumbing
+        let block2 = self.context.current_block;
         self.context.current_block = exit_block;
         self.context.get_current_block_mut().predecessor.push(block2);
         ssa_form::seal_block(&mut self.context, exit_block, entry_block);
