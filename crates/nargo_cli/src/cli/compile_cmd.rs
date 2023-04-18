@@ -41,7 +41,11 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         let preprocessed_contracts =
             try_vecmap(compiled_contracts, |contract| preprocess_contract(&backend, contract))?;
         for contract in preprocessed_contracts {
-            save_contract_to_file(&contract, &args.circuit_name, &circuit_dir);
+            save_contract_to_file(
+                &contract,
+                &format!("{}-{}", &args.circuit_name, contract.name),
+                &circuit_dir,
+            );
         }
     } else {
         let program = compile_circuit(&backend, &config.program_dir, &args.compile_options)?;

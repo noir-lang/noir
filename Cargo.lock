@@ -115,7 +115,7 @@ checksum = "23ea9e81bd02e310c216d080f6223c179012256e5151c41db88d12c88a1684d2"
 
 [[package]]
 name = "arena"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "generational-arena",
 ]
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "cfg-if 1.0.0",
  "codespan-reporting 0.9.5",
@@ -1787,7 +1787,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.3.2"
+version = "0.4.0"
 
 [[package]]
 name = "itertools"
@@ -1997,7 +1997,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2011,7 +2011,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2043,7 +2043,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2059,7 +2059,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "clap 4.1.8",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "chumsky",
  "codespan",
@@ -2097,7 +2097,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "arena",
@@ -2113,7 +2113,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "acvm",
  "arena",
