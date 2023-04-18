@@ -121,21 +121,6 @@ impl SsaContext {
     }
 
     #[allow(clippy::map_entry)]
-    // Prevents Common Subexpression Elimination
-    // from eliminating everything.
-    /*
-
-    fn foo() {
-        let a = new()
-        a[0] = 3
-        bar(a)
-        a[0] = 5
-    }
-
-    fn bar(a : [Field; 8]) {
-
-    }
-    */
     pub(crate) fn add_dummy_load(&mut self, a: ArrayId) {
         if !self.dummy_load.contains_key(&a) {
             let op_a = Operation::Load { array_id: a, index: NodeId::dummy(), location: None };
