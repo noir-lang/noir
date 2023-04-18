@@ -116,10 +116,10 @@ impl DataFlowGraph {
     ) -> Vec<Typ> {
         // Check if it is a call instruction. If so, we don't support that yet
         let ins_data = self.instructions.get_instruction(instruction_id);
-        return match ins_data {
+        match ins_data {
             Instruction::Call { .. } => todo!("function calls are not supported yet"),
             ins => ins.return_types(ctrl_typevar),
-        };
+        }
     }
 
     /// Appends a result type to the instruction.
@@ -158,7 +158,7 @@ impl DataFlowGraph {
 
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
-        &self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+        self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
     }
 }
 
