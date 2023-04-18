@@ -38,3 +38,7 @@ Here are links to the UniswapV2Pair's relevant code:
 [Here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol#L41) is the `transfer` function as defined in the ERC20 interface.
 
 And finally, [here](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol#L113) is an example implementation of the ERC20 `transfer` function.
+
+## Participate
+
+Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

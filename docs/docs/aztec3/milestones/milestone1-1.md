@@ -526,3 +526,7 @@ For `offchainData`:
 - `oracle_input`: Data that, during execution, is fetched from the oracle, and made a `witness`.
 - `computed_public_input`: Data that is computed within the circuit, and set to be a `public_input`.
 - `public_input`: Data that is set to be public by the circuit. This could include some `circuit_input` data, and/or some `computed_public_input` data, and/or some `oracle_input` data.
+
+## Participate
+
+Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).

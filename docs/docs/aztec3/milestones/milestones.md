@@ -543,3 +543,7 @@ As a Prover I can be paid for generating proofs for the current Sequencer.
 - Plug Honk into the circuits
 - Account Abstraction
 - More efficient, newer hashes for trees
+
+## Participate
+
+Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
