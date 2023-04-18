@@ -4,13 +4,14 @@ import { FunctionAbi } from '@aztec/noir-contracts';
 import { DBOracle } from './db_oracle.js';
 import { Execution, ExecutionResult } from './execution.js';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
-import { pedersenCompressInputs } from '@aztec/barretenberg.js/crypto';
+import { pedersenCompressInputs, pedersenCompressWithHashIndex } from '@aztec/barretenberg.js/crypto';
 
 export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
 export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
 export const NULLIFIER_PEDERSEN_CONSTANT = new Fr(5n);
-// To be extracted from the specific contract
-export const DUMMY_NOTE_LENGTH = 6;
+
+const OUTER_NULLIFIER_GENERATOR_INDEX = 7;
+
 export class AcirSimulator {
   constructor(private db: DBOracle) {}
 
@@ -44,12 +45,29 @@ export class AcirSimulator {
     return execution.run();
   }
 
+  // TODO Should be run as unconstrained function
   public computeNoteHash(notePreimage: Fr[], bbWasm: BarretenbergWasm) {
     return pedersenCompressInputs(bbWasm, [NOTE_PEDERSEN_CONSTANT.toBuffer(), ...notePreimage.map(x => x.toBuffer())]);
   }
 
+  // TODO Should be run as unconstrained function
   public computeNullifier(notePreimage: Fr[], privateKey: Buffer, bbWasm: BarretenbergWasm) {
     const noteHash = this.computeNoteHash(notePreimage, bbWasm);
     return pedersenCompressInputs(bbWasm, [NULLIFIER_PEDERSEN_CONSTANT.toBuffer(), noteHash, privateKey]);
+  }
+
+  // TODO Should be run as unconstrained function
+  public computeSiloedNullifier(
+    contractAddress: AztecAddress,
+    notePreimage: Fr[],
+    privateKey: Buffer,
+    bbWasm: BarretenbergWasm,
+  ) {
+    const nullifier = this.computeNullifier(notePreimage, privateKey, bbWasm);
+    return pedersenCompressWithHashIndex(
+      bbWasm,
+      [contractAddress.toBuffer(), nullifier],
+      OUTER_NULLIFIER_GENERATOR_INDEX,
+    );
   }
 }

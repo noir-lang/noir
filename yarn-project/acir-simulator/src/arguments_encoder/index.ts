@@ -45,5 +45,5 @@ export function encodeArguments(abi: FunctionAbi, args: any[]) {
   if (flatArgs.length > ARGS_LENGTH) {
     throw new Error(`Too many arguments: ${flatArgs.length}`);
   }
-  return flatArgs.concat(new Array(ARGS_LENGTH - flatArgs.length).fill(new Fr(0n)));
+  return flatArgs.concat(new Array(ARGS_LENGTH - flatArgs.length).fill(Fr.ZERO));
 }

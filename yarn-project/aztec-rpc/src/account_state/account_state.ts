@@ -11,6 +11,7 @@ import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, TxAuxDataDao, TxDao } from '../database/index.js';
 import { ConstantKeyPair, KeyPair } from '../key_store/index.js';
 import { SimulatorOracle } from '../simulator_oracle/index.js';
+import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 
 export class AccountState {
   public syncedToBlock = 0;
@@ -70,7 +71,7 @@ export class AccountState {
     const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
     const oldRoots = new OldTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
 
-    const simulatorOracle = new SimulatorOracle(contractDataOracle, this.db, this.keyPair);
+    const simulatorOracle = new SimulatorOracle(contractDataOracle, this.db, this.keyPair, this.node);
     const simulator = new AcirSimulator(simulatorOracle);
     this.log('Executing simulator...');
     const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract, oldRoots);
@@ -129,8 +130,9 @@ export class AccountState {
           txIndices.add(txIndex);
           txAuxDataDaos.push({
             ...txAuxData,
-            nullifier: Fr.random(), // TODO
-            index: dataStartIndex + j,
+            nullifier: await this.computeNullifier(txAuxData),
+            index: BigInt(dataStartIndex + j),
+            account: this.publicKey,
           });
         }
       }
@@ -147,6 +149,25 @@ export class AccountState {
 
     this.syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
     this.log(`Synched block ${this.syncedToBlock}`);
+  }
+
+  private async computeNullifier(txAuxData: TxAuxData) {
+    const simulatorOracle = new SimulatorOracle(
+      new ContractDataOracle(this.db, this.node),
+      this.db,
+      this.keyPair,
+      this.node,
+    );
+    const simulator = new AcirSimulator(simulatorOracle);
+    // TODO In the future, we'll need to simulate an unconstrained fn associated with the contract ABI and slot
+    return Fr.fromBuffer(
+      simulator.computeSiloedNullifier(
+        txAuxData.contractAddress,
+        txAuxData.notePreimage.items,
+        this.privKey,
+        await BarretenbergWasm.get(),
+      ),
+    );
   }
 
   private createUnverifiedData(outputNotes: OutputNoteData[]) {
@@ -169,6 +190,8 @@ export class AccountState {
   ) {
     const txAuxDataDaosBatch: TxAuxDataDao[] = [];
     const txDaos: TxDao[] = [];
+    let newNullifiers: Fr[] = [];
+
     for (let i = 0; i < blocksAndTxAuxData.length; ++i) {
       const { blockContext, userPertainingTxIndices, txAuxDataDaos } = blocksAndTxAuxData[i];
 
@@ -194,11 +217,22 @@ export class AccountState {
       });
       txAuxDataDaosBatch.push(...txAuxDataDaos);
 
+      newNullifiers = newNullifiers.concat(blockContext.block.newNullifiers);
+
       // Ensure all the other txs are updated with newly settled block info.
       await this.updateBlockInfoInBlockTxs(blockContext);
     }
-    if (txAuxDataDaosBatch.length) await this.db.addTxAuxDataBatch(txAuxDataDaosBatch);
+    if (txAuxDataDaosBatch.length) {
+      await this.db.addTxAuxDataBatch(txAuxDataDaosBatch);
+      txAuxDataDaosBatch.forEach(txAuxData => {
+        this.log(`Added tx aux data with nullifier ${txAuxData.nullifier.toString()}}`);
+      });
+    }
     if (txDaos.length) await this.db.addTxs(txDaos);
+    const removedAuxData = await this.db.removeNullifiedTxAuxData(newNullifiers, this.publicKey);
+    removedAuxData.forEach(txAuxData => {
+      this.log(`Removed tx aux data with nullifier ${txAuxData.nullifier.toString()}}`);
+    });
   }
 
   private async updateBlockInfoInBlockTxs(blockContext: L2BlockContext) {

@@ -4,8 +4,8 @@ import { solve_intermediate_witness as solveIntermediateWitness } from '@noir-la
 export type ACVMField = `0x${string}`;
 export type ACVMWitness = Map<number, ACVMField>;
 
-export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(32)}`;
-export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(31)}01`;
+export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
+export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
 
 export interface ACIRCallback {
   getSecretKey(params: ACVMField[]): Promise<ACVMField[]>;
@@ -36,15 +36,15 @@ export const acvm: execute = async (acir, initialWitness, callback) => {
 };
 
 function adaptBufferSize(originalBuf: Buffer) {
-  const buffer = Buffer.alloc(32);
+  const buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
   if (originalBuf.length > buffer.length) {
-    throw new Error('Buffer does not fit in 32 bytes');
+    throw new Error('Buffer does not fit in field');
   }
   originalBuf.copy(buffer, buffer.length - originalBuf.length);
   return buffer;
 }
 
-export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number): ACVMField {
+export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boolean | number | bigint): ACVMField {
   if (typeof value === 'boolean') {
     return value ? ONE_ACVM_FIELD : ZERO_ACVM_FIELD;
   }
@@ -54,8 +54,10 @@ export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boo
   if (Buffer.isBuffer(value)) {
     buffer = value;
   } else if (typeof value === 'number') {
-    buffer = Buffer.alloc(32);
-    buffer.writeUInt32BE(value, 28);
+    buffer = Buffer.alloc(Fr.SIZE_IN_BYTES);
+    buffer.writeUInt32BE(value, Fr.SIZE_IN_BYTES - 4);
+  } else if (typeof value === 'bigint') {
+    buffer = new Fr(value).toBuffer();
   } else {
     buffer = value.toBuffer();
   }
@@ -66,4 +68,9 @@ export function toACVMField(value: AztecAddress | EthAddress | Fr | Buffer | boo
 export function fromACVMField(field: `0x${string}`): Fr {
   const buffer = Buffer.from(field.slice(2), 'hex');
   return Fr.fromBuffer(buffer);
+}
+
+// TODO this should use an unconstrained fn in the future
+export function createDummyNote() {
+  return [Fr.ZERO, Fr.random(), Fr.ZERO, Fr.ZERO, Fr.random(), Fr.ZERO];
 }

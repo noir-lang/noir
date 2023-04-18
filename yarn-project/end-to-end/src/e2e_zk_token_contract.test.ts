@@ -155,21 +155,31 @@ describe('e2e_zk_token_contract', () => {
   /**
    * Milestone 1.5
    */
-  it.skip('1.5 should call transfer and increase balance of another account', async () => {
+  it('1.5 should call transfer and increase balance of another account', async () => {
+    // TODO use getBalance unconstrained fn instead of reading storage slots
     const initialBalance = 987n;
     const transferAmount = 654n;
+    const [owner, receiver] = accounts;
 
-    await deployContract(initialBalance);
+    await deployContract(initialBalance, pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)));
 
-    await expectBalance(0, initialBalance);
-    await expectBalance(1, 0n);
-    const timer = Date.now();
+    await expectStorageSlot(0, initialBalance);
+    await expectEmptyStorageSlotForAccount(1);
 
-    const receipt = await contract.methods.transfer(accounts[1]).send({ from: accounts[0] }).getReceipt();
-    console.log('getting receipt took: ', Date.now() - timer);
-    expect(receipt.status).toBe(true);
+    const tx = contract.methods
+      .transfer(
+        transferAmount,
+        pointToPublicKey(await aztecRpcServer.getAccountPublicKey(owner)),
+        pointToPublicKey(await aztecRpcServer.getAccountPublicKey(receiver)),
+      )
+      .send({ from: accounts[0] });
 
-    await expectBalance(0, initialBalance - transferAmount);
-    await expectBalance(1, transferAmount);
-  });
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+
+    expect(receipt.status).toBe(TxStatus.MINED);
+
+    await expectStorageSlot(0, initialBalance - transferAmount);
+    await expectStorageSlot(1, transferAmount);
+  }, 60_000);
 });

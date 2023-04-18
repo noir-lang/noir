@@ -4,9 +4,15 @@ import { FunctionAbi } from '@aztec/noir-contracts';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
 import { KeyPair } from '../key_store/index.js';
+import { AztecNode } from '@aztec/aztec-node';
 
 export class SimulatorOracle implements DBOracle {
-  constructor(private contractDataOracle: ContractDataOracle, private db: Database, private keyPair: KeyPair) {}
+  constructor(
+    private contractDataOracle: ContractDataOracle,
+    private db: Database,
+    private keyPair: KeyPair,
+    private node: AztecNode,
+  ) {}
 
   getSecretKey(_: AztecAddress, address: AztecAddress): Promise<Buffer> {
     if (!address.equals(this.keyPair.getPublicKey().toAddress())) {
@@ -17,11 +23,16 @@ export class SimulatorOracle implements DBOracle {
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr, n: number): Promise<NoteLoadOracleInputs[]> {
     const noteDaos = await this.db.getTxAuxData(contractAddress, storageSlot);
-    return noteDaos.slice(0, n).map(noteDao => ({
-      preimage: noteDao.notePreimage.items,
-      siblingPath: [], // TODO get this from node
-      index: noteDao.index,
-    }));
+    return Promise.all(
+      noteDaos.slice(0, n).map(async noteDao => {
+        const path = await this.node.getDataTreePath(noteDao.index);
+        return {
+          preimage: noteDao.notePreimage.items,
+          siblingPath: path.data.map(buf => Fr.fromBuffer(buf)),
+          index: noteDao.index,
+        };
+      }),
+    );
   }
 
   async getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi> {

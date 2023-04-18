@@ -91,7 +91,7 @@ describe('Account State', () => {
     expect(addTxAuxDataBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         ...ownedTxAuxDatas[0],
-        index: 2,
+        index: 2n,
       }),
     ]);
   });
@@ -116,15 +116,15 @@ describe('Account State', () => {
     expect(addTxAuxDataBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         ...ownedTxAuxDatas[0],
-        index: KERNEL_NEW_COMMITMENTS_LENGTH + 1,
+        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH + 1),
       }),
       expect.objectContaining({
         ...ownedTxAuxDatas[1],
-        index: KERNEL_NEW_COMMITMENTS_LENGTH * 4,
+        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH * 4),
       }),
       expect.objectContaining({
         ...ownedTxAuxDatas[2],
-        index: KERNEL_NEW_COMMITMENTS_LENGTH * 4 + 2,
+        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH * 4 + 2),
       }),
     ]);
   });

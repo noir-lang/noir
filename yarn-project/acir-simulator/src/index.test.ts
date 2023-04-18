@@ -19,7 +19,7 @@ import { default as levelup } from 'levelup';
 import { default as memdown, type MemDown } from 'memdown';
 import { encodeArguments } from './arguments_encoder/index.js';
 import { DBOracle } from './db_oracle.js';
-import { AcirSimulator, DUMMY_NOTE_LENGTH, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
+import { AcirSimulator, MAPPING_SLOT_PEDERSEN_CONSTANT } from './simulator.js';
 
 type NoirPoint = {
   x: bigint;
@@ -91,11 +91,8 @@ describe('ACIR simulator', () => {
     let recipientPk: Buffer;
     let recipient: NoirPoint;
 
-    function buildNote(amount: bigint, owner: NoirPoint, isDummy = false) {
-      if (isDummy) {
-        return Array(DUMMY_NOTE_LENGTH).fill(new Fr(0n));
-      }
-      return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), new Fr(4n), new Fr(amount)];
+    function buildNote(amount: bigint, owner: NoirPoint) {
+      return [new Fr(1n), new Fr(currentNonce++), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(amount)];
     }
 
     function toPublicKey(privateKey: Buffer, grumpkin: Grumpkin): NoirPoint {
@@ -189,7 +186,7 @@ describe('ACIR simulator', () => {
           preimages.map(async (preimage, index) => ({
             preimage,
             siblingPath: (await tree.getSiblingPath(BigInt(index))).data.map(buf => Fr.fromBuffer(buf)),
-            index,
+            index: BigInt(index),
           })),
         );
       });
@@ -255,7 +252,7 @@ describe('ACIR simulator', () => {
           preimages.map(async (preimage, index) => ({
             preimage,
             siblingPath: (await tree.getSiblingPath(BigInt(index))).data.map(buf => Fr.fromBuffer(buf)),
-            index,
+            index: BigInt(index),
           })),
         );
       });

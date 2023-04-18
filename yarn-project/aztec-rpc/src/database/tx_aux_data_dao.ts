@@ -1,5 +1,6 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { NotePreimage } from '../aztec_rpc_server/tx_aux_data/index.js';
+import { Point } from '@aztec/foundation';
 
 export interface TxAuxDataDao {
   // Properties from the encrypted note
@@ -9,5 +10,7 @@ export interface TxAuxDataDao {
   // Computed properties
   nullifier: Fr;
   // The location in the tree
-  index: number;
+  index: bigint;
+  // The public key that was used to encrypt the data
+  account: Point;
 }

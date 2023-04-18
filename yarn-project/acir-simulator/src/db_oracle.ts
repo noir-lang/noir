@@ -4,7 +4,7 @@ import { FunctionAbi } from '@aztec/noir-contracts';
 export interface NoteLoadOracleInputs {
   preimage: Fr[];
   siblingPath: Fr[];
-  index: number;
+  index: bigint;
 }
 
 export interface DBOracle {

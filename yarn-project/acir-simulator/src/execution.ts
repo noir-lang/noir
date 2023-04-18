@@ -7,6 +7,7 @@ import {
   toAcvmCallPrivateStackItem,
   toAcvmNoteLoadOracleInputs,
   writeInputs,
+  createDummyNote,
 } from './acvm/index.js';
 import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import {
@@ -20,7 +21,6 @@ import {
 import { DBOracle } from './db_oracle.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from './acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
-import { DUMMY_NOTE_LENGTH } from './simulator.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 export interface NewNoteData {
@@ -143,23 +143,22 @@ export class Execution {
   private async getNotes(contractAddress: AztecAddress, storageSlot: ACVMField, count: number) {
     const notes = await this.db.getNotes(contractAddress, fromACVMField(storageSlot), count);
     const dummyCount = Math.max(0, count - notes.length);
-    const dummyNotes = Array.from({ length: dummyCount }, () => this.createDummyNote());
+    const dummyNotes = Array.from({ length: dummyCount }, () => ({
+      preimage: createDummyNote(),
+      siblingPath: new Array(PRIVATE_DATA_TREE_HEIGHT).fill(Fr.ZERO),
+      index: 0n,
+    }));
 
     return notes
       .concat(dummyNotes)
       .flatMap(noteGetData => toAcvmNoteLoadOracleInputs(noteGetData, this.oldRoots.privateDataTreeRoot));
   }
 
-  // TODO this should use an unconstrained fn in the future
-  private createDummyNote() {
-    return {
-      preimage: Array(DUMMY_NOTE_LENGTH).fill(new Fr(0n)),
-      siblingPath: new Array(PRIVATE_DATA_TREE_HEIGHT).fill(new Fr(0n)),
-      index: 0,
-    };
-  }
-
   private async getSecretKey(contractAddress: AztecAddress, address: ACVMField) {
+    // TODO remove this when we have brillig oracles that don't execute on false branches
+    if (address === ZERO_ACVM_FIELD) {
+      return [ZERO_ACVM_FIELD];
+    }
     const key = await this.db.getSecretKey(contractAddress, frToAztecAddress(fromACVMField(address)));
     return [toACVMField(key)];
   }
