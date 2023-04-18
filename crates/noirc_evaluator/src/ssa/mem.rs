@@ -26,6 +26,9 @@ impl ArrayId {
     pub(crate) fn to_u32(self) -> u32 {
         self.0
     }
+    pub(crate) fn to_field_element(self) -> FieldElement {
+        FieldElement::from(self.0 as i128)
+    }
 }
 
 /// MemArray represents a contiguous array of elements of the same type.

@@ -8,12 +8,13 @@ use crate::ssa::mem::Memory;
 use crate::ssa::node::{
     Binary, BinaryOp, Instruction, NodeId, NodeObject, NumericType, ObjectType, Operation,
 };
-use acvm::acir::brillig_bytecode::{self, OracleInput};
+use acvm::acir::brillig_bytecode::{self, OracleInput, OracleOutput};
 use acvm::FieldElement;
 
 use acvm::acir::brillig_bytecode::{
     Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
 };
+use noirc_abi::MAIN_RETURN_NAME;
 
 const CALLBACK_REGISTER: usize = 10000;
 const PREFIX_LEN: usize = 3;
@@ -286,15 +287,14 @@ impl BrilligGen {
             Operation::Call { .. } => {
                 if !self.noir_call.is_empty() {
                     //TODO to fix
-                    return Err(RuntimeErrorKind::UnstructuredError{
-                       message: "Error calling function".to_string(),
+                    return Err(RuntimeErrorKind::UnstructuredError {
+                        message: "Error calling function".to_string(),
                     }
                     .into());
                 }
                 assert!(self.noir_call.is_empty());
                 self.noir_call.push(ins.id);
                 self.try_process_call(ctx);
-                
             }
             Operation::Return(ret) => match ret.len() {
                 0 => (),
@@ -496,20 +496,35 @@ impl BrilligGen {
         ctx: &SsaContext,
         funct: &SsaFunction,
         arguments: &Vec<NodeId>,
-    ) -> Vec<OracleInput> {
-        let mut abi = Vec::new();
+        returned_values: &Vec<NodeId>,
+    ) -> (Vec<OracleInput>, Vec<OracleOutput>) {
+        let mut inputs = Vec::new();
         for (param, arg) in funct.arguments.iter().zip(arguments) {
-            let len = if let Some(a) = Memory::deref(ctx, param.0) { ctx.mem[a].len } else { 0 };
-            abi.push(OracleInput::Array {
-                start: self.node_2_register(ctx, *arg),
-                length: len as usize,
-            })
+            let input = if let Some(a) = Memory::deref(ctx, param.0) {
+                OracleInput::Array {
+                    start: RegisterMemIndex::Constant(a.to_field_element()),
+                    length: ctx.mem[a].len as usize,
+                }
+            } else {
+                OracleInput::RegisterMemIndex(self.node_2_register(ctx, *arg))
+            };
+            inputs.push(input);
         }
-        // for i in &funct.result_types {
-        //     let len = if let ObjectType::ArrayPointer(a) = i { ctx.mem[*a].len } else { 0 };
-        //     signature.outputs.push(len);
-        // }
-        abi
+        let mut outputs = Vec::new();
+        for (res, ret) in funct.result_types.iter().zip(returned_values) {
+            let output = if let ObjectType::ArrayPointer(a) = res {
+                OracleOutput::Array {
+                    start: RegisterMemIndex::Constant(a.to_field_element()),
+                    length: ctx.mem[*a].len as usize,
+                }
+            } else {
+                OracleOutput::RegisterIndex(
+                    self.node_2_register(ctx, *ret).to_register_index().unwrap(),
+                )
+            };
+            outputs.push(output);
+        }
+        (inputs, outputs)
     }
 
     fn unsafe_call(
@@ -527,12 +542,12 @@ impl BrilligGen {
                     for i in returned_values {
                         outputs.push(self.node_2_register(ctx, *i).to_register_index().unwrap());
                     }
-                    let abi = self.get_oracle_abi(ctx, ssa_func, arguments);
+                    let abi = self.get_oracle_abi(ctx, ssa_func, arguments, returned_values);
                     self.push_code(brillig_bytecode::Opcode::Oracle(OracleData {
                         name,
-                        inputs: abi,
+                        inputs: abi.0,
                         input_values: Vec::new(),
-                        output: outputs[0], //TODO: temp
+                        outputs: abi.1,
                         output_values: Vec::new(),
                     }));
                 }
