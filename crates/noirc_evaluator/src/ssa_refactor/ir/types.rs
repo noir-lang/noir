@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
 /// though we also apply limitations to it, such as not

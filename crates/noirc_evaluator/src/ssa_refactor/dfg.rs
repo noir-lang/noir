@@ -162,6 +162,7 @@ impl DataFlowGraph {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
     use crate::ssa_refactor::ir::{

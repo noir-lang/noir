@@ -46,9 +46,6 @@ pub(crate) struct InstructionId(u32);
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-///
-/// TODO: Note that Cranelift, unlike LLVM does not have instrinsics
-/// TODO and instead has LibCall (runtime) libraries
 pub(crate) struct IntrinsicOpcodes;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -151,11 +148,11 @@ impl Instruction {
             Instruction::Not(_) => vec![ctrl_typevar],
             Instruction::Truncate { .. } => vec![ctrl_typevar],
             Instruction::Constrain(_) => vec![],
-            Instruction::Call { func, arguments } => vec![],
+            Instruction::Call { .. } => vec![],
             Instruction::Intrinsic { .. } => vec![],
             Instruction::Load(_) => vec![ctrl_typevar],
-            Instruction::Store { destination, value } => vec![],
-            Instruction::Immediate { value } => vec![],
+            Instruction::Store { .. } => vec![],
+            Instruction::Immediate { .. } => vec![],
         }
     }
 }
@@ -166,9 +163,6 @@ impl Instruction {
 /// Since our IR needs to be in SSA form, it makes sense
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
-///
-/// TODO: Rename these to be called ExitInstructions and have `Return`
-/// be a terminator instruction.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum TerminatorInstruction {
     /// Control flow
