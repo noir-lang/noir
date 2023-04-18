@@ -1,12 +1,15 @@
 [submodule "build-system"]
 	path = build-system
 	url = git@github.com:AztecProtocol/build-system.git
-[submodule "l1-contracts"]
-	path = l1-contracts
-	url = git@github.com:AztecProtocol/aztec3-l1-contracts.git
 [submodule "barretenberg"]
 	path = circuits/cpp/barretenberg
 	url = git@github.com:AztecProtocol/barretenberg.git
 [submodule "legacy-nested-build-system"]
 	path = circuits/build-system
 	url = git@github.com:AztecProtocol/build-system.git
+[submodule "l1-contracts/lib/openzeppelin-contracts"]
+	path = l1-contracts/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "l1-contracts/lib/forge-std"]
+	path = l1-contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

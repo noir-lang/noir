@@ -137,6 +137,18 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 a3-tests
       - *save_logs
+  
+  l1-contracts:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build l1-contracts
+
 
   #circuits-<individual>-tests:
   #  docker:
@@ -416,6 +428,8 @@ workflows:
           <<: *circuits-wasm-test
       - circuits-tests:
           <<: *circuits-test
+      - l1-contracts:
+          <<: *defaults
       #- aztec3-circuit-<individual>-tests: *circuits-test
       - yarn-project-base:
           requires:

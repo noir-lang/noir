@@ -1,0 +1,22 @@
+[profile.default]
+src = 'src'
+out = 'out'
+libs = ['lib']
+solc = "0.8.18"
+
+remappings = [
+  "@oz/=lib/openzeppelin-contracts/contracts/",
+  "@aztec3/core/=src/core/",
+  "@aztec3/periphery/=src/periphery/",
+  "@aztec3/mock/=src/mock/",
+  "@aztec3/verifier/=lib/aztec-verifier-contracts/src/"
+]
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+eth_rpc_url="https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c"
+
+[fmt]
+line_length = 100
+tab_width = 2
+variable_override_spacing=false
