@@ -155,7 +155,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 let mut unify_loop_range = |actual_type, span| {
                     let expected_type = if self.is_unconstrained() {
-                        Type::field(Some(span))
+                        Type::FieldElement(CompTime::new(self.interner))
                     } else {
                         Type::comp_time(Some(span))
                     };
