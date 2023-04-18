@@ -38,8 +38,8 @@ tempdir = "0.3.7"
 color-eyre = "0.6.2"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "5f3e63ebd1cef93217913dc16fee96bb96c23edf" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "5f3e63ebd1cef93217913dc16fee96bb96c23edf" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "8528589cd82324b58d979a078af8feff81f39831" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "8528589cd82324b58d979a078af8feff81f39831" }
 # aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
 # aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "26178359a2251e885f15f0a4d1a686afda04aec9" }
 marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
