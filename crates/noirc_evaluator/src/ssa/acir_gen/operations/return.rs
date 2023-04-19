@@ -46,7 +46,7 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.return_values.insert(witness);
+            evaluator.return_values.push(witness);
         }
     }
 
