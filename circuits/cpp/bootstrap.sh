@@ -3,7 +3,7 @@
 # Takes CLEAN as an environment variable. If passed, cleans build artifacts
 set -eu
 
-export WASI_VERSION=12 
+export WASI_VERSION=12
 
 # Update the submodule
 git submodule update --init --recursive
@@ -22,7 +22,7 @@ fi
 
 # Install formatting git hook.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
-echo "cd \$(git rev-parse --show-toplevel)/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
+echo "cd \$(git rev-parse --show-toplevel)/circuits/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
 chmod +x $HOOKS_DIR/pre-commit
 
 # Determine system.
