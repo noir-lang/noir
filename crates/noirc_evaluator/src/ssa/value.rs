@@ -106,9 +106,13 @@ impl Value {
 
     /// Reconstruct a `Value` instance from a slice of NodeId's
     pub(crate) fn from_slice(value_type: &Type, slice: &[NodeId]) -> Value {
-        let mut iter = slice.iter();
-        let result = Value::reshape(value_type, &mut iter);
-        assert!(iter.next().is_none());
-        result
+        if slice.is_empty() {
+            Value::dummy()
+        } else {
+            let mut iter = slice.iter();
+            let result = Value::reshape(value_type, &mut iter);
+            assert!(iter.next().is_none());
+            result
+        }
     }
 }
