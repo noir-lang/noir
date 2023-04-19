@@ -15,7 +15,6 @@ mod tests {
     fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
         let config_str = std::fs::read_to_string(conf_path).unwrap();
 
-        // Parse config.toml into a BTreeMap, do not fail if config file does not exist.
         let mut conf_data = match toml::from_str(&config_str) {
             Ok(t) => t,
             Err(_) => BTreeMap::from([
