@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre;
 
-use crate::find_package_root;
+use crate::{constants::PROOFS_DIR, find_package_root};
 
 mod fs;
 
@@ -85,16 +85,14 @@ pub fn start_cli() -> eyre::Result<()> {
 }
 
 // helper function which tests noir programs by trying to generate a proof and verify it
-pub fn prove_and_verify(proof_name: &str, prg_dir: &Path, show_ssa: bool) -> bool {
-    use tempdir::TempDir;
-
-    let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+pub fn prove_and_verify(proof_name: &str, program_dir: &Path, show_ssa: bool) -> bool {
     let compile_options = CompileOptions { show_ssa, allow_warnings: false, show_output: false };
+    let proof_dir = program_dir.join(PROOFS_DIR);
 
     match prove_cmd::prove_with_path(
         Some(proof_name.to_owned()),
-        prg_dir,
-        &tmp_dir.into_path(),
+        program_dir,
+        &proof_dir,
         None,
         true,
         &compile_options,

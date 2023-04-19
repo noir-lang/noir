@@ -1,3 +1,5 @@
+use tempdir::TempDir;
+
 use std::collections::BTreeMap;
 use std::fs;
 
@@ -6,11 +8,15 @@ const TEST_DATA_DIR: &str = "test_data";
 const CONFIG_FILE: &str = "config.toml";
 
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
-    fn load_conf(conf_path: &str) -> BTreeMap<String, Vec<String>> {
+    fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
+        let config_str = std::fs::read_to_string(conf_path).unwrap();
+
         // Parse config.toml into a BTreeMap, do not fail if config file does not exist.
-        let mut conf_data = match toml::from_str(conf_path) {
+        let mut conf_data = match toml::from_str(&config_str) {
             Ok(t) => t,
             Err(_) => BTreeMap::from([
                 ("exclude".to_string(), Vec::new()),
@@ -26,42 +32,75 @@ mod tests {
         conf_data
     }
 
-    #[test]
-    fn noir_integration() {
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
-
-        //load config.tml file from test_data directory
-        current_dir.push(CONFIG_FILE);
-        let config_path = std::fs::read_to_string(current_dir).unwrap();
-        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
-        let mut current_dir = std::env::current_dir().unwrap();
-        current_dir.push(TEST_DIR);
-        current_dir.push(TEST_DATA_DIR);
-
-        for c in fs::read_dir(current_dir.as_path()).unwrap().flatten() {
-            if let Ok(test_name) = c.file_name().into_string() {
-                println!("Running test {test_name:?}");
-                if c.path().is_dir() && !config_data["exclude"].contains(&test_name) {
-                    let verified = std::panic::catch_unwind(|| {
-                        nargo_cli::cli::prove_and_verify("pp", &c.path(), false)
-                    });
-
-                    let r = match verified {
-                        Ok(result) => result,
-                        Err(_) => {
-                            panic!("\n\n\nPanic occurred while running test {:?} (ignore the following panic)", c.file_name());
-                        }
-                    };
-
-                    if config_data["fail"].contains(&test_name) {
-                        assert!(!r, "{:?} should not succeed", c.file_name());
-                    } else {
-                        assert!(r, "verification fail for {:?}", c.file_name());
-                    }
-                }
+    /// Copy files from source to destination recursively.
+    pub fn copy_recursively(
+        source: impl AsRef<Path>,
+        destination: impl AsRef<Path>,
+    ) -> std::io::Result<()> {
+        fs::create_dir_all(&destination)?;
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            let filetype = entry.file_type()?;
+            if filetype.is_dir() {
+                copy_recursively(entry.path(), destination.as_ref().join(entry.file_name()))?;
+            } else {
+                fs::copy(entry.path(), destination.as_ref().join(entry.file_name()))?;
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn noir_integration() {
+        let current_dir = std::env::current_dir().unwrap();
+
+        let test_data_dir = current_dir.join(TEST_DIR).join(TEST_DATA_DIR);
+
+        // Load config.toml file from test_data directory
+        let config_file_path = test_data_dir.join(CONFIG_FILE);
+        let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_file_path);
+
+        // Copy all the test cases into a temp dir so we don't leave artifacts around.
+        let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+        copy_recursively(test_data_dir, &tmp_dir)
+            .expect("failed to copy test cases to temp directory");
+
+        let test_case_dirs =
+            fs::read_dir(&tmp_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+        for test_dir in test_case_dirs {
+            let test_name =
+                test_dir.file_name().into_string().expect("Directory can't be converted to string");
+            let test_program_dir = &test_dir.path();
+
+            if config_data["exclude"].contains(&test_name) {
+                println!("Skipping test {test_name}");
+                continue;
+            }
+
+            println!("Running test {test_name}");
+
+            let verified = std::panic::catch_unwind(|| {
+                nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
+            });
+
+            let r = match verified {
+                Ok(result) => result,
+                Err(_) => {
+                    panic!(
+                        "\n\n\nPanic occurred while running test {test_name} (ignore the following panic)"
+                    );
+                }
+            };
+
+            if config_data["fail"].contains(&test_name) {
+                assert!(!r, "{:?} should not succeed", test_name);
+            } else {
+                assert!(r, "verification fail for {:?}", test_name);
+            }
+        }
+
+        // Ensure that temp dir remains alive until all tests have run.
+        drop(tmp_dir);
     }
 }
