@@ -1,3 +1,5 @@
+use assert_cmd::prelude::*;
+use std::process::Command;
 use tempdir::TempDir;
 
 use std::collections::BTreeMap;
@@ -79,24 +81,26 @@ mod tests {
 
             println!("Running test {test_name}");
 
-            let verified = std::panic::catch_unwind(|| {
-                nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
-            });
-
-            let r = match verified {
-                Ok(result) => result,
-                Err(_) => {
-                    panic!(
-                        "\n\n\nPanic occurred while running test {test_name} (ignore the following panic)"
-                    );
-                }
-            };
+            let mut cmd = Command::cargo_bin("nargo").unwrap();
+            cmd.arg("--program-dir").arg(test_program_dir);
+            cmd.arg("prove").arg("pp");
 
             if config_data["fail"].contains(&test_name) {
-                assert!(!r, "{:?} should not succeed", test_name);
+                // TODO: add an expected error for each "fail" testcase.
+                // Alternatively we can move these to a separate integration test which just attempts
+                // to execute the circuit to ensure we catch the failure there.
+                // (currently these could pass execution but fail in proving)
+                cmd.assert().failure();
+                continue;
             } else {
-                assert!(r, "verification fail for {:?}", test_name);
+                cmd.assert().success();
             }
+
+            // Any programs which can be proven *must* be verifiable.
+            let mut cmd = Command::cargo_bin("nargo").unwrap();
+            cmd.arg("--program-dir").arg(test_program_dir);
+            cmd.arg("verify").arg("pp");
+            cmd.assert().success();
         }
 
         // Ensure that temp dir remains alive until all tests have run.
