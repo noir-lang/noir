@@ -35,10 +35,8 @@ export const getDependencies = (typedData: TypedData, type: string, dependencies
 /**
  * Encode a type to a string. All dependant types are alphabetically sorted.
  *
- * @param {TypedData} typedData
- * @param {string} type
- * @param {Options} [options]
- * @return {string}
+ * @param typedData -.
+ * @param type -.
  */
 export const encodeType = (typedData: TypedData, type: string): string => {
   const [primary, ...dependencies] = getDependencies(typedData, type);
@@ -102,7 +100,7 @@ const encodeValue = (typedData: TypedData, type: string, data: unknown): [string
 };
 
 /**
- * Encode the data to an ABI encoded Buffer. The data should be a key -> value object with all the required values. All
+ * Encode the data to an ABI encoded Buffer. The data should be a key -\> value object with all the required values. All
  * dependant types are automatically encoded.
  */
 export const encodeData = (typedData: TypedData, type: string, data: Record<string, unknown>): Buffer => {
@@ -127,7 +125,7 @@ export const encodeData = (typedData: TypedData, type: string, data: Record<stri
 };
 
 /**
- * Get encoded data as a hash. The data should be a key -> value object with all the required values. All dependant
+ * Get encoded data as a hash. The data should be a key -\> value object with all the required values. All dependant
  * types are automatically encoded.
  */
 export const getStructHash = (typedData: TypedData, type: string, data: Record<string, unknown>) => {

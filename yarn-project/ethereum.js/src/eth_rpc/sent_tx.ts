@@ -28,10 +28,29 @@ export class SentTransaction implements SentTx {
 
   constructor(protected ethRpc: EthereumRpc, protected txHashPromise: Promise<TxHash>) {}
 
+  /**
+   * Retrieve the transaction hash of the sent transaction.
+   * This function returns a promise that resolves with the TxHash of the transaction.
+   * Useful in tracking the status or obtaining the receipt of the transaction on the blockchain.
+   *
+   * @returns A Promise that resolves with the TxHash of the sent transaction.
+   */
   public async getTxHash(): Promise<TxHash> {
     return await this.txHashPromise;
   }
 
+  /**
+   * Retrieve the transaction receipt for a given SentTx instance.
+   * This function will wait until the transaction has at least 'numConfirmations' confirmations before
+   * returning the receipt. If 'throwOnError' is set to true, it will throw an error if the receipt
+   * indicates that the transaction failed. Allows setting a 'timeout' and custom polling 'interval'.
+   *
+   * @param throwOnError - Whether to throw an error if the receipt status indicates failure.
+   * @param  numConfirmations - The minimum number of confirmations required before returning the receipt.
+   * @param timeout - The maximum time in seconds to wait for the receipt before giving up. A value of 0 disables the timeout.
+   * @param  interval - The time in seconds between polling attempts to fetch the receipt.
+   * @returns A promise that resolves to the fetched transaction receipt.
+   */
   public async getReceipt(
     throwOnError = true,
     numConfirmations = 1,
@@ -47,6 +66,15 @@ export class SentTransaction implements SentTx {
     return await this.handleReceipt(throwOnError, receipt);
   }
 
+  /**
+   * Handles the transaction receipt based on the provided parameters.
+   * If throwOnError is true and the receipt status is false, an error will be thrown.
+   * Otherwise, returns the received transaction receipt as a resolved promise.
+   *
+   * @param throwOnError - A boolean flag indicating whether to throw an error if receipt status is false.
+   * @param receipt - The TransactionReceipt object received from the Ethereum network.
+   * @returns A Promise resolving to the given TransactionReceipt.
+   */
   protected handleReceipt(throwOnError = true, receipt: TransactionReceipt) {
     if (throwOnError && !receipt.status) {
       throw new Error('Receipt indicates transaction failed. Try a call() to determine cause of failure.');

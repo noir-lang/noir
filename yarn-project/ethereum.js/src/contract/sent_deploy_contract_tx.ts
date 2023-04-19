@@ -18,6 +18,15 @@ export class SentDeployContractTx extends SentContractTx {
     super(eth, contractAbi, promise);
   }
 
+  /**
+   * Handles the transaction receipt for a contract deployment, executing a callback
+   * with the deployed contract address when it is available in the receipt.
+   * Extends the base class method to include the onDeployed callback execution.
+   *
+   * @param throwOnError - A boolean flag indicating whether to throw an error on non-zero exit status.
+   * @param receipt - The transaction receipt object containing the contract address and other details.
+   * @returns A Promise resolving to a ContractTxReceipt instance containing transaction receipt data.
+   */
   protected async handleReceipt(throwOnError = true, receipt: TransactionReceipt): Promise<ContractTxReceipt> {
     if (receipt.contractAddress) {
       this.onDeployed(receipt.contractAddress);

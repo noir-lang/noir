@@ -561,6 +561,12 @@ describe('contract', () => {
   describe('send', () => {
     const signature = sha3('mySend(address,uint256)').slice(0, 10);
 
+    /**
+     * Sets up the initial state for the mock Ethereum provider by resolving the required RPC calls.
+     * This function helps prepare the test environment before executing test cases related to contract methods.
+     * The bootstrap function configures the responses for eth_sendTransaction, eth_blockNumber,
+     * and eth_getTransactionReceipt in the mock Ethereum provider.
+     */
     function bootstrap() {
       // eth_sendTransaction
       mockEthereumProvider.request.mockResolvedValueOnce(

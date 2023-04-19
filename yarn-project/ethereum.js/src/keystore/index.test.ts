@@ -1,7 +1,20 @@
 import { decryptFromKeyStoreJson, encryptToKeyStoreJson, KeyStoreJson } from './index.js';
 import { EthAddress } from '@aztec/foundation';
 
-const staticTests: { json: KeyStoreJson; password: string; priv: string }[] = [
+const staticTests: {
+  /**
+   * A JSON representation of the encrypted key store for an Ethereum account.
+   */
+  json: KeyStoreJson;
+  /**
+   * The password used to encrypt and decrypt the keystore file.
+   */
+  password: string;
+  /**
+   * The private key associated with the Ethereum address.
+   */
+  priv: string;
+}[] = [
   {
     json: {
       crypto: {

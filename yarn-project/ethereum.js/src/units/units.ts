@@ -1,11 +1,11 @@
 /**
  * Converts the value to a decimal string representation with the given precision.
- * The digits outside the precision are simply discarded (i.e. the result is floored).
+ * The digits outside the precision are simply discarded (i,e, the result is floored).
  * This ensures we never report more funds than actually exists.
  * Trailing 0's are also removed.
- * @param value to convert to string
- * @param decimals the number of least significant digits of value that represent the decimal
- * @param precision the number of decimal places to return
+ * @param value - To convert to string.
+ * @param decimals - The number of least significant digits of value that represent the decimal.
+ * @param precision - The number of decimal places to return.
  */
 export function fromBaseUnits(value: bigint, decimals: number, precision: number = decimals) {
   const neg = value < BigInt(0);
@@ -23,8 +23,8 @@ export function fromBaseUnits(value: bigint, decimals: number, precision: number
 
 /**
  * Converts the value from a decimal string to bigint value.
- * @param valueString to convert to bigint
- * @param decimals the number of least significant digits of value that represent the decimal
+ * @param valueString - To convert to bigint.
+ * @param decimals - The number of least significant digits of value that represent the decimal.
  */
 export function toBaseUnits(valueString: string, decimals: number) {
   const [integer, decimal] = valueString.split('.');

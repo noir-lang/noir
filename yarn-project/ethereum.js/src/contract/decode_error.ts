@@ -2,9 +2,24 @@ import { CallRequest, EthereumRpc, TxHash } from '../eth_rpc/index.js';
 import { hexToBuffer } from '../hex_string/index.js';
 import { ContractAbi } from './abi/contract_abi.js';
 
+/**
+ * Represents a decoded error from a contract execution.
+ * Contains optional name and params properties, as well as a mandatory message property
+ * providing a human-readable description of the error.
+ */
 export interface DecodedError {
+  /**
+   * The name of the decoded error.
+   */
   name?: string;
+
+  /**
+   * An array of decoded error parameters.
+   */
   params?: any[];
+  /**
+   * A human-readable description of the error.
+   */
   message: string;
 }
 

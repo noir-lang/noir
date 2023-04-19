@@ -1,6 +1,9 @@
 import { sleep } from '../sleep/index.js';
 import { Timer } from '../timer/index.js';
 
+/**
+ *
+ */
 export function* backoffGenerator() {
   const v = [1, 1, 1, 2, 4, 8, 16, 32, 64];
   let i = 0;
@@ -9,6 +12,9 @@ export function* backoffGenerator() {
   }
 }
 
+/**
+ *
+ */
 export async function retry<Result>(fn: () => Promise<Result>, name = 'Operation', backoff = backoffGenerator()) {
   while (true) {
     try {
@@ -29,6 +35,9 @@ export async function retry<Result>(fn: () => Promise<Result>, name = 'Operation
 // Call `fn` repeatedly until it returns true or timeout.
 // Both `interval` and `timeout` are seconds.
 // Will never timeout if the value is 0.
+/**
+ *
+ */
 export async function retryUntil<T>(fn: () => Promise<T | undefined>, name = '', timeout = 0, interval = 1) {
   const timer = new Timer();
   while (true) {

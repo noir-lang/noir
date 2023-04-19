@@ -1,9 +1,11 @@
 import { pbkdf2, pbkdf2Sync } from '../pbkdf2/index.js';
 
 const MAX_VALUE = 0x7fffffff;
-
-// The following is an adaptation of scryptsy
-// See: https://www.npmjs.com/package/scryptsy
+/**
+ * The following is an adaptation of scryptsy.
+ *  See: https://www.npmjs.com/package/scryptsy.
+ *
+ */
 function blockmixSalsa8(BY, Yi, r, x, _X) {
   let i;
 
@@ -23,10 +25,28 @@ function blockmixSalsa8(BY, Yi, r, x, _X) {
   }
 }
 
+/**
+ * Perform a bitwise rotation operation on the given input values.
+ * The value 'a' is left-shifted by 'b' bits, while the remaining rightmost bits are rotated to the left side.
+ * This operation is useful in cryptographic algorithms and hash functions.
+ *
+ * @param a - The initial integer value to be rotated.
+ * @param b - The number of bits to perform the rotation operation.
+ * @returns The resulting integer value after the bitwise rotation.
+ */
 function R(a, b) {
   return (a << b) | (a >>> (32 - b));
 }
 
+/**
+ * Perform the Salsa20/8 core hashing operation on a given input block.
+ * This function modifies the provided 512-bit 'B' array in place, applying
+ * the Salsa20/8 hash function. The '_X' parameter is used as temporary storage
+ * during the computation to avoid additional memory allocations.
+ *
+ * @param B - The 16-element Uint32Array containing the input block to be hashed.
+ * @param _X - A 16-element Uint32Array used as scratch space during computation.
+ */
 function salsa208(B, x) {
   arraycopy(B, 0, x, 0, 16);
 
@@ -69,20 +89,41 @@ function salsa208(B, x) {
     B[i] += x[i];
   }
 }
-
-// naive approach... going back to loop unrolling may yield additional performance
+/**
+ * Naive approach; going back to loop unrolling may yield additional performance.
+ */
 function blockxor(S, Si, D, len) {
   for (let i = 0; i < len; i++) {
     D[i] ^= S[Si + i];
   }
 }
 
+/**
+ * Copies elements from the source array to the destination array.
+ * Starts copying elements from 'srcPos' index in the source array to 'destPos' index in the destination array, until the given length is reached.
+ *
+ * @param src - The source array to copy elements from.
+ * @param srcPos - The starting position in the source array to begin copying from.
+ * @param dest - The destination array to copy elements to.
+ * @param destPos - The starting position in the destination array to begin copying to.
+ * @param length - The number of elements to be copied from the source to destination array.
+ */
 function arraycopy(src, srcPos, dest, destPos, length) {
   while (length--) {
     dest[destPos++] = src[srcPos++];
   }
 }
 
+/**
+ * Ensures the provided value is an integer.
+ * Parses the given value to an integer and checks if it's equal to the original value.
+ * Throws an error if the parsed and the original values are not equal, indicating that the value is not an integer.
+ *
+ * @param value - The value to be checked as an integer.
+ * @param name - A string representing the name of the parameter, used in the error message if the value is not an integer.
+ * @returns The integer value if the value is a valid integer.
+ * @throws If the provided value is not an integer.
+ */
 function ensureInteger(value, name) {
   const intValue = parseInt(value, 10);
   if (value !== intValue) {
@@ -90,9 +131,10 @@ function ensureInteger(value, name) {
   }
   return intValue;
 }
-
-// N = Cpu cost, r = Memory cost, p = parallelization cost
-// callback(error, progress, key)
+/**
+ * N = Cpu cost, r = Memory cost, p = parallelization cost.
+ * Callback(error, progress, key).
+ */
 export function scrypt(password, salt, N, r, p, dkLen, callback?: (progress: number) => boolean) {
   return new Promise<Buffer>((resolve, reject) => {
     N = ensureInteger(N, 'N');

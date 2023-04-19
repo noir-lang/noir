@@ -4,7 +4,7 @@ import { AbiInput } from '../contract_abi_definition.js';
 import { hexToBuffer } from '../../../hex_string/index.js';
 
 /**
- * ABICoder prototype should be used to encode/decode solidity params of any type
+ * ABICoder prototype should be used to encode/decode solidity params of any type.
  */
 export class ABICoder {
   private ethersAbiCoder: EthersAbi;
@@ -14,11 +14,10 @@ export class ABICoder {
   }
 
   /**
+   * EncodeFunctionSignature.
    * Encodes the function name to its ABI representation, which are the first 4 bytes of the sha3 of the function name including  types.
-   *
-   * @method encodeFunctionSignature
-   * @param {String|Object} functionName
-   * @return {String} encoded function name
+   * @param functionName - Name of the function.
+   * @returns Encoded function name.
    */
   public encodeFunctionSignature(functionName) {
     if (typeof functionName === 'object') {
@@ -30,10 +29,9 @@ export class ABICoder {
 
   /**
    * Encodes the function name to its ABI representation, which are the first 4 bytes of the sha3 of the function name including  types.
-   *
-   * @method encodeEventSignature
-   * @param {String|Object} functionName
-   * @return {String} encoded function name
+   *EncodeEventSignature.
+   * @param functionName - Name of the function.
+   * @returns Encoded function name.
    */
   public encodeEventSignature(functionName) {
     if (typeof functionName === 'object') {
@@ -44,24 +42,22 @@ export class ABICoder {
   }
 
   /**
-   * Should be used to encode plain param
-   *
-   * @method encodeParameter
-   * @param {String} type
-   * @param {Object} param
-   * @return {String} encoded plain param
+   * Should be used to encode plain param.
+   * EncodeParameter.
+   * @param type - Type of the param.
+   * @param param - Param to be encoded.
+   * @returns Encoded plain param.
    */
   public encodeParameter(type, param) {
     return this.encodeParameters([type], [param]);
   }
 
   /**
-   * Should be used to encode list of params
-   *
-   * @method encodeParameters
-   * @param {Array} types
-   * @param {Array} params
-   * @return {String} encoded list of params
+   * Should be used to encode list of params.
+   * EncodeParameters.
+   * @param types - Array of types.
+   * @param params - Params to be encoded.
+   * @returns Encoded list of params.
    */
   public encodeParameters(types, params) {
     return hexToBuffer(this.ethersAbiCoder.encode(this.mapTypes(types), params));
@@ -69,11 +65,10 @@ export class ABICoder {
 
   /**
    * Encodes a function call from its json interface and parameters.
-   *
-   * @method encodeFunctionCall
-   * @param {Array} jsonInterface
-   * @param {Array} params
-   * @return {String} The encoded ABI for this function call
+   * EncodeFunctionCall.
+   * @param jsonInterface - Interface of the function call represented in JSON.
+   * @param params - Parameters of the function call.
+   * @returns The encoded ABI for this function call.
    */
   public encodeFunctionCall(jsonInterface, params) {
     return (
@@ -82,19 +77,19 @@ export class ABICoder {
   }
 
   /**
-   * Should be used to decode bytes to plain param
-   *
-   * @method decodeParameter
-   * @param {String} type
-   * @param {String} bytes
-   * @return {Object} plain param
+   * Should be used to decode bytes to plain param.
+   * DecodeParameter.
+   * @param type - Of param.
+   * @param bytes - To be decoded.
+   * @returns Plain param.
    */
   public decodeParameter(type, bytes: Buffer | string) {
     return this.decodeParameters([type], bytes)[0];
   }
 
   /**
-   * Should be used to decode list of params
+   * Should be used to decode list of params.
+   * @returns Decoded list of params.
    */
   public decodeParameters(outputs, bytes: Buffer | string): { [k: string | number]: any } {
     const returnValue: { [k: string | number]: any } = { __length__: 0 };
@@ -130,12 +125,11 @@ export class ABICoder {
 
   /**
    * Decodes events non- and indexed parameters.
-   *
-   * @method decodeLog
-   * @param {Object} inputs
-   * @param {String} data
-   * @param {Array} topics
-   * @return {Array} array of plain params
+   * DecodeLog.
+   * @param inputs - Abi inputs.
+   * @param data - Event data.
+   * @param topics - Event topics.
+   * @returns Array of plain params.
    */
   public decodeLog(inputs: AbiInput[], data, topics) {
     topics = Array.isArray(topics) ? topics : [topics];
@@ -187,11 +181,10 @@ export class ABICoder {
   }
 
   /**
-   * Map types if simplified format is used
-   *
-   * @method mapTypes
-   * @param {Array} types
-   * @return {Array}
+   * Map types if simplified format is used.
+   * MapTypes.
+   * @param types - Types to be mapped.
+   * @returns Array.
    */
   private mapTypes(types) {
     const mappedTypes: any[] = [];
@@ -214,22 +207,20 @@ export class ABICoder {
   }
 
   /**
-   * Check if type is simplified struct format
-   *
-   * @method isSimplifiedStructFormat
-   * @param {string | Object} type
-   * @returns {boolean}
+   * Check if type is simplified struct format.
+   * IsSimplifiedStructFormat.
+   * @param type - The type.
+   * @returns A boolean.
    */
   private isSimplifiedStructFormat(type) {
     return typeof type === 'object' && typeof type.components === 'undefined' && typeof type.name === 'undefined';
   }
 
   /**
-   * Maps the correct tuple type and name when the simplified format in encode/decodeParameter is used
-   *
-   * @method mapStructNameAndType
-   * @param {string} structName
-   * @return {{type: string, name: *}}
+   * Maps the correct tuple type and name when the simplified format in encode/decodeParameter is used.
+   * MapStructNameAndType.
+   * @param structName -  Name.
+   * @returns \{type: string, name: *\}.
    */
   private mapStructNameAndType(structName) {
     let type = 'tuple';
@@ -243,11 +234,10 @@ export class ABICoder {
   }
 
   /**
-   * Maps the simplified format in to the expected format of the ABICoder
-   *
-   * @method mapStructToCoderFormat
-   * @param {Object} struct
-   * @return {Array}
+   * Maps the simplified format in to the expected format of the ABICoder.
+   * MapStructToCoderFormat.
+   * @param struct - Simplified format.
+   * @returns Array.
    */
   private mapStructToCoderFormat(struct) {
     const components: any[] = [];
@@ -272,11 +262,10 @@ export class ABICoder {
   }
 
   /**
-   * Should be used to create full function/event name from json abi
-   *
-   * @method jsonInterfaceMethodToString
-   * @param {Object} json
-   * @return {String} full function/event name
+   * Should be used to create full function/event name from json abi.
+   * JsonInterfaceMethodToString.
+   * @param json - JSON abi.
+   * @returns Full function/event name.
    */
   public abiMethodToString(json) {
     if (typeof json === 'object' && json.name && json.name.indexOf('(') !== -1) {
@@ -288,12 +277,11 @@ export class ABICoder {
 }
 
 /**
- * Should be used to flatten json abi inputs/outputs into an array of type-representing-strings
- *
- * @method flattenTypes
- * @param {bool} includeTuple
- * @param {Object} puts
- * @return {Array} parameters as strings
+ * Should be used to flatten json abi inputs/outputs into an array of type-representing-strings.
+ * FlattenTypes.
+ * @param includeTuple - Bool.
+ * @param puts - Inputs/outputs.
+ * @returns Array of Parameters as strings.
  */
 function flattenTypes(includeTuple: boolean, puts: any[]) {
   // console.log("entered _flattenTypes. inputs/outputs: " + puts)

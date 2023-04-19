@@ -8,7 +8,24 @@
 import fs from 'fs';
 import { ContractAbiDefinition } from '../../abi/index.js';
 
-export function getFromFoundry(buildFile: string): { abi: ContractAbiDefinition; initData?: string } {
+/**
+ * Extracts the contract ABI (Application Binary Interface) definition and initialization data from a foundry build file.
+ * The returned object contains both 'abi' and optional 'initData' properties as parsed from the provided JSON build file.
+ * This function is useful for obtaining contract information from compiled sources, like Solidity smart contracts.
+ *
+ * @param buildFile - The path to the foundry build file containing the ABI and bytecode information.
+ * @returns An object containing the contract ABI definition and optional initialization data as properties.
+ */
+export function getFromFoundry(buildFile: string): {
+  /**
+   * The contract's Application Binary Interface.
+   */
+  abi: ContractAbiDefinition;
+  /**
+   * The bytecode object representing the contract's initial state.
+   */
+  initData?: string;
+} {
   const {
     abi,
     bytecode: { object: initData },
