@@ -11,6 +11,7 @@ mod field;
 mod ec;
 mod unsafe;
 mod collections;
+mod compat;
 
 #[builtin(println)]
 fn println<T>(_input : T) {}
