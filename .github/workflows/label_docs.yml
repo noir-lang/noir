@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request_target:
+    types:
+      - labeled
+      - unlabeled
+
+jobs:
+  dispatch_create:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'labeled' && github.event.label.name == 'doc needed'
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create issue if doc needed label is applied
+        uses: actions/github-script@v5    
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'noir-lang',
+              repo: 'docs',
+              workflow_id: 'new-migrated-issue.yml',
+              ref: 'main',
+              inputs: {
+                name: "${{ github.event.pull_request.number }}"
+              }
+            });
+
+  dispatch_close:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'unlabeled' && github.event.label.name == 'doc needed'
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Delete issue if doc needed label is removed
+        uses: actions/github-script@v5    
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'noir-lang',
+              repo: 'docs',
+              workflow_id: 'delete-migrated-issue.yml',
+              ref: 'main',
+              inputs: {
+                name: "${{ github.event.pull_request.number }}"
+              }
+            });
