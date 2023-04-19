@@ -467,7 +467,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         let typ = self.interner.id_type(id);
         let field_types = unwrap_struct_type(&typ);
-        let field_types = btree_map(field_types, |x| x);
+
+        let field_type_map = btree_map(&field_types, |x| x.clone());
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -476,7 +477,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
-            let field_type = field_types.get(&field_name.0.contents).unwrap();
+            let field_type = field_type_map.get(&field_name.0.contents).unwrap();
             let typ = Self::convert_type(field_type);
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
@@ -490,14 +491,21 @@ impl<'interner> Monomorphizer<'interner> {
             }));
         }
 
-        let sorted_fields = vecmap(field_vars, |(name, (id, typ))| {
+        // We must ensure the tuple created from the variables here matches the order
+        // of the fields as defined in the type. To do this, we iterate over field_types,
+        // rather than field_type_map which is a sorted BTreeMap.
+        let field_idents = vecmap(field_types, |(name, _)| {
+            let (id, typ) = field_vars.remove(&name).unwrap_or_else(|| {
+                unreachable!("Expected field {name} to be present in constructor for {typ}")
+            });
+
             let definition = Definition::Local(id);
             let mutable = false;
             ast::Expression::Ident(ast::Ident { definition, mutable, location: None, name, typ })
         });
 
         // Finally we can return the created Tuple from the new block
-        new_exprs.push(ast::Expression::Tuple(sorted_fields));
+        new_exprs.push(ast::Expression::Tuple(field_idents));
         ast::Expression::Block(new_exprs)
     }
 

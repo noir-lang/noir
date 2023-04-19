@@ -81,15 +81,13 @@ impl<'interner> TypeChecker<'interner> {
                 });
 
                 if let Type::Struct(struct_type, generics) = struct_type {
-                    let mut pattern_fields = fields.clone();
-                    pattern_fields.sort_by_key(|(ident, _)| ident.clone());
                     let struct_type = struct_type.borrow();
 
-                    for (field_name, field_pattern) in pattern_fields {
+                    for (field_name, field_pattern) in fields {
                         if let Some((type_field, _)) =
                             struct_type.get_field(&field_name.0.contents, generics)
                         {
-                            self.bind_pattern(&field_pattern, type_field);
+                            self.bind_pattern(field_pattern, type_field);
                         }
                     }
                 }

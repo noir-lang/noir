@@ -443,9 +443,10 @@ impl<'interner> TypeChecker<'interner> {
         // Note that we use a Vec to store the original arguments (rather than a BTreeMap) to
         // preserve the evaluation order of the source code.
         let mut args = constructor.fields;
-        args.sort_by_key(|arg| arg.0.clone());
+        args.sort_by_key(|(name, _)| name.clone());
 
-        let fields = typ.borrow().get_fields(&generics);
+        let mut fields = typ.borrow().get_fields(&generics);
+        fields.sort_by_key(|(name, _)| name.clone());
 
         for ((param_name, param_type), (arg_ident, arg)) in fields.into_iter().zip(args) {
             // This can be false if the user provided an incorrect field count. That error should
