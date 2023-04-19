@@ -7,44 +7,26 @@ on:
       - unlabeled
 
 jobs:
-  dispatch_create:
+  dispatch:
     runs-on: ubuntu-latest
-    if: github.event.action == 'labeled' && github.event.label.name == 'doc needed'
+    if: github.event.label.name == 'doc needed'
 
     steps:
       - uses: actions/checkout@v3
-      - name: Create issue if doc needed label is applied
-        uses: actions/github-script@v5    
-        with:
-          github-token: ${{ secrets.PAT_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: 'noir-lang',
-              repo: 'docs',
-              workflow_id: 'new-migrated-issue.yml',
-              ref: 'main',
-              inputs: {
-                name: "${{ github.event.pull_request.number }}"
-              }
-            });
+      - name: Set workflowId environment variable
+        id: set_workflow_id
+        run: |
+          if [[ "${{ github.event.action }}" == "labeled" ]]; then
+            echo "workflowId=new-migrated-issue.yml" >> $GITHUB_ENV
+          else
+            echo "workflowId=delete-migrated-issue.yml" >> $GITHUB_ENV
+          fi
 
-  dispatch_close:
-    runs-on: ubuntu-latest
-    if: github.event.action == 'unlabeled' && github.event.label.name == 'doc needed'
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Delete issue if doc needed label is removed
-        uses: actions/github-script@v5    
-        with:
-          github-token: ${{ secrets.PAT_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: 'noir-lang',
-              repo: 'docs',
-              workflow_id: 'delete-migrated-issue.yml',
-              ref: 'main',
-              inputs: {
-                name: "${{ github.event.pull_request.number }}"
-              }
-            });
+      - name: Dispatch
+        uses: benc-uk/workflow-dispatch@v1 
+        with: 
+          workflow: ${{ env.workflowId }}
+          repo: noir-lang/docs
+          ref: main 
+          token: ${{ secrets.PAT_TOKEN }} 
+          inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }' 
