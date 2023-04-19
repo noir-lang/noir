@@ -8,6 +8,7 @@ pkg/
 
 # Nix stuff
 result
+.envrc.local
 .direnv/
 
 # Nargo output
