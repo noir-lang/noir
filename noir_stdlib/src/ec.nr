@@ -5,6 +5,7 @@
 mod tecurve; // Twisted Edwards curves
 mod swcurve; // Elliptic curves in Short Weierstraß form
 mod montcurve; // Montgomery curves
+mod consts; // Commonly used curve presets
 //
 // Note that Twisted Edwards and Montgomery curves are (birationally) equivalent, so that
 // they may be freely converted between one another, whereas Short Weierstraß curves are

@@ -53,3 +53,24 @@ fn modulus_be_bytes() -> [u8] {}
 
 #[builtin(modulus_le_bytes)]
 fn modulus_le_bytes() -> [u8] {}
+
+// Returns true if x is less than y
+// TODO: consider sftey of final few bits
+fn lt_bytes32(x: Field, y: Field) -> bool {
+    let x_bytes = x.to_le_bytes(32);
+    let y_bytes = y.to_le_bytes(32);
+    let mut x_is_lt = false;
+    let mut done = false;
+    for i in 0..32 {
+        if (!done) {
+            let x_byte = x_bytes[31 - i];
+            let y_byte = y_bytes[31 - i];
+            let bytes_match = x_byte == y_byte;
+            if !bytes_match {
+                x_is_lt = x_byte < y_byte;
+                done = true;
+            }
+        }
+    }
+    x_is_lt
+}
