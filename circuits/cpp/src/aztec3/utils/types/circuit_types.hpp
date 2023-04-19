@@ -14,6 +14,7 @@
 #include <barretenberg/stdlib/primitives/curves/bn254.hpp>
 #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
 #include <barretenberg/stdlib/recursion/verification_key/verification_key.hpp>
+#include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
 #include <barretenberg/stdlib/commitment/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/hash/pedersen/pedersen.hpp>
 #include <barretenberg/stdlib/hash/blake2s/blake2s.hpp>
@@ -24,18 +25,21 @@ using namespace proof_system::plonk;
 namespace aztec3::utils::types {
 
 template <typename Composer> struct CircuitTypes {
-    typedef stdlib::bool_t<Composer> boolean;
 
+    // Basic uint types
+    typedef stdlib::bool_t<Composer> boolean;
     typedef stdlib::uint8<Composer> uint8;
     typedef stdlib::uint16<Composer> uint16;
     typedef stdlib::uint32<Composer> uint32;
     typedef stdlib::uint64<Composer> uint64;
 
-    typedef stdlib::field_t<Composer> fr; // of altbn
+    // Types related to the bn254 curve
+    typedef stdlib::field_t<Composer> fr;
     typedef stdlib::safe_uint_t<Composer> safe_fr;
     typedef stdlib::address_t<Composer> address;
+    typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq;
 
-    typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq; // of altbn
+    typedef stdlib::witness_t<Composer> witness;
 
     // typedef fq grumpkin_fr;
     // typedef fr grumpkin_fq;
@@ -54,6 +58,10 @@ template <typename Composer> struct CircuitTypes {
     typedef stdlib::ecdsa::signature<Composer> ecdsa_signature;
 
     typedef stdlib::recursion::aggregation_state<bn254> AggregationObject;
+    typedef std::conditional_t<std::same_as<Composer, plonk::TurboComposer>,
+                               stdlib::recursion::recursive_turbo_verifier_settings<bn254>,
+                               stdlib::recursion::recursive_ultra_verifier_settings<bn254>>
+        recursive_inner_verifier_settings;
     typedef stdlib::recursion::verification_key<bn254> VK;
     // Notice: no CircuitType for a Proof: we only ever handle native; the verify_proof() function swallows the
     // 'circuit-type-ness' of the proof.

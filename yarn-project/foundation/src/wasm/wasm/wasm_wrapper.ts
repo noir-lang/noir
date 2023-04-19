@@ -29,13 +29,13 @@ export abstract class WasmWrapper {
   constructor(private loggerName?: string) {}
 
   /**
-   * 20 pages by default. 20*2**16 \> 1mb stack size plus other overheads.
+   * 30 pages by default. 30*2**16 \> 1mb stack size plus other overheads.
    * 8192 maximum by default. 512mb.
    * @param initial - Initial memory pages.
    * @param maximum - Max memory pages.
    * @returns The original instance of the wrapper.
    */
-  public async init(initial = 20, maximum = 8192): Promise<WasmWrapper> {
+  public async init(initial = 30, maximum = 8192): Promise<WasmWrapper> {
     let wasm: WasmModule;
     this.wasm = wasm = new WasmModule(
       await fetchCode(this.codePath),

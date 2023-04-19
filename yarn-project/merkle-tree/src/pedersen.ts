@@ -1,6 +1,6 @@
 import {
   pedersenCompress,
-  pedersenCompressInputs,
+  pedersenHashInputs,
   pedersenGetHash,
   pedersenGetHashTree,
 } from '@aztec/barretenberg.js/crypto';
@@ -30,7 +30,7 @@ export class Pedersen implements Hasher {
    * @returns The resulting 32-byte hash.
    */
   public compressInputs(inputs: Buffer[]): Buffer {
-    return pedersenCompressInputs(this.wasm, inputs);
+    return pedersenHashInputs(this.wasm, inputs);
   }
 
   /**

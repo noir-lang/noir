@@ -19,6 +19,7 @@
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 
 namespace {
+using Composer = plonk::UltraComposer;
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::CombinedAccumulatedData;
@@ -34,9 +35,6 @@ using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 using aztec3::circuits::mock::mock_kernel_circuit;
-
-using plonk::TurboComposer;
-using namespace plonk::stdlib::types;
 
 } // namespace
 
@@ -179,7 +177,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     };
 
     Composer private_kernel_composer = Composer(crs_factory);
-    plonk::stdlib::types::Prover private_kernel_prover = private_kernel_composer.create_prover();
+    auto private_kernel_prover = private_kernel_composer.create_prover();
 
     KernelCircuitPublicInputs<NT> public_inputs;
     public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs);

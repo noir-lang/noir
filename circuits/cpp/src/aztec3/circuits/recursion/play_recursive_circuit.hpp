@@ -1,13 +1,7 @@
-// #include <barretenberg/stdlib/types/types.hpp>
-// #include <barretenberg/stdlib/recursion/verifier/verifier.hpp>
-// #include <barretenberg/stdlib/recursion/verifier/program_settings.hpp>
-// #include <barretenberg/plonk/transcript/manifest.hpp>
+#pragma once
+#include "init.hpp"
 
 namespace aztec3::circuits::recursion {
-
-using plonk::stdlib::types::Composer;
-using CT = aztec3::utils::types::CircuitTypes<Composer>;
-using NT = aztec3::utils::types::NativeTypes;
 
 CT::AggregationObject play_recursive_circuit(Composer& composer,
                                              std::shared_ptr<NT::VK> const& app_vk,
@@ -23,12 +17,11 @@ CT::AggregationObject play_recursive_circuit(Composer& composer,
     return aggregation_output;
 };
 
-void dummy_circuit(Composer& composer, barretenberg::fr const& a_in, barretenberg::fr const& b_in)
+void dummy_circuit(Composer& composer, NT::fr const& a_in, NT::fr const& b_in)
 {
-
-    field_ct a = witness_ct(&composer, a_in);
-    field_ct b = witness_ct(&composer, b_in);
-    field_ct c = a * b;
+    CT::fr a = CT::witness(&composer, a_in);
+    CT::fr b = CT::witness(&composer, b_in);
+    CT::fr c = a * b;
 
     c.set_public();
 };

@@ -2,16 +2,20 @@
 #include <barretenberg/common/test.hpp>
 #include <barretenberg/common/serialize.hpp>
 #include "index.hpp"
-#include <barretenberg/stdlib/types/types.hpp>
 
 #include "previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
 
-namespace aztec3::circuits::abis {
+namespace {
+// Composer
+using Composer = plonk::UltraComposer;
 
-using Composer = plonk::stdlib::types::Composer;
+// Types
 using CT = aztec3::utils::types::CircuitTypes<Composer>;
 using NT = aztec3::utils::types::NativeTypes;
+} // namespace
+
+namespace aztec3::circuits::abis {
 
 class abi_tests : public ::testing::Test {};
 

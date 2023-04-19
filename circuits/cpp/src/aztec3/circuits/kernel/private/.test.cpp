@@ -285,7 +285,7 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
     // TODO this should likely be handled as part of the DB/Oracle/Context infrastructure
     private_circuit_public_inputs.historic_contract_tree_root = contract_tree_root;
 
-    Prover private_circuit_prover = private_circuit_composer.create_prover();
+    auto private_circuit_prover = private_circuit_composer.create_prover();
     NT::Proof private_circuit_proof = private_circuit_prover.construct_proof();
     // info("\nproof: ", private_circuit_proof.proof_data);
 
