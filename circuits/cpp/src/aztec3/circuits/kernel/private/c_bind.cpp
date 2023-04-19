@@ -32,7 +32,7 @@ using aztec3::circuits::abis::private_kernel::PrivateInputs;
 using aztec3::circuits::abis::private_kernel::PublicInputs;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
-using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
+using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
 using plonk::TurboComposer;
@@ -75,7 +75,7 @@ WASM_EXPORT size_t private_kernel__init_verification_key(uint8_t const* pk_buf, 
 
 WASM_EXPORT size_t private_kernel__dummy_previous_kernel(uint8_t const** previous_kernel_buf)
 {
-    PreviousKernelData<NT> previous_kernel = dummy_previous_kernel_with_vk_proof();
+    PreviousKernelData<NT> previous_kernel = dummy_previous_kernel();
 
     std::vector<uint8_t> previous_kernel_vec;
     write(previous_kernel_vec, previous_kernel);
@@ -105,11 +105,15 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
 
     PreviousKernelData<NT> previous_kernel;
     if (first_iteration) {
-        previous_kernel = dummy_previous_kernel_with_vk_proof();
+        previous_kernel = dummy_previous_kernel();
 
         previous_kernel.public_inputs.end.private_call_stack[0] = private_call_data.call_stack_item.hash();
         previous_kernel.public_inputs.constants.old_tree_roots.private_data_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
+        // previous_kernel.public_inputs.constants.old_tree_roots.nullifier_tree_root =
+        previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root =
+            private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
+        // previous_kernel.public_inputs.constants.old_tree_roots.private_kernel_vk_tree_root =
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
     } else {
@@ -156,11 +160,13 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
 
     PreviousKernelData<NT> previous_kernel;
     if (first_iteration) {
-        previous_kernel = dummy_previous_kernel_with_vk_proof();
+        previous_kernel = dummy_previous_kernel(true);
 
         previous_kernel.public_inputs.end.private_call_stack[0] = private_call_data.call_stack_item.hash();
         previous_kernel.public_inputs.constants.old_tree_roots.private_data_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
+        previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root =
+            private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
     } else {

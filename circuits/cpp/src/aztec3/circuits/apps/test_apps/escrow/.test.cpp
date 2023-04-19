@@ -42,7 +42,7 @@ class escrow_tests : public ::testing::Test {
     };
 };
 
-TEST_F(escrow_tests, test_deposit)
+TEST_F(escrow_tests, circuit_deposit)
 {
     // TODO: currently, we can't hide all of this boilerplate in a test fixture function, because each of these classes
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
@@ -70,7 +70,7 @@ TEST_F(escrow_tests, test_deposit)
     info("n: ", composer.num_gates);
 }
 
-TEST_F(escrow_tests, test_transfer)
+TEST_F(escrow_tests, circuit_transfer)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -96,7 +96,7 @@ TEST_F(escrow_tests, test_transfer)
     info("n: ", composer.num_gates);
 }
 
-TEST_F(escrow_tests, test_withdraw)
+TEST_F(escrow_tests, circuit_withdraw)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;

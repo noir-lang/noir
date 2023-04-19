@@ -12,7 +12,7 @@ using nullifier_tree_testing_values =
     std::tuple<BaseRollupInputs<NT>, abis::AppendOnlyTreeSnapshot<NT>, abis::AppendOnlyTreeSnapshot<NT>>;
 } // namespace
 
-BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof();
+BaseRollupInputs<NT> dummy_base_rollup_inputs();
 
 NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(size_t spacing);
 abis::AppendOnlyTreeSnapshot<NT> get_snapshot_of_tree_state(NullifierMemoryTreeTestingHarness nullifier_tree);

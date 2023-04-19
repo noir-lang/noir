@@ -18,12 +18,12 @@ using aztec3::circuits::abis::ConstantRollupData;
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NullifierLeafPreimage;
 
-using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
+using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 } // namespace
 
 namespace aztec3::circuits::rollup::base::utils {
 
-BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
+BaseRollupInputs<NT> dummy_base_rollup_inputs()
 {
     // TODO standardize function naming
     ConstantRollupData<NT> constantRollupData;
@@ -40,8 +40,8 @@ BaseRollupInputs<NT> dummy_base_rollup_inputs_with_vk_proof()
     // Kernels
     std::array<abis::private_kernel::PreviousKernelData<NT>, 2> kernel_data;
     // grab mocked previous kernel (need a valid vk, proof, aggobj)
-    kernel_data[0] = dummy_previous_kernel_with_vk_proof();
-    kernel_data[1] = dummy_previous_kernel_with_vk_proof();
+    kernel_data[0] = dummy_previous_kernel();
+    kernel_data[1] = dummy_previous_kernel();
 
     BaseRollupInputs<NT> baseRollupInputs = { .kernel_data = kernel_data,
                                               .start_private_data_tree_snapshot = {

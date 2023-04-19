@@ -126,5 +126,5 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "cmake.sourceDirectory": "${workspaceFolder}/barretenberg/cpp"
+  "cmake.sourceDirectory": "${workspaceFolder}/circuits/cpp"
 }

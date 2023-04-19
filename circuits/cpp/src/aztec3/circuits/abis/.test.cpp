@@ -15,7 +15,7 @@ using NT = aztec3::utils::types::NativeTypes;
 
 class abi_tests : public ::testing::Test {};
 
-TEST(abi_tests, test_read_write_native_call_context)
+TEST(abi_tests, native_read_write_call_context)
 {
     CallContext<NT> call_context = {
         .msg_sender = 1,
@@ -34,7 +34,7 @@ TEST(abi_tests, test_read_write_native_call_context)
     EXPECT_EQ(call_context, call_context_2);
 }
 
-TEST(abi_tests, test_read_write_native_function_data)
+TEST(abi_tests, native_read_write_function_data)
 {
     FunctionData<NT> function_data = {
         .function_selector = 11,
@@ -50,7 +50,7 @@ TEST(abi_tests, test_read_write_native_function_data)
     EXPECT_EQ(function_data, function_data_2);
 }
 
-// TEST(abi_tests, test_read_write_native_previous_kernel_data)
+// TEST(abi_tests, native_read_write_previous_kernel_data)
 // {
 //     private_kernel::PreviousKernelData<NT> previous_kernel_data = {
 //         .public_inputs = private_kernel::PublicInputs<NT>(),
@@ -67,7 +67,7 @@ TEST(abi_tests, test_read_write_native_function_data)
 //     EXPECT_EQ(previous_kernel_data, previous_kernel_data_2);
 // }
 
-TEST(abi_tests, test_native_to_circuit_function_data)
+TEST(abi_tests, native_to_circuit_function_data)
 {
     FunctionData<NT> native_function_data = {
         .function_selector = 11,
@@ -83,7 +83,7 @@ TEST(abi_tests, test_native_to_circuit_function_data)
     info("function data: ", circuit_function_data);
 }
 
-TEST(abi_tests, test_native_call_context)
+TEST(abi_tests, native_call_context)
 {
     CallContext<NT> call_context = {
         .msg_sender = 10,
@@ -96,7 +96,7 @@ TEST(abi_tests, test_native_call_context)
     info("call context: ", call_context);
 }
 
-TEST(abi_tests, test_native_to_circuit_call_context)
+TEST(abi_tests, native_to_circuit_call_context)
 {
     CallContext<NT> native_call_context = {
         .msg_sender = 10,

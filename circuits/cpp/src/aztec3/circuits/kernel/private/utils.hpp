@@ -9,6 +9,6 @@ using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 
 namespace aztec3::circuits::kernel::private_kernel::utils {
 
-PreviousKernelData<NT> dummy_previous_kernel_with_vk_proof();
+PreviousKernelData<NT> dummy_previous_kernel(bool real_vk_proof = false);
 
 } // namespace aztec3::circuits::kernel::private_kernel::utils

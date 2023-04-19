@@ -11,7 +11,7 @@ using aztec3::circuits::abis::MergeRollupInputs;
 using aztec3::circuits::abis::PreviousRollupData;
 } // namespace
 
-MergeRollupInputs<NT> dummy_merge_rollup_inputs_with_vk_proof();
-std::array<PreviousRollupData<NT>, 2> previous_rollups_with_vk_proof_that_follow_on();
+MergeRollupInputs<NT> dummy_merge_rollup_inputs();
+std::array<PreviousRollupData<NT>, 2> previous_rollup_datas();
 
 } // namespace aztec3::circuits::rollup::merge::utils

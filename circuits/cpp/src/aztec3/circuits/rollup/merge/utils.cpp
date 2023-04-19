@@ -24,16 +24,16 @@ using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::MergeRollupInputs;
 using aztec3::circuits::abis::PreviousRollupData;
 
-using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
+using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 
 } // namespace
 
 namespace aztec3::circuits::rollup::merge::utils {
 
-std::array<PreviousRollupData<NT>, 2> previous_rollups_with_vk_proof_that_follow_on()
+std::array<PreviousRollupData<NT>, 2> previous_rollup_datas()
 {
     DummyComposer composer = DummyComposer();
-    auto input1 = base::utils::dummy_base_rollup_inputs_with_vk_proof();
+    auto input1 = base::utils::dummy_base_rollup_inputs();
     BaseOrMergeRollupPublicInputs base_public_input1 =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, input1);
 
@@ -46,7 +46,7 @@ std::array<PreviousRollupData<NT>, 2> previous_rollups_with_vk_proof_that_follow
 
     // just for mocked vk and proof
     // Need a way to extract a proof from Base Rollup Circuit. Until then use kernel as a hack.
-    PreviousKernelData<NT> mocked_kernel = dummy_previous_kernel_with_vk_proof();
+    PreviousKernelData<NT> mocked_kernel = dummy_previous_kernel();
 
     PreviousRollupData<NT> previous_rollup1 = {
         .base_or_merge_rollup_public_inputs = base_public_input1,
@@ -66,10 +66,9 @@ std::array<PreviousRollupData<NT>, 2> previous_rollups_with_vk_proof_that_follow
     return { previous_rollup1, previous_rollup2 };
 }
 
-MergeRollupInputs<NT> dummy_merge_rollup_inputs_with_vk_proof()
+MergeRollupInputs<NT> dummy_merge_rollup_inputs()
 {
-    MergeRollupInputs<NT> merge_rollup_inputs = { .previous_rollup_data =
-                                                      previous_rollups_with_vk_proof_that_follow_on() };
+    MergeRollupInputs<NT> merge_rollup_inputs = { .previous_rollup_data = previous_rollup_datas() };
     return merge_rollup_inputs;
 }
 } // namespace aztec3::circuits::rollup::merge::utils

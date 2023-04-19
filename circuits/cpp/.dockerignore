@@ -1,7 +1,6 @@
 build
 build-wasm
 docker*
-scripts
 .*
 src/wasi-sdk*
 barretenberg/cpp/build*

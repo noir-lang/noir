@@ -123,10 +123,10 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests circuits-wasm-linux-clang-assert 1 a3-tests USE_WASM_TIME
+          command: cond_spot_run_tests circuits-wasm-linux-clang-assert 1 wasm scripts/a3-tests -*.skip*:*.circuit*
       - *save_logs
 
-  circuits-tests:
+  circuits-x86_64-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -135,9 +135,9 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 a3-tests
+          command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 x86_64 scripts/a3-tests -*.skip*
       - *save_logs
-  
+
   l1-contracts:
     machine:
       image: ubuntu-2004:202010-01
@@ -148,19 +148,6 @@ jobs:
       - run:
           name: "Build"
           command: build l1-contracts
-
-
-  #circuits-<individual>-tests:
-  #  docker:
-  #    - image: aztecprotocol/alpine-build-image
-  #  resource_class: small
-  #  steps:
-  #    - *checkout
-  #    - *setup_env
-  #    - run:
-  #        name: 'Test'
-  #        command: cond_spot_run_tests circuits-x86_64-linux-clang-assert 1 <individual>_tests
-  #    - *save_logs
 
   yarn-project-base:
     machine:
@@ -411,7 +398,7 @@ circuits-wasm-test: &circuits-wasm-test
   requires:
     - circuits-wasm-linux-clang-assert
   <<: *defaults
-circuits-test: &circuits-test
+circuits-x86_64-test: &circuits-x86_64-test
   requires:
     - circuits-x86_64-linux-clang-assert
   <<: *defaults
@@ -426,11 +413,8 @@ workflows:
       - circuits-x86_64-linux-clang-assert: *defaults
       - circuits-wasm-tests:
           <<: *circuits-wasm-test
-      - circuits-tests:
-          <<: *circuits-test
-      - l1-contracts:
-          <<: *defaults
-      #- aztec3-circuit-<individual>-tests: *circuits-test
+      - circuits-x86_64-tests:
+          <<: *circuits-x86_64-test
       - yarn-project-base:
           requires:
             - circuits-wasm-linux-clang

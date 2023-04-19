@@ -6,6 +6,15 @@
 
 The [`aztec3-circpuits`](https://github.com/AztecProtocol/aztec3-packages) circuits folder contains circuits and related C++ code (`cpp/`) for Aztec3 along with Typescript wrappers (`ts/`).
 
+### Dependencies
+
+- cmake >= 3.24
+- Ninja (used by the presets as the default generator)
+- clang15
+- clang-format
+- wasm-opt (part of the [Binaryen](https://github.com/WebAssembly/binaryen) toolkit)
+- [wasmtime](https://docs.wasmtime.dev/cli-install.html) for running tests in a wasm environment
+
 ### Resources
 
 - [Circuits project board](https://github.com/orgs/AztecProtocol/projects/22/views/2)
@@ -37,42 +46,59 @@ cd cpp
 ./bootstrap.sh
 ```
 
-Here is an example of rapidly rebuilding and running all tests in `src/aztec3/circuits/abis/tests`:
-
+Here is an example of rapidly rebuilding and running all tests for `x86_64`:
 ```
-cmake --preset clang15
-cmake --build --preset clang15 --target aztec3_circuits_abis_tests
-(cd build && ./bin/aztec3_circuits_abis_tests)
+./bootstrap.sh
+./scripts/run_tests_local x86_64 glob
 ```
+> **WARNING:** the `x86_64` (and `wasm` used below) as well as the keyword `glob` **MUST BE LOWERCASE**!
 
-You can also limit it to run only specific test cases using a gtest filter:
-
+Here is an example of rapidly rebuilding and running only the abis tests for `wasm`:
 ```
-(cd build && ./bin/aztec3_circuits_abis_tests --gtest_filter=*hash_tx_request*)
+./bootstrap.sh aztec3_circuits_abis_tests
+./scripts/run_tests_local wasm aztec3_circuits_abis_tests
+```
+> Note: to run wasm tests you must first follow the [instructions here](https://docs.wasmtime.dev/cli-install.html) to install `wasmtime`.
+
+You can choose which tests will run via a gtest filter. This one below runs only tests that _omit_ the string '.circuit':
+```
+./scripts/run_tests_local wasm aztec3_circuits_abis_tests -*.circuit*
 ```
 
 ---
 
-Here's a list of the tests currently available (conveniently combined with the command to build, then execute them, for easy copy-pasta):
+Here's a list of the tests currently available (conveniently combined with the command to build, then execute them on `x86_64`, for easy copy-pasta):
+ - `aztec3_circuits_abis_tests`
+   - `./bootstrap.sh aztec3_circuits_abis_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_abis_tests`
 
-- aztec3_circuits_abis_tests
+ - `aztec3_circuits_apps_tests`
+   - `./bootstrap.sh aztec3_circuits_apps_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_apps_tests`
 
-  - `cmake --build --preset clang15 --target aztec3_circuits_abis_tests && (cd build && ./bin/aztec3_circuits_abis_tests --gtest_filter=*)`
+ - `aztec3_circuits_kernel_tests`
+   - `./bootstrap.sh aztec3_circuits_kernel_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_kernel_tests`
 
-- aztec3_circuits_apps_tests
+ - `aztec3_circuits_recursion_tests`
+   - `./bootstrap.sh aztec3_circuits_recursion_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_recursion_tests`
 
-  - `cmake --build --preset clang15 --target aztec3_circuits_apps_tests && (cd build && ./bin/aztec3_circuits_apps_tests --gtest_filter=*)`
+ - `aztec3_circuits_rollup_tests`
+   - `./bootstrap.sh aztec3_circuits_rollup_tests && ./scripts/run_tests_local x86_64 aztec3_circuits_rollup_tests`
 
-- aztec3_circuits_kernel_tests
+---
 
-  - `cmake --build --preset clang15 --target aztec3_circuits_kernel_tests && (cd build && ./bin/aztec3_circuits_kernel_tests --gtest_filter=*)`
+#### Using docker to replicate CI failures
 
-- aztec3_circuits_recursion_tests
+You can also run tests in docker. This is useful for replicating CI failures that you can't replicate with your standard local environment.
 
-  - `cmake --build --preset clang15 --target aztec3_circuits_recursion_tests && (cd build && ./bin/aztec3_circuits_recursion_tests --gtest_filter=*)`
+To build and run all tests in an `x86_64` docker image:
+```
+./bootstrap.sh
+./scripts/build_run_tests_docker_local 1 x86_64 glob
+```
+You can choose `wasm` instead of `x86_64`. You can also specify individual test executables instead of `glob` and can use gtest filters exactly as described for `run_tests_local`.
 
-- aztec3_circuits_rollup_tests
-  - `cmake --build --preset clang15 --target aztec3_circuits_rollup_tests && (cd build && ./bin/aztec3_circuits_rollup_tests --gtest_filter=*)`
+> At this time, it is common to run wasm tests with the filter `-*.circuit*` as there are circuit issues in wasm.
+
+> The `build_run_tests_docker_local` script builds the chosen docker image (`x86_64` or `wasm`) and then launches a container from that image to run the `run_tests_local` script (used above).
 
 ---
 

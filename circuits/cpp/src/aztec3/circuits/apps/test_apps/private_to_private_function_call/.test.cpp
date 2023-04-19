@@ -12,7 +12,7 @@ namespace aztec3::circuits::apps::test_apps::private_to_private_function_call {
 
 class private_to_private_function_call_tests : public ::testing::Test {};
 
-TEST(private_to_private_function_call_tests, test_private_to_private_function_call)
+TEST(private_to_private_function_call_tests, circuit_private_to_private_function_call)
 {
 
     C fn1_composer = C("../barretenberg/cpp/srs_db/ignition");

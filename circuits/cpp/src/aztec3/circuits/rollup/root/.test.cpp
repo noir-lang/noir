@@ -73,10 +73,10 @@ using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
 
 // using aztec3::circuits::mock::mock_circuit;
-using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel_with_vk_proof;
+using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
 using aztec3::circuits::mock::mock_kernel_circuit;
-using aztec3::circuits::rollup::base::utils::dummy_base_rollup_inputs_with_vk_proof;
-using aztec3::circuits::rollup::merge::utils::previous_rollups_with_vk_proof_that_follow_on;
+using aztec3::circuits::rollup::base::utils::dummy_base_rollup_inputs;
+using aztec3::circuits::rollup::merge::utils::previous_rollup_datas;
 // using aztec3::circuits::mock::mock_kernel_inputs;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
@@ -108,15 +108,18 @@ class root_rollup_tests : public ::testing::Test {
                    RootRollupPublicInputs& expected_public_inputs,
                    bool compare_pubins = true)
     {
+        info("Retesting via cbinds....");
         // TODO might be able to get rid of proving key buffer
         uint8_t const* pk_buf;
         size_t pk_size = root_rollup__init_proving_key(&pk_buf);
-        info("Proving key size: ", pk_size);
+        (void)pk_size;
+        // info("Proving key size: ", pk_size);
 
         // TODO might be able to get rid of verification key buffer
         uint8_t const* vk_buf;
         size_t vk_size = root_rollup__init_verification_key(pk_buf, &vk_buf);
-        info("Verification key size: ", vk_size);
+        (void)vk_size;
+        // info("Verification key size: ", vk_size);
 
         std::vector<uint8_t> root_rollup_inputs_vec;
         write(root_rollup_inputs_vec, root_rollup_inputs);
@@ -124,27 +127,23 @@ class root_rollup_tests : public ::testing::Test {
         // uint8_t const* proof_data;
         // size_t proof_data_size;
         uint8_t const* public_inputs_buf;
-        info("creating proof");
+        // info("simulating circuit via cbind");
         size_t public_inputs_size = root_rollup__sim(root_rollup_inputs_vec.data(), &public_inputs_buf);
         // info("Proof size: ", proof_data_size);
-        info("PublicInputs size: ", public_inputs_size);
+        // info("PublicInputs size: ", public_inputs_size);
 
         if (compare_pubins) {
             RootRollupPublicInputs public_inputs;
-            info("about to read...");
             uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
             read(public_inputs_buf_tmp, public_inputs);
-            info("about to assert...");
             ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
             for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
                 ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
             }
 
-            info("about to write expected...");
             std::vector<uint8_t> expected_public_inputs_vec;
             write(expected_public_inputs_vec, expected_public_inputs);
 
-            info("about to assert buffers eq...");
             ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
             // Just compare the first 10 bytes of the serialized public outputs
             if (public_inputs_size > 10) {
@@ -154,15 +153,11 @@ class root_rollup_tests : public ::testing::Test {
                 }
             }
         }
-        (void)root_rollup_inputs;     // unused
-        (void)expected_public_inputs; // unused
-        (void)compare_pubins;         // unused
 
         free((void*)pk_buf);
         free((void*)vk_buf);
         // free((void*)proof_data);
         free((void*)public_inputs_buf);
-        info("finished retesting via cbinds...");
     }
 
   protected:
@@ -190,7 +185,7 @@ class root_rollup_tests : public ::testing::Test {
             get_subtree_sibling_path<CONTRACT_TREE_ROOTS_TREE_HEIGHT>(historic_contract_tree, 0, 0);
 
         RootRollupInputs rootRollupInputs = {
-            .previous_rollup_data = previous_rollups_with_vk_proof_that_follow_on(),
+            .previous_rollup_data = previous_rollup_datas(),
             .new_historic_private_data_tree_root_sibling_path = historic_data_sibling_path,
             .new_historic_contract_tree_root_sibling_path = historic_contract_sibling_path,
         };
@@ -198,7 +193,7 @@ class root_rollup_tests : public ::testing::Test {
     }
 };
 
-TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
+TEST_F(root_rollup_tests, native_calldata_hash_empty_blocks)
 {
     utils::DummyComposer composer = utils::DummyComposer();
     std::vector<uint8_t> zero_bytes_vec(704, 0);
@@ -233,7 +228,7 @@ TEST_F(root_rollup_tests, calldata_hash_empty_blocks)
     run_cbind(inputs, outputs, true);
 }
 
-TEST_F(root_rollup_tests, root_missing_nullifier_logic)
+TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 {
     utils::DummyComposer composer = utils::DummyComposer();
     MemoryTree data_tree = MemoryTree(PRIVATE_DATA_TREE_HEIGHT);
@@ -243,8 +238,7 @@ TEST_F(root_rollup_tests, root_missing_nullifier_logic)
     MemoryTree historic_data_tree = MemoryTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     MemoryTree historic_contract_tree = MemoryTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
 
-    std::array<BaseRollupInputs, 2> base_inputs = { dummy_base_rollup_inputs_with_vk_proof(),
-                                                    dummy_base_rollup_inputs_with_vk_proof() };
+    std::array<BaseRollupInputs, 2> base_inputs = { dummy_base_rollup_inputs(), dummy_base_rollup_inputs() };
     // Insert commitments into base rollups
     for (uint8_t rollup_i = 0; rollup_i < 2; rollup_i++) {
         for (uint8_t kernel_j = 0; kernel_j < 2; kernel_j++) {

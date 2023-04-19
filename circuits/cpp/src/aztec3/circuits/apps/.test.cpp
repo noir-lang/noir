@@ -112,7 +112,7 @@ class state_var_tests : public ::testing::Test {
     };
 };
 
-TEST_F(state_var_tests, mapping)
+TEST_F(state_var_tests, circuit_mapping)
 {
     // TODO: currently, we can't hide all of this boilerplate in a test fixture function, because each of these classes
     // contains a reference to earlier-declared classes... so we'd end up with classes containing dangling references,
@@ -143,12 +143,12 @@ TEST_F(state_var_tests, mapping)
 
     my_mapping[5] = to_ct(composer, NT::fr(5));
 
-    info("my_mapping[5]: ", my_mapping[5]);
-    info("my_mapping[5].start_slot: ", my_mapping[5].start_slot);
-    info("my_mapping[5].storage_slot_point: ", my_mapping[5].storage_slot_point);
+    // info("my_mapping[5]: ", my_mapping[5]);
+    // info("my_mapping[5].start_slot: ", my_mapping[5].start_slot);
+    // info("my_mapping[5].storage_slot_point: ", my_mapping[5].storage_slot_point);
 }
 
-TEST_F(state_var_tests, mapping_within_mapping)
+TEST_F(state_var_tests, circuit_mapping_within_mapping)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -170,7 +170,7 @@ TEST_F(state_var_tests, mapping_within_mapping)
     info(my_mapping[5][6].state_var_name, ": ", my_mapping[5][6]);
 }
 
-TEST_F(state_var_tests, partial_mapping)
+TEST_F(state_var_tests, circuit_partial_mapping)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -192,7 +192,7 @@ TEST_F(state_var_tests, partial_mapping)
     info(my_mapping["?"][6].state_var_name, ": ", my_mapping["?"][6]);
 }
 
-TEST_F(state_var_tests, utxo_of_default_private_note_fr)
+TEST_F(state_var_tests, circuit_utxo_of_default_private_note_fr)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -232,14 +232,14 @@ TEST_F(state_var_tests, utxo_of_default_private_note_fr)
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
     std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
-    info("new_note_pointers: ", new_note_pointers);
-    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+    // info("new_note_pointers: ", new_note_pointers);
+    // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
-    info("new_nullifiers: ", new_nullifiers);
+    // info("new_nullifiers: ", new_nullifiers);
 }
 
-TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
+TEST_F(state_var_tests, circuit_utxo_set_of_default_private_notes_fr)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -294,14 +294,14 @@ TEST_F(state_var_tests, utxo_set_of_default_private_notes_fr)
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
     std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
-    info("new_note_pointers: ", new_note_pointers);
-    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+    // info("new_note_pointers: ", new_note_pointers);
+    // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
-    info("new_nullifiers: ", new_nullifiers);
+    // info("new_nullifiers: ", new_nullifiers);
 }
 
-TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
+TEST_F(state_var_tests, circuit_initialise_utxo_of_default_singleton_private_note_fr)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -342,14 +342,14 @@ TEST_F(state_var_tests, initialise_utxo_of_default_singleton_private_note_fr)
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
     std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
-    info("new_note_pointers: ", new_note_pointers);
-    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+    // info("new_note_pointers: ", new_note_pointers);
+    // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
-    info("new_nullifiers: ", new_nullifiers);
+    // info("new_nullifiers: ", new_nullifiers);
 }
 
-TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
+TEST_F(state_var_tests, circuit_modify_utxo_of_default_singleton_private_note_fr)
 {
     C composer = C("../barretenberg/cpp/srs_db/ignition");
     DB db;
@@ -391,11 +391,11 @@ TEST_F(state_var_tests, modify_utxo_of_default_singleton_private_note_fr)
     // test, instead of this ever-growing beast test.
     auto new_note_pointers = exec_ctx.get_new_notes();
     std::shared_ptr<Note> debug_note = std::dynamic_pointer_cast<Note>(new_note_pointers[0]);
-    info("new_note_pointers: ", new_note_pointers);
-    info("*(new_note_pointers[0]): ", debug_note->get_preimage());
+    // info("new_note_pointers: ", new_note_pointers);
+    // info("*(new_note_pointers[0]): ", debug_note->get_preimage());
 
     auto new_nullifiers = exec_ctx.get_new_nullifiers();
-    info("new_nullifiers: ", new_nullifiers);
+    // info("new_nullifiers: ", new_nullifiers);
 }
 
 } // namespace aztec3::circuits::apps
