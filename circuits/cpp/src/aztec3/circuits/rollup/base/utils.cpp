@@ -68,7 +68,7 @@ NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(std::vector<fr> ini
 {
     NullifierMemoryTreeTestingHarness nullifier_tree = NullifierMemoryTreeTestingHarness(NULLIFIER_TREE_HEIGHT);
     for (size_t i = 0; i < initial_values.size(); ++i) {
-        nullifier_tree.append_value(initial_values[i]);
+        nullifier_tree.update_element(initial_values[i]);
     }
     return nullifier_tree;
 }
@@ -158,7 +158,7 @@ generate_nullifier_tree_testing_values(BaseRollupInputs<NT> rollupInputs,
             new_nullifiers_kernel_2[i - KERNEL_NEW_NULLIFIERS_LENGTH] = insertion_val;
         }
         insertion_values.push_back(insertion_val);
-        reference_tree.append_value(insertion_val);
+        reference_tree.update_element(insertion_val);
     }
 
     // Get the hash paths etc from the insertion values

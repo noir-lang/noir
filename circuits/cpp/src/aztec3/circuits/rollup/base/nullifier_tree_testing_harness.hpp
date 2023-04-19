@@ -28,9 +28,6 @@ class NullifierMemoryTreeTestingHarness : public proof_system::plonk::stdlib::me
     // Get the value immediately lower than the given value
     std::pair<nullifier_leaf, size_t> find_lower(fr const& value);
 
-    // Append a value to the tree, even zeros
-    fr append_value(fr const& value);
-
     // Utilities to inspect tree
     fr total_size() const { return total_size_; }
     fr depth() const { return depth_; }

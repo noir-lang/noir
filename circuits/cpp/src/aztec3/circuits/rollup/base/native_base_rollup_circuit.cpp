@@ -23,16 +23,7 @@ namespace aztec3::circuits::rollup::native_base_rollup {
 
 const NT::fr EMPTY_COMMITMENTS_SUBTREE_ROOT = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH).root();
 const NT::fr EMPTY_CONTRACTS_SUBTREE_ROOT = MerkleTree(CONTRACT_SUBTREE_DEPTH).root();
-
-// Note: this is temporary until I work out how to encode a large fr in a constant
-NT::fr calculate_empty_nullifier_subtree_root()
-{
-    MerkleTree empty_nullifier_tree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
-    for (size_t i = 0; i < KERNEL_NEW_NULLIFIERS_LENGTH * 2; i++) {
-        empty_nullifier_tree.update_element(i, NullifierLeaf{ .value = 0, .nextIndex = 0, .nextValue = 0 }.hash());
-    }
-    return empty_nullifier_tree.root();
-}
+const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = MerkleTree(NULLIFIER_SUBTREE_DEPTH).root();
 
 // TODO: can we aggregate proofs if we do not have a working circuit impl
 
@@ -242,9 +233,11 @@ NT::fr create_nullifier_subtree(std::array<NullifierLeaf, KERNEL_NEW_NULLIFIERS_
     MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
     for (size_t i = 0; i < nullifier_leaves.size(); i++) {
         // check if the nullifier is zero, if so dont insert
-        // if (nullifier_leaves[i].value != fr(0)) { // TODO: reinsert after 0 is accounted for
-        nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
-        // }
+        if (uint256_t(nullifier_leaves[i].value) == uint256_t(0)) {
+            nullifier_subtree.update_element(i, fr::zero());
+        } else {
+            nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
+        }
     }
 
     return nullifier_subtree.root();
@@ -406,10 +399,6 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
 
 BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseRollupInputs const& baseRollupInputs)
 {
-    // TODO: move this into a constant - calc empty nullifier_subtree hash
-    // calc empty subtree root
-    const NT::fr EMPTY_NULLIFIER_SUBTREE_ROOT = calculate_empty_nullifier_subtree_root();
-
     // Verify the previous kernel proofs
     for (size_t i = 0; i < 2; i++) {
         NT::Proof proof = baseRollupInputs.kernel_data[i].proof;

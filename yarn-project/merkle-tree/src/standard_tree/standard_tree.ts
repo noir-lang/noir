@@ -112,6 +112,7 @@ export class StandardMerkleTree implements MerkleTree {
 
   /**
    * Returns the root of the tree.
+   * @param includeUncommitted - Whether to include uncommitted leaves in the computation.
    * @returns The root of the tree.
    */
   public getRoot(includeUncommitted = false): Buffer {
@@ -120,6 +121,7 @@ export class StandardMerkleTree implements MerkleTree {
 
   /**
    * Returns the number of leaves in the tree.
+   * @param includeUncommitted - Whether to include uncommitted leaves in the computation.
    * @returns The number of leaves in the tree.
    */
   public getNumLeaves(includeUncommitted = false) {
@@ -145,6 +147,7 @@ export class StandardMerkleTree implements MerkleTree {
   /**
    * Returns a sibling path for the element at the given index.
    * @param index - The index of the element.
+   * @param includeUncommitted - Whether to include uncommitted leaves in the computation.
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
@@ -221,6 +224,12 @@ export class StandardMerkleTree implements MerkleTree {
     return Promise.resolve();
   }
 
+  /**
+   * Returns the value of the leaf at the given index.
+   * @param index the index of the leaf
+   * @param includeUncommitted include uncommitted leaves in the computation.
+   * @returns The value of the leaf at the given index, undefined if empty.
+   */
   public getLeafValue(index: bigint, includeUncommitted = false): Promise<Buffer | undefined> {
     return this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
   }
@@ -260,6 +269,7 @@ export class StandardMerkleTree implements MerkleTree {
    * Returns the latest value at the given index.
    * @param level - The level of the tree.
    * @param index - The index of the element.
+   * @param includeUncommitted - Whether to include uncommitted leaves in the computation.
    * @returns The latest value at the given index.
    * Note: If the value is not in the cache, it will be fetched from the database.
    */

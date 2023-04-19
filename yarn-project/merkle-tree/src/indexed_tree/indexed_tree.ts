@@ -80,7 +80,7 @@ export class IndexedTree implements MerkleTree {
     depth: number,
     prefilledSize = 0,
   ): Promise<IndexedTree> {
-    const underlying = await StandardMerkleTree.new(db, hasher, name, depth, hashEncodedTreeValue(initialLeaf, hasher));
+    const underlying = await StandardMerkleTree.new(db, hasher, name, depth);
     const tree = new IndexedTree(underlying, hasher, db);
     await tree.init(prefilledSize);
     return tree;
@@ -94,7 +94,7 @@ export class IndexedTree implements MerkleTree {
    * @returns The newly created tree.
    */
   static async fromName(db: LevelUp, hasher: Hasher, name: string): Promise<IndexedTree> {
-    const underlying = await StandardMerkleTree.fromName(db, hasher, name, hashEncodedTreeValue(initialLeaf, hasher));
+    const underlying = await StandardMerkleTree.fromName(db, hasher, name);
     const tree = new IndexedTree(underlying, hasher, db);
     await tree.initFromDb();
     return tree;
@@ -110,6 +110,7 @@ export class IndexedTree implements MerkleTree {
 
   /**
    * Returns the root of the tree.
+   * @param includeUncommitted Include uncommitted changes in the root computation.
    * @returns The root of the tree.
    */
   public getRoot(includeUncommitted: boolean): Buffer {
@@ -126,6 +127,7 @@ export class IndexedTree implements MerkleTree {
 
   /**
    * Returns the number of leaves in the tree.
+   * @param includeUncommitted include uncommitted leaves in the computation.
    * @returns The number of leaves in the tree.
    */
   public getNumLeaves(includeUncommitted: boolean): bigint {
@@ -164,6 +166,7 @@ export class IndexedTree implements MerkleTree {
   /**
    * Returns a sibling path for the element at the given index.
    * @param index - The index of the element.
+   * @param includeUncommitted include uncommitted leaves in the computation.
    * @returns A sibling path for the element at the given index.
    * Note: The sibling path is an array of sibling hashes, with the lowest hash (leaf hash) first, and the highest hash last.
    */
@@ -177,8 +180,13 @@ export class IndexedTree implements MerkleTree {
    * @param index - The index of the element
    */
   public async updateLeaf(leaf: LeafData, index: bigint): Promise<void> {
+    let encodedLeaf;
+    if (leaf.value == 0n) {
+      encodedLeaf = toBufferBE(0n, 32);
+    } else {
+      encodedLeaf = hashEncodedTreeValue(leaf, this.hasher);
+    }
     this.cachedLeaves[Number(index)] = leaf;
-    const encodedLeaf = hashEncodedTreeValue(leaf, this.hasher);
     await this.underlying.updateLeaf(encodedLeaf, index);
   }
 
@@ -233,6 +241,7 @@ export class IndexedTree implements MerkleTree {
   /**
    * Finds the index of the largest leaf whose value is less than or equal to the provided value.
    * @param newValue - The new value to be inserted into the tree.
+   * @param includeUncommitted include uncommitted leaves in the computation.
    * @returns Tuple containing the leaf index and a flag to say if the value is a duplicate.
    */
   public findIndexOfPreviousValue(newValue: bigint, includeUncommitted: boolean) {
@@ -350,6 +359,7 @@ export class IndexedTree implements MerkleTree {
   /**
    * Gets the latest LeafData copy.
    * @param index - Index of the leaf of which to obtain the LeafData copy.
+   * @param includeUncommitted include uncommitted leaves in the computation.
    * @returns A copy of the leaf data at the given index or undefined if the leaf was not found.
    */
   public getLatestLeafDataCopy(index: number, includeUncommitted: boolean): LeafData | undefined {
@@ -363,6 +373,12 @@ export class IndexedTree implements MerkleTree {
       : undefined;
   }
 
+  /**
+   * Gets the value of the leaf at the given index.
+   * @param index - Index of the leaf of which to obtain the value.
+   * @param includeUncommitted include uncommitted leaves in the computation.
+   * @returns The value of the leaf at the given index or undefined if the leaf is empty.
+   */
   public getLeafValue(index: bigint, includeUncommitted: boolean): Promise<Buffer | undefined> {
     const leaf = this.getLatestLeafDataCopy(Number(index), includeUncommitted);
     if (!leaf) return Promise.resolve(undefined);

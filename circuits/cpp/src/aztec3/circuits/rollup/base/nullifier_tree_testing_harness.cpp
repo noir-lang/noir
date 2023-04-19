@@ -26,51 +26,6 @@ bool check_has_less_than(std::vector<fr> const& values, fr const& value)
     return false;
 }
 
-// TODO: test
-fr NullifierMemoryTreeTestingHarness::append_value(fr const& value)
-{
-    // If the value is 0, then we force insert the value to increase the size of the tree
-    // TODO: this is a hack
-    if (value == 0) {
-        nullifier_leaf new_leaf = { .value = 0, .nextIndex = 0, .nextValue = 0 };
-        auto new_leaf_hash = new_leaf.hash();
-        leaves_.push_back(new_leaf);
-        size_t new_leaf_index = leaves_.size() - 1;
-        auto root = update_element(new_leaf_index, new_leaf_hash);
-        return root;
-    }
-
-    // Find the leaf with the value closest and less than `value`
-    size_t current;
-    bool is_already_present;
-    std::tie(current, is_already_present) = find_closest_leaf(leaves_, value);
-
-    nullifier_leaf new_leaf = { .value = value,
-                                .nextIndex = leaves_[current].nextIndex,
-                                .nextValue = leaves_[current].nextValue };
-    if (!is_already_present) {
-        // Update the current leaf to point it to the new leaf
-        leaves_[current].nextIndex = leaves_.size();
-        leaves_[current].nextValue = value;
-
-        // Insert the new leaf with (nextIndex, nextValue) of the current leaf
-        leaves_.push_back(new_leaf);
-    }
-
-    // Update the old leaf in the tree
-    auto old_leaf_hash = leaves_[current].hash();
-    size_t old_leaf_index = current;
-    auto root = update_element(old_leaf_index, old_leaf_hash);
-
-    // Insert the new leaf in the tree
-    auto new_leaf_hash = new_leaf.hash();
-
-    size_t new_leaf_index = is_already_present ? old_leaf_index : leaves_.size() - 1;
-    root = update_element(new_leaf_index, new_leaf_hash);
-
-    return root;
-}
-
 // handle synthetic membership assertions
 std::tuple<std::vector<nullifier_leaf>, std::vector<std::vector<fr>>, std::vector<uint32_t>>
 NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> const& values)
@@ -124,7 +79,6 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
         }
         // If there is a lower value in the tree, we need to check the current low nullifiers for one that can be used
         if (has_less_than) {
-
             for (size_t j = 0; j < pending_insertion_tree.size(); ++j) {
                 // Skip checking empty values
                 if (pending_insertion_tree[j].value == 0) {
@@ -147,7 +101,7 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
                 }
             }
 
-            // empty low nullifier
+            // add empty low nullifier
             sibling_paths.push_back(empty_sp);
             low_nullifier_indexes.push_back(empty_index);
             low_nullifiers.push_back(empty_leaf);
@@ -160,7 +114,7 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
                 prev_nodes->second.push_back(new_value);
             }
 
-            nullifier_leaf low_nullifier = leaves_[current];
+            nullifier_leaf low_nullifier = leaves_[current].unwrap();
             std::vector<fr> sibling_path = this->get_sibling_path(current);
 
             sibling_paths.push_back(sibling_path);
@@ -185,7 +139,7 @@ NullifierMemoryTreeTestingHarness::circuit_prep_batch_insert(std::vector<fr> con
 void NullifierMemoryTreeTestingHarness::update_element_in_place(size_t index, nullifier_leaf leaf)
 {
     // Find the leaf with the value closest and less than `value`
-    this->leaves_[index] = leaf;
+    this->leaves_[index].set(leaf);
     update_element(index, leaf.hash());
 }
 
@@ -197,8 +151,8 @@ std::pair<nullifier_leaf, size_t> NullifierMemoryTreeTestingHarness::find_lower(
 
     // TODO: handle is already present case
     if (!is_already_present) {
-        return std::make_pair(leaves_[current], current);
+        return std::make_pair(leaves_[current].unwrap(), current);
     } else {
-        return std::make_pair(leaves_[current], current);
+        return std::make_pair(leaves_[current].unwrap(), current);
     }
 }
