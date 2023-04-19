@@ -27,7 +27,7 @@ impl ValueList {
 
     /// Removes all items from the list.
     fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
     /// Returns the ValueId's as a slice.
     pub(crate) fn as_slice(&self) -> &[ValueId] {
