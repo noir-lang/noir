@@ -1,4 +1,4 @@
-import { Fr, FunctionData, NewContractData } from '../index.js';
+import { Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
 import { makeEthAddress } from '../tests/factories.js';
 import { makeAztecAddress, makeBytes, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
@@ -40,9 +40,25 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes a function leaf', async () => {
-    const leaf = Buffer.alloc(32 + 1 + 32 + 32, 0);
+    const leaf = new FunctionLeafPreimage(Buffer.from([0, 0, 0, 123]), true, Fr.ZERO, Fr.ZERO);
     const res = await computeFunctionLeaf(wasm, leaf);
     expect(res).toMatchSnapshot();
+  });
+
+  it('compute function leaf should revert if buffer is over 4 bytes', () => {
+    expect(() => {
+      new FunctionLeafPreimage(Buffer.from([0, 0, 0, 0, 123]), true, Fr.ZERO, Fr.ZERO);
+    }).toThrow('Function selector must be 4 bytes long, got 5 bytes.');
+  });
+
+  it('function leaf toBuffer should revert if buffer is over 4 bytes ', () => {
+    const initBuffer = Buffer.from([0, 0, 0, 123]);
+    const largerBuffer = Buffer.from([0, 0, 0, 0, 123]);
+    expect(() => {
+      const leaf = new FunctionLeafPreimage(initBuffer, true, Fr.ZERO, Fr.ZERO);
+      leaf.functionSelector = largerBuffer;
+      leaf.toBuffer();
+    }).toThrow('Function selector must be 4 bytes long, got 5 bytes.');
   });
 
   it('computes function tree root', async () => {

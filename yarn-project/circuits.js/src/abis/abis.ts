@@ -1,7 +1,13 @@
 import { Buffer } from 'buffer';
 import { AztecAddress, Fr } from '@aztec/foundation';
 import { CircuitsWasm } from '../wasm/index.js';
-import { FunctionData, FUNCTION_SELECTOR_NUM_BYTES, TxRequest, NewContractData } from '../index.js';
+import {
+  FunctionData,
+  FUNCTION_SELECTOR_NUM_BYTES,
+  TxRequest,
+  NewContractData,
+  FunctionLeafPreimage,
+} from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AsyncWasmWrapper, WasmWrapper } from '@aztec/foundation/wasm';
 
@@ -81,11 +87,9 @@ export async function hashVK(wasm: CircuitsWasm, vkBuf: Buffer) {
   return await wasmAsyncCall(wasm, 'abis__hash_vk', { toBuffer: () => vkBuf }, 32);
 }
 
-export async function computeFunctionLeaf(wasm: CircuitsWasm, fnLeaf: Buffer) {
-  // Size must match circuits/cpp/src/aztec3/circuits/abis/function_leaf_preimage.hpp
-  if (fnLeaf.length !== 32 + 1 + 32 + 32) throw new Error(`Invalid length for function leaf`);
+export async function computeFunctionLeaf(wasm: CircuitsWasm, fnLeaf: FunctionLeafPreimage) {
   wasm.call('pedersen__init');
-  return Fr.fromBuffer(await wasmAsyncCall(wasm, 'abis__compute_function_leaf', { toBuffer: () => fnLeaf }, 32));
+  return Fr.fromBuffer(await wasmAsyncCall(wasm, 'abis__compute_function_leaf', fnLeaf, 32));
 }
 
 export async function computeFunctionTreeRoot(wasm: CircuitsWasm, fnLeafs: Fr[]) {

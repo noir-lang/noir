@@ -29,8 +29,9 @@ template <typename NCT> struct FunctionLeafPreimage {
 
     typedef typename NCT::boolean boolean;
     typedef typename NCT::fr fr;
+    typedef typename NCT::uint32 uint32;
 
-    fr function_selector = 0;
+    uint32 function_selector = 0;
     boolean is_private = false;
     fr vk_hash = 0;
     fr acir_hash = 0;

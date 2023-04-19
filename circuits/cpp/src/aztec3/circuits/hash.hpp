@@ -126,7 +126,7 @@ typename NCT::fr root_from_sibling_path(typename NCT::fr const& leaf,
  */
 template <typename NCT>
 typename NCT::fr function_tree_root_from_siblings(
-    typename NCT::fr const& function_selector,
+    typename NCT::uint32 const& function_selector,
     typename NCT::boolean const& is_private,
     typename NCT::fr const& vk_hash,
     typename NCT::fr const& acir_hash,

@@ -3,6 +3,7 @@ import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
   FunctionData,
+  FunctionLeafPreimage,
   MembershipWitness,
   NewContractData,
   computeFunctionTree,
@@ -49,11 +50,13 @@ async function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: Ci
     // All non-unconstrained functions have vks
     const vkHash = await hashVKStr(f.verificationKey!, wasm);
     const acirHash = keccak(Buffer.from(f.bytecode, 'hex'));
-    // TODO: selector is currently padded to 32 bytes in CBINDS, check this.
-    const fnLeaf = await computeFunctionLeaf(
-      wasm,
-      Buffer.concat([selector, Buffer.alloc(28, 0), Buffer.from([isPrivate ? 1 : 0]), vkHash, acirHash]),
+    const fnLeafPreimage = new FunctionLeafPreimage(
+      selector,
+      isPrivate,
+      Fr.fromBuffer(vkHash),
+      Fr.fromBuffer(acirHash),
     );
+    const fnLeaf = await computeFunctionLeaf(wasm, fnLeafPreimage);
     result.push(fnLeaf);
   }
   return result;
