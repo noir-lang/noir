@@ -1,9 +1,10 @@
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     ir::{
-        extfunc::{SigRef, Signature},
+        extfunc::Signature,
         instruction::{Instruction, InstructionId, Instructions},
-        types::Typ,
+        map::{Id, SparseMap},
+        types::Type,
         value::{Value, ValueId},
     },
 };
@@ -11,7 +12,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 /// A convenience wrapper to store `Value`s.
-pub(crate) struct ValueList(Vec<ValueId>);
+pub(crate) struct ValueList(Vec<Id<Value>>);
 
 impl ValueList {
     /// Inserts an element to the back of the list and
@@ -34,6 +35,7 @@ impl ValueList {
         &self.0
     }
 }
+
 #[derive(Debug, Default)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
@@ -52,13 +54,13 @@ pub(crate) struct DataFlowGraph {
 
     /// Storage for all of the values defined in this
     /// function.
-    values: HashMap<ValueId, Value>,
+    values: SparseMap<Value>,
 
     /// Function signatures of external methods
-    signatures: HashMap<SigRef, Signature>,
+    signatures: SparseMap<Signature>,
 
     /// All blocks in a function
-    blocks: HashMap<BasicBlockId, BasicBlock>,
+    blocks: SparseMap<BasicBlock>,
 }
 
 impl DataFlowGraph {
@@ -69,12 +71,10 @@ impl DataFlowGraph {
 
     /// Inserts a new instruction into the DFG.
     pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
-        let id = self.instructions.add_instruction(instruction_data);
+        let id = self.instructions.push(instruction_data);
 
-        // Create a new vector to store the potential results
-        // for the instruction.
+        // Create a new vector to store the potential results for the instruction.
         self.results.insert(id, Default::default());
-
         id
     }
 
@@ -85,7 +85,7 @@ impl DataFlowGraph {
     pub(crate) fn make_instruction_results(
         &mut self,
         instruction_id: InstructionId,
-        ctrl_typevar: Typ,
+        ctrl_typevar: Type,
     ) -> usize {
         // Clear all of the results instructions associated with this
         // instruction.
@@ -111,10 +111,10 @@ impl DataFlowGraph {
     fn instruction_result_types(
         &self,
         instruction_id: InstructionId,
-        ctrl_typevar: Typ,
-    ) -> Vec<Typ> {
+        ctrl_typevar: Type,
+    ) -> Vec<Type> {
         // Check if it is a call instruction. If so, we don't support that yet
-        let ins_data = self.instructions.get_instruction(instruction_id);
+        let ins_data = &self.instructions[instruction_id];
         match ins_data {
             Instruction::Call { .. } => todo!("function calls are not supported yet"),
             ins => ins.return_types(ctrl_typevar),
@@ -122,37 +122,26 @@ impl DataFlowGraph {
     }
 
     /// Appends a result type to the instruction.
-    pub(crate) fn append_result(&mut self, instruction_id: InstructionId, typ: Typ) -> ValueId {
-        let next_value_id = self.next_value();
+    pub(crate) fn append_result(&mut self, instruction_id: InstructionId, typ: Type) -> ValueId {
+        let results = self.results.get_mut(&instruction_id).unwrap();
+        let expected_res_position = results.len();
+
+        let value_id = self.values.push(Value::Instruction {
+            typ,
+            position: expected_res_position as u16,
+            instruction: instruction_id,
+        });
 
         // Add value to the list of results for this instruction
-        let res_position = self.results.get_mut(&instruction_id).unwrap().push(next_value_id);
-
-        self.make_value(Value::Instruction {
-            typ,
-            position: res_position as u16,
-            instruction: instruction_id,
-        })
-    }
-
-    /// Stores a value and returns its `ValueId` reference.
-    fn make_value(&mut self, data: Value) -> ValueId {
-        let next_value = self.next_value();
-
-        self.values.insert(next_value, data);
-
-        next_value
-    }
-
-    /// Returns the next `ValueId`
-    fn next_value(&self) -> ValueId {
-        ValueId(self.values.len() as u32)
+        let actual_res_position = results.push(value_id);
+        assert_eq!(actual_res_position, expected_res_position);
+        value_id
     }
 
     /// Returns the number of instructions
     /// inserted into functions.
     pub(crate) fn num_instructions(&self) -> usize {
-        self.instructions.num_instructions()
+        self.instructions.len()
     }
 
     /// Returns all of result values which are attached to this instruction.
@@ -166,7 +155,7 @@ mod tests {
     use super::DataFlowGraph;
     use crate::ssa_refactor::ir::{
         instruction::Instruction,
-        types::{NumericType, Typ},
+        types::{NumericType, Type},
     };
     use acvm::FieldElement;
 
@@ -177,7 +166,7 @@ mod tests {
         let ins_id = dfg.make_instruction(ins);
 
         let num_results =
-            dfg.make_instruction_results(ins_id, Typ::Numeric(NumericType::NativeField));
+            dfg.make_instruction_results(ins_id, Type::Numeric(NumericType::NativeField));
 
         let results = dfg.instruction_results(ins_id);
 
