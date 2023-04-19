@@ -97,6 +97,14 @@ export class AztecAddress {
   }
 
   /**
+   * Returns this address as a field element.
+   * @returns A field element with the same value as the address.
+   */
+  toField() {
+    return Fr.fromBuffer(this.toBuffer());
+  }
+
+  /**
    * Determines if this AztecAddress instance is equal to the given AztecAddress instance.
    * Equality is based on the content of their respective buffers.
    *

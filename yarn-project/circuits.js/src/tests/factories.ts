@@ -50,7 +50,7 @@ import {
   PrivateCallData,
   PrivateKernelInputs,
   PrivateKernelPublicInputs,
-} from '../structs/kernel.js';
+} from '../structs/private_kernel.js';
 import { PrivateCallStackItem } from '../structs/private_call_stack_item.js';
 import {
   AffineElement,

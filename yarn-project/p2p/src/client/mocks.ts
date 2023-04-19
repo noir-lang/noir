@@ -6,7 +6,7 @@ import { Tx } from '@aztec/types';
 import { UnverifiedData } from '@aztec/types';
 
 export const MockTx = () => {
-  return new Tx(makePrivateKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
+  return Tx.createPrivate(makePrivateKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
 };
 
 export class MockBlockSource implements L2BlockSource {

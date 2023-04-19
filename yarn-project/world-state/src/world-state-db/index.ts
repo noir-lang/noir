@@ -12,6 +12,7 @@ export enum MerkleTreeId {
   NULLIFIER_TREE = 2,
   DATA_TREE = 3,
   DATA_TREE_ROOTS_TREE = 4,
+  PUBLIC_DATA_TREE = 5,
 }
 
 export type IndexedMerkleTreeId = MerkleTreeId.NULLIFIER_TREE;

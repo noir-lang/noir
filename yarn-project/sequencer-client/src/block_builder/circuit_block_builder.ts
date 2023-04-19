@@ -23,14 +23,14 @@ import {
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
 import { Fr, createDebugLogger, toBigIntBE, toBufferBE } from '@aztec/foundation';
 import { LeafData, SiblingPath } from '@aztec/merkle-tree';
-import { ContractData, L2Block, Tx } from '@aztec/types';
+import { ContractData, L2Block, PrivateTx, Tx, isPrivateTx } from '@aztec/types';
 import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import chunk from 'lodash.chunk';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
 import { VerificationKeys } from '../mocks/verification_keys.js';
-import { Proof, Prover } from '../prover/index.js';
-import { Simulator } from '../simulator/index.js';
+import { Proof, RollupProver } from '../prover/index.js';
+import { RollupSimulator } from '../simulator/index.js';
 
 import { BlockBuilder } from './index.js';
 
@@ -75,12 +75,14 @@ export class CircuitBlockBuilder implements BlockBuilder {
   constructor(
     protected db: MerkleTreeOperations,
     protected vks: VerificationKeys,
-    protected simulator: Simulator,
-    protected prover: Prover,
+    protected simulator: RollupSimulator,
+    protected prover: RollupProver,
     protected debug = createDebugLogger('aztec:sequencer'),
   ) {}
 
-  public async buildL2Block(blockNumber: number, txs: Tx[]): Promise<[L2Block, UInt8Vector]> {
+  public async buildL2Block(blockNumber: number, allTxs: Tx[]): Promise<[L2Block, UInt8Vector]> {
+    const txs: PrivateTx[] = allTxs.filter(isPrivateTx);
+
     const [
       startPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot,
@@ -143,7 +145,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  protected async runCircuits(txs: Tx[]): Promise<[RootRollupPublicInputs, Proof]> {
+  protected async runCircuits(txs: PrivateTx[]): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
     if (txs.length < 4 || (txs.length & (txs.length - 1)) !== 0) {
@@ -174,7 +176,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight);
   }
 
-  protected async baseRollupCircuit(tx1: Tx, tx2: Tx): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
+  protected async baseRollupCircuit(tx1: PrivateTx, tx2: PrivateTx): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
     this.debug(`Running base rollup for ${await tx1.getTxHash()} ${await tx2.getTxHash()}`);
     const rollupInput = await this.buildBaseRollupInput(tx1, tx2);
     const rollupOutput = await this.simulator.baseRollupCircuit(rollupInput);
@@ -349,7 +351,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getKernelDataFor(tx: Tx) {
+  protected getKernelDataFor(tx: PrivateTx) {
     return new PreviousKernelData(
       tx.data,
       tx.proof,
@@ -385,7 +387,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getContractMembershipWitnessFor(tx: Tx) {
+  protected getContractMembershipWitnessFor(tx: PrivateTx) {
     return this.getMembershipWitnessFor(
       tx.data.constants.oldTreeRoots.contractTreeRoot,
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
@@ -393,7 +395,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getDataMembershipWitnessFor(tx: Tx) {
+  protected getDataMembershipWitnessFor(tx: PrivateTx) {
     return this.getMembershipWitnessFor(
       tx.data.constants.oldTreeRoots.privateDataTreeRoot,
       MerkleTreeId.DATA_TREE_ROOTS_TREE,
@@ -678,7 +680,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
   }
 
   // Builds the base rollup inputs, updating the contract, nullifier, and data trees in the process
-  protected async buildBaseRollupInput(tx1: Tx, tx2: Tx) {
+  protected async buildBaseRollupInput(tx1: PrivateTx, tx2: PrivateTx) {
     // Get trees info before any changes hit
     const constants = await this.getConstantBaseRollupData();
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);

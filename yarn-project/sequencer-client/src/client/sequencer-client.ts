@@ -2,9 +2,12 @@ import { P2P } from '@aztec/p2p';
 import { WorldStateSynchroniser } from '@aztec/world-state';
 
 import { CircuitBlockBuilder } from '../block_builder/circuit_block_builder.js';
-import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
 import { SequencerClientConfig } from '../config.js';
-import { EmptyProver } from '../prover/empty.js';
+import { getL1Publisher, getVerificationKeys, Sequencer } from '../index.js';
+import { EmptyPublicProver, EmptyRollupProver } from '../prover/empty.js';
+import { MockPublicProcessor } from '../sequencer/public_processor.js';
+import { FakePublicCircuitSimulator } from '../simulator/fake_public.js';
+import { MockPublicKernelCircuitSimulator } from '../simulator/mock_public_kernel.js';
 import { WasmCircuitSimulator } from '../simulator/wasm.js';
 
 /**
@@ -19,13 +22,32 @@ export class SequencerClient {
     worldStateSynchroniser: WorldStateSynchroniser,
   ) {
     const publisher = getL1Publisher(config);
+    const merkleTreeDb = worldStateSynchroniser.getLatest();
+
     const blockBuilder = new CircuitBlockBuilder(
-      worldStateSynchroniser.getLatest(),
+      merkleTreeDb,
       getVerificationKeys(),
       await WasmCircuitSimulator.new(),
-      new EmptyProver(),
+      new EmptyRollupProver(),
     );
-    const sequencer = new Sequencer(publisher, p2pClient, worldStateSynchroniser, blockBuilder, config);
+
+    // TODO: Swap with actual processor once the integration is good to go
+    const publicProcessor = new MockPublicProcessor(
+      merkleTreeDb,
+      new FakePublicCircuitSimulator(merkleTreeDb),
+      new MockPublicKernelCircuitSimulator(),
+      new EmptyPublicProver(),
+    );
+
+    const sequencer = new Sequencer(
+      publisher,
+      p2pClient,
+      worldStateSynchroniser,
+      blockBuilder,
+      publicProcessor,
+      config,
+    );
+
     await sequencer.start();
     return new SequencerClient(sequencer);
   }

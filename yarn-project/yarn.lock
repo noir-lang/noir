@@ -508,6 +508,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/sequencer-client@workspace:sequencer-client"
   dependencies:
+    "@aztec/acir-simulator": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum.js": "workspace:^"
     "@aztec/foundation": "workspace:^"

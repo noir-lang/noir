@@ -7,9 +7,9 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
-import { Simulator } from './index.js';
+import { RollupSimulator } from './index.js';
 
-export class WasmCircuitSimulator implements Simulator {
+export class WasmCircuitSimulator implements RollupSimulator {
   private rollupWasmWrapper: RollupWasmWrapper;
 
   constructor(wasm: CircuitsWasm) {

@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../acir-simulator"
+    },
+    {
       "path": "../circuits.js"
     },
     {

@@ -54,7 +54,6 @@ describe('ACIR public execution simulator', () => {
 
         // Mock the old value for the recipient balance to be 20
         const previousBalance = new Fr(20n);
-        oracle.storageWrite.mockResolvedValue(previousBalance);
         oracle.storageRead.mockResolvedValue(previousBalance);
 
         const execution = new PublicExecution(oracle, abi, contractAddress, functionData, args, callContext);
@@ -64,13 +63,11 @@ describe('ACIR public execution simulator', () => {
         expect(result.returnValues).toEqual([expectedBalance]);
 
         const storageSlot = computeSlot(new Fr(1n), recipient, bbWasm);
-        expect(oracle.storageRead).toHaveBeenCalledWith(contractAddress, storageSlot);
-        expect(oracle.storageWrite).toHaveBeenCalledWith(contractAddress, storageSlot, expectedBalance);
-
-        expect(result.stateReads).toEqual([{ storageSlot: storageSlot, value: previousBalance }]);
         expect(result.stateTransitions).toEqual([
           { storageSlot, oldValue: previousBalance, newValue: expectedBalance },
         ]);
+
+        expect(result.stateReads).toEqual([]);
       });
     });
 
@@ -106,7 +103,7 @@ describe('ACIR public execution simulator', () => {
 
       const mockStore = (senderBalance: Fr, recipientBalance: Fr) => {
         // eslint-disable-next-line require-await
-        const mockStoreImplementation = async (_addr: AztecAddress, slot: Fr) => {
+        oracle.storageRead.mockImplementation(async (_addr: AztecAddress, slot: Fr) => {
           if (slot.equals(recipientStorageSlot)) {
             return recipientBalance;
           } else if (slot.equals(senderStorageSlot)) {
@@ -114,10 +111,7 @@ describe('ACIR public execution simulator', () => {
           } else {
             return Fr.ZERO;
           }
-        };
-
-        oracle.storageRead.mockImplementation(mockStoreImplementation);
-        oracle.storageWrite.mockImplementation(mockStoreImplementation);
+        });
       };
 
       it('should run the transfer function', async () => {
@@ -133,18 +127,17 @@ describe('ACIR public execution simulator', () => {
 
         expect(result.returnValues).toEqual([expectedRecipientBalance]);
 
-        expect(result.stateReads).toEqual([
-          { storageSlot: recipientStorageSlot, value: recipientBalance },
-          { storageSlot: senderStorageSlot, value: senderBalance },
-        ]);
-
         expect(result.stateTransitions).toEqual([
           { storageSlot: senderStorageSlot, oldValue: senderBalance, newValue: expectedSenderBalance },
           { storageSlot: recipientStorageSlot, oldValue: recipientBalance, newValue: expectedRecipientBalance },
         ]);
+
+        expect(result.stateReads).toEqual([]);
       });
 
-      // TODO: Figure out why we're not hitting the conditional
+      // State reads and writes are implemented as built-ins, which at the moment Noir does not
+      // now whether they have side-effects or not, so they get run even when their code path
+      // is not picked by a conditional. Once that's fixed, we should re-enable this test.
       it.skip('should run the transfer function without enough sender balance', async () => {
         const senderBalance = new Fr(10n);
         const recipientBalance = new Fr(20n);

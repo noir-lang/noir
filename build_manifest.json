@@ -2,38 +2,53 @@
   "circuits-wasm-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
-    "rebuildPatterns": ["^circuits/"],
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
     "dependencies": []
   },
   "circuits-wasm-linux-clang-assert": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang-assert",
-    "rebuildPatterns": ["^circuits/"],
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
     "dependencies": []
   },
   "circuits-x86_64-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
-    "rebuildPatterns": ["^circuits/"],
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
     "dependencies": []
   },
   "circuits-x86_64-linux-clang-assert": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
-    "rebuildPatterns": ["^circuits/"],
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
     "dependencies": []
   },
   "circuits-x86_64-linux-gcc": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
-    "rebuildPatterns": ["^circuits/"],
+    "rebuildPatterns": [
+      "^circuits/"
+    ],
     "dependencies": []
   },
   "l1-contracts": {
     "buildDir": "l1-contracts",
     "dockerfile": "Dockerfile",
-    "rebuildPatterns": ["^l1-contracts/"],
-    "dependencies": ["ethereum.js", "foundation"]
+    "rebuildPatterns": [
+      "^l1-contracts/"
+    ],
+    "dependencies": [
+      "ethereum.js",
+      "foundation"
+    ]
   },
   "yarn-project-base": {
     "buildDir": "yarn-project",
@@ -43,13 +58,17 @@
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],
-    "dependencies": ["circuits-wasm-linux-clang"]
+    "dependencies": [
+      "circuits-wasm-linux-clang"
+    ]
   },
   "acir-simulator": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/acir-simulator",
     "dockerfile": "acir-simulator/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/acir-simulator/"],
+    "rebuildPatterns": [
+      "^yarn-project/acir-simulator/"
+    ],
     "dependencies": [
       "barretenberg.js",
       "circuits.js",
@@ -62,21 +81,34 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/archiver",
     "dockerfile": "archiver/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/archiver/"],
-    "dependencies": ["ethereum.js", "foundation", "l1-contracts", "types"]
+    "rebuildPatterns": [
+      "^yarn-project/archiver/"
+    ],
+    "dependencies": [
+      "ethereum.js",
+      "foundation",
+      "l1-contracts",
+      "types"
+    ]
   },
   "aztec-cli": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-cli",
     "dockerfile": "aztec-cli/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-cli/"],
-    "dependencies": ["foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/aztec-cli/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
   },
   "aztec-rpc": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-rpc",
     "dockerfile": "aztec-rpc/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-rpc/"],
+    "rebuildPatterns": [
+      "^yarn-project/aztec-rpc/"
+    ],
     "dependencies": [
       "acir-simulator",
       "aztec-node",
@@ -92,28 +124,48 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec.js",
     "dockerfile": "aztec.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec.js/"],
-    "dependencies": ["aztec-rpc", "circuits.js", "foundation", "noir-contracts"]
+    "rebuildPatterns": [
+      "^yarn-project/aztec.js/"
+    ],
+    "dependencies": [
+      "aztec-rpc",
+      "circuits.js",
+      "foundation",
+      "noir-contracts"
+    ]
   },
   "barretenberg.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/barretenberg.js",
     "dockerfile": "barretenberg.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/barretenberg.js/"],
-    "dependencies": ["foundation", "yarn-project-base"]
+    "rebuildPatterns": [
+      "^yarn-project/barretenberg.js/"
+    ],
+    "dependencies": [
+      "foundation",
+      "yarn-project-base"
+    ]
   },
   "circuits.js": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/circuits.js",
     "dockerfile": "circuits.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/circuits.js/"],
-    "dependencies": ["barretenberg.js", "foundation", "yarn-project-base"]
+    "rebuildPatterns": [
+      "^yarn-project/circuits.js/"
+    ],
+    "dependencies": [
+      "barretenberg.js",
+      "foundation",
+      "yarn-project-base"
+    ]
   },
   "end-to-end": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/end-to-end",
     "dockerfile": "end-to-end/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/end-to-end/"],
+    "rebuildPatterns": [
+      "^yarn-project/end-to-end/"
+    ],
     "dependencies": [
       "aztec-node",
       "aztec.js",
@@ -127,70 +179,114 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/ethereum.js",
     "dockerfile": "ethereum.js/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/ethereum.js/"],
-    "dependencies": ["foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/ethereum.js/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
   },
   "foundation": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/foundation",
     "dockerfile": "foundation/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/foundation/"],
+    "rebuildPatterns": [
+      "^yarn-project/foundation/"
+    ],
     "dependencies": []
   },
   "kernel-prover": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/kernel-prover",
     "dockerfile": "kernel-prover/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/kernel-prover/"],
-    "dependencies": ["acir-simulator", "circuits.js", "foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/kernel-prover/"
+    ],
+    "dependencies": [
+      "acir-simulator",
+      "circuits.js",
+      "foundation"
+    ]
   },
   "key-store": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/key-store",
     "dockerfile": "key-store/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/key-store/"],
-    "dependencies": ["foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/key-store/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
   },
   "l2-block": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/l2-block",
     "dockerfile": "l2-block/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/l2-block/"],
-    "dependencies": ["circuits.js", "foundation", "l1-contracts", "tx"]
+    "rebuildPatterns": [
+      "^yarn-project/l2-block/"
+    ],
+    "dependencies": [
+      "circuits.js",
+      "foundation",
+      "l1-contracts",
+      "tx"
+    ]
   },
   "merkle-tree": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/merkle-tree",
     "dockerfile": "merkle-tree/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/merkle-tree/"],
-    "dependencies": ["barretenberg.js", "foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/merkle-tree/"
+    ],
+    "dependencies": [
+      "barretenberg.js",
+      "foundation"
+    ]
   },
   "noir-contracts": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/noir-contracts",
     "dockerfile": "noir-contracts/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/noir-contracts/"],
-    "dependencies": ["foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/noir-contracts/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
   },
   "p2p": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/p2p",
     "dockerfile": "p2p/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/p2p/"],
-    "dependencies": ["circuits.js", "foundation", "types"]
+    "rebuildPatterns": [
+      "^yarn-project/p2p/"
+    ],
+    "dependencies": [
+      "circuits.js",
+      "foundation",
+      "types"
+    ]
   },
   "prover-client": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/prover-client",
     "dockerfile": "prover-client/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/prover-client/"],
-    "dependencies": ["foundation"]
+    "rebuildPatterns": [
+      "^yarn-project/prover-client/"
+    ],
+    "dependencies": [
+      "foundation"
+    ]
   },
   "aztec-node": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/aztec-node",
     "dockerfile": "aztec-node/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/aztec-node/"],
+    "rebuildPatterns": [
+      "^yarn-project/aztec-node/"
+    ],
     "dependencies": [
       "archiver",
       "barretenberg.js",
@@ -208,8 +304,11 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/sequencer-client",
     "dockerfile": "sequencer-client/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/sequencer-client/"],
+    "rebuildPatterns": [
+      "^yarn-project/sequencer-client/"
+    ],
     "dependencies": [
+      "acir-simulator",
       "circuits.js",
       "ethereum.js",
       "foundation",
@@ -224,21 +323,36 @@
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/tx",
     "dockerfile": "tx/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/tx/"],
-    "dependencies": ["barretenberg.js", "circuits.js", "foundation", "types"]
+    "rebuildPatterns": [
+      "^yarn-project/tx/"
+    ],
+    "dependencies": [
+      "barretenberg.js",
+      "circuits.js",
+      "foundation",
+      "types"
+    ]
   },
   "types": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/types",
     "dockerfile": "types/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/types/"],
-    "dependencies": ["circuits.js", "foundation", "l1-contracts"]
+    "rebuildPatterns": [
+      "^yarn-project/types/"
+    ],
+    "dependencies": [
+      "circuits.js",
+      "foundation",
+      "l1-contracts"
+    ]
   },
   "world-state": {
     "buildDir": "yarn-project",
     "projectDir": "yarn-project/world-state",
     "dockerfile": "world-state/Dockerfile",
-    "rebuildPatterns": ["^yarn-project/world-state/"],
+    "rebuildPatterns": [
+      "^yarn-project/world-state/"
+    ],
     "dependencies": [
       "barretenberg.js",
       "circuits.js",

@@ -93,7 +93,7 @@ export class AccountState {
 
     const unverifiedData = this.createUnverifiedData(outputNotes);
 
-    return new Tx(publicInputs, proof, unverifiedData);
+    return Tx.createPrivate(publicInputs, proof, unverifiedData);
   }
 
   public async process(l2BlockContexts: L2BlockContext[], unverifiedDatas: UnverifiedData[]): Promise<void> {

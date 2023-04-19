@@ -1,19 +1,18 @@
-import { ContractData, L2Block } from '@aztec/types';
 import {
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
   AppendOnlyTreeSnapshot,
-  NewContractData,
   CircuitsWasm,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  NewContractData,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
-import { Tx } from '@aztec/types';
-import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
-import { BlockBuilder } from './index.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { AztecAddress, Fr, createDebugLogger } from '@aztec/foundation';
+import { ContractData, L2Block, PrivateTx } from '@aztec/types';
+import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
 import { Proof } from '../prover/index.js';
+import { BlockBuilder } from './index.js';
 
 const mapContractData = (n: NewContractData) => {
   const contractData = new ContractData(AztecAddress.fromBuffer(n.contractAddress.toBuffer()), n.portalContractAddress);
@@ -31,7 +30,7 @@ export class StandaloneBlockBuilder implements BlockBuilder {
 
   constructor(private db: MerkleTreeOperations, private log = createDebugLogger('aztec:block_builder')) {}
 
-  async buildL2Block(blockNumber: number, txs: Tx[]): Promise<[L2Block, Proof]> {
+  async buildL2Block(blockNumber: number, txs: PrivateTx[]): Promise<[L2Block, Proof]> {
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.DATA_TREE);
     const startNullifierTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
@@ -81,7 +80,7 @@ export class StandaloneBlockBuilder implements BlockBuilder {
     return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
   }
 
-  private async updateTrees(tx: Tx) {
+  private async updateTrees(tx: PrivateTx) {
     const wasm = await CircuitsWasm.get();
     const dataTreeLeaves = tx.data.end.newCommitments.map((x: Fr) => x.toBuffer());
     const nullifierTreeLeaves = tx.data.end.newNullifiers.map((x: Fr) => x.toBuffer());
