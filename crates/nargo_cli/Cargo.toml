@@ -38,9 +38,8 @@ tempdir = "0.3.7"
 color-eyre = "0.6.2"
 
 # Backends
-aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "7ec5693f194a79c379ae2952bc17a31ee63a42b9" }
-aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "7ec5693f194a79c379ae2952bc17a31ee63a42b9" }
-marlin_arkworks_backend = { optional = true, git = "https://github.com/noir-lang/marlin_arkworks_backend", rev = "144378edad821bfaa52bf2cacca8ecc87514a4fc" }
+aztec_backend = { optional = true, package = "barretenberg_static_lib", git = "https://github.com/noir-lang/aztec_backend", rev = "8ed67d68c71d655e1a6a5c38fa9ea1c3566f771d" }
+aztec_wasm_backend = { optional = true, package = "barretenberg_wasm", git = "https://github.com/noir-lang/aztec_backend", rev = "8ed67d68c71d655e1a6a5c38fa9ea1c3566f771d" }
 
 [dev-dependencies]
 assert_cmd = "2.0.8"
@@ -51,6 +50,5 @@ predicates = "2.1.5"
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
-marlin = ["marlin_arkworks_backend/bls12_381"]
 plonk_bn254_wasm = ["aztec_wasm_backend"]
 
