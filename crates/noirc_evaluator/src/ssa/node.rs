@@ -1313,7 +1313,7 @@ impl Operation {
             }
             UnsafeCall { func, arguments, .. } => {
                 f(*func);
-                arguments.iter().copied().for_each(f)
+                arguments.iter().copied().for_each(f);
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
