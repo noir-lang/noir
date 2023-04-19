@@ -4,7 +4,7 @@ use crate::errors::{RuntimeError, RuntimeErrorKind};
 use crate::ssa::block::{self, BlockId, BlockType};
 use crate::ssa::context::SsaContext;
 use crate::ssa::function::{RuntimeType, SsaFunction};
-use crate::ssa::mem::Memory;
+use crate::ssa::mem::{ArrayId, Memory};
 use crate::ssa::node::{
     Binary, BinaryOp, Instruction, NodeId, NodeObject, NumericType, ObjectType, Operation,
 };
@@ -15,6 +15,7 @@ use acvm::acir::brillig_bytecode::{
     Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
 };
 use noirc_abi::MAIN_RETURN_NAME;
+use num_traits::Signed;
 
 const CALLBACK_REGISTER: usize = 10000;
 const PREFIX_LEN: usize = 3;
@@ -207,6 +208,7 @@ impl BrilligGen {
         }
 
         // Jump to the next block
+        let mut error = false;
         let jump = block
             .instructions
             .last()
@@ -223,12 +225,18 @@ impl BrilligGen {
                     }
                     Operation::Jmp(target) => Some((BrilligOpcode::JMP { destination: 0 }, target)),
                     _ => {
-                        self.instruction_to_bc(ctx, ins).expect("Could not compile to brillig");
+                        error = self.instruction_to_bc(ctx, ins).is_err();
                         None
                     }
                 }
             })
             .or_else(|| block.left.map(|left| (BrilligOpcode::JMP { destination: 0 }, left)));
+        if error {
+            return Err(RuntimeErrorKind::Unimplemented(
+                "Operation not supported in unsafe functions".to_string(),
+            )
+            .into());
+        }
         if let Some(left) = block.left {
             self.handle_phi_instructions(block_id, left, ctx);
         }
@@ -268,11 +276,75 @@ impl BrilligGen {
             Operation::Binary(bin) => {
                 self.binary(ctx, bin, ins.id, ins.res_type);
             }
-            Operation::Cast(_) => {
-                return Err(RuntimeErrorKind::Unimplemented(
-                    "Operation not supported in unsafe functions".to_string(),
-                )
-                .into());
+            Operation::Cast(id) => {
+                let ins_reg = self.node_2_register(ctx, ins.id);
+                let arg = self.node_2_register(ctx, *id);
+                match (ctx.object_type(*id), ins.res_type) {
+                    (
+                        ObjectType::Numeric(NumericType::Signed(s1)),
+                        ObjectType::Numeric(NumericType::Signed(s2)),
+                    ) => todo!(),
+                    (
+                        ObjectType::Numeric(NumericType::Unsigned(s1)),
+                        ObjectType::Numeric(NumericType::Signed(s2)),
+                    ) => todo!(),
+                    (
+                        ObjectType::Numeric(NumericType::Unsigned(s1)),
+                        ObjectType::Numeric(NumericType::Unsigned(s2)),
+                    ) => {
+                        if s1 <= s2 {
+                            self.push_code(BrilligOpcode::Mov {
+                                destination: ins_reg,
+                                source: arg,
+                            });
+                        } else {
+                            self.push_code(BrilligOpcode::BinaryOp {
+                                result_type: BrilligType::Unsigned { bit_size: s2 },
+                                op: brillig_bytecode::BinaryOp::Add,
+                                lhs: arg,
+                                rhs: RegisterMemIndex::Constant(FieldElement::zero()),
+                                result: ins_reg.to_register_index().unwrap(),
+                            });
+                        }
+                    }
+                    (
+                        ObjectType::Numeric(NumericType::Signed(s1)),
+                        ObjectType::Numeric(NumericType::Unsigned(s2)),
+                    ) => todo!(),
+                    (
+                        ObjectType::Numeric(NumericType::Unsigned(_)),
+                        ObjectType::Numeric(NumericType::NativeField),
+                    ) => {
+                        let ins_reg = self.node_2_register(ctx, ins.id);
+                        let arg = self.node_2_register(ctx, *id);
+                        self.push_code(BrilligOpcode::Mov { destination: ins_reg, source: arg });
+                    }
+                    (
+                        ObjectType::Numeric(NumericType::NativeField),
+                        ObjectType::Numeric(NumericType::Unsigned(s2)),
+                    ) => {
+                        self.push_code(BrilligOpcode::BinaryOp {
+                            result_type: BrilligType::Unsigned { bit_size: s2 },
+                            op: brillig_bytecode::BinaryOp::Add,
+                            lhs: arg,
+                            rhs: RegisterMemIndex::Constant(FieldElement::zero()),
+                            result: ins_reg.to_register_index().unwrap(),
+                        });
+                    }
+                    (
+                        ObjectType::Numeric(NumericType::Signed(s1)),
+                        ObjectType::Numeric(NumericType::NativeField),
+                    ) => todo!(),
+                    (
+                        ObjectType::Numeric(NumericType::NativeField),
+                        ObjectType::Numeric(NumericType::Signed(s2)),
+                    ) => todo!(),
+                    _ => unreachable!("Cast is only supported for numeric types"),
+                }
+                // return Err(RuntimeErrorKind::Unimplemented(
+                //     "Cast operation not supported in unsafe functions".to_string(),
+                // )
+                // .into());
             }
             Operation::Truncate { .. } => unreachable!("Brillig does not require an overflow pass"),
             Operation::Not(_) => todo!(), // bitwise not
@@ -286,7 +358,7 @@ impl BrilligGen {
             Operation::Phi { .. } => (),
             Operation::Call { .. } => {
                 if !self.noir_call.is_empty() {
-                    //TODO to fix
+                    //TODO to fix...
                     return Err(RuntimeErrorKind::UnstructuredError {
                         message: "Error calling function".to_string(),
                     }
@@ -336,11 +408,13 @@ impl BrilligGen {
                 });
             }
             Operation::Store { array_id, index, value, .. } => {
-                let idx_reg = self.node_2_register(ctx, *index);
-                let array_id_reg =
-                    RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
-                let source = self.node_2_register(ctx, *value);
-                self.push_code(BrilligOpcode::Store { source, array_id_reg, index: idx_reg });
+                if !ins.operation.is_dummy_store() {
+                    let idx_reg = self.node_2_register(ctx, *index);
+                    let array_id_reg =
+                        RegisterMemIndex::Constant(FieldElement::from(array_id.to_u32() as i128));
+                    let source = self.node_2_register(ctx, *value);
+                    self.push_code(BrilligOpcode::Store { source, array_id_reg, index: idx_reg });
+                }
             }
             Operation::Intrinsic(_, _) => {
                 return Err(RuntimeErrorKind::Unimplemented(
@@ -349,7 +423,7 @@ impl BrilligGen {
                 .into());
             }
             Operation::UnsafeCall { func, arguments, returned_values, .. } => {
-                self.unsafe_call(ctx, *func, arguments, returned_values)
+                self.unsafe_call(ctx, *func, arguments, returned_values, &Vec::new());
             }
             Operation::Nop => (),
         }
@@ -469,17 +543,20 @@ impl BrilligGen {
         BinaryOp::Ule |//<= = >= , <
         BinaryOp::Lte |
         BinaryOp::Sle => {
-            //a<=b : !b<a
-            let t = self.get_tmp_register();
-            //b<a .. todo
-            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub,
-            lhs: RegisterMemIndex::Constant(FieldElement::one()),
-            rhs: RegisterMemIndex::Register(t),
-            result,});
+            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lte), lhs, rhs, result });
+            // //a<=b : !b<a
+            // let t = self.get_tmp_register();
+            // //b<a .. todo
+            // self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Sub,
+            // lhs: RegisterMemIndex::Constant(FieldElement::one()),
+            // rhs: RegisterMemIndex::Register(t),
+            // result,});
         },
         BinaryOp::Ult |
         BinaryOp::Slt |
-        BinaryOp::Lt => todo!(), // a<b <=> ! b<=a 
+        BinaryOp::Lt => {
+            self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lt), lhs, rhs, result });
+        },
         BinaryOp::And => todo!(),       //bitwise
         BinaryOp::Or => todo!(),
         BinaryOp::Xor => todo!(),
@@ -533,6 +610,7 @@ impl BrilligGen {
         func: NodeId,
         arguments: &Vec<NodeId>,
         returned_values: &Vec<NodeId>,
+        returned_arrays: &Vec<(ArrayId, u32)>,
     ) {
         if let Some(func_id) = ctx.try_get_func_id(func) {
             let ssa_func = ctx.ssa_func(func_id).unwrap();
@@ -582,13 +660,43 @@ impl BrilligGen {
                             (PREFIX_LEN - 1) as i128,
                         )),
                     });
-                    //result is in register 0
-                    if returned_values.len() == 1 {
-                        let first = self.node_2_register(ctx, *returned_values.first().unwrap());
-                        self.push_code(brillig_bytecode::Opcode::Mov {
-                            destination: first,
-                            source: RegisterMemIndex::Register(RegisterIndex(0)),
-                        });
+                    let len = returned_values.len() + returned_arrays.len();
+                    let mut j = 0;
+                    let mut i = 0;
+                    for ret_i in 0..len {
+                        if let Some(ret) = returned_arrays.get(j) {
+                            if ret.1 as usize == ret_i {
+                                j += 1;
+                                continue; //should be the same
+                            }
+                        }
+                        if let ObjectType::ArrayPointer(a) = ctx.object_type(returned_values[i]) {
+                            //memcpy ret_i into a
+                            let array = &ctx.mem[a];
+                            let a_reg = RegisterMemIndex::Constant(a.to_field_element());
+                            for k in 0..array.len {
+                                let tmp = self.get_tmp_register();
+                                let index =
+                                    RegisterMemIndex::Constant(FieldElement::from(k as i128));
+                                self.push_code(BrilligOpcode::Load {
+                                    destination: RegisterMemIndex::Register(tmp),
+                                    array_id_reg: RegisterMemIndex::Register(RegisterIndex(ret_i)),
+                                    index,
+                                });
+                                self.push_code(BrilligOpcode::Store {
+                                    source: RegisterMemIndex::Register(tmp),
+                                    array_id_reg: a_reg,
+                                    index,
+                                });
+                            }
+                        } else {
+                            let destination = self.node_2_register(ctx, returned_values[i]);
+                            self.push_code(brillig_bytecode::Opcode::Mov {
+                                destination,
+                                source: RegisterMemIndex::Register(RegisterIndex(ret_i)),
+                            });
+                        }
+                        i += 1;
                     }
                 }
             }
@@ -598,16 +706,24 @@ impl BrilligGen {
     fn try_process_call(&mut self, ctx: &SsaContext) {
         if let Some(call_id) = self.noir_call.first() {
             if let Some(call) = ctx.try_get_instruction(*call_id) {
-                dbg!(&call);
-                if let Operation::Call { func, arguments, .. } = &call.operation {
+                //                dbg!(&call);
+                if let Operation::Call { func, arguments, returned_arrays, .. } = &call.operation {
                     if let Some(func_id) = ctx.try_get_func_id(*func) {
                         let ssa_func = ctx.ssa_func(func_id).unwrap();
-                        dbg!(&ssa_func.name);
-                        dbg!(&ssa_func.result_types);
-                        dbg!(&self.noir_call);
-                        if self.noir_call.len() == ssa_func.result_types.len() + 1 {
+                        // dbg!(&ssa_func.name);
+                        // dbg!(&ssa_func.result_types);
+                        // dbg!(&self.noir_call);
+                        if self.noir_call.len() + returned_arrays.len()
+                            == ssa_func.result_types.len() + 1
+                        {
                             let returned_values = &self.noir_call[1..];
-                            self.unsafe_call(ctx, *func, arguments, &returned_values.to_vec());
+                            self.unsafe_call(
+                                ctx,
+                                *func,
+                                arguments,
+                                &returned_values.to_vec(),
+                                returned_arrays,
+                            );
                             self.noir_call.clear();
                         }
                     }

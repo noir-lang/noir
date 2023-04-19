@@ -1149,7 +1149,7 @@ impl Operation {
         Operation::Binary(Binary::new(op, lhs, rhs))
     }
 
-    pub(super) fn is_dummy_store(&self) -> bool {
+    pub fn is_dummy_store(&self) -> bool {
         match self {
             Operation::Store { index, value, .. } => {
                 *index == NodeId::dummy() && *value == NodeId::dummy()
@@ -1313,7 +1313,7 @@ impl Operation {
             }
             UnsafeCall { func, arguments, .. } => {
                 f(*func);
-                arguments.iter().copied().for_each(f)
+                arguments.iter().copied().for_each(f);
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {

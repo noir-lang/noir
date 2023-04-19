@@ -76,6 +76,7 @@ impl SsaFunction {
         //catch the error because the function may not be called ??
         super::optimizations::full_cse(ctx, self.entry_block, false).unwrap();
         //
+        dbg!(&self.name);
         BrilligGen::compile(ctx, self.entry_block).expect("unsafe functions should compile")
     }
 
@@ -296,6 +297,9 @@ impl IrGenerator {
                     let mut returned_values = Vec::new();
                     let types = ssa_func.result_types.clone();
                     for (i, typ) in types.iter().enumerate() {
+                        if *typ == ObjectType::NotAnObject {
+                            continue;
+                        }
                         let name = format!("ret{i}");
                         let obj = node::Variable::new(*typ, name, None, self.context.current_block);
                         let var = self.context.add_variable(obj, None);
