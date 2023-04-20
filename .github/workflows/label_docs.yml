@@ -1,4 +1,4 @@
-name: CI
+name: Notify Doc Needed
 
 on:
   pull_request_target:
