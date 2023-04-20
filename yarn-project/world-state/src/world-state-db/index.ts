@@ -15,7 +15,7 @@ export enum MerkleTreeId {
   PUBLIC_DATA_TREE = 5,
 }
 
-export type IndexedMerkleTreeId = MerkleTreeId.NULLIFIER_TREE;
+export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE;
 
 /**
  * The nullifier tree must be pre filled with the number of leaves that are added by one rollup.
@@ -91,23 +91,20 @@ export interface MerkleTreeOperations {
    * @param treeId - The tree for which the previous value index is required
    * @param value - The value to be queried
    */
-  getPreviousValueIndex(
-    treeId: IndexedMerkleTreeId,
-    value: bigint,
-  ): Promise<{ index: number; alreadyPresent: boolean }>;
+  getPreviousValueIndex(treeId: IndexedTreeId, value: bigint): Promise<{ index: number; alreadyPresent: boolean }>;
   /**
    * Returns the data at a specific leaf
    * @param treeId - The tree for which leaf data should be returned
    * @param index - The index of the leaf required
    */
-  getLeafData(treeId: IndexedMerkleTreeId, index: number): Promise<LeafData | undefined>;
+  getLeafData(treeId: IndexedTreeId, index: number): Promise<LeafData | undefined>;
   /**
    * Update the leaf data at the given index
    * @param treeId - The tree for which leaf data should be edited
    * @param leaf - The updated leaf value
    * @param index - The index of the leaf to be updated
    */
-  updateLeaf(treeId: IndexedMerkleTreeId, leaf: LeafData, index: bigint): Promise<void>;
+  updateLeaf(treeId: IndexedTreeId, leaf: LeafData, index: bigint): Promise<void>;
   /**
    * Returns the index containing a leaf value
    * @param treeId - The tree for which the index should be returned

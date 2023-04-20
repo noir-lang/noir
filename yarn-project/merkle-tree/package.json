@@ -13,9 +13,6 @@
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
-  "inherits": [
-    "../package.common.json"
-  ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "moduleNameMapper": {
@@ -48,7 +45,9 @@
   "files": [
     "dest",
     "src",
-    "!*.test.*"
+    "!*.test.*",
+    "!dest/test",
+    "!src/test"
   ],
   "types": "./dest/index.d.ts"
 }

@@ -1,7 +1,7 @@
 import { ServerWorldStateSynchroniser } from './server_world_state_synchroniser.js';
 import { L2BlockSource, L2Block, ContractData } from '@aztec/types';
 import { WorldStateRunningState } from './world_state_synchroniser.js';
-import { Pedersen, SiblingPath, StandardMerkleTree } from '@aztec/merkle-tree';
+import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
 import { AztecAddress, randomBytes, sleep } from '@aztec/foundation';
 import { jest } from '@jest/globals';
 import { EthAddress, Fr } from '@aztec/foundation';
@@ -74,7 +74,7 @@ describe('server_world_state_synchroniser', () => {
       return async () => {
         const wasm = await BarretenbergWasm.get();
         const pedersen: Pedersen = new Pedersen(wasm);
-        SiblingPath.ZERO(32, StandardMerkleTree.ZERO_ELEMENT, pedersen);
+        SiblingPath.ZERO(32, INITIAL_LEAF, pedersen);
       }; //Promise.resolve();
     }),
     commit: jest.fn().mockImplementation(() => Promise.resolve()),

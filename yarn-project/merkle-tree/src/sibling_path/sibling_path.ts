@@ -3,6 +3,13 @@ import { deserializeArrayFromVector, serializeBufferArrayToVector } from '@aztec
 
 /**
  * Contains functionality to compute and serialize/deserialize a sibling path.
+ * e.g. Sibling path for a leaf at index 3 in a tree of depth 3 consists of:
+ *      d0:                                            [ root ]
+ *      d1:                      [ ]                                               [*]
+ *      d2:         [*]                      [ ]                       [ ]                     [ ]
+ *      d3:   [ ]         [ ]          [*]         [ ]           [ ]         [ ]          [ ]        [ ]
+ *
+ *      And the elements would be ordered as: [ leaf_at_index_2, node_at_level_2_index_0, node_at_level_1_index_1 ]
  */
 export class SiblingPath {
   /**
