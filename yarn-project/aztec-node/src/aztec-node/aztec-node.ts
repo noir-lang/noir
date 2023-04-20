@@ -1,16 +1,23 @@
 import { Archiver } from '@aztec/archiver';
-import { AztecAddress } from '@aztec/foundation';
+import { AztecAddress, Fr } from '@aztec/foundation';
 import { ContractData, L2Block, L2BlockSource } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { P2P, P2PClient } from '@aztec/p2p';
 import { SequencerClient } from '@aztec/sequencer-client';
 import { Tx, TxHash } from '@aztec/types';
 import { UnverifiedData, UnverifiedDataSource } from '@aztec/types';
-import { MerkleTreeId, MerkleTrees, ServerWorldStateSynchroniser, WorldStateSynchroniser } from '@aztec/world-state';
+import {
+  MerkleTreeId,
+  MerkleTrees,
+  ServerWorldStateSynchroniser,
+  WorldStateSynchroniser,
+  computePublicDataTreeLeafIndex,
+} from '@aztec/world-state';
 import { default as levelup } from 'levelup';
 import { default as memdown, MemDown } from 'memdown';
 import { AztecNodeConfig } from './config.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { PrimitivesWasm } from '@aztec/barretenberg.js/wasm';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 
@@ -143,5 +150,17 @@ export class AztecNode {
 
   public getDataTreePath(leafIndex: bigint): Promise<SiblingPath> {
     return this.merkleTreeDB.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, leafIndex, false);
+  }
+
+  /**
+   * Gets the storage value at the given contract slot.
+   * @param contract - Address of the contract to query
+   * @param slot - Slot to query
+   * @returns Storage value at the given contract slot (or undefined if not found).
+   * Note: Aztec's version of `eth_getStorageAt`
+   */
+  public async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
+    const leafIndex = computePublicDataTreeLeafIndex(contract, new Fr(slot), await PrimitivesWasm.get());
+    return this.merkleTreeDB.getLeafValue(MerkleTreeId.PUBLIC_DATA_TREE, leafIndex, false);
   }
 }
