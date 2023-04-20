@@ -119,8 +119,7 @@ export class PublicProcessor {
     for (const stateTransition of stateTransitions) {
       const index = getLeafIndex(stateTransition.storageSlot);
       transitionsHashPaths.push(await this.getMembershipWitness(index));
-      // TODO: Update tree once we got the interface for it
-      // this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, stateTransition.newValue, index);
+      await this.db.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, stateTransition.newValue.toBuffer(), index);
     }
 
     return { readsHashPaths, transitionsHashPaths };

@@ -16,6 +16,7 @@ export enum MerkleTreeId {
 }
 
 export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE;
+export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
 
 /**
  * The nullifier tree must be pre filled with the number of leaves that are added by one rollup.
@@ -104,7 +105,7 @@ export interface MerkleTreeOperations {
    * @param leaf - The updated leaf value
    * @param index - The index of the leaf to be updated
    */
-  updateLeaf(treeId: IndexedTreeId, leaf: LeafData, index: bigint): Promise<void>;
+  updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void>;
   /**
    * Returns the index containing a leaf value
    * @param treeId - The tree for which the index should be returned

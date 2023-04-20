@@ -5,6 +5,7 @@ import {
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
+  PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { SerialQueue } from '@aztec/foundation';
 import { WasmWrapper } from '@aztec/foundation/wasm';
@@ -18,6 +19,7 @@ import {
   UpdateOnlyTree,
   IndexedTree,
   newTree,
+  SparseTree,
 } from '@aztec/merkle-tree';
 import { default as levelup } from 'levelup';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
@@ -27,6 +29,7 @@ import {
   MerkleTreeDb,
   MerkleTreeId,
   MerkleTreeOperations,
+  PublicTreeId,
   TreeInfo,
 } from './index.js';
 
@@ -67,21 +70,35 @@ export class MerkleTrees implements MerkleTreeDb {
       NULLIFIER_TREE_HEIGHT,
       INITIAL_NULLIFIER_TREE_SIZE,
     );
-    const dataTree: AppendOnlyTree = await newTree(
+    const privateDataTree: AppendOnlyTree = await newTree(
       StandardTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.DATA_TREE]}`,
       PRIVATE_DATA_TREE_HEIGHT,
     );
-    const dataTreeRootsTree: AppendOnlyTree = await newTree(
+    const privateDataTreeRootsTree: AppendOnlyTree = await newTree(
       StandardTree,
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.DATA_TREE_ROOTS_TREE]}`,
       PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
     );
-    this.trees = [contractTree, contractTreeRootsTree, nullifierTree, dataTree, dataTreeRootsTree];
+    const publicDataTree: UpdateOnlyTree = await newTree(
+      SparseTree,
+      this.db,
+      hasher,
+      `${MerkleTreeId[MerkleTreeId.PUBLIC_DATA_TREE]}`,
+      PUBLIC_DATA_TREE_HEIGHT,
+    );
+    this.trees = [
+      contractTree,
+      contractTreeRootsTree,
+      nullifierTree,
+      privateDataTree,
+      privateDataTreeRootsTree,
+      publicDataTree,
+    ];
     this.jobQueue.start();
   }
 
@@ -221,7 +238,7 @@ export class MerkleTrees implements MerkleTreeDb {
    * @param leaf - The new leaf value
    * @param index - The index to insert into
    */
-  public async updateLeaf(treeId: IndexedTreeId, leaf: LeafData, index: bigint): Promise<void> {
+  public async updateLeaf(treeId: IndexedTreeId | PublicTreeId, leaf: LeafData | Buffer, index: bigint): Promise<void> {
     const tree = this.trees[treeId];
     if (!('updateLeaf' in tree)) {
       throw new Error('Tree does not support `updateLeaf` method');
