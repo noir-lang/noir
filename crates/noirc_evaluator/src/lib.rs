@@ -6,6 +6,13 @@
 mod errors;
 mod ssa;
 
+// SSA code to create the SSA based IR
+// for functions and execute different optimizations.
+pub mod ssa_refactor;
+// Frontend helper module to translate a different AST
+// into the SSA IR.
+pub mod frontend;
+
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
@@ -43,7 +50,10 @@ pub struct Evaluator {
     // Witnesses below `num_witnesses_abi_len` and not included in this set
     // correspond to private parameters and must not be made public.
     public_parameters: BTreeSet<Witness>,
-    return_values: BTreeSet<Witness>,
+    // The witness indices for return values are not guaranteed to be contiguous
+    // and increasing as for `public_parameters`. We then use a `Vec` rather
+    // than a `BTreeSet` to preserve this order for the ABI.
+    return_values: Vec<Witness>,
 
     opcodes: Vec<AcirOpcode>,
 }
@@ -78,7 +88,7 @@ pub fn create_circuit(
             current_witness_index,
             opcodes,
             public_parameters: PublicInputs(public_parameters),
-            return_values: PublicInputs(return_values.clone()),
+            return_values: PublicInputs(return_values.iter().copied().collect()),
         },
         np_language,
         is_opcode_supported,
@@ -86,8 +96,7 @@ pub fn create_circuit(
     .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
 
     let (parameters, return_type) = program.main_function_signature;
-    let return_witnesses: Vec<Witness> = return_values.into_iter().collect();
-    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses };
+    let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
     Ok((optimized_circuit, abi))
 }

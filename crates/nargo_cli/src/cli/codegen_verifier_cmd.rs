@@ -4,8 +4,9 @@ use crate::{
     cli::compile_cmd::compile_circuit, constants::CONTRACT_DIR, constants::TARGET_DIR,
     errors::CliError,
 };
+use acvm::SmartContract;
 use clap::Args;
-use nargo::ops::{codegen_verifier, preprocess_program};
+use nargo::ops::preprocess_program;
 use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
@@ -35,7 +36,8 @@ pub(crate) fn run(args: CodegenVerifierCommand, config: NargoConfig) -> Result<(
         }
     };
 
-    let smart_contract_string = codegen_verifier(&backend, &preprocessed_program.verification_key)?;
+    let smart_contract_string =
+        backend.eth_contract_from_vk(&preprocessed_program.verification_key);
 
     let contract_dir = config.program_dir.join(CONTRACT_DIR);
     create_named_dir(&contract_dir, "contract");
