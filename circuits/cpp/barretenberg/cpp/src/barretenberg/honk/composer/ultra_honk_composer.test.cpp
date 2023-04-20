@@ -10,7 +10,7 @@
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
 #include "barretenberg/honk/sumcheck/relations/grand_product_computation_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/grand_product_initialization_relation.hpp"
-#include "barretenberg/honk/utils/public_inputs.hpp"
+#include "barretenberg/honk/utils/grand_product_delta.hpp"
 
 // TODO(luke): TEMPORARY; for testing only (comparison with Ultra Plonk composers)
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -39,21 +39,18 @@ std::vector<uint32_t> add_variables(auto& composer, std::vector<fr> variables)
  * @param honk_prover
  * @param plonk_prover
  */
-// NOTE: Currently checking exact consistency for witness polynomials (wires, sorted lists) and table polys.
-// The permutation polys are computed differently between plonk and honk so we do not expect consistency.
-// Equality is checked on all selectors but we ignore the final entry since we do not enforce non-zero selectors in
-// Honk.
 void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plonk_prover)
 {
     auto& honk_store = honk_prover.key->polynomial_store;
     auto& plonk_store = plonk_prover.key->polynomial_store;
 
-    // Check that all selectors agree (aside from the final element which will differ due to not enforcing non-zero
-    // selectors in Honk).
+    // Check that all selectors and table polynomials agree (aside from the final element which will differ
+    // due to not enforcing non-zero polynomials in Honk).
     for (auto& entry : honk_store) {
         std::string key = entry.first;
         bool is_selector = (key.find("q_") != std::string::npos) || (key.find("table_type") != std::string::npos);
-        if (plonk_store.contains(key) && is_selector) {
+        bool is_table = (key.find("table_value_") != std::string::npos);
+        if (plonk_store.contains(key) && (is_selector || is_table)) {
             // check equality for all but final entry
             for (size_t i = 0; i < honk_store.get(key).size() - 1; ++i) {
                 ASSERT_EQ(honk_store.get(key)[i], plonk_store.get(key)[i]);
@@ -61,12 +58,11 @@ void verify_consistency(honk::UltraProver& honk_prover, plonk::UltraProver& plon
         }
     }
 
-    // Check that sorted witness-table and table polys agree
+    // Check that sorted witness-table polynomials agree
     for (auto& entry : honk_store) {
         std::string key = entry.first;
         bool is_sorted_table = (key.find("s_") != std::string::npos);
-        bool is_table = (key.find("table_value_") != std::string::npos);
-        if (plonk_store.contains(key) && (is_sorted_table || is_table)) {
+        if (plonk_store.contains(key) && is_sorted_table) {
             ASSERT_EQ(honk_store.get(key), plonk_store.get(key));
         }
     }

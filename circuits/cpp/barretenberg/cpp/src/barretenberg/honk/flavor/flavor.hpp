@@ -219,6 +219,10 @@ struct UltraArithmetization {
         ID_2,
         ID_3,
         ID_4,
+        TABLE_1,
+        TABLE_2,
+        TABLE_3,
+        TABLE_4,
         LAGRANGE_FIRST,
         LAGRANGE_LAST, // = LAGRANGE_N-1 whithout ZK, but can be less
         /* --- WITNESS POLYNOMIALS --- */
@@ -230,11 +234,19 @@ struct UltraArithmetization {
         S_2,
         S_3,
         S_4,
+        S_ACCUM,
         Z_PERM,
         Z_LOOKUP,
         /* --- SHIFTED POLYNOMIALS --- */
         W_1_SHIFT,
+        W_2_SHIFT,
+        W_3_SHIFT,
         W_4_SHIFT,
+        TABLE_1_SHIFT,
+        TABLE_2_SHIFT,
+        TABLE_3_SHIFT,
+        TABLE_4_SHIFT,
+        S_ACCUM_SHIFT,
         Z_PERM_SHIFT,
         Z_LOOKUP_SHIFT,
         /* --- --- */

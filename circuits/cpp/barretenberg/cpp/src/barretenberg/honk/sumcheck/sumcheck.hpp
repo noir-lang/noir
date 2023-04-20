@@ -3,7 +3,7 @@
 #include <array>
 #include "barretenberg/honk/sumcheck/relations/relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/honk/utils/public_inputs.hpp"
+#include "barretenberg/honk/utils/grand_product_delta.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "sumcheck_round.hpp"
 #include "polynomials/univariate.hpp"

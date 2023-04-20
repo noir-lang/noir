@@ -270,15 +270,18 @@ std::shared_ptr<plonk::proving_key> UltraHonkComposerHelper<CircuitConstructor>:
     // // all four columns. We don't want to have equal commitments, because biggroup operations assume no points are
     // // equal, so if we tried to verify an ultra proof in a circuit, the biggroup operations would fail. To combat
     // // this, we just choose distinct values:
-    size_t num_selectors = circuit_constructor.num_selectors;
-    ASSERT(offset == subgroup_size - 1);
-    auto unique_last_value = num_selectors + 1; // Note: in compute_proving_key_base, moments earlier, each selector
-                                                // vector was given a unique last value from 1..num_selectors. So we
-                                                // avoid those values and continue the count, to ensure uniqueness.
-    poly_q_table_column_1[subgroup_size - 1] = unique_last_value;
-    poly_q_table_column_2[subgroup_size - 1] = ++unique_last_value;
-    poly_q_table_column_3[subgroup_size - 1] = ++unique_last_value;
-    poly_q_table_column_4[subgroup_size - 1] = ++unique_last_value;
+
+    // TODO(#217)(luke): Similar to the selectors, enforcing non-zero values by inserting an arbitrary final element
+    // in the table polys will result in lookup relations not being satisfied. Address this with issue #217.
+    // size_t num_selectors = circuit_constructor.num_selectors;
+    // ASSERT(offset == subgroup_size - 1);
+    // auto unique_last_value = num_selectors + 1; // Note: in compute_proving_key_base, moments earlier, each selector
+    //                                             // vector was given a unique last value from 1..num_selectors. So we
+    //                                             // avoid those values and continue the count, to ensure uniqueness.
+    // poly_q_table_column_1[subgroup_size - 1] = unique_last_value;
+    // poly_q_table_column_2[subgroup_size - 1] = ++unique_last_value;
+    // poly_q_table_column_3[subgroup_size - 1] = ++unique_last_value;
+    // poly_q_table_column_4[subgroup_size - 1] = ++unique_last_value;
 
     circuit_proving_key->polynomial_store.put("table_value_1_lagrange", std::move(poly_q_table_column_1));
     circuit_proving_key->polynomial_store.put("table_value_2_lagrange", std::move(poly_q_table_column_2));

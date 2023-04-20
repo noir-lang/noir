@@ -54,4 +54,26 @@ Field compute_public_input_delta(std::span<const Field> public_inputs,
     return numerator / denominator;
 }
 
+/**
+ * @brief Compute lookup grand product delta
+ *
+ * @details Similar to how incorporation of public inputs into the permutation grand product results in
+ * z_permutation(X_n) = \Delta_{PI}, the structure of the lookup grand product polynomial results in
+ * z_lookup(X_n) = (γ(1 + β))^n = \Delta_{lookup}. This is a side effect of the way in which we
+ * incorporate the original plookup construction (for which z_lookup(X_n) = 1) into plonk/honk.
+ * See https://hackmd.io/@aztec-network/ByjS5GplK? for a more detailed explanation.
+ *
+ * @tparam Field
+ * @param beta
+ * @param gamma
+ * @param domain_size dyadic circuit size
+ * @return Field
+ */
+template <typename Field>
+Field compute_lookup_grand_product_delta(const Field& beta, const Field& gamma, const size_t domain_size)
+{
+    Field gamma_by_one_plus_beta = gamma * (Field(1) + beta); // γ(1 + β)
+    return gamma_by_one_plus_beta.pow(domain_size);           // (γ(1 + β))^n
+}
+
 } // namespace proof_system::honk

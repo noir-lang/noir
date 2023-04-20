@@ -254,7 +254,7 @@ void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
             // repairing the cycle is add the mapping
             //  -(i+1) -> (n+i)
             // These indices are chosen so they can easily be computed by the verifier. They can expect the running
-            // product to be equal to the "public input delta" that is computed in <honk/utils/public_inputs.hpp>
+            // product to be equal to the "public input delta" that is computed in <honk/utils/grand_product_delta.hpp>
             current_permutation_poly[i] =
                 -barretenberg::fr(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
         } else if (current_mapping.is_tag) {

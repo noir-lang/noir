@@ -6,6 +6,7 @@
 #include "../polynomials/univariate.hpp"
 #include "relation.hpp"
 
+// TODO(luke): Move this into ultra_arithmetic_relation.hpp.
 namespace proof_system::honk::sumcheck {
 
 template <typename FF> class UltraArithmeticRelationSecondary {
