@@ -1,42 +1,18 @@
-use std::collections::HashMap;
-
 use acvm::FieldElement;
 
-use super::{function::FunctionId, types::Typ, value::ValueId};
+use super::{
+    function::FunctionId,
+    map::{Id, SparseMap},
+    types::Type,
+    value::ValueId,
+};
 use crate::ssa_refactor::basic_block::{BasicBlockId, BlockArguments};
 
-/// Map of instructions.
-/// This is similar to Arena.
-#[derive(Debug, Default)]
-pub(crate) struct Instructions(HashMap<InstructionId, Instruction>);
+// Container for all Instructions, per-function
+pub(crate) type Instructions = SparseMap<Instruction>;
 
-impl Instructions {
-    /// Adds an instruction to the map and returns a
-    /// reference to the instruction.
-    pub(crate) fn add_instruction(&mut self, ins: Instruction) -> InstructionId {
-        let id = InstructionId(self.0.len() as u32);
-        self.0.insert(id, ins);
-        id
-    }
-
-    /// Fetch the instruction corresponding to this
-    /// instruction id.
-    ///
-    /// Panics if there is no such instruction, since instructions cannot be
-    /// deleted.
-    pub(crate) fn get_instruction(&self, ins_id: InstructionId) -> &Instruction {
-        self.0.get(&ins_id).expect("ICE: instructions cannot be deleted")
-    }
-
-    /// Returns the number of instructions stored in the map.
-    pub(crate) fn num_instructions(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 /// Reference to an instruction
-pub(crate) struct InstructionId(u32);
+pub(crate) type InstructionId = Id<Instruction>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// These are similar to built-ins in other languages.
@@ -52,52 +28,35 @@ pub(crate) struct IntrinsicOpcodes;
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
 pub(crate) enum Instruction {
-    // Binary Operations
+    /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
-    // Unary Operations
-    //
     /// Converts `Value` into Typ
-    Cast(ValueId, Typ),
+    Cast(ValueId, Type),
 
     /// Computes a bit wise not
     Not(ValueId),
 
     /// Truncates `value` to `bit_size`
-    Truncate {
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    },
+    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains a value to be equal to true
     Constrain(ValueId),
 
     /// Performs a function call with a list of its arguments.
-    Call {
-        func: FunctionId,
-        arguments: Vec<ValueId>,
-    },
+    Call { func: FunctionId, arguments: Vec<ValueId> },
     /// Performs a call to an intrinsic function and stores the
     /// results in `return_arguments`.
-    Intrinsic {
-        func: IntrinsicOpcodes,
-        arguments: Vec<ValueId>,
-    },
+    Intrinsic { func: IntrinsicOpcodes, arguments: Vec<ValueId> },
 
     /// Loads a value from memory.
     Load(ValueId),
 
     /// Writes a value to memory.
-    Store {
-        destination: ValueId,
-        value: ValueId,
-    },
+    Store { destination: ValueId, value: ValueId },
 
     /// Stores an Immediate value
-    Immediate {
-        value: FieldElement,
-    },
+    Immediate { value: FieldElement },
 }
 
 impl Instruction {
@@ -106,7 +65,7 @@ impl Instruction {
     pub(crate) fn num_fixed_results(&self) -> usize {
         match self {
             Instruction::Binary(_) => 1,
-            Instruction::Cast(_, _) => 0,
+            Instruction::Cast(..) => 0,
             Instruction::Not(_) => 1,
             Instruction::Truncate { .. } => 1,
             Instruction::Constrain(_) => 0,
@@ -125,7 +84,7 @@ impl Instruction {
     pub(crate) fn num_fixed_arguments(&self) -> usize {
         match self {
             Instruction::Binary(_) => 2,
-            Instruction::Cast(_, _) => 1,
+            Instruction::Cast(..) => 1,
             Instruction::Not(_) => 1,
             Instruction::Truncate { .. } => 1,
             Instruction::Constrain(_) => 1,
@@ -141,7 +100,7 @@ impl Instruction {
     }
 
     /// Returns the types that this instruction will return.
-    pub(crate) fn return_types(&self, ctrl_typevar: Typ) -> Vec<Typ> {
+    pub(crate) fn return_types(&self, ctrl_typevar: Type) -> Vec<Type> {
         match self {
             Instruction::Binary(_) => vec![ctrl_typevar],
             Instruction::Cast(_, typ) => vec![*typ],
@@ -221,14 +180,16 @@ pub(crate) enum BinaryOp {
 
 #[test]
 fn smoke_instructions_map_duplicate() {
-    let ins = Instruction::Cast(ValueId(0), Typ::Unit);
-    let same_ins = Instruction::Cast(ValueId(0), Typ::Unit);
+    let id = Id::test_new(0);
+
+    let ins = Instruction::Not(id);
+    let same_ins = Instruction::Not(id);
 
     let mut ins_map = Instructions::default();
 
     // Document what happens when we insert the same instruction twice
-    let id = ins_map.add_instruction(ins);
-    let id_same_ins = ins_map.add_instruction(same_ins);
+    let id = ins_map.push(ins);
+    let id_same_ins = ins_map.push(same_ins);
 
     // The map is quite naive and does not check if the instruction has ben inserted
     // before. We simply assign a different Id.
@@ -241,9 +202,9 @@ fn num_instructions_smoke() {
 
     let mut ins_map = Instructions::default();
     for i in 0..n {
-        let ins = Instruction::Cast(ValueId(i as u32), Typ::Unit);
-        ins_map.add_instruction(ins);
+        let ins = Instruction::Not(Id::test_new(i));
+        ins_map.push(ins);
     }
 
-    assert_eq!(n, ins_map.num_instructions())
+    assert_eq!(n, ins_map.len())
 }
