@@ -12,7 +12,7 @@ import {
   PUBLIC_CALL_STACK_LENGTH,
   RETURN_VALUES_LENGTH,
 } from './constants.js';
-import { ContractDeploymentData } from './tx.js';
+import { ContractDeploymentData } from './tx_context.js';
 
 /**
  * Public inputs to a private circuit.

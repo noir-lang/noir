@@ -40,6 +40,14 @@ export class Fr {
   }
 
   /**
+   * Returns a new zero-value field.
+   * @returns A new zero-value field.
+   */
+  static zero() {
+    return new Fr(0n);
+  }
+
+  /**
    * Create an instance of the corresponding class (Fr or Fq) from a Buffer or a BufferReader.
    * Reads 'SIZE_IN_BYTES' bytes from the given Buffer or BufferReader and constructs an instance with the decoded value.
    * If the input is a Buffer, it is internally converted to a BufferReader before reading.

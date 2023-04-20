@@ -1,5 +1,5 @@
 #pragma once
-#include "aztec3/circuits/abis/private_kernel/public_inputs.hpp"
+#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <barretenberg/srs/reference_string/env_reference_string.hpp>
@@ -7,7 +7,7 @@
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 
-namespace aztec3::circuits::abis::private_kernel {
+namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -20,7 +20,7 @@ template <typename NCT> struct PreviousKernelData {
     typedef typename NCT::VK VK;
     typedef typename NCT::uint32 uint32;
 
-    PublicInputs<NCT> public_inputs{}; // TODO: not needed as already contained in proof?
+    KernelCircuitPublicInputs<NCT> public_inputs{}; // TODO: not needed as already contained in proof?
     NativeTypes::Proof proof{}; // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
@@ -103,4 +103,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousKerne
               << "vk_path: " << kernel_data.vk_path << "\n";
 }
 
-} // namespace aztec3::circuits::abis::private_kernel
+} // namespace aztec3::circuits::abis

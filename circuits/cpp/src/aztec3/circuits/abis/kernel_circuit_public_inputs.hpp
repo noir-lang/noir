@@ -1,40 +1,42 @@
 #pragma once
-#include "accumulated_data.hpp"
-#include "constant_data.hpp"
+#include "combined_accumulated_data.hpp"
+#include "combined_constant_data.hpp"
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
 #include <aztec3/utils/types/native_types.hpp>
 #include <aztec3/utils/types/circuit_types.hpp>
 #include <aztec3/utils/types/convert.hpp>
 
-namespace aztec3::circuits::abis::private_kernel {
+namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
+using std::conditional;
 using std::is_same;
 
-template <typename NCT> struct PublicInputs {
+template <typename NCT> struct KernelCircuitPublicInputs {
     typedef typename NCT::fr fr;
     typedef typename NCT::boolean boolean;
 
-    AccumulatedData<NCT> end{};
-    ConstantData<NCT> constants{};
+    CombinedAccumulatedData<NCT> end{};
+    CombinedConstantData<NCT> constants{};
 
     boolean is_private = true; // TODO: might need to instantiate from witness!
 
-    boolean operator==(PublicInputs<NCT> const& other) const
+    boolean operator==(KernelCircuitPublicInputs<NCT> const& other) const
     {
         return end == other.end && constants == other.constants && is_private == other.is_private;
     };
 
-    template <typename Composer> PublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer>
+    KernelCircuitPublicInputs<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
         // Capture the composer:
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(composer, e); };
 
-        PublicInputs<CircuitTypes<Composer>> private_inputs = {
+        KernelCircuitPublicInputs<CircuitTypes<Composer>> private_inputs = {
             end.to_circuit_type(composer),
             constants.to_circuit_type(composer),
 
@@ -44,13 +46,13 @@ template <typename NCT> struct PublicInputs {
         return private_inputs;
     };
 
-    template <typename Composer> PublicInputs<NativeTypes> to_native_type() const
+    template <typename Composer> KernelCircuitPublicInputs<NativeTypes> to_native_type() const
     {
         static_assert(std::is_same<CircuitTypes<Composer>, NCT>::value);
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
         auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Composer>(); };
 
-        PublicInputs<NativeTypes> pis = {
+        KernelCircuitPublicInputs<NativeTypes> pis = {
             to_native_type(end),
             to_native_type(constants),
 
@@ -71,7 +73,7 @@ template <typename NCT> struct PublicInputs {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicInputs<NCT>& public_inputs)
+template <typename NCT> void read(uint8_t const*& it, KernelCircuitPublicInputs<NCT>& public_inputs)
 {
     using serialize::read;
 
@@ -80,7 +82,7 @@ template <typename NCT> void read(uint8_t const*& it, PublicInputs<NCT>& public_
     read(it, public_inputs.is_private);
 };
 
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicInputs<NCT> const& public_inputs)
+template <typename NCT> void write(std::vector<uint8_t>& buf, KernelCircuitPublicInputs<NCT> const& public_inputs)
 {
     using serialize::write;
 
@@ -89,7 +91,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PublicInputs<NCT> 
     write(buf, public_inputs.is_private);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicInputs<NCT> const& public_inputs)
+template <typename NCT> std::ostream& operator<<(std::ostream& os, KernelCircuitPublicInputs<NCT> const& public_inputs)
 {
     return os << "end:\n"
               << public_inputs.end << "\n"
@@ -98,4 +100,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicInputs<
               << "is_private: " << public_inputs.is_private << "\n";
 }
 
-} // namespace aztec3::circuits::abis::private_kernel
+} // namespace aztec3::circuits::abis

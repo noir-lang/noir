@@ -5,7 +5,7 @@ import {
   FUNCTION_TREE_HEIGHT,
   PreviousKernelData,
   PrivateCallData,
-  PrivateKernelPublicInputs,
+  KernelCircuitPublicInputs,
   SignedTxRequest,
 } from '../index.js';
 import { boolToBuffer, serializeToBuffer, uint8ArrayToNum } from '../utils/serialize.js';
@@ -117,5 +117,5 @@ export async function privateKernelSim(
   const publicInputBuffer = Buffer.from(wasm.getMemorySlice(address, address + outputSize));
   wasm.call('bbfree', publicInputOutputAddressPtr);
   wasm.call('bbfree', address);
-  return PrivateKernelPublicInputs.fromBuffer(publicInputBuffer);
+  return KernelCircuitPublicInputs.fromBuffer(publicInputBuffer);
 }

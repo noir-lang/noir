@@ -1,7 +1,7 @@
 #pragma once
 
-#include "accumulated_data.hpp"
-#include "previous_kernel_data.hpp"
+#include "../combined_accumulated_data.hpp"
+#include "../previous_kernel_data.hpp"
 #include "private_call_data.hpp"
 #include "../signed_tx_request.hpp"
 
@@ -24,7 +24,7 @@ template <typename NCT> struct PrivateInputs {
     PreviousKernelData<NCT> previous_kernel{};
     PrivateCallData<NCT> private_call{};
 
-    boolean operator==(PublicInputs<NCT> const& other) const
+    boolean operator==(PrivateInputs<NCT> const& other) const
     {
         return signed_tx_request == other.signed_tx_request && previous_kernel == other.previous_kernel &&
                private_call == other.private_call;

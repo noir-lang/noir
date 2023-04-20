@@ -2,7 +2,7 @@
 #include "barretenberg/srs/reference_string/mem_reference_string.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
-#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
+#include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "private_circuit_public_inputs.hpp"
 #include "tx_request.hpp"
 #include "tx_context.hpp"
@@ -12,9 +12,9 @@
 #include "rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "rollup/root/root_rollup_public_inputs.hpp"
 #include "rollup/root/root_rollup_inputs.hpp"
-#include "private_kernel/previous_kernel_data.hpp"
+#include "previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
-#include "private_kernel/public_inputs.hpp"
+#include "kernel_circuit_public_inputs.hpp"
 
 #include <aztec3/circuits/hash.hpp>
 #include <aztec3/constants.hpp>
@@ -31,9 +31,9 @@ using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
+using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
-using aztec3::circuits::abis::private_kernel::NewContractData;
 using NT = aztec3::utils::types::NativeTypes;
 
 // Cbind helper functions
@@ -403,7 +403,7 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_base_rollup_inputs(uint8_
 WASM_EXPORT const char* abis__test_roundtrip_serialize_previous_kernel_data(uint8_t const* kernel_data_buf,
                                                                             uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::private_kernel::PreviousKernelData<NT>>(kernel_data_buf, size);
+    return as_string_output<aztec3::circuits::abis::PreviousKernelData<NT>>(kernel_data_buf, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_base_or_merge_rollup_public_inputs(
@@ -441,17 +441,16 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs(uin
     return as_string_output<aztec3::circuits::abis::private_kernel::PrivateInputs<NT>>(input, size);
 }
 
-WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_public_inputs(uint8_t const* input,
+WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inputs(uint8_t const* input,
                                                                                     uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::private_kernel::PublicInputs<NT>>(input, size);
+    return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputs<NT>>(input, size);
 }
 
-
-WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(uint8_t const* function_leaf_preimage_buf, uint32_t* size)
+WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(uint8_t const* function_leaf_preimage_buf,
+                                                                              uint32_t* size)
 {
     return as_string_output<aztec3::circuits::abis::FunctionLeafPreimage<NT>>(function_leaf_preimage_buf, size);
 }
-
 
 } // extern "C"

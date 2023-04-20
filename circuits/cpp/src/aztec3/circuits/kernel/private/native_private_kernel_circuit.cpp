@@ -2,8 +2,8 @@
 
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/new_contract_data.hpp>
 
 #include <aztec3/utils/array.hpp>
 #include <aztec3/utils/dummy_composer.hpp>
@@ -14,10 +14,10 @@
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-using aztec3::circuits::abis::private_kernel::ContractLeafPreimage;
-using aztec3::circuits::abis::private_kernel::NewContractData;
+using aztec3::circuits::abis::ContractLeafPreimage;
+using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
-using aztec3::circuits::abis::private_kernel::PublicInputs;
 
 using aztec3::utils::array_length;
 using aztec3::utils::array_pop;
@@ -53,7 +53,7 @@ using aztec3::circuits::function_tree_root_from_siblings;
 //     return aggregation_object;
 // }
 
-void initialise_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
+void initialise_end_values(PrivateInputs<NT> const& private_inputs, KernelCircuitPublicInputs<NT>& public_inputs)
 {
     public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
 
@@ -72,7 +72,9 @@ void initialise_end_values(PrivateInputs<NT> const& private_inputs, PublicInputs
     end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
-void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_inputs, PublicInputs<NT>& public_inputs)
+void contract_logic(DummyComposer& composer,
+                    PrivateInputs<NT> const& private_inputs,
+                    KernelCircuitPublicInputs<NT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -142,7 +144,7 @@ void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_in
     auto const& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
     auto const& previous_kernel_contract_tree_root =
-        private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.contract_tree_root;
+        private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root;
     composer.do_assert(purported_contract_tree_root == previous_kernel_contract_tree_root,
                        "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
 
@@ -170,7 +172,7 @@ void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_in
 
 void update_end_values(DummyComposer& composer,
                        PrivateInputs<NT> const& private_inputs,
-                       PublicInputs<NT>& public_inputs)
+                       KernelCircuitPublicInputs<NT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
@@ -325,10 +327,11 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-PublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
+KernelCircuitPublicInputs<NT> native_private_kernel_circuit(DummyComposer& composer,
+                                                            PrivateInputs<NT> const& private_inputs)
 {
     // We'll be pushing data to this during execution of this circuit.
-    PublicInputs<NT> public_inputs{};
+    KernelCircuitPublicInputs<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);

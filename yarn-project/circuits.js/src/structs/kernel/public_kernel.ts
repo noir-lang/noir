@@ -1,17 +1,19 @@
-import { AztecAddress, Fr } from '@aztec/foundation';
-import { PreviousKernelData as PreviousPrivateKernelData } from './private_kernel.js';
-import { MembershipWitness, UInt8Vector } from './shared.js';
-import { SignedTxRequest } from './tx.js';
-import { VerificationKey } from './verification_key.js';
+import { Fr } from '@aztec/foundation';
+import { assertLength } from '../../utils/jsUtils.js';
+import { PublicCallStackItem } from '../call_stack_item.js';
 import {
   PUBLIC_CALL_STACK_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   STATE_READS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
-} from './constants.js';
-import { assertLength } from '../utils/jsUtils.js';
-import { FunctionData } from './function_data.js';
-import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
+} from '../constants.js';
+import { PreviousKernelData as PreviousPrivateKernelData } from './previous_kernel_data.js';
+import { CombinedConstantData } from './combined_constant_data.js';
+import { CombinedAccumulatedData } from './combined_accumulated_data.js';
+import { UInt8Vector } from '../shared.js';
+import { MembershipWitness } from '../membership_witness.js';
+import { SignedTxRequest } from '../tx_request.js';
+import { VerificationKey } from '../verification_key.js';
 
 export type PublicKernelInputs =
   | PublicKernelInputsNonFirstIteration
@@ -70,18 +72,6 @@ export class PublicCallData {
   }
 }
 
-export class PublicCallStackItem {
-  constructor(
-    public readonly contractAddress: AztecAddress,
-    public readonly functionSignature: FunctionData,
-    public readonly publicInputs: PublicCircuitPublicInputs,
-  ) {}
-
-  static empty() {
-    return new this(AztecAddress.ZERO, FunctionData.empty(), PublicCircuitPublicInputs.empty());
-  }
-}
-
 export class PreviousPublicKernelData {
   constructor(
     public readonly publicInputs: PublicKernelPublicInputs,
@@ -95,18 +85,6 @@ export class PublicKernelPublicInputs {
   constructor(public readonly end: CombinedAccumulatedData, public readonly constants: CombinedConstantData) {}
 
   static empty() {
-    return new this(CombinedAccumulatedData.empty(), CombinedConstantData.empty());
-  }
-}
-
-class CombinedAccumulatedData {
-  static empty() {
-    return new this();
-  }
-}
-
-class CombinedConstantData {
-  static empty() {
-    return new this();
+    return new PublicKernelPublicInputs(CombinedAccumulatedData.empty(), CombinedConstantData.empty());
   }
 }

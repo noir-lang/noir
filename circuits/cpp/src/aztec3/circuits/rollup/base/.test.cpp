@@ -1,7 +1,7 @@
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
-#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
-#include "aztec3/circuits/abis/private_kernel/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/abis/rollup/nullifier_leaf_preimage.hpp"
 #include "aztec3/constants.hpp"
@@ -26,10 +26,11 @@
 #include <aztec3/circuits/abis/tx_request.hpp>
 #include <aztec3/circuits/abis/private_circuit_public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/accumulated_data.hpp>
-#include <aztec3/circuits/abis/private_kernel/constant_data.hpp>
-#include <aztec3/circuits/abis/private_kernel/historic_tree_roots.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/combined_accumulated_data.hpp>
+#include <aztec3/circuits/abis/combined_constant_data.hpp>
+#include <aztec3/circuits/abis/combined_historic_tree_roots.hpp>
+#include <aztec3/circuits/abis/private_historic_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
@@ -57,7 +58,6 @@ namespace {
 
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
-using aztec3::circuits::abis::CallType;
 using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
@@ -66,14 +66,14 @@ using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 
-using aztec3::circuits::abis::private_kernel::AccumulatedData;
-using aztec3::circuits::abis::private_kernel::ConstantData;
+using aztec3::circuits::abis::CombinedAccumulatedData;
+using aztec3::circuits::abis::CombinedConstantData;
+using aztec3::circuits::abis::CombinedHistoricTreeRoots;
+using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::Globals;
-using aztec3::circuits::abis::private_kernel::HistoricTreeRoots;
-using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
-using aztec3::circuits::abis::private_kernel::PublicInputs;
 
 using aztec3::circuits::apps::test_apps::basic_contract_deployment::constructor;
 using aztec3::circuits::apps::test_apps::escrow::deposit;
@@ -94,8 +94,8 @@ using aztec3::circuits::rollup::native_base_rollup::ConstantRollupData;
 using aztec3::circuits::rollup::native_base_rollup::NT;
 
 using aztec3::circuits::abis::FunctionData;
+using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
-using aztec3::circuits::abis::private_kernel::NewContractData;
 
 using DummyComposer = aztec3::utils::DummyComposer;
 } // namespace
@@ -693,7 +693,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data)
         .root = tree.root(),
         .next_available_leaf_index = 0,
     };
-    inputs.kernel_data[0].public_inputs.constants.historic_tree_roots.private_data_tree_root = fr(0);
+    inputs.kernel_data[0].public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root = fr(0);
 
     // fetch sibling path from hash path (only get the second half of the hash path)
     auto hash_path = tree.get_hash_path(0);

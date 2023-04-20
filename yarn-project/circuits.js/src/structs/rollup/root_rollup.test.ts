@@ -1,5 +1,5 @@
-import { expectReserializeToMatchObject, expectSerializeToMatchSnapshot } from '../tests/expectSerialize.js';
-import { makeRootRollupInputs, makeRootRollupPublicInputs } from '../tests/factories.js';
+import { expectReserializeToMatchObject, expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
+import { makeRootRollupInputs, makeRootRollupPublicInputs } from '../../tests/factories.js';
 import { RootRollupPublicInputs } from './root_rollup.js';
 
 describe('structs/root_rollup', () => {

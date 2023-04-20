@@ -1,12 +1,12 @@
 import { UInt8Vector } from '@aztec/circuits.js';
-import { makePrivateKernelPublicInputs } from '@aztec/circuits.js/factories';
+import { makeKernelPublicInputs } from '@aztec/circuits.js/factories';
 import { AztecAddress } from '@aztec/foundation';
 import { ContractData, L2Block, L2BlockSource } from '@aztec/types';
 import { Tx } from '@aztec/types';
 import { UnverifiedData } from '@aztec/types';
 
 export const MockTx = () => {
-  return Tx.createPrivate(makePrivateKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
+  return Tx.createPrivate(makeKernelPublicInputs(), new UInt8Vector(Buffer.alloc(0)), UnverifiedData.random(8));
 };
 
 export class MockBlockSource implements L2BlockSource {

@@ -5,7 +5,7 @@ import {
   ContractDeploymentData,
   FunctionData,
   NEW_COMMITMENTS_LENGTH,
-  HistoricTreeRoots,
+  PrivateHistoricTreeRoots,
   PRIVATE_DATA_TREE_HEIGHT,
   TxContext,
   TxRequest,
@@ -39,7 +39,7 @@ describe('ACIR simulator', () => {
   });
 
   describe('empty constructor', () => {
-    const historicRoots = new HistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+    const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
     const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 
@@ -92,7 +92,7 @@ describe('ACIR simulator', () => {
     });
 
     it('should a constructor with arguments that creates notes', async () => {
-      const historicRoots = new HistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+      const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
       const contractAddress = AztecAddress.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'constructor') as unknown as FunctionAbi;
 
@@ -119,7 +119,7 @@ describe('ACIR simulator', () => {
     });
 
     it('should run the mint function', async () => {
-      const historicRoots = new HistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+      const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
       const contractAddress = AztecAddress.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'mint') as unknown as FunctionAbi;
 
@@ -158,7 +158,7 @@ describe('ACIR simulator', () => {
       // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
       await tree.appendLeaves(preimages.map(preimage => acirSimulator.computeNoteHash(preimage, bbWasm)));
 
-      const historicRoots = new HistoricTreeRoots(
+      const historicRoots = new PrivateHistoricTreeRoots(
         Fr.fromBuffer(tree.getRoot(false)),
         new Fr(0n),
         new Fr(0n),
@@ -229,7 +229,7 @@ describe('ACIR simulator', () => {
       // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
       await tree.appendLeaves(preimages.map(preimage => acirSimulator.computeNoteHash(preimage, bbWasm)));
 
-      const historicRoots = new HistoricTreeRoots(
+      const historicRoots = new PrivateHistoricTreeRoots(
         Fr.fromBuffer(tree.getRoot(false)),
         new Fr(0n),
         new Fr(0n),
@@ -273,7 +273,7 @@ describe('ACIR simulator', () => {
   });
 
   describe('nested calls', () => {
-    const historicRoots = new HistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
+    const historicRoots = new PrivateHistoricTreeRoots(new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n));
     const contractDeploymentData = new ContractDeploymentData(Fr.random(), Fr.random(), Fr.random(), EthAddress.ZERO);
     const txContext = new TxContext(false, false, true, contractDeploymentData);
 

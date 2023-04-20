@@ -9,7 +9,7 @@
 #include "aztec3/circuits/abis/signed_tx_request.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
 
@@ -21,15 +21,15 @@
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
+using aztec3::circuits::abis::CombinedAccumulatedData;
+using aztec3::circuits::abis::CombinedConstantData;
+using aztec3::circuits::abis::CombinedHistoricTreeRoots;
+using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::SignedTxRequest;
 using aztec3::circuits::abis::TxContext;
-using aztec3::circuits::abis::private_kernel::AccumulatedData;
-using aztec3::circuits::abis::private_kernel::ConstantData;
-using aztec3::circuits::abis::private_kernel::HistoricTreeRoots;
-using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
-using aztec3::circuits::abis::private_kernel::PublicInputs;
 using aztec3::circuits::kernel::private_kernel::native_private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::private_kernel_circuit;
 using aztec3::circuits::kernel::private_kernel::utils::dummy_previous_kernel;
@@ -108,10 +108,10 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
         previous_kernel = dummy_previous_kernel();
 
         previous_kernel.public_inputs.end.private_call_stack[0] = private_call_data.call_stack_item.hash();
-        previous_kernel.public_inputs.constants.historic_tree_roots.private_data_tree_root =
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
         // previous_kernel.public_inputs.constants.historic_tree_roots.nullifier_tree_root =
-        previous_kernel.public_inputs.constants.historic_tree_roots.contract_tree_root =
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
         // previous_kernel.public_inputs.constants.historic_tree_roots.private_kernel_vk_tree_root =
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
@@ -126,7 +126,7 @@ WASM_EXPORT size_t private_kernel__sim(uint8_t const* signed_tx_request_buf,
         .private_call = private_call_data,
     };
 
-    PublicInputs<NT> public_inputs = native_private_kernel_circuit(composer, private_inputs);
+    KernelCircuitPublicInputs<NT> public_inputs = native_private_kernel_circuit(composer, private_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
@@ -163,9 +163,9 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
         previous_kernel = dummy_previous_kernel(true);
 
         previous_kernel.public_inputs.end.private_call_stack[0] = private_call_data.call_stack_item.hash();
-        previous_kernel.public_inputs.constants.historic_tree_roots.private_data_tree_root =
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_private_data_tree_root;
-        previous_kernel.public_inputs.constants.historic_tree_roots.contract_tree_root =
+        previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots.contract_tree_root =
             private_call_data.call_stack_item.public_inputs.historic_contract_tree_root;
         previous_kernel.public_inputs.constants.tx_context = signed_tx_request.tx_request.tx_context;
         previous_kernel.public_inputs.is_private = true;
@@ -181,7 +181,7 @@ WASM_EXPORT size_t private_kernel__prove(uint8_t const* signed_tx_request_buf,
     Composer private_kernel_composer = Composer(crs_factory);
     plonk::stdlib::types::Prover private_kernel_prover = private_kernel_composer.create_prover();
 
-    PublicInputs<NT> public_inputs;
+    KernelCircuitPublicInputs<NT> public_inputs;
     public_inputs = private_kernel_circuit(private_kernel_composer, private_inputs);
     NT::Proof private_kernel_proof;
     private_kernel_proof = private_kernel_prover.construct_proof();

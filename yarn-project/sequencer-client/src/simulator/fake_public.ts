@@ -8,13 +8,16 @@ import { PublicCircuitSimulator } from './index.js';
 export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
   public readonly db: WorldStatePublicDB;
 
-  constructor(merkleTree: MerkleTreeOperations) {
-    this.db = new WorldStatePublicDB(merkleTree);
+  constructor(private readonly merkleTree: MerkleTreeOperations) {
+    this.db = new WorldStatePublicDB(this.merkleTree);
   }
 
   public async publicCircuit(tx: TxRequest): Promise<PublicCircuitPublicInputs> {
     const functionAbi: FunctionAbi = undefined as any;
     const portalAddress: EthAddress = undefined as any;
+
+    const publicDataTreeInfo = await this.merkleTree.getTreeInfo(MerkleTreeId.PUBLIC_DATA_TREE);
+    const historicPublicDataTreeRoot = Fr.fromBuffer(publicDataTreeInfo.root);
 
     const execution = PublicExecution.fromTransactionRequest(this.db, tx, functionAbi, portalAddress);
     const result = await execution.run();
@@ -28,6 +31,7 @@ export class FakePublicCircuitSimulator implements PublicCircuitSimulator {
       returnValues: result.returnValues,
       stateReads: result.stateReads,
       stateTransitions: result.stateTransitions,
+      historicPublicDataTreeRoot,
     });
   }
 }

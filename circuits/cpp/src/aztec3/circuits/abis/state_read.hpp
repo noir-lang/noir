@@ -33,6 +33,20 @@ template <typename NCT> struct StateRead {
         return state_read;
     };
 
+    template <typename Composer> StateRead<NativeTypes> to_native_type() const
+    {
+        static_assert((std::is_same<CircuitTypes<Composer>, NCT>::value));
+
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Composer>(e); };
+
+        StateRead<NativeTypes> state_read = {
+            to_nt(storage_slot),
+            to_nt(current_value),
+        };
+
+        return state_read;
+    };
+
     fr hash() const
     {
         std::vector<fr> inputs = {
@@ -42,13 +56,21 @@ template <typename NCT> struct StateRead {
 
         return NCT::compress(inputs, GeneratorIndex::STATE_READ);
     }
+
+    void set_public()
+    {
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
+
+        storage_slot.set_public();
+        current_value.set_public();
+    }
 };
 
 template <typename NCT> void read(uint8_t const*& it, StateRead<NCT>& state_read)
 {
     using serialize::read;
 
-    read(it, state_read.l1_result_hash);
+    read(it, state_read.storage_slot);
     read(it, state_read.current_value);
 };
 

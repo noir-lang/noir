@@ -59,6 +59,14 @@ end_contract_tree_snapshot:
 root: 0x800
 next_available_leaf_index: 800
 
+start_public_data_tree_snapshot:
+root: 0x900
+next_available_leaf_index: 900
+
+end_public_data_tree_snapshot:
+root: 0x1000
+next_available_leaf_index: 1000
+
 calldata_hash: [ 0x901 0x902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
@@ -132,6 +140,14 @@ next_available_leaf_index: 1700
 end_contract_tree_snapshot:
 root: 0x1800
 next_available_leaf_index: 1800
+
+start_public_data_tree_snapshot:
+root: 0x1900
+next_available_leaf_index: 1900
+
+end_public_data_tree_snapshot:
+root: 0x2000
+next_available_leaf_index: 2000
 
 calldata_hash: [ 0x1901 0x1902 ]
 

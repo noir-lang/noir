@@ -1,5 +1,5 @@
-import { PrivateKernelPublicInputs, UInt8Vector } from '@aztec/circuits.js';
-import { makePrivateKernelPublicInputs } from '@aztec/circuits.js/factories';
+import { KernelCircuitPublicInputs, UInt8Vector } from '@aztec/circuits.js';
+import { makeKernelPublicInputs } from '@aztec/circuits.js/factories';
 import { PrivateTx, Tx, UnverifiedData } from '@aztec/types';
 
 function makeEmptyProof() {
@@ -12,9 +12,9 @@ export function makeEmptyUnverifiedData(): UnverifiedData {
 }
 
 export function makeEmptyPrivateTx(): PrivateTx {
-  return Tx.createPrivate(PrivateKernelPublicInputs.makeEmpty(), makeEmptyProof(), makeEmptyUnverifiedData());
+  return Tx.createPrivate(KernelCircuitPublicInputs.empty(), makeEmptyProof(), makeEmptyUnverifiedData());
 }
 
 export function makePrivateTx(seed = 0): PrivateTx {
-  return Tx.createPrivate(makePrivateKernelPublicInputs(seed), makeEmptyProof(), UnverifiedData.random(2));
+  return Tx.createPrivate(makeKernelPublicInputs(seed), makeEmptyProof(), UnverifiedData.random(2));
 }

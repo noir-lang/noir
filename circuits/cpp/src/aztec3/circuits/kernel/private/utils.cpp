@@ -3,12 +3,12 @@
 
 #include "barretenberg/proof_system/types/composer_type.hpp"
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
-#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
+#include "aztec3/circuits/abis/new_contract_data.hpp"
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 using AggregationObject = aztec3::utils::types::NativeTypes::AggregationObject;
-using aztec3::circuits::abis::private_kernel::PreviousKernelData;
+using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::mock::mock_kernel_circuit;
 
 } // namespace

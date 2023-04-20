@@ -1,4 +1,4 @@
-import { AztecAddress, Fr } from '@aztec/foundation';
+import { AztecAddress, BufferReader, Fr } from '@aztec/foundation';
 import times from 'lodash.times';
 import { FieldsOf, assertLength } from '../utils/jsUtils.js';
 import { CallContext } from './call_context.js';
@@ -11,22 +11,54 @@ import {
   STATE_READS_LENGTH,
   STATE_TRANSITIONS_LENGTH,
 } from './constants.js';
+import { serializeToBuffer } from '../utils/serialize.js';
 
 /**
  * Read operations from the public state tree.
  */
-export interface StateRead {
-  storageSlot: Fr;
-  value: Fr;
+export class StateRead {
+  constructor(public readonly storageSlot: Fr, public readonly value: Fr) {}
+
+  static from(args: { storageSlot: Fr; value: Fr }) {
+    return new StateRead(args.storageSlot, args.value);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.storageSlot, this.value);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new StateRead(reader.readFr(), reader.readFr());
+  }
+
+  static empty() {
+    return new StateRead(Fr.ZERO, Fr.ZERO);
+  }
 }
 
 /**
  * Write operations on the public state tree.
  */
-export interface StateTransition {
-  storageSlot: Fr;
-  oldValue: Fr;
-  newValue: Fr;
+export class StateTransition {
+  constructor(public readonly storageSlot: Fr, public readonly oldValue: Fr, public readonly newValue: Fr) {}
+
+  static from(args: { storageSlot: Fr; oldValue: Fr; newValue: Fr }) {
+    return new StateTransition(args.storageSlot, args.oldValue, args.newValue);
+  }
+
+  toBuffer() {
+    return serializeToBuffer(this.storageSlot, this.oldValue, this.newValue);
+  }
+
+  static fromBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return new StateTransition(reader.readFr(), reader.readFr(), reader.readFr());
+  }
+
+  static empty() {
+    return new StateTransition(Fr.ZERO, Fr.ZERO, Fr.ZERO);
+  }
 }
 
 /**
@@ -38,10 +70,11 @@ export class PublicCircuitPublicInputs {
     public args: Fr[],
     public returnValues: Fr[],
     public emittedEvents: Fr[],
-    public publicCallStack: Fr[],
-    public l1MsgStack: Fr[],
     public stateTransitions: StateTransition[],
     public stateReads: StateRead[],
+    public publicCallStack: Fr[],
+    public l1MsgStack: Fr[],
+    public historicPublicDataTreeRoot: Fr,
     public proverAddress: AztecAddress,
   ) {
     assertLength(this, 'args', ARGS_LENGTH);
@@ -52,6 +85,7 @@ export class PublicCircuitPublicInputs {
     assertLength(this, 'stateTransitions', STATE_TRANSITIONS_LENGTH);
     assertLength(this, 'stateReads', STATE_READS_LENGTH);
   }
+
   /**
    * Create PublicCircuitPublicInputs from a fields dictionary.
    * @param fields - The dictionary.
@@ -72,10 +106,11 @@ export class PublicCircuitPublicInputs {
       frArray(ARGS_LENGTH),
       frArray(RETURN_VALUES_LENGTH),
       frArray(EMITTED_EVENTS_LENGTH),
+      times(STATE_TRANSITIONS_LENGTH, StateTransition.empty),
+      times(STATE_READS_LENGTH, StateRead.empty),
       frArray(PUBLIC_CALL_STACK_LENGTH),
       frArray(L1_MSG_STACK_LENGTH),
-      times(STATE_TRANSITIONS_LENGTH, () => ({ storageSlot: Fr.ZERO, oldValue: Fr.ZERO, newValue: Fr.ZERO })),
-      times(STATE_READS_LENGTH, () => ({ storageSlot: Fr.ZERO, value: Fr.ZERO })),
+      Fr.ZERO,
       AztecAddress.ZERO,
     );
   }
@@ -90,11 +125,20 @@ export class PublicCircuitPublicInputs {
       fields.args,
       fields.returnValues,
       fields.emittedEvents,
-      fields.publicCallStack,
-      fields.l1MsgStack,
       fields.stateTransitions,
       fields.stateReads,
+      fields.publicCallStack,
+      fields.l1MsgStack,
+      fields.historicPublicDataTreeRoot,
       fields.proverAddress,
     ] as const;
+  }
+
+  /**
+   * Serialize this as a buffer.
+   * @returns The buffer.
+   */
+  toBuffer(): Buffer {
+    return serializeToBuffer(...PublicCircuitPublicInputs.getFields(this));
   }
 }

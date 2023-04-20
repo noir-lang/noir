@@ -1,14 +1,14 @@
 #include <array>
 #include <aztec3/circuits/abis/function_data.hpp>
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
-#include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
+#include <aztec3/circuits/abis/new_contract_data.hpp>
 #include <aztec3/constants.hpp>
 
 namespace aztec3::circuits {
 
 using abis::FunctionData;
+using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionLeafPreimage;
-using aztec3::circuits::abis::private_kernel::ContractLeafPreimage;
 
 template <typename NCT> typename NCT::fr compute_args_hash(std::array<typename NCT::fr, ARGS_LENGTH> args)
 {

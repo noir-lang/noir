@@ -4,16 +4,16 @@
 #include <barretenberg/stdlib/primitives/field/array.hpp>
 
 #include <aztec3/circuits/abis/private_kernel/private_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
-#include <aztec3/circuits/abis/private_kernel/new_contract_data.hpp>
+#include <aztec3/circuits/abis/kernel_circuit_public_inputs.hpp>
+#include <aztec3/circuits/abis/new_contract_data.hpp>
 
 #include <aztec3/circuits/hash.hpp>
 
 namespace aztec3::circuits::kernel::private_kernel {
 
-using aztec3::circuits::abis::private_kernel::NewContractData;
+using aztec3::circuits::abis::KernelCircuitPublicInputs;
+using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
-using aztec3::circuits::abis::private_kernel::PublicInputs;
 
 using plonk::stdlib::array_length;
 using plonk::stdlib::array_pop;
@@ -56,7 +56,7 @@ CT::AggregationObject verify_proofs(Composer& composer,
  * as well as signed TX request and the private call information
  * @param public_inputs should be empty here since it is being initialized in this call
  */
-void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& public_inputs)
+void initialise_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPublicInputs<CT>& public_inputs)
 {
     // TODO: Ensure public inputs is empty here
     public_inputs.constants = private_inputs.previous_kernel.public_inputs.constants;
@@ -90,7 +90,7 @@ void initialise_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs
  * and update its running callstack with all items in the current private-circuit/function's
  * callstack.
  */
-void update_end_values(PrivateInputs<CT> const& private_inputs, PublicInputs<CT>& public_inputs)
+void update_end_values(PrivateInputs<CT> const& private_inputs, KernelCircuitPublicInputs<CT>& public_inputs)
 {
     const auto private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
 
@@ -321,12 +321,12 @@ void validate_inputs(PrivateInputs<CT> const& private_inputs)
 // TODO: decide what to return.
 // TODO: is there a way to identify whether an input has not been used by ths circuit? This would help us more-safely
 // ensure we're constraining everything.
-PublicInputs<NT> private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
+KernelCircuitPublicInputs<NT> private_kernel_circuit(Composer& composer, PrivateInputs<NT> const& _private_inputs)
 {
     const PrivateInputs<CT> private_inputs = _private_inputs.to_circuit_type(composer);
 
     // We'll be pushing data to this during execution of this circuit.
-    PublicInputs<CT> public_inputs = PublicInputs<NT>{}.to_circuit_type(composer);
+    KernelCircuitPublicInputs<CT> public_inputs = KernelCircuitPublicInputs<NT>{}.to_circuit_type(composer);
 
     // Do this before any functions can modify the inputs.
     initialise_end_values(private_inputs, public_inputs);

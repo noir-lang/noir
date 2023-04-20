@@ -4,7 +4,7 @@
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
-namespace aztec3::circuits::abis::private_kernel {
+namespace aztec3::circuits::abis {
 
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
@@ -114,4 +114,4 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, NewContractDa
 
 template <typename NCT> using ContractLeafPreimage = NewContractData<NCT>;
 
-} // namespace aztec3::circuits::abis::private_kernel
+} // namespace aztec3::circuits::abis

@@ -5,7 +5,7 @@ import {
   PreviousKernelData,
   PrivateCallData,
   PrivateCircuitPublicInputs,
-  PrivateKernelPublicInputs,
+  KernelCircuitPublicInputs,
   SignedTxRequest,
   UInt8Vector,
   makeEmptyProof,
@@ -15,7 +15,7 @@ import { Fr } from '@aztec/foundation';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 export interface ProofOutput {
-  publicInputs: PrivateKernelPublicInputs;
+  publicInputs: KernelCircuitPublicInputs;
   proof: UInt8Vector;
 }
 

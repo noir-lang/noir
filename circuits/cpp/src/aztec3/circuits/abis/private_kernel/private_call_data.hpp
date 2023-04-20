@@ -5,6 +5,7 @@
 #include "call_context_reconciliation_data.hpp"
 #include "../call_stack_item.hpp"
 #include "../membership_witness.hpp"
+#include "../types.hpp"
 
 #include <barretenberg/common/map.hpp>
 #include <barretenberg/stdlib/primitives/witness/witness.hpp>
@@ -25,9 +26,9 @@ template <typename NCT> struct PrivateCallData {
     typedef typename NCT::boolean boolean;
     typedef typename NCT::VK VK;
 
-    CallStackItem<NCT, CallType::Private> call_stack_item{};
+    CallStackItem<NCT, PrivateTypes> call_stack_item{};
 
-    std::array<CallStackItem<NCT, CallType::Private>, PRIVATE_CALL_STACK_LENGTH> private_call_stack_preimages{};
+    std::array<CallStackItem<NCT, PrivateTypes>, PRIVATE_CALL_STACK_LENGTH> private_call_stack_preimages{};
 
     // std::array<CallStackItem<NCT, CallType::Public>, PUBLIC_CALL_STACK_LENGTH> public_call_stack_preimages;
 
@@ -62,7 +63,7 @@ template <typename NCT> struct PrivateCallData {
         auto to_circuit_type = [&](auto& e) { return e.to_circuit_type(composer); };
 
         PrivateCallData<CircuitTypes<Composer>> data = {
-            call_stack_item.to_circuit_type(composer),
+            to_circuit_type(call_stack_item),
 
             map(private_call_stack_preimages, to_circuit_type),
 
@@ -79,7 +80,7 @@ template <typename NCT> struct PrivateCallData {
 
         return data;
     };
-};
+}; // namespace aztec3::circuits::abis::private_kernel
 
 template <typename NCT> void read(uint8_t const*& it, PrivateCallData<NCT>& obj)
 {

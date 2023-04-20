@@ -1,7 +1,7 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/barretenberg.js/crypto';
-import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, HistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
+import { EcdsaSignature, KERNEL_NEW_COMMITMENTS_LENGTH, PrivateHistoricTreeRoots, TxRequest } from '@aztec/circuits.js';
 import { AztecAddress, Fr, Point, createDebugLogger } from '@aztec/foundation';
 import { KernelProver, OutputNoteData } from '@aztec/kernel-prover';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/l1-contracts';
@@ -69,7 +69,7 @@ export class AccountState {
       txRequest.functionData.functionSelector,
     );
     const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
-    const historicRoots = new HistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
+    const historicRoots = new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO); // TODO - get old roots from the database/node
 
     const simulatorOracle = new SimulatorOracle(contractDataOracle, this.db, this.keyPair, this.node);
     const simulator = new AcirSimulator(simulatorOracle);

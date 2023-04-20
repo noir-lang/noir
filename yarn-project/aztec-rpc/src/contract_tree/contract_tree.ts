@@ -166,7 +166,7 @@ export class ContractTree {
     const targetFunctions = this.contract.functions.filter(isConstrained);
     const functionIndex = targetFunctions.findIndex(f => f.selector.equals(functionSelector));
     if (functionIndex < 0) {
-      return MembershipWitness.makeEmpty(FUNCTION_TREE_HEIGHT, 0);
+      return MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0);
     }
 
     if (!this.functionTree) {

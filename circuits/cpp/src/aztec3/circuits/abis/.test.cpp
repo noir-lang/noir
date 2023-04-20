@@ -4,7 +4,7 @@
 #include "index.hpp"
 #include <barretenberg/stdlib/types/types.hpp>
 
-#include "private_kernel/previous_kernel_data.hpp"
+#include "previous_kernel_data.hpp"
 #include "private_kernel/private_inputs.hpp"
 
 namespace aztec3::circuits::abis {

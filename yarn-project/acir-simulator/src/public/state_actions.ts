@@ -65,15 +65,19 @@ export class StateActionsCollector {
    * @returns all state read and transitions
    */
   public collect(): [StateRead[], StateTransition[]] {
-    const reads = Array.from(this.stateReads.entries()).map(([slot, value]) => ({
-      storageSlot: new Fr(slot),
-      ...value,
-    }));
+    const reads = Array.from(this.stateReads.entries()).map(([slot, value]) =>
+      StateRead.from({
+        storageSlot: new Fr(slot),
+        ...value,
+      }),
+    );
 
-    const transitions = Array.from(this.stateTransitions.entries()).map(([slot, values]) => ({
-      storageSlot: new Fr(slot),
-      ...values,
-    }));
+    const transitions = Array.from(this.stateTransitions.entries()).map(([slot, values]) =>
+      StateTransition.from({
+        storageSlot: new Fr(slot),
+        ...values,
+      }),
+    );
 
     return [reads, transitions];
   }

@@ -7,7 +7,7 @@ import {
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
-  PrivateKernelPublicInputs,
+  KernelCircuitPublicInputs,
   SignedTxRequest,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -42,7 +42,7 @@ export class KernelProver {
     let firstIteration = true;
     let previousVerificationKey = VerificationKey.makeFake();
     let output: ProofOutput = {
-      publicInputs: PrivateKernelPublicInputs.makeEmpty(),
+      publicInputs: KernelCircuitPublicInputs.empty(),
       proof: makeEmptyProof(),
     };
     while (executionStack.length) {

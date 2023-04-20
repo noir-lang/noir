@@ -4,7 +4,7 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
-using aztec3::circuits::abis::private_kernel::PreviousKernelData;
+using aztec3::circuits::abis::PreviousKernelData;
 } // namespace
 
 namespace aztec3::circuits::kernel::private_kernel::utils {

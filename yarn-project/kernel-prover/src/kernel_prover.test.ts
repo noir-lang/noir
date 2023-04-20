@@ -5,7 +5,7 @@ import {
   PRIVATE_CALL_STACK_LENGTH,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
-  PrivateKernelPublicInputs,
+  KernelCircuitPublicInputs,
   TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -53,7 +53,7 @@ describe('Kernel Prover', () => {
   };
 
   const createProofOutput = (newNoteIndices: number[]) => {
-    const publicInputs = PrivateKernelPublicInputs.makeEmpty();
+    const publicInputs = KernelCircuitPublicInputs.empty();
     publicInputs.end.newCommitments = newNoteIndices.map(idx => generateFakeSiloedCommitment(notes[idx]));
     return {
       publicInputs,

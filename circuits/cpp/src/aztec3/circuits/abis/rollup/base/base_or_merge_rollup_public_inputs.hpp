@@ -37,6 +37,9 @@ template <typename NCT> struct BaseOrMergeRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_contract_tree_snapshot;
 
+    AppendOnlyTreeSnapshot<NCT> start_public_data_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> end_public_data_tree_snapshot;
+
     // Hashes (probably sha256) to make public inputs constant-sized (to then be unpacked on-chain)
     // Needs to be two fields to accomodate all 256-bits of the hash
     std::array<fr, 2> calldata_hash;
@@ -58,6 +61,8 @@ template <typename NCT> void read(uint8_t const*& it, BaseOrMergeRollupPublicInp
     read(it, obj.end_nullifier_tree_snapshot);
     read(it, obj.start_contract_tree_snapshot);
     read(it, obj.end_contract_tree_snapshot);
+    read(it, obj.start_public_data_tree_snapshot);
+    read(it, obj.end_public_data_tree_snapshot);
     read(it, obj.calldata_hash);
 };
 
@@ -75,6 +80,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, BaseOrMergeRollupP
     write(buf, obj.end_nullifier_tree_snapshot);
     write(buf, obj.start_contract_tree_snapshot);
     write(buf, obj.end_contract_tree_snapshot);
+    write(buf, obj.start_public_data_tree_snapshot);
+    write(buf, obj.end_public_data_tree_snapshot);
     write(buf, obj.calldata_hash);
 };
 
@@ -107,6 +114,12 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseOrMergeRo
               << "\n"
                  "end_contract_tree_snapshot:\n"
               << obj.end_contract_tree_snapshot
+              << "\n"
+                 "start_public_data_tree_snapshot:\n"
+              << obj.start_public_data_tree_snapshot
+              << "\n"
+                 "end_public_data_tree_snapshot:\n"
+              << obj.end_public_data_tree_snapshot
               << "\n"
                  "calldata_hash: "
               << obj.calldata_hash << "\n";

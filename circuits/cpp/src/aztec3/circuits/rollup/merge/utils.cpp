@@ -10,7 +10,7 @@
 
 #include <aztec3/circuits/kernel/private/utils.hpp>
 #include <aztec3/circuits/mock/mock_kernel_circuit.hpp>
-#include "aztec3/circuits/abis/private_kernel/new_contract_data.hpp"
+#include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/rollup/base/utils.hpp"
 // #include "aztec3/circuits/abis/rollup/base/previous_rollup_data.hpp"
 
