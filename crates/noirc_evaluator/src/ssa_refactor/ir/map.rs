@@ -124,10 +124,12 @@ pub(crate) struct SparseMap<T> {
 }
 
 impl<T> SparseMap<T> {
+    /// Returns the number of elements in the map.
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
-
+/// Adds an element to the map.
+/// Returns the identifier/reference to that element.
     pub(crate) fn push(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.insert(id, element);
