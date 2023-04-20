@@ -27,6 +27,6 @@ jobs:
         with: 
           workflow: ${{ env.workflowId }}
           repo: noir-lang/docs
-          ref: main 
-          token: ${{ secrets.DOCS_REPO_TOKEN }} 
+          ref: master 
+          token: ${{ secrets.PAT_TOKEN }} 
           inputs: '{ "pr_number": "${{ github.event.pull_request.number }}" }' 
