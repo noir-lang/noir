@@ -189,7 +189,7 @@ pub(crate) enum BinaryOp {
 
 #[test]
 fn smoke_instructions_map_duplicate() {
-    let id = Id::make_id_for_testing_only(0);
+    let id = Id::test_new(0);
 
     let ins = Instruction::Not(id);
     let same_ins = Instruction::Not(id);
@@ -211,7 +211,7 @@ fn num_instructions_smoke() {
 
     let mut ins_map = Instructions::default();
     for i in 0..n {
-        let ins = Instruction::Not(Id::make_id_for_testing_only(i));
+        let ins = Instruction::Not(Id::test_new(i));
         ins_map.push(ins);
     }
 

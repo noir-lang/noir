@@ -26,7 +26,8 @@ impl<T> Id<T> {
     /// be used for testing. Obtaining Ids in this way should be avoided
     /// as unlike DenseMap::push and SparseMap::push, the Ids created
     /// here are likely invalid for any particularly map.
-    pub(crate) fn make_id_for_testing_only(index: usize) -> Self {
+    #[cfg(test)]
+    pub(crate) fn test_new(index: usize) -> Self {
         Self::new(index)
     }
 }
@@ -79,8 +80,8 @@ impl<T> DenseMap<T> {
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
-/// Adds an element to the map.
-/// Returns the identifier/reference to that element.
+    /// Adds an element to the map.
+    /// Returns the identifier/reference to that element.
     pub(crate) fn push(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.push(element);
@@ -128,8 +129,9 @@ impl<T> SparseMap<T> {
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
-/// Adds an element to the map.
-/// Returns the identifier/reference to that element.
+
+    /// Adds an element to the map.
+    /// Returns the identifier/reference to that element.
     pub(crate) fn push(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.insert(id, element);
