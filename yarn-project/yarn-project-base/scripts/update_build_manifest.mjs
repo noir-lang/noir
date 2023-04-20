@@ -2,8 +2,8 @@
 
 // Updates build manifest for a package based on a package.json
 
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { basename, dirname, resolve, join } from "path";
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { basename, dirname, resolve, join } from 'path';
 import { cwd } from 'process';
 
 // Update build_manifest.json with new dependencies
@@ -73,7 +73,7 @@ function main() {
     // Process options if any
     const options = { checkOnly: false };
     for (const arg of process.argv.slice(3)) {
-      if (arg === "--check") {
+      if (arg === '--check') {
         options.checkOnly = true;
       } else {
         console.error(`Unknown option ${arg}`);
@@ -82,18 +82,13 @@ function main() {
     }
 
     // Read package.json
-    const packageData = JSON.parse(readFileSync(packageJsonFile, "utf-8"));
+    const packageData = JSON.parse(readFileSync(packageJsonFile, 'utf-8'));
 
     // Get the directory name of the directory that holds package.json
     const projectKey = basename(dirname(resolve(packageJsonFile)));
 
     // Add the path to the build-manifest.json file
-    const buildManifestFile = join(
-      dirname(packageJsonFile),
-      "..",
-      "..",
-      "build_manifest.json"
-    );
+    const buildManifestFile = join(dirname(packageJsonFile), '..', '..', 'build_manifest.json');
 
     // Update build_manifest.json with the new dependencies
     updateBuildManifest(

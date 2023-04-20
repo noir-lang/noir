@@ -39,5 +39,5 @@
     { "path": "types/tsconfig.json" },
     { "path": "world-state/tsconfig.json" }
   ],
-  "files": ["./@types/jest/index.d.ts"],
+  "files": ["./@types/jest/index.d.ts"]
 }
