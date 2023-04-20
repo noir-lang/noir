@@ -32,7 +32,7 @@ pub(crate) enum Instruction {
     Binary(Binary),
 
     /// Converts `Value` into Typ
-    Cast(ValueId, Typ),
+    Cast(ValueId, Type),
 
     /// Computes a bit wise not
     Not(ValueId),
