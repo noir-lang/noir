@@ -338,6 +338,39 @@ fn inline_in_block(
                 Operation::Phi { .. } => {
                     unreachable!("Phi instructions should have been simplified");
                 }
+                Operation::UnsafeCall { func, arguments, returned_values, predicate, location } => {
+                    let mut ret_clone = Vec::new();
+                    for (i, ret) in returned_values.iter().enumerate() {
+                        let name = format!("ret_line{i}");
+                        let typ = ctx.object_type(*ret);
+                        let var = if let ObjectType::ArrayPointer(a) = typ {
+                            let array = &ctx.mem[a];
+                            let (var, b) =
+                                ctx.new_array(&name, array.element_type, array.len, None);
+                            stack_frame.array_map.insert(a, b);
+                            var
+                        } else {
+                            let obj = node::Variable::new(typ, name, None, stack_frame.block);
+                            ctx.add_variable(obj, None)
+                        };
+                        ret_clone.push(var);
+                        inline_map.insert(*ret, var);
+                    }
+
+                    let mut new_ins = Instruction::new(
+                        Operation::UnsafeCall {
+                            func: *func,
+                            arguments: arguments.clone(),
+                            returned_values: ret_clone,
+                            predicate: *predicate,
+                            location: *location,
+                        },
+                        clone.res_type,
+                        Some(stack_frame.block),
+                    );
+                    new_ins.id = clone.id;
+                    push_instruction(ctx, new_ins, stack_frame, inline_map);
+                }
                 _ => {
                     let mut new_ins = new_cloned_instruction(clone, stack_frame.block);
                     if let Some(id) = array_id {
@@ -356,6 +389,7 @@ fn inline_in_block(
                             break;
                         }
                     }
+
                     if let Mark::ReplaceWith(replacement) = new_ins.mark {
                         if let Some(id) = array_id {
                             if let Entry::Occupied(mut entry) = stack_frame.array_map.entry(id) {
@@ -430,7 +464,6 @@ impl node::Operation {
         match self {
             //default way to handle arrays during inlining; we map arrays using the stack_frame
             Operation::Binary(_) | Operation::Constrain(..) | Operation::Intrinsic(_,_)
-            | Operation::UnsafeCall { .. }  //TODO.. how should we handle it??
             => {
                 self.map_id_mut(|id| {
                     if let Some(a) = Memory::deref(ctx, id) {
@@ -461,6 +494,7 @@ impl node::Operation {
             |  Operation::Result { .. }
             //These types handle arrays in a specific way (done in inline_in_block)
             | Operation::Return(_) | Operation::Load {.. } | Operation::Store { .. } | Operation::Call { .. }
+            | Operation::UnsafeCall { .. }
             => {
                 self.map_id_mut(|id| {
                     function::SsaFunction::get_mapped_value(Some(&id), ctx, inline_map, block_id)
