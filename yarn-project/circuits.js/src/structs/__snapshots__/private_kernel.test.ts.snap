@@ -90,7 +90,7 @@ called_from_public_l2: 0
  ]
 
 constants:
-old_tree_roots: private_data_tree_root: 0x101
+historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 private_kernel_vk_tree_root: 0x104
@@ -237,7 +237,7 @@ called_from_public_l2: 0
  ]
 
 constants:
-old_tree_roots: private_data_tree_root: 0x1101
+historic_tree_roots: private_data_tree_root: 0x1101
 nullifier_tree_root: 0x1102
 contract_tree_root: 0x1103
 private_kernel_vk_tree_root: 0x1104
@@ -554,7 +554,7 @@ called_from_public_l2: 0
  ]
 
 constants:
-old_tree_roots: private_data_tree_root: 0x101
+historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 private_kernel_vk_tree_root: 0x104

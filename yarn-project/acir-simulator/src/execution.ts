@@ -12,7 +12,7 @@ import {
 import { AztecAddress, EthAddress, Fr } from '@aztec/foundation';
 import {
   CallContext,
-  OldTreeRoots,
+  HistoricTreeRoots,
   TxRequest,
   PrivateCallStackItem,
   FunctionData,
@@ -58,7 +58,7 @@ export class Execution {
     // Global to the tx
     private db: DBOracle,
     private request: TxRequest,
-    private oldRoots: OldTreeRoots,
+    private historicRoots: HistoricTreeRoots,
     // Concrete to this execution
     private abi: FunctionAbi,
     private contractAddress: AztecAddress,
@@ -77,7 +77,7 @@ export class Execution {
     );
 
     const acir = Buffer.from(this.abi.bytecode, 'hex');
-    const initialWitness = writeInputs(this.args, this.callContext, this.request.txContext, this.oldRoots);
+    const initialWitness = writeInputs(this.args, this.callContext, this.request.txContext, this.historicRoots);
     const newNotePreimages: NewNoteData[] = [];
     const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
@@ -157,7 +157,7 @@ export class Execution {
 
     return notes
       .concat(dummyNotes)
-      .flatMap(noteGetData => toAcvmNoteLoadOracleInputs(noteGetData, this.oldRoots.privateDataTreeRoot));
+      .flatMap(noteGetData => toAcvmNoteLoadOracleInputs(noteGetData, this.historicRoots.privateDataTreeRoot));
   }
 
   private async getSecretKey(contractAddress: AztecAddress, address: ACVMField) {
@@ -189,7 +189,7 @@ export class Execution {
     const nestedExecution = new Execution(
       this.db,
       this.request,
-      this.oldRoots,
+      this.historicRoots,
       targetAbi,
       targetContractAddress,
       targetFunctionData,

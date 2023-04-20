@@ -389,7 +389,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
 
   protected getContractMembershipWitnessFor(tx: PrivateTx) {
     return this.getMembershipWitnessFor(
-      tx.data.constants.oldTreeRoots.contractTreeRoot,
+      tx.data.constants.historicTreeRoots.contractTreeRoot,
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
       CONTRACT_TREE_ROOTS_TREE_HEIGHT,
     );
@@ -397,7 +397,7 @@ export class CircuitBlockBuilder implements BlockBuilder {
 
   protected getDataMembershipWitnessFor(tx: PrivateTx) {
     return this.getMembershipWitnessFor(
-      tx.data.constants.oldTreeRoots.privateDataTreeRoot,
+      tx.data.constants.historicTreeRoots.privateDataTreeRoot,
       MerkleTreeId.DATA_TREE_ROOTS_TREE,
       PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
     );

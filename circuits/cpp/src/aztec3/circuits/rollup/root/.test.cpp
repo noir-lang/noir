@@ -32,7 +32,7 @@
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/accumulated_data.hpp>
 #include <aztec3/circuits/abis/private_kernel/constant_data.hpp>
-#include <aztec3/circuits/abis/private_kernel/old_tree_roots.hpp>
+#include <aztec3/circuits/abis/private_kernel/historic_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
@@ -63,7 +63,7 @@ using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
 using aztec3::circuits::abis::private_kernel::ConstantData;
 using aztec3::circuits::abis::private_kernel::Globals;
-using aztec3::circuits::abis::private_kernel::OldTreeRoots;
+using aztec3::circuits::abis::private_kernel::HistoricTreeRoots;
 using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;

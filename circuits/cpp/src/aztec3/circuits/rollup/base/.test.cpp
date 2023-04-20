@@ -29,7 +29,7 @@
 #include <aztec3/circuits/abis/private_kernel/public_inputs.hpp>
 #include <aztec3/circuits/abis/private_kernel/accumulated_data.hpp>
 #include <aztec3/circuits/abis/private_kernel/constant_data.hpp>
-#include <aztec3/circuits/abis/private_kernel/old_tree_roots.hpp>
+#include <aztec3/circuits/abis/private_kernel/historic_tree_roots.hpp>
 #include <aztec3/circuits/abis/private_kernel/globals.hpp>
 
 #include <aztec3/circuits/apps/function_execution_context.hpp>
@@ -69,7 +69,7 @@ using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::AccumulatedData;
 using aztec3::circuits::abis::private_kernel::ConstantData;
 using aztec3::circuits::abis::private_kernel::Globals;
-using aztec3::circuits::abis::private_kernel::OldTreeRoots;
+using aztec3::circuits::abis::private_kernel::HistoricTreeRoots;
 using aztec3::circuits::abis::private_kernel::PreviousKernelData;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateInputs;
@@ -693,7 +693,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data)
         .root = tree.root(),
         .next_available_leaf_index = 0,
     };
-    inputs.kernel_data[0].public_inputs.constants.old_tree_roots.private_data_tree_root = fr(0);
+    inputs.kernel_data[0].public_inputs.constants.historic_tree_roots.private_data_tree_root = fr(0);
 
     // fetch sibling path from hash path (only get the second half of the hash path)
     auto hash_path = tree.get_hash_path(0);

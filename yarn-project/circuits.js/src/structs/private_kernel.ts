@@ -23,7 +23,7 @@ import { VerificationKey } from './verification_key.js';
 import { AztecAddress, EthAddress, Fr, BufferReader } from '@aztec/foundation';
 import times from 'lodash.times';
 
-export class OldTreeRoots {
+export class HistoricTreeRoots {
   constructor(
     public privateDataTreeRoot: Fr,
     public nullifierTreeRoot: Fr,
@@ -44,17 +44,17 @@ export class OldTreeRoots {
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer to read from.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): OldTreeRoots {
+  static fromBuffer(buffer: Buffer | BufferReader): HistoricTreeRoots {
     const reader = BufferReader.asReader(buffer);
-    return new OldTreeRoots(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
+    return new HistoricTreeRoots(reader.readFr(), reader.readFr(), reader.readFr(), reader.readFr());
   }
 }
 
 export class ConstantData {
-  constructor(public oldTreeRoots: OldTreeRoots, public txContext: TxContext) {}
+  constructor(public historicTreeRoots: HistoricTreeRoots, public txContext: TxContext) {}
 
   toBuffer() {
-    return serializeToBuffer(this.oldTreeRoots, this.txContext);
+    return serializeToBuffer(this.historicTreeRoots, this.txContext);
   }
 
   /**
@@ -63,7 +63,7 @@ export class ConstantData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): ConstantData {
     const reader = BufferReader.asReader(buffer);
-    return new ConstantData(reader.readObject(OldTreeRoots), reader.readObject(TxContext));
+    return new ConstantData(reader.readObject(HistoricTreeRoots), reader.readObject(TxContext));
   }
 }
 
@@ -375,12 +375,12 @@ function makeEmptyTxContext(): TxContext {
   return new TxContext(false, false, true, deploymentData);
 }
 
-function makeEmptyOldTreeRoots(): OldTreeRoots {
-  return new OldTreeRoots(frZero(), frZero(), frZero(), frZero());
+function makeEmptyHistoricTreeRoots(): HistoricTreeRoots {
+  return new HistoricTreeRoots(frZero(), frZero(), frZero(), frZero());
 }
 
 function makeEmptyConstantData(): ConstantData {
-  return new ConstantData(makeEmptyOldTreeRoots(), makeEmptyTxContext());
+  return new ConstantData(makeEmptyHistoricTreeRoots(), makeEmptyTxContext());
 }
 
 function makeEmptyOptionallyRevealedData(): OptionallyRevealedData {

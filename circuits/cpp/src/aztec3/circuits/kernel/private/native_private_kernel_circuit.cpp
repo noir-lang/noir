@@ -142,7 +142,7 @@ void contract_logic(DummyComposer& composer, PrivateInputs<NT> const& private_in
     auto const& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
     auto const& previous_kernel_contract_tree_root =
-        private_inputs.previous_kernel.public_inputs.constants.old_tree_roots.contract_tree_root;
+        private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.contract_tree_root;
     composer.do_assert(purported_contract_tree_root == previous_kernel_contract_tree_root,
                        "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
 

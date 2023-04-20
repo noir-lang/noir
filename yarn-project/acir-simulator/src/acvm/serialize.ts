@@ -4,7 +4,7 @@ import {
   CallContext,
   ContractDeploymentData,
   FunctionData,
-  OldTreeRoots,
+  HistoricTreeRoots,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   TxContext,
@@ -89,7 +89,7 @@ export function writeInputs(
   args: Fr[],
   callContext: CallContext,
   txContext: TxContext,
-  oldRoots: OldTreeRoots,
+  historicRoots: HistoricTreeRoots,
   witnessStartIndex = 1,
 ) {
   const fields = [
@@ -107,9 +107,9 @@ export function writeInputs(
     txContext.contractDeploymentData.functionTreeRoot,
     txContext.contractDeploymentData.portalContractAddress,
 
-    oldRoots.contractTreeRoot,
-    oldRoots.nullifierTreeRoot,
-    oldRoots.privateDataTreeRoot,
+    historicRoots.contractTreeRoot,
+    historicRoots.nullifierTreeRoot,
+    historicRoots.privateDataTreeRoot,
   ];
 
   return toACVMWitness(witnessStartIndex, ...fields);
