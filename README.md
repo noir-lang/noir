@@ -91,13 +91,13 @@ Now that your environment is set up, you can get to work on the project.
 
 1. Clone the repository, such as:
 ```sh
-git clone git@github.com:noir-lang/barretenberg-sys
+git clone git@github.com:noir-lang/noir
 ```
 2. Navigate to the directory:
 ```sh
-cd barretenberg-sys
+cd noir
 ```
-3. You should see a __direnv error__ because projects aren't allowed by default. Make sure you trust our `.envrc` file, then you need to run:
+3. You should see a __direnv error__ because projects aren't allowed by default. Make sure you've reviewed and trust our `.envrc` file, then you need to run:
 ```sh
 direnv allow
 ```
@@ -119,11 +119,7 @@ If you want to build the entire project in an isolated sandbox, you can use Nix 
 
 ### Building against a different local/remote version of Barretenberg
 
-If you are working on this crate, it is likely that you want to incorporate changes from some other version of Barretenberg
-instead of the version this project is pinned against.
-
-To reference a different version of Barretenberg, you want to replace the lockfile version with your version. This can be done
-by running:
+If you are working on this project and want a different version of Barretenberg (instead of the version this project is pinned against), you'll want to replace the lockfile version with your version. This can be done by running:
 
 ```sh
 nix flake lock --override-input barretenberg /absolute/path/to/your/barretenberg
@@ -142,7 +138,7 @@ __Note:__ You don't want to commit the updated lockfile, as it will fail in CI!
 If you have hesitations with using `direnv`, you can launch a subshell with `nix develop` and then launch your editor
 from within the subshell. However, if VSCode was already launched in the project directory, the environment won't be updated.
 
-__Advanced:__ If you aren't using `direnv` nor launching your editor within the subshell, you can try to install barretenberg and other global dependencies the package needs. This is an advanced workflow and likely won't receive support!
+__Advanced:__ If you aren't using `direnv` nor launching your editor within the subshell, you can try to install Barretenberg and other global dependencies the package needs. This is an advanced workflow and likely won't receive support!
 
 ## License
 
