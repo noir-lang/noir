@@ -77,7 +77,7 @@ mod mysubmodule {
     global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
-        constrain x | y == 1;
+        constrain (x | y) == 1;
     }
 
     fn my_helper() -> comptime Field {
