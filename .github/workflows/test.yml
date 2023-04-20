@@ -1,4 +1,4 @@
-name: Rust
+name: Test
 
 on: [push, pull_request]
 
@@ -8,8 +8,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  nix:
-    name: Nix build & test - ${{ matrix.os }}
+  test:
+    name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -30,10 +30,6 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cargo clippy
+      - name: Run `nix flake check`
         run: |
-          nix build -L .#checks.${{ matrix.target }}.cargo-clippy
-
-      - name: Cargo test
-        run: |
-          nix build -L .#checks.${{ matrix.target }}.cargo-test
+          nix flake check
