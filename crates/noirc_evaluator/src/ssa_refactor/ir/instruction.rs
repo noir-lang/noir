@@ -28,47 +28,35 @@ pub(crate) struct IntrinsicOpcodes;
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
 pub(crate) enum Instruction {
-    // Binary Operations
+    /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
+
+    /// Converts `Value` into Typ
+    Cast(ValueId, Typ),
 
     /// Computes a bit wise not
     Not(ValueId),
 
     /// Truncates `value` to `bit_size`
-    Truncate {
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    },
+    Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains a value to be equal to true
     Constrain(ValueId),
 
     /// Performs a function call with a list of its arguments.
-    Call {
-        func: FunctionId,
-        arguments: Vec<ValueId>,
-    },
+    Call { func: FunctionId, arguments: Vec<ValueId> },
     /// Performs a call to an intrinsic function and stores the
     /// results in `return_arguments`.
-    Intrinsic {
-        func: IntrinsicOpcodes,
-        arguments: Vec<ValueId>,
-    },
+    Intrinsic { func: IntrinsicOpcodes, arguments: Vec<ValueId> },
 
     /// Loads a value from memory.
     Load(ValueId),
 
     /// Writes a value to memory.
-    Store {
-        destination: ValueId,
-        value: ValueId,
-    },
+    Store { destination: ValueId, value: ValueId },
 
     /// Stores an Immediate value
-    Immediate {
-        value: FieldElement,
-    },
+    Immediate { value: FieldElement },
 }
 
 impl Instruction {
@@ -77,6 +65,7 @@ impl Instruction {
     pub(crate) fn num_fixed_results(&self) -> usize {
         match self {
             Instruction::Binary(_) => 1,
+            Instruction::Cast(..) => 0,
             Instruction::Not(_) => 1,
             Instruction::Truncate { .. } => 1,
             Instruction::Constrain(_) => 0,
@@ -95,6 +84,7 @@ impl Instruction {
     pub(crate) fn num_fixed_arguments(&self) -> usize {
         match self {
             Instruction::Binary(_) => 2,
+            Instruction::Cast(..) => 1,
             Instruction::Not(_) => 1,
             Instruction::Truncate { .. } => 1,
             Instruction::Constrain(_) => 1,
@@ -113,6 +103,7 @@ impl Instruction {
     pub(crate) fn return_types(&self, ctrl_typevar: Type) -> Vec<Type> {
         match self {
             Instruction::Binary(_) => vec![ctrl_typevar],
+            Instruction::Cast(_, typ) => vec![*typ],
             Instruction::Not(_) => vec![ctrl_typevar],
             Instruction::Truncate { .. } => vec![ctrl_typevar],
             Instruction::Constrain(_) => vec![],
