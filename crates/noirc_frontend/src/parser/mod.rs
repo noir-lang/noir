@@ -269,11 +269,11 @@ impl ParsedModule {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
 pub enum Precedence {
-    Lowest,
-    Or,
+    Lowest, // == Token::Or
     And,
     Xor,
-    LessGreater,
+    Equal,
+    Comparison,
     Shift,
     Sum,
     Product,
@@ -285,15 +285,15 @@ impl Precedence {
     // XXX: Check the precedence is correct for operators
     fn token_precedence(tok: &Token) -> Option<Precedence> {
         let precedence = match tok {
-            Token::Equal => Precedence::Lowest,
-            Token::NotEqual => Precedence::Lowest,
-            Token::Pipe => Precedence::Or,
+            Token::Pipe => Precedence::Lowest,
             Token::Ampersand => Precedence::And,
             Token::Caret => Precedence::Xor,
-            Token::Less => Precedence::LessGreater,
-            Token::LessEqual => Precedence::LessGreater,
-            Token::Greater => Precedence::LessGreater,
-            Token::GreaterEqual => Precedence::LessGreater,
+            Token::Equal => Precedence::Equal,
+            Token::NotEqual => Precedence::Equal,
+            Token::Less => Precedence::Comparison,
+            Token::LessEqual => Precedence::Comparison,
+            Token::Greater => Precedence::Comparison,
+            Token::GreaterEqual => Precedence::Comparison,
             Token::ShiftLeft => Precedence::Shift,
             Token::ShiftRight => Precedence::Shift,
             Token::Plus => Precedence::Sum,
@@ -312,11 +312,11 @@ impl Precedence {
     fn next(self) -> Self {
         use Precedence::*;
         match self {
-            Lowest => Or,
-            Or => Xor,
-            Xor => And,
-            And => LessGreater,
-            LessGreater => Shift,
+            Lowest => And,
+            And => Xor,
+            Xor => Equal,
+            Equal => Comparison,
+            Comparison => Shift,
             Shift => Sum,
             Sum => Product,
             Product => Highest,
