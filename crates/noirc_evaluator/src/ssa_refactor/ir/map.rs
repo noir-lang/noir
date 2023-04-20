@@ -79,7 +79,8 @@ impl<T> DenseMap<T> {
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
-
+/// Adds an element to the map.
+/// Returns the identifier/reference to that element.
     pub(crate) fn push(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.push(element);
