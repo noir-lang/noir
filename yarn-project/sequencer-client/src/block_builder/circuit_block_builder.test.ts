@@ -83,7 +83,7 @@ describe('sequencer/circuit_block_builder', () => {
 
   const updateRootTrees = async () => {
     for (const [newTree, rootTree] of [
-      [MerkleTreeId.DATA_TREE, MerkleTreeId.DATA_TREE_ROOTS_TREE],
+      [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
       [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
     ] as const) {
       const newTreeInfo = await expectsDb.getTreeInfo(newTree);
@@ -95,7 +95,7 @@ describe('sequencer/circuit_block_builder', () => {
   const updateExpectedTreesFromTxs = async (txs: PrivateTx[]) => {
     const newContracts = flatMap(txs, tx => tx.data.end.newContracts.map(n => computeContractLeaf(wasm, n)));
     for (const [tree, leaves] of [
-      [MerkleTreeId.DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
+      [MerkleTreeId.PRIVATE_DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
       [MerkleTreeId.NULLIFIER_TREE, flatMap(txs, tx => tx.data.end.newNullifiers.map(l => l.toBuffer()))],
     ] as const) {
@@ -110,7 +110,7 @@ describe('sequencer/circuit_block_builder', () => {
 
   const setTxHistoricTreeRoots = async (tx: PrivateTx) => {
     for (const [name, id] of [
-      ['privateDataTreeRoot', MerkleTreeId.DATA_TREE],
+      ['privateDataTreeRoot', MerkleTreeId.PRIVATE_DATA_TREE],
       ['contractTreeRoot', MerkleTreeId.CONTRACT_TREE],
       ['nullifierTreeRoot', MerkleTreeId.NULLIFIER_TREE],
     ] as const) {
@@ -136,24 +136,24 @@ describe('sequencer/circuit_block_builder', () => {
       await updateExpectedTreesFromTxs(txsLeft);
       baseRollupOutputLeft.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       baseRollupOutputLeft.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      baseRollupOutputLeft.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
 
       // Same for the two txs on the right
       await updateExpectedTreesFromTxs(txsRight);
       baseRollupOutputRight.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       baseRollupOutputRight.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      baseRollupOutputRight.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
 
       // And update the root trees now to create proper output to the root rollup circuit
       await updateRootTrees();
       rootRollupOutput.endContractTreeSnapshot = await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
       rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
-      rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.DATA_TREE);
+      rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
       rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
         MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
       );
       rootRollupOutput.endTreeOfHistoricPrivateDataTreeRootsSnapshot = await getTreeSnapshot(
-        MerkleTreeId.DATA_TREE_ROOTS_TREE,
+        MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
       );
 
       // Actually build a block!

@@ -142,6 +142,6 @@ export class AztecNode {
   }
 
   public getDataTreePath(leafIndex: bigint): Promise<SiblingPath> {
-    return this.merkleTreeDB.getSiblingPath(MerkleTreeId.DATA_TREE, leafIndex, false);
+    return this.merkleTreeDB.getSiblingPath(MerkleTreeId.PRIVATE_DATA_TREE, leafIndex, false);
   }
 }

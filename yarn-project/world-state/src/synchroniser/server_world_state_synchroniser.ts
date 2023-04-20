@@ -126,14 +126,14 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     const rootChecks = await Promise.all([
       compareRoot(l2Block.endContractTreeSnapshot.root.toBuffer(), MerkleTreeId.CONTRACT_TREE),
       compareRoot(l2Block.endNullifierTreeSnapshot.root.toBuffer(), MerkleTreeId.NULLIFIER_TREE),
-      compareRoot(l2Block.endPrivateDataTreeSnapshot.root.toBuffer(), MerkleTreeId.DATA_TREE),
+      compareRoot(l2Block.endPrivateDataTreeSnapshot.root.toBuffer(), MerkleTreeId.PRIVATE_DATA_TREE),
       compareRoot(
         l2Block.endTreeOfHistoricContractTreeRootsSnapshot.root.toBuffer(),
         MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
       ),
       compareRoot(
         l2Block.endTreeOfHistoricPrivateDataTreeRootsSnapshot.root.toBuffer(),
-        MerkleTreeId.DATA_TREE_ROOTS_TREE,
+        MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE,
       ),
     ]);
     const ourBlock = rootChecks.every(x => x);
@@ -147,7 +147,7 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
       for (const [tree, leaves] of [
         [MerkleTreeId.CONTRACT_TREE, l2Block.newContracts],
         [MerkleTreeId.NULLIFIER_TREE, l2Block.newNullifiers],
-        [MerkleTreeId.DATA_TREE, l2Block.newCommitments],
+        [MerkleTreeId.PRIVATE_DATA_TREE, l2Block.newCommitments],
       ] as const) {
         await this.merkleTreeDb.appendLeaves(
           tree,
@@ -156,7 +156,7 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
       }
 
       for (const [newTree, rootTree] of [
-        [MerkleTreeId.DATA_TREE, MerkleTreeId.DATA_TREE_ROOTS_TREE],
+        [MerkleTreeId.PRIVATE_DATA_TREE, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE],
         [MerkleTreeId.CONTRACT_TREE, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE],
       ] as const) {
         const newTreeInfo = await this.merkleTreeDb.getTreeInfo(newTree, true);

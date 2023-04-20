@@ -74,14 +74,14 @@ export class MerkleTrees implements MerkleTreeDb {
       StandardTree,
       this.db,
       hasher,
-      `${MerkleTreeId[MerkleTreeId.DATA_TREE]}`,
+      `${MerkleTreeId[MerkleTreeId.PRIVATE_DATA_TREE]}`,
       PRIVATE_DATA_TREE_HEIGHT,
     );
     const privateDataTreeRootsTree: AppendOnlyTree = await newTree(
       StandardTree,
       this.db,
       hasher,
-      `${MerkleTreeId[MerkleTreeId.DATA_TREE_ROOTS_TREE]}`,
+      `${MerkleTreeId[MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]}`,
       PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
     );
     const publicDataTree: UpdateOnlyTree = await newTree(
