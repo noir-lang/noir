@@ -1,14 +1,11 @@
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    ir::{
-        extfunc::Signature,
-        instruction::{Instruction, InstructionId, Instructions},
-        map::{Id, SparseMap},
-        types::Type,
-        value::{Value, ValueId},
-    },
+    function::Signature,
+    instruction::{Instruction, InstructionId},
+    map::{DenseMap, Id, SecondaryMap, SparseMap},
+    types::Type,
+    value::{Value, ValueId},
 };
-use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 /// A convenience wrapper to store `Value`s.
@@ -39,7 +36,7 @@ impl ValueList {
 #[derive(Debug, Default)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
-    instructions: Instructions,
+    instructions: DenseMap<Instruction>,
 
     /// Stores the results for a particular instruction.
     ///
@@ -50,17 +47,17 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    results: HashMap<InstructionId, ValueList>,
+    results: SecondaryMap<Instruction, ValueList>,
 
     /// Storage for all of the values defined in this
     /// function.
-    values: SparseMap<Value>,
+    values: DenseMap<Value>,
 
     /// Function signatures of external methods
-    signatures: SparseMap<Signature>,
+    signatures: DenseMap<Signature>,
 
     /// All blocks in a function
-    blocks: SparseMap<BasicBlock>,
+    blocks: DenseMap<BasicBlock>,
 }
 
 impl DataFlowGraph {
@@ -71,7 +68,7 @@ impl DataFlowGraph {
 
     /// Inserts a new instruction into the DFG.
     pub(crate) fn make_instruction(&mut self, instruction_data: Instruction) -> InstructionId {
-        let id = self.instructions.push(instruction_data);
+        let id = self.instructions.insert(instruction_data);
 
         // Create a new vector to store the potential results for the instruction.
         self.results.insert(id, Default::default());
@@ -126,9 +123,9 @@ impl DataFlowGraph {
         let results = self.results.get_mut(&instruction_id).unwrap();
         let expected_res_position = results.len();
 
-        let value_id = self.values.push(Value::Instruction {
+        let value_id = self.values.insert(Value::Instruction {
             typ,
-            position: expected_res_position as u16,
+            position: expected_res_position,
             instruction: instruction_id,
         });
 

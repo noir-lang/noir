@@ -304,7 +304,7 @@ impl Evaluator {
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
-        let main = ir_gen.program.main();
+        let main = ir_gen.program.main_mut();
         let main_params = std::mem::take(&mut main.parameters);
         let abi_params = std::mem::take(&mut ir_gen.program.main_function_signature.0);
 

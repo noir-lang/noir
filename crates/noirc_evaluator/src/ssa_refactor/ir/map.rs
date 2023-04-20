@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -80,9 +83,10 @@ impl<T> DenseMap<T> {
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
+
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
-    pub(crate) fn push(&mut self, element: T) -> Id<T> {
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.push(element);
         id
@@ -132,7 +136,7 @@ impl<T> SparseMap<T> {
 
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
-    pub(crate) fn push(&mut self, element: T) -> Id<T> {
+    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
         let id = Id::new(self.storage.len());
         self.storage.insert(id, element);
         id
@@ -163,5 +167,43 @@ impl<T> std::ops::Index<Id<T>> for SparseMap<T> {
 impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut Self::Output {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
+    }
+}
+
+/// A SecondaryMap is for storing secondary data for a given key. Since this
+/// map is for secondary data, it will not return fresh Ids for data, instead
+/// it expects users to provide these ids in order to associate existing ids with
+/// additional data.
+///
+/// Unlike SecondaryMap in cranelift, this version is sparse and thus
+/// does not require inserting default elements for each key in between
+/// the desired key and the previous length of the map.
+///
+/// There is no expectation that there is always secondary data for all relevant
+/// Ids of a given type, so unlike the other Map types, it is possible for
+/// a call to .get(id) to return None.
+pub(crate) type SecondaryMap<K, V> = HashMap<Id<K>, V>;
+
+/// A simple counter to create fresh Ids without any storage.
+/// Useful for assigning ids before the storage is created or assigning ids
+/// for types that have no single owner.
+///
+/// This type wraps an AtomicUsize so it can safely be used across threads.
+#[derive(Debug)]
+pub(crate) struct AtomicCounter<T> {
+    next: AtomicUsize,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T> AtomicCounter<T> {
+    /// Return the next fresh id
+    pub(crate) fn next(&self) -> Id<T> {
+        Id::new(self.next.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl<T> Default for AtomicCounter<T> {
+    fn default() -> Self {
+        Self { next: Default::default(), _marker: Default::default() }
     }
 }
