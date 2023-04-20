@@ -75,6 +75,7 @@ pub(crate) struct DenseMap<T> {
 }
 
 impl<T> DenseMap<T> {
+    /// Returns the number of elements in the map.
     pub(crate) fn len(&self) -> usize {
         self.storage.len()
     }
