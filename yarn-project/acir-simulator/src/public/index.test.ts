@@ -7,7 +7,7 @@ import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as memdown, type MemDown } from 'memdown';
 import { encodeArguments } from '../arguments_encoder/index.js';
-import { NoirPoint, computeSlot, toPublicKey } from '../utils.js';
+import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { PublicDB } from './db.js';
 import { PublicExecution } from './execution.js';
 
@@ -62,7 +62,7 @@ describe('ACIR public execution simulator', () => {
         const expectedBalance = new Fr(160n);
         expect(result.returnValues).toEqual([expectedBalance]);
 
-        const storageSlot = computeSlot(new Fr(1n), recipient, bbWasm);
+        const storageSlot = computeSlotForMapping(new Fr(1n), recipient, bbWasm);
         expect(result.stateTransitions).toEqual([
           { storageSlot, oldValue: previousBalance, newValue: expectedBalance },
         ]);
@@ -97,8 +97,8 @@ describe('ACIR public execution simulator', () => {
           isStaticCall: false,
         });
 
-        recipientStorageSlot = computeSlot(new Fr(1n), recipient, bbWasm);
-        senderStorageSlot = computeSlot(new Fr(1n), Fr.fromBuffer(sender.toBuffer()), bbWasm);
+        recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient, bbWasm);
+        senderStorageSlot = computeSlotForMapping(new Fr(1n), Fr.fromBuffer(sender.toBuffer()), bbWasm);
       });
 
       const mockStore = (senderBalance: Fr, recipientBalance: Fr) => {

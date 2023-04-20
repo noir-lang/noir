@@ -1,4 +1,3 @@
-import { computeSlot } from '@aztec/acir-simulator';
 import { BarretenbergWasm } from '@aztec/barretenberg.js/wasm';
 import {
   Fr,
@@ -15,9 +14,9 @@ import {
   TxRequest,
   WitnessedPublicCallData,
 } from '@aztec/circuits.js';
-import { createDebugLogger } from '@aztec/foundation';
+import { AztecAddress, createDebugLogger } from '@aztec/foundation';
 import { PublicTx } from '@aztec/types';
-import { MerkleTreeId, MerkleTreeOperations } from '@aztec/world-state';
+import { MerkleTreeId, MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
 import times from 'lodash.times';
 import { Proof, PublicProver } from '../prover/index.js';
 import { PublicCircuitSimulator, PublicKernelCircuitSimulator } from '../simulator/index.js';
@@ -95,7 +94,7 @@ export class PublicProcessor {
     // Alter public data tree as we go through state transitions producing hash paths
     const { stateReads, stateTransitions } = publicCircuitOutput;
     const { transitionsHashPaths, readsHashPaths } = await this.processStateTransitions(
-      contractAddress.toField(),
+      contractAddress,
       stateReads,
       stateTransitions,
     );
@@ -103,12 +102,16 @@ export class PublicProcessor {
     return new WitnessedPublicCallData(publicCallData, transitionsHashPaths, readsHashPaths, treeRoot);
   }
 
-  protected async processStateTransitions(contract: Fr, stateReads: StateRead[], stateTransitions: StateTransition[]) {
+  protected async processStateTransitions(
+    contract: AztecAddress,
+    stateReads: StateRead[],
+    stateTransitions: StateTransition[],
+  ) {
     const transitionsHashPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[] = [];
     const readsHashPaths: MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>[] = [];
 
     const wasm = await BarretenbergWasm.get();
-    const getLeafIndex = (slot: Fr) => computeSlot(slot, contract, wasm).value;
+    const getLeafIndex = (slot: Fr) => computePublicDataTreeLeafIndex(contract, slot, wasm);
 
     // We get all reads from the unmodified tree
     for (const stateRead of stateReads) {

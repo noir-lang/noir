@@ -76,6 +76,7 @@ enum GeneratorIndex {
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     TX_CONTEXT,
     TX_REQUEST,
+    PUBLIC_LEAF_INDEX,
 };
 
 enum StorageSlotGeneratorIndex {

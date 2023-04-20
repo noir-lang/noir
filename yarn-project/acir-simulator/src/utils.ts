@@ -8,7 +8,14 @@ export type NoirPoint = {
   y: bigint;
 };
 
-export function computeSlot(mappingSlot: Fr, owner: NoirPoint | Fr, bbWasm: BarretenbergWasm) {
+/**
+ * Computes the resulting storage slot for an entry in a mapping.
+ * @param mappingSlot - the slot of the mapping within state
+ * @param owner - the key of the mapping
+ * @param bbWasm - wasm module for computing
+ * @returns The slot in the contract storage where the value is stored.
+ */
+export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bbWasm: BarretenbergWasm) {
   const isFr = (owner: NoirPoint | Fr): owner is Fr => typeof (owner as Fr).value === 'bigint';
   const ownerField = isFr(owner) ? owner : new Fr(owner.x);
 
