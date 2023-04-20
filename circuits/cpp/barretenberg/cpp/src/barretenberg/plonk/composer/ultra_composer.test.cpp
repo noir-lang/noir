@@ -758,4 +758,39 @@ TYPED_TEST(ultra_composer, ram)
     TestFixture::prove_and_verify(composer, /*expected_result=*/true);
 }
 
+TYPED_TEST(ultra_composer, range_checks_on_duplicates)
+{
+    UltraComposer composer = UltraComposer();
+
+    uint32_t a = composer.add_variable(100);
+    uint32_t b = composer.add_variable(100);
+    uint32_t c = composer.add_variable(100);
+    uint32_t d = composer.add_variable(100);
+
+    composer.assert_equal(a, b);
+    composer.assert_equal(a, c);
+    composer.assert_equal(a, d);
+
+    composer.create_new_range_constraint(a, 1000);
+    composer.create_new_range_constraint(b, 1001);
+    composer.create_new_range_constraint(c, 999);
+    composer.create_new_range_constraint(d, 1000);
+
+    composer.create_big_add_gate(
+        {
+            a,
+            b,
+            c,
+            d,
+            0,
+            0,
+            0,
+            0,
+            0,
+        },
+        false);
+
+    TestFixture::prove_and_verify(composer, /*expected_result=*/true);
+}
+
 } // namespace proof_system::plonk::test_ultra_composer

@@ -425,6 +425,10 @@ class UltraComposer : public ComposerBase {
     void assign_tag(const uint32_t variable_index, const uint32_t tag)
     {
         ASSERT(tag <= current_tag);
+        // If we've already assigned this tag to this variable, return (can happen due to copy constraints)
+        if (real_variable_tags[real_variable_index[variable_index]] == tag) {
+            return;
+        }
         ASSERT(real_variable_tags[real_variable_index[variable_index]] == DUMMY_TAG);
         real_variable_tags[real_variable_index[variable_index]] = tag;
     }

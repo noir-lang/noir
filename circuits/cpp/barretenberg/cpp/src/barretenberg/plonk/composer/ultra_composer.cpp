@@ -1216,9 +1216,44 @@ void UltraComposer::create_new_range_constraint(const uint32_t variable_index,
         range_lists.insert({ target_range, create_range_list(target_range) });
     }
 
+    const auto existing_tag = real_variable_tags[real_variable_index[variable_index]];
     auto& list = range_lists[target_range];
-    assign_tag(variable_index, list.range_tag);
-    list.variable_indices.emplace_back(variable_index);
+
+    // If the variable's tag matches the target range list's tag, do nothing.
+    if (existing_tag != list.range_tag) {
+        // If the variable is 'untagged' (i.e., it has the dummy tag), assign it the appropriate tag.
+        // Otherwise, find the range for which the variable has already been tagged.
+        if (existing_tag != DUMMY_TAG) {
+            bool found_tag = false;
+            for (const auto& r : range_lists) {
+                if (r.second.range_tag == existing_tag) {
+                    found_tag = true;
+                    if (r.first < target_range) {
+                        // The variable already has a more restrictive range check, so do nothing.
+                        return;
+                    } else {
+                        // The range constraint we are trying to impose is more restrictive than the existing range
+                        // constraint. It would be difficult to remove an existing range check. Instead deep-copy the
+                        // variable and apply a range check to new variable
+                        const uint32_t copied_witness = add_variable(get_variable(variable_index));
+                        create_add_gate({ .a = variable_index,
+                                          .b = copied_witness,
+                                          .c = zero_idx,
+                                          .a_scaling = 1,
+                                          .b_scaling = -1,
+                                          .c_scaling = 0,
+                                          .const_scaling = 0 });
+                        // Recurse with new witness that has no tag attached.
+                        create_new_range_constraint(copied_witness, target_range, msg);
+                        return;
+                    }
+                }
+            }
+            ASSERT(found_tag == true);
+        }
+        assign_tag(variable_index, list.range_tag);
+        list.variable_indices.emplace_back(variable_index);
+    }
 }
 
 void UltraComposer::process_range_list(const RangeList& list)
