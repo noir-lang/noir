@@ -1,5 +1,7 @@
 #include "./pedersen_lookup.hpp"
 
+#include <mutex>
+
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace crypto {
@@ -9,6 +11,12 @@ namespace lookup {
 std::array<std::vector<grumpkin::g1::affine_element>, NUM_PEDERSEN_TABLES> pedersen_tables;
 std::vector<grumpkin::g1::affine_element> pedersen_iv_table;
 std::array<grumpkin::g1::affine_element, NUM_PEDERSEN_TABLES> generators;
+
+// Mutex is not available in the WASM context.
+// WASM runs in a single-thread so this is acceptable.
+#if !defined(__wasm__)
+std::mutex init_mutex;
+#endif
 
 static bool inited = false;
 
@@ -66,6 +74,11 @@ void init()
 {
     ASSERT(BITS_PER_TABLE < BITS_OF_BETA);
     ASSERT(BITS_PER_TABLE + BITS_OF_BETA < BITS_ON_CURVE);
+
+#if !defined(__wasm__)
+    const std::lock_guard<std::mutex> lock(init_mutex);
+#endif
+
     if (inited) {
         return;
     }
