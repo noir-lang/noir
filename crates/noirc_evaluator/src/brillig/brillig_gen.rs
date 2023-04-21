@@ -17,7 +17,6 @@ use acvm::acir::brillig_bytecode::{
 use noirc_abi::MAIN_RETURN_NAME;
 use num_traits::Signed;
 
-const CALLBACK_REGISTER: usize = 10000;
 const PREFIX_LEN: usize = 3;
 
 #[derive(Default, Debug, Clone)]
@@ -29,25 +28,13 @@ pub(crate) struct BrilligArtefact {
 }
 
 impl BrilligArtefact {
-    fn fix_jumps(&mut self, main_len: usize) {
+    fn fix_jumps(&mut self) {
         for (jump, block) in &self.to_fix {
             match self.byte_code[*jump] {
                 BrilligOpcode::JMP { destination } => {
                     assert_eq!(destination, 0);
-                    if block.is_dummy() {
-                        if *jump < main_len {
-                            self.byte_code[*jump] = BrilligOpcode::Stop;
-                        } else {
-                            self.byte_code[*jump] = BrilligOpcode::Call {
-                                destination: RegisterMemIndex::Register(RegisterIndex(
-                                    CALLBACK_REGISTER,
-                                )),
-                            };
-                        }
-                    } else {
-                        let current = self.blocks[block];
-                        self.byte_code[*jump] = BrilligOpcode::JMP { destination: current };
-                    }
+                    let current = self.blocks[block];
+                    self.byte_code[*jump] = BrilligOpcode::JMP { destination: current };
                 }
                 BrilligOpcode::JMPIFNOT { condition, destination } => {
                     assert_eq!(destination, 0);
@@ -61,14 +48,9 @@ impl BrilligArtefact {
                     self.byte_code[*jump] =
                         BrilligOpcode::JMPIF { condition, destination: current };
                 }
-                BrilligOpcode::Mov { destination, source } => {
+                BrilligOpcode::PushStack { source } => {
                     assert_eq!(source, RegisterMemIndex::Constant(FieldElement::zero()));
-                    assert_eq!(
-                        destination,
-                        RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER))
-                    );
-                    self.byte_code[*jump] = BrilligOpcode::Mov {
-                        destination: RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER)),
+                    self.byte_code[*jump] = BrilligOpcode::PushStack {
                         source: RegisterMemIndex::Constant(FieldElement::from((jump + 2) as i128)),
                     };
                 }
@@ -98,7 +80,6 @@ impl BrilligArtefact {
 
     pub(crate) fn link(&mut self, ctx: &SsaContext, obj: &BrilligArtefact) -> Vec<BrilligOpcode> {
         self.link_with(obj);
-        let main_len = self.byte_code.len();
         let mut queue: Vec<NodeId> = obj.functions_to_process.clone().into_iter().collect();
         while let Some(func) = queue.pop() {
             if let Some(ssa_func) = ctx.try_get_ssa_func(func) {
@@ -111,7 +92,7 @@ impl BrilligArtefact {
                 }
             }
         }
-        self.fix_jumps(main_len);
+        self.fix_jumps();
         self.byte_code.clone()
     }
 }
@@ -258,8 +239,7 @@ impl BrilligGen {
         if let Some(left) = block.left {
             result.push(left);
         } else {
-            self.obj.to_fix.push((self.code_len(), BlockId::dummy()));
-            self.push_code(BrilligOpcode::JMP { destination: 0 });
+            self.push_code(BrilligOpcode::CallBack);
         }
 
         self.obj.blocks.insert(block_id, start);
@@ -433,7 +413,6 @@ impl BrilligGen {
     fn node_2_register(&mut self, ctx: &SsaContext, a: NodeId) -> RegisterMemIndex //register-value enum
     {
         let a_register = a.0.into_raw_parts().0;
-        assert_ne!(a_register, CALLBACK_REGISTER);
         match &ctx[a] {
             NodeObject::Variable(_) => {
                 if a_register > self.max_register {
@@ -557,7 +536,9 @@ impl BrilligGen {
         BinaryOp::Lt => {
             self.push_code(BrilligOpcode::BinaryOp { result_type, op: brillig_bytecode::BinaryOp::Cmp(brillig_bytecode::Comparison::Lt), lhs, rhs, result });
         },
-        BinaryOp::And => todo!(),       //bitwise
+        BinaryOp::And => {
+            //todo
+        },       //bitwise
         BinaryOp::Or => todo!(),
         BinaryOp::Xor => todo!(),
         BinaryOp::Shl => {
@@ -643,23 +624,13 @@ impl BrilligGen {
                         });
                     }
                     self.obj.to_fix.push((self.code_len(), BlockId::dummy()));
-                    self.push_code(brillig_bytecode::Opcode::Mov {
-                        destination: RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER)),
-                        source: RegisterMemIndex::Constant(FieldElement::zero()),
-                    });
+                    self.push_code(brillig_bytecode::Opcode::PushStack{ source: RegisterMemIndex::Constant(FieldElement::zero()) });
 
                     if func_adr == 0 {
                         self.obj.to_fix.push((self.code_len(), ssa_func.entry_block));
                         self.obj.functions_to_process.insert(func);
                     }
                     self.push_code(brillig_bytecode::Opcode::JMP { destination: func_adr });
-                    // reset the call_back
-                    self.push_code(brillig_bytecode::Opcode::Mov {
-                        destination: RegisterMemIndex::Register(RegisterIndex(CALLBACK_REGISTER)),
-                        source: RegisterMemIndex::Constant(FieldElement::from(
-                            (PREFIX_LEN - 1) as i128,
-                        )),
-                    });
                     let len = returned_values.len() + returned_arrays.len();
                     let mut j = 0;
                     let mut i = 0;
