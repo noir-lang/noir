@@ -1,4 +1,4 @@
-contract EmptyConstructor {
+contract Test {
     use dep::aztec3::abi;
     use dep::aztec3::abi::Inputs;
     use dep::aztec3::abi::Outputs;

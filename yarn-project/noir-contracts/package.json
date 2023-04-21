@@ -20,8 +20,11 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "noir:build:test": "cd src/contracts/test_contract && nargo compile main --contracts",
-    "noir:build:zk_token": "cd src/contracts/zk_token_contract && nargo compile main --contracts",
+    "noir:build": "yarn noir:build:test && yarn noir:build:parent && yarn noir:build:child && yarn noir:build:zk_token && yarn noir:build:pub_token",
+    "noir:build:test": "(cd src/contracts/test_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts test",
+    "noir:build:parent": "(cd src/contracts/parent_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts parent",
+    "noir:build:child": "(cd src/contracts/child_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts child",
+    "noir:build:zk_token": "(cd src/contracts/zk_token_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts zk_token",
     "noir:build:pub_token": "(cd src/contracts/public_token_contract && nargo compile main --contracts) && ts-node --esm src/scripts/copy_output.ts public_token"
   },
   "inherits": [

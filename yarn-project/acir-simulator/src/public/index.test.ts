@@ -39,7 +39,7 @@ describe('ACIR public execution simulator', () => {
     describe('mint', () => {
       it('should run the mint function', async () => {
         const contractAddress = AztecAddress.random();
-        const abi = PublicTokenContractAbi.functions.find(f => f.name === 'mint') as FunctionAbi;
+        const abi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
         const functionData = new FunctionData(Buffer.alloc(4), false, false);
         const args = encodeArguments(abi, [140, recipient], false);
 
@@ -83,7 +83,7 @@ describe('ACIR public execution simulator', () => {
 
       beforeEach(() => {
         contractAddress = AztecAddress.random();
-        abi = PublicTokenContractAbi.functions.find(f => f.name === 'transfer') as FunctionAbi;
+        abi = PublicTokenContractAbi.functions.find(f => f.name === 'transfer')!;
         functionData = new FunctionData(Buffer.alloc(4), false, false);
         args = encodeArguments(abi, [140, recipient], false);
         sender = AztecAddress.random();

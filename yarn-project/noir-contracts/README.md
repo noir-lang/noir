@@ -6,7 +6,7 @@
   ```
   curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
   ```
-- Install the noir branch needed for A3 backend (`arv/call_stack_item_oracle` at the moment)
+- Install the noir branch needed for A3 backend (`joss/ssa-2-brillig-plus-hacks` at the moment)
   ```
   noirup --branch arv/call_stack_item_oracle
   ```

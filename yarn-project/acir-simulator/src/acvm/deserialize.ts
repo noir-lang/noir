@@ -22,6 +22,10 @@ export function frToAztecAddress(fr: Fr): AztecAddress {
   return new AztecAddress(fr.toBuffer());
 }
 
+export function frToNumber(fr: Fr): number {
+  return Number(fr.value);
+}
+
 export function frToEthAddress(fr: Fr): EthAddress {
   return new EthAddress(fr.toBuffer().slice(-EthAddress.SIZE_IN_BYTES));
 }

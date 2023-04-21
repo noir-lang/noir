@@ -2,11 +2,19 @@
 
 use crate::types::point::Point;
 
-#[builtin(rand)]
-fn rand(_idx: Field) -> Field {}
+#[oracle(getRandomField)]
+fn rand_oracle() -> Field {}
 
-#[builtin(getSecretKey)]
-fn get_secret_key(_owner: Point) -> Field {}
+unconstrained fn rand() -> Field {
+    rand_oracle()
+}
+
+#[oracle(getSecretKey)]
+fn get_secret_key_oracle(_owner: Point) -> Field {}
+
+unconstrained fn get_secret_key(owner: Point) -> Field {
+    get_secret_key_oracle(owner)
+}
 
 struct Note {
     value: Field,
@@ -27,7 +35,7 @@ impl Note {
         }
     }
 
-    fn new(value: Field, owner: Point, rand_idx: Field) -> Note {
+    fn new(value: Field, owner: Point) -> Note {
         // let randomness = ORACLE::rand(); // ORACLE CALL
         // let nonce = ORACLE::rand(); // ORACLE CALL (nonce not secure: would need to be better in production).
 
@@ -36,7 +44,7 @@ impl Note {
         //     The application panicked (crashed).
         //     Message:  unexpected constant expression
         //     Location: crates/noirc_evaluator/src/ssa/acir_gen/operations/intrinsics.rs:280
-        let randomness = rand(rand_idx + 1);
+        let randomness = rand();
         // let randomness = 4; // Chosen by fair dice roll
         let nonce = 3;      // Guaranteed to be random
 
@@ -72,5 +80,14 @@ impl Note {
         }
 
         dep::std::hash::pedersen([crate::Nullifier, note_hash, secret_key])[0]
+    }
+
+    fn validate(self, sender: Point){
+        if self.is_real {
+            constrain sender.x == self.owner.x;
+            constrain sender.y == self.owner.y;
+        } else {
+            constrain self.value == 0;
+        }
     }
 }

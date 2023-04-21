@@ -75,6 +75,7 @@ export class PublicExecution {
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,
+      viewNotesPage: notAvailable,
       storageRead: async ([slot]) => {
         const storageSlot = fromACVMField(slot);
         const value = await stateActions.read(storageSlot);

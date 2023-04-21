@@ -7,30 +7,51 @@ use crate::state_vars::note_getter_data::NoteGetterData;
 use crate::state_vars::note_getter_data::make_note_getter_data;
 use crate::state_vars::note_getter_data::note_getter_data_len;
 
-#[builtin(notifyCreatedNote)]
-fn notify_created_note(
+#[oracle(notifyCreatedNote)]
+fn notify_created_note_oracle(
     _storage_slot: Field,
     _owner: Point,
     _note: Note,
 ) -> Field {}
 
-#[builtin(notifyNullifiedNote)]
-fn notify_nullified_note(
+unconstrained fn notify_created_note(
+    storage_slot: Field,
+    owner: Point,
+    note: Note,
+) -> Field {
+    notify_created_note_oracle(storage_slot, owner, note)
+}
+
+#[oracle(notifyNullifiedNote)]
+fn notify_nullified_note_oracle(
     _storage_slot: Field,
     _nullifier: Field,
     _note: Note,
 ) -> Field {}
 
-#[builtin(getNotes2)]
-fn get_notes_2_internal(
-    _contract_address: Field,
-    _storage_slot: Field,
-) -> [Field; 32] {}
+unconstrained fn notify_nullified_note(
+    storage_slot: Field,
+    nullifier: Field,
+    note: Note,
+) -> Field {
+    notify_nullified_note_oracle(storage_slot, nullifier, note)
+}
 
-fn get_2_notes(contract_address: Field, storage_slot: Field) -> (NoteGetterData, NoteGetterData) {
-    let fields = get_notes_2_internal(contract_address, storage_slot);
-    let data1 = make_note_getter_data(fields, 0);
-    let data2 = make_note_getter_data(fields, note_getter_data_len());
+#[oracle(getNotes2)]
+fn get_notes_2_oracle(
+    _storage_slot: Field,
+) -> [Field; 33] {}
+
+unconstrained fn get_notes_2_internal(
+    storage_slot: Field,
+) -> [Field; 33] {
+    get_notes_2_oracle(storage_slot)
+}
+
+fn get_2_notes(storage_slot: Field) -> (NoteGetterData, NoteGetterData) {
+    let fields = get_notes_2_internal(storage_slot);
+    let data1 = make_note_getter_data(fields, 1);
+    let data2 = make_note_getter_data(fields, 1 + note_getter_data_len());
     (data1, data2)
 }
 
@@ -55,7 +76,6 @@ impl Set {
 
     // The `2` in the name is the number of notes returned
     fn get_2(self, inputs: Inputs, mut outputs: Outputs) -> (Outputs, (Note, Note)) {
-        let contract_address = inputs.call_context.storage_contract_address;
         let storage_slot = self.storage_slot;
 
         // let note_getter_data: [NoteGetterData; 2] = ORACLE::get_2_notes(contract_address, storage_slot);
@@ -63,7 +83,7 @@ impl Set {
         //     NoteGetterData { note: Note::dummy(), leaf_index: 0, sibling_path: [1, 2, 3, 4, 5], root: 1 },
         //     NoteGetterData { note: Note::dummy(), leaf_index: 1, sibling_path: [1, 2, 3, 4, 5], root: 1 },
         // );
-        let note_getter_data = get_2_notes(contract_address, storage_slot);
+        let note_getter_data = get_2_notes(storage_slot);
 
         // Forwarded vars added due to https://github.com/noir-lang/noir/issues/1088
         // let process_data = |data, storage_slot_forwarded, contract_address_forwarded| {

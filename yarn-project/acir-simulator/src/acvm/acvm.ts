@@ -8,14 +8,15 @@ export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
 export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
 
 export interface ACIRCallback {
-  getSecretKey(params: ACVMField[]): Promise<ACVMField[]>;
+  getSecretKey(params: ACVMField[]): Promise<[ACVMField]>;
   getNotes2(params: ACVMField[]): Promise<ACVMField[]>;
-  getRandomField(): Promise<ACVMField[]>;
-  notifyCreatedNote(params: ACVMField[]): Promise<ACVMField[]>;
-  notifyNullifiedNote(params: ACVMField[]): Promise<ACVMField[]>;
+  getRandomField(): Promise<[ACVMField]>;
+  notifyCreatedNote(params: ACVMField[]): Promise<[ACVMField]>;
+  notifyNullifiedNote(params: ACVMField[]): Promise<[ACVMField]>;
   callPrivateFunction(params: ACVMField[]): Promise<ACVMField[]>;
-  storageRead(params: ACVMField[]): Promise<ACVMField[]>;
-  storageWrite(params: ACVMField[]): Promise<ACVMField[]>;
+  storageRead(params: ACVMField[]): Promise<[ACVMField]>;
+  storageWrite(params: ACVMField[]): Promise<[ACVMField]>;
+  viewNotesPage(params: ACVMField[]): Promise<ACVMField[]>;
 }
 
 export interface ACIRExecutionResult {

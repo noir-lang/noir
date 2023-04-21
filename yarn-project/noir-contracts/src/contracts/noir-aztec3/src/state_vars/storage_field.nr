@@ -1,13 +1,13 @@
 use crate::notes::value_note::Note;
 use crate::types::point::Point;
 
-#[builtin(storageRead)]
-fn storage_read(
+#[oracle(storageRead)]
+fn storage_read_oracle(
     _storage_slot: Field,
 ) -> Field {}
 
-#[builtin(storageWrite)]
-fn storage_write(
+#[oracle(storageWrite)]
+fn storage_write_oracle(
     _storage_slot: Field,
     _value: Field,
 ) -> Field {}
@@ -21,11 +21,11 @@ impl StorageField {
         StorageField { storage_slot }
     }
 
-    fn read(self) -> Field {
-        storage_read(self.storage_slot)
+    unconstrained fn read(self) -> Field {
+        storage_read_oracle(self.storage_slot)
     }
 
-    fn write(self, value: Field) -> Field {
-        storage_write(self.storage_slot, value)
+    unconstrained fn write(self, value: Field) -> Field {
+        storage_write_oracle(self.storage_slot, value)
     }
 }

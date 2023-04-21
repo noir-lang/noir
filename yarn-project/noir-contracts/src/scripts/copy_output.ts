@@ -2,31 +2,38 @@ import { readFileSync, writeFileSync } from 'fs';
 import camelCase from 'lodash.camelcase';
 import snakeCase from 'lodash.snakecase';
 import upperFirst from 'lodash.upperfirst';
+import mockedKeys from './mockedKeys.json' assert { type: 'json' };
 
-function getFunction(params: any, fn: any) {
+function getFunction(params: any, returns: any, fn: any) {
   if (!params) throw new Error(`ABI comment not found for function ${fn.name}`);
   return {
     name: fn.name,
-    functionType: fn.func_type,
+    functionType: fn.function_type,
     parameters: params,
-    returnTypes: [],
-    bytecode: Buffer.from(fn.function.circuit).toString('hex'),
+    returnTypes: returns,
+    bytecode: Buffer.from(fn.bytecode).toString('hex'),
+    // verificationKey: Buffer.from(fn.verification_key).toString('hex'),
+    verificationKey: mockedKeys.verificationKey,
   };
 }
 
 function getFunctions(source: string, output: any) {
-  const abis = Array.from(source.matchAll(/\/\/\/ ABI (\w+) (.+)/g)).map(match => ({
-    name: match[1],
-    params: JSON.parse(match[2]),
+  const abis = Array.from(source.matchAll(/\/\/\/ ABI (\w+) (params|return) (.+)/g)).map(match => ({
+    functionName: match[1],
+    abiType: match[2],
+    interface: JSON.parse(match[3]),
   }));
 
-  return Object.keys(output.functions).map((name: string) =>
-    getFunction(abis.find(abi => abi.name === name)?.params, { ...output.functions[name], name: name }),
-  );
-}
-
-function getVerificationKey(folder: string, contractName: string, functionName: string) {
-  return readFileSync(`${folder}/target/main-${contractName}-${functionName}.vk`).toString();
+  return output.functions
+    .sort((fnA: any, fnB: any) => fnA.name.localeCompare(fnB.name))
+    .map((fn: any) => {
+      delete fn.proving_key;
+      return getFunction(
+        abis.find(abi => abi.functionName === fn.name && abi.abiType === 'params')?.interface || [],
+        abis.find(abi => abi.functionName === fn.name && abi.abiType === 'return')?.interface || [],
+        fn,
+      );
+    });
 }
 
 function main() {
@@ -41,14 +48,11 @@ function main() {
 
   const abi = {
     name: build.name,
-    functions: getFunctions(source, build).map(fn => ({
-      ...fn,
-      verificationKey: getVerificationKey(folder, contractName, fn.name),
-    })),
+    functions: getFunctions(source, build),
   };
 
   const exampleFile = `${examples}/${snakeCase(name)}_contract.json`;
-  writeFileSync(exampleFile, JSON.stringify(abi, null, 2));
+  writeFileSync(exampleFile, JSON.stringify(abi, null, 2) + '\n');
   console.log(`Written ${exampleFile}`);
 }
 

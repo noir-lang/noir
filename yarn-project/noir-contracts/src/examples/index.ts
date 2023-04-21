@@ -1,6 +1,13 @@
 // TODO the verification keys in this contracts are mocked ATM
-export { default as TestContractAbi } from './test_contract.json';
-export { default as ZkTokenContractAbi } from './zk_token_contract.json';
-export { default as ParentAbi } from './parent.json';
-export { default as ChildAbi } from './child.json';
-export { default as PublicTokenContractAbi } from './public_token_contract.json';
+import TestContractJson from './test_contract.json';
+import ZkTokenContractJson from './zk_token_contract.json';
+import ParentJson from './parent_contract.json';
+import ChildJson from './child_contract.json';
+import PublicTokenContractJson from './public_token_contract.json';
+import { ContractAbi } from '../abi.js';
+
+export const TestContractAbi = TestContractJson as ContractAbi;
+export const ZkTokenContractAbi = ZkTokenContractJson as ContractAbi;
+export const ParentAbi = ParentJson as ContractAbi;
+export const ChildAbi = ChildJson as ContractAbi;
+export const PublicTokenContractAbi = PublicTokenContractJson as ContractAbi;

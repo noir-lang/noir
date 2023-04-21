@@ -9,7 +9,12 @@ export interface NoteLoadOracleInputs {
 
 export interface DBOracle {
   getSecretKey(contractAddress: AztecAddress, address: AztecAddress): Promise<Buffer>;
-  getNotes(contractAddress: AztecAddress, storageSlot: Fr, count: number): Promise<NoteLoadOracleInputs[]>;
+  getNotes(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    limit: number,
+    offset: number,
+  ): Promise<{ count: number; notes: NoteLoadOracleInputs[] }>;
   getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 }
