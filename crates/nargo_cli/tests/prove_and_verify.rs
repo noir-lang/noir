@@ -57,7 +57,7 @@ mod tests {
         let test_data_dir = manifest_dir.join("tests").join("test_data");
         let config_path = test_data_dir.join("config.toml");
 
-        //load config.tml file from test_data directory
+        // Load config.toml file from `test_data` directory
         let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
 
         // Copy all the test cases into a temp dir so we don't leave artifacts around.
