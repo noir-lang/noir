@@ -339,7 +339,7 @@ PrivateInputs<NT> do_private_call_get_kernel_inputs(bool const is_constructor,
     mock_previous_kernel.public_inputs.end.private_call_stack = initial_kernel_private_call_stack;
     mock_previous_kernel.public_inputs.constants = CombinedConstantData<NT>{
         .historic_tree_roots =
-            CombinedHistoricTreeRoots<NT> {
+            CombinedHistoricTreeRoots<NT>{
                 .private_historic_tree_roots =
                     PrivateHistoricTreeRoots<NT>{
                         .private_data_tree_root = private_circuit_public_inputs.historic_private_data_tree_root,

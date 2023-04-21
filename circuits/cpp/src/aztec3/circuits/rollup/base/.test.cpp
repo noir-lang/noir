@@ -693,7 +693,8 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data)
         .root = tree.root(),
         .next_available_leaf_index = 0,
     };
-    inputs.kernel_data[0].public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root = fr(0);
+    inputs.kernel_data[0]
+        .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root = fr(0);
 
     // fetch sibling path from hash path (only get the second half of the hash path)
     auto hash_path = tree.get_hash_path(0);

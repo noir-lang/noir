@@ -4,6 +4,7 @@ import { CircuitsWasm } from '../wasm/index.js';
 import {
   FunctionData,
   FUNCTION_SELECTOR_NUM_BYTES,
+  ARGS_LENGTH,
   TxRequest,
   NewContractData,
   FunctionLeafPreimage,
@@ -108,7 +109,13 @@ export async function hashConstructor(
   args: Fr[],
   constructorVKHash: Buffer,
 ) {
-  const inputVector = serializeToBuffer(args.map(fr => fr.toBuffer()));
+  if (args.length > ARGS_LENGTH) {
+    throw new Error(`Expected constructor args to have length <= ${ARGS_LENGTH}! Was: ${args.length}`);
+  }
+  const numEmptyArgs = ARGS_LENGTH - args.length;
+  const emptyArgs = Array.from({ length: numEmptyArgs }, () => new Fr(0n));
+  const fullArgs = args.concat(emptyArgs);
+  const inputVector = serializeToBuffer(fullArgs.map(fr => fr.toBuffer()));
   wasm.call('pedersen__init');
   const result = await inputBuffersToOutputBuffer(
     wasm,

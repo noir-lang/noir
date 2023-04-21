@@ -27,7 +27,8 @@ template <typename NCT> struct PrivateHistoricTreeRoots {
                private_kernel_vk_tree_root == other.private_kernel_vk_tree_root;
     };
 
-    template <typename Composer> PrivateHistoricTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer>
+    PrivateHistoricTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
@@ -90,7 +91,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateHistoricTre
     write(buf, historic_tree_roots.private_kernel_vk_tree_root);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateHistoricTreeRoots<NCT> const& historic_tree_roots)
+template <typename NCT>
+std::ostream& operator<<(std::ostream& os, PrivateHistoricTreeRoots<NCT> const& historic_tree_roots)
 {
     return os << "private_data_tree_root: " << historic_tree_roots.private_data_tree_root << "\n"
               << "nullifier_tree_root: " << historic_tree_roots.nullifier_tree_root << "\n"

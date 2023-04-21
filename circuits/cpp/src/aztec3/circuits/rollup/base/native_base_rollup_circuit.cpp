@@ -201,8 +201,9 @@ void perform_historical_private_data_tree_membership_checks(DummyComposer& compo
     auto historic_root = baseRollupInputs.constants.start_tree_of_historic_private_data_tree_roots_snapshot.root;
 
     for (size_t i = 0; i < 2; i++) {
-        NT::fr leaf = baseRollupInputs.kernel_data[i]
-                          .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root;
+        NT::fr leaf =
+            baseRollupInputs.kernel_data[i]
+                .public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root;
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 

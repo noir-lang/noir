@@ -25,7 +25,8 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
                public_data_tree_root == other.public_data_tree_root;
     };
 
-    template <typename Composer> CombinedHistoricTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
+    template <typename Composer>
+    CombinedHistoricTreeRoots<CircuitTypes<Composer>> to_circuit_type(Composer& composer) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
@@ -80,7 +81,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedHistoricTr
     write(buf, historic_tree_roots.public_data_tree_root);
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
+template <typename NCT>
+std::ostream& operator<<(std::ostream& os, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
 {
     return os << "private_historic_tree_roots: " << historic_tree_roots.private_historic_tree_roots << "\n"
               << "public_data_tree_root: " << historic_tree_roots.public_data_tree_root << "\n";
