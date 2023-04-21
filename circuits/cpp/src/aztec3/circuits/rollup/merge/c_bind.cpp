@@ -1,6 +1,5 @@
 #include "aztec3/utils/dummy_composer.hpp"
 #include "index.hpp"
-#include "init.hpp"
 #include "c_bind.h"
 
 namespace {
@@ -8,7 +7,7 @@ using NT = aztec3::utils::types::NativeTypes;
 using DummyComposer = aztec3::utils::DummyComposer;
 using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::MergeRollupInputs;
-using aztec3::circuits::rollup::native_merge_rollup::merge_rollup_circuit;
+using aztec3::circuits::rollup::merge::merge_rollup_circuit;
 
 } // namespace
 #define WASM_EXPORT __attribute__((visibility("default")))

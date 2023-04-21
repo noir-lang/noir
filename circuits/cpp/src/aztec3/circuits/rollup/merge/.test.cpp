@@ -2,18 +2,11 @@
 #include <gtest/gtest.h>
 #include "aztec3/circuits/rollup/merge/init.hpp"
 #include "aztec3/circuits/rollup/merge/utils.hpp"
+#include "aztec3/circuits/rollup/merge/native_merge_rollup_circuit.hpp"
+#include "aztec3/utils/dummy_composer.hpp"
 #include "c_bind.h"
 
-namespace {
-using aztec3::circuits::rollup::merge::utils::dummy_merge_rollup_inputs;
-using aztec3::circuits::rollup::native_merge_rollup::BaseOrMergeRollupPublicInputs;
-using aztec3::circuits::rollup::native_merge_rollup::merge_rollup_circuit;
-using aztec3::circuits::rollup::native_merge_rollup::MergeRollupInputs;
-using aztec3::circuits::rollup::native_merge_rollup::NT;
-using DummyComposer = aztec3::utils::DummyComposer;
-
-} // namespace
-namespace aztec3::circuits::rollup::merge::native_merge_rollup_circuit {
+namespace aztec3::circuits::rollup::merge {
 
 class merge_rollup_tests : public ::testing::Test {
   protected:
@@ -235,4 +228,4 @@ TEST_F(merge_rollup_tests, native_merge_cbind)
     BaseOrMergeRollupPublicInputs ignored_public_inputs;
     run_cbind(inputs, ignored_public_inputs, false);
 }
-} // namespace aztec3::circuits::rollup::merge::native_merge_rollup_circuit
+} // namespace aztec3::circuits::rollup::merge
