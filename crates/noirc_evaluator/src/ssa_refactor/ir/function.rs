@@ -1,11 +1,9 @@
-use super::basic_block::{BasicBlock, BasicBlockId};
+use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::instruction::Instruction;
-use super::map::{DenseMap, Id, SecondaryMap};
+use super::map::{Id, SecondaryMap};
 use super::types::Type;
-use super::value::Value;
 
-use iter_extended::vecmap;
 use noirc_errors::Location;
 
 /// A function holds a list of instructions.
@@ -16,35 +14,23 @@ use noirc_errors::Location;
 /// into the current function's context.
 #[derive(Debug)]
 pub(crate) struct Function {
-    /// Basic blocks associated to this particular function
-    basic_blocks: DenseMap<BasicBlock>,
-
     /// Maps instructions to source locations
     source_locations: SecondaryMap<Instruction, Location>,
 
     /// The first basic block in the function
     entry_block: BasicBlockId,
 
-    dfg: DataFlowGraph,
+    pub(crate) dfg: DataFlowGraph,
 }
 
 impl Function {
-    pub(crate) fn new(parameter_count: usize) -> Self {
+    /// Creates a new function with an automatically inserted entry block.
+    ///
+    /// Note that any parameters to the function must be manually added later.
+    pub(crate) fn new() -> Self {
         let mut dfg = DataFlowGraph::default();
-        let mut basic_blocks = DenseMap::default();
-
-        // The parameters for each function are stored as the block parameters
-        // of the function's entry block
-        let entry_block = basic_blocks.insert_with_id(|entry_block| {
-            // TODO: Give each parameter its correct type
-            let parameters = vecmap(0..parameter_count, |i| {
-                dfg.make_value(Value::Param { block: entry_block, position: i, typ: Type::Unit })
-            });
-
-            BasicBlock::new(parameters)
-        });
-
-        Self { basic_blocks, source_locations: SecondaryMap::new(), entry_block, dfg }
+        let entry_block = dfg.new_block();
+        Self { source_locations: SecondaryMap::new(), entry_block, dfg }
     }
 
     pub(crate) fn entry_block(&self) -> BasicBlockId {

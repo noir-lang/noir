@@ -14,16 +14,14 @@ pub(crate) fn generate_ssa(program: Program) {
     let builder_context = SharedBuilderContext::default();
 
     let main = context.program.main();
-    // TODO struct parameter counting
-    let parameter_count = main.parameters.len();
 
-    let mut function_context = FunctionContext::new(parameter_count, &context, &builder_context);
+    let mut function_context = FunctionContext::new(&main.parameters, &context, &builder_context);
     function_context.codegen_expression(&main.body);
 
     while let Some((src_function_id, _new_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
         // TODO: Need to ensure/assert the new function's id == new_id
-        function_context.new_function(function.parameters.iter().map(|(id, ..)| *id));
+        function_context.new_function(&function.parameters);
         function_context.codegen_expression(&function.body);
     }
 }

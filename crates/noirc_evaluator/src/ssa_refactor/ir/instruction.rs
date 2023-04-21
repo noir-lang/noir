@@ -129,10 +129,20 @@ pub(crate) enum TerminatorInstruction {
         else_destination: BasicBlockId,
         arguments: Vec<ValueId>,
     },
+
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`
     Jmp { destination: BasicBlockId, arguments: Vec<ValueId> },
+
+    /// Return from the current function with the given return values.
+    ///
+    /// All finished functions should have exactly 1 return instruction.
+    /// Functions with early returns should instead be structured to
+    /// unconditionally jump to a single exit block with the return values
+    /// as the block arguments. Then the exit block can terminate in a return
+    /// instruction returning these values.
+    Return { return_values: Vec<ValueId> },
 }
 
 /// A binary instruction in the IR.

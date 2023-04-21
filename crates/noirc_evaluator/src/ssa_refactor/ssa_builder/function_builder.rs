@@ -1,6 +1,8 @@
 use crate::ssa_refactor::ir::{
     basic_block::BasicBlockId,
     function::{Function, FunctionId},
+    types::Type,
+    value::ValueId,
 };
 
 use super::SharedBuilderContext;
@@ -24,8 +26,8 @@ pub(crate) struct FunctionBuilder<'ssa> {
 }
 
 impl<'ssa> FunctionBuilder<'ssa> {
-    pub(crate) fn new(parameters: usize, context: &'ssa SharedBuilderContext) -> Self {
-        let new_function = Function::new(parameters);
+    pub(crate) fn new(context: &'ssa SharedBuilderContext) -> Self {
+        let new_function = Function::new();
         let current_block = new_function.entry_block();
 
         Self {
@@ -38,17 +40,21 @@ impl<'ssa> FunctionBuilder<'ssa> {
     }
 
     /// Finish the current function and create a new function
-    pub(crate) fn new_function(&mut self, parameters: usize) {
-        let new_function = Function::new(parameters);
+    pub(crate) fn new_function(&mut self) {
+        let new_function = Function::new();
         let old_function = std::mem::replace(&mut self.current_function, new_function);
 
         self.finished_functions.push((self.current_function_id, old_function));
-
         self.current_function_id = self.global_context.next_function();
     }
 
     pub(crate) fn finish(mut self) -> Vec<(FunctionId, Function)> {
         self.finished_functions.push((self.current_function_id, self.current_function));
         self.finished_functions
+    }
+
+    pub(crate) fn add_parameter(&mut self, typ: Type) -> ValueId {
+        let entry = self.current_function.entry_block();
+        self.current_function.dfg.add_block_parameter(entry, typ)
     }
 }

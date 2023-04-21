@@ -18,6 +18,27 @@ pub(crate) enum NumericType {
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
+
+    /// A reference to some value, such as an array
+    Reference,
+
+    /// A function that may be called directly
+    Function,
+
     /// The Unit type with a single value
     Unit,
+}
+
+impl Type {
+    pub(crate) fn signed(bit_size: u32) -> Type {
+        Type::Numeric(NumericType::Signed { bit_size })
+    }
+
+    pub(crate) fn unsigned(bit_size: u32) -> Type {
+        Type::Numeric(NumericType::Unsigned { bit_size })
+    }
+
+    pub(crate) fn field() -> Type {
+        Type::Numeric(NumericType::NativeField)
+    }
 }
