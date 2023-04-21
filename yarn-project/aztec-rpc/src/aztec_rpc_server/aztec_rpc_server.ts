@@ -207,7 +207,7 @@ export class AztecRPCServer implements AztecRPCClient {
     const executionResult = await accountState.simulate(txRequest);
 
     // TODO - Return typed result based on the function abi.
-    return executionResult.preimages;
+    return executionResult.returnValues;
   }
 
   /**

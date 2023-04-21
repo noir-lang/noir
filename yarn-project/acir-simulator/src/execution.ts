@@ -22,6 +22,7 @@ import { DBOracle } from './db_oracle.js';
 import { extractPublicInputs, frToAztecAddress, frToNumber, frToSelector } from './acvm/deserialize.js';
 import { FunctionAbi } from '@aztec/noir-contracts';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { decodeReturnValues } from './abi_coder/decoder.js';
 
 export interface NewNoteData {
   preimage: Fr[];
@@ -49,6 +50,7 @@ export interface ExecutionResult {
   callStackItem: PrivateCallStackItem;
   // Needed for the user
   preimages: ExecutionPreimages;
+  returnValues: any[];
   // Nested executions
   nestedExecutions: this[];
 }
@@ -138,10 +140,13 @@ export class Execution {
 
     const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
 
+    const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
+
     return {
       acir,
       partialWitness,
       callStackItem,
+      returnValues,
       preimages: {
         newNotes: newNotePreimages,
         nullifiedNotes: newNullifiers,

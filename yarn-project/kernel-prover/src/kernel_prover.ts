@@ -59,7 +59,7 @@ export class KernelProver {
 
       const currentExecution = executionStack.pop()!;
       executionStack.push(...currentExecution.nestedExecutions);
-      const privateCallStackPreimages = executionStack.map(result => result.callStackItem);
+      const privateCallStackPreimages = currentExecution.nestedExecutions.map(result => result.callStackItem);
       if (privateCallStackPreimages.length > PRIVATE_CALL_STACK_LENGTH) {
         throw new Error(
           `Too many items in the call stack. Maximum amount is ${PRIVATE_CALL_STACK_LENGTH}. Got ${privateCallStackPreimages.length}.`,
