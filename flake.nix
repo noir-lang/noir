@@ -83,7 +83,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
 
         # We provide `barretenberg-transcript00` from the overlay to the build.
-        # This is necessary because the Nix sandbox is read-only and downloading during tests would fail
+        # This is necessary because the Nix sandbox disables the $HOME so downloading during tests would fail
         BARRETENBERG_TRANSCRIPT = pkgs.barretenberg-transcript00;
       };
 
