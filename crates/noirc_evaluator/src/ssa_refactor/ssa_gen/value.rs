@@ -7,7 +7,6 @@ pub(super) enum Value {
     Function(IrFunctionId),
     Tuple(Vec<Value>),
 
-    // MutableVariable(Variable, Type),
     /// Lazily inserting unit values helps prevent cluttering the IR with too many
     /// unit literals.
     Unit,
