@@ -226,8 +226,12 @@ impl Program {
         Program { functions, main_function_signature }
     }
 
-    pub fn main(&mut self) -> &mut Function {
-        &mut self.functions[0]
+    pub fn main(&self) -> &Function {
+        &self[Self::main_id()]
+    }
+
+    pub fn main_mut(&mut self) -> &mut Function {
+        &mut self[Self::main_id()]
     }
 
     pub fn main_id() -> FuncId {
