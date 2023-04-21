@@ -1,5 +1,6 @@
 #pragma once
 
+#include "aztec3/utils/circuit_errors.hpp"
 #include "init.hpp"
 
 using aztec3::circuits::check_membership;

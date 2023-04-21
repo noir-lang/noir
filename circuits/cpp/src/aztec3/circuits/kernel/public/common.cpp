@@ -38,7 +38,8 @@ void validate_this_public_call_hash(DummyComposer& composer, PublicKernelInputs<
 
     composer.do_assert(
         popped_public_call_hash == calculated_this_public_call_hash,
-        "calculated public_call_hash does not match provided public_call_hash at the top of the call stack");
+        "calculated public_call_hash does not match provided public_call_hash at the top of the call stack",
+        CircuitErrorCode::PUBLIC_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
 };
 
 } // namespace aztec3::circuits::kernel::public_kernel

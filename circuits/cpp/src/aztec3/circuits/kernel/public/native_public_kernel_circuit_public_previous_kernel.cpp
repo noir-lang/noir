@@ -10,15 +10,20 @@
 #include "aztec3/constants.hpp"
 
 namespace {
+using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
+
 void validate_inputs(DummyComposer& composer, PublicKernelInputs<NT> const& public_kernel_inputs)
 {
     const auto& this_call_stack_item = public_kernel_inputs.public_call.public_call_data.call_stack_item;
     composer.do_assert(array_length(this_call_stack_item.public_inputs.public_call_stack) > 0,
-                       "Public call stack can't be empty");
+                       "Public call stack can't be empty", 
+                       CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);
     composer.do_assert(public_kernel_inputs.previous_kernel.public_inputs.end.public_call_count > 0,
-                       "Public call count can't be zero");
+                       "Public call count can't be zero", 
+                       CircuitErrorCode::PUBLIC_KERNEL__ZERO_PUBLIC_CALL_COUNT);
     composer.do_assert(public_kernel_inputs.previous_kernel.public_inputs.is_private == false,
-                       "Previous kernel must be public");
+                       "Previous kernel must be public", 
+                       CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PUBLIC);
 }
 } // namespace
 

@@ -35,19 +35,27 @@ export class RollupWasmWrapper {
     // Allocate memory for the input buffer and the pointer to the pointer to the output buffer
     const inputBufPtr = wasm.call('bbmalloc', inputBuf.length);
     wasm.writeMemory(inputBufPtr, inputBuf);
+    const outputBufSizePtr = wasm.call('bbmalloc', 4);
     const outputBufPtrPtr = wasm.call('bbmalloc', 4);
 
     // Run and read outputs
-    const outputBufSize = await wasm.asyncCall(method, inputBufPtr, outputBufPtrPtr);
-    const outputBufPtr = uint8ArrayToNum(wasm.getMemorySlice(outputBufPtrPtr, outputBufPtrPtr + 4));
-    const outputBuf = Buffer.from(wasm.getMemorySlice(outputBufPtr, outputBufPtr + outputBufSize));
-    const output = outputType.fromBuffer(outputBuf);
+    const circuitFailureBufPtr = await wasm.asyncCall(method, inputBufPtr, outputBufSizePtr, outputBufPtrPtr);
+    if (circuitFailureBufPtr == 0) {
+      // C++ returned a null pointer i.e. circuit didn't have an error
+      const outputBufSize = uint8ArrayToNum(wasm.getMemorySlice(outputBufSizePtr, outputBufSizePtr + 4));
+      console.log('outputBufSize: ' + outputBufSize);
+      const outputBufPtr = uint8ArrayToNum(wasm.getMemorySlice(outputBufPtrPtr, outputBufPtrPtr + 4));
+      const outputBuf = Buffer.from(wasm.getMemorySlice(outputBufPtr, outputBufPtr + outputBufSize));
+      const output = outputType.fromBuffer(outputBuf);
 
-    // Free memory
-    wasm.call('bbfree', outputBufPtr);
-    wasm.call('bbfree', outputBufPtrPtr);
-    wasm.call('bbfree', inputBufPtr);
+      // Free memory
+      wasm.call('bbfree', outputBufPtr);
+      wasm.call('bbfree', outputBufPtrPtr);
+      wasm.call('bbfree', inputBufPtr);
 
-    return output;
+      return output;
+    } else {
+      return Promise.reject('Circuit failed');
+    }
   }
 }

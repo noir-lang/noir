@@ -1,4 +1,5 @@
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
@@ -118,7 +119,9 @@ NT::fr calculate_commitments_subtree(DummyComposer& composer, BaseRollupInputs c
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
 
         // Our commitments size MUST be 4 to calculate our subtrees correctly
-        composer.do_assert(new_commitments.size() == 4, "New commitments in kernel data must be 4");
+        composer.do_assert(new_commitments.size() == 4,
+                           "New commitments in kernel data must be 4",
+                           CircuitErrorCode::BASE__INCORRECT_NUM_OF_NEW_COMMITMENTS);
 
         for (size_t j = 0; j < new_commitments.size(); j++) {
             // todo: batch insert
@@ -339,7 +342,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
                     }
 
                     // if not matched, our subtree will misformed - we must reject
-                    composer.do_assert(matched, "Nullifier subtree is malformed");
+                    composer.do_assert(
+                        matched, "Nullifier subtree is malformed", CircuitErrorCode::BASE__INVALID_NULLIFIER_SUBTREE);
 
                 } else {
                     auto is_less_than_nullifier = uint256_t(low_nullifier_preimage.leaf_value) < uint256_t(nullifier);
@@ -347,7 +351,9 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyC
 
                     if (!(is_less_than_nullifier && is_next_greater_than)) {
                         if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
-                            composer.do_assert(false, "Nullifier is not in the correct range");
+                            composer.do_assert(false,
+                                               "Nullifier is not in the correct range",
+                                               CircuitErrorCode::BASE__INVALID_NULLIFIER_RANGE);
                         }
                     }
 
@@ -423,7 +429,9 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyComposer& composer, BaseR
     // Verify the previous kernel proofs
     for (size_t i = 0; i < 2; i++) {
         NT::Proof proof = baseRollupInputs.kernel_data[i].proof;
-        composer.do_assert(verify_kernel_proof(proof), "kernel proof verification failed");
+        composer.do_assert(verify_kernel_proof(proof),
+                           "kernel proof verification failed",
+                           CircuitErrorCode::BASE__KERNEL_PROOF_VERIFICATION_FAILED);
     }
 
     // First we compute the contract tree leaves

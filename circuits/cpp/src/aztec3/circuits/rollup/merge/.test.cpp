@@ -38,7 +38,11 @@ class merge_rollup_tests : public ::testing::Test {
 
         uint8_t const* public_inputs_buf;
         // info("simulating circuit via cbind");
-        size_t public_inputs_size = merge_rollup__sim(merge_rollup_inputs_vec.data(), &public_inputs_buf);
+        size_t public_inputs_size;
+        info("creating proof");
+        auto circuit_failure_ptr =
+            merge_rollup__sim(merge_rollup_inputs_vec.data(), &public_inputs_size, &public_inputs_buf);
+        ASSERT_TRUE(circuit_failure_ptr == nullptr);
         // info("PublicInputs size: ", public_inputs_size);
 
         if (compare_pubins) {
@@ -77,7 +81,7 @@ TEST_F(merge_rollup_tests, native_different_rollup_type_fails)
     mergeInput.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type = 1;
     merge_rollup_circuit(composer, mergeInput);
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "input proofs are of different rollup types");
+    ASSERT_EQ(composer.get_first_failure().message, "input proofs are of different rollup types");
 }
 
 TEST_F(merge_rollup_tests, native_different_rollup_height_fails)
@@ -91,7 +95,7 @@ TEST_F(merge_rollup_tests, native_different_rollup_height_fails)
     mergeInput.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_subtree_height = 1;
     merge_rollup_circuit(composer, mergeInput);
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "input proofs are of different rollup heights");
+    ASSERT_EQ(composer.get_first_failure().message, "input proofs are of different rollup heights");
 }
 
 TEST_F(merge_rollup_tests, native_constants_different_failure)
@@ -105,7 +109,7 @@ TEST_F(merge_rollup_tests, native_constants_different_failure)
     inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.public_kernel_vk_tree_root = fr(0);
     merge_rollup_circuit(composer, inputs);
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "input proofs have different constants");
+    ASSERT_EQ(composer.get_first_failure().message, "input proofs have different constants");
 }
 
 TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
@@ -125,7 +129,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
 
     merge_rollup_circuit(composerA, inputA);
     ASSERT_TRUE(composerA.failed());
-    ASSERT_EQ(composerA.get_first_failure(), "input proofs have different private data tree snapshots");
+    ASSERT_EQ(composerA.get_first_failure().message, "input proofs have different private data tree snapshots");
 
     // do the same for nullifier tree
     DummyComposer composerB = DummyComposer();
@@ -139,7 +143,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
     };
     merge_rollup_circuit(composerB, inputB);
     ASSERT_TRUE(composerB.failed());
-    ASSERT_EQ(composerB.get_first_failure(), "input proofs have different nullifier tree snapshots");
+    ASSERT_EQ(composerB.get_first_failure().message, "input proofs have different nullifier tree snapshots");
 
     // do the same for contract tree
     DummyComposer composerC = DummyComposer();
@@ -152,7 +156,7 @@ TEST_F(merge_rollup_tests, native_fail_if_previous_rollups_dont_follow_on)
     };
     merge_rollup_circuit(composerC, inputC);
     ASSERT_TRUE(composerC.failed());
-    ASSERT_EQ(composerC.get_first_failure(), "input proofs have different contract tree snapshots");
+    ASSERT_EQ(composerC.get_first_failure().message, "input proofs have different contract tree snapshots");
 }
 
 TEST_F(merge_rollup_tests, native_rollup_fields_are_set_correctly)

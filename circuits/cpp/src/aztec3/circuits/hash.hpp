@@ -5,6 +5,7 @@
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
 #include <aztec3/circuits/abis/new_contract_data.hpp>
 #include <aztec3/constants.hpp>
+#include <aztec3/utils/circuit_errors.hpp>
 
 namespace aztec3::circuits {
 
@@ -158,7 +159,7 @@ void check_membership(Composer& composer,
                       std::string const& msg)
 {
     const auto calculated_root = root_from_sibling_path<NCT>(value, index, sibling_path);
-    composer.do_assert(calculated_root == root, std::string("Membership check failed: ") + msg);
+    composer.do_assert(calculated_root == root, std::string("Membership check failed: ") + msg, aztec3::utils::CircuitErrorCode::MEMBERSHIP_CHECK_FAILED);
 }
 
 /**

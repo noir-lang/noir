@@ -25,6 +25,7 @@ using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
 using aztec3::utils::push_array_to_array;
 using DummyComposer = aztec3::utils::DummyComposer;
+using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 
 using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
@@ -97,7 +98,8 @@ void contract_logic(DummyComposer& composer,
 
     if (is_contract_deployment) {
         composer.do_assert(contract_deployment_data.constructor_vk_hash == private_call_vk_hash,
-                           "constructor_vk_hash doesn't match private_call_vk_hash");
+                           "constructor_vk_hash doesn't match private_call_vk_hash",
+                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONSTRUCTOR_VK_HASH);
     }
 
     auto const new_contract_address = compute_contract_address<NT>(deployer_address,
@@ -108,11 +110,13 @@ void contract_logic(DummyComposer& composer,
     if (is_contract_deployment) {
         // must imply == derived address
         composer.do_assert(storage_contract_address == new_contract_address,
-                           "contract address supplied doesn't match derived address");
+                           "contract address supplied doesn't match derived address",
+                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
     } else {
         // non-contract deployments must specify contract address being interacted with
         composer.do_assert(storage_contract_address != 0,
-                           "contract address can't be 0 for non-contract deployment related transactions");
+                           "contract address can't be 0 for non-contract deployment related transactions",
+                           CircuitErrorCode::PRIVATE_KERNEL__INVALID_CONTRACT_ADDRESS);
     }
 
     // compute contract address nullifier
@@ -146,8 +150,10 @@ void contract_logic(DummyComposer& composer,
     auto const& previous_kernel_contract_tree_root =
         private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
             .contract_tree_root;
-    composer.do_assert(purported_contract_tree_root == previous_kernel_contract_tree_root,
-                       "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root");
+    composer.do_assert(
+        purported_contract_tree_root == previous_kernel_contract_tree_root,
+        "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root",
+        CircuitErrorCode::PRIVATE_KERNEL__PURPORTED_CONTRACT_TREE_ROOT_AND_PREVIOUS_KERNEL_CONTRACT_TREE_ROOT_MISMATCH);
 
     // The logic below ensures that the contract exists in the contracts tree
     if (!is_contract_deployment) {
@@ -166,8 +172,10 @@ void contract_logic(DummyComposer& composer,
             private_inputs.private_call.contract_leaf_membership_witness.leaf_index,
             private_inputs.private_call.contract_leaf_membership_witness.sibling_path);
 
-        composer.do_assert(computed_contract_tree_root == purported_contract_tree_root,
-                           "computed_contract_tree_root doesn't match purported_contract_tree_root");
+        composer.do_assert(
+            computed_contract_tree_root == purported_contract_tree_root,
+            "computed_contract_tree_root doesn't match purported_contract_tree_root",
+            CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
     }
 }
 
@@ -184,8 +192,12 @@ void update_end_values(DummyComposer& composer,
 
     if (is_static_call) {
         // No state changes are allowed for static calls:
-        composer.do_assert(is_array_empty(new_commitments) == true, "new_commitments must be empty for static calls");
-        composer.do_assert(is_array_empty(new_nullifiers) == true, "new_nullifiers must be empty for static calls");
+        composer.do_assert(is_array_empty(new_commitments) == true,
+                           "new_commitments must be empty for static calls",
+                           CircuitErrorCode::PRIVATE_KERNEL__NEW_COMMITMENTS_NOT_EMPTY_FOR_STATIC_CALL);
+        composer.do_assert(is_array_empty(new_nullifiers) == true,
+                           "new_nullifiers must be empty for static calls",
+                           CircuitErrorCode::PRIVATE_KERNEL__NEW_NULLIFIERS_NOT_EMPTY_FOR_STATIC_CALL);
     }
 
     const auto& storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -249,7 +261,8 @@ void validate_this_private_call_hash(DummyComposer& composer, PrivateInputs<NT> 
 
     composer.do_assert(
         popped_private_call_hash == calculated_this_private_call_hash,
-        "calculated private_call_hash does not match provided private_call_hash at the top of the call stack");
+        "calculated private_call_hash does not match provided private_call_hash at the top of the call stack",
+        CircuitErrorCode::PRIVATE_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
 };
 
 void validate_this_private_call_stack(DummyComposer& composer, PrivateInputs<NT> const& private_inputs)
@@ -264,7 +277,8 @@ void validate_this_private_call_stack(DummyComposer& composer, PrivateInputs<NT>
         // Assumes `hash == 0` means "this stack item is empty".
         const auto calculated_hash = hash == 0 ? 0 : preimage.hash();
         composer.do_assert(hash != calculated_hash,
-                           format("private_call_stack[", i, "] = ", hash, "; does not reconcile"));
+                           format("private_call_stack[", i, "] = ", hash, "; does not reconcile"),
+                           CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_ITEM_HASH_MISMATCH);
     }
 };
 
@@ -273,7 +287,8 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
     const auto& this_call_stack_item = private_inputs.private_call.call_stack_item;
 
     composer.do_assert(this_call_stack_item.function_data.is_private == true,
-                       "Cannot execute a non-private function with the private kernel circuit");
+                       "Cannot execute a non-private function with the private kernel circuit",
+                       CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_FUNCTION_EXECUTED_WITH_PRIVATE_KERNEL);
 
     const auto& start = private_inputs.previous_kernel.public_inputs.end;
 
@@ -291,23 +306,33 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
         // TODO: change to allow 3 initial calls on the private call stack, so a fee can be paid and a gas
         // rebate can be paid.
 
-        composer.do_assert(start_private_call_stack_length == 1, "Private call stack must be length 1");
+        composer.do_assert(start_private_call_stack_length == 1,
+                           "Private call stack must be length 1",
+                           CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_LENGTH_MISMATCH);
 
-        composer.do_assert(start_public_call_stack_length == 0, "Public call stack must be empty");
-        composer.do_assert(start_l1_msg_stack_length == 0, "L1 msg stack must be empty");
+        composer.do_assert(start_public_call_stack_length == 0,
+                           "Public call stack must be empty",
+                           CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
+        composer.do_assert(start_l1_msg_stack_length == 0,
+                           "L1 msg stack must be empty",
+                           CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
 
         composer.do_assert(this_call_stack_item.public_inputs.call_context.is_delegate_call == false,
-                           "Users cannot make a delegatecall");
+                           "Users cannot make a delegatecall",
+                           CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
         composer.do_assert(this_call_stack_item.public_inputs.call_context.is_static_call == false,
-                           "Users cannot make a static call");
+                           "Users cannot make a static call",
+                           CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
 
         // The below also prevents delegatecall/staticcall in the base case
         composer.do_assert(this_call_stack_item.public_inputs.call_context.storage_contract_address ==
                                this_call_stack_item.contract_address,
-                           "Storage contract address must be that of the called contract");
+                           "Storage contract address must be that of the called contract",
+                           CircuitErrorCode::PRIVATE_KERNEL__CONTRACT_ADDRESS_MISMATCH);
 
         composer.do_assert(private_inputs.previous_kernel.vk->contains_recursive_proof == false,
-                           "Mock kernel proof must not contain a recursive proof");
+                           "Mock kernel proof must not contain a recursive proof",
+                           CircuitErrorCode::PRIVATE_KERNEL__KERNEL_PROOF_CONTAINS_RECURSIVE_PROOF);
 
         // TODO: Assert that the previous kernel data is empty. (Or rather, the verify_proof() function needs a valid
         // dummy proof and vk to complete execution, so actually what we want is for that mockvk to be
@@ -316,11 +341,14 @@ void validate_inputs(DummyComposer& composer, PrivateInputs<NT> const& private_i
         // is_recursive_case
 
         composer.do_assert(private_inputs.previous_kernel.public_inputs.is_private == true,
-                           "Cannot verify a non-private kernel snark in the private kernel circuit");
+                           "Cannot verify a non-private kernel snark in the private kernel circuit",
+                           CircuitErrorCode::PRIVATE_KERNEL__NON_PRIVATE_KERNEL_VERIFIED_WITH_PRIVATE_KERNEL);
         composer.do_assert(this_call_stack_item.function_data.is_constructor == false,
-                           "A constructor must be executed as the first tx in the recursion");
+                           "A constructor must be executed as the first tx in the recursion",
+                           CircuitErrorCode::PRIVATE_KERNEL__CONSTRUCTOR_EXECUTED_IN_RECURSION);
         composer.do_assert(start_private_call_stack_length != 0,
-                           "Cannot execute private kernel circuit with an empty private call stack");
+                           "Cannot execute private kernel circuit with an empty private call stack",
+                           CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
     }
 }
 

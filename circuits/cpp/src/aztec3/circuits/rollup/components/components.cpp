@@ -1,5 +1,6 @@
 #include "aztec3/circuits/abis/rollup/base/base_or_merge_rollup_public_inputs.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
@@ -42,7 +43,9 @@ void assert_both_input_proofs_of_same_rollup_type(DummyComposer& composer,
                                                   BaseOrMergeRollupPublicInputs const& left,
                                                   BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.rollup_type == right.rollup_type, "input proofs are of different rollup types");
+    composer.do_assert(left.rollup_type == right.rollup_type,
+                       "input proofs are of different rollup types",
+                       utils::CircuitErrorCode::ROLLUP_TYPE_MISMATCH);
 }
 
 /**
@@ -57,7 +60,8 @@ NT::fr assert_both_input_proofs_of_same_height_and_return(DummyComposer& compose
                                                           BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.rollup_subtree_height == right.rollup_subtree_height,
-                       "input proofs are of different rollup heights");
+                       "input proofs are of different rollup heights",
+                       utils::CircuitErrorCode::ROLLUP_HEIGHT_MISMATCH);
     return left.rollup_subtree_height;
 }
 
@@ -71,7 +75,9 @@ void assert_equal_constants(DummyComposer& composer,
                             BaseOrMergeRollupPublicInputs const& left,
                             BaseOrMergeRollupPublicInputs const& right)
 {
-    composer.do_assert(left.constants == right.constants, "input proofs have different constants");
+    composer.do_assert(left.constants == right.constants,
+                       "input proofs have different constants",
+                       utils::CircuitErrorCode::CONSTANTS_MISMATCH);
 }
 
 // Generates a 512 bit input from right and left 256 bit hashes. Then computes the sha256, and splits the hash into two
@@ -118,11 +124,14 @@ void assert_prev_rollups_follow_on_from_each_other(DummyComposer& composer,
                                                    BaseOrMergeRollupPublicInputs const& right)
 {
     composer.do_assert(left.end_private_data_tree_snapshot == right.start_private_data_tree_snapshot,
-                       "input proofs have different private data tree snapshots");
+                       "input proofs have different private data tree snapshots",
+                       utils::CircuitErrorCode::PRIVATE_DATA_TREE_SNAPSHOT_MISMATCH);
     composer.do_assert(left.end_nullifier_tree_snapshot == right.start_nullifier_tree_snapshot,
-                       "input proofs have different nullifier tree snapshots");
+                       "input proofs have different nullifier tree snapshots",
+                       utils::CircuitErrorCode::NULLIFIER_TREE_SNAPSHOT_MISMATCH);
     composer.do_assert(left.end_contract_tree_snapshot == right.start_contract_tree_snapshot,
-                       "input proofs have different contract tree snapshots");
+                       "input proofs have different contract tree snapshots",
+                       utils::CircuitErrorCode::CONTRACT_TREE_SNAPSHOT_MISMATCH);
 }
 
 } // namespace aztec3::circuits::rollup::components

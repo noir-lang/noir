@@ -564,7 +564,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_double_spend)
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, testing_inputs);
 
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "Nullifier is not in the correct range");
+    ASSERT_EQ(composer.get_first_failure().message, "Nullifier is not in the correct range");
 }
 
 TEST_F(base_rollup_tests, native_empty_block_calldata_hash)
@@ -691,7 +691,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "Membership check failed: historic private data tree roots 0");
+    ASSERT_EQ(composer.get_first_failure().message, "Membership check failed: historic private data tree roots 0");
 }
 
 TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negative)
@@ -718,7 +718,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negat
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(composer, inputs);
 
     ASSERT_TRUE(composer.failed());
-    ASSERT_EQ(composer.get_first_failure(), "Membership check failed: historic contract data tree roots 0");
+    ASSERT_EQ(composer.get_first_failure().message, "Membership check failed: historic contract data tree roots 0");
 }
 
 TEST_F(base_rollup_tests, native_constants_dont_change)
