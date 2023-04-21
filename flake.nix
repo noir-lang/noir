@@ -103,7 +103,7 @@
       commonArgs = environment // {
         pname = "noir";
         # x-release-please-start-version
-        version = "0.3.2";
+        version = "0.4.1";
         # x-release-please-end
 
         # Use our custom stdenv to build and test our Rust project
