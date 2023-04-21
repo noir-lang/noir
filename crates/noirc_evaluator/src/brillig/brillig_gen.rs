@@ -14,8 +14,6 @@ use acvm::FieldElement;
 use acvm::acir::brillig_bytecode::{
     Opcode as BrilligOpcode, OracleData, RegisterIndex, RegisterMemIndex, Typ as BrilligType,
 };
-use noirc_abi::MAIN_RETURN_NAME;
-use num_traits::Signed;
 
 const PREFIX_LEN: usize = 3;
 
@@ -557,8 +555,8 @@ impl BrilligGen {
         returned_values: &Vec<NodeId>,
     ) -> (Vec<OracleInput>, Vec<OracleOutput>) {
         let mut inputs = Vec::new();
-        for (param, arg) in funct.arguments.iter().zip(arguments) {
-            let input = if let Some(a) = Memory::deref(ctx, param.0) {
+        for arg in arguments {
+            let input = if let Some(a) = Memory::deref(ctx, *arg) {
                 OracleInput::Array {
                     start: RegisterMemIndex::Constant(a.to_field_element()),
                     length: ctx.mem[a].len as usize,
@@ -618,13 +616,28 @@ impl BrilligGen {
                     for (input, arg) in ssa_func.arguments.iter().zip(arguments) {
                         let arg_reg = self.node_2_register(ctx, *arg);
                         let in_reg = self.node_2_register(ctx, input.0);
-                        self.push_code(brillig_bytecode::Opcode::Mov {
-                            destination: in_reg,
-                            source: arg_reg,
-                        });
+                        let a = Memory::deref(ctx, input.0);
+                        let b = Memory::deref(ctx, *arg);
+                        match (a, b) {
+                            (Some(a), Some(b)) => {
+                                let len = ctx.mem[a].len;
+                                let a_reg = RegisterMemIndex::Constant(a.to_field_element());
+                                let b_reg = RegisterMemIndex::Constant(b.to_field_element());
+                                self.memcpy(b_reg, a_reg, len as usize);
+                            }
+                            (None, None) => {
+                                self.push_code(brillig_bytecode::Opcode::Mov {
+                                    destination: in_reg,
+                                    source: arg_reg,
+                                });
+                            }
+                            _ => unreachable!("expected array when calling {}", ssa_func.name),
+                        }
                     }
                     self.obj.to_fix.push((self.code_len(), BlockId::dummy()));
-                    self.push_code(brillig_bytecode::Opcode::PushStack{ source: RegisterMemIndex::Constant(FieldElement::zero()) });
+                    self.push_code(brillig_bytecode::Opcode::PushStack {
+                        source: RegisterMemIndex::Constant(FieldElement::zero()),
+                    });
 
                     if func_adr == 0 {
                         self.obj.to_fix.push((self.code_len(), ssa_func.entry_block));
@@ -638,6 +651,17 @@ impl BrilligGen {
                         if let Some(ret) = returned_arrays.get(j) {
                             if ret.1 as usize == ret_i {
                                 j += 1;
+                                dbg!(&returned_arrays);
+                                dbg!(&returned_values);
+                                //  todo!();
+                                //memcpy le registre i vers ret
+                                let array = &ctx.mem[ret.0];
+                                let a_reg = RegisterMemIndex::Constant(ret.0.to_field_element());
+                                self.memcpy(
+                                    RegisterMemIndex::Register(RegisterIndex(ret_i)),
+                                    a_reg,
+                                    array.len as usize,
+                                );
                                 continue; //should be the same
                             }
                         }
@@ -645,21 +669,11 @@ impl BrilligGen {
                             //memcpy ret_i into a
                             let array = &ctx.mem[a];
                             let a_reg = RegisterMemIndex::Constant(a.to_field_element());
-                            for k in 0..array.len {
-                                let tmp = self.get_tmp_register();
-                                let index =
-                                    RegisterMemIndex::Constant(FieldElement::from(k as i128));
-                                self.push_code(BrilligOpcode::Load {
-                                    destination: RegisterMemIndex::Register(tmp),
-                                    array_id_reg: RegisterMemIndex::Register(RegisterIndex(ret_i)),
-                                    index,
-                                });
-                                self.push_code(BrilligOpcode::Store {
-                                    source: RegisterMemIndex::Register(tmp),
-                                    array_id_reg: a_reg,
-                                    index,
-                                });
-                            }
+                            self.memcpy(
+                                RegisterMemIndex::Register(RegisterIndex(ret_i)),
+                                a_reg,
+                                array.len as usize,
+                            );
                         } else {
                             let destination = self.node_2_register(ctx, returned_values[i]);
                             self.push_code(brillig_bytecode::Opcode::Mov {
@@ -700,6 +714,24 @@ impl BrilligGen {
                     }
                 }
             }
+        }
+    }
+
+    fn memcpy(&mut self, a: RegisterMemIndex, b: RegisterMemIndex, len: usize) {
+        //memcpy a into b
+        for k in 0..len {
+            let tmp = self.get_tmp_register();
+            let index = RegisterMemIndex::Constant(FieldElement::from(k as i128));
+            self.push_code(BrilligOpcode::Load {
+                destination: RegisterMemIndex::Register(tmp),
+                array_id_reg: a,
+                index,
+            });
+            self.push_code(BrilligOpcode::Store {
+                source: RegisterMemIndex::Register(tmp),
+                array_id_reg: b,
+                index,
+            });
         }
     }
 }
