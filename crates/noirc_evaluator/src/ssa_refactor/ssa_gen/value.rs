@@ -1,13 +1,13 @@
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
 
-pub(super) enum Nested<T> {
-    Tuple(Vec<Nested<T>>),
-    Single(T),
+pub(super) enum Tree<T> {
+    Branch(Vec<Tree<T>>),
+    Leaf(T),
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum SingleValue {
+pub(super) enum Value {
     Normal(IrValueId),
     Function(IrFunctionId),
 
@@ -16,25 +16,25 @@ pub(super) enum SingleValue {
     Unit,
 }
 
-pub(super) type Value = Nested<SingleValue>;
+pub(super) type Values = Tree<Value>;
 
-impl<T> Nested<T> {
+impl<T> Tree<T> {
     pub(super) fn flatten(self) -> Vec<T> {
         match self {
-            Nested::Tuple(values) => values.into_iter().flat_map(Nested::flatten).collect(),
-            Nested::Single(value) => vec![value],
+            Tree::Branch(values) => values.into_iter().flat_map(Tree::flatten).collect(),
+            Tree::Leaf(value) => vec![value],
         }
     }
 }
 
-impl From<IrValueId> for Nested<SingleValue> {
+impl From<IrValueId> for Values {
     fn from(id: IrValueId) -> Self {
-        Self::Single(SingleValue::Normal(id))
+        Self::Leaf(Value::Normal(id))
     }
 }
 
-impl From<IrValueId> for SingleValue {
+impl From<IrValueId> for Value {
     fn from(id: IrValueId) -> Self {
-        SingleValue::Normal(id)
+        Value::Normal(id)
     }
 }

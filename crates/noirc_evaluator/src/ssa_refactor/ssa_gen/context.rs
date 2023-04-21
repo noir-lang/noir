@@ -12,13 +12,13 @@ use crate::ssa_refactor::{
     ir::function::FunctionId as IrFunctionId, ssa_builder::function_builder::FunctionBuilder,
 };
 
-use super::value::{Nested, Value};
+use super::value::{Tree, Values};
 
 // TODO: Make this a threadsafe queue so we can compile functions in parallel
 type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 
 pub(super) struct FunctionContext<'a> {
-    definitions: HashMap<LocalId, Value>,
+    definitions: HashMap<LocalId, Values>,
     function_builder: FunctionBuilder<'a>,
     shared_context: &'a SharedContext,
 }
@@ -73,24 +73,30 @@ impl<'a> FunctionContext<'a> {
         self.definitions.insert(parameter_id, parameter_value);
     }
 
+    /// Maps the given type to a Tree of the result type.
+    ///
+    /// This can be used to (for example) flatten a tuple type, creating
+    /// and returning a new parameter for each field type.
     pub(super) fn map_type<T>(
         &mut self,
         typ: &ast::Type,
         mut f: impl FnMut(&mut Self, Type) -> T,
-    ) -> Nested<T> {
+    ) -> Tree<T> {
         self.map_type_helper(typ, &mut f)
     }
 
+    // This helper is needed because we need to take f by mutable reference,
+    // otherwise we cannot move it multiple times each loop of vecmap.
     fn map_type_helper<T>(
         &mut self,
         typ: &ast::Type,
         f: &mut impl FnMut(&mut Self, Type) -> T,
-    ) -> Nested<T> {
+    ) -> Tree<T> {
         match typ {
             ast::Type::Tuple(fields) => {
-                Nested::Tuple(vecmap(fields, |field| self.map_type_helper(field, f)))
+                Tree::Branch(vecmap(fields, |field| self.map_type_helper(field, f)))
             }
-            other => Nested::Single(f(self, Self::convert_non_tuple_type(other))),
+            other => Tree::Leaf(f(self, Self::convert_non_tuple_type(other))),
         }
     }
 
