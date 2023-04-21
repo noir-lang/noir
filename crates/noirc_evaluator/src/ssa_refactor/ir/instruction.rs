@@ -121,10 +121,14 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// Jump If
     ///
-    /// Jumps to the specified `destination` with
-    /// arguments, if the condition
-    /// if the condition is true.
-    JmpIf { condition: ValueId, destination: BasicBlockId, arguments: Vec<ValueId> },
+    /// If the condition is true: jump to the specified `then_destination` with `arguments`.
+    /// Otherwise, jump to the specified `else_destination` with `arguments`.
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        arguments: Vec<ValueId>,
+    },
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`
