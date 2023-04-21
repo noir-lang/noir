@@ -45,10 +45,10 @@ tempdir = "0.3.7"
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+rayon = "1.7.0"
 
 [features]
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["aztec_backend"]
 plonk_bn254_wasm = ["aztec_wasm_backend"]
-

@@ -2025,6 +2025,7 @@ dependencies = [
  "noirc_driver",
  "noirc_frontend",
  "predicates 2.1.5",
+ "rayon",
  "rustc_version",
  "serde",
  "serde_json",

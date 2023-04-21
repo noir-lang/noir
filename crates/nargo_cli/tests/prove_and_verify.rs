@@ -64,38 +64,56 @@ mod tests {
         copy_recursively(test_data_dir, &tmp_dir)
             .expect("failed to copy test cases to temp directory");
 
-        let test_case_dirs =
-            fs::read_dir(&tmp_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+        let test_case_dirs: Vec<_> =
+            fs::read_dir(&tmp_dir).unwrap().flatten().filter(|c| c.path().is_dir()).collect();
 
-        for test_dir in test_case_dirs {
-            let test_name =
-                test_dir.file_name().into_string().expect("Directory can't be converted to string");
-            let test_program_dir = &test_dir.path();
+        enum TestStatus {
+            Skipped,
+            Result(bool, String),
+            Panicked(String),
+        }
+        use rayon::prelude::*;
 
-            if config_data["exclude"].contains(&test_name) {
-                println!("Skipping test {test_name}");
-                continue;
-            }
+        // Collect all of the results for each test in parallel
+        let results: Vec<_> = test_case_dirs
+            .into_par_iter()
+            .map(|test_dir| {
+                let test_name = test_dir
+                    .file_name()
+                    .into_string()
+                    .expect("Directory can't be converted to string");
+                let test_program_dir = &test_dir.path();
 
-            println!("Running test {test_name}");
-
-            let verified = std::panic::catch_unwind(|| {
-                nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
-            });
-
-            let r = match verified {
-                Ok(result) => result,
-                Err(_) => {
-                    panic!(
-                        "\n\n\nPanic occurred while running test {test_name} (ignore the following panic)"
-                    );
+                if config_data["exclude"].contains(&test_name) {
+                    println!("Skipping test {test_name}");
+                    return TestStatus::Skipped;
+                } else {
+                    let verified = std::panic::catch_unwind(|| {
+                        nargo_cli::cli::prove_and_verify("pp", test_program_dir, false)
+                    });
+                    match verified {
+                        Ok(result) => TestStatus::Result(result, test_name.clone()),
+                        Err(_) => TestStatus::Panicked(test_name.clone()),
+                    }
                 }
+            })
+            .collect();
+
+        // Iterate each result and check if we panicked/if the result was what
+        // we expected it to be.
+        for test_result in results {
+            let (verification_result, test_name) = match test_result {
+                TestStatus::Skipped => continue,
+                TestStatus::Result(verification_result, test_name) => {
+                    (verification_result, test_name)
+                }
+                TestStatus::Panicked(test_name) => panic!("{test_name} panicked"),
             };
 
             if config_data["fail"].contains(&test_name) {
-                assert!(!r, "{:?} should not succeed", test_name);
+                assert!(!verification_result, "{:?} should not succeed", test_name);
             } else {
-                assert!(r, "verification fail for {:?}", test_name);
+                assert!(verification_result, "verification fail for {:?}", test_name);
             }
         }
 
