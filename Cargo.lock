@@ -293,9 +293,9 @@ dependencies = [
 
 [[package]]
 name = "barretenberg-sys"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "550a86403cc44a6ddca26c74ffecf5c0f6aa64f7de9952654b7c6ed062184c3e"
+checksum = "6bc96e40cc45e7d5622cbc57a140aee926a7fb6e4f7d07dda758daa9256f3317"
 dependencies = [
  "bindgen",
  "cc",
@@ -308,7 +308,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_static_lib"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=680457cf59ccd3f0b6db6fc545c606294964c72d#680457cf59ccd3f0b6db6fc545c606294964c72d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
 dependencies = [
  "barretenberg-sys",
  "common",
@@ -317,7 +317,7 @@ dependencies = [
 [[package]]
 name = "barretenberg_wasm"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=680457cf59ccd3f0b6db6fc545c606294964c72d#680457cf59ccd3f0b6db6fc545c606294964c72d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
 dependencies = [
  "common",
  "getrandom",
@@ -621,7 +621,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/noir-lang/aztec_backend?rev=680457cf59ccd3f0b6db6fc545c606294964c72d#680457cf59ccd3f0b6db6fc545c606294964c72d"
+source = "git+https://github.com/noir-lang/aztec_backend?rev=e3d4504f15e1295e637c4da80b1d08c87c267c45#e3d4504f15e1295e637c4da80b1d08c87c267c45"
 dependencies = [
  "acvm",
  "blake2",
