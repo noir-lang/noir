@@ -1206,7 +1206,7 @@ impl Operation {
                 UnsafeCall {
                     func: f(*func_id),
                     arguments: vecmap(arguments.iter().copied(), &mut f),
-                    predicate: *predicate,
+                    predicate: predicate.map(|p| f(p)),
                     returned_values: vecmap(returned_values.clone(), &mut f),
                     location: *location,
                 }
@@ -1263,7 +1263,7 @@ impl Operation {
                     *arg = f(*arg);
                 }
             }
-            UnsafeCall { func, arguments, returned_values, .. } => {
+            UnsafeCall { func, arguments, returned_values, predicate, .. } => {
                 *func = f(*func);
                 for arg in arguments {
                     *arg = f(*arg);
@@ -1271,6 +1271,10 @@ impl Operation {
                 for ret in returned_values {
                     *ret = f(*ret);
                 }
+                if let Some(p) = *predicate {
+                    *predicate = Some(f(p));
+                }
+               
             }
             Return(values) => {
                 for value in values {
@@ -1320,10 +1324,11 @@ impl Operation {
                 f(*func);
                 arguments.iter().copied().for_each(f);
             }
-            UnsafeCall { func, arguments, returned_values, .. } => {
+            UnsafeCall { func, arguments, returned_values, predicate, .. } => {
                 f(*func);
                 arguments.iter().copied().for_each(&mut f);
                 returned_values.iter().copied().for_each(&mut f);
+                predicate.map(|p| f(p));
             }
             Return(values) => values.iter().copied().for_each(f),
             Result { call_instruction, .. } => {
