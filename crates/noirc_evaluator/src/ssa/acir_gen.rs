@@ -153,10 +153,10 @@ impl Acir {
         let mut register_load = Vec::with_capacity(arguments.len());
         let mut jabber_inputs = Vec::with_capacity(arguments.len());
         let mut jabber_outputs = Vec::with_capacity(returns.len());
-
         for (call_argument, func_argument) in arguments.iter().zip(&f.arguments) {
-            jabber_inputs.push(jabber_node(call_argument, self, ctx, evaluator)?);
+            let input = jabber_node(call_argument, &func_argument.0, self, ctx, evaluator)?;
             register_load.push(func_argument.0 .0.into_raw_parts().0 as u32);
+            jabber_inputs.push(input);
         }
 
         for i in returns {
@@ -194,34 +194,37 @@ pub(crate) fn expression_to_witness(expr: Expression, evaluator: &mut Evaluator)
 
 // Converts a nodeid into a JabberingIn
 fn jabber_node(
-    node_id: &NodeId,
+    input_id: &NodeId,
+    arg_id: &NodeId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Result<BrilligInputs, RuntimeError> {
-    if let Some(a) = Memory::deref(cfg, *node_id) {
-        return jabber_array(a, acir_gen, cfg, evaluator);
+    if let Some(a) = Memory::deref(cfg, *input_id) {
+        let b = Memory::deref(cfg, *arg_id).unwrap();
+        return jabber_array(a, b, acir_gen, cfg, evaluator);
     }
 
     let ivar = acir_gen
         .var_cache
-        .get_or_compute_internal_var(*node_id, evaluator, cfg)
+        .get_or_compute_internal_var(*input_id, evaluator, cfg)
         .expect("invalid input");
     Ok(BrilligInputs::Simple(ivar.to_expression()))
 }
 
 fn jabber_array(
-    array_id: ArrayId,
+    input_array: ArrayId,
+    arg_array: ArrayId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Result<BrilligInputs, RuntimeError> {
     let mut inputs = Vec::new();
 
-    let array = &cfg.mem[array_id];
+    let array = &cfg.mem[input_array];
     for i in 0..array.len {
         let element = load::evaluate_with_conts_index(
-            array_id,
+            input_array,
             i,
             &mut acir_gen.memory,
             None,
@@ -230,7 +233,7 @@ fn jabber_array(
         )?;
         inputs.push(element.expression().clone());
     }
-    Ok(BrilligInputs::Array(array_id.to_u32(), inputs))
+    Ok(BrilligInputs::Array(arg_array.to_u32(), inputs))
 }
 
 fn jabber_output(
