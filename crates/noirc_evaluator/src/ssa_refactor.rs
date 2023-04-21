@@ -8,6 +8,8 @@
 #[allow(dead_code)]
 mod basic_block;
 #[allow(dead_code)]
+mod cfg;
+#[allow(dead_code)]
 mod dfg;
 #[allow(dead_code)]
 mod ir;

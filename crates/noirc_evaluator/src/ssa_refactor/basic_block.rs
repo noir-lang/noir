@@ -25,7 +25,13 @@ pub(crate) struct BasicBlock {
     terminator: TerminatorInstruction,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+impl BasicBlock {
+    pub(crate) fn terminator(&self) -> &TerminatorInstruction {
+        &self.terminator
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 /// An identifier for a Basic Block.
 pub(crate) struct BasicBlockId;
 
